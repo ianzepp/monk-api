@@ -47,12 +47,11 @@ async function seedDatabase() {
 
       // Create schema record
       await db.insert(schema.schemas).values({
-        id: crypto.randomUUID(),
         name: schemaName,
         table_name: tableName,
         status: 'active',
         definition: jsonSchema,
-        field_count: Object.keys(jsonSchema.properties || {}).length
+        field_count: Object.keys(jsonSchema.properties || {}).length.toString()
       });
 
       // Create the actual table
