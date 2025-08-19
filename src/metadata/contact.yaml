@@ -1,0 +1,48 @@
+title: Contact
+description: Individual contact person associated with accounts
+type: object
+properties:
+  first_name:
+    type: string
+    minLength: 1
+    maxLength: 100
+    description: Contact's first name
+  last_name:
+    type: string
+    minLength: 1
+    maxLength: 100
+    description: Contact's last name
+  email:
+    type: string
+    format: email
+    maxLength: 255
+    description: Contact's email address
+  phone:
+    type: string
+    maxLength: 50
+    description: Contact's phone number
+  title:
+    type: string
+    maxLength: 100
+    description: Job title or position
+  account_id:
+    type: string
+    format: uuid
+    description: Associated account ID
+    x-paas:
+      foreign_key:
+        table: accounts
+        column: id
+        on_delete: cascade
+  is_primary:
+    type: boolean
+    default: false
+    description: Whether this is the primary contact for the account
+  status:
+    type: string
+    enum: ["active", "inactive"]
+    default: "active"
+    description: Contact status
+required:
+  - first_name
+  - last_name

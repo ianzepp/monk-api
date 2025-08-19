@@ -1,0 +1,60 @@
+title: User
+description: System user account for authentication and authorization
+type: object
+properties:
+  username:
+    type: string
+    minLength: 3
+    maxLength: 50
+    pattern: "^[a-zA-Z0-9_-]+$"
+    description: Unique username for login
+  email:
+    type: string
+    format: email
+    maxLength: 255
+    description: User's email address (used for login)
+  first_name:
+    type: string
+    minLength: 1
+    maxLength: 100
+    description: User's first name
+  last_name:
+    type: string
+    minLength: 1
+    maxLength: 100
+    description: User's last name
+  password_hash:
+    type: string
+    maxLength: 255
+    description: Hashed password (never store plain text)
+  role:
+    type: string
+    enum: ["admin", "user", "viewer"]
+    default: "user"
+    description: User role for authorization
+  is_active:
+    type: boolean
+    default: true
+    description: Whether the user account is active
+  last_login:
+    type: string
+    format: date-time
+    description: Timestamp of last successful login
+  email_verified:
+    type: boolean
+    default: false
+    description: Whether the user's email has been verified
+  account_id:
+    type: string
+    format: uuid
+    description: Associated account ID (optional for multi-tenant support)
+    x-paas:
+      foreign_key:
+        table: accounts
+        column: id
+        on_delete: cascade
+required:
+  - username
+  - email
+  - first_name
+  - last_name

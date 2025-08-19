@@ -1,0 +1,39 @@
+{
+  "name": "monk-api-hono",
+  "version": "1.0.0",
+  "description": "Lightweight PaaS backend API built with Hono",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/scripts/seed.ts",
+    "db:clean": "tsx src/scripts/clean.ts"
+  },
+  "keywords": ["hono", "api", "paas", "typescript", "postgresql"],
+  "author": "Ian Zepp",
+  "license": "MIT",
+  "dependencies": {
+    "hono": "^4.6.5",
+    "drizzle-orm": "^0.44.4",
+    "pg": "^8.16.3",
+    "zod": "^4.0.17",
+    "js-yaml": "^4.1.0",
+    "@hono/node-server": "^1.13.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/pg": "^8.15.5",
+    "@types/js-yaml": "^4.0.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "drizzle-kit": "^0.31.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
