@@ -8,8 +8,55 @@ set -e
 # Import common functions
 source "$(dirname "$0")/common.sh"
 
-# Get the schema name
-SCHEMA="$1"
+# Parse flags manually to support long options
+SCHEMA=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -f)
+            export CLI_EXTRACT_FIELD="$2"
+            shift 2
+            ;;
+        -c)
+            export CLI_COUNT_MODE=true
+            shift
+            ;;
+        -x)
+            export CLI_EXIT_CODE_ONLY=true
+            shift
+            ;;
+        -v)
+            export CLI_VERBOSE=true
+            shift
+            ;;
+        --head)
+            export CLI_HEAD_MODE=true
+            shift
+            ;;
+        --tail)
+            export CLI_TAIL_MODE=true
+            shift
+            ;;
+        -H)
+            export CLI_HEAD_MODE=true
+            shift
+            ;;
+        -T)
+            export CLI_TAIL_MODE=true
+            shift
+            ;;
+        -*)
+            echo "Unknown flag: $1" >&2
+            exit 1
+            ;;
+        *)
+            # First non-flag argument is schema name
+            if [[ -z "$SCHEMA" ]]; then
+                SCHEMA="$1"
+            fi
+            shift
+            ;;
+    esac
+done
 
 if [[ -z "$SCHEMA" ]]; then
     echo '{"error":"Schema name required for find operation","success":false}' >&2
@@ -39,5 +86,34 @@ response=$(curl -s -X POST "$URL" \
     -H "Content-Type: application/json" \
     -d "$INPUT_DATA")
 
-# Process response using common handler
-handle_response "$response"
+# Process response with head/tail support
+if [ "$CLI_HEAD_MODE" = "true" ]; then
+    # Extract first record from array
+    if echo "$response" | jshon -e success -u | grep -q "true"; then
+        first_record=$(echo "$response" | jshon -e data -e 0 2>/dev/null || echo "null")
+        if [ "$first_record" != "null" ]; then
+            echo "{\"success\":true,\"data\":$first_record}"
+        else
+            echo '{"success":true,"data":null}'
+        fi
+    else
+        echo "$response"
+    fi
+elif [ "$CLI_TAIL_MODE" = "true" ]; then
+    # Extract last record from array
+    if echo "$response" | jshon -e success -u | grep -q "true"; then
+        array_length=$(echo "$response" | jshon -e data -l 2>/dev/null || echo "0")
+        if [ "$array_length" -gt 0 ]; then
+            last_index=$((array_length - 1))
+            last_record=$(echo "$response" | jshon -e data -e "$last_index" 2>/dev/null || echo "null")
+            echo "{\"success\":true,\"data\":$last_record}"
+        else
+            echo '{"success":true,"data":null}'
+        fi
+    else
+        echo "$response"
+    fi
+else
+    # Use standard response handler
+    handle_response "$response" "find"
+fi

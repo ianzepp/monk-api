@@ -28,6 +28,12 @@ monk meta get schema account
 cat schema.yaml | monk meta create schema
 cat updated-schema.yaml | monk meta update schema account
 monk meta delete schema account
+
+# Advanced search operations
+echo '{"where": {"status": "active"}}' | monk find user
+echo '{"select": ["name"], "where": {"age": {"$gte": 18}}}' | monk find user
+monk find user --head < query.json    # Get first record
+monk find user --tail < query.json    # Get last record
 ```
 
 ## Configuration
@@ -53,6 +59,12 @@ monk data get account <id> -f name
 
 # Count records
 monk data list account -c
+
+# Convenience flags for find operations
+monk find user --head < query.json     # First record only
+monk find user --tail < query.json     # Last record only
+monk find user -H < query.json         # Short form of --head
+monk find user -T < query.json         # Short form of --tail
 ```
 
 ## Features
