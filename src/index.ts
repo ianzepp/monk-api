@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from './db/index.js';
 import { createSuccessResponse, createInternalError } from './lib/api/responses.js';
+import dataRouter from './routes/data.js';
 
 // Create Hono app
 const app = new Hono();
@@ -39,8 +40,9 @@ app.get('/', (c) => {
   });
 });
 
-// TODO: Add API routes
-// app.route('/api/data', dataRouter);
+// API routes
+app.route('/api/data', dataRouter);
+// TODO: Add meta routes
 // app.route('/api/meta', metaRouter);
 
 // Error handling
