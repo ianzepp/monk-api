@@ -1,0 +1,45 @@
+#!/bin/bash
+set -e
+
+# Monk CLI - Standalone command-line interface for PaaS Backend API
+# 
+# Usage: monk <module> <operation> [args...]
+#
+# Examples:
+#   monk data list account
+#   monk meta list schema -e name
+#   echo '{"name":"Test"}' | monk data create account
+#
+# Environment Variables:
+#   CLI_BASE_URL - Target API server (default: http://localhost:3000)
+
+# Get the directory of this script (CLI root)
+CLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Change to CLI directory 
+cd "$CLI_ROOT"
+
+# Check if module is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: monk <module> <operation> [args...]" >&2
+    echo "Modules: data, meta" >&2
+    exit 1
+fi
+
+# Get the module and pass remaining args to the specific CLI script
+MODULE="$1"
+shift
+
+case "$MODULE" in
+    data)
+        exec "./cli/data.sh" "$@"
+        ;;
+    meta)
+        exec "./cli/meta.sh" "$@"
+        ;;
+    *)
+        echo "Invalid module: $MODULE" >&2
+        echo "Available modules: data, meta" >&2
+        exit 1
+        ;;
+esac
