@@ -4,6 +4,8 @@ import { checkDatabaseConnection, closeDatabaseConnection } from './db/index.js'
 import { createSuccessResponse, createInternalError } from './lib/api/responses.js';
 import dataRouter from './routes/data.js';
 import metaRouter from './routes/meta.js';
+import findRouter from './routes/find.js';
+import bulkRouter from './routes/bulk.js';
 
 // Create Hono app
 const app = new Hono();
@@ -37,6 +39,8 @@ app.get('/', (c) => {
             health: '/health',
             data: '/api/data/:schema[/:id]',
             meta: '/api/meta/*',
+            find: '/api/find/:schema',
+            bulk: '/api/bulk',
         },
     });
 });
@@ -44,6 +48,8 @@ app.get('/', (c) => {
 // API routes
 app.route('/api/data', dataRouter);
 app.route('/api/meta', metaRouter);
+app.route('/api/find', findRouter);
+app.route('/api/bulk', bulkRouter);
 
 // Error handling
 app.onError((err, c) => {
