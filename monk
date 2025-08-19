@@ -22,7 +22,7 @@ cd "$CLI_ROOT"
 # Check if module is provided
 if [ $# -eq 0 ]; then
     echo "Usage: monk <module> <operation> [args...]" >&2
-    echo "Modules: data, meta" >&2
+    echo "Modules: data, meta, find" >&2
     exit 1
 fi
 
@@ -37,9 +37,12 @@ case "$MODULE" in
     meta)
         exec "./cli/meta.sh" "$@"
         ;;
+    find)
+        exec "./cli/find.sh" "$@"
+        ;;
     *)
         echo "Invalid module: $MODULE" >&2
-        echo "Available modules: data, meta" >&2
+        echo "Available modules: data, meta, find" >&2
         exit 1
         ;;
 esac
