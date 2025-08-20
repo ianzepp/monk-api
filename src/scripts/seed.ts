@@ -1,5 +1,5 @@
 import { db } from '../db/index.js';
-import { schema } from '../db/index.js';
+import { builtins } from '../db/index.js';
 import { eq, sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -33,8 +33,8 @@ async function seedDatabase() {
 
       // Check if schema already exists
       const existing = await db.select()
-        .from(schema.schemas)
-        .where(eq(schema.schemas.name, schemaName))
+        .from(builtins.schemas)
+        .where(eq(builtins.schemas.name, schemaName))
         .limit(1);
 
       if (existing.length > 0) {
@@ -46,7 +46,7 @@ async function seedDatabase() {
       const tableName = schemaName.endsWith('s') ? `${schemaName}es` : `${schemaName}s`;
 
       // Create schema record
-      await db.insert(schema.schemas).values({
+      await db.insert(builtins.schemas).values({
         name: schemaName,
         table_name: tableName,
         status: 'active',

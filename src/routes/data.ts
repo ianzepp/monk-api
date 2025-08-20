@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 
 // Router Imports
-import DataSelectAll from './data-record-select-all.js';
+import DataSelectAny from './data-record-select-any.js';
 import DataSelectOne from './data-record-select-one.js';
 import DataCreateOne from './data-record-create-one.js';
 import DataUpdateOne from './data-record-update-one.js';
@@ -10,7 +10,7 @@ import DataDeleteOne from './data-record-delete-one.js';
 const app = new Hono();
 
 // GET /api/data/:schema - List records
-app.get('/:schema', DataSelectAll);
+app.get('/:schema', DataSelectAny);
 
 // GET /api/data/:schema/:id - Get specific record
 app.get('/:schema/:id', DataSelectOne);

@@ -2,18 +2,21 @@ import { database } from './database.js';
 import { type FilterData } from './filter.js';
 import { type TxContext } from '../db/index.js';
 
+export type SchemaName = string;
+
 /**
  * Schema wrapper class providing database operation proxies
  * Inspired by cloud-api-2019/src/classes/schema.ts
  */
+
 export class Schema {
     constructor(
-        private schemaName: string,
+        private schemaName: SchemaName,
         private tableName: string,
         private definition?: any
     ) {}
 
-    get name(): string {
+    get name(): SchemaName {
         return this.schemaName;
     }
 
@@ -25,26 +28,39 @@ export class Schema {
     // Database operation proxies - delegate to Database service
     //
 
-    async count(filter?: FilterData): Promise<number> {
-        return database.count(this.schemaName, filter);
+    async count(filterData?: FilterData): Promise<number> {
+        return database.count(this.schemaName, filterData);
     }
 
-    async selectAll(filter?: FilterData): Promise<any[]> {
-        return database.selectAll(this.schemaName, filter);
+    async selectAny(filterData: FilterData = {}): Promise<any[]> {
+        return database.selectAny(this.schemaName, filterData);
     }
 
-    async selectOne(filter: FilterData | string): Promise<any | null> {
-        return database.selectOne(this.schemaName, filter);
+    async selectOne(filterData: FilterData): Promise<any | null> {
+        return database.selectOne(this.schemaName, filterData);
     }
 
-    async select404(filter: FilterData | string, message?: string): Promise<any> {
-        return database.select404(this.schemaName, filter, undefined, message);
+    async select404(filterData: FilterData, message?: string): Promise<any> {
+        return database.select404(this.schemaName, filterData, undefined, message);
     }
 
-    async selectMax(filter?: FilterData): Promise<any[]> {
+    // ID-based operations - always work with arrays
+    async selectIds(ids: string[]): Promise<any[]> {
+        return database.selectIds(this.schemaName, ids);
+    }
+
+    async updateIds(ids: string[], changes: Record<string, any>, tx: TxContext): Promise<any[]> {
+        return database.updateIds(this.schemaName, ids, changes, tx);
+    }
+
+    async deleteIds(ids: string[], tx: TxContext): Promise<any[]> {
+        return database.deleteIds(this.schemaName, ids, tx);
+    }
+
+    async selectMax(filter: FilterData = {}): Promise<any[]> {
         // Set limit to 'max' in filter and delegate
-        const maxFilter = filter ? { ...filter, limit: 100000 } : { limit: 100000 };
-        return database.selectAll(this.schemaName, maxFilter);
+        filter.limit = 10000;
+        return database.selectAny(this.schemaName, filter);
     }
 
     // Transaction-based operations (require tx context)
@@ -69,7 +85,7 @@ export class Schema {
     }
 
     async deleteAll(recordIds: string[], tx: TxContext): Promise<any[]> {
-        return database.deleteAll(this.schemaName, recordIds, tx);
+        return database.deleteIds(this.schemaName, recordIds, tx);
     }
 
     // Upsert operations (simplified - create or update based on ID presence)
@@ -98,22 +114,13 @@ export class Schema {
         return results;
     }
 
-    // Convenience methods for common patterns
-    async findOne(filter: FilterData): Promise<any | null> {
-        return database.findOne(this.schemaName, filter);
-    }
-
-    async findMany(filter: FilterData): Promise<any[]> {
-        return database.findMany(this.schemaName, filter);
-    }
-
     // Advanced filter-based operations
-    async updateAny(filter: FilterData | string[], changes: Record<string, any>, tx: TxContext): Promise<any[]> {
-        return database.updateAny(this.schemaName, filter, changes, tx);
+    async updateAny(filterData: FilterData, changes: Record<string, any>, tx: TxContext): Promise<any[]> {
+        return database.updateAny(this.schemaName, filterData, changes, tx);
     }
 
-    async deleteAny(filter: FilterData | string[], tx: TxContext): Promise<any[]> {
-        return database.deleteAny(this.schemaName, filter, tx);
+    async deleteAny(filterData: FilterData, tx: TxContext): Promise<any[]> {
+        return database.deleteAny(this.schemaName, filterData, tx);
     }
 
     // Access control operations - separate from regular data updates
@@ -125,20 +132,20 @@ export class Schema {
         return database.accessAll(this.schemaName, updates, tx);
     }
 
-    async accessAny(filter: FilterData | string[], accessChanges: Record<string, any>, tx: TxContext): Promise<any[]> {
+    async accessAny(filter: FilterData, accessChanges: Record<string, any>, tx: TxContext): Promise<any[]> {
         return database.accessAny(this.schemaName, filter, accessChanges, tx);
     }
 
     // 404 operations - throw error if record not found
-    async update404(filter: FilterData | string, changes: Record<string, any>, tx: TxContext, message?: string): Promise<any> {
+    async update404(filter: FilterData, changes: Record<string, any>, tx: TxContext, message?: string): Promise<any> {
         return database.update404(this.schemaName, filter, changes, tx, message);
     }
 
-    async delete404(filter: FilterData | string, tx: TxContext, message?: string): Promise<any> {
+    async delete404(filter: FilterData, tx: TxContext, message?: string): Promise<any> {
         return database.delete404(this.schemaName, filter, tx, message);
     }
 
-    async access404(filter: FilterData | string, accessChanges: Record<string, any>, tx: TxContext, message?: string): Promise<any> {
+    async access404(filter: FilterData, accessChanges: Record<string, any>, tx: TxContext, message?: string): Promise<any> {
         return database.access404(this.schemaName, filter, accessChanges, tx, message);
     }
 
@@ -156,7 +163,8 @@ export class Schema {
  * Factory function to create Schema instances
  */
 export async function createSchema(schemaName: string): Promise<Schema> {
-    const schemaInfo = await database.getSchema(schemaName);
+    const schemaInfo = await database.toSchema(schemaName);
+    
     if (!schemaInfo) {
         throw new Error(`Schema '${schemaName}' not found`);
     }

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { db, schema } from '../db/index.js';
+import { db, builtins } from '../db/index.js';
 import { eq } from 'drizzle-orm';
 import { Filter, type FilterData } from '../lib/filter.js';
 import {
@@ -19,8 +19,8 @@ export default async function (c: Context): Promise<any> {
         // Verify schema exists
         const schemaInfo = await db
             .select()
-            .from(schema.schemas)
-            .where(eq(schema.schemas.name, schemaName))
+            .from(builtins.schemas)
+            .where(eq(builtins.schemas.name, schemaName))
             .limit(1);
 
         if (schemaInfo.length === 0) {

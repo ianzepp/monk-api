@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import * as schema from './schema.js';
+import * as builtinSchema from './schema.js';
 
 const { Pool } = pg;
 
@@ -16,10 +16,10 @@ const pool = new Pool({
 });
 
 // Create Drizzle instance
-export const db = drizzle(pool, { schema });
+export const db = drizzle(pool, { schema: builtinSchema });
 
-// Export schema for easy access
-export { schema };
+// Export builtin schema tables
+export const builtins = builtinSchema;
 
 // Types
 export type DbContext = typeof db;

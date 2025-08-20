@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 
 // Router Imports
-import MetaSchemaSelectAll from './meta-schema-select-all.js';
+import MetaSchemaSelectAny from './meta-schema-select-any.js';
 import MetaSchemaSelectOne from './meta-schema-select-one.js';
 import MetaSchemaCreateOne from './meta-schema-create-one.js';
 import MetaSchemaUpdateOne from './meta-schema-update-one.js';
@@ -10,7 +10,7 @@ import MetaSchemaDeleteOne from './meta-schema-delete-one.js';
 const app = new Hono();
 
 // GET /api/meta/schema - List schemas
-app.get('/schema', MetaSchemaSelectAll);
+app.get('/schema', MetaSchemaSelectAny);
 
 // GET /api/meta/schema/:name - Get specific schema
 app.get('/schema/:name', MetaSchemaSelectOne);
