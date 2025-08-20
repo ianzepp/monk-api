@@ -42,6 +42,14 @@ print_warning() {
     echo -e "${YELLOW}$1${NC}"
 }
 
+# Get stored JWT token
+get_jwt_token() {
+    local jwt_token_file="${HOME}/.monk-jwt-token"
+    if [ -f "$jwt_token_file" ]; then
+        cat "$jwt_token_file"
+    fi
+}
+
 # Make HTTP request and handle response - programmatic by default
 make_request() {
     local method="$1"
@@ -56,6 +64,18 @@ make_request() {
     fi
     
     local curl_args=(-s -X "$method" -H "Content-Type: application/json")
+    
+    # Add JWT token if available (unless it's an auth request)
+    if [[ "$url" != "/auth/"* ]]; then
+        local jwt_token
+        jwt_token=$(get_jwt_token)
+        if [ -n "$jwt_token" ]; then
+            curl_args+=(-H "Authorization: Bearer $jwt_token")
+            if [ "$CLI_VERBOSE" = "true" ]; then
+                print_info "Using stored JWT token" >&2
+            fi
+        fi
+    fi
     
     if [ -n "$data" ]; then
         curl_args+=(-d "$data")

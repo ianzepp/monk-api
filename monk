@@ -13,8 +13,19 @@ set -e
 # Environment Variables:
 #   CLI_BASE_URL - Target API server (default: http://localhost:3000)
 
-# Get the directory of this script (CLI root)
-CLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the directory of this script (CLI root) - handle symlinks
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+# Resolve symlinks to get the real path
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_DIR=$(cd "$(dirname "$SCRIPT_PATH")" && pwd)
+    SCRIPT_PATH=$(readlink "$SCRIPT_PATH")
+    # Handle relative symlinks (portable check)
+    case "$SCRIPT_PATH" in
+        /*) ;; # Absolute path, do nothing
+        *) SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH" ;;
+    esac
+done
+CLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 
 # Change to CLI directory 
 cd "$CLI_ROOT"
@@ -22,7 +33,7 @@ cd "$CLI_ROOT"
 # Check if module is provided
 if [ $# -eq 0 ]; then
     echo "Usage: monk <module> <operation> [args...]" >&2
-    echo "Modules: data, meta, find" >&2
+    echo "Modules: auth, data, meta, find, ping, hono, test" >&2
     exit 1
 fi
 
@@ -31,6 +42,9 @@ MODULE="$1"
 shift
 
 case "$MODULE" in
+    auth)
+        exec "./cli/auth.sh" "$@"
+        ;;
     data)
         exec "./cli/data.sh" "$@"
         ;;
@@ -40,9 +54,18 @@ case "$MODULE" in
     find)
         exec "./cli/find.sh" "$@"
         ;;
+    ping)
+        exec "./cli/ping.sh" "$@"
+        ;;
+    hono)
+        exec "./cli/hono.sh" "$@"
+        ;;
+    test)
+        exec "./cli/test.sh" "$@"
+        ;;
     *)
         echo "Invalid module: $MODULE" >&2
-        echo "Available modules: data, meta, find" >&2
+        echo "Available modules: auth, data, meta, find, ping, hono, test" >&2
         exit 1
         ;;
 esac
