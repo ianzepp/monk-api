@@ -12,6 +12,7 @@ set -e
 #   status                   Check if server is running
 #   list                     List all Hono-related processes
 #   kill [pid]               Force kill all Hono processes (or specific PID)
+#   logs <pid> [options]     View logs for specific server process
 
 # Load common functions
 source "$(dirname "$0")/common.sh"
@@ -43,6 +44,7 @@ Operations:
   status                   Check if server is running
   list                     List all Hono-related processes
   kill [pid]               Force kill all Hono processes (or specific PID)
+  logs <pid> [options]     View logs for specific server process
 
 Examples:
   monk hono start          # Start on default port 3000
@@ -53,6 +55,8 @@ Examples:
   monk hono list           # Show all running Hono processes
   monk hono kill           # Force kill all stuck processes
   monk hono kill 1234      # Force kill specific PID
+  monk hono logs 1234      # View logs for PID 1234
+  monk hono logs 1234 -f   # Follow logs for PID 1234
 
 Process Management:
   list                     Shows all Hono-related processes with PID, CPU, memory usage
@@ -97,9 +101,12 @@ main() {
         list|kill)
             exec "$(dirname "$0")/hono-process.sh" "$operation" "$@"
             ;;
+        logs)
+            exec "$(dirname "$0")/hono-logs.sh" "$@"
+            ;;
         *)
             print_error "Unknown operation: $operation"
-            print_info "Available operations: start, stop, restart, status, list, kill"
+            print_info "Available operations: start, stop, restart, status, list, kill, logs"
             print_info "Use 'monk hono --help' for more information"
             exit 1
             ;;

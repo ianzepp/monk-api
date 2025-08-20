@@ -82,9 +82,21 @@ create_record() {
         echo "$json_data" | sed 's/^/  /'
     fi
     
+    # POST /api/data/:schema expects an array, so wrap single object in array
+    local array_data="[$json_data]"
+    
     local response
-    response=$(make_request "POST" "/api/data/$schema" "$json_data")
-    handle_response "$response" "create"
+    response=$(make_request "POST" "/api/data/$schema" "$array_data")
+    
+    # Extract single object from array response to match input format
+    if [ "$JSON_PARSER" = "jq" ]; then
+        # Extract first item from array response for single-object input
+        local single_response
+        single_response=$(echo "$response" | jq '{"success": .success, "data": .data[0], "error": .error, "error_code": .error_code}' 2>/dev/null || echo "$response")
+        handle_response "$single_response" "create"
+    else
+        handle_response "$response" "create"
+    fi
 }
 
 # Update an existing record from stdin

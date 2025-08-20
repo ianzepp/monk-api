@@ -56,6 +56,7 @@ Test management and execution for Monk API test suite.
 
 Commands:
   all [pattern]           Run tests (all if no pattern, or matching pattern)
+  preview [pattern]       Show tests that would be run without executing them
   run <operation>         Manage test run environments
   pool <operation>        Manage database pool for testing
   env [var_name]          Show test environment variables
@@ -97,6 +98,9 @@ Examples:
   monk test all 00                 # Run setup tests only
   monk test all 10-29              # Run connection and meta API tests
   monk test all meta-api           # Run all meta API related tests
+  monk test preview                # Show all available tests
+  monk test preview 10-20          # Show tests matching pattern 10-20
+  monk test preview meta-api       # Show tests matching 'meta-api'
   monk test run main               # Test current main branch HEAD
   monk test run main abc123        # Test specific commit abc123
   monk test run feature/API-281    # Test feature branch HEAD
@@ -159,6 +163,9 @@ main() {
         all)
             exec "$(dirname "$0")/test-all.sh" "$@"
             ;;
+        preview)
+            exec "$(dirname "$0")/test-preview.sh" "$@"
+            ;;
         run)
             exec "$(dirname "$0")/test-run.sh" "$@"
             ;;
@@ -179,7 +186,7 @@ main() {
             ;;
         *)
             print_error "Unknown command: $command"
-            print_info "Available commands: all, run, pool, env, diff"
+            print_info "Available commands: all, preview, run, pool, env, diff"
             print_info "Use 'monk test --help' for more information"
             return 1
             ;;

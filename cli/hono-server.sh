@@ -13,6 +13,7 @@ check_dependencies
 DEFAULT_PORT=3000
 PID_FILE="${HOME}/.monk-hono.pid"
 PORT_FILE="${HOME}/.monk-hono.port"
+LOG_DIR="${HOME}/.monk-logs"
 API_DIR="/Users/ianzepp/Workspaces/monk/monk-api-hono"
 
 # Colors for output
@@ -67,10 +68,20 @@ start_server() {
     
     print_info "Starting Hono server on port $port..."
     
-    # Start server in background
+    # Create logs directory if it doesn't exist
+    mkdir -p "$LOG_DIR"
+    
+    # Start server in background - we need to get PID first, then redirect
     cd "$API_DIR"
-    PORT=$port npm run dev > /dev/null 2>&1 &
+    
+    # Create a temporary log file, start process, then rename to PID-specific
+    local temp_log="${LOG_DIR}/hono-temp-$$.log"
+    PORT=$port npm run dev >> "$temp_log" 2>&1 &
     local pid=$!
+    
+    # Move temp log to PID-specific log file
+    local log_file="${LOG_DIR}/hono-${pid}.log"
+    mv "$temp_log" "$log_file"
     
     # Store PID and port
     echo "$pid" > "$PID_FILE"
@@ -103,7 +114,7 @@ stop_server() {
     pkill -P "$pid" > /dev/null 2>&1 || true
     kill "$pid" > /dev/null 2>&1 || true
     
-    # Clean up files
+    # Clean up files (keep log file for debugging)
     rm -f "$PID_FILE" "$PORT_FILE"
     
     print_info "Server stopped"

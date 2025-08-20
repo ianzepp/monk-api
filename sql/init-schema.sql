@@ -17,6 +17,7 @@ CREATE TABLE "schemas" (
 	"status" text DEFAULT 'pending' NOT NULL,
 	"definition" jsonb NOT NULL,
 	"field_count" text NOT NULL,
+	"yaml_checksum" text,
 	CONSTRAINT "schemas_name_unique" UNIQUE("name"),
 	CONSTRAINT "schemas_table_name_unique" UNIQUE("table_name")
 );

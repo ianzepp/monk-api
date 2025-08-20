@@ -132,7 +132,9 @@ handle_response() {
     
     # Count mode for list operations
     if [ "$CLI_COUNT_MODE" = "true" ] && [ "$operation_type" = "list" ]; then
-        if [ "$JSON_PARSER" = "jshon" ]; then
+        if [ "$JSON_PARSER" = "jq" ]; then
+            echo "$response" | jq '.data | length' 2>/dev/null || echo "0"
+        elif [ "$JSON_PARSER" = "jshon" ]; then
             echo "$response" | jshon -e data -l 2>/dev/null || echo "0"
         else
             echo "$response"
@@ -141,25 +143,68 @@ handle_response() {
     fi
     
     # Field extraction mode
-    if [ -n "$CLI_EXTRACT_FIELD" ]; then
-        if [ "$JSON_PARSER" = "jshon" ]; then
-            echo "$response" | jshon -e data -e "$CLI_EXTRACT_FIELD" -u 2>/dev/null || {
+    if [ -n "$CLI_FORMAT" ]; then
+        if [ "$JSON_PARSER" = "jq" ]; then
+            # Handle both single objects and arrays
+            if echo "$response" | jq -e '.data | type == "array"' >/dev/null 2>&1; then
+                # Array case - extract field from each item
+                echo "$response" | jq -r ".data[].${CLI_FORMAT}" 2>/dev/null || {
+                    if [ "$CLI_VERBOSE" = "true" ]; then
+                        print_error "Failed to extract field: $CLI_FORMAT" >&2
+                    fi
+                    exit 1
+                }
+            else
+                # Single object case - extract field directly
+                echo "$response" | jq -r ".data.${CLI_FORMAT}" 2>/dev/null || {
+                    if [ "$CLI_VERBOSE" = "true" ]; then
+                        print_error "Failed to extract field: $CLI_FORMAT" >&2
+                    fi
+                    exit 1
+                }
+            fi
+        elif [ "$JSON_PARSER" = "jshon" ]; then
+            echo "$response" | jshon -e data -e "$CLI_FORMAT" -u 2>/dev/null || {
                 if [ "$CLI_VERBOSE" = "true" ]; then
-                    print_error "Failed to extract field: $CLI_EXTRACT_FIELD" >&2
+                    print_error "Failed to extract field: $CLI_FORMAT" >&2
                 fi
                 exit 1
             }
         else
             if [ "$CLI_VERBOSE" = "true" ]; then
-                print_error "jshon required for field extraction" >&2
+                print_error "jq or jshon required for field extraction" >&2
             fi
             exit 1
         fi
         return
     fi
     
-    # Default: raw JSON output
-    echo "$response"
+    # Default: auto-extract 'data' property for cleaner output
+    if [ "$JSON_PARSER" = "jq" ]; then
+        # Check if response has success:true and extract data
+        if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+            if echo "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+                # Success response - extract data
+                echo "$response" | jq '.data'
+            else
+                # Error response - show full response for debugging
+                echo "$response"
+            fi
+        else
+            # Not a standard API response - show raw
+            echo "$response"
+        fi
+    elif [ "$JSON_PARSER" = "jshon" ]; then
+        # Check if response has success:true and extract data
+        if echo "$response" | jshon -e success -u 2>/dev/null | grep -q "true"; then
+            echo "$response" | jshon -e data 2>/dev/null || echo "$response"
+        else
+            echo "$response"
+        fi
+    else
+        # No JSON parser - raw output
+        echo "$response"
+    fi
 }
 
 # Validate required arguments
@@ -182,8 +227,10 @@ check_dependencies() {
         exit 1
     fi
     
-    # Check for jshon for JSON extraction operations
-    if command -v jshon &> /dev/null; then
+    # Check for JSON parser for extraction operations (prefer jq over jshon)
+    if command -v jq &> /dev/null; then
+        export JSON_PARSER="jq"
+    elif command -v jshon &> /dev/null; then
         export JSON_PARSER="jshon"
     else
         export JSON_PARSER="none"
