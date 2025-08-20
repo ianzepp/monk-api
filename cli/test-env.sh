@@ -18,6 +18,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 print_header() { echo -e "\n${YELLOW}=== $1 ===${NC}"; }
+print_step() { echo -e "${BLUE}→ $1${NC}"; }
+print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 print_error() { echo -e "${RED}✗ $1${NC}"; }
 
@@ -187,7 +189,76 @@ show_test_env() {
     fi
 }
 
+# Set test database for current session
+set_test_database() {
+    local db_name="$1"
+    
+    if [ -z "$db_name" ]; then
+        print_error "Database name required"
+        print_info "Usage: monk test use <database_name>"
+        return 1
+    fi
+    
+    # Create/ensure database exists with schema
+    local db_user="${DB_USER:-$(whoami)}"
+    
+    # Check if database exists
+    if ! psql -U "$db_user" -lqt | cut -d'|' -f1 | grep -qw "$db_name" 2>/dev/null; then
+        print_step "Creating test database: $db_name"
+        if createdb "$db_name" -U "$db_user" 2>/dev/null; then
+            # Initialize schema
+            local schema_file="$(dirname "$0")/../sql/init-schema.sql"
+            if [ -f "$schema_file" ]; then
+                if psql -U "$db_user" -d "$db_name" -f "$schema_file" >/dev/null 2>&1; then
+                    print_success "Database created and initialized: $db_name"
+                else
+                    print_error "Failed to initialize database schema"
+                    dropdb "$db_name" -U "$db_user" 2>/dev/null || true
+                    return 1
+                fi
+            else
+                print_error "Schema file not found: $schema_file"
+                return 1
+            fi
+        else
+            print_error "Failed to create database: $db_name"
+            return 1
+        fi
+    else
+        print_success "Using existing database: $db_name"
+    fi
+    
+    # Store as current test database
+    local test_db_file="${HOME}/.monk-test-database"
+    echo "$db_name" > "$test_db_file"
+    
+    print_info "Set test database: $db_name"
+    print_info "All tests will now use this database until changed"
+}
+
+# Get current test database
+get_current_test_database() {
+    local test_db_file="${HOME}/.monk-test-database"
+    if [ -f "$test_db_file" ]; then
+        cat "$test_db_file"
+    else
+        # Default shared database
+        echo "monk_api_test_shared_$(whoami)"
+    fi
+}
+
 # Main entry point
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    show_test_env "$@"
+    case "${1:-}" in
+        use)
+            set_test_database "$2"
+            ;;
+        current)
+            current_db=$(get_current_test_database)
+            echo "Current test database: $current_db"
+            ;;
+        *)
+            show_test_env "$@"
+            ;;
+    esac
 fi

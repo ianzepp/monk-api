@@ -4,7 +4,7 @@ set -e
 # Common functions for CLI scripts
 
 # Default configuration
-DEFAULT_BASE_URL="http://localhost:3001"
+DEFAULT_BASE_URL="http://localhost:3000"
 DEFAULT_LIMIT=50
 DEFAULT_FORMAT="raw"
 

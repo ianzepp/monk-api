@@ -59,6 +59,7 @@ Commands:
   run <operation>         Manage test run environments
   pool <operation>        Manage database pool for testing
   env [var_name]          Show test environment variables
+  use <database_name>     Set test database for all subsequent tests
   diff <run1> <run2>      Compare test results between environments
 
 Test Patterns (for 'all' command):
@@ -166,6 +167,9 @@ main() {
             ;;
         env)
             exec "$(dirname "$0")/test-env.sh" "$@"
+            ;;
+        use)
+            exec "$(dirname "$0")/test-env.sh" use "$@"
             ;;
         diff)
             exec "$(dirname "$0")/test-diff.sh" "$@"
