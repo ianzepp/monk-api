@@ -1,6 +1,7 @@
 import { builtins, type TxContext } from '../db/index.js';
 import { eq, sql } from 'drizzle-orm';
 import * as yaml from 'js-yaml';
+import crypto from 'crypto';
 
 export interface JsonSchemaProperty {
     type: string;
@@ -59,13 +60,17 @@ export class SchemaManager {
         const schemaName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
         const tableName = `${schemaName}s`;
 
+        // Generate YAML checksum for cache invalidation
+        const yamlChecksum = crypto.createHash('sha256').update(yamlContent).digest('hex');
+
         // Create schema record
         const schemaRecord = await tx.insert(builtins.schemas).values({
             name: schemaName,
             table_name: tableName,
             status: 'active',
             definition: jsonSchema,
-            field_count: Object.keys(jsonSchema.properties).length.toString()
+            field_count: Object.keys(jsonSchema.properties).length.toString(),
+            yaml_checksum: yamlChecksum
         }).returning();
 
         // Generate and execute CREATE TABLE DDL
@@ -104,12 +109,16 @@ export class SchemaManager {
             }
         }
 
+        // Generate YAML checksum for cache invalidation
+        const yamlChecksum = crypto.createHash('sha256').update(yamlContent).digest('hex');
+
         // Update schema registry
         await tx
             .update(builtins.schemas)
             .set({
                 definition: newJsonSchema,
                 field_count: Object.keys(newJsonSchema.properties).length.toString(),
+                yaml_checksum: yamlChecksum
             })
             .where(eq(builtins.schemas.name, schemaName));
 

@@ -22,6 +22,7 @@ export const schemas = pgTable("schemas", {
     status: text("status").notNull().default("pending"), // pending, active, disabled
     definition: jsonb("definition").notNull(), // Full JSON Schema
     field_count: text("field_count").notNull(),
+    yaml_checksum: text("yaml_checksum"), // SHA256 checksum of YAML content for cache validation
 });
 
 // Column registry table to store individual field metadata

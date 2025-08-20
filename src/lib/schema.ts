@@ -1,21 +1,61 @@
 import { type FilterData } from './filter.js';
 import { type TxContext } from '../db/index.js';
 import type { System } from './system.js';
+import Ajv, { type ErrorObject } from 'ajv';
+import addFormats from 'ajv-formats';
 
 export type SchemaName = string;
 
+// Custom validation error class
+export class ValidationError extends Error {
+    public readonly errors: ErrorObject[];
+    
+    constructor(errors: ErrorObject[]) {
+        const message = errors.map(err => 
+            `${err.instancePath || 'root'}: ${err.message}`
+        ).join(', ');
+        
+        super(`Validation failed: ${message}`);
+        this.name = 'ValidationError';
+        this.errors = errors;
+    }
+}
+
 /**
- * Schema wrapper class providing database operation proxies
+ * Schema wrapper class providing database operation proxies and validation
  * Inspired by cloud-api-2019/src/classes/schema.ts
  */
 
 export class Schema {
+    private static ajv: Ajv | null = null;
+    private cachedValidator?: Function;
+
     constructor(
         private system: System,
         private schemaName: SchemaName,
         private tableName: string,
-        private definition?: any
+        public definition?: any
     ) {}
+
+    /**
+     * Get or initialize global AJV instance
+     */
+    private static getAjv(): Ajv {
+        if (!Schema.ajv) {
+            Schema.ajv = new Ajv({
+                allErrors: true,        // Return all validation errors
+                removeAdditional: false, // Don't remove additional properties
+                coerceTypes: false,     // Don't auto-convert types
+                strict: false           // Allow unknown keywords
+            });
+            
+            // Add standard format validations (email, date-time, etc.)
+            addFormats(Schema.ajv);
+            
+            console.debug('Schema: AJV initialized with formats');
+        }
+        return Schema.ajv;
+    }
 
     get name(): SchemaName {
         return this.schemaName;
@@ -23,6 +63,46 @@ export class Schema {
 
     get table(): string {
         return this.tableName;
+    }
+
+    /**
+     * Validate record data against this schema's JSON Schema definition
+     */
+    isValid(recordData: any): { valid: boolean; errors?: ErrorObject[] } {
+        if (!this.definition) {
+            console.warn(`Schema '${this.schemaName}': no definition available for validation`);
+            return { valid: true }; // Allow if no definition
+        }
+
+        // Get or compile validator
+        if (!this.cachedValidator) {
+            const ajv = Schema.getAjv();
+            this.cachedValidator = ajv.compile(this.definition);
+            console.debug(`Schema '${this.schemaName}': compiled validator`);
+        }
+
+        // Validate the data
+        const valid = this.cachedValidator(recordData) as boolean;
+        
+        if (!valid && (this.cachedValidator as any).errors) {
+            return {
+                valid: false,
+                errors: [...(this.cachedValidator as any).errors]
+            };
+        }
+
+        return { valid: true };
+    }
+
+    /**
+     * Validate record data and throw ValidationError if invalid
+     */
+    validateOrThrow(recordData: any): void {
+        const result = this.isValid(recordData);
+        if (!result.valid && result.errors) {
+            throw new ValidationError(result.errors);
+        }
+        console.debug(`Schema '${this.schemaName}': validation passed`);
     }
 
     //
@@ -170,5 +250,5 @@ export async function createSchema(system: System, schemaName: string): Promise<
         throw new Error(`Schema '${schemaName}' not found`);
     }
     
-    return new Schema(system, schemaName, schemaInfo.table_name, schemaInfo.definition);
+    return new Schema(system, schemaName, schemaInfo.table, schemaInfo.definition);
 }

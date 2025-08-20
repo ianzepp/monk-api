@@ -5,6 +5,7 @@ import { Filter, type FilterData } from './filter.js';
 import { DatabaseManager } from './database-manager.js';
 import type { Context } from 'hono';
 import type { System } from './system.js';
+import { SchemaCache } from './schema-cache.js';
 import _ from 'lodash';
 
 /**
@@ -18,19 +19,16 @@ export class Database {
         this.system = system;
     }
 
-    // Schema operations
-    async toSchema(schemaName: SchemaName) {
-        const result = await this.system.dtx
-            .select()
-            .from(builtins.schemas)
-            .where(eq(builtins.schemas.name, schemaName))
-            .limit(1);
-
-        if (result.length == 0) {
-            throw new Error(`Schema '${schemaName}' not found`);
-        }
-
-        return result[0];
+    // Schema operations with caching - returns Schema instance
+    async toSchema(schemaName: SchemaName): Promise<Schema> {
+        console.debug(`Database.toSchema: requesting schema '${schemaName}'`);
+        const schemaCache = SchemaCache.getInstance();
+        const schemaRecord = await schemaCache.getSchema(this.system, schemaName);
+        
+        // Create Schema instance with validation capabilities
+        const schema = new Schema(this.system, schemaName, schemaRecord.table_name, schemaRecord.definition);
+        console.debug(`Database.toSchema: schema '${schemaName}' resolved`);
+        return schema;
     }
 
     // List all schemas
@@ -48,11 +46,11 @@ export class Database {
     // Count
     async count(schemaName: SchemaName, filterData: FilterData = {}): Promise<number> {
         const schema = await this.toSchema(schemaName);
-        const filter = new Filter(this.system, schemaName, schema.table_name).assign(filterData);
+        const filter = new Filter(this.system, schemaName, schema.table).assign(filterData);
 
         // Generate WHERE clause from filter and use it in COUNT query
         const whereClause = filter.getWhereClause();
-        const result = await this.execute(`SELECT COUNT(*) as count FROM "${schema.table_name}" WHERE ${whereClause}`);
+        const result = await this.execute(`SELECT COUNT(*) as count FROM "${schema.table}" WHERE ${whereClause}`);
 
         return parseInt(result.rows[0].count as string);
     }
@@ -75,11 +73,6 @@ export class Database {
         }));
     }
 
-    async updateAll(schemaName: SchemaName, updates: Record<string, any>[]): Promise<any[]> {
-        return Promise.all(updates.map(record => {
-            return this.updateOne(schemaName, record.id, record);
-        }));
-    }
 
     async deleteAll(schemaName: SchemaName, deletes: Record<string, any>[]): Promise<any[]> {
         return Promise.all(deletes.map(record => {
@@ -121,7 +114,7 @@ export class Database {
     // Advanced operations - filter-based updates/deletes
     async selectAny(schemaName: SchemaName, filterData: FilterData = {}): Promise<any[]> {
         const schema = await this.toSchema(schemaName);
-        const filter = new Filter(this.system, schemaName, schema.table_name).assign(filterData);
+        const filter = new Filter(this.system, schemaName, schema.table).assign(filterData);
         return await filter.execute();
     }
 
@@ -159,6 +152,9 @@ export class Database {
     async createOne(schemaName: SchemaName, recordData: Record<string, any>): Promise<any> {
         const schema = await this.toSchema(schemaName);
 
+        // Validate record data against schema definition
+        schema.validateOrThrow(recordData);
+
         // Generate new record with base fields
         const newRecord = {
             id: crypto.randomUUID(),
@@ -192,7 +188,7 @@ export class Database {
         const valueList = valueParams.join(', ');
 
         const result = await this.execute(`
-            INSERT INTO "${schema.table_name}" 
+            INSERT INTO "${schema.table}" 
             (${columnList}) 
             VALUES (${valueList})
             RETURNING *
@@ -202,49 +198,123 @@ export class Database {
         return createdRecord;
     }
 
+    // Optimized: updateOne() delegates to updateAll() for efficiency
     async updateOne(schemaName: SchemaName, recordId: string, updates: Record<string, any>): Promise<any> {
-        const schema = await this.toSchema(schemaName);
-
-        // Verify record exists
-        const existing = await this.select404(schemaName, { where: { id: recordId }});
-
-        // Build UPDATE query with updated_at
-        const updateData = {
-            ...updates,
-            updated_at: new Date().toISOString(),
-        };
-
-        const setClauses: string[] = [];
-        for (const [key, value] of Object.entries(updateData)) {
-            if ((key === 'access_read' || key === 'access_edit' || key === 'access_full' || key === 'access_deny') && Array.isArray(value)) {
-                const pgArrayLiteral = `'{${value.join(',')}}'::uuid[]`;
-                setClauses.push(`"${key}" = ${pgArrayLiteral}`);
-            } else if (value === null) {
-                setClauses.push(`"${key}" = NULL`);
-            } else if (typeof value === 'string') {
-                setClauses.push(`"${key}" = '${value.replace(/'/g, "''")}'`);
-            } else {
-                setClauses.push(`"${key}" = '${value}'`);
-            }
+        const results = await this.updateAll(schemaName, [{ id: recordId, ...updates }]);
+        
+        if (results.length === 0) {
+            throw new Error(`Record '${recordId}' not found in schema '${schemaName}'`);
         }
+        
+        return results[0];
+    }
 
-        const setClause = setClauses.join(', ');
+    // Core batch update method - optimized for multiple records
+    async updateAll(schemaName: SchemaName, updates: Record<string, any>[]): Promise<any[]> {
+        if (updates.length === 0) return [];
+        
+        console.debug(`Database.updateAll: starting batch update for schema '${schemaName}', ${updates.length} records`);
+        
+        const schema = await this.toSchema(schemaName);
+        
+        // 1. Extract IDs and validate we have them
+        const ids = updates.map(update => update.id).filter(id => id !== undefined);
+        console.debug(`Database.updateAll: extracted ${ids.length} IDs:`, ids);
+        
+        if (ids.length !== updates.length) {
+            throw new Error('All update records must have an id field');
+        }
+        
+        // 2. Batch fetch existing records to verify they exist and for validation merging
+        console.debug(`Database.updateAll: fetching existing records for validation merge`);
+        const existingRecords = await this.selectIds(schemaName, ids);
+        console.debug(`Database.updateAll: found ${existingRecords.length} existing records`);
+        
+        if (existingRecords.length !== ids.length) {
+            const foundIds = existingRecords.map(r => r.id);
+            const missingIds = ids.filter(id => !foundIds.includes(id));
+            throw new Error(`Records not found: ${missingIds.join(', ')}`);
+        }
+        
+        // 3. Create lookup map for existing records
+        const existingMap = new Map(existingRecords.map(record => [record.id, record]));
+        
+        // 4. Merge updates with existing records and validate complete records
+        console.debug(`Database.updateAll: starting validation merge for ${updates.length} updates`);
+        
+        // Optimize: Get required fields once for all records in this batch
+        const requiredFields = new Set(schema.definition?.required || []);
+        console.debug(`Database.updateAll: required fields for validation:`, Array.from(requiredFields));
+        
+        const validatedUpdates = [];
+        for (let i = 0; i < updates.length; i++) {
+            const update = updates[i];
+            const existing = existingMap.get(update.id)!;
+            const mergedRecord = { ...existing, ...update };
+            
+            // Remove null values for optional fields before validation
+            const cleanedRecord = { ...mergedRecord };
+            for (const [key, value] of Object.entries(cleanedRecord)) {
+                if (value === null && !requiredFields.has(key)) {
+                    delete cleanedRecord[key];
+                }
+            }
+            
+            console.debug(`Database.updateAll: validating merged record ${i + 1}/${updates.length} for ID ${update.id}`);
+            console.debug(`Database.updateAll: existing record:`, existing);
+            console.debug(`Database.updateAll: update data:`, update);
+            console.debug(`Database.updateAll: merged record:`, mergedRecord);
+            console.debug(`Database.updateAll: cleaned record (for validation):`, cleanedRecord);
+            
+            // Validate the cleaned merged record
+            schema.validateOrThrow(cleanedRecord);
+            console.debug(`Database.updateAll: validation passed for record ${i + 1}`);
+            
+            validatedUpdates.push({
+                id: update.id,
+                changes: { ...update, updated_at: new Date().toISOString() }
+            });
+        }
+        
+        // 5. Execute batch update
+        const results = [];
+        for (const { id, changes } of validatedUpdates) {
+            const setClauses: string[] = [];
+            for (const [key, value] of Object.entries(changes)) {
+                if (key === 'id') continue; // Skip ID in SET clause
+                
+                if ((key === 'access_read' || key === 'access_edit' || key === 'access_full' || key === 'access_deny') && Array.isArray(value)) {
+                    const pgArrayLiteral = `'{${value.join(',')}}'::uuid[]`;
+                    setClauses.push(`"${key}" = ${pgArrayLiteral}`);
+                } else if (value === null) {
+                    setClauses.push(`"${key}" = NULL`);
+                } else if (typeof value === 'string') {
+                    setClauses.push(`"${key}" = '${value.replace(/'/g, "''")}'`);
+                } else {
+                    setClauses.push(`"${key}" = '${value}'`);
+                }
+            }
 
-        const result = await this.execute(`
-            UPDATE "${schema.table_name}"
-            SET ${setClause}
-            WHERE id = '${recordId}'
-            RETURNING *
-        `);
+            const setClause = setClauses.join(', ');
 
-        return result.rows[0];
+            const result = await this.execute(`
+                UPDATE "${schema.table}"
+                SET ${setClause}
+                WHERE id = '${id}'
+                RETURNING *
+            `);
+            
+            results.push(result.rows[0]);
+        }
+        
+        return results;
     }
 
     async deleteOne(schemaName: SchemaName, recordId: string): Promise<any> {
         const schema = await this.toSchema(schemaName);
 
         const result = await this.execute(`
-            DELETE FROM "${schema.table_name}"
+            DELETE FROM "${schema.table}"
             WHERE id = '${recordId}'
             RETURNING id
         `);
@@ -302,7 +372,7 @@ export class Database {
         const setClause = setClauses.join(', ');
 
         const result = await this.execute(`
-            UPDATE "${schema.table_name}"
+            UPDATE "${schema.table}"
             SET ${setClause}
             WHERE id = '${recordId}'
             RETURNING *
