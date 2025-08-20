@@ -108,6 +108,39 @@ allocate_database() {
     
     # Create database
     if createdb "$db_name" -U "$db_user" 2>/dev/null; then
+        print_success "Database created: $db_name"
+        
+        # Initialize required schema tables
+        local schema_file="$(dirname "$0")/../sql/init-schema.sql"
+        if [ -f "$schema_file" ]; then
+            print_step "Initializing database schema..."
+            if psql -U "$db_user" -d "$db_name" -f "$schema_file" >/dev/null 2>&1; then
+                print_success "Database schema initialized"
+                
+                # Verify tables were created and show them
+                print_step "Verifying created tables..."
+                local tables_output
+                if tables_output=$(psql -U "$db_user" -d "$db_name" -c "\dt" 2>/dev/null); then
+                    echo "Created tables:"
+                    echo "$tables_output" | grep -E "(schemas|columns)" | sed 's/^/  /'
+                else
+                    print_info "Could not verify table creation (database may still be valid)"
+                fi
+            else
+                print_error "Failed to initialize database schema"
+                # Clean up the database since it's not properly initialized
+                dropdb "$db_name" -U "$db_user" 2>/dev/null || true
+                release_lock
+                return 1
+            fi
+        else
+            print_error "Schema initialization file not found: $schema_file"
+            # Clean up the database since we can't initialize it
+            dropdb "$db_name" -U "$db_user" 2>/dev/null || true
+            release_lock
+            return 1
+        fi
+        
         # Store allocation info
         local allocation_file="${POOL_DIR}/${db_name}.info"
         cat > "$allocation_file" << EOF
@@ -116,9 +149,10 @@ test_name=$test_name
 allocated_at=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 allocated_by=$$
 db_user=$db_user
+schema_initialized=true
 EOF
         
-        print_success "Database allocated: $db_name"
+        print_success "Database allocated and initialized: $db_name"
         print_info "Pool usage: $((current_count + 1))/$MAX_DATABASES"
         
         release_lock
