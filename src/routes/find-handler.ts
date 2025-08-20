@@ -8,9 +8,10 @@ import {
 import { db, builtins } from '../db/index.js';
 import { eq } from 'drizzle-orm';
 import { Filter, type FilterData } from '../lib/filter.js';
+import { handleContextDb } from '../lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
-    return await System.handleDb(context, async (system: System) => {
+    return await handleContextDb(context, async (system: System) => {
         const schemaName = context.req.param('schema');
 
         try {

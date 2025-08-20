@@ -1,10 +1,13 @@
 import type { Context } from 'hono';
-import { System } from '../lib/system.js';
+import { handleContextTx } from '../lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
-    return await System.handleTx(context, async (system: System) => {
+    return await handleContextTx(context, async (system) => {
         const schemaName = context.req.param('schema');
         const recordData = await context.req.json();
+
+        console.debug('routes/data-record-create-one: schemaName=%j recordData=%j', schemaName, recordData);
+
         return system.database.createOne(schemaName, recordData);
     });
 }

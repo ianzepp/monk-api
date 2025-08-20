@@ -41,25 +41,6 @@ export class System {
     }
 
     /**
-     * Execute function within a database transaction
-     * Creates a new System instance with transaction context
-     */
-    static async handleDb<T>(context: Context, fn: (system: System) => Promise<T>): Promise<T> {
-        const contextDb = DatabaseManager.getDatabaseFromContext(context);
-        return await fn(new System(context, contextDb));
-    }
-
-    static async handleTx<T>(context: Context, fn: (system: System) => Promise<T>): Promise<T> {
-        const contextDb = DatabaseManager.getDatabaseFromContext(context);
-
-        return await contextDb.transaction(async (contextTx: TxContext) => {
-            return await fn(new System(context, contextTx));
-        });        
-
-        // TODO does a failure above rollback the transaction?
-    }
-
-    /**
      * Get user information from the request context
      */
     getUser() {

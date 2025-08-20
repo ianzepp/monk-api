@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 
 // Router Imports
 import DataSelectAny from './data-record-select-any.js';

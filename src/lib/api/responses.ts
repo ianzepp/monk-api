@@ -1,5 +1,7 @@
 import type { Context } from 'hono';
-
+import { System } from '../system';
+import { DatabaseManager } from '../database-manager'; 
+import { type TxContext } from '../../db';
 export interface ApiSuccessResponse<T = any> {
   success: true;
   data: T;
@@ -26,6 +28,35 @@ export enum ApiErrorCode {
 }
 
 export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
+
+// Request handlers
+export async function handleContextDb<T>(context: Context, fn: (system: System) => Promise<T>) {
+    try {
+        const contextDb = DatabaseManager.getDatabaseFromContext(context);
+        const result = await fn(new System(context, contextDb));
+
+        // Success!
+        return createSuccessResponse(context, result, 200);
+    } catch (error: any) {
+        console.error(`Error in ${context.req.method} ${context.req.path}:`, error);
+        return createErrorResponse(context, error.message || error, ApiErrorCode.INTERNAL_ERROR);
+    }
+}
+
+export async function handleContextTx<T>(context: Context, fn: (system: System) => Promise<T>) {
+    try {
+        const contextDb = DatabaseManager.getDatabaseFromContext(context);
+        const result = await contextDb.transaction(async (contextTx: TxContext) => {
+            return await fn(new System(context, contextTx));
+        });        
+
+        // TODO does a failure above rollback the transaction?
+        return createSuccessResponse(context, result, 200);
+    } catch (error: any) {
+        console.error(`Error in ${context.req.method} ${context.req.path}:`, error);
+        return createErrorResponse(context, error.message || error, ApiErrorCode.INTERNAL_ERROR);
+    }
+}
 
 // Success response helpers
 export function createSuccessResponse<T>(c: Context, data: T, status = 200) {

@@ -3,9 +3,10 @@ import { System } from '../lib/system.js';
 import { type TxContext } from '../db/index.js';
 import { SchemaManager } from '../lib/schema-manager.js';
 import { createValidationError } from '../lib/api/responses.js';
+import { handleContextTx } from '../lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
-    return await System.handleTx(context, async (system: System) => {
+    return await handleContextTx(context, async (system: System) => {
         try {
             const yamlContent = await context.req.text();
             const tx = system.dtx as TxContext;

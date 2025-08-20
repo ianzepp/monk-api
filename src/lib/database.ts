@@ -50,15 +50,23 @@ export class Database {
         const schema = await this.toSchema(schemaName);
         const filter = new Filter(this.system, schemaName, schema.table_name).assign(filterData);
 
-        // TODO implement actual filtering
-        const result = await this.execute(`SELECT COUNT(*) as count FROM "${schema.table_name}" WHERE 1=1`);
+        // Generate WHERE clause from filter and use it in COUNT query
+        const whereClause = filter.getWhereClause();
+        const result = await this.execute(`SELECT COUNT(*) as count FROM "${schema.table_name}" WHERE ${whereClause}`);
 
         return parseInt(result.rows[0].count as string);
     }
 
     async selectAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {
-        // TODO
-        return [];
+        // Extract IDs from records
+        const ids = records.map(record => record.id).filter(id => id !== undefined);
+        
+        if (ids.length === 0) {
+            return [];
+        }
+        
+        // Use selectAny with ID filter - lenient approach, returns what exists
+        return await this.selectAny(schemaName, { where: { id: { $in: ids } } });
     }
 
     async createAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {
@@ -169,19 +177,24 @@ export class Database {
         for (const [key, value] of Object.entries(newRecord)) {
             columns.push(key);
             if ((key === 'access_read' || key === 'access_edit' || key === 'access_full' || key === 'access_deny') && Array.isArray(value)) {
-                const pgArrayLiteral = `{${value.join(',')}}`;
-                valueParams.push(sql`${pgArrayLiteral}::uuid[]`);
+                const pgArrayLiteral = `'{${value.join(',')}}'::uuid[]`;
+                valueParams.push(pgArrayLiteral);
+            } else if (value === null) {
+                valueParams.push('NULL');
+            } else if (typeof value === 'string') {
+                valueParams.push(`'${value.replace(/'/g, "''")}'`);
             } else {
-                valueParams.push(sql`${value}`);
+                valueParams.push(`'${value}'`);
             }
         }
 
-        const columnIdentifiers = columns.map(c => sql.identifier(c));
+        const columnList = columns.map(c => `"${c}"`).join(', ');
+        const valueList = valueParams.join(', ');
 
         const result = await this.execute(`
-            INSERT INTO ${sql.identifier(schema.table_name)} 
-            (${sql.join(columnIdentifiers, sql`, `)}) 
-            VALUES (${sql.join(valueParams, sql`, `)})
+            INSERT INTO "${schema.table_name}" 
+            (${columnList}) 
+            VALUES (${valueList})
             RETURNING *
         `);
 
@@ -201,20 +214,26 @@ export class Database {
             updated_at: new Date().toISOString(),
         };
 
-        const setClauses: any[] = [];
+        const setClauses: string[] = [];
         for (const [key, value] of Object.entries(updateData)) {
             if ((key === 'access_read' || key === 'access_edit' || key === 'access_full' || key === 'access_deny') && Array.isArray(value)) {
-                const pgArrayLiteral = `{${value.join(',')}}`;
-                setClauses.push(sql`${sql.identifier(key)} = ${pgArrayLiteral}::uuid[]`);
+                const pgArrayLiteral = `'{${value.join(',')}}'::uuid[]`;
+                setClauses.push(`"${key}" = ${pgArrayLiteral}`);
+            } else if (value === null) {
+                setClauses.push(`"${key}" = NULL`);
+            } else if (typeof value === 'string') {
+                setClauses.push(`"${key}" = '${value.replace(/'/g, "''")}'`);
             } else {
-                setClauses.push(sql`${sql.identifier(key)} = ${value}`);
+                setClauses.push(`"${key}" = '${value}'`);
             }
         }
 
+        const setClause = setClauses.join(', ');
+
         const result = await this.execute(`
-            UPDATE ${sql.identifier(schema.table_name)}
-            SET ${sql.join(setClauses, sql`, `)}
-            WHERE id = ${recordId}
+            UPDATE "${schema.table_name}"
+            SET ${setClause}
+            WHERE id = '${recordId}'
             RETURNING *
         `);
 
@@ -225,8 +244,8 @@ export class Database {
         const schema = await this.toSchema(schemaName);
 
         const result = await this.execute(`
-            DELETE FROM ${sql.identifier(schema.table_name)}
-            WHERE id = ${recordId}
+            DELETE FROM "${schema.table_name}"
+            WHERE id = '${recordId}'
             RETURNING id
         `);
 
@@ -266,20 +285,26 @@ export class Database {
         filteredChanges.updated_at = new Date().toISOString();
 
         // Build UPDATE query for access fields only
-        const setClauses: any[] = [];
+        const setClauses: string[] = [];
         for (const [key, value] of Object.entries(filteredChanges)) {
             if (allowedFields.includes(key) && Array.isArray(value)) {
-                const pgArrayLiteral = `{${value.join(',')}}`;
-                setClauses.push(sql`${sql.identifier(key)} = ${pgArrayLiteral}::uuid[]`);
+                const pgArrayLiteral = `'{${value.join(',')}}'::uuid[]`;
+                setClauses.push(`"${key}" = ${pgArrayLiteral}`);
+            } else if (value === null) {
+                setClauses.push(`"${key}" = NULL`);
+            } else if (typeof value === 'string') {
+                setClauses.push(`"${key}" = '${value.replace(/'/g, "''")}'`);
             } else {
-                setClauses.push(sql`${sql.identifier(key)} = ${value}`);
+                setClauses.push(`"${key}" = '${value}'`);
             }
         }
 
+        const setClause = setClauses.join(', ');
+
         const result = await this.execute(`
-            UPDATE ${sql.identifier(schema.table_name)}
-            SET ${sql.join(setClauses, sql`, `)}
-            WHERE id = ${recordId}
+            UPDATE "${schema.table_name}"
+            SET ${setClause}
+            WHERE id = '${recordId}'
             RETURNING *
         `);
 

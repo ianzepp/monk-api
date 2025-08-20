@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { System } from '../lib/system.js';
+import { handleContextTx } from '../lib/api/responses.js';
 import { createSchema } from '../lib/schema.js';
 import {
     createSuccessResponse,
@@ -53,7 +54,7 @@ export interface BulkOperation {
 }
 
 export default async function (c: Context): Promise<any> {
-    return await System.handleTx(c, async (system: System) => {
+    return await handleContextTx(c, async (system: System) => {
         const operations: BulkOperation[] = await c.req.json();
 
         // Validate input

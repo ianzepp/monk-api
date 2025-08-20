@@ -112,6 +112,8 @@ export class Filter {
             return this;
         }
 
+        console.debug('lib/filter: source=%j', source);
+
         // Array of IDs → convert to $in (skip empty arrays)
         if (Array.isArray(source)) {
             if (source.length === 0) {
@@ -364,6 +366,41 @@ export class Filter {
         }
     }
 
+    // Get just the WHERE clause conditions for use in other queries
+    getWhereClause(): string {
+        // Build WHERE clause using new tree structure
+        if (this._conditions.length > 0) {
+            const conditionSQL = this._buildConditionTreeSQL(this._conditions);
+            return conditionSQL || '1=1';
+        } else if (this._where.length > 0) {
+            // Fallback to legacy flat structure
+            const conditions = this._where.map(w => this._buildSQLCondition(w)).filter(Boolean);
+            return conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+        }
+        return '1=1';
+    }
+
+    // Get just the ORDER BY clause for use in other queries
+    getOrderClause(): string {
+        if (this._order.length > 0) {
+            const orders = this._order.map(o => `"${o.column}" ${o.sort.toUpperCase()}`);
+            return orders.join(', ');
+        }
+        return '';
+    }
+
+    // Get just the LIMIT/OFFSET clause for use in other queries
+    getLimitClause(): string {
+        if (this._limit !== undefined) {
+            let limitClause = `LIMIT ${this._limit}`;
+            if (this._offset !== undefined) {
+                limitClause += ` OFFSET ${this._offset}`;
+            }
+            return limitClause;
+        }
+        return '';
+    }
+
     private _buildSQL(): any {
         // Build SELECT clause
         const selectClause = this._select.length > 0 && !this._select.includes('*')
@@ -410,7 +447,7 @@ export class Filter {
             limitClause
         ].filter(Boolean).join(' ');
 
-        return sql.raw(query);
+        return query;
     }
 
     // For testing - return the SQL string directly
@@ -565,9 +602,15 @@ export class Filter {
 
         switch (operator) {
             case FilterOp.EQ:
+                if (data === null || data === undefined) {
+                    return `${quotedColumn} IS NULL`;
+                }
                 return `${quotedColumn} = ${this._formatSQLValue(data)}`;
             case FilterOp.NE:
             case FilterOp.NEQ:
+                if (data === null || data === undefined) {
+                    return `${quotedColumn} IS NOT NULL`;
+                }
                 return `${quotedColumn} != ${this._formatSQLValue(data)}`;
             case FilterOp.GT:
                 return `${quotedColumn} > ${data}`;

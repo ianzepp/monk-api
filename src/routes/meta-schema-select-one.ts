@@ -1,9 +1,10 @@
 import type { Context } from 'hono';
 import { System } from '../lib/system.js';
+import { handleContextDb } from '../lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
-    return await System.handleDb(context, async (system: System) => {
-        const schemaName = context.req.param('schema');
+    return await handleContextDb(context, async (system: System) => {
+        const schemaName = context.req.param('name');
         const result = await system.database.toSchema(schemaName);
 
         if (!result) {

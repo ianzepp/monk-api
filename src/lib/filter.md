@@ -6,8 +6,10 @@ MongoDB-style query DSL for dynamic schema filtering with full logical operator 
 
 ```typescript
 import { Filter } from './filter.js';
+import { System } from './system.ts';
 
-const filter = new Filter('user', 'users');
+const system = new System(/* ... hono context required here */);
+const filter = new Filter(system, 'user', 'users');
 filter.assign({
     where: { status: 'active' },
     select: ['name', 'email'],
