@@ -1,5 +1,6 @@
 import { db, type DbContext, type TxContext } from '../db/index.js';
 import { eq, gt, gte, lt, lte, like, ilike, inArray, notInArray, and, or, not, sql } from 'drizzle-orm';
+import type { System } from './system.js';
 
 // Filter operation types
 export enum FilterOp {
@@ -93,7 +94,10 @@ export class Filter {
     private _lookups: any[] = [];
     private _related: any[] = [];
 
-    constructor(schemaName: string, tableName: string, dbOrTx: DbContext | TxContext = db) {
+    public readonly system: System;
+
+    constructor(system: System, schemaName: string, tableName: string) {
+        this.system = system;
         this._schemaName = schemaName;
         this._tableName = tableName;
         
@@ -351,8 +355,8 @@ export class Filter {
             // Build complete SQL query
             const sqlQuery = this._buildSQL();
             
-            // Execute using Drizzle's raw SQL execution
-            const result = await db.execute(sqlQuery);
+            // Execute using System's database context
+            const result = await this.system.database.execute(sqlQuery);
             return result.rows;
         } catch (error) {
             console.error('Filter execution error:', error);

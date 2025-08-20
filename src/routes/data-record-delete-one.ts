@@ -1,12 +1,10 @@
 import type { Context } from 'hono';
-import { createSchema } from '../lib/schema.js';
-import { database } from '../lib/database.js';
-import { withTransaction } from '../lib/route-helpers.js';
+import { System } from '../lib/system.js';
 
-export default async function (c: Context): Promise<any> {
-    return withTransaction(c, async (tx) => {
-        const schemaName = c.req.param('schema');
-        const recordId = c.req.param('id');
-        return database.delete404(schemaName, { where: { id: recordId }}, tx);
+export default async function (context: Context): Promise<any> {
+    return await System.handleTx(context, async (system: System) => {
+        const schemaName = context.req.param('schema');
+        const recordId = context.req.param('id');
+        return system.database.delete404(schemaName, { where: { id: recordId }});
     });
 }

@@ -1,10 +1,10 @@
 import type { Context } from 'hono';
-import { database } from '../lib/database.js';
-import { withErrorHandling } from '../lib/route-helpers.js';
+import { System } from '../lib/system.js';
 
-export default async function (c: Context): Promise<any> {
-    return withErrorHandling(c, async () => {
-        const schemaName = c.req.param('schema');
-        return database.selectAny(schemaName);
+export default async function (context: Context): Promise<any> {
+    return await System.handleDb(context, async (system: System) => {
+        const schemaName = context.req.param('schema');
+        const recordId = context.req.param('id');            
+        return system.database.selectAny(schemaName);
     });
 }

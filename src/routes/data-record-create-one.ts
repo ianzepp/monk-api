@@ -1,11 +1,10 @@
 import type { Context } from 'hono';
-import { database } from '../lib/database.js';
-import { withTransaction } from '../lib/route-helpers.js';
+import { System } from '../lib/system.js';
 
-export default async function (c: Context): Promise<any> {
-    return withTransaction(c, async (tx) => {
-        const schemaName = c.req.param('schema');
-        const recordData = await c.req.json();
-        return database.createOne(schemaName, recordData, tx);
-    }, 201);
+export default async function (context: Context): Promise<any> {
+    return await System.handleTx(context, async (system: System) => {
+        const schemaName = context.req.param('schema');
+        const recordData = await context.req.json();
+        return system.database.createOne(schemaName, recordData);
+    });
 }

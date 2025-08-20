@@ -1,14 +1,11 @@
 import type { Context } from 'hono';
-import { database } from '../lib/database.js';
-import { withErrorHandling } from '../lib/route-helpers.js';
+import { System } from '../lib/system.js';
 
-export default async function (c: Context): Promise<any> {
-    return withErrorHandling(c, async () => {
-        const schemaName = c.req.param('name');
-        
-        // Get specific schema using context-aware database service
-        const result = await database.toSchema(schemaName, c);
-        
+export default async function (context: Context): Promise<any> {
+    return await System.handleDb(context, async (system: System) => {
+        const schemaName = context.req.param('schema');
+        const result = await system.database.toSchema(schemaName);
+
         if (!result) {
             throw new Error(`Schema '${schemaName}' not found`);
         }

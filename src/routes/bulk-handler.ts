@@ -1,12 +1,11 @@
 import type { Context } from 'hono';
-import { database } from '../lib/database.js';
+import { System } from '../lib/system.js';
 import { createSchema } from '../lib/schema.js';
 import {
     createSuccessResponse,
     createValidationError,
     createInternalError,
 } from '../lib/api/responses.js';
-// Using native JS filter instead of lodash
 
 export enum BulkOperationType {
     // Read operations
@@ -54,63 +53,36 @@ export interface BulkOperation {
 }
 
 export default async function (c: Context): Promise<any> {
-    try {
+    return await System.handleTx(c, async (system: System) => {
         const operations: BulkOperation[] = await c.req.json();
 
         // Validate input
         if (!Array.isArray(operations)) {
-            return createValidationError(c, 'Request body must be an array of operations', []);
+            throw new Error('Request body must be an array of operations');
         }
 
         if (operations.length === 0) {
-            return createSuccessResponse(c, []);
+            return [];
         }
 
         // Validate each operation
         for (let i = 0; i < operations.length; i++) {
             const op = operations[i];
             if (!op.operation || !op.schema) {
-                return createValidationError(c, `Operation at index ${i} missing required fields`, [{
-                    path: [i],
-                    message: 'operation and schema are required'
-                }]);
+                throw new Error(`Operation at index ${i} missing required fields: operation and schema are required`);
             }
         }
 
-        // Determine execution strategy
-        const readOnlyOps = [
-            BulkOperationType.Select,
-            BulkOperationType.SelectAll,
-            BulkOperationType.SelectOne,
-            BulkOperationType.Select404,
-            BulkOperationType.SelectMax,
-            BulkOperationType.Count,
-        ];
-
-        const hasWriteOps = operations.some(op => !readOnlyOps.includes(op.operation));
-
-        if (hasWriteOps) {
-            // Execute in transaction for write operations
-            await database.transaction(async (tx) => {
-                for (let i = 0; i < operations.length; i++) {
-                    operations[i].result = await executeOperation(operations[i], tx);
-                }
-            });
-        } else {
-            // Execute in parallel for read-only operations
-            await Promise.all(operations.map(async (op, i) => {
-                operations[i].result = await executeOperation(op);
-            }));
+        // Execute all operations in transaction
+        for (let i = 0; i < operations.length; i++) {
+            operations[i].result = await executeOperation(operations[i], system);
         }
 
-        return createSuccessResponse(c, operations);
-    } catch (error) {
-        console.error('Error executing bulk operations:', error);
-        return createInternalError(c, 'Failed to execute bulk operations');
-    }
+        return operations;
+    });
 }
 
-async function executeOperation(op: BulkOperation, tx?: any): Promise<any> {
+async function executeOperation(op: BulkOperation, system: System): Promise<any> {
     const schemaName = op.schema;
     const filterData = op.filter;
     const filterById = { where: { id: op.id || null }};
@@ -121,96 +93,80 @@ async function executeOperation(op: BulkOperation, tx?: any): Promise<any> {
         // Read operations
         case BulkOperationType.Select:
         case BulkOperationType.SelectAll:
-            return await database.selectAll(schemaName, filterData, tx);
+            return await system.database.selectAll(schemaName, filterData);
             
         case BulkOperationType.SelectOne:
-            return await database.selectOne(schemaName, filterData || filterById, tx);
+            return await system.database.selectOne(schemaName, filterData || filterById);
             
         case BulkOperationType.Select404:
-            return await database.select404(schemaName, filterData || filterById, tx, op.message);
+            return await system.database.select404(schemaName, filterData || filterById, op.message);
             
         case BulkOperationType.SelectMax:
             // TODO return await schema.selectMax(op.filter);
             return [];
             
         case BulkOperationType.Count:
-            return await database.count(schemaName, filterData, tx);
+            return await system.database.count(schemaName, filterData);
 
         // Write operations (require transaction)
         case BulkOperationType.Create:
         case BulkOperationType.CreateOne:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.createOne(schemaName, recordData, tx);
+            return await system.database.createOne(schemaName, recordData);
             
         case BulkOperationType.CreateAll:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.createAll(schemaName, recordData, tx);
+            return await system.database.createAll(schemaName, recordData);
             
         case BulkOperationType.Update:
         case BulkOperationType.UpdateOne:
-            if (!tx) throw new Error('Transaction required for write operations');
             if (!recordId) throw new Error('ID required for updateOne operation');
-            return await database.updateOne(schemaName, recordId, recordData, tx);
+            return await system.database.updateOne(schemaName, recordId, recordData);
             
         case BulkOperationType.UpdateAll:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.updateAll(schemaName, recordData, tx);
+            return await system.database.updateAll(schemaName, recordData);
             
         case BulkOperationType.UpdateAny:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.updateAny(schemaName, filterData, recordData, tx);
+            return await system.database.updateAny(schemaName, filterData, recordData);
             
         case BulkOperationType.Update404:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.update404(schemaName, filterData || filterById, recordData, tx, op.message);
+            return await system.database.update404(schemaName, filterData || filterById, recordData, op.message);
             
         case BulkOperationType.Delete:
         case BulkOperationType.DeleteOne:
-            if (!tx) throw new Error('Transaction required for write operations');
             if (!recordId) throw new Error('ID required for deleteOne operation');
-            return await database.deleteOne(schemaName, recordId, tx);
+            return await system.database.deleteOne(schemaName, recordId);
             
         case BulkOperationType.DeleteAll:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.deleteAll(schemaName, recordData, tx);
+            return await system.database.deleteAll(schemaName, recordData);
             
         case BulkOperationType.DeleteAny:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.deleteAny(schemaName, filterData, tx);
+            return await system.database.deleteAny(schemaName, filterData);
             
         case BulkOperationType.Delete404:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.delete404(schemaName, filterData || filterById, tx, op.message);
+            return await system.database.delete404(schemaName, filterData || filterById, op.message);
             
         case BulkOperationType.Upsert:
         case BulkOperationType.UpsertOne:
-            if (!tx) throw new Error('Transaction required for write operations');
-            // TODO return await database.upsertOne(schemaName, recordData, tx);
+            // TODO return await database.upsertOne(schemaName, recordData);
             throw new Error('Unsupported');
             
         case BulkOperationType.UpsertAll:
-            if (!tx) throw new Error('Transaction required for write operations');
-            // TODO return await database.upsertAll(schemaName, recordData, tx);
+            // TODO return await database.upsertAll(schemaName, recordData);
             throw new Error('Unsupported');
 
         // Access control operations
         case BulkOperationType.Access:
         case BulkOperationType.AccessOne:
-            if (!tx) throw new Error('Transaction required for write operations');
             if (!recordId) throw new Error('ID required for accessOne operation');
-            return await database.accessOne(schemaName, recordId, op.data, tx);
+            return await system.database.accessOne(schemaName, recordId, op.data);
             
         case BulkOperationType.AccessAll:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.accessAll(schemaName, recordData, tx);
+            return await system.database.accessAll(schemaName, recordData);
             
         case BulkOperationType.AccessAny:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.accessAny(schemaName, filterData, recordData, tx);
+            return await system.database.accessAny(schemaName, filterData, recordData);
             
         case BulkOperationType.Access404:
-            if (!tx) throw new Error('Transaction required for write operations');
-            return await database.access404(schemaName, filterData || filterById, recordData, tx, op.message);
+            return await system.database.access404(schemaName, filterData || filterById, recordData, op.message);
 
         default:
             throw new Error(`Unsupported operation: ${op.operation}`);

@@ -4,40 +4,23 @@ import { Schema, type SchemaName } from './schema.js';
 import { Filter, type FilterData } from './filter.js';
 import { DatabaseManager } from './database-manager.js';
 import type { Context } from 'hono';
+import type { System } from './system.js';
 import _ from 'lodash';
 
 /**
  * Database service wrapper providing high-level operations
- * Simplified version of the 2019 database-service.ts
+ * Per-request instance with specific database context
  */
 export class Database {
-    private static instance: Database;
+    public readonly system: System;
 
-    static getInstance(): Database {
-        if (!Database.instance) {
-            Database.instance = new Database();
-        }
-        return Database.instance;
-    }
-
-    // Get database from context or fall back to default
-    private getDatabase(c?: Context, dtx?: DbContext | TxContext): DbContext | TxContext {
-        if (dtx) return dtx; // Explicit database context takes priority
-        if (c) {
-            try {
-                return DatabaseManager.getDatabaseFromContext(c);
-            } catch (error) {
-                // Fall back to default if context database not available
-                console.warn('Context database not available, using default:', error);
-            }
-        }
-        return db; // Default fallback
+    constructor(system: System) {
+        this.system = system;
     }
 
     // Schema operations
-    async toSchema(schemaName: SchemaName, c?: Context, dtx?: DbContext | TxContext) {
-        const database = this.getDatabase(c, dtx);
-        const result = await database
+    async toSchema(schemaName: SchemaName) {
+        const result = await this.system.dtx
             .select()
             .from(builtins.schemas)
             .where(eq(builtins.schemas.name, schemaName))
@@ -51,53 +34,58 @@ export class Database {
     }
 
     // List all schemas
-    async listSchemas(c?: Context, dtx?: DbContext | TxContext) {
-        const database = this.getDatabase(c, dtx);
-        return await database.select().from(builtins.schemas);
+    async listSchemas() {
+        return await this.system.dtx
+            .select()
+            .from(builtins.schemas);
+    }
+
+    // Core operation. Pass the SQL string into drizzle
+    async execute(query: string): Promise<any> {
+        return await this.system.dtx.execute(sql.raw(query));
     }
 
     // Count
-    async count(schemaName: SchemaName, filterData: FilterData = {}, dtx: DbContext | TxContext = db): Promise<number> {
-        const schema = await this.toSchema(schemaName, dtx);
-        const filter = new Filter(schemaName, schema.table_name, dtx).assign(filterData);
+    async count(schemaName: SchemaName, filterData: FilterData = {}): Promise<number> {
+        const schema = await this.toSchema(schemaName);
+        const filter = new Filter(this.system, schemaName, schema.table_name).assign(filterData);
 
         // TODO implement actual filtering
-        const countQuery = `SELECT COUNT(*) as count FROM "${schema.table_name}" WHERE 1=1`;
-        const result = await dtx.execute(sql.raw(countQuery));
+        const result = await this.execute(`SELECT COUNT(*) as count FROM "${schema.table_name}" WHERE 1=1`);
 
         return parseInt(result.rows[0].count as string);
     }
 
-    async selectAll(schemaName: SchemaName, records: Record<string, any>[], tx: TxContext): Promise<any[]> {
+    async selectAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {
         // TODO
         return [];
     }
 
-    async createAll(schemaName: SchemaName, records: Record<string, any>[], tx: TxContext): Promise<any[]> {
+    async createAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {
         return Promise.all(records.map(record => {
-            return this.createOne(schemaName, record, tx);
+            return this.createOne(schemaName, record);
         }));
     }
 
-    async updateAll(schemaName: SchemaName, updates: Record<string, any>[], tx: TxContext): Promise<any[]> {
+    async updateAll(schemaName: SchemaName, updates: Record<string, any>[]): Promise<any[]> {
         return Promise.all(updates.map(record => {
-            return this.updateOne(schemaName, record.id, record, tx);
+            return this.updateOne(schemaName, record.id, record);
         }));
     }
 
-    async deleteAll(schemaName: SchemaName, deletes: Record<string, any>[], tx: TxContext): Promise<any[]> {
+    async deleteAll(schemaName: SchemaName, deletes: Record<string, any>[]): Promise<any[]> {
         return Promise.all(deletes.map(record => {
-            return this.deleteOne(schemaName, record.id, tx);
+            return this.deleteOne(schemaName, record.id);
         }));
     }
     
     // Core data operations
-    async selectOne(schemaName: SchemaName, filterData: FilterData, dtx: DbContext | TxContext = db): Promise<any | null> {
-        return await this.selectAny(schemaName, filterData, dtx).then(_.head);
+    async selectOne(schemaName: SchemaName, filterData: FilterData): Promise<any | null> {
+        return await this.selectAny(schemaName, filterData).then(_.head);
     }
 
-    async select404(schemaName: SchemaName, filter: FilterData, dtx: DbContext | TxContext = db, message?: string): Promise<any> {
-        const record = await this.selectOne(schemaName, filter, dtx);
+    async select404(schemaName: SchemaName, filter: FilterData, message?: string): Promise<any> {
+        const record = await this.selectOne(schemaName, filter);
 
         if (!record) {
             throw new Error(message || `Record not found in schema '${schemaName}'`);
@@ -107,31 +95,31 @@ export class Database {
     }
 
     // ID-based operations - always work with arrays
-    async selectIds(schemaName: SchemaName, ids: string[], dtx: DbContext | TxContext = db): Promise<any[]> {
+    async selectIds(schemaName: SchemaName, ids: string[]): Promise<any[]> {
         if (ids.length === 0) return [];
-        return await this.selectAny(schemaName, { where: { id: { $in: ids } } }, dtx);
+        return await this.selectAny(schemaName, { where: { id: { $in: ids } } });
     }
 
-    async updateIds(schemaName: SchemaName, ids: string[], changes: Record<string, any>, tx: TxContext): Promise<any[]> {
+    async updateIds(schemaName: SchemaName, ids: string[], changes: Record<string, any>): Promise<any[]> {
         if (ids.length === 0) return [];
-        return await this.updateAny(schemaName, { where: { id: { $in: ids } } }, changes, tx);
+        return await this.updateAny(schemaName, { where: { id: { $in: ids } } }, changes);
     }
 
-    async deleteIds(schemaName: SchemaName, ids: string[], tx: TxContext): Promise<any[]> {
+    async deleteIds(schemaName: SchemaName, ids: string[]): Promise<any[]> {
         if (ids.length === 0) return [];
-        return await this.deleteAny(schemaName, { where: { id: { $in: ids } } }, tx);
+        return await this.deleteAny(schemaName, { where: { id: { $in: ids } } });
     }
 
     // Advanced operations - filter-based updates/deletes
-    async selectAny(schemaName: SchemaName, filterData: FilterData = {}, dtx: DbContext | TxContext = db): Promise<any[]> {
-        const schema = await this.toSchema(schemaName, dtx);
-        const filter = new Filter(schemaName, schema.table_name, dtx).assign(filterData);
+    async selectAny(schemaName: SchemaName, filterData: FilterData = {}): Promise<any[]> {
+        const schema = await this.toSchema(schemaName);
+        const filter = new Filter(this.system, schemaName, schema.table_name).assign(filterData);
         return await filter.execute();
     }
 
-    async updateAny(schemaName: string, filterData: FilterData, changes: Record<string, any>, tx: TxContext): Promise<any[]> {
+    async updateAny(schemaName: string, filterData: FilterData, changes: Record<string, any>): Promise<any[]> {
         // 1. Find all records matching the filter
-        const records = await this.selectAny(schemaName, filterData, tx);
+        const records = await this.selectAny(schemaName, filterData);
 
         if (records.length === 0) {
             return [];
@@ -144,12 +132,12 @@ export class Database {
         }));
 
         // 3. Bulk update all matched records
-        return await this.updateAll(schemaName, updates, tx);
+        return await this.updateAll(schemaName, updates);
     }
 
-    async deleteAny(schemaName: string, filter: FilterData, tx: TxContext): Promise<any[]> {
+    async deleteAny(schemaName: string, filter: FilterData): Promise<any[]> {
         // 1. Find all records matching the filter
-        const records = await this.selectAny(schemaName, filter, tx);
+        const records = await this.selectAny(schemaName, filter);
 
         if (records.length === 0) {
             return [];
@@ -157,11 +145,11 @@ export class Database {
 
         // 2. Extract IDs and bulk delete
         const recordIds = records.map(record => record.id);
-        return await this.deleteIds(schemaName, recordIds, tx);
+        return await this.deleteIds(schemaName, recordIds);
     }
 
-    async createOne(schemaName: SchemaName, recordData: Record<string, any>, tx: TxContext): Promise<any> {
-        const schema = await this.toSchema(schemaName, tx);
+    async createOne(schemaName: SchemaName, recordData: Record<string, any>): Promise<any> {
+        const schema = await this.toSchema(schemaName);
 
         // Generate new record with base fields
         const newRecord = {
@@ -190,7 +178,7 @@ export class Database {
 
         const columnIdentifiers = columns.map(c => sql.identifier(c));
 
-        const result = await tx.execute(sql`
+        const result = await this.execute(`
             INSERT INTO ${sql.identifier(schema.table_name)} 
             (${sql.join(columnIdentifiers, sql`, `)}) 
             VALUES (${sql.join(valueParams, sql`, `)})
@@ -201,11 +189,11 @@ export class Database {
         return createdRecord;
     }
 
-    async updateOne(schemaName: SchemaName, recordId: string, updates: Record<string, any>, tx: TxContext): Promise<any> {
-        const schema = await this.toSchema(schemaName, tx);
+    async updateOne(schemaName: SchemaName, recordId: string, updates: Record<string, any>): Promise<any> {
+        const schema = await this.toSchema(schemaName);
 
         // Verify record exists
-        const existing = await this.select404(schemaName, { where: { id: recordId }}, tx);
+        const existing = await this.select404(schemaName, { where: { id: recordId }});
 
         // Build UPDATE query with updated_at
         const updateData = {
@@ -223,7 +211,7 @@ export class Database {
             }
         }
 
-        const result = await tx.execute(sql`
+        const result = await this.execute(`
             UPDATE ${sql.identifier(schema.table_name)}
             SET ${sql.join(setClauses, sql`, `)}
             WHERE id = ${recordId}
@@ -233,10 +221,10 @@ export class Database {
         return result.rows[0];
     }
 
-    async deleteOne(schemaName: SchemaName, recordId: string, tx: TxContext): Promise<any> {
-        const schema = await this.toSchema(schemaName, tx);
+    async deleteOne(schemaName: SchemaName, recordId: string): Promise<any> {
+        const schema = await this.toSchema(schemaName);
 
-        const result = await tx.execute(sql`
+        const result = await this.execute(`
             DELETE FROM ${sql.identifier(schema.table_name)}
             WHERE id = ${recordId}
             RETURNING id
@@ -249,23 +237,14 @@ export class Database {
         return { id: recordId, deleted: true };
     }
 
-    // Transaction wrapper
-    async transaction<T>(fn: (tx: TxContext) => Promise<T>, c?: Context): Promise<T> {
-        const database = this.getDatabase(c);
-        return await database.transaction(fn);
-    }
-
-    // Raw SQL execution - for complex operations
-    async raw(query: string, dtx: DbContext | TxContext = db): Promise<any> {
-        return await dtx.execute(sql.raw(query));
-    }
+    // Database class doesn't handle transactions - System class does
 
     // Access control operations - separate from regular data updates
-    async accessOne(schemaName: SchemaName, recordId: string, accessChanges: Record<string, any>, tx: TxContext): Promise<any> {
-        const schema = await this.toSchema(schemaName, tx);
+    async accessOne(schemaName: SchemaName, recordId: string, accessChanges: Record<string, any>): Promise<any> {
+        const schema = await this.toSchema(schemaName);
 
         // Verify record exists
-        await this.select404(schemaName, { where: { id: recordId } }, tx);
+        await this.select404(schemaName, { where: { id: recordId } });
 
         // Only allow access_* field updates
         const allowedFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
@@ -297,7 +276,7 @@ export class Database {
             }
         }
 
-        const result = await tx.execute(sql`
+        const result = await this.execute(`
             UPDATE ${sql.identifier(schema.table_name)}
             SET ${sql.join(setClauses, sql`, `)}
             WHERE id = ${recordId}
@@ -307,17 +286,17 @@ export class Database {
         return result.rows[0];
     }
 
-    async accessAll(schemaName: SchemaName, updates: Array<{ id: string; access: Record<string, any> }>, tx: TxContext): Promise<any[]> {
+    async accessAll(schemaName: SchemaName, updates: Array<{ id: string; access: Record<string, any> }>): Promise<any[]> {
         const results: any[] = [];
         for (const update of updates) {
-            results.push(await this.accessOne(schemaName, update.id, update.access, tx));
+            results.push(await this.accessOne(schemaName, update.id, update.access));
         }
         return results;
     }
 
-    async accessAny(schemaName: SchemaName, filter: FilterData, accessChanges: Record<string, any>, tx: TxContext): Promise<any[]> {
+    async accessAny(schemaName: SchemaName, filter: FilterData, accessChanges: Record<string, any>): Promise<any[]> {
         // 1. Find all records matching the filter
-        const records = await this.selectAny(schemaName, filter, tx);
+        const records = await this.selectAny(schemaName, filter);
 
         if (records.length === 0) {
             return [];
@@ -330,29 +309,28 @@ export class Database {
         }));
 
         // 3. Bulk update access permissions
-        return await this.accessAll(schemaName, accessUpdates, tx);
+        return await this.accessAll(schemaName, accessUpdates);
     }
 
     // 404 operations - convenience methods that throw if not found
-    async update404(schemaName: SchemaName, filter: FilterData, changes: Record<string, any>, tx: TxContext, message?: string): Promise<any> {
+    async update404(schemaName: SchemaName, filter: FilterData, changes: Record<string, any>, message?: string): Promise<any> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404(schemaName, filter, tx, message);
+        const record = await this.select404(schemaName, filter, message);
 
-        return await this.updateOne(schemaName, record.id, changes, tx);
+        return await this.updateOne(schemaName, record.id, changes);
     }
 
-    async delete404(schemaName: SchemaName, filter: FilterData, tx: TxContext, message?: string): Promise<any> {
+    async delete404(schemaName: SchemaName, filter: FilterData, message?: string): Promise<any> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404(schemaName, filter, tx, message);
-        return await this.deleteOne(schemaName, record.id, tx);
+        const record = await this.select404(schemaName, filter, message);
+        return await this.deleteOne(schemaName, record.id);
     }
 
-    async access404(schemaName: SchemaName, filter: FilterData, accessChanges: Record<string, any>, tx: TxContext, message?: string): Promise<any> {
+    async access404(schemaName: SchemaName, filter: FilterData, accessChanges: Record<string, any>, message?: string): Promise<any> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404(schemaName, filter, tx, message);
-        return await this.accessOne(schemaName, record.id, accessChanges, tx);
+        const record = await this.select404(schemaName, filter, message);
+        return await this.accessOne(schemaName, record.id, accessChanges);
     }
 }
 
-// Export singleton instance
-export const database = Database.getInstance();
+// Database instances are now created per-request via System class

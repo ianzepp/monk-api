@@ -1,6 +1,5 @@
 import type { Context } from 'hono';
 import { createSchema } from './schema.js';
-import { database } from './database.js';
 import {
     createSuccessResponse,
     createNotFoundError,
@@ -35,15 +34,4 @@ export async function withErrorHandling<T>(
         }
         return createInternalError(c, 'Route operation failed');
     }
-}
-
-// Transaction wrapper for write operations - keeps handler logic visible
-export async function withTransaction<T>(
-    c: Context,
-    handler: (tx: any) => Promise<T>,
-    successStatus: number = 200
-): Promise<any> {
-    return withErrorHandling(c, async () => {
-        return await database.transaction(handler, c);
-    }, successStatus);
 }

@@ -1,14 +1,14 @@
 import type { Context } from 'hono';
+import { System } from '../lib/system.js';
+import { type TxContext } from '../db/index.js';
 import { SchemaManager } from '../lib/schema-manager.js';
-import { withTransaction } from '../lib/route-helpers.js';
-import { createDependencyError } from '../lib/api/responses.js';
 
-export default async function (c: Context): Promise<any> {
-    const schemaName = c.req.param('name');
+export default async function (context: Context): Promise<any> {
+    return await System.handleTx(context, async (system: System) => {
+        const schemaName = context.req.param('name');
 
-    return withTransaction(c, async (tx) => {
         try {
-            return await SchemaManager.deleteSchema(tx, schemaName);
+            return await SchemaManager.deleteSchema(system.dtx as TxContext, schemaName);
         } catch (error) {
             if (error instanceof Error && error.message.includes('referenced by:')) {
                 const dependencyMatch = error.message.match(/referenced by: ([^.]+)/);

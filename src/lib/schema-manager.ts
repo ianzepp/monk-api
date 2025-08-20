@@ -1,4 +1,3 @@
-import { database } from './database.js';
 import { builtins, type TxContext } from '../db/index.js';
 import { eq, sql } from 'drizzle-orm';
 import * as yaml from 'js-yaml';
