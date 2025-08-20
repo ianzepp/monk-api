@@ -7,8 +7,8 @@ set -e
 # Load common functions
 source "$(dirname "$0")/common.sh"
 
-# Test configuration
-DB_POOL_MANAGER="../monk-api-test/scripts/db-pool-manager.sh"
+# Test configuration  
+DB_POOL_SCRIPT="$(dirname "$0")/test-pool.sh"
 RUN_HISTORY_DIR="../monk-api-test/run-history"
 ACTIVE_RUN_FILE="$RUN_HISTORY_DIR/.active-run"
 API_SOURCE_DIR="../monk-api-hono"
@@ -334,7 +334,7 @@ create_or_update_test_run() {
         print_info "Reusing existing database: $db_name"
     else
         # Allocate new database from pool
-        if db_name=$("$DB_POOL_MANAGER" allocate "$run_name" 2>&1); then
+        if db_name=$("$DB_POOL_SCRIPT" allocate "$run_name" 2>&1); then
             db_name=$(echo "$db_name" | tail -n 1 | grep "^monk_api_test_" || echo "")
             if [ -z "$db_name" ]; then
                 print_error "Failed to get database name from pool"
@@ -563,7 +563,7 @@ delete_test_run() {
     # Clean up database if it exists
     if [ -n "$db_name" ]; then
         print_step "Deallocating database: $db_name"
-        if "$DB_POOL_MANAGER" deallocate "$db_name" > /dev/null 2>&1; then
+        if "$DB_POOL_SCRIPT" deallocate "$db_name" > /dev/null 2>&1; then
             print_success "Database deallocated: $db_name"
         else
             print_error "Failed to deallocate database: $db_name"

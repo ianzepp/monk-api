@@ -30,10 +30,117 @@ CLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 # Change to CLI directory 
 cd "$CLI_ROOT"
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+print_error() { echo -e "${RED}✗ $1${NC}" >&2; }
+print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
+
+# Show comprehensive help
+show_help() {
+    cat << EOF
+Usage: monk <module> <operation> [args...]
+
+Monk CLI - Command-line interface for PaaS Backend API
+
+MODULES:
+
+  auth                    Authentication and token management
+    login --domain <name>   Authenticate with database domain
+    logout                  Clear stored JWT token
+    status                  Show authentication status
+    token                   Display current JWT token
+
+  data                    Data operations on dynamic schemas
+    list <schema>           List all records for schema
+    get <schema> <id>       Get specific record
+    create <schema>         Create record from stdin
+    update <schema> <id>    Update record from stdin
+    delete <schema> <id>    Delete record
+    export <schema> <dir>   Export records to JSON files
+    import <schema> <dir>   Import JSON files as records
+
+  meta                    Schema and metadata management
+    list schema             List all schemas
+    get schema <name>       Get specific schema
+    create schema           Create schema from stdin (YAML/JSON)
+    update schema <name>    Update schema from stdin
+    delete schema <name>    Delete schema
+
+  find                    Advanced search with filter DSL
+    <schema> [filters]      Search records with JSON filter criteria
+
+  ping                    Server connectivity testing
+    [options]               Test API server connectivity
+    -v                      Verbose server information
+    -j <token>              Include JWT token in request
+
+  hono                    Local development server management
+    start [port]            Start Hono server (default port 3000)
+    stop                    Stop the server
+    restart [port]          Restart the server
+    status                  Check server status
+    list                    List all Hono processes
+    kill [pid]              Force kill processes
+
+  test                    Comprehensive test management
+    all [pattern]           Run tests (all or pattern matching)
+    run <branch> [commit]   Create/update git-aware test environment
+    diff <run1> <run2>      Compare test results between environments
+    pool <operation>        Manage database pool (status/list/cleanup)
+    env [var_name]          Show test environment variables
+
+EXAMPLES:
+
+  # Basic workflow
+  monk hono start                     # Start local server
+  monk auth login --domain my_test_db # Authenticate
+  monk meta list schema               # List schemas
+  monk data list account              # List account records
+
+  # Test management workflow
+  monk test run main                  # Test current main branch
+  monk test run feature/API-281       # Test feature branch
+  monk test diff main feature/API-281 # Compare versions
+  monk test all 00-20                 # Run specific test ranges
+
+  # Development workflow
+  monk hono start 3001                # Start server on custom port
+  echo '{"name":"test"}' | monk data create user
+  monk find user '{"where":{"name":"test"}}'
+  monk hono stop                      # Clean shutdown
+
+GLOBAL OPTIONS:
+  -h, --help              Show this help message
+  
+ENVIRONMENT VARIABLES:
+  CLI_BASE_URL           Target API server (auto-detected from monk test env)
+  CLI_VERBOSE            Enable verbose output for all commands
+  JWT_TOKEN              Authentication token (managed by monk auth)
+
+For detailed help on any module, use: monk <module> --help
+
+Documentation: See docs/AUTHENTICATION.md for authentication flow details
+EOF
+}
+
+# Check for help flags
+case "${1:-}" in
+    -h|--help|help)
+        show_help
+        exit 0
+        ;;
+esac
+
 # Check if module is provided
 if [ $# -eq 0 ]; then
     echo "Usage: monk <module> <operation> [args...]" >&2
     echo "Modules: auth, data, meta, find, ping, hono, test" >&2
+    echo "Use 'monk --help' for detailed information" >&2
     exit 1
 fi
 
