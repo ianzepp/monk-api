@@ -2,6 +2,8 @@ import { db, builtins, type DbContext, type TxContext } from '../db/index.js';
 import { eq, sql } from 'drizzle-orm';
 import { Schema, type SchemaName } from './schema.js';
 import { Filter, type FilterData } from './filter.js';
+import { DatabaseManager } from './database-manager.js';
+import type { Context } from 'hono';
 import _ from 'lodash';
 
 /**
@@ -18,9 +20,24 @@ export class Database {
         return Database.instance;
     }
 
+    // Get database from context or fall back to default
+    private getDatabase(c?: Context, dtx?: DbContext | TxContext): DbContext | TxContext {
+        if (dtx) return dtx; // Explicit database context takes priority
+        if (c) {
+            try {
+                return DatabaseManager.getDatabaseFromContext(c);
+            } catch (error) {
+                // Fall back to default if context database not available
+                console.warn('Context database not available, using default:', error);
+            }
+        }
+        return db; // Default fallback
+    }
+
     // Schema operations
-    async toSchema(schemaName: SchemaName, dtx: DbContext | TxContext = db) {
-        const result = await dtx
+    async toSchema(schemaName: SchemaName, c?: Context, dtx?: DbContext | TxContext) {
+        const database = this.getDatabase(c, dtx);
+        const result = await database
             .select()
             .from(builtins.schemas)
             .where(eq(builtins.schemas.name, schemaName))
@@ -31,6 +48,12 @@ export class Database {
         }
 
         return result[0];
+    }
+
+    // List all schemas
+    async listSchemas(c?: Context, dtx?: DbContext | TxContext) {
+        const database = this.getDatabase(c, dtx);
+        return await database.select().from(builtins.schemas);
     }
 
     // Count
@@ -86,17 +109,17 @@ export class Database {
     // ID-based operations - always work with arrays
     async selectIds(schemaName: SchemaName, ids: string[], dtx: DbContext | TxContext = db): Promise<any[]> {
         if (ids.length === 0) return [];
-        return await this.selectAny(schemaName, { where: { id: ids } }, dtx);
+        return await this.selectAny(schemaName, { where: { id: { $in: ids } } }, dtx);
     }
 
     async updateIds(schemaName: SchemaName, ids: string[], changes: Record<string, any>, tx: TxContext): Promise<any[]> {
         if (ids.length === 0) return [];
-        return await this.updateAny(schemaName, { where: { id: ids } }, changes, tx);
+        return await this.updateAny(schemaName, { where: { id: { $in: ids } } }, changes, tx);
     }
 
     async deleteIds(schemaName: SchemaName, ids: string[], tx: TxContext): Promise<any[]> {
         if (ids.length === 0) return [];
-        return await this.deleteAny(schemaName, { where: { id: ids } }, tx);
+        return await this.deleteAny(schemaName, { where: { id: { $in: ids } } }, tx);
     }
 
     // Advanced operations - filter-based updates/deletes
@@ -227,8 +250,9 @@ export class Database {
     }
 
     // Transaction wrapper
-    async transaction<T>(fn: (tx: TxContext) => Promise<T>): Promise<T> {
-        return await db.transaction(fn);
+    async transaction<T>(fn: (tx: TxContext) => Promise<T>, c?: Context): Promise<T> {
+        const database = this.getDatabase(c);
+        return await database.transaction(fn);
     }
 
     // Raw SQL execution - for complex operations

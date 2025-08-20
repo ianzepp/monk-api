@@ -6,8 +6,8 @@ export default async function (c: Context): Promise<any> {
     return withErrorHandling(c, async () => {
         const schemaName = c.req.param('name');
         
-        // Get specific schema using database service
-        const result = await database.toSchema(schemaName);
+        // Get specific schema using context-aware database service
+        const result = await database.toSchema(schemaName, c);
         
         if (!result) {
             throw new Error(`Schema '${schemaName}' not found`);

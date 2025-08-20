@@ -6,7 +6,7 @@ import {
     createValidationError,
     createInternalError,
 } from '../lib/api/responses.js';
-import { filter } from 'lodash';
+// Using native JS filter instead of lodash
 
 export enum BulkOperationType {
     // Read operations

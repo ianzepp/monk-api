@@ -49,6 +49,20 @@ export interface FilterWhereInfo {
     data: any;
 }
 
+// New tree structure for complex logical operators
+export interface ConditionNode {
+    type: 'condition' | 'logical';
+    
+    // For condition nodes
+    column?: string;
+    operator?: FilterOp;
+    data?: any;
+    
+    // For logical nodes
+    logicalOp?: '$and' | '$or' | '$not';
+    children?: ConditionNode[];
+}
+
 export interface FilterOrderInfo {
     column: string;
     sort: 'asc' | 'desc';
@@ -71,7 +85,8 @@ export class Filter {
     private _tableName: string;
     private _query: any;
     private _select: string[] = [];
-    private _where: FilterWhereInfo[] = [];
+    private _where: FilterWhereInfo[] = []; // Legacy - keep for backward compatibility
+    private _conditions: ConditionNode[] = []; // New tree structure
     private _order: FilterOrderInfo[] = [];
     private _limit?: number;
     private _offset?: number;
@@ -93,8 +108,11 @@ export class Filter {
             return this;
         }
 
-        // Array of IDs → convert to $in
+        // Array of IDs → convert to $in (skip empty arrays)
         if (Array.isArray(source)) {
+            if (source.length === 0) {
+                return this; // Empty array = no conditions
+            }
             return this.assign({ where: { id: { $in: source } } });
         }
 
@@ -165,38 +183,97 @@ export class Filter {
 
         // Object → process each key-value pair
         if (typeof conditions === 'object') {
-            this._processWhereObject(conditions);
+            const nodes = this._processWhereObject(conditions);
+            this._conditions.push(...nodes);
         }
 
         this._applyWhereConditions();
         return this;
     }
 
-    private _processWhereObject(conditions: any): void {
+    private _processWhereObject(conditions: any): ConditionNode[] {
+        const nodes: ConditionNode[] = [];
+        
         for (const [key, value] of Object.entries(conditions)) {
             if (key.startsWith('$')) {
                 // Logical operators
-                this._processLogicalOperator(key as FilterOp, value);
+                nodes.push(this._processLogicalOperator(key as FilterOp, value));
             } else {
                 // Field conditions
-                this._processFieldCondition(key, value);
+                nodes.push(...this._processFieldCondition(key, value));
             }
         }
+        
+        return nodes;
     }
 
-    private _processLogicalOperator(operator: FilterOp, value: any): void {
+    private _processLogicalOperator(operator: FilterOp, value: any): ConditionNode {
         if (operator === FilterOp.AND && Array.isArray(value)) {
-            value.forEach((condition: any) => this._processWhereObject(condition));
+            const children: ConditionNode[] = [];
+            value.forEach((condition: any) => {
+                children.push(...this._processWhereObject(condition));
+            });
+            
+            return {
+                type: 'logical',
+                logicalOp: '$and',
+                children
+            };
         } else if (operator === FilterOp.OR && Array.isArray(value)) {
-            // TODO: Handle OR conditions (more complex)
-            console.log('OR conditions not fully implemented yet');
+            const children: ConditionNode[] = [];
+            value.forEach((condition: any) => {
+                children.push(...this._processWhereObject(condition));
+            });
+            
+            return {
+                type: 'logical',
+                logicalOp: '$or',
+                children
+            };
+        } else if (operator === FilterOp.NOT && typeof value === 'object') {
+            const children = this._processWhereObject(value);
+            
+            return {
+                type: 'logical',
+                logicalOp: '$not',
+                children
+            };
         }
+        
+        throw new Error(`Unsupported logical operator: ${operator}`);
     }
 
-    private _processFieldCondition(fieldName: string, fieldValue: any): void {
-        if (typeof fieldValue === 'object' && fieldValue !== null) {
+    private _processFieldCondition(fieldName: string, fieldValue: any): ConditionNode[] {
+        const nodes: ConditionNode[] = [];
+        
+        if (Array.isArray(fieldValue)) {
+            // Auto-convert array to $in: { "id": ["uuid1", "uuid2"] } → { "id": { "$in": ["uuid1", "uuid2"] } }
+            const node = {
+                type: 'condition' as const,
+                column: fieldName,
+                operator: FilterOp.IN,
+                data: fieldValue
+            };
+            
+            nodes.push(node);
+            
+            // Also add to legacy array for backward compatibility
+            this._where.push({ 
+                column: fieldName, 
+                operator: FilterOp.IN, 
+                data: fieldValue 
+            });
+        } else if (typeof fieldValue === 'object' && fieldValue !== null) {
             // Complex condition: { "age": { "$gte": 18, "$lt": 65 } }
             for (const [op, data] of Object.entries(fieldValue)) {
+                nodes.push({
+                    type: 'condition',
+                    column: fieldName,
+                    operator: op as FilterOp,
+                    data: data
+                });
+                
+                // Also add to legacy array for backward compatibility
                 this._where.push({ 
                     column: fieldName, 
                     operator: op as FilterOp, 
@@ -205,12 +282,24 @@ export class Filter {
             }
         } else {
             // Simple equality: { "status": "active" }
+            const node = {
+                type: 'condition' as const,
+                column: fieldName,
+                operator: FilterOp.EQ,
+                data: fieldValue
+            };
+            
+            nodes.push(node);
+            
+            // Also add to legacy array for backward compatibility
             this._where.push({ 
                 column: fieldName, 
                 operator: FilterOp.EQ, 
                 data: fieldValue 
             });
         }
+        
+        return nodes;
     }
 
     private _applyWhereConditions(): void {
@@ -277,9 +366,15 @@ export class Filter {
             ? this._select.map(col => `"${col}"`).join(', ')
             : '*';
 
-        // Build WHERE clause
+        // Build WHERE clause using new tree structure
         let whereClause = '';
-        if (this._where.length > 0) {
+        if (this._conditions.length > 0) {
+            const conditionSQL = this._buildConditionTreeSQL(this._conditions);
+            if (conditionSQL) {
+                whereClause = 'WHERE ' + conditionSQL;
+            }
+        } else if (this._where.length > 0) {
+            // Fallback to legacy flat structure
             const conditions = this._where.map(w => this._buildSQLCondition(w)).filter(Boolean);
             if (conditions.length > 0) {
                 whereClause = 'WHERE ' + conditions.join(' AND ');
@@ -314,19 +409,80 @@ export class Filter {
         return sql.raw(query);
     }
 
-    private _buildSQLCondition(whereInfo: FilterWhereInfo): string | null {
-        const { column, operator, data } = whereInfo;
+    // For testing - return the SQL string directly
+    private _buildSQLString(): string {
+        // Build SELECT clause
+        const selectClause = this._select.length > 0 && !this._select.includes('*')
+            ? this._select.map(col => `"${col}"`).join(', ')
+            : '*';
+
+        // Build WHERE clause
+        let whereClause = '';
+        if (this._where.length > 0) {
+            const conditions = this._where.map(w => this._buildSQLCondition(w)).filter(Boolean);
+            if (conditions.length > 0) {
+                whereClause = 'WHERE ' + conditions.join(' AND ');
+            }
+        }
+
+        // Build ORDER BY clause
+        let orderClause = '';
+        if (this._order.length > 0) {
+            const orders = this._order.map(o => `"${o.column}" ${o.sort.toUpperCase()}`);
+            orderClause = 'ORDER BY ' + orders.join(', ');
+        }
+
+        // Build LIMIT/OFFSET clause
+        let limitClause = '';
+        if (this._limit !== undefined) {
+            limitClause = `LIMIT ${this._limit}`;
+            if (this._offset !== undefined) {
+                limitClause += ` OFFSET ${this._offset}`;
+            }
+        }
+
+        // Combine all clauses
+        return [
+            `SELECT ${selectClause}`,
+            `FROM "${this._tableName}"`,
+            whereClause,
+            orderClause,
+            limitClause
+        ].filter(Boolean).join(' ');
+    }
+
+    // Build SQL from condition tree - supports $and, $or, $not
+    private _buildConditionTreeSQL(nodes: ConditionNode[]): string {
+        if (nodes.length === 0) return '';
         
-        if (!column) return null;
-
-        const quotedColumn = `"${column}"`;
-
-        switch (operator) {
+        const clauses = nodes.map(node => this._buildNodeSQL(node)).filter(Boolean);
+        
+        // Multiple top-level nodes are implicitly AND-ed
+        return clauses.length > 1 ? clauses.join(' AND ') : clauses[0];
+    }
+    
+    private _buildNodeSQL(node: ConditionNode): string {
+        if (node.type === 'condition') {
+            return this._buildConditionSQL(node);
+        } else if (node.type === 'logical') {
+            return this._buildLogicalSQL(node);
+        }
+        
+        return '';
+    }
+    
+    private _buildConditionSQL(node: ConditionNode): string {
+        if (!node.column || !node.operator) return '';
+        
+        const quotedColumn = `"${node.column}"`;
+        const { data } = node;
+        
+        switch (node.operator) {
             case FilterOp.EQ:
-                return `${quotedColumn} = '${this._escapeSQLValue(data)}'`;
+                return `${quotedColumn} = ${this._formatSQLValue(data)}`;
             case FilterOp.NE:
             case FilterOp.NEQ:
-                return `${quotedColumn} != '${this._escapeSQLValue(data)}'`;
+                return `${quotedColumn} != ${this._formatSQLValue(data)}`;
             case FilterOp.GT:
                 return `${quotedColumn} > ${data}`;
             case FilterOp.GTE:
@@ -336,15 +492,97 @@ export class Filter {
             case FilterOp.LTE:
                 return `${quotedColumn} <= ${data}`;
             case FilterOp.LIKE:
-                return `${quotedColumn} LIKE '${this._escapeSQLValue(data)}'`;
+                return `${quotedColumn} LIKE ${this._formatSQLValue(data)}`;
             case FilterOp.ILIKE:
-                return `${quotedColumn} ILIKE '${this._escapeSQLValue(data)}'`;
+                return `${quotedColumn} ILIKE ${this._formatSQLValue(data)}`;
             case FilterOp.IN:
                 const inValues = Array.isArray(data) ? data : [data];
-                return `${quotedColumn} IN (${inValues.map(v => `'${this._escapeSQLValue(v)}'`).join(', ')})`;
+                return `${quotedColumn} IN (${inValues.map(v => this._formatSQLValue(v)).join(', ')})`;
             case FilterOp.NIN:
                 const ninValues = Array.isArray(data) ? data : [data];
-                return `${quotedColumn} NOT IN (${ninValues.map(v => `'${this._escapeSQLValue(v)}'`).join(', ')})`;
+                return `${quotedColumn} NOT IN (${ninValues.map(v => this._formatSQLValue(v)).join(', ')})`;
+            default:
+                console.warn(`Unsupported operator: ${node.operator}`);
+                return '';
+        }
+    }
+    
+    private _buildLogicalSQL(node: ConditionNode): string {
+        if (!node.children || node.children.length === 0) return '';
+        
+        const childClauses = node.children.map(child => this._buildNodeSQL(child)).filter(Boolean);
+        
+        if (childClauses.length === 0) return '';
+        
+        switch (node.logicalOp) {
+            case '$and':
+                return childClauses.length > 1 
+                    ? `(${childClauses.join(' AND ')})` 
+                    : childClauses[0];
+                    
+            case '$or':
+                return childClauses.length > 1 
+                    ? `(${childClauses.join(' OR ')})` 
+                    : childClauses[0];
+                    
+            case '$not':
+                return childClauses.length === 1 
+                    ? `NOT ${childClauses[0]}`
+                    : `NOT (${childClauses.join(' AND ')})`;
+                    
+            default:
+                console.warn(`Unsupported logical operator: ${node.logicalOp}`);
+                return '';
+        }
+    }
+    
+    private _formatSQLValue(value: any): string {
+        if (value === null || value === undefined) {
+            return 'NULL';
+        }
+        if (typeof value === 'string') {
+            return `'${this._escapeSQLValue(value)}'`;
+        }
+        if (typeof value === 'boolean') {
+            return value.toString();
+        }
+        if (typeof value === 'number') {
+            return value.toString();
+        }
+        return String(value);
+    }
+
+    private _buildSQLCondition(whereInfo: FilterWhereInfo): string | null {
+        const { column, operator, data } = whereInfo;
+        
+        if (!column) return null;
+
+        const quotedColumn = `"${column}"`;
+
+        switch (operator) {
+            case FilterOp.EQ:
+                return `${quotedColumn} = ${this._formatSQLValue(data)}`;
+            case FilterOp.NE:
+            case FilterOp.NEQ:
+                return `${quotedColumn} != ${this._formatSQLValue(data)}`;
+            case FilterOp.GT:
+                return `${quotedColumn} > ${data}`;
+            case FilterOp.GTE:
+                return `${quotedColumn} >= ${data}`;
+            case FilterOp.LT:
+                return `${quotedColumn} < ${data}`;
+            case FilterOp.LTE:
+                return `${quotedColumn} <= ${data}`;
+            case FilterOp.LIKE:
+                return `${quotedColumn} LIKE ${this._formatSQLValue(data)}`;
+            case FilterOp.ILIKE:
+                return `${quotedColumn} ILIKE ${this._formatSQLValue(data)}`;
+            case FilterOp.IN:
+                const inValues = Array.isArray(data) ? data : [data];
+                return `${quotedColumn} IN (${inValues.map(v => this._formatSQLValue(v)).join(', ')})`;
+            case FilterOp.NIN:
+                const ninValues = Array.isArray(data) ? data : [data];
+                return `${quotedColumn} NOT IN (${ninValues.map(v => this._formatSQLValue(v)).join(', ')})`;
             default:
                 console.warn(`Unsupported operator: ${operator}`);
                 return null;

@@ -6,6 +6,9 @@ import dataRouter from './routes/data.js';
 import metaRouter from './routes/meta.js';
 import findRouter from './routes/find.js';
 import bulkRouter from './routes/bulk.js';
+import authRouter from './routes/auth.js';
+import pingRouter from './routes/ping.js';
+import { AuthService } from './lib/auth.js';
 
 // Create Hono app
 const app = new Hono();
@@ -37,13 +40,23 @@ app.get('/', (c) => {
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
             health: '/health',
-            data: '/api/data/:schema[/:id]',
-            meta: '/api/meta/*',
-            find: '/api/find/:schema',
-            bulk: '/api/bulk',
+            auth: '/auth/*',
+            ping: '/ping',
+            data: '/api/data/:schema[/:id] (protected)',
+            meta: '/api/meta/* (protected)',
+            find: '/api/find/:schema (protected)',
+            bulk: '/api/bulk (protected)',
         },
     });
 });
+
+// Public routes
+app.route('/auth', authRouter);
+app.route('/ping', pingRouter);
+
+// Protected API routes - require JWT authentication
+app.use('/api/*', AuthService.getJWTMiddleware());
+app.use('/api/*', AuthService.getUserContextMiddleware());
 
 // API routes
 app.route('/api/data', dataRouter);

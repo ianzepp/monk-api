@@ -44,6 +44,6 @@ export async function withTransaction<T>(
     successStatus: number = 200
 ): Promise<any> {
     return withErrorHandling(c, async () => {
-        return await database.transaction(handler);
+        return await database.transaction(handler, c);
     }, successStatus);
 }
