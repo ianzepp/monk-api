@@ -79,14 +79,6 @@ MODULES:
     -v                      Verbose server information
     -j <token>              Include JWT token in request
 
-  hono                    Local development server management
-    start [port]            Start Hono server (default port 3000)
-    stop                    Stop the server
-    restart [port]          Restart the server
-    status                  Check server status
-    list                    List all Hono processes
-    kill [pid]              Force kill processes
-
   test                    Comprehensive test management
     all [pattern]           Run tests (all or pattern matching)
     git <branch> [commit]   Create/update git-aware test environment
@@ -125,7 +117,6 @@ MODULES:
 EXAMPLES:
 
   # Basic workflow
-  monk hono start                     # Start local server
   monk auth login --domain my_test_db # Authenticate
   monk meta list schema               # List schemas
   monk data list account              # List account records
@@ -152,10 +143,8 @@ EXAMPLES:
   monk servers ping-all                       # Health check all servers
 
   # Development workflow
-  monk hono start 3001                # Start server on custom port
   echo '{"name":"test"}' | monk data create user
   monk find user '{"where":{"name":"test"}}'
-  monk hono stop                      # Clean shutdown
 
 GLOBAL OPTIONS:
   -h, --help              Show this help message
@@ -182,7 +171,7 @@ esac
 # Check if module is provided
 if [ $# -eq 0 ]; then
     echo "Usage: monk <module> <operation> [args...]" >&2
-    echo "Modules: auth, data, meta, find, ping, hono, test, pool, servers, user, root" >&2
+    echo "Modules: auth, data, meta, find, ping, test, pool, servers, user, root" >&2
     echo "Use 'monk --help' for detailed information" >&2
     exit 1
 fi
@@ -207,9 +196,6 @@ case "$MODULE" in
     ping)
         exec "./cli/ping.sh" "$@"
         ;;
-    hono)
-        exec "./cli/hono.sh" "$@"
-        ;;
     test)
         exec "./cli/test.sh" "$@"
         ;;
@@ -227,7 +213,7 @@ case "$MODULE" in
         ;;
     *)
         echo "Invalid module: $MODULE" >&2
-        echo "Available modules: auth, data, meta, find, ping, hono, test, pool, servers, user, root" >&2
+        echo "Available modules: auth, data, meta, find, ping, test, pool, servers, user, root" >&2
         exit 1
         ;;
 esac
