@@ -25,9 +25,9 @@ while [ -L "$SCRIPT_PATH" ]; do
         *) SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH" ;;
     esac
 done
-CLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+CLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 
-# Change to CLI directory 
+# Change to project root directory 
 cd "$CLI_ROOT"
 
 # Colors for output
@@ -182,34 +182,34 @@ shift
 
 case "$MODULE" in
     auth)
-        exec "./cli/auth.sh" "$@"
+        exec "cli/auth.sh" "$@"
         ;;
     data)
-        exec "./cli/data.sh" "$@"
+        exec "cli/data.sh" "$@"
         ;;
     meta)
-        exec "./cli/meta.sh" "$@"
+        exec "cli/meta.sh" "$@"
         ;;
     find)
-        exec "./cli/find.sh" "$@"
+        exec "cli/find.sh" "$@"
         ;;
     ping)
-        exec "./cli/ping.sh" "$@"
+        exec "cli/ping.sh" "$@"
         ;;
     test)
-        exec "./cli/test.sh" "$@"
+        exec "cli/test.sh" "$@"
         ;;
     pool)
-        exec "./cli/test-pool.sh" "$@"
+        exec "cli/test-pool.sh" "$@"
         ;;
     servers)
-        exec "./cli/servers.sh" "$@"
+        exec "cli/servers.sh" "$@"
         ;;
     user)
-        exec "./cli/user.sh" "$@"
+        exec "cli/user.sh" "$@"
         ;;
     root)
-        exec "./cli/root.sh" "$@"
+        exec "cli/root.sh" "$@"
         ;;
     *)
         echo "Invalid module: $MODULE" >&2

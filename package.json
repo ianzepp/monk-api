@@ -1,9 +1,12 @@
 {
-  "name": "monk-api-hono",
+  "name": "monk-api",
   "version": "1.0.0",
-  "description": "Lightweight PaaS backend API built with Hono",
+  "description": "Lightweight PaaS backend API and CLI built with Hono",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "monk": "./bin/monk"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "scripts/verify-config.sh && tsc",
