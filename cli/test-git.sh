@@ -279,10 +279,11 @@ create_or_update_test_run() {
     local port=""
     local description=""
     local remote_url=""
+    local use_pool_db=""
     
     if [ -z "$git_ref" ]; then
         print_error "Git reference required"
-        print_info "Usage: monk test git <branch> [commit] [--clean] [--port PORT] [--remote URL]"
+        print_info "Usage: monk test git <branch> [commit] [--clean] [--port PORT] [--remote URL] [--use-pool DB]"
         return 1
     fi
     
@@ -304,6 +305,10 @@ create_or_update_test_run() {
                 ;;
             --remote)
                 remote_url="$2"
+                shift 2
+                ;;
+            --use-pool)
+                use_pool_db="$2"
                 shift 2
                 ;;
             -*)
@@ -377,7 +382,19 @@ create_or_update_test_run() {
     
     # Handle database allocation
     local db_name=""
-    if [ "$existing_run" = true ] && [ -f "$config_dir/run-info" ]; then
+    if [ -n "$use_pool_db" ]; then
+        # Use provided pool database
+        db_name="$use_pool_db"
+        print_info "Using provided pool database: $db_name"
+        
+        # Verify the database exists (try to connect to it)
+        if ! psql -d "$db_name" -c "SELECT 1;" >/dev/null 2>&1; then
+            print_error "Database '$db_name' not accessible or does not exist"
+            print_info "Available databases:"
+            "$DB_POOL_SCRIPT" list
+            return 1
+        fi
+    elif [ "$existing_run" = true ] && [ -f "$config_dir/run-info" ]; then
         # Reuse existing database
         db_name=$(grep "database_name=" "$config_dir/run-info" | cut -d'=' -f2)
         print_info "Reusing existing database: $db_name"
@@ -713,6 +730,7 @@ Options:
   --port <port>          Use specific port (default: auto-assign from 3000+)
   --description <text>   Add description to test run
   --remote <url>         Git remote URL (default: auto-detect or MONK_GIT_REMOTE)
+  --use-pool <name>      Use existing database from pool instead of allocating new one
 
 Examples:
   monk test git main                          # Test current main branch HEAD
@@ -721,6 +739,7 @@ Examples:
   monk test git main --port 3005              # Use specific port
   monk test git main --description "Release candidate"
   monk test git main --remote git@github.com:user/repo.git  # Use different remote
+  monk test git main --use-pool test-db-123  # Use existing pool database
 
 Related Commands:
   monk test list                              # List all test environments
