@@ -21,7 +21,8 @@ CURRENT_DIR="/"
 SHELL_RUNNING=true
 
 # Loaded command modules cache (to avoid re-sourcing)
-declare -A LOADED_COMMANDS
+# Using simple variable tracking instead of associative arrays for compatibility
+LOADED_COMMANDS=""
 
 # Path utilities
 normalize_path() {
@@ -143,15 +144,15 @@ load_command() {
     local script_dir="$(dirname "${BASH_SOURCE[0]}")"
     local cmd_file="$script_dir/sh-$cmd.sh"
     
-    # Check if already loaded
-    if [[ "${LOADED_COMMANDS[$cmd]}" == "1" ]]; then
+    # Check if already loaded (simple string search)
+    if [[ "$LOADED_COMMANDS" == *":$cmd:"* ]]; then
         return 0
     fi
     
     # Check if command file exists
     if [[ -f "$cmd_file" ]]; then
         source "$cmd_file"
-        LOADED_COMMANDS[$cmd]="1"
+        LOADED_COMMANDS="${LOADED_COMMANDS}:$cmd:"
         return 0
     else
         return 1

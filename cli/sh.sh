@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+# Note: Not using 'set -e' in interactive shell to allow graceful error handling
 
 # Interactive Shell CLI - API exploration via filesystem metaphor
 #
@@ -71,11 +71,11 @@ parse_and_execute() {
             cmd_pwd
             ;;
         "cd")
-            cmd_cd "${args[@]}"
+            cmd_cd "${args[@]}" || true  # Don't exit on cd errors
             ;;
         "ls"|"cat")
             # Lazy load and execute command modules
-            execute_command "$cmd" "${args[@]}"
+            execute_command "$cmd" "${args[@]}" || true  # Don't exit on command errors
             ;;
         "")
             # Empty command, do nothing
