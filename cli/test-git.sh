@@ -6,11 +6,12 @@ set -e
 
 # Load common functions
 source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/test-config.sh"
 
 # Test configuration  
 DB_POOL_SCRIPT="$(dirname "$0")/test-pool.sh"
 GIT_TARGET_DIR="$(get_monk_git_target)"
-ACTIVE_RUN_FILE="$GIT_TARGET_DIR/.active-run"
+ACTIVE_RUN_FILE="$GIT_TARGET_DIR/.active-run"  # Legacy fallback
 API_SOURCE_DIR="$(get_monk_api_dir)"
 PORT_TRACKER_FILE="$GIT_TARGET_DIR/.port-tracker"
 
@@ -503,8 +504,13 @@ EOF
         print_info "Description: $description"
     fi
     
-    # Set as active run
-    echo "$run_name" > "$ACTIVE_RUN_FILE"
+    # Set as active run in both new config and legacy file
+    set_active_test_run "$run_name"
+    echo "$run_name" > "$ACTIVE_RUN_FILE"  # Keep legacy for compatibility
+    
+    # Add to run history with full metadata
+    add_test_run_to_history "$run_name" "$git_ref" "$commit_hash" "$db_name" "$port" "$description" "active"
+    
     print_success "Activated test run: $run_name"
     
     # Start the API server
@@ -541,8 +547,9 @@ list_test_runs() {
         return 0
     fi
     
-    local active_run=""
-    if [ -f "$ACTIVE_RUN_FILE" ]; then
+    # Get active run from new config system first, fallback to legacy
+    local active_run=$(get_active_test_run)
+    if [ -z "$active_run" ] && [ -f "$ACTIVE_RUN_FILE" ]; then
         active_run=$(cat "$ACTIVE_RUN_FILE")
     fi
     
@@ -604,8 +611,12 @@ use_test_run() {
         return 1
     fi
     
-    # Set as active run
-    echo "$run_name" > "$ACTIVE_RUN_FILE"
+    # Set as active run in both new config and legacy file
+    set_active_test_run "$run_name"
+    echo "$run_name" > "$ACTIVE_RUN_FILE"  # Keep legacy for compatibility
+    
+    # Update last accessed time
+    update_test_run_access "$run_name"
     
     print_success "Switched to test run: $run_name"
     
@@ -670,21 +681,35 @@ delete_test_run() {
     rm -rf "$run_dir"
     
     # Clear active run if this was the active one
+    local current_active=$(get_active_test_run)
+    if [ "$current_active" = "$run_name" ]; then
+        set_active_test_run ""
+        print_info "Cleared active run (was deleted run)"
+    fi
+    
+    # Legacy cleanup
     if [ -f "$ACTIVE_RUN_FILE" ]; then
         local active_run=$(cat "$ACTIVE_RUN_FILE")
         if [ "$active_run" = "$run_name" ]; then
             rm -f "$ACTIVE_RUN_FILE"
-            print_info "Cleared active run (was deleted run)"
         fi
     fi
+    
+    # Remove from run history
+    remove_test_run_from_history "$run_name"
     
     print_success "Test run environment deleted: $run_name"
 }
 
 # Show current active test run
 show_current_test_run() {
-    if [ -f "$ACTIVE_RUN_FILE" ]; then
-        local active_run=$(cat "$ACTIVE_RUN_FILE")
+    # Try new config system first, fallback to legacy
+    local active_run=$(get_active_test_run)
+    if [ -z "$active_run" ] && [ -f "$ACTIVE_RUN_FILE" ]; then
+        active_run=$(cat "$ACTIVE_RUN_FILE")
+    fi
+    
+    if [ -n "$active_run" ]; then
         local run_dir="$GIT_TARGET_DIR/$active_run"
         
         if [ -d "$run_dir" ] && [ -f "$config_dir/run-info" ]; then

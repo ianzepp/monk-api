@@ -81,6 +81,13 @@ Test Run Operations:
   use <name>              Switch to test run environment
   delete <name>           Delete test run environment
 
+Configuration Management:
+  config                  Show current test configuration
+  config get <key>        Get configuration value
+  config set <key> <val>  Update configuration setting
+  config reset            Reset configuration to defaults
+  config validate         Validate configuration file
+
 
 Environment Variables:
   (no var_name)           Show all test environment variables
@@ -204,12 +211,52 @@ main() {
         diff)
             exec "$(dirname "$0")/test-diff.sh" "$@"
             ;;
+        config)
+            # Test configuration management
+            if [ $# -eq 0 ]; then
+                source "$(dirname "$0")/test-config.sh"
+                show_test_config
+            else
+                case "$1" in
+                    get)
+                        source "$(dirname "$0")/test-config.sh"
+                        if [ $# -lt 2 ]; then
+                            print_error "Usage: monk test config get <key>"
+                            return 1
+                        fi
+                        get_test_config_value "$2"
+                        ;;
+                    set)
+                        source "$(dirname "$0")/test-config.sh"
+                        if [ $# -lt 3 ]; then
+                            print_error "Usage: monk test config set <key> <value>"
+                            return 1
+                        fi
+                        set_test_config_value "$2" "$3"
+                        print_info "Config updated: $2 = $3"
+                        ;;
+                    reset)
+                        source "$(dirname "$0")/test-config.sh"
+                        reset_test_config
+                        ;;
+                    validate)
+                        source "$(dirname "$0")/test-config.sh"
+                        validate_test_config
+                        ;;
+                    *)
+                        print_error "Unknown config command: $1"
+                        print_info "Available config commands: get, set, reset, validate"
+                        return 1
+                        ;;
+                esac
+            fi
+            ;;
         -h|--help)
             show_usage
             ;;
         *)
             print_error "Unknown command: $command"
-            print_info "Available commands: all, preview, list, git, dev, current, use, delete, env, diff"
+            print_info "Available commands: all, preview, list, git, dev, current, use, delete, env, diff, config"
             print_info "Use 'monk test --help' for more information"
             return 1
             ;;

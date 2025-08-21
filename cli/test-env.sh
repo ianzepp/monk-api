@@ -25,6 +25,22 @@ print_error() { echo -e "${RED}✗ $1${NC}"; }
 
 # Detect current test run environment
 detect_current_test_run() {
+    # Try new config system first
+    local test_config_file="$(dirname "$0")/test-config.sh"
+    if [ -f "$test_config_file" ]; then
+        source "$test_config_file"
+        local active_run=$(get_active_test_run)
+        if [ -n "$active_run" ]; then
+            local git_target_dir=$(get_test_base_directory)
+            local run_dir="$git_target_dir/$active_run"
+            if [ -f "$run_dir/.config/monk/test-env" ]; then
+                echo "$run_dir"
+                return 0
+            fi
+        fi
+    fi
+    
+    # Fallback to legacy .active-run file
     local git_target_dir=$(get_monk_git_target)
     local active_run_file="$git_target_dir/.active-run"
     

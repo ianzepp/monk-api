@@ -132,6 +132,15 @@ get_monk_git_remote() {
 
 # Get target directory for git builds
 get_monk_git_target() {
+    # Try to source test config utilities if available
+    local test_config_file="$(dirname "${BASH_SOURCE[0]}")/test-config.sh"
+    if [ -f "$test_config_file" ]; then
+        source "$test_config_file"
+        get_test_base_directory
+        return 0
+    fi
+    
+    # Fallback: check legacy MONK_GIT_TARGET environment variable
     local target_dir="${MONK_GIT_TARGET:-}"
     if [ -n "$target_dir" ]; then
         echo "$target_dir"
