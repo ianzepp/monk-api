@@ -406,6 +406,11 @@ export class Filter {
             baseConditions.push('trashed_at IS NULL');
         }
         
+        // Add permanent delete filtering unless explicitly included via options
+        if (!this.system.options.deleted) {
+            baseConditions.push('deleted_at IS NULL');
+        }
+        
         // Build WHERE clause using new tree structure
         if (this._conditions.length > 0) {
             const conditionSQL = this._buildConditionTreeSQL(this._conditions);

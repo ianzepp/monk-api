@@ -9,6 +9,8 @@ import type { DbContext, TxContext } from '../db/index.js';
 export interface SystemOptions {
     /** Include trashed records (soft deletes) in query results */
     trashed?: boolean;
+    /** Include permanently deleted records in query results (root access only) */
+    deleted?: boolean;
 }
 
 /**
