@@ -9,29 +9,14 @@ set -e
 #   Provides an interactive shell interface that maps API endpoints to a 
 #   familiar filesystem metaphor. Navigate /data for records, /meta for schemas.
 
-# Load common functions
+# Load common monk functions
 source "$(dirname "$0")/common.sh"
+
+# Load shell-specific common functions
+source "$(dirname "$0")/sh-common.sh"
 
 # Check dependencies
 check_dependencies
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-print_error() { echo -e "${RED}✗ $1${NC}" >&2; }
-print_success() { echo -e "${GREEN}✓ $1${NC}"; }
-print_info() { echo -e "${BLUE}ℹ $1${NC}"; }
-print_warning() { echo -e "${YELLOW}⚠ $1${NC}"; }
-print_prompt() { echo -ne "${CYAN}monk:${1}${NC}$ "; }
-
-# Global shell state
-CURRENT_DIR="/"
-SHELL_RUNNING=true
 
 # Initialize shell environment
 init_shell() {
@@ -40,11 +25,8 @@ init_shell() {
     echo
     
     # Check authentication status
-    if ! monk auth status >/dev/null 2>&1; then
-        print_warning "Not authenticated. Some features may be limited."
-        print_info "Run 'monk auth login' to authenticate"
-        echo
-    fi
+    check_monk_auth
+    echo
 }
 
 # Main REPL loop
@@ -91,18 +73,19 @@ parse_and_execute() {
         "cd")
             cmd_cd "${args[@]}"
             ;;
-        "ls")
-            cmd_ls "${args[@]}"
-            ;;
-        "cat")
-            cmd_cat "${args[@]}"
+        "ls"|"cat")
+            # Lazy load and execute command modules
+            execute_command "$cmd" "${args[@]}"
             ;;
         "")
             # Empty command, do nothing
             ;;
         *)
-            print_error "Unknown command: $cmd"
-            print_info "Type 'help' for available commands"
+            # Try to load as a command module
+            if ! execute_command "$cmd" "${args[@]}"; then
+                print_error "Unknown command: $cmd"
+                print_info "Type 'help' for available commands"
+            fi
             ;;
     esac
 }
@@ -141,102 +124,20 @@ cmd_pwd() {
 # cd command
 cmd_cd() {
     local target="${1:-/}"
+    local new_path
     
-    # Handle relative and absolute paths
-    if [[ "$target" == "." ]]; then
-        # Stay in current directory
-        return 0
-    elif [[ "$target" == ".." ]]; then
-        # Go up one directory
-        if [[ "$CURRENT_DIR" == "/" ]]; then
-            # Already at root
-            return 0
-        else
-            # Remove last component
-            CURRENT_DIR=$(dirname "$CURRENT_DIR")
-            [[ "$CURRENT_DIR" == "." ]] && CURRENT_DIR="/"
-        fi
-    elif [[ "$target" == "/"* ]]; then
-        # Absolute path
-        CURRENT_DIR="$target"
+    # Resolve the new path
+    new_path=$(resolve_path "$target")
+    
+    # Validate the new path
+    if validate_path "$new_path"; then
+        CURRENT_DIR="$new_path"
     else
-        # Relative path
-        if [[ "$CURRENT_DIR" == "/" ]]; then
-            CURRENT_DIR="/$target"
-        else
-            CURRENT_DIR="$CURRENT_DIR/$target"
-        fi
-    fi
-    
-    # Normalize path (remove double slashes, etc.)
-    CURRENT_DIR=$(echo "$CURRENT_DIR" | sed 's|//*|/|g' | sed 's|/$||')
-    [[ -z "$CURRENT_DIR" ]] && CURRENT_DIR="/"
-    
-    # Basic path validation (more detailed validation will come later)
-    if ! validate_path "$CURRENT_DIR"; then
-        print_error "Invalid path: $CURRENT_DIR"
-        CURRENT_DIR="/"
+        print_error "Invalid path: $new_path"
         return 1
     fi
 }
 
-# ls command (stub for now)
-cmd_ls() {
-    print_info "Listing contents of: $CURRENT_DIR"
-    
-    case "$CURRENT_DIR" in
-        "/")
-            echo "data/"
-            echo "meta/"
-            ;;
-        "/data")
-            print_info "Available schemas would be listed here"
-            echo "users/"
-            echo "tasks/"
-            ;;
-        "/meta")
-            echo "schema/"
-            ;;
-        "/meta/schema")
-            print_info "Available schemas would be listed here"
-            echo "users"
-            echo "tasks"
-            ;;
-        *)
-            print_warning "Directory listing not yet implemented for: $CURRENT_DIR"
-            ;;
-    esac
-}
-
-# cat command (stub for now)
-cmd_cat() {
-    local file="$1"
-    
-    if [[ -z "$file" ]]; then
-        print_error "cat: missing file argument"
-        return 1
-    fi
-    
-    print_info "Would display contents of: $CURRENT_DIR/$file"
-    print_warning "File display not yet implemented"
-}
-
-# Basic path validation
-validate_path() {
-    local path="$1"
-    
-    # Must start with /
-    if [[ ! "$path" == "/"* ]]; then
-        return 1
-    fi
-    
-    # No .. components for now (basic security)
-    if [[ "$path" == *".."* ]]; then
-        return 1
-    fi
-    
-    return 0
-}
 
 # Handle script arguments
 if [[ $# -eq 0 ]]; then
