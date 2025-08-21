@@ -9,7 +9,7 @@ set -e
 #   add <name> <hostname:port>    Add server to registry
 #   list                         List all servers with status
 #   current                      Show currently selected server
-#   use <name>                   Switch to server (updates CLI_BASE_URL)
+#   use <name>                   Switch to server (sets as current)
 #   delete <name>                Remove server configuration
 #   ping <name>                  Health check specific server
 #   ping-all                     Health check all servers
@@ -412,9 +412,9 @@ show_current_server() {
         echo "Description: $description"
     fi
     
-    # Show environment variable
+    # Show calculated base URL
     local base_url="$protocol://$hostname:$port"
-    echo "CLI_BASE_URL: $base_url"
+    echo "Base URL: $base_url"
 }
 
 # Switch to a server
@@ -455,10 +455,7 @@ use_server() {
     print_success "Switched to server: $name"
     print_info "Endpoint: $base_url"
     print_info "All monk commands will now use this server"
-    
-    # Update CLI_BASE_URL environment for current session
-    export CLI_BASE_URL="$base_url"
-    print_info "CLI_BASE_URL set to: $base_url"
+    print_info "Base URL: $base_url"
 }
 
 # Delete a server
@@ -513,7 +510,7 @@ Commands:
   add <name> <endpoint>    Add server to registry
   list                     List all servers with status check
   current                  Show currently selected server
-  use <name>               Switch to server (sets CLI_BASE_URL)
+  use <name>               Switch to server (sets as current)
   delete <name>            Remove server from registry
   ping <name>              Health check specific server
   ping-all                 Health check all registered servers
@@ -540,7 +537,7 @@ Examples:
   monk servers current                                # Show active server
 
 Integration:
-  - Switching servers updates CLI_BASE_URL for all monk commands
+  - Switching servers sets the current server for all monk commands
   - Server status is cached and updated during ping operations
   - Configurations stored in ~/.config/monk/servers.json
   - Works seamlessly with 'monk auth', 'monk data', etc.
