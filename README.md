@@ -348,6 +348,254 @@ Related Commands:
 Use 'monk servers <command>' to manage your remote monk API deployments.
 ```
 
+### Authentication Management (`monk auth`)
+
+```
+Usage: monk auth <operation> [options]
+
+Authentication and token management for Monk CLI.
+
+Operations:
+  login --domain DOMAIN    Authenticate with domain and store JWT token
+  logout                   Clear stored JWT token  
+  status                   Show current authentication status
+  token                    Display current JWT token
+
+Options:
+  -v, --verbose           Show detailed information
+  -h, --help              Show this help message
+
+Examples:
+  monk auth login --domain test_database_123
+  monk auth status
+  monk auth logout
+
+The login operation authenticates with the Monk API using the specified
+database domain and stores the JWT token for use by other monk commands.
+```
+
+### Data Operations (`monk data`)
+
+```
+Usage: monk data <operation> <schema> [args...]
+
+Data operations for dynamic schemas in the Monk API.
+
+Operations:
+  list <schema>           List all records for schema (GET /api/data/<schema>)
+  get <schema> <id>       Get specific record (GET /api/data/<schema>/<id>)
+  create <schema>         Create new record from stdin (POST /api/data/<schema>)
+  update <schema> <id>    Update record from stdin (PUT /api/data/<schema>/<id>)
+  delete <schema> <id>    Delete record (DELETE /api/data/<schema>/<id>)
+  export <schema> <directory>  Export all records to directory as individual JSON files
+  import <schema> <directory>  Import JSON files from directory to create new records
+
+Schemas:
+  Dynamic - any schema created via 'monk meta create schema'
+
+Examples:
+  monk data list account
+  monk data get account 123e4567-e89b-12d3-a456-426614174000
+  echo '{"name":"John","email":"john@example.com"}' | monk data create account
+  monk data delete account 123e4567-e89b-12d3-a456-426614174000
+  monk data export account ./exports/
+  monk data import account ./imports/
+  
+  # All data operations read from stdin by default:
+  cat data.json | monk data create account
+  echo '{"name":"Jane Doe"}' | monk data update account <id>
+
+Flags (can be positioned anywhere):
+  -l LIMIT     Query limit for list operations (default: 50) 
+  -u URL       Base URL for API (default: from monk test env)
+  -v           Verbose output with human-friendly messages
+  -x           Exit code only mode (no JSON output, just exit status)
+  -f FIELD     Extract field value from response (e.g., -f id, -f name)
+  -c           Count mode - return number of results for list operations
+  -e FIELD     Extract field values from list results
+  --format FMT Output format: json, yaml, raw, pretty (default: raw)
+
+Output Modes:
+  Default      Raw JSON response from API
+  -v           Human-friendly verbose output with colored messages
+  -x           Exit code only (0 = success, 1 = failure)
+  -f FIELD     Extract and return just the specified field value
+  -c           Return count of results (for list operations)
+
+Global Options (from monk test env):
+  CLI_BASE_URL        API server URL (auto-detected from active test run)
+  CLI_VERBOSE         Enable verbose output
+  CLI_FORMAT          Default output format
+  CLI_LIMIT           Default query limit
+```
+
+### Schema Management (`monk meta`)
+
+```
+Usage: monk meta <operation> <type> [args...]
+
+Metadata and schema management for the Monk API.
+
+Operations:
+  list <type>             List metadata objects
+  get <type> <name>       Get specific metadata object
+  create <type>           Create new metadata object from stdin (YAML/JSON)
+  update <type> <name>    Update existing metadata object from stdin (YAML/JSON)
+  delete <type> <name>    Delete metadata object
+
+Types:
+  schema                  Schema definitions for dynamic data models
+
+Examples:
+  monk meta list schema
+  monk meta list schema -e name       # Extract just schema names
+  monk meta list schema -e id         # Extract just schema IDs
+  monk meta get schema task
+  cat task-schema.yaml | monk meta create schema
+  cat updated-schema.yaml | monk meta update schema task
+  monk meta delete schema task
+
+Flags (can be positioned anywhere):
+  -e FIELD     Extract field values from results (e.g., -e name, -e id)
+  -u URL       Base URL for API (default: from monk test env)
+  -v           Verbose output with human-friendly messages
+  -c           Count mode - return number of results for list operations
+  -f FIELD     Extract field value from response (e.g., -f id, -f name)
+  -x           Exit code only mode (no JSON output, just exit status)
+  --format FMT Output format: json, yaml, raw, pretty (default: raw)
+
+Output Modes:
+  Default      Raw JSON response from API
+  -v           Human-friendly verbose output with colored messages
+  -e FIELD     Extract and return field values from list results
+  -f FIELD     Extract and return just the specified field value
+  -c           Return count of results (for list operations)
+  -x           Exit code only (0 = success, 1 = failure)
+
+Global Options (from monk test env):
+  CLI_BASE_URL        API server URL (auto-detected from active test run)
+  CLI_VERBOSE         Enable verbose output
+  CLI_FORMAT          Default output format
+
+Schema Management:
+  Schemas define the structure and validation rules for dynamic data models.
+  They are created in YAML format and stored in the API for runtime use.
+  
+  Use 'monk data' commands to work with records that conform to these schemas.
+```
+
+### Advanced Search (`monk find`)
+
+```
+Usage: echo '{"search_criteria"}' | monk find <schema> [options]
+
+Advanced search with filter DSL for complex queries.
+
+Arguments:
+  <schema>                Schema name to search within
+
+Options:
+  -f FIELD                Extract specific field from results
+  -c                      Count mode - return number of results only
+  -x                      Exit code only mode (no JSON output)
+  -v                      Verbose output with human-friendly messages
+  --head, -H              Return only the first record from results
+  --tail, -T              Return only the last record from results
+
+Search Criteria (via STDIN):
+  JSON object with MongoDB-style query operators
+
+Examples:
+  echo '{"where": {"status": "active"}}' | monk find user
+  echo '{"select": ["name", "email"], "where": {"age": {"$gte": 18}}}' | monk find user
+  echo '{"where": {"created_at": {"$gte": "2025-01-01"}}}' | monk find account -c
+  echo '{"where": {"name": {"$regex": "^John"}}}' | monk find user --head
+  echo '{"orderBy": {"created_at": "desc"}, "limit": 10}' | monk find account -f name
+
+Query Operators:
+  $eq, $ne, $gt, $gte, $lt, $lte    Comparison operators
+  $in, $nin                          Array membership
+  $regex                             Regular expression matching
+  $exists                            Field existence check
+  
+Search Object Structure:
+  {
+    "select": ["field1", "field2"],     // Optional: fields to return
+    "where": { ... },                   // Required: filter conditions  
+    "orderBy": {"field": "asc|desc"},   // Optional: sorting
+    "limit": 100,                       // Optional: result limit
+    "offset": 0                         // Optional: pagination offset
+  }
+
+The find command reads JSON search criteria from STDIN and sends it to
+the /api/find/<schema> endpoint for server-side processing.
+```
+
+### Server Connectivity (`monk ping`)
+
+```
+Usage: monk ping [options]
+
+Check server connectivity and optional JWT domain information.
+
+Options:
+  -v, --verbose     Show detailed information
+  -j, --jwt TOKEN   Include JWT token in request
+  -h, --help        Show this help message
+
+Examples:
+  monk ping                    # Basic connectivity check
+  monk ping -v                 # Verbose output
+  monk ping -j <jwt-token>     # Include JWT token
+
+The ping command tests connectivity to the Monk API server and optionally
+displays the domain from a provided JWT token.
+```
+
+### Local Development Server (`monk hono`)
+
+```
+Usage: monk hono <operation> [options]
+
+Hono server management for local development.
+
+Operations:
+  start [port]             Start the Hono server (default port: 3000)
+  stop                     Stop the running Hono server
+  restart [port]           Restart the Hono server
+  status                   Check if server is running
+  list                     List all Hono-related processes
+  kill [pid]               Force kill all Hono processes (or specific PID)
+  logs <pid> [options]     View logs for specific server process
+
+Examples:
+  monk hono start          # Start on default port 3000
+  monk hono start 3001     # Start on port 3001
+  monk hono stop           # Stop the server
+  monk hono restart        # Restart on same port
+  monk hono status         # Check server status
+  monk hono list           # Show all running Hono processes
+  monk hono kill           # Force kill all stuck processes
+  monk hono kill 1234      # Force kill specific PID
+  monk hono logs 1234      # View logs for PID 1234
+  monk hono logs 1234 -f   # Follow logs for PID 1234
+
+Process Management:
+  list                     Shows all Hono-related processes with PID, CPU, memory usage
+  kill                     Force kills all Hono processes using kill -9
+  kill <pid>               Force kills specific PID after validating it's Hono-related
+
+Server Management:
+  start                    Starts server in background with PID tracking
+  stop                     Gracefully stops the managed server
+  restart                  Stops and starts the server (maintains same port)
+  status                   Shows server status and returns localhost:PORT
+
+The server will be started in the background and the process ID will be
+stored for management. Use 'monk hono stop' to cleanly shut down the server.
+Use 'monk hono kill' when normal stop doesn't work due to stuck processes.
+```
+
 ---
 
 ## Common Usage Patterns
