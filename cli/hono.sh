@@ -33,7 +33,17 @@ print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 # Show usage information
 show_usage() {
     cat << EOF
-Usage: monk hono <operation> [options]
+⚠️  DEPRECATED: monk hono commands have moved to npm scripts
+
+Use these commands in your monk-api-hono project instead:
+  npm run hono:start [port]    # Start server (replaces: monk hono start)
+  npm run hono:stop            # Stop server (replaces: monk hono stop)  
+  npm run hono:restart [port]  # Restart server (replaces: monk hono restart)
+  npm run hono:status          # Server status (replaces: monk hono status)
+  npm run hono:list            # List processes (replaces: monk hono list)
+  npm run hono:killall         # Emergency cleanup (replaces: monk hono kill)
+
+Legacy Usage: monk hono <operation> [options]
 
 Hono server management for local development.
 
@@ -77,6 +87,11 @@ EOF
 
 # Main command handling
 main() {
+    # Show deprecation warning
+    echo -e "\033[1;33m⚠️  DEPRECATED: monk hono commands have moved to npm scripts\033[0m"
+    echo -e "\033[0;34mℹ Use 'npm run hono:${1:-help}' in your monk-api-hono project instead\033[0m"
+    echo ""
+    
     if [ $# -eq 0 ]; then
         show_usage
         exit 1
