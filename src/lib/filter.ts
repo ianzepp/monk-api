@@ -12,14 +12,20 @@ import type { System } from './system.js';
  * - SQL injection protection through parameterized queries
  * 
  * ## WHERE Conditions
- * The Filter class automatically excludes soft-deleted records by adding `trashed_at IS NULL` 
- * to all generated WHERE clauses. This ensures that all database queries respect soft delete 
- * behavior without requiring explicit filtering in application code.
+ * The Filter class automatically excludes soft-deleted and permanently deleted records by adding 
+ * `trashed_at IS NULL` and `deleted_at IS NULL` to all generated WHERE clauses. This ensures that 
+ * all database queries respect both soft delete and permanent delete behavior without requiring 
+ * explicit filtering in application code.
  * 
- * All user-defined WHERE conditions are combined with the automatic trash filter using AND logic:
+ * All user-defined WHERE conditions are combined with the automatic filters using AND logic:
  * ```sql
- * WHERE trashed_at IS NULL AND (user_conditions)
+ * WHERE trashed_at IS NULL AND deleted_at IS NULL AND (user_conditions)
  * ```
+ * 
+ * ### Query Parameter Overrides
+ * - `?include_trashed=true` - Shows trashed records: `WHERE deleted_at IS NULL AND (user_conditions)`
+ * - `?include_deleted=true` - Shows deleted records: `WHERE trashed_at IS NULL AND (user_conditions)`  
+ * - Both parameters - Shows all records: `WHERE (user_conditions)`
  * 
  * ## Usage
  * ```typescript
@@ -404,6 +410,11 @@ export class Filter {
         // Add soft delete filtering unless explicitly included via options
         if (!this.system.options.trashed) {
             baseConditions.push('trashed_at IS NULL');
+        }
+        
+        // Add permanent delete filtering unless explicitly included via options
+        if (!this.system.options.deleted) {
+            baseConditions.push('deleted_at IS NULL');
         }
         
         // Build WHERE clause using new tree structure

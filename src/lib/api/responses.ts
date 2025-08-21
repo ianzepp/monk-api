@@ -32,7 +32,8 @@ export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 // Helper function to extract system options from request
 function extractOptionsFromContext(context: Context): SystemOptions {
     return {
-        trashed: context.req.query('include_trashed') === 'true'
+        trashed: context.req.query('include_trashed') === 'true',
+        deleted: context.req.query('include_deleted') === 'true'
     };
 }
 

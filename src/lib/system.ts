@@ -9,6 +9,8 @@ import type { DbContext, TxContext } from '../db/index.js';
 export interface SystemOptions {
     /** Include trashed records (soft deletes) in query results */
     trashed?: boolean;
+    /** Include permanently deleted records in query results (root access only) */
+    deleted?: boolean;
 }
 
 /**
@@ -64,5 +66,13 @@ export class System {
             accessEdit: this.context.get('accessEditIds') || [],
             accessFull: this.context.get('accessFullIds') || [],
         };
+    }
+
+    /**
+     * Check if the current user has root access level
+     */
+    isRoot(): boolean {
+        const payload = this.context.get('jwtPayload') as any;
+        return payload?.access === 'root';
     }
 }
