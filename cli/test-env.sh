@@ -48,6 +48,10 @@ show_test_env() {
     local git_commit_short="${GIT_COMMIT_SHORT:-}"
     local server_port="${SERVER_PORT:-}"
     
+    # Git configuration for test environments
+    local git_remote="${MONK_GIT_REMOTE:-$(get_monk_git_remote 2>/dev/null || echo "")}"
+    local git_target="${MONK_GIT_TARGET:-$(get_monk_git_target 2>/dev/null || echo "/tmp/monk-builds")}"
+    
     # Override with active test run configuration if available
     if [ -n "$active_run" ] && [ -f "$run_dir/.env.test-run" ]; then
         # Source the test run environment (portable parsing)
@@ -121,9 +125,11 @@ show_test_env() {
             GIT_BRANCH) echo "$git_branch" ;;
             GIT_COMMIT) echo "$git_commit" ;;
             GIT_COMMIT_SHORT) echo "$git_commit_short" ;;
+            MONK_GIT_REMOTE) echo "$git_remote" ;;
+            MONK_GIT_TARGET) echo "$git_target" ;;
             *)
                 print_error "Unknown environment variable: $var_name"
-                print_info "Available variables: CLI_BASE_URL, JWT_TOKEN, DATABASE_URL, TEST_DATABASE, DB_HOST, DB_PORT, DB_USER, SERVER_STATUS, SERVER_PORT, DB_POOL_MAX, TEST_RUN_NAME, TEST_RUN_DESCRIPTION, TEST_RUN_ACTIVE, GIT_BRANCH, GIT_COMMIT, GIT_COMMIT_SHORT"
+                print_info "Available variables: CLI_BASE_URL, JWT_TOKEN, DATABASE_URL, TEST_DATABASE, DB_HOST, DB_PORT, DB_USER, SERVER_STATUS, SERVER_PORT, DB_POOL_MAX, TEST_RUN_NAME, TEST_RUN_DESCRIPTION, TEST_RUN_ACTIVE, GIT_BRANCH, GIT_COMMIT, GIT_COMMIT_SHORT, MONK_GIT_REMOTE, MONK_GIT_TARGET"
                 return 1
                 ;;
         esac
@@ -163,6 +169,10 @@ show_test_env() {
         else
             echo "CLI_VERBOSE="
         fi
+        echo
+        echo "# Git Configuration"
+        echo "MONK_GIT_REMOTE=$git_remote"
+        echo "MONK_GIT_TARGET=$git_target"
         echo
         echo "# Test Run Information"
         if [ -n "$active_run" ]; then

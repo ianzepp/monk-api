@@ -96,6 +96,52 @@ get_run_history_dir() {
     echo "$(dirname "$(dirname "$0")")/monk-api-test/run-history"
 }
 
+# Get git remote URL for monk-api-hono
+get_monk_git_remote() {
+    local remote_url="${MONK_GIT_REMOTE:-}"
+    if [ -n "$remote_url" ]; then
+        echo "$remote_url"
+        return 0
+    fi
+    
+    # Try to auto-detect from current git repository
+    local current_remote
+    if current_remote=$(git remote get-url origin 2>/dev/null); then
+        # Check if it's a monk-api-hono repository
+        if echo "$current_remote" | grep -q "monk-api-hono"; then
+            echo "$current_remote"
+            return 0
+        fi
+    fi
+    
+    # Try to detect from monk workspace
+    local root
+    if root=$(find_monk_root); then
+        local api_dir="$root/monk-api-hono"
+        if [ -d "$api_dir/.git" ]; then
+            if current_remote=$(cd "$api_dir" && git remote get-url origin 2>/dev/null); then
+                echo "$current_remote"
+                return 0
+            fi
+        fi
+    fi
+    
+    # Default fallback - assume ianzepp GitHub repository
+    echo "git@github.com:ianzepp/monk-api-hono.git"
+}
+
+# Get target directory for git builds
+get_monk_git_target() {
+    local target_dir="${MONK_GIT_TARGET:-}"
+    if [ -n "$target_dir" ]; then
+        echo "$target_dir"
+        return 0
+    fi
+    
+    # Default to /tmp/monk-builds
+    echo "/tmp/monk-builds"
+}
+
 # Colors for output formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'

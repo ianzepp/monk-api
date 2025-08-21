@@ -183,7 +183,7 @@ main() {
             exec "$(dirname "$0")/test-run.sh" current "$@"
             ;;
         use)
-            exec "$(dirname "$0")/test-run.sh" use "$@"
+            exec "$(dirname "$0")/test-env.sh" use "$@"
             ;;
         delete)
             exec "$(dirname "$0")/test-run.sh" delete "$@"

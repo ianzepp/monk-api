@@ -66,23 +66,24 @@ get_next_port() {
 generate_run_name() {
     local git_ref="$1"
     local commit_ref="$2"
+    local api_source_dir="$3"
     
     # Clean up branch name (replace slashes with dashes)
     local clean_branch=$(echo "$git_ref" | sed 's/[^a-zA-Z0-9._-]/-/g')
     
     # If specific commit provided, use it
     if [ -n "$commit_ref" ]; then
-        # Get short commit hash
+        # Get short commit hash if source directory exists
         local short_commit
-        if short_commit=$(cd "$API_SOURCE_DIR" && git rev-parse --short "$commit_ref" 2>/dev/null); then
+        if [ -d "$api_source_dir/.git" ] && short_commit=$(cd "$api_source_dir" && git rev-parse --short "$commit_ref" 2>/dev/null); then
             echo "${clean_branch}-${short_commit}"
         else
             echo "${clean_branch}-${commit_ref}"
         fi
     else
-        # Use current HEAD of the branch
+        # Use current HEAD of the branch if source directory exists
         local short_commit
-        if short_commit=$(cd "$API_SOURCE_DIR" && git rev-parse --short "$git_ref" 2>/dev/null); then
+        if [ -d "$api_source_dir/.git" ] && short_commit=$(cd "$api_source_dir" && git rev-parse --short "$git_ref" 2>/dev/null); then
             echo "${clean_branch}-${short_commit}"
         else
             echo "$clean_branch"
@@ -90,12 +91,13 @@ generate_run_name() {
     fi
 }
 
-# Smart API build setup with git caching
+# Smart API build setup with GitHub remote support
 setup_api_build() {
     local build_dir="$1"
     local git_ref="$2"
     local commit_ref="$3"
     local clean_build="$4"
+    local remote_url="$5"
     
     local target_ref="$git_ref"
     if [ -n "$commit_ref" ]; then
@@ -109,22 +111,33 @@ setup_api_build() {
     
     if [ -d "$build_dir" ]; then
         # Existing build - update incrementally
-        print_step "Updating existing API build"
+        print_step "Updating existing API build from remote"
         
         cd "$build_dir"
         
-        # Fetch latest changes
+        # Update remote URL if it has changed
+        local current_remote
+        current_remote=$(git remote get-url origin 2>/dev/null || echo "")
+        if [ "$current_remote" != "$remote_url" ]; then
+            print_step "Updating remote URL: $remote_url"
+            git remote set-url origin "$remote_url" >/dev/null 2>&1
+        fi
+        
+        # Fetch latest changes from remote
         if ! git fetch origin >/dev/null 2>&1; then
-            print_error "Failed to fetch from origin"
+            print_error "Failed to fetch from remote: $remote_url"
             return 1
         fi
         
         # Check if we need to update
-        local current_commit=$(git rev-parse HEAD)
+        local current_commit=$(git rev-parse HEAD 2>/dev/null || echo "")
         local target_commit
-        if ! target_commit=$(git rev-parse "$target_ref" 2>/dev/null); then
-            print_error "Failed to resolve target reference: $target_ref"
-            return 1
+        if ! target_commit=$(git rev-parse "origin/$target_ref" 2>/dev/null); then
+            # Try without origin prefix for specific commit hashes
+            if ! target_commit=$(git rev-parse "$target_ref" 2>/dev/null); then
+                print_error "Failed to resolve target reference: $target_ref"
+                return 1
+            fi
         fi
         
         if [ "$current_commit" = "$target_commit" ]; then
@@ -152,12 +165,14 @@ setup_api_build() {
             print_success "API build updated to $target_ref"
         fi
     else
-        # Fresh build - clone and setup
-        print_step "Creating fresh API build"
+        # Fresh build - clone from remote
+        print_step "Cloning fresh API build from remote"
+        print_info "Cloning from: $remote_url"
         
-        # Clone the API source
-        if ! git clone "$API_SOURCE_DIR" "$build_dir" >/dev/null 2>&1; then
-            print_error "Failed to clone API source"
+        # Clone the API source from remote
+        if ! git clone "$remote_url" "$build_dir" >/dev/null 2>&1; then
+            print_error "Failed to clone from remote: $remote_url"
+            print_info "Please check that the remote URL is accessible and you have proper authentication"
             return 1
         fi
         
@@ -167,6 +182,7 @@ setup_api_build() {
         print_step "Checking out $target_ref"
         if ! git checkout "$target_ref" >/dev/null 2>&1; then
             print_error "Failed to checkout $target_ref"
+            print_info "Please check that the branch/commit exists in the remote repository"
             return 1
         fi
         
@@ -184,7 +200,7 @@ setup_api_build() {
             return 1
         fi
         
-        print_success "Fresh API build completed"
+        print_success "Fresh API build completed from remote"
     fi
     
     return 0
@@ -246,10 +262,12 @@ create_or_update_test_run() {
     local clean_build=false
     local port=""
     local description=""
+    local remote_url=""
+    local target_dir=""
     
     if [ -z "$git_ref" ]; then
         print_error "Git reference required"
-        print_info "Usage: monk test run <branch> [commit] [--clean] [--port PORT]"
+        print_info "Usage: monk test git <branch> [commit] [--clean] [--port PORT] [--remote URL] [--target DIR]"
         return 1
     fi
     
@@ -269,6 +287,14 @@ create_or_update_test_run() {
                 description="$2"
                 shift 2
                 ;;
+            --remote)
+                remote_url="$2"
+                shift 2
+                ;;
+            --target)
+                target_dir="$2"
+                shift 2
+                ;;
             -*)
                 print_error "Unknown option: $1"
                 return 1
@@ -286,28 +312,68 @@ create_or_update_test_run() {
         esac
     done
     
-    # Validate API source directory
-    if [ ! -d "$API_SOURCE_DIR" ]; then
-        print_error "API source directory not found: $API_SOURCE_DIR"
-        return 1
+    # Set defaults from environment and functions
+    if [ -z "$remote_url" ]; then
+        remote_url=$(get_monk_git_remote)
+    fi
+    if [ -z "$target_dir" ]; then
+        target_dir=$(get_monk_git_target)
     fi
     
-    # Validate git reference
+    print_info "Using git remote: $remote_url"
+    print_info "Using target directory: $target_dir"
+    
+    # Create target directory if it doesn't exist
+    mkdir -p "$target_dir"
+    
+    # Update API_SOURCE_DIR to use target directory
+    local repo_name=$(basename "$remote_url" .git)
+    API_SOURCE_DIR="$target_dir/$repo_name"
+    
+    # If we have a local API source directory, validate git reference there first
+    local original_api_dir=$(get_monk_api_dir)
     local target_ref="$git_ref"
     if [ -n "$commit_ref" ]; then
         target_ref="$commit_ref"
     fi
     
-    if ! (cd "$API_SOURCE_DIR" && git rev-parse --verify "$target_ref" >/dev/null 2>&1); then
-        print_error "Invalid git reference: $target_ref"
-        print_info "Make sure the branch/commit exists in $API_SOURCE_DIR"
-        return 1
+    # Try to validate reference in local directory first, then in target directory
+    local reference_valid=false
+    if [ -d "$original_api_dir/.git" ]; then
+        if (cd "$original_api_dir" && git rev-parse --verify "$target_ref" >/dev/null 2>&1); then
+            reference_valid=true
+        fi
+    fi
+    
+    if [ "$reference_valid" = false ] && [ -d "$API_SOURCE_DIR/.git" ]; then
+        if (cd "$API_SOURCE_DIR" && git rev-parse --verify "$target_ref" >/dev/null 2>&1); then
+            reference_valid=true
+        fi
+    fi
+    
+    if [ "$reference_valid" = false ]; then
+        print_info "Git reference validation will occur during clone/fetch"
     fi
     
     # Generate run name and setup paths
-    local run_name=$(generate_run_name "$git_ref" "$commit_ref")
-    local run_dir="$RUN_HISTORY_DIR/$run_name"
-    local api_build_dir="$run_dir/api-build"
+    local run_name=$(generate_run_name "$git_ref" "$commit_ref" "$API_SOURCE_DIR")
+    
+    # Use target directory if specified, otherwise use default run history
+    local run_dir
+    local api_build_dir
+    local default_target="/tmp/monk-builds"
+    
+    if [ "$target_dir" != "$default_target" ]; then
+        # Custom target directory specified - use target/run-name/repo structure
+        run_dir="$target_dir/$run_name"
+        api_build_dir="$run_dir/monk-api-hono"
+        print_info "Using custom target structure: $run_dir"
+    else
+        # Default behavior - use run history directory structure
+        run_dir="$RUN_HISTORY_DIR/$run_name"
+        api_build_dir="$run_dir/api-build"
+        print_info "Using default run history structure: $run_dir"
+    fi
     local existing_run=false
     
     if [ -d "$run_dir" ]; then
@@ -361,8 +427,8 @@ create_or_update_test_run() {
         fi
     fi
     
-    # Handle API build (smart caching)
-    setup_api_build "$api_build_dir" "$git_ref" "$commit_ref" "$clean_build"
+    # Handle API build (smart caching with remote support)
+    setup_api_build "$api_build_dir" "$git_ref" "$commit_ref" "$clean_build" "$remote_url"
     local build_result=$?
     
     if [ $build_result -ne 0 ]; then
@@ -643,6 +709,8 @@ Options:
   --clean                Force clean rebuild (removes existing build cache)
   --port <port>          Use specific port (default: auto-assign from 3000+)
   --description <text>   Add description to test run
+  --remote <url>         Git remote URL (default: auto-detect or MONK_GIT_REMOTE)
+  --target <dir>         Target directory for git builds (default: MONK_GIT_TARGET or /tmp/monk-builds)
 
 Examples:
   monk test git main                          # Test current main branch HEAD
@@ -650,6 +718,8 @@ Examples:
   monk test git feature/API-281 --clean      # Force fresh build of feature
   monk test git main --port 3005              # Use specific port
   monk test git main --description "Release candidate"
+  monk test git main --target /tmp/my-builds  # Use custom target directory
+  monk test git main --remote git@github.com:user/repo.git  # Use different remote
 
 Related Commands:
   monk test list                              # List all test environments
@@ -658,7 +728,8 @@ Related Commands:
   monk test delete <name>                     # Delete test environment
 
 Environment Variables:
-  MONK_API_SOURCE_DIR    Override API source directory (default: auto-detect)
+  MONK_GIT_REMOTE        Git remote URL for monk-api-hono (default: auto-detect)
+  MONK_GIT_TARGET        Target directory for git builds (default: /tmp/monk-builds)
   MONK_RUN_HISTORY_DIR   Override run history location (default: auto-detect)
 
 Each test run environment includes:

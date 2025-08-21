@@ -6,8 +6,43 @@ set -e
 # Load common functions  
 source "$(dirname "$0")/common.sh"
 
-# Test configuration
-TEST_BASE_DIR="../monk-api-test/tests"
+# Test configuration - dynamically locate test directory
+get_test_base_dir() {
+    # Check if we're in a test run environment with embedded tests
+    if [ -n "${TEST_RUN_ACTIVE:-}" ]; then
+        # Get the active test run directory
+        local run_history_dir=$(get_run_history_dir)
+        local active_run_file="$run_history_dir/.active-run"
+        
+        if [ -f "$active_run_file" ]; then
+            local active_run=$(cat "$active_run_file")
+            local run_dir="$run_history_dir/$active_run"
+            
+            # Check for embedded tests in git checkout
+            if [ -d "$run_dir/monk-api-hono/tests" ]; then
+                echo "$run_dir/monk-api-hono/tests"
+                return 0
+            elif [ -d "$run_dir/api-build/tests" ]; then
+                echo "$run_dir/api-build/tests"
+                return 0
+            fi
+        fi
+    fi
+    
+    # Fallback to monk-api-test directory
+    local monk_root
+    if monk_root=$(find_monk_root 2>/dev/null); then
+        if [ -d "$monk_root/monk-api-test/tests" ]; then
+            echo "$monk_root/monk-api-test/tests"
+            return 0
+        fi
+    fi
+    
+    # Final fallback for backwards compatibility
+    echo "../monk-api-test/tests"
+}
+
+TEST_BASE_DIR=$(get_test_base_dir)
 
 # Colors for output
 RED='\033[0;31m'
