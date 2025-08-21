@@ -40,9 +40,9 @@ ensure_test_run_server() {
         return 0
     fi
     
-    # Start the server using test-run.sh
+    # Start the server using test-git.sh
     print_step "Starting server for $run_name"
-    if "$(dirname "$0")/test-run.sh" "$run_name" >/dev/null 2>&1; then
+    if "$(dirname "$0")/test-git.sh" "$run_name" >/dev/null 2>&1; then
         print_success "Server started for $run_name"
     else
         print_error "Failed to start server for $run_name"

@@ -413,11 +413,11 @@ manage_pool() {
             cleanup_all
             ;;
         allocate)
-            # Internal operation for test-run.sh
+            # Internal operation for test-git.sh
             allocate_database "${1:-test}"
             ;;
         deallocate)
-            # Internal operation for test-run.sh
+            # Internal operation for test-git.sh
             deallocate_database "$1"
             ;;
         "")

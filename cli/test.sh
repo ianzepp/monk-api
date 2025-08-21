@@ -136,7 +136,7 @@ main() {
     
     # Handle help for specific commands first
     if [ "$command" = "git" ] && ([ "$1" = "-h" ] || [ "$1" = "--help" ]); then
-        exec "$(dirname "$0")/test-run.sh" "$@"
+        exec "$(dirname "$0")/test-git.sh" "$@"
         return 0
     fi
     
@@ -173,20 +173,20 @@ main() {
             exec "$(dirname "$0")/test-preview.sh" "$@"
             ;;
         list)
-            exec "$(dirname "$0")/test-run.sh" list "$@"
+            exec "$(dirname "$0")/test-git.sh" list "$@"
             ;;
         git)
             # For git command, pass branch directly to create_or_update_test_run
-            exec "$(dirname "$0")/test-run.sh" create "$@"
+            exec "$(dirname "$0")/test-git.sh" create "$@"
             ;;
         current)
-            exec "$(dirname "$0")/test-run.sh" current "$@"
+            exec "$(dirname "$0")/test-git.sh" current "$@"
             ;;
         use)
             exec "$(dirname "$0")/test-env.sh" use "$@"
             ;;
         delete)
-            exec "$(dirname "$0")/test-run.sh" delete "$@"
+            exec "$(dirname "$0")/test-git.sh" delete "$@"
             ;;
         env)
             exec "$(dirname "$0")/test-env.sh" "$@"
