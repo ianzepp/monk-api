@@ -90,7 +90,7 @@ run_test "50-integration/test-pipeline.sh" "Complete Integration Pipeline"
 
 # 60-69: Lifecycle and CRUD tests
 print_header "60-69: Lifecycle Tests"
-run_test "60-lifecycle/record-lifecycle-test.sh" "Record Lifecycle Test"
+run_test "60-lifecycle/basic-crud-lifecycle.sh" "Record Lifecycle Test"
 
 # 70-79: Validation and constraint tests
 print_header "70-79: Validation Tests"
