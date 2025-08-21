@@ -79,7 +79,7 @@ if ! echo "$INPUT_DATA" | jshon >/dev/null 2>&1; then
 fi
 
 # Build the API endpoint URL
-URL="${CLI_BASE_URL}/api/find/${SCHEMA}"
+URL="$(get_base_url)/api/find/${SCHEMA}"
 
 # Make HTTP request with JSON data
 response=$(curl -s -X POST "$URL" \

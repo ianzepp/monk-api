@@ -149,9 +149,57 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Get base URL from environment or use default
+# Get base URL from servers config - fail if not configured
 get_base_url() {
-    echo "${CLI_BASE_URL:-$DEFAULT_BASE_URL}"
+    local servers_config="${HOME}/.config/monk/servers.json"
+    
+    # Check if jq is available
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "Error: jq is required for server configuration" >&2
+        echo "Install jq to use server configuration" >&2
+        exit 1
+    fi
+    
+    # Check if config file exists
+    if [[ ! -f "$servers_config" ]]; then
+        echo "Error: No server configuration found" >&2
+        echo "Use 'monk servers add <name> <hostname:port>' to add a server" >&2
+        exit 1
+    fi
+    
+    # Get current server
+    local current_server
+    current_server=$(jq -r '.current // empty' "$servers_config" 2>/dev/null)
+    
+    if [[ -z "$current_server" || "$current_server" == "null" ]]; then
+        echo "Error: No current server selected" >&2
+        echo "Use 'monk servers use <name>' to select a server" >&2
+        exit 1
+    fi
+    
+    # Get server info
+    local server_info
+    server_info=$(jq -r ".servers.\"$current_server\"" "$servers_config" 2>/dev/null)
+    
+    if [[ "$server_info" == "null" ]]; then
+        echo "Error: Current server '$current_server' not found in configuration" >&2
+        echo "Use 'monk servers list' to see available servers" >&2
+        exit 1
+    fi
+    
+    # Extract connection details
+    local hostname=$(echo "$server_info" | jq -r '.hostname')
+    local port=$(echo "$server_info" | jq -r '.port')
+    local protocol=$(echo "$server_info" | jq -r '.protocol')
+    
+    # Validate required fields
+    if [[ "$hostname" == "null" || "$port" == "null" || "$protocol" == "null" ]]; then
+        echo "Error: Invalid server configuration for '$current_server'" >&2
+        echo "Server configuration is missing required fields (hostname, port, protocol)" >&2
+        exit 1
+    fi
+    
+    echo "$protocol://$hostname:$port"
 }
 
 # Get query limit from environment or use default
