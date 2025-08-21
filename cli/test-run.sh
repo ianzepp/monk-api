@@ -9,9 +9,9 @@ source "$(dirname "$0")/common.sh"
 
 # Test configuration  
 DB_POOL_SCRIPT="$(dirname "$0")/test-pool.sh"
-RUN_HISTORY_DIR="../monk-api-test/run-history"
+RUN_HISTORY_DIR="$(get_run_history_dir)"
 ACTIVE_RUN_FILE="$RUN_HISTORY_DIR/.active-run"
-API_SOURCE_DIR="../monk-api-hono"
+API_SOURCE_DIR="$(get_monk_api_dir)"
 PORT_TRACKER_FILE="$RUN_HISTORY_DIR/.port-tracker"
 
 # Colors for output
@@ -628,10 +628,60 @@ show_current_test_run() {
     fi
 }
 
+# Show usage for test run management
+show_test_run_usage() {
+    cat << EOF
+Usage: monk test git <branch> [commit] [options]
+
+Create or update test environment for git reference.
+
+Arguments:
+  <branch>               Git branch name (e.g. main, feature/API-281)
+  [commit]               Optional specific commit hash
+
+Options:
+  --clean                Force clean rebuild (removes existing build cache)
+  --port <port>          Use specific port (default: auto-assign from 3000+)
+  --description <text>   Add description to test run
+
+Examples:
+  monk test git main                          # Test current main branch HEAD
+  monk test git main abc123                   # Test specific commit abc123
+  monk test git feature/API-281 --clean      # Force fresh build of feature
+  monk test git main --port 3005              # Use specific port
+  monk test git main --description "Release candidate"
+
+Related Commands:
+  monk test list                              # List all test environments
+  monk test current                           # Show active environment  
+  monk test use <name>                        # Switch to test environment
+  monk test delete <name>                     # Delete test environment
+
+Environment Variables:
+  MONK_API_SOURCE_DIR    Override API source directory (default: auto-detect)
+  MONK_RUN_HISTORY_DIR   Override run history location (default: auto-detect)
+
+Each test run environment includes:
+- Isolated database from pool (max 10 concurrent)
+- Dedicated API server on unique port
+- Git-specific build cache for faster updates
+- Environment variables for CLI targeting
+
+Test runs persist until explicitly deleted and can be switched between
+for comparing different git references or testing multiple branches.
+EOF
+}
+
 # Manage test run environments (main dispatcher)
 manage_test_runs() {
     local branch_or_operation="$1"
     shift
+    
+    # Handle help requests
+    if [ "$branch_or_operation" = "-h" ] || [ "$branch_or_operation" = "--help" ]; then
+        show_test_run_usage
+        return 0
+    fi
     
     # Ensure run history directory exists
     mkdir -p "$RUN_HISTORY_DIR"
@@ -650,8 +700,17 @@ manage_test_runs() {
         current)
             show_current_test_run
             ;;
+        create)
+            # New create operation - pass all arguments to create_or_update_test_run
+            create_or_update_test_run "$@"
+            ;;
+        "")
+            print_error "Branch name required"
+            show_test_run_usage
+            return 1
+            ;;
         *)
-            # Treat as git reference (branch/commit)
+            # Treat as git reference (branch name) for backward compatibility
             create_or_update_test_run "$branch_or_operation" "$@"
             ;;
     esac

@@ -57,10 +57,12 @@ Test management and execution for Monk API test suite.
 Commands:
   all [pattern]           Run tests (all if no pattern, or matching pattern)
   preview [pattern]       Show tests that would be run without executing them
-  run <operation>         Manage test run environments
-  pool <operation>        Manage database pool for testing
+  list                    List all test run environments with status
+  git <branch> [commit]   Create/update test environment for git reference
+  current                 Show current active test run environment
+  use <name>              Switch to test run environment
+  delete <name>           Delete test run environment and cleanup resources
   env [var_name]          Show test environment variables
-  use <database_name>     Set test database for all subsequent tests
   diff <run1> <run2>      Compare test results between environments
 
 Test Patterns (for 'all' command):
@@ -72,17 +74,12 @@ Test Patterns (for 'all' command):
   lifecycle               Run all tests with 'lifecycle' in path/name
 
 Test Run Operations:
-  <branch> [git-ref]      Create/update test environment for git reference
+  git <branch> [commit]   Create/update test environment for git reference
   list                    List all test run environments  
-  delete <name>           Delete test run environment
   current                 Show current active test run
   use <name>              Switch to test run environment
+  delete <name>           Delete test run environment
 
-Pool Operations:
-  status                  Show database pool status
-  list                    List all active test databases  
-  cleanup                 Clean up old databases (24h+)
-  cleanup-all             Clean up all test databases
 
 Environment Variables:
   (no var_name)           Show all test environment variables
@@ -101,11 +98,14 @@ Examples:
   monk test preview                # Show all available tests
   monk test preview 10-20          # Show tests matching pattern 10-20
   monk test preview meta-api       # Show tests matching 'meta-api'
-  monk test run main               # Test current main branch HEAD
-  monk test run main abc123        # Test specific commit abc123
-  monk test run feature/API-281    # Test feature branch HEAD
-  monk test diff main feature/API-281  # Compare main vs feature branch
-  monk test pool status            # Check database pool usage
+  monk test git main               # Test current main branch HEAD
+  monk test git main abc123        # Test specific commit abc123
+  monk test git feature/API-281    # Test feature branch HEAD
+  monk test list                   # List all test environments
+  monk test current                # Show active test environment
+  monk test use main-abc123        # Switch to test environment
+  monk test delete old-feature     # Delete test environment
+  monk test diff main-abc123 feature-def456  # Compare test environments
   monk test env                    # Show current environment variables
 
 Options:
@@ -133,6 +133,12 @@ main() {
     
     local command="$1"
     shift
+    
+    # Handle help for specific commands first
+    if [ "$command" = "git" ] && ([ "$1" = "-h" ] || [ "$1" = "--help" ]); then
+        exec "$(dirname "$0")/test-run.sh" "$@"
+        return 0
+    fi
     
     # Parse global options
     while [[ $# -gt 0 ]]; do
@@ -166,17 +172,24 @@ main() {
         preview)
             exec "$(dirname "$0")/test-preview.sh" "$@"
             ;;
-        run)
-            exec "$(dirname "$0")/test-run.sh" "$@"
+        list)
+            exec "$(dirname "$0")/test-run.sh" list "$@"
             ;;
-        pool)
-            exec "$(dirname "$0")/test-pool.sh" "$@"
+        git)
+            # For git command, pass branch directly to create_or_update_test_run
+            exec "$(dirname "$0")/test-run.sh" create "$@"
+            ;;
+        current)
+            exec "$(dirname "$0")/test-run.sh" current "$@"
+            ;;
+        use)
+            exec "$(dirname "$0")/test-run.sh" use "$@"
+            ;;
+        delete)
+            exec "$(dirname "$0")/test-run.sh" delete "$@"
             ;;
         env)
             exec "$(dirname "$0")/test-env.sh" "$@"
-            ;;
-        use)
-            exec "$(dirname "$0")/test-env.sh" use "$@"
             ;;
         diff)
             exec "$(dirname "$0")/test-diff.sh" "$@"
@@ -186,7 +199,7 @@ main() {
             ;;
         *)
             print_error "Unknown command: $command"
-            print_info "Available commands: all, preview, run, pool, env, diff"
+            print_info "Available commands: all, preview, list, git, current, use, delete, env, diff"
             print_info "Use 'monk test --help' for more information"
             return 1
             ;;

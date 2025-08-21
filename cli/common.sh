@@ -8,6 +8,94 @@ DEFAULT_BASE_URL="http://localhost:3000"
 DEFAULT_LIMIT=50
 DEFAULT_FORMAT="raw"
 
+# Path resolution functions
+find_monk_root() {
+    local current_dir="$PWD"
+    
+    # Start from current directory and walk up
+    while [ "$current_dir" != "/" ]; do
+        if [ -f "$current_dir/CLAUDE.md" ] && grep -q "# Monk - PaaS Backend System" "$current_dir/CLAUDE.md" 2>/dev/null; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir=$(dirname "$current_dir")
+    done
+    
+    # Fallback: check if we're already in a monk subdirectory
+    if [ -d "monk-cli" ] && [ -d "monk-api-hono" ] && [ -d "monk-api-test" ]; then
+        echo "$PWD"
+        return 0
+    fi
+    
+    return 1
+}
+
+get_monk_api_dir() {
+    local monk_root="${MONK_API_SOURCE_DIR:-}"
+    if [ -n "$monk_root" ]; then
+        echo "$monk_root"
+        return 0
+    fi
+    
+    local root
+    if root=$(find_monk_root); then
+        echo "$root/monk-api-hono"
+        return 0
+    fi
+    
+    # For global monk command, check common workspace patterns
+    local workspace_patterns=(
+        "$HOME/Workspaces/monk/monk-api-hono"
+        "$HOME/workspace/monk/monk-api-hono" 
+        "$HOME/projects/monk/monk-api-hono"
+        "$HOME/dev/monk/monk-api-hono"
+    )
+    
+    for pattern in "${workspace_patterns[@]}"; do
+        if [ -d "$pattern" ]; then
+            echo "$pattern"
+            return 0
+        fi
+    done
+    
+    # Final fallback for backwards compatibility
+    echo "$(dirname "$(dirname "$0")")/monk-api-hono"
+}
+
+get_run_history_dir() {
+    local history_dir="${MONK_RUN_HISTORY_DIR:-}"
+    if [ -n "$history_dir" ]; then
+        echo "$history_dir"
+        return 0
+    fi
+    
+    local root
+    if root=$(find_monk_root); then
+        echo "$root/monk-api-test/run-history"
+        return 0
+    fi
+    
+    # For global monk command, check common workspace patterns
+    local workspace_patterns=(
+        "$HOME/Workspaces/monk/monk-api-test/run-history"
+        "$HOME/workspace/monk/monk-api-test/run-history"
+        "$HOME/projects/monk/monk-api-test/run-history"
+        "$HOME/dev/monk/monk-api-test/run-history"
+    )
+    
+    for pattern in "${workspace_patterns[@]}"; do
+        local base_dir=$(dirname "$pattern")
+        if [ -d "$base_dir" ]; then
+            mkdir -p "$pattern"
+            echo "$pattern"
+            return 0
+        fi
+    done
+    
+    # Final fallback for backwards compatibility
+    echo "$(dirname "$(dirname "$0")")/monk-api-test/run-history"
+}
+
 # Colors for output formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'

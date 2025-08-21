@@ -89,10 +89,23 @@ MODULES:
 
   test                    Comprehensive test management
     all [pattern]           Run tests (all or pattern matching)
-    run <branch> [commit]   Create/update git-aware test environment
+    git <branch> [commit]   Create/update git-aware test environment
     diff <run1> <run2>      Compare test results between environments
-    pool <operation>        Manage database pool (status/list/cleanup)
     env [var_name]          Show test environment variables
+
+  pool                    Database pool management
+    status                  Show database pool status (X/10)
+    list                    List all active test databases
+    cleanup [hours]         Clean up old databases (default: 24h+)
+    cleanup-all             Clean up all databases
+
+  servers                 Remote server management
+    add <name> <endpoint>   Register remote server
+    list                    List all servers with health status
+    current                 Show currently selected server
+    use <name>              Switch to server (sets CLI_BASE_URL)
+    delete <name>           Remove server from registry
+    ping <name>             Health check specific server
 
 EXAMPLES:
 
@@ -103,10 +116,25 @@ EXAMPLES:
   monk data list account              # List account records
 
   # Test management workflow
-  monk test run main                  # Test current main branch
-  monk test run feature/API-281       # Test feature branch
-  monk test diff main feature/API-281 # Compare versions
+  monk test git main                  # Test current main branch
+  monk test git feature/API-281       # Test feature branch
+  monk test diff main-abc123 feature-def456 # Compare test environments
   monk test all 00-20                 # Run specific test ranges
+
+  # Database pool workflow
+  monk pool status                    # Check pool usage (X/10)
+  monk pool list                      # List all test databases
+  monk pool cleanup                   # Clean up old databases
+  monk pool cleanup 48                # Clean up databases older than 48h
+
+  # Remote server workflow
+  monk servers add prod api.company.com:443    # Register production server
+  monk servers add staging staging-api.company.com:3000  # Register staging
+  monk servers list                            # List all with health status
+  monk servers use prod                        # Switch to production
+  monk auth login --domain my_prod_db         # Authenticate with production
+  monk data list account                      # List accounts on production
+  monk servers ping-all                       # Health check all servers
 
   # Development workflow
   monk hono start 3001                # Start server on custom port
@@ -139,7 +167,7 @@ esac
 # Check if module is provided
 if [ $# -eq 0 ]; then
     echo "Usage: monk <module> <operation> [args...]" >&2
-    echo "Modules: auth, data, meta, find, ping, hono, test" >&2
+    echo "Modules: auth, data, meta, find, ping, hono, test, pool, servers" >&2
     echo "Use 'monk --help' for detailed information" >&2
     exit 1
 fi
@@ -170,9 +198,15 @@ case "$MODULE" in
     test)
         exec "./cli/test.sh" "$@"
         ;;
+    pool)
+        exec "./cli/test-pool.sh" "$@"
+        ;;
+    servers)
+        exec "./cli/servers.sh" "$@"
+        ;;
     *)
         echo "Invalid module: $MODULE" >&2
-        echo "Available modules: auth, data, meta, find, ping, hono, test" >&2
+        echo "Available modules: auth, data, meta, find, ping, hono, test, pool, servers" >&2
         exit 1
         ;;
 esac

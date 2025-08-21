@@ -211,17 +211,17 @@ list_databases() {
         return 0
     fi
     
-    printf "%-40s %-15s %-20s %s\n" "Database Name" "Test Name" "Allocated At" "Status"
-    echo "--------------------------------------------------------------------------------"
+    printf "%-55s %-15s %-20s %s\n" "Database Name" "Test Name" "Allocated At" "Status"
+    echo "-------------------------------------------------------------------------------------------------------"
     
     echo "$databases" | while read -r db_name; do
         local info_file="${POOL_DIR}/${db_name}.info"
         if [ -f "$info_file" ]; then
             local test_name=$(grep "test_name=" "$info_file" | cut -d'=' -f2)
             local allocated_at=$(grep "allocated_at=" "$info_file" | cut -d'=' -f2)
-            printf "%-40s %-15s %-20s %s\n" "$db_name" "$test_name" "$allocated_at" "Active"
+            printf "%-55s %-15s %-20s %s\n" "$db_name" "$test_name" "$allocated_at" "Active"
         else
-            printf "%-40s %-15s %-20s %s\n" "$db_name" "Unknown" "Unknown" "Orphaned"
+            printf "%-55s %-15s %-20s %s\n" "$db_name" "Unknown" "Unknown" "Orphaned"
         fi
     done
     
@@ -345,12 +345,56 @@ show_status() {
     echo "  Available slots: $((MAX_DATABASES - current_count))"
 }
 
+# Show pool management help
+show_pool_help() {
+    cat << EOF
+Usage: monk pool <operation> [options]
+
+Database pool management for isolated testing environments.
+
+Operations:
+  status                  Show database pool status (X/10 databases in use)
+  list                    List all active test databases with allocation info
+  cleanup [hours]         Clean up databases older than specified hours (default: 24)
+  cleanup-all             Clean up ALL databases in pool (use with caution)
+
+Examples:
+  monk pool status                    # Check current pool usage
+  monk pool list                      # List all active databases
+  monk pool cleanup                   # Clean up databases older than 24 hours
+  monk pool cleanup 48                # Clean up databases older than 48 hours
+  monk pool cleanup-all               # Remove ALL databases (dangerous!)
+
+Internal Operations (used by test framework):
+  allocate <name>         Allocate database for test run
+  deallocate <name>       Deallocate specific database
+
+Pool Configuration:
+  Maximum databases: 10 concurrent
+  Database prefix: monk_api_test_*
+  Pool directory: ~/.monk-db-pool/
+  Auto-cleanup: Available via cleanup operations
+
+Each allocated database includes:
+- Isolated PostgreSQL database
+- Initialized schema tables
+- Allocation tracking metadata
+- Automatic cleanup eligibility after 24+ hours
+
+Use 'monk test git <branch>' to create test environments that automatically
+allocate databases from this pool.
+EOF
+}
+
 # Manage database pool (enhanced version)
 manage_pool() {
     local operation="$1"
     shift
     
     case "$operation" in
+        -h|--help|help)
+            show_pool_help
+            ;;
         status)
             print_header "Database Pool Status"
             show_status
@@ -376,10 +420,15 @@ manage_pool() {
             # Internal operation for test-run.sh
             deallocate_database "$1"
             ;;
+        "")
+            print_error "Operation required"
+            show_pool_help
+            return 1
+            ;;
         *)
             print_error "Unknown pool operation: $operation"
             print_info "Available operations: status, list, cleanup, cleanup-all"
-            print_info "Internal operations: allocate, deallocate"
+            print_info "Use 'monk pool --help' for detailed information"
             return 1
             ;;
     esac
