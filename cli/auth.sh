@@ -37,6 +37,7 @@ Operations:
   logout                   Clear stored JWT token  
   status                   Show current authentication status
   token                    Display current JWT token
+  info                     Decode and display JWT token contents
 
 Options:
   -v, --verbose           Show detailed information
@@ -45,6 +46,8 @@ Options:
 Examples:
   monk auth login --domain test_database_123
   monk auth status
+  monk auth info
+  monk auth token
   monk auth logout
 
 The login operation authenticates with the Monk API using the specified
@@ -251,6 +254,54 @@ auth_token() {
     fi
 }
 
+# JWT token info - decode and display contents
+auth_info() {
+    local token
+    token=$(get_stored_token)
+    
+    if [ -z "$token" ]; then
+        print_error "No authentication token found"
+        print_info "Use 'monk auth login --domain DOMAIN' to authenticate"
+        return 1
+    fi
+    
+    # Extract payload (second part) from JWT
+    local payload=$(echo "$token" | cut -d'.' -f2)
+    
+    # Add padding if needed for base64 decoding
+    local padding=$((4 - ${#payload} % 4))
+    if [ $padding -ne 4 ]; then
+        payload="${payload}$(printf '%*s' $padding '' | tr ' ' '=')"
+    fi
+    
+    # Decode base64 payload
+    local decoded
+    if command -v base64 >/dev/null 2>&1; then
+        decoded=$(echo "$payload" | base64 -d 2>/dev/null || echo "")
+    else
+        print_error "base64 command not found"
+        return 1
+    fi
+    
+    if [ -n "$decoded" ]; then
+        print_success "JWT Token Information:"
+        echo
+        
+        # Pretty print JSON if jq is available
+        if command -v jq >/dev/null 2>&1; then
+            echo "$decoded" | jq .
+        else
+            echo "$decoded"
+        fi
+        
+        echo
+        print_info "Token expires: $(echo "$decoded" | jq -r '.exp' 2>/dev/null | xargs -I{} date -r {} 2>/dev/null || echo 'unknown')"
+    else
+        print_error "Failed to decode JWT token"
+        return 1
+    fi
+}
+
 # Main function
 main() {
     if [ $# -eq 0 ]; then
@@ -274,12 +325,15 @@ main() {
         token)
             auth_token "$@"
             ;;
+        info)
+            auth_info "$@"
+            ;;
         -h|--help)
             show_usage
             ;;
         *)
             print_error "Unknown operation: $operation"
-            print_info "Available operations: login, logout, status, token"
+            print_info "Available operations: login, logout, status, token, info"
             print_info "Use 'monk auth --help' for more information"
             return 1
             ;;

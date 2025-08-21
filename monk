@@ -107,6 +107,21 @@ MODULES:
     delete <name>           Remove server from registry
     ping <name>             Health check specific server
 
+  user                    User management and access control
+    list                    List all users
+    get <id>                Get specific user
+    create                  Create user from stdin
+    update <id>             Update user from stdin
+    delete <id>             Delete user
+    permissions <id>        Manage user permissions
+
+  root                    System administration
+    status                  Show system status and health
+    config                  System configuration management
+    domains                 Domain and database management
+    cleanup                 System cleanup and maintenance
+    backup                  Backup and restore operations
+
 EXAMPLES:
 
   # Basic workflow
@@ -167,7 +182,7 @@ esac
 # Check if module is provided
 if [ $# -eq 0 ]; then
     echo "Usage: monk <module> <operation> [args...]" >&2
-    echo "Modules: auth, data, meta, find, ping, hono, test, pool, servers" >&2
+    echo "Modules: auth, data, meta, find, ping, hono, test, pool, servers, user, root" >&2
     echo "Use 'monk --help' for detailed information" >&2
     exit 1
 fi
@@ -204,9 +219,15 @@ case "$MODULE" in
     servers)
         exec "./cli/servers.sh" "$@"
         ;;
+    user)
+        exec "./cli/user.sh" "$@"
+        ;;
+    root)
+        exec "./cli/root.sh" "$@"
+        ;;
     *)
         echo "Invalid module: $MODULE" >&2
-        echo "Available modules: auth, data, meta, find, ping, hono, test, pool, servers" >&2
+        echo "Available modules: auth, data, meta, find, ping, hono, test, pool, servers, user, root" >&2
         exit 1
         ;;
 esac

@@ -59,6 +59,7 @@ Commands:
   preview [pattern]       Show tests that would be run without executing them
   list                    List all test run environments with status
   git <branch> [commit]   Create/update test environment for git reference
+  dev [--description]     Test current directory's monk-api-hono project
   current                 Show current active test run environment
   use <name>              Switch to test run environment
   delete <name>           Delete test run environment and cleanup resources
@@ -140,6 +141,12 @@ main() {
         return 0
     fi
     
+    # Handle dev command with path argument - bypass global option parsing
+    if [ "$command" = "dev" ]; then
+        exec "$(dirname "$0")/test-dev.sh" "$@"
+        return 0
+    fi
+    
     # Parse global options
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -179,6 +186,9 @@ main() {
             # For git command, pass branch directly to create_or_update_test_run
             exec "$(dirname "$0")/test-git.sh" create "$@"
             ;;
+        dev)
+            exec "$(dirname "$0")/test-dev.sh" "$@"
+            ;;
         current)
             exec "$(dirname "$0")/test-git.sh" current "$@"
             ;;
@@ -199,7 +209,7 @@ main() {
             ;;
         *)
             print_error "Unknown command: $command"
-            print_info "Available commands: all, preview, list, git, current, use, delete, env, diff"
+            print_info "Available commands: all, preview, list, git, dev, current, use, delete, env, diff"
             print_info "Use 'monk test --help' for more information"
             return 1
             ;;

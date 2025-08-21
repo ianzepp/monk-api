@@ -7,8 +7,8 @@ set -e
 source "$(dirname "$0")/common.sh"
 
 # Configuration
-MAX_DATABASES=10
-DB_PREFIX="monk_api_test"
+MAX_DATABASES=500
+DB_PREFIX="monk_test"
 POOL_DIR="${HOME}/.monk-db-pool"
 LOCK_FILE="${POOL_DIR}/.pool.lock"
 
@@ -83,7 +83,25 @@ count_pool_databases() {
 
 # Allocate a new database from the pool
 allocate_database() {
-    local test_name="${1:-test}"
+    local test_name="$1"
+    local description=""
+    
+    # Parse arguments for description (only if we have arguments)
+    if [ $# -gt 0 ]; then
+        shift
+        while [[ $# -gt 0 ]]; do
+            case $1 in
+                --description)
+                    description="$2"
+                    shift 2
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
+        done
+    fi
+    
     local db_user=$(get_db_user)
     
     acquire_lock
@@ -99,10 +117,17 @@ allocate_database() {
         return 1
     fi
     
-    # Generate unique database name
-    local timestamp=$(date +%Y%m%d_%H%M%S)
-    local random_suffix=$(shuf -i 1000-9999 -n 1 2>/dev/null || echo $((RANDOM % 9000 + 1000)))
-    local db_name="${DB_PREFIX}_${test_name}_${timestamp}_${random_suffix}"
+    # Generate database name - use exact name if provided, otherwise auto-generate
+    local db_name
+    if [ -n "$test_name" ]; then
+        # Use exact name as supplied
+        db_name="$test_name"
+    else
+        # Auto-generate with timestamp
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        local random_suffix=$(shuf -i 1000-9999 -n 1 2>/dev/null || echo $((RANDOM % 9000 + 1000)))
+        db_name="${DB_PREFIX}_${timestamp}_${random_suffix}"
+    fi
     
     print_step "Allocating database: $db_name"
     
@@ -145,11 +170,11 @@ allocate_database() {
         local allocation_file="${POOL_DIR}/${db_name}.info"
         cat > "$allocation_file" << EOF
 database_name=$db_name
-test_name=$test_name
 allocated_at=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 allocated_by=$$
 db_user=$db_user
 schema_initialized=true
+description=$description
 EOF
         
         print_success "Database allocated and initialized: $db_name"
@@ -211,17 +236,17 @@ list_databases() {
         return 0
     fi
     
-    printf "%-55s %-15s %-20s %s\n" "Database Name" "Test Name" "Allocated At" "Status"
-    echo "-------------------------------------------------------------------------------------------------------"
+    printf "%-40s %-20s %-10s %s\n" "Database Name" "Allocated At" "Status" "Description"
+    echo "--------------------------------------------------------------------------------"
     
     echo "$databases" | while read -r db_name; do
         local info_file="${POOL_DIR}/${db_name}.info"
         if [ -f "$info_file" ]; then
-            local test_name=$(grep "test_name=" "$info_file" | cut -d'=' -f2)
             local allocated_at=$(grep "allocated_at=" "$info_file" | cut -d'=' -f2)
-            printf "%-55s %-15s %-20s %s\n" "$db_name" "$test_name" "$allocated_at" "Active"
+            local description=$(grep "description=" "$info_file" | cut -d'=' -f2 2>/dev/null || echo "")
+            printf "%-40s %-20s %-10s %s\n" "$db_name" "$allocated_at" "Active" "$description"
         else
-            printf "%-55s %-15s %-20s %s\n" "$db_name" "Unknown" "Unknown" "Orphaned"
+            printf "%-40s %-20s %-10s %s\n" "$db_name" "Unknown" "Orphaned" ""
         fi
     done
     
@@ -353,14 +378,19 @@ Usage: monk pool <operation> [options]
 Database pool management for isolated testing environments.
 
 Operations:
-  status                  Show database pool status (X/10 databases in use)
-  list                    List all active test databases with allocation info
+  status                  Show database pool status (X/500 databases in use)
+  list                    List all active databases with allocation info
   cleanup [hours]         Clean up databases older than specified hours (default: 24)
   cleanup-all             Clean up ALL databases in pool (use with caution)
+  allocate [name]         Allocate database (auto-generated name if not specified)
+  deallocate <name>       Deallocate specific database
 
 Examples:
   monk pool status                    # Check current pool usage
   monk pool list                      # List all active databases
+  monk pool allocate                  # Auto-generate test database
+  monk pool allocate monk_development # Create named development database
+  monk pool allocate monk_staging --description "QA testing environment"
   monk pool cleanup                   # Clean up databases older than 24 hours
   monk pool cleanup 48                # Clean up databases older than 48 hours
   monk pool cleanup-all               # Remove ALL databases (dangerous!)
@@ -414,7 +444,7 @@ manage_pool() {
             ;;
         allocate)
             # Internal operation for test-git.sh
-            allocate_database "${1:-test}"
+            allocate_database "$@"
             ;;
         deallocate)
             # Internal operation for test-git.sh

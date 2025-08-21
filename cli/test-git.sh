@@ -62,33 +62,37 @@ get_next_port() {
     return 1
 }
 
+# Generate CRC8 hash from string (portable implementation)
+crc8_hash() {
+    local input="$1"
+    
+    # Simple checksum using cksum and modulo (portable across Unix systems)
+    local checksum=$(echo -n "$input" | cksum | cut -d' ' -f1)
+    local crc8=$((checksum % 99999999))  # 8 digit max
+    
+    # Pad to 8 characters with leading zeros
+    printf "%08d" "$crc8"
+}
+
 # Generate run name from git reference
 generate_run_name() {
     local git_ref="$1"
     local commit_ref="$2"
-    local api_source_dir="$3"
     
-    # Clean up branch name (replace slashes with dashes)
-    local clean_branch=$(echo "$git_ref" | sed 's/[^a-zA-Z0-9._-]/-/g')
-    
-    # If specific commit provided, use it
+    # Create input string for hashing
+    local hash_input="$git_ref"
     if [ -n "$commit_ref" ]; then
-        # Get short commit hash if source directory exists
-        local short_commit
-        if [ -d "$api_source_dir/.git" ] && short_commit=$(cd "$api_source_dir" && git rev-parse --short "$commit_ref" 2>/dev/null); then
-            echo "${clean_branch}-${short_commit}"
-        else
-            echo "${clean_branch}-${commit_ref}"
-        fi
-    else
-        # Use current HEAD of the branch if source directory exists
-        local short_commit
-        if [ -d "$api_source_dir/.git" ] && short_commit=$(cd "$api_source_dir" && git rev-parse --short "$git_ref" 2>/dev/null); then
-            echo "${clean_branch}-${short_commit}"
-        else
-            echo "$clean_branch"
-        fi
+        hash_input="${git_ref}:${commit_ref}"
     fi
+    
+    # Generate CRC8 hash
+    local crc8=$(crc8_hash "$hash_input")
+    
+    # Clean up branch name for display (first part)
+    local clean_branch=$(echo "$git_ref" | sed 's/[^a-zA-Z0-9._-]/-/g' | cut -c1-20)
+    
+    # Generate compact run name
+    echo "${clean_branch}-${crc8}"
 }
 
 # Smart API build setup with GitHub remote support
@@ -352,7 +356,7 @@ create_or_update_test_run() {
     fi
     
     # Generate run name and setup paths
-    local run_name=$(generate_run_name "$git_ref" "$commit_ref" "")
+    local run_name=$(generate_run_name "$git_ref" "$commit_ref")
     local target_base=$(get_monk_git_target)
     local run_dir="$target_base/$run_name"
     local config_dir="$run_dir/.config/monk"
@@ -380,7 +384,7 @@ create_or_update_test_run() {
     else
         # Allocate new database from pool
         if db_name=$("$DB_POOL_SCRIPT" allocate "$run_name" 2>&1); then
-            db_name=$(echo "$db_name" | tail -n 1 | grep "^monk_api_test_" || echo "")
+            db_name=$(echo "$db_name" | tail -n 1 | grep "^monk_" || echo "")
             if [ -z "$db_name" ]; then
                 print_error "Failed to get database name from pool"
                 return 1
@@ -483,10 +487,9 @@ EOF
     if [ $? -eq 0 ]; then
         print_step "Running complete test suite against git checkout"
         
-        # Run tests from the embedded test directory
+        # Run all tests using monk test all (auto-discovery, sorted order)
         if [ -d "$run_dir/tests" ]; then
-            cd "$run_dir/tests"
-            if ./run-all-tests.sh; then
+            if "$(dirname "$0")/test-all.sh"; then
                 print_success "All tests passed for git reference: $git_ref"
             else
                 print_error "Some tests failed for git reference: $git_ref"
