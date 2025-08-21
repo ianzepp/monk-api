@@ -399,9 +399,18 @@ create_or_update_test_run() {
         db_name=$(grep "database_name=" "$config_dir/run-info" | cut -d'=' -f2)
         print_info "Reusing existing database: $db_name"
     else
+        # Show pool status before allocation
+        print_step "Checking database pool status"
+        "$DB_POOL_SCRIPT" status
+        
         # Allocate new database from pool
-        if db_name=$("$DB_POOL_SCRIPT" allocate "$run_name" 2>&1); then
-            db_name=$(echo "$db_name" | tail -n 1)
+        print_step "Allocating database from pool for test run: $run_name"
+        if allocation_output=$("$DB_POOL_SCRIPT" allocate "$run_name" 2>&1); then
+            # Display the allocation output to user
+            echo "$allocation_output"
+            
+            # Extract database name from output
+            db_name=$(echo "$allocation_output" | tail -n 1)
             # Validate we got a database name (non-empty, no error messages)
             if [ -z "$db_name" ] || echo "$db_name" | grep -q "Error\|Failed\|✗"; then
                 print_error "Failed to get database name from pool"

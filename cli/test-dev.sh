@@ -157,22 +157,29 @@ run_dev_tests() {
     mkdir -p "$config_dir"
     
     # Allocate database from pool
-    print_step "Allocating development test database"
+    # Show pool status before allocation
+    print_step "Checking database pool status"
+    monk pool status
+    
+    print_step "Allocating development test database for: $run_name"
     local db_name
-    if ! db_name=$(monk pool allocate "$run_name" 2>&1); then
+    if allocation_output=$(monk pool allocate "$run_name" 2>&1); then
+        # Display the allocation output to user
+        echo "$allocation_output"
+        
+        # Extract database name from output
+        db_name=$(echo "$allocation_output" | tail -n 1)
+        # Validate we got a database name (non-empty, no error messages)
+        if [ -z "$db_name" ] || echo "$db_name" | grep -q "Error\|Failed\|✗"; then
+            print_error "Failed to get database name from pool"
+            return 1
+        fi
+        
+        print_success "Database allocated: $db_name"
+    else
         print_error "Failed to allocate database from pool"
         return 1
     fi
-    
-    # Extract database name from output
-    db_name=$(echo "$db_name" | tail -n 1)
-    # Validate we got a database name (non-empty, no error messages)
-    if [ -z "$db_name" ] || echo "$db_name" | grep -q "Error\|Failed\|✗"; then
-        print_error "Failed to get database name from pool"
-        return 1
-    fi
-    
-    print_success "Database allocated: $db_name"
     
     # Get available port
     local port
