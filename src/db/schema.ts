@@ -10,6 +10,8 @@ const baseFields = {
     access_deny: uuid("access_deny").array().default(sql`'{}'::uuid[]`),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
+    trashed_at: timestamp("trashed_at"),
+    deleted_at: timestamp("deleted_at"),
 };
 
 // Hardcoded schemas removed - all user schemas created via meta API

@@ -8,6 +8,7 @@ import findRouter from './routes/find.js';
 import bulkRouter from './routes/bulk.js';
 import authRouter from './routes/auth.js';
 import pingRouter from './routes/ping.js';
+import rootRouter from './routes/root.js';
 import { AuthService } from './lib/auth.js';
 
 // Create Hono app
@@ -46,6 +47,7 @@ app.get('/', (c) => {
             meta: '/api/meta/* (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
+            root: '/api/root/* (protected, admin only)',
         },
     });
 });
@@ -77,6 +79,7 @@ app.route('/api/data', dataRouter);
 app.route('/api/meta', metaRouter);
 app.route('/api/find', findRouter);
 app.route('/api/bulk', bulkRouter);
+app.route('/api/root', rootRouter);
 
 // Error handling
 app.onError((err, c) => {

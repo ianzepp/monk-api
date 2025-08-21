@@ -69,13 +69,8 @@ export class DatabaseManager {
     private static buildConnectionString(domain: string): string {
         const baseUrl = process.env.DATABASE_URL || 'postgresql://ianzepp@localhost:5432/';
         
-        // If domain looks like a full database name, use it directly
-        if (domain.includes('monk_api') || domain.includes('test_')) {
-            return baseUrl.replace(/\/[^\/]*$/, `/${domain}`);
-        }
-        
-        // Otherwise, prefix with standard naming
-        return baseUrl.replace(/\/[^\/]*$/, `/monk_api_${domain}`);
+        // Use domain name directly as database name
+        return baseUrl.replace(/\/[^\/]*$/, `/${domain}`);
     }
 
     // Cleanup connections (for graceful shutdown)

@@ -12,49 +12,31 @@ properties:
     type: string
     format: email
     maxLength: 255
-    description: User's email address (used for login)
-  first_name:
-    type: string
-    minLength: 1
-    maxLength: 100
-    description: User's first name
-  last_name:
-    type: string
-    minLength: 1
-    maxLength: 100
-    description: User's last name
+    description: User's email address
   password_hash:
     type: string
     maxLength: 255
     description: Hashed password (never store plain text)
-  role:
+  access:
     type: string
-    enum: ["admin", "user", "viewer"]
-    default: "user"
-    description: User role for authorization
+    enum: ["deny", "read", "edit", "full", "root"]
+    default: "read"
+    description: API access level for operations
   is_active:
     type: boolean
     default: true
     description: Whether the user account is active
-  last_login:
-    type: string
-    format: date-time
-    description: Timestamp of last successful login
-  email_verified:
-    type: boolean
-    default: false
-    description: Whether the user's email has been verified
-  account_id:
+  domain_id:
     type: string
     format: uuid
-    description: Associated account ID (optional for multi-tenant support)
+    description: Associated domain ID
     x-paas:
       foreign_key:
-        table: accounts
+        table: domains
         column: id
-        on_delete: cascade
+        on_delete: restrict
 required:
   - username
   - email
-  - first_name
-  - last_name
+  - access
+  - domain_id

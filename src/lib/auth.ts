@@ -4,11 +4,10 @@ import { sign, verify } from 'hono/jwt';
 import { DatabaseManager } from './database-manager.js';
 
 export interface JWTPayload {
-    sub: string;           // User ID
-    email: string;         // User email  
-    username: string;      // Username
+    sub: string;           // Subject/system identifier
+    user_id: string | null; // User ID for database records (null for root/system)
     domain: string;        // User's domain
-    role: string;          // User role (admin, user, viewer)
+    access: string;        // Access level (deny/read/edit/full/root)
     access_read: string[]; // ACL read access
     access_edit: string[]; // ACL edit access
     access_full: string[]; // ACL full access
@@ -25,10 +24,9 @@ export class AuthService {
     static async generateToken(user: any): Promise<string> {
         const payload: JWTPayload = {
             sub: user.id,
-            email: user.email,
-            username: user.username,
+            user_id: user.user_id || null, // User ID for database records (null for root/system)
             domain: user.domain,
-            role: user.role,
+            access: user.access || 'root', // Access level for API operations
             access_read: user.access_read || [],
             access_edit: user.access_edit || [],
             access_full: user.access_full || [],
@@ -50,18 +48,16 @@ export class AuthService {
             return null; // Domain required
         }
 
-        // Create test user object with domain
+        // Create test user object with domain and root access
         const testUser = {
             id: 'test-user',
-            username: 'test',
-            email: 'test@test.com',
+            user_id: null, // No user ID for system/test authentication
             domain: domain,
-            role: 'admin',
+            access: 'root', // Give everyone root access for now
             access_read: [],
             access_edit: [],
             access_full: [],
-            is_active: true,
-            last_login: new Date().toISOString()
+            is_active: true
         };
 
         // Generate token
