@@ -26,6 +26,12 @@ app.put('/:schema', DataUpdateAll);
 // PUT /api/data/:schema/:id - Update existing record by ID
 app.put('/:schema/:id', DataUpdateOne);
 
+// PATCH /api/data/:schema - Update/revert multiple records by array of {id, ...updates}
+app.patch('/:schema', DataUpdateAll);
+
+// PATCH /api/data/:schema/:id - Update/revert existing record by ID
+app.patch('/:schema/:id', DataUpdateOne);
+
 // DELETE /api/data/:schema - Delete multiple records by array of {id} or IDs
 app.delete('/:schema', DataDeleteAll);
 

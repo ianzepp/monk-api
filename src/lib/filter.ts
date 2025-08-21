@@ -1,6 +1,38 @@
 import { db, type DbContext, type TxContext } from '../db/index.js';
 import type { System } from './system.js';
 
+/**
+ * Filter class for building complex database queries with support for WHERE, ORDER BY, and LIMIT clauses.
+ * 
+ * ## Core Features
+ * - Tree-based condition building with logical operators (AND, OR, NOT)
+ * - Rich operator support for comparisons, pattern matching, and array operations
+ * - Automatic soft delete filtering via trashed_at column
+ * - Order and limit clause generation
+ * - SQL injection protection through parameterized queries
+ * 
+ * ## WHERE Conditions
+ * The Filter class automatically excludes soft-deleted records by adding `trashed_at IS NULL` 
+ * to all generated WHERE clauses. This ensures that all database queries respect soft delete 
+ * behavior without requiring explicit filtering in application code.
+ * 
+ * All user-defined WHERE conditions are combined with the automatic trash filter using AND logic:
+ * ```sql
+ * WHERE trashed_at IS NULL AND (user_conditions)
+ * ```
+ * 
+ * ## Usage
+ * ```typescript
+ * const filter = new Filter(system, schemaName, tableName);
+ * filter.assign({
+ *   where: { name: { $like: 'John%' }, age: { $gte: 18 } },
+ *   order: [{ column: 'created_at', direction: 'DESC' }],
+ *   limit: 10
+ * });
+ * const results = await filter.execute();
+ * ```
+ */
+
 // Filter operation types
 export enum FilterOp {
     // Comparison
@@ -367,16 +399,28 @@ export class Filter {
 
     // Get just the WHERE clause conditions for use in other queries
     getWhereClause(): string {
+        const baseConditions = [];
+        
+        // Add soft delete filtering unless explicitly included via options
+        if (!this.system.options.trashed) {
+            baseConditions.push('trashed_at IS NULL');
+        }
+        
         // Build WHERE clause using new tree structure
         if (this._conditions.length > 0) {
             const conditionSQL = this._buildConditionTreeSQL(this._conditions);
-            return conditionSQL || '1=1';
+            if (conditionSQL && conditionSQL !== '1=1') {
+                baseConditions.push(`(${conditionSQL})`);
+            }
         } else if (this._where.length > 0) {
             // Fallback to legacy flat structure
             const conditions = this._where.map(w => this._buildSQLCondition(w)).filter(Boolean);
-            return conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+            if (conditions.length > 0) {
+                baseConditions.push(`(${conditions.join(' AND ')})`);
+            }
         }
-        return '1=1';
+        
+        return baseConditions.length > 0 ? baseConditions.join(' AND ') : '1=1';
     }
 
     // Get just the ORDER BY clause for use in other queries

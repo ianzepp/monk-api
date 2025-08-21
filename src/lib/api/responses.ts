@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { System } from '../system.js';
+import { System, type SystemOptions } from '../system.js';
 import { DatabaseManager } from '../database-manager.js'; 
 import { type TxContext } from '../../db/index.js';
 export interface ApiSuccessResponse<T = any> {
@@ -29,11 +29,19 @@ export enum ApiErrorCode {
 
 export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 
+// Helper function to extract system options from request
+function extractOptionsFromContext(context: Context): SystemOptions {
+    return {
+        trashed: context.req.query('include_trashed') === 'true'
+    };
+}
+
 // Request handlers
 export async function handleContextDb<T>(context: Context, fn: (system: System) => Promise<T>) {
     try {
         const contextDb = DatabaseManager.getDatabaseFromContext(context);
-        const result = await fn(new System(context, contextDb));
+        const options = extractOptionsFromContext(context);
+        const result = await fn(new System(context, contextDb, options));
 
         // Success!
         return createSuccessResponse(context, result, 200);
@@ -52,7 +60,8 @@ export async function handleContextTx<T>(context: Context, fn: (system: System) 
         
         try {
             await client.query('BEGIN');
-            const result = await fn(new System(context, client));
+            const options = extractOptionsFromContext(context);
+            const result = await fn(new System(context, client, options));
             await client.query('COMMIT');
             return createSuccessResponse(context, result, 200);
         } catch (error) {
