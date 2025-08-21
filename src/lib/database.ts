@@ -77,6 +77,11 @@ export class Database {
     }
 
 
+    /**
+     * Soft delete multiple records by setting trashed_at timestamp.
+     * Uses individual deleteOne() calls for each record.
+     * Records with trashed_at set are automatically excluded from select queries via Filter class.
+     */
     async deleteAll(schemaName: SchemaName, deletes: Record<string, any>[]): Promise<any[]> {
         return Promise.all(deletes.map(record => {
             return this.deleteOne(schemaName, record.id);
@@ -313,20 +318,121 @@ export class Database {
         return results;
     }
 
+    /**
+     * Soft delete a single record by setting trashed_at timestamp.
+     * Uses UPDATE SET trashed_at = NOW() instead of DELETE FROM for data preservation.
+     * Records with trashed_at set are automatically excluded from select queries via Filter class.
+     * @returns The updated record with trashed_at timestamp set
+     */
     async deleteOne(schemaName: SchemaName, recordId: string): Promise<any> {
         const schema = await this.toSchema(schemaName);
 
         const result = await this.execute(`
-            DELETE FROM "${schema.table}"
-            WHERE id = '${recordId}'
-            RETURNING id
+            UPDATE "${schema.table}"
+            SET trashed_at = NOW(), updated_at = NOW()
+            WHERE id = '${recordId}' AND trashed_at IS NULL
+            RETURNING *
         `);
 
         if (result.rows.length === 0) {
-            throw new Error(`Record '${recordId}' not found`);
+            throw new Error(`Record '${recordId}' not found or already trashed`);
         }
 
-        return { id: recordId, deleted: true };
+        return result.rows[0];
+    }
+
+    /**
+     * Revert multiple soft-deleted records by setting trashed_at to NULL.
+     * Core batch implementation for record restoration.
+     * Validates that records are actually trashed before reverting.
+     * @returns Array of reverted records with trashed_at set to null
+     */
+    async revertAll(schemaName: SchemaName, reverts: Record<string, any>[]): Promise<any[]> {
+        if (reverts.length === 0) return [];
+        
+        const schema = await this.toSchema(schemaName);
+        const ids = reverts.map(record => record.id).filter(id => id !== undefined);
+        
+        if (ids.length === 0) {
+            throw new Error('No valid IDs provided for revert operation');
+        }
+        
+        // Validate all records are actually trashed (with include_trashed option)
+        const trashedRecords = await this.selectAny(schemaName, { 
+            where: { id: { $in: ids } }
+        });
+        
+        // Check if we have trashed records when include_trashed=true should be set
+        if (trashedRecords.length === 0 && !this.system.options.trashed) {
+            throw new Error('No trashed records found. Use ?include_trashed=true to revert soft-deleted records');
+        }
+        
+        // Find records that are not actually trashed
+        const trashedIds = trashedRecords.filter(r => r.trashed_at !== null).map(r => r.id);
+        const nonTrashedIds = ids.filter(id => !trashedIds.includes(id));
+        
+        if (nonTrashedIds.length > 0) {
+            throw new Error(`Cannot revert non-trashed records: ${nonTrashedIds.join(', ')}`);
+        }
+        
+        // Validate that revert data includes trashed_at: null
+        for (const record of reverts) {
+            if (record.trashed_at !== null) {
+                throw new Error(`Revert operation requires trashed_at: null. Record ${record.id} has trashed_at: ${record.trashed_at}`);
+            }
+        }
+        
+        // Perform batch revert using UPDATE
+        const idsString = ids.map(id => `'${id}'`).join(', ');
+        const result = await this.execute(`
+            UPDATE "${schema.table}"
+            SET trashed_at = NULL, updated_at = NOW()
+            WHERE id IN (${idsString}) AND trashed_at IS NOT NULL
+            RETURNING *
+        `);
+        
+        if (result.rows.length !== ids.length) {
+            throw new Error(`Revert operation failed. Expected ${ids.length} records, reverted ${result.rows.length}`);
+        }
+        
+        return result.rows;
+    }
+
+    /**
+     * Revert a single soft-deleted record by setting trashed_at to NULL.
+     * Delegates to revertAll() for consistency with updateOne/updateAll pattern.
+     */
+    async revertOne(schemaName: SchemaName, recordId: string): Promise<any> {
+        const results = await this.revertAll(schemaName, [{ id: recordId, trashed_at: null }]);
+        
+        if (results.length === 0) {
+            throw new Error(`Record '${recordId}' not found or not trashed`);
+        }
+        
+        return results[0];
+    }
+
+    /**
+     * Revert multiple records using filter criteria.
+     * Finds trashed records matching filter, then reverts them.
+     */
+    async revertAny(schemaName: SchemaName, filterData: FilterData = {}): Promise<any[]> {
+        // First find all trashed records matching the filter
+        // Note: This requires include_trashed=true to find trashed records
+        if (!this.system.options.trashed) {
+            throw new Error('revertAny() requires include_trashed=true option to find trashed records');
+        }
+        
+        const trashedRecords = await this.selectAny(schemaName, filterData);
+        const recordsToRevert = trashedRecords
+            .filter(record => record.trashed_at !== null)
+            .map(record => ({ id: record.id, trashed_at: null }));
+        
+        if (recordsToRevert.length === 0) {
+            return [];
+        }
+        
+        return await this.revertAll(schemaName, recordsToRevert);
     }
 
     // Database class doesn't handle transactions - System class does
