@@ -1,5 +1,4 @@
 import { db, builtins, type DbContext, type TxContext } from '../db/index.js';
-import { eq, sql } from 'drizzle-orm';
 import { Schema, type SchemaName } from './schema.js';
 import { Filter, type FilterData } from './filter.js';
 import { DatabaseManager } from './database-manager.js';
@@ -33,14 +32,18 @@ export class Database {
 
     // List all schemas
     async listSchemas() {
-        return await this.system.dtx
-            .select()
-            .from(builtins.schemas);
+        const query = `SELECT * FROM ${builtins.TABLE_NAMES.schemas}`;
+        const result = await this.execute(query);
+        return result.rows;
     }
 
-    // Core operation. Pass the SQL string into drizzle
-    async execute(query: string): Promise<any> {
-        return await this.system.dtx.execute(sql.raw(query));
+    // Core operation. Execute raw SQL query
+    async execute(query: string, params: any[] = []): Promise<any> {
+        if (params.length > 0) {
+            return await this.system.dtx.query(query, params);
+        } else {
+            return await this.system.dtx.query(query);
+        }
     }
 
     // Count

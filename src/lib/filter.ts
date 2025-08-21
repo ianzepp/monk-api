@@ -1,5 +1,4 @@
 import { db, type DbContext, type TxContext } from '../db/index.js';
-import { eq, gt, gte, lt, lte, like, ilike, inArray, notInArray, and, or, not, sql } from 'drizzle-orm';
 import type { System } from './system.js';
 
 // Filter operation types

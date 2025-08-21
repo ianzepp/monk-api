@@ -25,7 +25,7 @@ app.get('/', async (c) => {
                     const db = await DatabaseManager.getDatabaseForDomain(domain);
                     
                     // Execute a fast connection test query
-                    await db.execute('SELECT 1 as test_connection');
+                    await db.query('SELECT 1 as test_connection');
                     
                     databaseStatus = 'ok';
                 } catch (dbError) {

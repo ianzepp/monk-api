@@ -1,6 +1,5 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import * as builtinSchema from './schema.js';
+import * as schema from './schema.js';
 
 const { Pool } = pg;
 
@@ -15,15 +14,15 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Create Drizzle instance
-export const db = drizzle(pool, { schema: builtinSchema });
+// Export the pool directly for raw SQL queries
+export const db = pool;
 
-// Export builtin schema tables
-export const builtins = builtinSchema;
+// Export schema interfaces and constants
+export const builtins = schema;
 
-// Types
-export type DbContext = typeof db;
-export type TxContext = Parameters<Parameters<typeof db.transaction>[0]>[0];
+// Types for database operations
+export type DbContext = pg.Pool;
+export type TxContext = pg.PoolClient;
 
 // Health check function
 export async function checkDatabaseConnection(): Promise<boolean> {

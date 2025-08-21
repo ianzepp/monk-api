@@ -5,8 +5,7 @@ import {
     createNotFoundError,
     createInternalError,
 } from '../lib/api/responses.js';
-import { db, builtins } from '../db/index.js';
-import { eq } from 'drizzle-orm';
+import { builtins } from '../db/index.js';
 import { Filter, type FilterData } from '../lib/filter.js';
 import { handleContextDb } from '../lib/api/responses.js';
 
@@ -18,18 +17,21 @@ export default async function (context: Context): Promise<any> {
             // Parse request body as FilterData
             const filterData: FilterData = await context.req.json();
 
-            // Verify schema exists
-            const schemaInfo = await db
-                .select()
-                .from(builtins.schemas)
-                .where(eq(builtins.schemas.name, schemaName))
-                .limit(1);
+            // Verify schema exists using raw SQL
+            const schemaQuery = `
+                SELECT name, table_name 
+                FROM ${builtins.TABLE_NAMES.schemas} 
+                WHERE name = $1 
+                LIMIT 1
+            `;
+            
+            const result = await system.database.execute(schemaQuery, [schemaName]);
 
-            if (schemaInfo.length === 0) {
+            if (result.rows.length === 0) {
                 return createNotFoundError(context, 'Schema', schemaName);
             }
 
-            const tableName = schemaInfo[0].table_name;
+            const tableName = result.rows[0].table_name;
 
             // Create filter and apply conditions
             const filter = new Filter(system, schemaName, tableName);

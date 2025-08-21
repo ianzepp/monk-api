@@ -1,5 +1,4 @@
 import { builtins, type TxContext } from '../db/index.js';
-import { eq, sql } from 'drizzle-orm';
 import * as yaml from 'js-yaml';
 import crypto from 'crypto';
 
@@ -64,20 +63,27 @@ export class SchemaManager {
         const yamlChecksum = crypto.createHash('sha256').update(yamlContent).digest('hex');
 
         // Create schema record
-        const schemaRecord = await tx.insert(builtins.schemas).values({
-            name: schemaName,
-            table_name: tableName,
-            status: 'active',
-            definition: jsonSchema,
-            field_count: Object.keys(jsonSchema.properties).length.toString(),
-            yaml_checksum: yamlChecksum
-        }).returning();
+        const insertQuery = `
+            INSERT INTO ${builtins.TABLE_NAMES.schemas} 
+            (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, domain, access_read, access_edit, access_full, access_deny)
+            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), NULL, '{}', '{}', '{}', '{}')
+            RETURNING *
+        `;
+        
+        const schemaResult = await tx.query(insertQuery, [
+            schemaName,
+            tableName, 
+            'active',
+            JSON.stringify(jsonSchema),
+            Object.keys(jsonSchema.properties).length.toString(),
+            yamlChecksum
+        ]);
 
         // Generate and execute CREATE TABLE DDL
         const ddl = this.generateCreateTableDDL(tableName, jsonSchema);
-        await tx.execute(sql.raw(ddl));
+        await tx.query(ddl);
 
-        return schemaRecord[0];
+        return schemaResult.rows[0];
     }
 
     // Update existing schema with non-destructive evolution
@@ -85,15 +91,14 @@ export class SchemaManager {
         const newJsonSchema = this.parseYamlSchema(yamlContent);
         
         // Get existing schema
-        const existingSchema = await tx
-            .select()
-            .from(builtins.schemas)
-            .where(eq(builtins.schemas.name, schemaName))
-            .limit(1);
+        const existingQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 LIMIT 1`;
+        const existingResult = await tx.query(existingQuery, [schemaName]);
 
-        if (existingSchema.length === 0) {
+        if (existingResult.rows.length === 0) {
             throw new Error(`Schema '${schemaName}' not found`);
         }
+
+        const existingSchema = existingResult.rows;
 
         const tableName = existingSchema[0].table_name;
         const oldDefinition = existingSchema[0].definition as JsonSchema;
@@ -105,7 +110,7 @@ export class SchemaManager {
         for (const ddl of alterStatements) {
             if (ddl.trim()) {
                 console.log('Executing DDL:', ddl);
-                await tx.execute(sql.raw(ddl));
+                await tx.query(ddl);
             }
         }
 
@@ -113,26 +118,38 @@ export class SchemaManager {
         const yamlChecksum = crypto.createHash('sha256').update(yamlContent).digest('hex');
 
         // Update schema registry
-        await tx
-            .update(builtins.schemas)
-            .set({
-                definition: newJsonSchema,
-                field_count: Object.keys(newJsonSchema.properties).length.toString(),
-                yaml_checksum: yamlChecksum
-            })
-            .where(eq(builtins.schemas.name, schemaName));
+        const updateQuery = `
+            UPDATE ${builtins.TABLE_NAMES.schemas} 
+            SET definition = $1, field_count = $2, yaml_checksum = $3, updated_at = NOW() 
+            WHERE name = $4
+        `;
+        
+        await tx.query(updateQuery, [
+            JSON.stringify(newJsonSchema),
+            Object.keys(newJsonSchema.properties).length.toString(),
+            yamlChecksum,
+            schemaName
+        ]);
 
         // Update column registry
-        await tx.delete(builtins.columns).where(eq(builtins.columns.schema_name, schemaName));
+        const deleteColumnsQuery = `DELETE FROM ${builtins.TABLE_NAMES.columns} WHERE schema_name = $1`;
+        await tx.query(deleteColumnsQuery, [schemaName]);
+
+        // Insert new column records
+        const insertColumnQuery = `
+            INSERT INTO ${builtins.TABLE_NAMES.columns} 
+            (id, schema_name, column_name, pg_type, is_required, default_value, constraints, foreign_key, description, created_at, updated_at, domain, access_read, access_edit, access_full, access_deny)
+            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NULL, '{}', '{}', '{}', '{}')
+        `;
 
         for (const [fieldName, property] of Object.entries(newJsonSchema.properties)) {
-            await tx.insert(builtins.columns).values({
-                schema_name: schemaName,
-                column_name: fieldName,
-                pg_type: this.jsonSchemaTypeToPostgres(property),
-                is_required: (newJsonSchema.required || []).includes(fieldName) ? 'true' : 'false',
-                default_value: property.default?.toString() || null,
-                constraints: JSON.stringify({
+            await tx.query(insertColumnQuery, [
+                schemaName,
+                fieldName,
+                this.jsonSchemaTypeToPostgres(property),
+                (newJsonSchema.required || []).includes(fieldName) ? 'true' : 'false',
+                property.default?.toString() || null,
+                JSON.stringify({
                     minLength: property.minLength,
                     maxLength: property.maxLength,
                     minimum: property.minimum,
@@ -141,47 +158,45 @@ export class SchemaManager {
                     format: property.format,
                     pattern: property.pattern,
                 }),
-                foreign_key: property['x-paas']?.foreign_key ? JSON.stringify(property['x-paas'].foreign_key) : null,
-                description: property.description || null,
-            });
+                property['x-paas']?.foreign_key ? JSON.stringify(property['x-paas'].foreign_key) : null,
+                property.description || null,
+            ]);
         }
 
-        return (await tx.select().from(builtins.schemas).where(eq(builtins.schemas.name, schemaName)).limit(1))[0];
+        const updatedSchemaQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 LIMIT 1`;
+        const updatedResult = await tx.query(updatedSchemaQuery, [schemaName]);
+        return updatedResult.rows[0];
     }
 
     // Delete schema with dependency checking
     static async deleteSchema(tx: TxContext, schemaName: string): Promise<any> {
         // Get schema info
-        const schemaRecord = await tx
-            .select()
-            .from(builtins.schemas)
-            .where(eq(builtins.schemas.name, schemaName))
-            .limit(1);
+        const schemaQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 LIMIT 1`;
+        const schemaResult = await tx.query(schemaQuery, [schemaName]);
 
-        if (schemaRecord.length === 0) {
+        if (schemaResult.rows.length === 0) {
             throw new Error(`Schema '${schemaName}' not found`);
         }
 
-        const tableName = schemaRecord[0].table_name;
+        const tableName = schemaResult.rows[0].table_name;
 
         // Check for dependencies
-        const dependentSchemas = await tx
-            .select({
-                schemaName: builtins.schemas.name,
-                tableName: builtins.schemas.table_name
-            })
-            .from(builtins.schemas)
-            .where(sql`definition::text LIKE ${`%"table": "${tableName}"%`}`);
+        const dependencyQuery = `
+            SELECT name as schemaName, table_name as tableName 
+            FROM ${builtins.TABLE_NAMES.schemas} 
+            WHERE definition::text LIKE $1
+        `;
+        const dependentResult = await tx.query(dependencyQuery, [`%"table": "${tableName}"%`]);
 
-        if (dependentSchemas.length > 0) {
-            const dependentNames = dependentSchemas.map(s => s.schemaName).join(', ');
+        if (dependentResult.rows.length > 0) {
+            const dependentNames = dependentResult.rows.map(s => s.schemaname).join(', ');
             throw new Error(`Cannot delete schema '${schemaName}' - referenced by: ${dependentNames}. Delete dependent schemas first.`);
         }
 
         // Drop table and clean up
-        await tx.execute(sql`DROP TABLE IF EXISTS ${sql.identifier(tableName)}`);
-        await tx.delete(builtins.columns).where(eq(builtins.columns.schema_name, schemaName));
-        await tx.delete(builtins.schemas).where(eq(builtins.schemas.name, schemaName));
+        await tx.query(`DROP TABLE IF EXISTS "${tableName}"`);
+        await tx.query(`DELETE FROM ${builtins.TABLE_NAMES.columns} WHERE schema_name = $1`, [schemaName]);
+        await tx.query(`DELETE FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1`, [schemaName]);
 
         return {
             deleted_schema: schemaName,
@@ -205,7 +220,9 @@ export class SchemaManager {
         ddl += `    "access_full" UUID[] DEFAULT '{}',\n`;
         ddl += `    "access_deny" UUID[] DEFAULT '{}',\n`;
         ddl += `    "created_at" TIMESTAMP DEFAULT now() NOT NULL,\n`;
-        ddl += `    "updated_at" TIMESTAMP DEFAULT now() NOT NULL`;
+        ddl += `    "updated_at" TIMESTAMP DEFAULT now() NOT NULL,\n`;
+        ddl += `    "trashed_at" TIMESTAMP,\n`;
+        ddl += `    "deleted_at" TIMESTAMP`;
 
         // Schema-specific fields
         for (const [fieldName, property] of Object.entries(properties)) {

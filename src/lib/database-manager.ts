@@ -1,7 +1,5 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import type { Context } from 'hono';
-import * as builtinSchema from '../db/schema.js';
 
 const { Pool } = pg;
 
@@ -10,10 +8,9 @@ const { Pool } = pg;
  */
 export class DatabaseManager {
     private static connectionPools = new Map<string, pg.Pool>();
-    private static drizzleInstances = new Map<string, any>();
 
     // Get or create database connection for domain
-    static async getDatabaseForDomain(domain: string) {
+    static async getDatabaseForDomain(domain: string): Promise<pg.Pool> {
         // Use default database for 'default' domain
         if (domain === 'default' || domain === 'monk_api_hono_dev') {
             const { db } = await import('../db/index.js');
@@ -21,8 +18,8 @@ export class DatabaseManager {
         }
 
         // Create dynamic connection for test domains
-        if (this.drizzleInstances.has(domain)) {
-            return this.drizzleInstances.get(domain);
+        if (this.connectionPools.has(domain)) {
+            return this.connectionPools.get(domain)!;
         }
 
         // Create new connection pool for this domain/database
@@ -45,15 +42,11 @@ export class DatabaseManager {
             throw new Error(`Database '${domain}' not accessible`);
         }
 
-        // Create Drizzle instance
-        const db = drizzle(pool, { schema: builtinSchema });
-        
         // Cache for reuse
         this.connectionPools.set(domain, pool);
-        this.drizzleInstances.set(domain, db);
         
         console.log(`✅ Connected to database: ${domain}`);
-        return db;
+        return pool;
     }
 
     // Set database context for current request
@@ -87,7 +80,6 @@ export class DatabaseManager {
         }
         
         this.connectionPools.clear();
-        this.drizzleInstances.clear();
     }
 
     // Get current database from request context

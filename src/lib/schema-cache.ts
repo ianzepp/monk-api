@@ -78,7 +78,7 @@ export class SchemaCache {
      * Load all schema checksums for a database
      */
     private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{name: string, yaml_checksum: string, updated_at: string}[]> {
-        const result = await dtx.execute(`
+        const result = await dtx.query(`
             SELECT name, yaml_checksum, updated_at 
             FROM schemas 
             WHERE status = 'active'
@@ -105,7 +105,7 @@ export class SchemaCache {
             if (schemaNames && schemaNames.length > 0) {
                 // Query specific schemas using raw SQL (consistent with our approach)
                 const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
-                const result = await dtx.execute(`
+                const result = await dtx.query(`
                     SELECT name, yaml_checksum, updated_at 
                     FROM schemas 
                     WHERE name IN (${quotedNames}) AND status = 'active'
@@ -151,10 +151,10 @@ export class SchemaCache {
      * Load full schema definition from database
      */
     private async loadFullSchema(dtx: DbContext | TxContext, schemaName: string): Promise<any> {
-        const result = await dtx.execute(`
+        const result = await dtx.query(`
             SELECT * FROM schemas 
-            WHERE name = '${schemaName.replace(/'/g, "''")}' AND status = 'active'
-        `);
+            WHERE name = $1 AND status = 'active'
+        `, [schemaName]);
         
         if (result.rows.length === 0) {
             throw new Error(`Schema '${schemaName}' not found`);
