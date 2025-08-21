@@ -46,12 +46,21 @@ export async function handleContextDb<T>(context: Context, fn: (system: System) 
 export async function handleContextTx<T>(context: Context, fn: (system: System) => Promise<T>) {
     try {
         const contextDb = DatabaseManager.getDatabaseFromContext(context);
-        const result = await contextDb.transaction(async (contextTx: TxContext) => {
-            return await fn(new System(context, contextTx));
-        });        
-
-        // TODO does a failure above rollback the transaction?
-        return createSuccessResponse(context, result, 200);
+        
+        // Start PostgreSQL transaction using pool client
+        const client = await contextDb.connect();
+        
+        try {
+            await client.query('BEGIN');
+            const result = await fn(new System(context, client));
+            await client.query('COMMIT');
+            return createSuccessResponse(context, result, 200);
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     } catch (error: any) {
         console.error(`Error in ${context.req.method} ${context.req.path}:`, error);
         return createErrorResponse(context, error.message || error, ApiErrorCode.INTERNAL_ERROR);
