@@ -337,7 +337,7 @@ Examples:
 Integration:
   - Switching servers updates CLI_BASE_URL for all monk commands
   - Server status is cached and updated during ping operations
-  - Configurations stored in ~/.monk-servers.json
+  - Configurations stored in ~/.config/monk/servers.json
   - Works seamlessly with 'monk auth', 'monk data', etc.
 
 Related Commands:

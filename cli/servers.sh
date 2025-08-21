@@ -18,7 +18,7 @@ set -e
 source "$(dirname "$0")/common.sh"
 
 # Configuration
-SERVERS_CONFIG="${HOME}/.monk-servers.json"
+SERVERS_CONFIG="${HOME}/.config/monk/servers.json"
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,6 +38,9 @@ check_dependencies
 
 # Initialize servers config if it doesn't exist
 init_servers_config() {
+    # Ensure config directory exists
+    mkdir -p "$(dirname "$SERVERS_CONFIG")"
+    
     if [ ! -f "$SERVERS_CONFIG" ]; then
         cat > "$SERVERS_CONFIG" << 'EOF'
 {
@@ -539,7 +542,7 @@ Examples:
 Integration:
   - Switching servers updates CLI_BASE_URL for all monk commands
   - Server status is cached and updated during ping operations
-  - Configurations stored in ~/.monk-servers.json
+  - Configurations stored in ~/.config/monk/servers.json
   - Works seamlessly with 'monk auth', 'monk data', etc.
 
 Related Commands:
