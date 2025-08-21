@@ -57,7 +57,23 @@ Schema operations with integrated validation:
 Advanced query filtering with MongoDB-style operators:
 - Complex WHERE/ORDER/LIMIT clause generation
 - Support for `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`, `$regex`, `$exists`
-- Reusable clause extraction methods
+- Reusable clause extraction methods: `getWhereClause()`, `getOrderClause()`, `getLimitClause()`
+- Filter-based bulk operations: `updateAny()`, `deleteAny()` for mass updates
+- Advanced query patterns with nested conditions and logical operators
+
+#### **DatabaseManager Class** (`src/lib/database-manager.ts`)
+Dynamic database connection management for multi-tenant architecture:
+- Per-domain database connection pooling
+- JWT domain-based routing to separate databases
+- Automatic connection creation for test environments
+- Efficient resource management and connection reuse
+
+#### **Route Helpers** (`src/lib/route-helpers.ts`)
+Infrastructure utilities providing 80% code reduction in route handlers:
+- Centralized error handling and transaction management
+- Clean separation: handlers show business logic, utilities handle infrastructure
+- Consistent response patterns and validation
+- Transaction boundary management for write operations
 
 ## 🎯 API Endpoints
 
@@ -93,10 +109,20 @@ DELETE /api/meta/schema/:name     # Delete schema
 ### Advanced Search & Utilities
 ```
 POST   /api/find/:schema          # Advanced search with filter DSL
-POST   /api/bulk                  # Bulk operations
+POST   /api/bulk                  # Multi-schema bulk operations
 GET    /ping                      # Connectivity testing
 GET    /health                    # Health check with database status
 ```
+
+### Bulk Operations
+```
+POST   /api/bulk                  # Multi-schema transactions
+```
+**Bulk Operation Types:**
+- **Multi-schema transactions**: Perform operations across multiple schemas atomically
+- **Filter-based updates**: Use `updateAny()` with query filters for mass updates
+- **Filter-based deletions**: Use `deleteAny()` with query filters for mass deletions
+- **Batch record processing**: Create/update/delete multiple records efficiently
 
 ## ⚡ Performance Architecture
 
@@ -112,6 +138,8 @@ GET    /health                    # Health check with database status
 - **Batch Operations**: `updateAll()` uses single `selectIds()` + batch updates vs N queries
 - **Efficient Null Handling**: Set-based lookup (O(1) vs O(n)) for validation cleaning
 - **Filter Clause Extraction**: Reusable WHERE/ORDER/LIMIT clauses
+- **404 Operation Patterns**: Consistent `select404()`, `update404()`, `delete404()` error handling
+- **Bulk Filter Operations**: `updateAny()` and `deleteAny()` for filter-based mass operations
 
 ## 🗄️ Database Architecture
 
@@ -251,7 +279,9 @@ echo '{
 }' | monk meta create schema
 ```
 
-## 🔍 Advanced Search Examples
+## 🔍 Advanced Search & Bulk Operations
+
+### Advanced Search Examples
 
 The `/api/find/:schema` endpoint supports MongoDB-style queries:
 
@@ -264,7 +294,7 @@ echo '{
   "limit": 10
 }' | monk find user
 
-# Complex query with multiple conditions
+# Complex query with multiple conditions  
 echo '{
   "where": {
     "age": {"$gte": 18, "$lt": 65},
@@ -274,11 +304,59 @@ echo '{
   "orderBy": {"last_login": "desc"}
 }' | monk find user
 
+# Advanced logical operators
+echo '{
+  "where": {
+    "$or": [
+      {"department": "engineering"},
+      {"$and": [{"role": "admin"}, {"active": true}]}
+    ]
+  }
+}' | monk find user
+
 # Count matching records
 echo '{"where": {"active": true}}' | monk find user -c
 
 # Get only first result
 echo '{"where": {"email": {"$regex": "@company.com$"}}}' | monk find user --head
+```
+
+### Bulk Operations Examples
+
+The `/api/bulk` endpoint supports multi-schema transactions and filter-based operations:
+
+```bash
+# Multi-schema transaction
+echo '{
+  "operations": [
+    {
+      "type": "create",
+      "schema": "user",
+      "data": {"name": "John", "email": "john@company.com"}
+    },
+    {
+      "type": "update", 
+      "schema": "account",
+      "filter": {"owner_email": "john@company.com"},
+      "data": {"status": "active"}
+    }
+  ]
+}' | curl -X POST http://localhost:3000/api/bulk -d @-
+
+# Filter-based bulk update (updateAny)
+echo '{
+  "type": "updateAny",
+  "schema": "user",
+  "filter": {"department": "sales"},
+  "data": {"manager": "Sarah Johnson"}
+}' | curl -X POST http://localhost:3000/api/bulk -d @-
+
+# Filter-based bulk deletion (deleteAny)
+echo '{
+  "type": "deleteAny", 
+  "schema": "session",
+  "filter": {"expires_at": {"$lt": "2025-01-01T00:00:00Z"}}
+}' | curl -X POST http://localhost:3000/api/bulk -d @-
 ```
 
 ## 📊 Performance Benefits
