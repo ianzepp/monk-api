@@ -23,52 +23,92 @@ print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 print_error() { echo -e "${RED}✗ $1${NC}"; }
 
+# Detect current test run environment
+detect_current_test_run() {
+    local git_target_dir=$(get_monk_git_target)
+    local active_run_file="$git_target_dir/.active-run"
+    
+    if [ -f "$active_run_file" ]; then
+        local active_run=$(cat "$active_run_file")
+        local run_dir="$git_target_dir/$active_run"
+        if [ -f "$run_dir/.config/monk/test-env" ]; then
+            echo "$run_dir"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
 # Show test environment variables
 show_test_env() {
     local var_name="$1"
     
-    # Check if there's an active test run
-    local active_run=""
-    local run_dir=""
-    if [ -f "$ACTIVE_RUN_FILE" ]; then
-        active_run=$(cat "$ACTIVE_RUN_FILE")
-        run_dir="$GIT_TARGET_DIR/$active_run"
+    # Detect current test run environment
+    local run_dir
+    if ! run_dir=$(detect_current_test_run); then
+        print_error "No test run environment detected"
+        print_info "Run this from within a test environment or use 'monk test git <branch>' first"
+        return 1
     fi
     
-    # Get current environment values (prioritize active test run)
-    local cli_base_url="${CLI_BASE_URL:-http://localhost:3000}"
+    local config_env="$run_dir/.config/monk/test-env"
+    local config_info="$run_dir/.config/monk/run-info"
+    
+    # Read environment values from test run config files
+    local cli_base_url="http://localhost:3000"
     local jwt_token=""
-    local database_url="${DATABASE_URL:-postgresql://$(whoami)@localhost:5432/}"
-    local test_database="${MONK_TEST_DATABASE:-}"
-    local db_pool_max="${MONK_DB_POOL_MAX:-10}"
-    local test_run_name="${TEST_RUN_NAME:-}"
-    local test_run_description="${TEST_RUN_DESCRIPTION:-}"
-    local git_branch="${GIT_BRANCH:-}"
-    local git_commit="${GIT_COMMIT:-}"
-    local git_commit_short="${GIT_COMMIT_SHORT:-}"
-    local server_port="${SERVER_PORT:-}"
+    local database_url="postgresql://$(whoami)@localhost:5432/"
+    local test_database=""
+    local db_pool_max="10"
+    local test_run_name=""
+    local test_run_description=""
+    local git_branch=""
+    local git_commit=""
+    local git_commit_short=""
+    local server_port=""
     
-    # Git configuration for test environments
-    local git_remote="${MONK_GIT_REMOTE:-$(get_monk_git_remote 2>/dev/null || echo "")}"
-    local git_target="${MONK_GIT_TARGET:-$(get_monk_git_target 2>/dev/null || echo "/tmp/monk-builds")}"
-    
-    # Override with active test run configuration if available
-    if [ -n "$active_run" ] && [ -f "$run_dir/.env.test-run" ]; then
-        # Source the test run environment (portable parsing)
+    # Read from test-env config file
+    if [ -f "$config_env" ]; then
         while IFS='=' read -r key value; do
-            # Skip comments and empty lines
             case "$key" in
-                \#*|'') continue ;;
                 CLI_BASE_URL) cli_base_url="$value" ;;
-                SERVER_PORT) server_port="$value" ;;
-                TEST_DATABASE|MONK_TEST_DATABASE) test_database="$value" ;;
-                TEST_RUN_NAME) test_run_name="$value" ;;
-                TEST_RUN_DESCRIPTION) test_run_description="$value" ;;
+                SERVER_PORT) server_port="$value"; cli_base_url="http://localhost:$value" ;;
+                TEST_DATABASE) test_database="$value" ;;
+                MONK_TEST_DATABASE) test_database="$value" ;;
+                DATABASE_URL) database_url="$value" ;;
                 GIT_BRANCH) git_branch="$value" ;;
                 GIT_COMMIT) git_commit="$value" ;;
                 GIT_COMMIT_SHORT) git_commit_short="$value" ;;
+                TEST_RUN_NAME) test_run_name="$value" ;;
+                TEST_RUN_DESCRIPTION) test_run_description="$value" ;;
             esac
-        done < "$run_dir/.env.test-run"
+        done < "$config_env"
+    fi
+    
+    # Read from run-info config file
+    if [ -f "$config_info" ]; then
+        while IFS='=' read -r key value; do
+            case "$key" in
+                server_port) server_port="$value"; cli_base_url="http://localhost:$value" ;;
+                database_name) test_database="$value" ;;
+                git_branch) git_branch="$value" ;;
+                git_commit_full) git_commit="$value" ;;
+                git_commit_short) git_commit_short="$value" ;;
+                name) test_run_name="$value" ;;
+                description) test_run_description="$value" ;;
+            esac
+        done < "$config_info"
+    fi
+    
+    # Git configuration 
+    local git_remote="${MONK_GIT_REMOTE:-$(get_monk_git_remote 2>/dev/null || echo "")}"
+    local git_target="${MONK_GIT_TARGET:-$(get_monk_git_target 2>/dev/null || echo "/tmp/monk-builds")}"
+    
+    # Server status detection
+    local server_status="stopped"
+    if [ -n "$server_port" ] && lsof -i ":$server_port" >/dev/null 2>&1; then
+        server_status="running"
     fi
     
     # Get JWT token if available
@@ -77,20 +117,6 @@ show_test_env() {
         jwt_token=$(cat "$jwt_token_file")
     fi
     
-    # Detect current server status
-    local server_status="stopped"
-    if [ -n "$server_port" ] && lsof -i ":$server_port" >/dev/null 2>&1; then
-        server_status="running"
-    elif [ -f "${HOME}/.monk-hono.pid" ] && [ -f "${HOME}/.monk-hono.port" ]; then
-        local pid=$(cat "${HOME}/.monk-hono.pid")
-        if ps -p "$pid" > /dev/null 2>&1; then
-            server_status="running"
-            if [ -z "$server_port" ]; then
-                server_port=$(cat "${HOME}/.monk-hono.port")
-                cli_base_url="http://localhost:$server_port"
-            fi
-        fi
-    fi
     
     # Database connection details
     local db_host="localhost"

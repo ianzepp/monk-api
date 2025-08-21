@@ -149,6 +149,11 @@ setup_api_build() {
                 return 1
             fi
             
+            # Make test scripts executable
+            if [ -d "tests" ]; then
+                find tests -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null || true
+            fi
+            
             # Update dependencies and rebuild
             print_step "Updating dependencies"
             if ! npm install >/dev/null 2>&1; then
@@ -184,6 +189,12 @@ setup_api_build() {
             print_error "Failed to checkout $target_ref"
             print_info "Please check that the branch/commit exists in the remote repository"
             return 1
+        fi
+        
+        # Make test scripts executable
+        if [ -d "tests" ]; then
+            print_step "Making test scripts executable"
+            find tests -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null || true
         fi
         
         # Install dependencies
@@ -467,6 +478,27 @@ EOF
     
     # Start the API server
     start_test_run_server "$run_name"
+    
+    # Run complete test suite against the new server
+    if [ $? -eq 0 ]; then
+        print_step "Running complete test suite against git checkout"
+        
+        # Run tests from the embedded test directory
+        if [ -d "$run_dir/tests" ]; then
+            cd "$run_dir/tests"
+            if ./run-all-tests.sh; then
+                print_success "All tests passed for git reference: $git_ref"
+            else
+                print_error "Some tests failed for git reference: $git_ref"
+                return 1
+            fi
+        else
+            print_info "No embedded tests found, skipping test execution"
+        fi
+    else
+        print_error "Cannot run tests - server failed to start"
+        return 1
+    fi
 }
 
 # List all test run environments
