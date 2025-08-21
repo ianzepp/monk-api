@@ -401,8 +401,9 @@ create_or_update_test_run() {
     else
         # Allocate new database from pool
         if db_name=$("$DB_POOL_SCRIPT" allocate "$run_name" 2>&1); then
-            db_name=$(echo "$db_name" | tail -n 1 | grep "^monk_" || echo "")
-            if [ -z "$db_name" ]; then
+            db_name=$(echo "$db_name" | tail -n 1)
+            # Validate we got a database name (non-empty, no error messages)
+            if [ -z "$db_name" ] || echo "$db_name" | grep -q "Error\|Failed\|✗"; then
                 print_error "Failed to get database name from pool"
                 return 1
             fi

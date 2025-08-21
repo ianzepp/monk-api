@@ -165,8 +165,9 @@ run_dev_tests() {
     fi
     
     # Extract database name from output
-    db_name=$(echo "$db_name" | tail -n 1 | grep "^monk_test_" || echo "")
-    if [ -z "$db_name" ]; then
+    db_name=$(echo "$db_name" | tail -n 1)
+    # Validate we got a database name (non-empty, no error messages)
+    if [ -z "$db_name" ] || echo "$db_name" | grep -q "Error\|Failed\|✗"; then
         print_error "Failed to get database name from pool"
         return 1
     fi
