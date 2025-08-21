@@ -6,8 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "scripts/verify-config.sh && tsc",
     "start": "node dist/index.js",
+    "pretest": "scripts/verify-config.sh",
     "test": "monk test dev \"$(pwd)\"",
     "test:unit": "vitest",
     "test:run": "vitest run"
