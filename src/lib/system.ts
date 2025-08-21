@@ -67,4 +67,12 @@ export class System {
             accessFull: this.context.get('accessFullIds') || [],
         };
     }
+
+    /**
+     * Check if the current user has root access level
+     */
+    isRoot(): boolean {
+        const payload = this.context.get('jwtPayload') as any;
+        return payload?.access === 'root';
+    }
 }
