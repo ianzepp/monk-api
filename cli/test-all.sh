@@ -7,39 +7,53 @@ set -e
 source "$(dirname "$0")/common.sh"
 
 # Test configuration - dynamically locate test directory
-get_test_base_dir() {
-    # Check if we're in a test run environment with embedded tests
-    if [ -n "${TEST_RUN_ACTIVE:-}" ]; then
-        # Get the active test run directory
-        local run_history_dir=$(get_run_history_dir)
-        local active_run_file="$run_history_dir/.active-run"
-        
-        if [ -f "$active_run_file" ]; then
-            local active_run=$(cat "$active_run_file")
-            local run_dir="$run_history_dir/$active_run"
-            
-            # Check for embedded tests in git checkout
-            if [ -d "$run_dir/monk-api-hono/tests" ]; then
-                echo "$run_dir/monk-api-hono/tests"
-                return 0
-            elif [ -d "$run_dir/api-build/tests" ]; then
-                echo "$run_dir/api-build/tests"
-                return 0
-            fi
-        fi
+# Load environment from active checkout
+load_active_test_environment() {
+    local git_target_dir=$(get_monk_git_target)
+    local active_run_file="$git_target_dir/.active-run"
+    
+    if [ ! -f "$active_run_file" ]; then
+        return 1
     fi
     
-    # Fallback to monk-api-test directory
-    local monk_root
-    if monk_root=$(find_monk_root 2>/dev/null); then
-        if [ -d "$monk_root/monk-api-test/tests" ]; then
-            echo "$monk_root/monk-api-test/tests"
+    local active_run=$(cat "$active_run_file")
+    local run_dir="$git_target_dir/$active_run"
+    local config_env="$run_dir/.config/monk/test-env"
+    
+    if [ -f "$config_env" ]; then
+        # Source the test environment from the active checkout
+        export TEST_RUN_ACTIVE="$active_run"
+        
+        # Load environment variables from config file
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^[A-Z_]+=.* ]]; then
+                export "$line"
+            fi
+        done < "$config_env"
+        
+        return 0
+    fi
+    
+    return 1
+}
+
+get_test_base_dir() {
+    # Load environment from active checkout
+    if load_active_test_environment; then
+        local git_target_dir=$(get_monk_git_target)
+        local run_dir="$git_target_dir/$TEST_RUN_ACTIVE"
+        
+        # Check for embedded tests in git checkout
+        if [ -d "$run_dir/tests" ]; then
+            echo "$run_dir/tests"
             return 0
         fi
     fi
     
-    # Final fallback for backwards compatibility
-    echo "../monk-api-test/tests"
+    # No active test run - error
+    print_error "No active test run found"
+    print_info "Use 'monk test git <branch>' to create a test environment first"
+    return 1
 }
 
 TEST_BASE_DIR=$(get_test_base_dir)

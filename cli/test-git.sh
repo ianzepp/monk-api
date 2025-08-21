@@ -9,10 +9,10 @@ source "$(dirname "$0")/common.sh"
 
 # Test configuration  
 DB_POOL_SCRIPT="$(dirname "$0")/test-pool.sh"
-RUN_HISTORY_DIR="$(get_run_history_dir)"
-ACTIVE_RUN_FILE="$RUN_HISTORY_DIR/.active-run"
+GIT_TARGET_DIR="$(get_monk_git_target)"
+ACTIVE_RUN_FILE="$GIT_TARGET_DIR/.active-run"
 API_SOURCE_DIR="$(get_monk_api_dir)"
-PORT_TRACKER_FILE="$RUN_HISTORY_DIR/.port-tracker"
+PORT_TRACKER_FILE="$GIT_TARGET_DIR/.port-tracker"
 
 # Colors for output
 RED='\033[0;31m'
@@ -34,10 +34,10 @@ get_next_port() {
     
     # Check existing run ports to avoid conflicts
     local used_ports=""
-    if [ -d "$RUN_HISTORY_DIR" ]; then
-        for run_dir in "$RUN_HISTORY_DIR"/*; do
-            if [ -d "$run_dir" ] && [ -f "$run_dir/.run-info" ]; then
-                local port=$(grep "server_port=" "$run_dir/.run-info" 2>/dev/null | cut -d'=' -f2)
+    if [ -d "$GIT_TARGET_DIR" ]; then
+        for run_dir in "$GIT_TARGET_DIR"/*; do
+            if [ -d "$run_dir" ] && [ -f "$config_dir/run-info" ]; then
+                local port=$(grep "server_port=" "$config_dir/run-info" 2>/dev/null | cut -d'=' -f2)
                 if [ -n "$port" ]; then
                     used_ports="$used_ports $port"
                 fi
@@ -209,16 +209,17 @@ setup_api_build() {
 # Start API server for test run
 start_test_run_server() {
     local run_name="$1"
-    local run_dir="$RUN_HISTORY_DIR/$run_name"
-    local api_build_dir="$run_dir/api-build"
+    local target_base=$(get_monk_git_target)
+    local run_dir="$target_base/$run_name"
+    local config_dir="$run_dir/.config/monk"
     
-    if [ ! -f "$run_dir/.run-info" ]; then
+    if [ ! -f "$config_dir/run-info" ]; then
         print_error "Test run info not found: $run_name"
         return 1
     fi
     
-    local port=$(grep "server_port=" "$run_dir/.run-info" | cut -d'=' -f2)
-    local db_name=$(grep "database_name=" "$run_dir/.run-info" | cut -d'=' -f2)
+    local port=$(grep "server_port=" "$config_dir/run-info" | cut -d'=' -f2)
+    local db_name=$(grep "database_name=" "$config_dir/run-info" | cut -d'=' -f2)
     
     print_step "Starting API server for test run: $run_name"
     
@@ -228,13 +229,13 @@ start_test_run_server() {
         return 0
     fi
     
-    # Start server in background
-    cd "$api_build_dir"
+    # Start server in background from repository root
+    cd "$run_dir"
     PORT="$port" DATABASE_URL="postgresql://$(whoami)@localhost:5432/$db_name" npm run start > /dev/null 2>&1 &
     local server_pid=$!
     
     # Store server PID
-    echo "$server_pid" > "$run_dir/.server-pid"
+    echo "$server_pid" > "$config_dir/server-pid"
     
     # Wait a moment and check if it started
     sleep 2
@@ -263,11 +264,10 @@ create_or_update_test_run() {
     local port=""
     local description=""
     local remote_url=""
-    local target_dir=""
     
     if [ -z "$git_ref" ]; then
         print_error "Git reference required"
-        print_info "Usage: monk test git <branch> [commit] [--clean] [--port PORT] [--remote URL] [--target DIR]"
+        print_info "Usage: monk test git <branch> [commit] [--clean] [--port PORT] [--remote URL]"
         return 1
     fi
     
@@ -291,10 +291,6 @@ create_or_update_test_run() {
                 remote_url="$2"
                 shift 2
                 ;;
-            --target)
-                target_dir="$2"
-                shift 2
-                ;;
             -*)
                 print_error "Unknown option: $1"
                 return 1
@@ -316,19 +312,8 @@ create_or_update_test_run() {
     if [ -z "$remote_url" ]; then
         remote_url=$(get_monk_git_remote)
     fi
-    if [ -z "$target_dir" ]; then
-        target_dir=$(get_monk_git_target)
-    fi
     
     print_info "Using git remote: $remote_url"
-    print_info "Using target directory: $target_dir"
-    
-    # Create target directory if it doesn't exist
-    mkdir -p "$target_dir"
-    
-    # Update API_SOURCE_DIR to use target directory
-    local repo_name=$(basename "$remote_url" .git)
-    API_SOURCE_DIR="$target_dir/$repo_name"
     
     # If we have a local API source directory, validate git reference there first
     local original_api_dir=$(get_monk_api_dir)
@@ -356,24 +341,10 @@ create_or_update_test_run() {
     fi
     
     # Generate run name and setup paths
-    local run_name=$(generate_run_name "$git_ref" "$commit_ref" "$API_SOURCE_DIR")
-    
-    # Use target directory if specified, otherwise use default run history
-    local run_dir
-    local api_build_dir
-    local default_target="/tmp/monk-builds"
-    
-    if [ "$target_dir" != "$default_target" ]; then
-        # Custom target directory specified - use target/run-name/repo structure
-        run_dir="$target_dir/$run_name"
-        api_build_dir="$run_dir/monk-api-hono"
-        print_info "Using custom target structure: $run_dir"
-    else
-        # Default behavior - use run history directory structure
-        run_dir="$RUN_HISTORY_DIR/$run_name"
-        api_build_dir="$run_dir/api-build"
-        print_info "Using default run history structure: $run_dir"
-    fi
+    local run_name=$(generate_run_name "$git_ref" "$commit_ref" "")
+    local target_base=$(get_monk_git_target)
+    local run_dir="$target_base/$run_name"
+    local config_dir="$run_dir/.config/monk"
     local existing_run=false
     
     if [ -d "$run_dir" ]; then
@@ -389,14 +360,11 @@ create_or_update_test_run() {
         print_step "Creating new test run environment: $run_name"
     fi
     
-    # Create run directory
-    mkdir -p "$run_dir"
-    
     # Handle database allocation
     local db_name=""
-    if [ "$existing_run" = true ] && [ -f "$run_dir/.run-info" ]; then
+    if [ "$existing_run" = true ] && [ -f "$config_dir/run-info" ]; then
         # Reuse existing database
-        db_name=$(grep "database_name=" "$run_dir/.run-info" | cut -d'=' -f2)
+        db_name=$(grep "database_name=" "$config_dir/run-info" | cut -d'=' -f2)
         print_info "Reusing existing database: $db_name"
     else
         # Allocate new database from pool
@@ -414,9 +382,9 @@ create_or_update_test_run() {
     
     # Handle port allocation
     if [ -z "$port" ]; then
-        if [ "$existing_run" = true ] && [ -f "$run_dir/.run-info" ]; then
+        if [ "$existing_run" = true ] && [ -f "$config_dir/run-info" ]; then
             # Reuse existing port
-            port=$(grep "server_port=" "$run_dir/.run-info" | cut -d'=' -f2)
+            port=$(grep "server_port=" "$config_dir/run-info" | cut -d'=' -f2)
         else
             # Get next available port
             port=$(get_next_port)
@@ -427,8 +395,8 @@ create_or_update_test_run() {
         fi
     fi
     
-    # Handle API build (smart caching with remote support)
-    setup_api_build "$api_build_dir" "$git_ref" "$commit_ref" "$clean_build" "$remote_url"
+    # Handle API build (smart caching with remote support) - clone directly into run_dir
+    setup_api_build "$run_dir" "$git_ref" "$commit_ref" "$clean_build" "$remote_url"
     local build_result=$?
     
     if [ $build_result -ne 0 ]; then
@@ -443,7 +411,7 @@ create_or_update_test_run() {
     short_commit=$(cd "$api_build_dir" && git rev-parse --short HEAD)
     
     # Create/update run info file
-    cat > "$run_dir/.run-info" << EOF
+    cat > "$config_dir/run-info" << EOF
 name=$run_name
 created_at=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 updated_at=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
@@ -457,7 +425,7 @@ build_clean=$clean_build
 EOF
     
     # Create/update environment file
-    cat > "$run_dir/.env.test-run" << EOF
+    cat > "$config_dir/test-env" << EOF
 # Test Run Environment: $run_name
 # Git Reference: $git_ref ($short_commit)
 # Updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
@@ -505,7 +473,7 @@ EOF
 list_test_runs() {
     print_header "Test Run Environments"
     
-    if [ ! -d "$RUN_HISTORY_DIR" ] || [ -z "$(ls -A "$RUN_HISTORY_DIR" 2>/dev/null)" ]; then
+    if [ ! -d "$GIT_TARGET_DIR" ] || [ -z "$(ls -A "$GIT_TARGET_DIR" 2>/dev/null)" ]; then
         print_info "No test run environments found"
         print_info "Use 'monk test run <branch>' to create one"
         return 0
@@ -519,10 +487,10 @@ list_test_runs() {
     printf "%-25s %-8s %-12s %-20s %-35s %s\n" "Name" "Port" "Status" "Git Commit" "Database" "Description"
     echo "--------------------------------------------------------------------------------------------"
     
-    for run_dir in "$RUN_HISTORY_DIR"/*; do
+    for run_dir in "$GIT_TARGET_DIR"/*; do
         if [ -d "$run_dir" ] && [ "$(basename "$run_dir")" != ".*" ]; then
             local run_name=$(basename "$run_dir")
-            local info_file="$run_dir/.run-info"
+            local info_file="$config_dir/run-info"
             
             if [ -f "$info_file" ]; then
                 local port=$(grep "server_port=" "$info_file" | cut -d'=' -f2)
@@ -566,7 +534,7 @@ use_test_run() {
         return 1
     fi
     
-    local run_dir="$RUN_HISTORY_DIR/$run_name"
+    local run_dir="$GIT_TARGET_DIR/$run_name"
     
     if [ ! -d "$run_dir" ]; then
         print_error "Test run '$run_name' not found"
@@ -580,10 +548,10 @@ use_test_run() {
     print_success "Switched to test run: $run_name"
     
     # Show environment info
-    if [ -f "$run_dir/.run-info" ]; then
-        local port=$(grep "server_port=" "$run_dir/.run-info" | cut -d'=' -f2)
-        local db_name=$(grep "database_name=" "$run_dir/.run-info" | cut -d'=' -f2)
-        local git_commit=$(grep "git_commit_short=" "$run_dir/.run-info" | cut -d'=' -f2)
+    if [ -f "$config_dir/run-info" ]; then
+        local port=$(grep "server_port=" "$config_dir/run-info" | cut -d'=' -f2)
+        local db_name=$(grep "database_name=" "$config_dir/run-info" | cut -d'=' -f2)
+        local git_commit=$(grep "git_commit_short=" "$config_dir/run-info" | cut -d'=' -f2)
         print_info "Git Commit: $git_commit"
         print_info "Server Port: $port"
         print_info "Database: $db_name"
@@ -600,7 +568,7 @@ delete_test_run() {
         return 1
     fi
     
-    local run_dir="$RUN_HISTORY_DIR/$run_name"
+    local run_dir="$GIT_TARGET_DIR/$run_name"
     
     if [ ! -d "$run_dir" ]; then
         print_error "Test run '$run_name' not found"
@@ -610,11 +578,11 @@ delete_test_run() {
     # Get metadata for cleanup
     local db_name=""
     local server_pid=""
-    if [ -f "$run_dir/.run-info" ]; then
-        db_name=$(grep "database_name=" "$run_dir/.run-info" | cut -d'=' -f2)
+    if [ -f "$config_dir/run-info" ]; then
+        db_name=$(grep "database_name=" "$config_dir/run-info" | cut -d'=' -f2)
     fi
-    if [ -f "$run_dir/.server-pid" ]; then
-        server_pid=$(cat "$run_dir/.server-pid")
+    if [ -f "$config_dir/server-pid" ]; then
+        server_pid=$(cat "$config_dir/server-pid")
     fi
     
     print_step "Deleting test run environment: $run_name"
@@ -655,18 +623,18 @@ delete_test_run() {
 show_current_test_run() {
     if [ -f "$ACTIVE_RUN_FILE" ]; then
         local active_run=$(cat "$ACTIVE_RUN_FILE")
-        local run_dir="$RUN_HISTORY_DIR/$active_run"
+        local run_dir="$GIT_TARGET_DIR/$active_run"
         
-        if [ -d "$run_dir" ] && [ -f "$run_dir/.run-info" ]; then
+        if [ -d "$run_dir" ] && [ -f "$config_dir/run-info" ]; then
             print_header "Current Active Test Run"
             echo "Name: $active_run"
             
-            local port=$(grep "server_port=" "$run_dir/.run-info" | cut -d'=' -f2)
-            local created=$(grep "created_at=" "$run_dir/.run-info" | cut -d'=' -f2)
-            local db_name=$(grep "database_name=" "$run_dir/.run-info" | cut -d'=' -f2)
-            local git_commit=$(grep "git_commit_short=" "$run_dir/.run-info" | cut -d'=' -f2)
-            local git_branch=$(grep "git_branch=" "$run_dir/.run-info" | cut -d'=' -f2)
-            local desc=$(grep "description=" "$run_dir/.run-info" | cut -d'=' -f2)
+            local port=$(grep "server_port=" "$config_dir/run-info" | cut -d'=' -f2)
+            local created=$(grep "created_at=" "$config_dir/run-info" | cut -d'=' -f2)
+            local db_name=$(grep "database_name=" "$config_dir/run-info" | cut -d'=' -f2)
+            local git_commit=$(grep "git_commit_short=" "$config_dir/run-info" | cut -d'=' -f2)
+            local git_branch=$(grep "git_branch=" "$config_dir/run-info" | cut -d'=' -f2)
+            local desc=$(grep "description=" "$config_dir/run-info" | cut -d'=' -f2)
             
             echo "Git Reference: $git_branch ($git_commit)"
             echo "Server Port: $port"
@@ -710,7 +678,6 @@ Options:
   --port <port>          Use specific port (default: auto-assign from 3000+)
   --description <text>   Add description to test run
   --remote <url>         Git remote URL (default: auto-detect or MONK_GIT_REMOTE)
-  --target <dir>         Target directory for git builds (default: MONK_GIT_TARGET or /tmp/monk-builds)
 
 Examples:
   monk test git main                          # Test current main branch HEAD
@@ -718,7 +685,6 @@ Examples:
   monk test git feature/API-281 --clean      # Force fresh build of feature
   monk test git main --port 3005              # Use specific port
   monk test git main --description "Release candidate"
-  monk test git main --target /tmp/my-builds  # Use custom target directory
   monk test git main --remote git@github.com:user/repo.git  # Use different remote
 
 Related Commands:
@@ -729,8 +695,7 @@ Related Commands:
 
 Environment Variables:
   MONK_GIT_REMOTE        Git remote URL for monk-api-hono (default: auto-detect)
-  MONK_GIT_TARGET        Target directory for git builds (default: /tmp/monk-builds)
-  MONK_RUN_HISTORY_DIR   Override run history location (default: auto-detect)
+  MONK_GIT_TARGET        Base directory for git test environments (default: /tmp/monk-builds)
 
 Each test run environment includes:
 - Isolated database from pool (max 10 concurrent)
@@ -755,7 +720,7 @@ manage_test_runs() {
     fi
     
     # Ensure run history directory exists
-    mkdir -p "$RUN_HISTORY_DIR"
+    mkdir -p "$GIT_TARGET_DIR"
     
     # Check if this is a standard operation or a git reference
     case "$branch_or_operation" in

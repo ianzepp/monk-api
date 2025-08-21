@@ -7,8 +7,8 @@ set -e
 source "$(dirname "$0")/common.sh"
 
 # Test configuration
-RUN_HISTORY_DIR="../monk-api-test/run-history"
-ACTIVE_RUN_FILE="$RUN_HISTORY_DIR/.active-run"
+GIT_TARGET_DIR="$(get_monk_git_target)"
+ACTIVE_RUN_FILE="$GIT_TARGET_DIR/.active-run"
 
 # Colors for output
 RED='\033[0;31m'
@@ -32,7 +32,7 @@ show_test_env() {
     local run_dir=""
     if [ -f "$ACTIVE_RUN_FILE" ]; then
         active_run=$(cat "$ACTIVE_RUN_FILE")
-        run_dir="$RUN_HISTORY_DIR/$active_run"
+        run_dir="$GIT_TARGET_DIR/$active_run"
     fi
     
     # Get current environment values (prioritize active test run)
