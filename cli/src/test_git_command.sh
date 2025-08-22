@@ -4,6 +4,7 @@ check_dependencies
 # Get arguments from bashly
 branch="${args[branch]}"
 commit="${args[commit]}"
+clean_build="${args[--clean]}"
 
 # Configuration
 TEST_CONFIG_FILE="${HOME}/.config/monk/test.json"
@@ -91,6 +92,12 @@ print_info "Target Directory: $run_dir"
 
 # Create target directory
 mkdir -p "$GIT_TARGET_DIR"
+
+# Handle clean build option
+if [ "$clean_build" = "true" ] && [ -d "$run_dir" ]; then
+    print_step "Clean build: removing existing environment"
+    rm -rf "$run_dir"
+fi
 
 # Setup git environment
 if [ -d "$api_dir" ]; then

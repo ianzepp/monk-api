@@ -776,13 +776,19 @@ monk_test_git_usage() {
   printf "monk test git - Create/update git-aware test environment\n\n"
 
   printf "%s\n" "Usage:"
-  printf "  monk test git BRANCH [COMMIT]\n"
+  printf "  monk test git BRANCH [COMMIT] [OPTIONS]\n"
   printf "  monk test git --help | -h\n"
   echo
 
   # :command.long_usage
   if [[ -n "$long_usage" ]]; then
     printf "%s\n" "Options:"
+
+    # :command.usage_flags
+    # :flag.usage
+    printf "  %s\n" "--clean"
+    printf "    Force clean build by removing existing environment\n"
+    echo
 
     # :command.usage_fixed_flags
     printf "  %s\n" "--help, -h"
@@ -2668,6 +2674,7 @@ monk_test_git_command() {
   # Get arguments from bashly
   branch="${args[branch]}"
   commit="${args[commit]}"
+  clean_build="${args[--clean]}"
 
   # Configuration
   TEST_CONFIG_FILE="${HOME}/.config/monk/test.json"
@@ -2755,6 +2762,12 @@ monk_test_git_command() {
 
   # Create target directory
   mkdir -p "$GIT_TARGET_DIR"
+
+  # Handle clean build option
+  if [ "$clean_build" = "true" ] && [ -d "$run_dir" ]; then
+      print_step "Clean build: removing existing environment"
+      rm -rf "$run_dir"
+  fi
 
   # Setup git environment
   if [ -d "$api_dir" ]; then
@@ -5390,6 +5403,13 @@ monk_test_git_parse_requirements() {
   while [[ $# -gt 0 ]]; do
     key="$1"
     case "$key" in
+      # :flag.case
+      --clean)
+
+        # :flag.case_no_arg
+        args['--clean']=1
+        shift
+        ;;
 
       -?*)
         printf "invalid option: %s\n" "$key" >&2
@@ -5419,7 +5439,7 @@ monk_test_git_parse_requirements() {
 
   # :command.required_args_filter
   if [[ -z ${args['branch']+x} ]]; then
-    printf "missing required argument: BRANCH\nusage: monk test git BRANCH [COMMIT]\n" >&2
+    printf "missing required argument: BRANCH\nusage: monk test git BRANCH [COMMIT] [OPTIONS]\n" >&2
 
     exit 1
   fi
