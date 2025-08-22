@@ -2,7 +2,7 @@ token=$(get_jwt_token)
 
 if [ -z "$token" ]; then
     print_error "No authentication token found"
-    print_info "Use 'monk auth login --domain DOMAIN' to authenticate"
+    print_info "Use 'monk auth login TENANT USERNAME' to authenticate"
     exit 1
 fi
 

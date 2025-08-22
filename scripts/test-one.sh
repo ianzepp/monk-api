@@ -81,45 +81,30 @@ echo
 if [ "$clean_mode" = true ]; then
     echo "=== Clean Environment Setup ==="
     
-    # 1. Get git context for tenant naming
-    if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
-        git_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
-        git_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        # Clean branch name for database naming (replace invalid chars and add prefix)
-        clean_branch=$(echo "$git_branch" | sed 's/[^a-zA-Z0-9._-]/_/g')
-        tenant_name="monk_test_$clean_branch"
-        test_suffix="$git_commit"
-    else
-        # Fallback if not in git repository
-        tenant_name="monk_test_clean"
-        test_suffix="$(date +%s)"
-    fi
+    # Create unique tenant for clean test run
+    TEST_TENANT_NAME="test-clean-$(date +%s)"
     
-    print_info "Creating fresh tenant: $tenant_name (test: $test_suffix)"
+    print_info "Creating fresh test tenant: $TEST_TENANT_NAME"
     
     if command -v monk >/dev/null 2>&1; then
-        # Clean mode: delete existing tenant first to ensure truly clean state
-        print_info "Cleaning existing tenant: $tenant_name"
-        
-        # Delete existing tenant (pass both tenant name and test suffix)
-        monk tenant delete "$tenant_name" "$test_suffix" >/dev/null 2>&1 || true
-        
-        if output=$(monk tenant create "$tenant_name" "$test_suffix" 2>&1); then
-            print_success "Tenant created: $tenant_name"
+        # Create tenant with root user
+        if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
+            print_success "Test tenant created: $TEST_TENANT_NAME"
         else
-            print_error "Failed to create tenant: $tenant_name"
+            print_error "Failed to create test tenant"
             echo "Error output:"
             echo "$output" | sed 's/^/  /'
             exit 1
         fi
         
-        # 2. Authenticate with new tenant (use full database name)
-        full_tenant_name="${tenant_name}_${test_suffix}"
-        print_info "Authenticating with tenant: $full_tenant_name"
-        if monk auth login --domain "$full_tenant_name" >/dev/null 2>&1; then
+        # Authenticate with tenant using root user
+        print_info "Authenticating with tenant: $TEST_TENANT_NAME as root"
+        if monk auth login "$TEST_TENANT_NAME" "root" >/dev/null 2>&1; then
             print_success "Authentication successful"
         else
             print_error "Authentication failed"
+            # Cleanup on failure
+            monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
             exit 1
         fi
     else
@@ -147,12 +132,32 @@ if (cd "$test_dir" && "./$(basename "$test_file")"); then
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     
+    # Cleanup if we created a tenant in clean mode
+    if [ "$clean_mode" = true ] && [ -n "$TEST_TENANT_NAME" ]; then
+        echo
+        print_info "Cleaning up test tenant: $TEST_TENANT_NAME"
+        monk auth logout >/dev/null 2>&1 || true
+        if monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1; then
+            print_success "Test tenant cleaned up"
+        else
+            print_info "Test tenant cleanup failed (non-fatal)"
+        fi
+    fi
+    
     echo
     print_success "Test passed: $test_name (${duration}s)"
     exit 0
 else
     end_time=$(date +%s)
     duration=$((end_time - start_time))
+    
+    # Cleanup if we created a tenant in clean mode
+    if [ "$clean_mode" = true ] && [ -n "$TEST_TENANT_NAME" ]; then
+        echo
+        print_info "Cleaning up test tenant: $TEST_TENANT_NAME"
+        monk auth logout >/dev/null 2>&1 || true
+        monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
+    fi
     
     echo
     print_error "Test failed: $test_name (${duration}s)"

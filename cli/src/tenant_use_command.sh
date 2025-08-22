@@ -15,4 +15,4 @@ mkdir -p "$config_dir"
 echo "$tenant_name" > "$config_dir/current_tenant"
 
 print_success "Switched to tenant '$tenant_name'"
-print_info "Use 'monk auth login --domain $tenant_name' to authenticate"
+print_info "Use 'monk auth login $tenant_name root' to authenticate"

@@ -131,11 +131,11 @@ export default async function (context: Context): Promise<any> {
 # Start server
 monk hono start
 
-# Set up test database
-monk test use monk_api_test_shared_dev
+# Create test tenant
+monk tenant create shared-dev
 
 # Authenticate
-monk auth login --domain monk_api_test_shared_dev
+monk auth login shared-dev root
 
 # Create schema
 cat schema.yaml | monk meta create schema

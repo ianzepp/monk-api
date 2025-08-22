@@ -17,14 +17,17 @@ if [ -n "$token" ]; then
             decoded=$(echo "$payload" | base64 -d 2>/dev/null || echo "")
             if [ -n "$decoded" ]; then
                 if [ "$JSON_PARSER" = "jq" ]; then
-                    domain=$(echo "$decoded" | jq -r '.domain' 2>/dev/null || echo "unknown")
+                    tenant=$(echo "$decoded" | jq -r '.tenant' 2>/dev/null || echo "unknown")
+                    database=$(echo "$decoded" | jq -r '.database' 2>/dev/null || echo "unknown")
                     exp=$(echo "$decoded" | jq -r '.exp' 2>/dev/null || echo "unknown")
                 elif [ "$JSON_PARSER" = "jshon" ]; then
-                    domain=$(echo "$decoded" | jshon -e domain -u 2>/dev/null || echo "unknown")
+                    tenant=$(echo "$decoded" | jshon -e tenant -u 2>/dev/null || echo "unknown")
+                    database=$(echo "$decoded" | jshon -e database -u 2>/dev/null || echo "unknown")
                     exp=$(echo "$decoded" | jshon -e exp -u 2>/dev/null || echo "unknown")
                 fi
                 
-                echo "Domain: $domain"
+                echo "Tenant: $tenant"
+                echo "Database: $database"
                 if [ "$exp" != "unknown" ] && [ "$exp" != "null" ]; then
                     if command -v date &> /dev/null; then
                         exp_date=$(date -r "$exp" 2>/dev/null || echo "unknown")
@@ -38,5 +41,5 @@ if [ -n "$token" ]; then
     echo "Token file: $JWT_TOKEN_FILE"
 else
     print_info "Not authenticated"
-    echo "Use 'monk auth login --domain DOMAIN' to authenticate"
+    echo "Use 'monk auth login TENANT USERNAME' to authenticate"
 fi

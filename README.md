@@ -198,7 +198,8 @@ npm run dev
 
 # In another terminal, use monk-cli
 monk hono start              # Or use monk-cli's server management
-monk auth login --domain my_test_db
+monk tenant create my-test-db
+monk auth login my-test-db root
 monk meta list schema
 monk data list account
 ```
@@ -422,7 +423,8 @@ monk servers add prod api.company.com:443
 monk servers use prod
 
 # All CLI commands work with any monk API deployment
-monk auth login --domain production_db
+monk tenant create production-db
+monk auth login production-db root
 monk data list user
 monk meta create schema < user.yaml
 ```

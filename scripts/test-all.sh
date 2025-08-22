@@ -69,47 +69,33 @@ echo
 #    # skip for now..
 #fi
 
-echo "=== Tenant Setup ==="
+echo "=== Test Environment Setup ==="
 
-# 1. Get git context for tenant naming
-if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
-    git_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
-    git_branch_clean=$(echo "$git_branch" | sed 's/[^a-zA-Z0-9._-]/_/g')
-    
-    tenant_name="monk_tenant_$git_branch_clean"
-    tenant_test="$(date +%s)"
+# Create unique tenant for this test run
+TEST_TENANT_NAME="test-$(date +%s)"
+
+# Create tenant with root user
+if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
+    print_success "Test tenant created ($TEST_TENANT_NAME)"
 else
-    # Fallback if not in git repository
-    tenant_name="monk_tenant_untracked"
-    tenant_test="$(date +%s)"
-fi
-
-# Save tenant full database name
-tenant_database="${tenant_name}_${tenant_test}"
-
-if command -v monk >/dev/null 2>&1; then
-    # Clean mode: truncate existing tenant or create if doesn't exist
-    print_info "Creating tenant: $tenant_name (test: $tenant_test)"
-    print_info "Database name will be: $tenant_database"
-    
-    # Create new tenant
-    if output=$(monk tenant create "$tenant_name" "$tenant_test" 2>&1); then
-        print_success "Tenant created"
-    else
-        print_error "Failed to create tenant"
-        echo "Error output:"
-        echo "$output" | sed 's/^/  /'
-        exit 1
-    fi
+    print_error "Failed to create test tenant"
+    echo "Error output:"
+    echo "$output" | sed 's/^/  /'
+    exit 1
 fi
     
-# 2. Authenticate with new tenant (use full database name)
-if monk auth login --domain "$tenant_database" >/dev/null 2>&1; then
+# Authenticate with tenant using root user
+if monk auth login "$TEST_TENANT_NAME" "root" >/dev/null 2>&1; then
     print_success "Authentication successful"
 else
     print_error "Authentication failed"
+    # Cleanup on failure
+    monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
     exit 1
 fi
+
+print_info "Test tenant: $TEST_TENANT_NAME"
+print_info "Authenticated as: root user"
     
 echo "========================"
 echo
@@ -269,6 +255,16 @@ echo "=========================="
 echo "Tests run: $tests_run"
 echo "Passed: $tests_passed"
 echo "Failed: $tests_failed"
+
+# Cleanup test tenant
+echo
+print_info "Cleaning up test environment"
+monk auth logout >/dev/null 2>&1 || true
+if monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1; then
+    print_success "Test tenant cleaned up"
+else
+    print_info "Test tenant cleanup failed (non-fatal)"
+fi
 
 if [ ${#failed_tests[@]} -gt 0 ]; then
     echo
