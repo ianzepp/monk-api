@@ -55,22 +55,14 @@ echo
 # Test 1: Create account schema
 print_step "Creating account schema"
 if ACCOUNT_RESULT=$(cat "$(dirname "$0")/../../tests/schemas/account.yaml" | monk meta create schema 2>&1); then
-    # Validate JSON response
-    if echo "$ACCOUNT_RESULT" | jq . >/dev/null 2>&1; then
-        ACCOUNT_ID=$(echo "$ACCOUNT_RESULT" | jq -r '.id // empty')
-        ACCOUNT_NAME=$(echo "$ACCOUNT_RESULT" | jq -r '.name // empty')
-        
-        if [ -n "$ACCOUNT_ID" ] && [ -n "$ACCOUNT_NAME" ]; then
-            print_success "Account schema created successfully"
-            print_info "  Schema ID: $ACCOUNT_ID"
-            print_info "  Schema Name: $ACCOUNT_NAME"
-        else
-            print_error "Account schema response missing required fields"
-            print_info "Response: $ACCOUNT_RESULT"
-            exit 1
-        fi
+    # Validate YAML response
+    if echo "$ACCOUNT_RESULT" | grep -q "title: Account" && echo "$ACCOUNT_RESULT" | grep -q "type: object"; then
+        print_success "Account schema created successfully (YAML response)"
+        ACCOUNT_TITLE=$(echo "$ACCOUNT_RESULT" | grep "^title:" | cut -d' ' -f2-)
+        print_info "  Schema Title: $ACCOUNT_TITLE"
+        print_info "  Response Format: YAML"
     else
-        print_error "Account schema returned invalid JSON"
+        print_error "Account schema returned invalid YAML"
         print_info "Response: $ACCOUNT_RESULT"
         exit 1
     fi
@@ -85,22 +77,14 @@ echo
 # Test 2: Create contact schema
 print_step "Creating contact schema"
 if CONTACT_RESULT=$(cat "$(dirname "$0")/../../tests/schemas/contact.yaml" | monk meta create schema 2>&1); then
-    # Validate JSON response
-    if echo "$CONTACT_RESULT" | jq . >/dev/null 2>&1; then
-        CONTACT_ID=$(echo "$CONTACT_RESULT" | jq -r '.id // empty')
-        CONTACT_NAME=$(echo "$CONTACT_RESULT" | jq -r '.name // empty')
-        
-        if [ -n "$CONTACT_ID" ] && [ -n "$CONTACT_NAME" ]; then
-            print_success "Contact schema created successfully"
-            print_info "  Schema ID: $CONTACT_ID"
-            print_info "  Schema Name: $CONTACT_NAME"
-        else
-            print_error "Contact schema response missing required fields"
-            print_info "Response: $CONTACT_RESULT"
-            exit 1
-        fi
+    # Validate YAML response
+    if echo "$CONTACT_RESULT" | grep -q "title: Contact" && echo "$CONTACT_RESULT" | grep -q "type: object"; then
+        print_success "Contact schema created successfully (YAML response)"
+        CONTACT_TITLE=$(echo "$CONTACT_RESULT" | grep "^title:" | cut -d' ' -f2-)
+        print_info "  Schema Title: $CONTACT_TITLE"
+        print_info "  Response Format: YAML"
     else
-        print_error "Contact schema returned invalid JSON"
+        print_error "Contact schema returned invalid YAML"
         print_info "Response: $CONTACT_RESULT"
         exit 1
     fi
@@ -112,39 +96,34 @@ fi
 
 echo
 
-# Test 3: Verify both schemas are registered
-print_step "Verifying schema registration"
-if SCHEMA_LIST=$(monk meta list schema 2>&1); then
-    if echo "$SCHEMA_LIST" | jq . >/dev/null 2>&1; then
-        SCHEMA_COUNT=$(echo "$SCHEMA_LIST" | jq 'length')
-        SCHEMA_NAMES=$(echo "$SCHEMA_LIST" | jq -r '.[].name' | tr '\n' ' ')
-        
-        print_success "Schema list retrieved successfully"
-        print_info "  Schema count: $SCHEMA_COUNT"
-        print_info "  Schema names: $SCHEMA_NAMES"
-        
-        # Verify our schemas are in the list
-        if echo "$SCHEMA_LIST" | jq -r '.[].name' | grep -q "^account$"; then
-            print_success "Account schema found in registry"
-        else
-            print_error "Account schema not found in registry"
-            exit 1
-        fi
-        
-        if echo "$SCHEMA_LIST" | jq -r '.[].name' | grep -q "^contact$"; then
-            print_success "Contact schema found in registry"
-        else
-            print_error "Contact schema not found in registry"
-            exit 1
-        fi
+# Test 3: Verify schemas can be retrieved individually (since listing will move to data API)
+print_step "Verifying individual schema retrieval"
+
+# Test account schema retrieval
+if ACCOUNT_GET=$(monk meta get schema account 2>&1); then
+    if echo "$ACCOUNT_GET" | grep -q "title: Account"; then
+        print_success "Account schema retrievable via meta API"
     else
-        print_error "Schema list returned invalid JSON"
-        print_info "Response: $SCHEMA_LIST"
+        print_error "Account schema retrieval failed"
+        print_info "Response: $ACCOUNT_GET"
         exit 1
     fi
 else
-    print_error "Schema list failed"
-    print_info "Error: $SCHEMA_LIST"
+    print_error "Account schema get failed"
+    exit 1
+fi
+
+# Test contact schema retrieval
+if CONTACT_GET=$(monk meta get schema contact 2>&1); then
+    if echo "$CONTACT_GET" | grep -q "title: Contact"; then
+        print_success "Contact schema retrievable via meta API"
+    else
+        print_error "Contact schema retrieval failed"
+        print_info "Response: $CONTACT_GET"
+        exit 1
+    fi
+else
+    print_error "Contact schema get failed"
     exit 1
 fi
 
@@ -156,6 +135,6 @@ logout_user
 
 echo
 echo "Test Summary:"
-echo "  Account Schema ID: $ACCOUNT_ID"
-echo "  Contact Schema ID: $CONTACT_ID"
-echo "  Total Schemas: $SCHEMA_COUNT"
+echo "  Account Schema: $ACCOUNT_TITLE (YAML)"
+echo "  Contact Schema: $CONTACT_TITLE (YAML)"
+echo "  Both schemas retrievable via meta API"

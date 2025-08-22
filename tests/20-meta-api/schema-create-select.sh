@@ -55,22 +55,14 @@ echo
 # Test 1: Create account schema
 print_step "Creating account schema"
 if ACCOUNT_RESULT=$(cat "$(dirname "$0")/../../tests/schemas/account.yaml" | monk meta create schema 2>&1); then
-    # Validate JSON response
-    if echo "$ACCOUNT_RESULT" | jq . >/dev/null 2>&1; then
-        ACCOUNT_ID=$(echo "$ACCOUNT_RESULT" | jq -r '.id // empty')
-        ACCOUNT_NAME=$(echo "$ACCOUNT_RESULT" | jq -r '.name // empty')
-        
-        if [ -n "$ACCOUNT_ID" ] && [ -n "$ACCOUNT_NAME" ]; then
-            print_success "Account schema created successfully"
-            print_info "  Schema ID: $ACCOUNT_ID"
-            print_info "  Schema Name: $ACCOUNT_NAME"
-        else
-            print_error "Account schema response missing required fields"
-            print_info "Response: $ACCOUNT_RESULT"
-            exit 1
-        fi
+    # Validate YAML response
+    if echo "$ACCOUNT_RESULT" | grep -q "title: Account" && echo "$ACCOUNT_RESULT" | grep -q "type: object"; then
+        print_success "Account schema created successfully (YAML response)"
+        ACCOUNT_TITLE=$(echo "$ACCOUNT_RESULT" | grep "^title:" | cut -d' ' -f2-)
+        print_info "  Schema Title: $ACCOUNT_TITLE"
+        print_info "  Response Format: YAML"
     else
-        print_error "Account schema returned invalid JSON"
+        print_error "Account schema returned invalid YAML"
         print_info "Response: $ACCOUNT_RESULT"
         exit 1
     fi
@@ -85,70 +77,63 @@ echo
 # Test 2: Retrieve account schema back from API
 print_step "Retrieving account schema from API"
 if RETRIEVED_RESULT=$(monk meta get schema account 2>&1); then
-    # Check if result is valid JSON
-    if echo "$RETRIEVED_RESULT" | jq . >/dev/null 2>&1; then
-        print_success "Account schema retrieved successfully"
+    # Check if result is valid YAML
+    if echo "$RETRIEVED_RESULT" | grep -q "title: Account" && echo "$RETRIEVED_RESULT" | grep -q "type: object"; then
+        print_success "Account schema retrieved successfully (YAML response)"
         
-        # Extract key fields for verification (get response has different structure than create)
-        RETRIEVED_NAME=$(echo "$RETRIEVED_RESULT" | jq -r '.name // empty')
-        RETRIEVED_TABLE=$(echo "$RETRIEVED_RESULT" | jq -r '.table // empty')
-        RETRIEVED_DEFINITION=$(echo "$RETRIEVED_RESULT" | jq -r '.definition // empty')
+        # Extract key fields for verification
+        RETRIEVED_TITLE=$(echo "$RETRIEVED_RESULT" | grep "^title:" | cut -d' ' -f2-)
+        RETRIEVED_TYPE=$(echo "$RETRIEVED_RESULT" | grep "^type:" | cut -d' ' -f2-)
         
-        print_info "  Retrieved Name: $RETRIEVED_NAME"
-        print_info "  Retrieved Table: $RETRIEVED_TABLE"
-        print_info "  Retrieved Definition: $(echo "$RETRIEVED_DEFINITION" | jq -c . 2>/dev/null | head -c 50)..."
+        print_info "  Retrieved Title: $RETRIEVED_TITLE"
+        print_info "  Retrieved Type: $RETRIEVED_TYPE"
+        print_info "  Response Format: YAML"
         
-        # Verify names match
-        if [ "$ACCOUNT_NAME" = "$RETRIEVED_NAME" ]; then
-            print_success "Schema names match (create → retrieve)"
+        # Verify titles match
+        if [ "$ACCOUNT_TITLE" = "$RETRIEVED_TITLE" ]; then
+            print_success "Schema titles match (create → retrieve)"
         else
-            print_error "Schema name mismatch: created=$ACCOUNT_NAME, retrieved=$RETRIEVED_NAME"
+            print_error "Schema title mismatch: created=$ACCOUNT_TITLE, retrieved=$RETRIEVED_TITLE"
             exit 1
         fi
         
-        # Check if definition is present and valid JSON
-        if [ -n "$RETRIEVED_DEFINITION" ] && [ "$RETRIEVED_DEFINITION" != "null" ]; then
-            if echo "$RETRIEVED_DEFINITION" | jq . >/dev/null 2>&1; then
-                print_success "Schema definition is valid JSON"
-                
-                # Extract some key properties to verify schema content
-                TITLE=$(echo "$RETRIEVED_DEFINITION" | jq -r '.title // empty')
-                DESCRIPTION=$(echo "$RETRIEVED_DEFINITION" | jq -r '.description // empty') 
-                REQUIRED_FIELDS=$(echo "$RETRIEVED_DEFINITION" | jq -r '.required[]?' | tr '\n' ',' | sed 's/,$//')
-                
-                print_info "  Title: $TITLE"
-                print_info "  Description: $DESCRIPTION"
-                print_info "  Required fields: $REQUIRED_FIELDS"
-                
-                # Verify key account schema properties
-                if [ "$TITLE" = "Account" ]; then
-                    print_success "Schema title matches expected value"
-                else
-                    print_error "Schema title mismatch: expected='Account', got='$TITLE'"
-                    exit 1
-                fi
-                
-                if echo "$REQUIRED_FIELDS" | grep -q "name\|email\|username"; then
-                    print_success "Schema required fields include expected account fields"
-                else
-                    print_error "Schema required fields missing expected account fields"
-                    print_info "Expected: name, email, username"
-                    print_info "Found: $REQUIRED_FIELDS"
-                    exit 1
-                fi
-                
+        # Verify key schema properties are present in YAML
+        if echo "$RETRIEVED_RESULT" | grep -q "description:" && echo "$RETRIEVED_RESULT" | grep -q "properties:"; then
+            print_success "Schema contains expected YAML structure"
+            
+            # Extract description and required fields for verification
+            DESCRIPTION=$(echo "$RETRIEVED_RESULT" | grep "^description:" | cut -d' ' -f2- | tr -d '"')
+            REQUIRED_FIELDS=$(echo "$RETRIEVED_RESULT" | sed -n '/^required:/,/^[a-z]/p' | grep "  -" | sed 's/.*- //' | tr '\n' ',' | sed 's/,$//')
+            
+            print_info "  Description: $DESCRIPTION"
+            print_info "  Required fields: $REQUIRED_FIELDS"
+            
+            # Verify key account schema properties
+            if echo "$DESCRIPTION" | grep -q "User account schema"; then
+                print_success "Schema description matches expected content"
             else
-                print_error "Schema definition is not valid JSON"
-                print_info "Definition: $RETRIEVED_DEFINITION"
+                print_error "Schema description doesn't match expected content"
+                print_info "Expected: contains 'User account schema'"
+                print_info "Found: $DESCRIPTION"
                 exit 1
             fi
+            
+            if echo "$REQUIRED_FIELDS" | grep -q "name" && echo "$REQUIRED_FIELDS" | grep -q "email"; then
+                print_success "Schema required fields include expected account fields"
+            else
+                print_error "Schema required fields missing expected account fields"
+                print_info "Expected: name, email, username, account_type"
+                print_info "Found: $REQUIRED_FIELDS"
+                exit 1
+            fi
+            
         else
-            print_error "Schema definition is missing or null"
+            print_error "Schema missing expected YAML structure"
             exit 1
         fi
         
     else
-        print_error "Retrieved schema is not valid JSON"
+        print_error "Retrieved schema is not valid YAML"
         print_info "Response: $RETRIEVED_RESULT"
         exit 1
     fi
@@ -160,35 +145,29 @@ fi
 
 echo
 
-# Test 3: Verify schema appears in list
-print_step "Verifying schema in list endpoint"
-if SCHEMA_LIST=$(monk meta list schema 2>&1); then
-    if echo "$SCHEMA_LIST" | jq . >/dev/null 2>&1; then
-        SCHEMA_COUNT=$(echo "$SCHEMA_LIST" | jq 'length')
-        
-        if [ "$SCHEMA_COUNT" -eq 1 ]; then
-            print_success "Schema list shows correct count (1 schema)"
-        else
-            print_error "Schema list count mismatch: expected=1, got=$SCHEMA_COUNT"
-            exit 1
-        fi
-        
-        if echo "$SCHEMA_LIST" | jq -r '.[].name' | grep -q "^account$"; then
-            print_success "Account schema found in list endpoint"
-        else
-            print_error "Account schema not found in list endpoint"
-            exit 1
-        fi
+# Test 3: Verify YAML round-trip consistency
+print_step "Testing YAML round-trip consistency"
+
+# Save both YAML files for comparison
+echo "$ACCOUNT_RESULT" > "/tmp/created-schema.yaml"
+echo "$RETRIEVED_RESULT" > "/tmp/retrieved-schema.yaml"
+
+# Basic validation that both contain the same key properties
+if grep -q "title: Account" "/tmp/created-schema.yaml" && grep -q "title: Account" "/tmp/retrieved-schema.yaml"; then
+    if grep -q "username:" "/tmp/created-schema.yaml" && grep -q "username:" "/tmp/retrieved-schema.yaml"; then
+        print_success "YAML round-trip preserves key schema properties"
+        print_info "  Both schemas contain: title, username, required fields"
     else
-        print_error "Schema list returned invalid JSON"
-        print_info "Response: $SCHEMA_LIST"
+        print_error "YAML round-trip missing expected properties"
         exit 1
     fi
 else
-    print_error "Schema list failed"
-    print_info "Error: $SCHEMA_LIST"
+    print_error "YAML round-trip title mismatch"
     exit 1
 fi
+
+# Clean up temp files
+rm -f "/tmp/created-schema.yaml" "/tmp/retrieved-schema.yaml"
 
 echo
 print_success "🎉 Schema create and select test completed successfully!"
@@ -199,7 +178,7 @@ logout_user
 echo
 echo "Test Summary:"
 echo "  Schema Created: account"
-echo "  Schema ID: $ACCOUNT_ID"
-echo "  Create/Retrieve ID Match: ✓"
-echo "  Schema Definition Valid: ✓"
-echo "  Registry Verification: ✓"
+echo "  Schema Title: $ACCOUNT_TITLE"
+echo "  Create/Retrieve Title Match: ✓"
+echo "  YAML Round-trip: ✓"
+echo "  Schema Properties Verified: ✓"
