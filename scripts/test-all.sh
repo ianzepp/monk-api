@@ -72,9 +72,9 @@ if [ "$clean_mode" = true ]; then
     if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
         git_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
         git_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        # Clean branch name for database naming (replace invalid chars)
+        # Clean branch name for database naming (replace invalid chars and add prefix)
         clean_branch=$(echo "$git_branch" | sed 's/[^a-zA-Z0-9._-]/_/g')
-        tenant_name="$clean_branch"
+        tenant_name="monk_test_$clean_branch"
         test_suffix="$git_commit"
     else
         # Fallback if not in git repository
@@ -85,10 +85,17 @@ if [ "$clean_mode" = true ]; then
     print_info "Creating fresh tenant: $tenant_name (test: $test_suffix)"
     
     if command -v monk >/dev/null 2>&1; then
-        if monk tenant create "$tenant_name" "$test_suffix" >/dev/null 2>&1; then
+        # Clean mode: delete existing tenant first to ensure truly clean state
+        full_tenant_name="${tenant_name}_${test_suffix}"
+        print_info "Cleaning existing tenant: $full_tenant_name"
+        monk tenant delete "$full_tenant_name" >/dev/null 2>&1 || true  # Ignore failure if doesn't exist
+        
+        if output=$(monk tenant create "$tenant_name" "$test_suffix" 2>&1); then
             print_success "Tenant created: $tenant_name"
         else
             print_error "Failed to create tenant: $tenant_name"
+            echo "Error output:"
+            echo "$output" | sed 's/^/  /'
             exit 1
         fi
         
