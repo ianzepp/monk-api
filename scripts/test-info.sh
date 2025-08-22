@@ -133,7 +133,14 @@ if [ -n "$jwt_token" ]; then
             decoded=$(echo "$payload" | base64 -d 2>/dev/null || echo "")
             if [ -n "$decoded" ]; then
                 domain=$(echo "$decoded" | jq -r '.domain' 2>/dev/null || echo "unknown")
+                sub=$(echo "$decoded" | jq -r '.sub' 2>/dev/null || echo "unknown")
+                access=$(echo "$decoded" | jq -r '.access' 2>/dev/null || echo "unknown")
+                user_id=$(echo "$decoded" | jq -r '.user_id' 2>/dev/null || echo "null")
+                
                 echo "JWT Domain: $domain"
+                echo "JWT Subject: $sub"
+                echo "JWT Access: $access"
+                echo "JWT User ID: $user_id"
             fi
         fi
     fi
