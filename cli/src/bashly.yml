@@ -296,6 +296,8 @@ commands:
     - name: name
       required: true
       help: Name of the tenant database to delete
+    - name: test_suffix
+      help: Optional test suffix (for test allocations)
       
   - name: init
     help: Truncate and re-initialize tenant database

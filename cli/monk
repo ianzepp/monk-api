@@ -1141,7 +1141,7 @@ monk_tenant_delete_usage() {
   printf "monk tenant delete - Delete tenant database\n\n"
 
   printf "%s\n" "Usage:"
-  printf "  monk tenant delete NAME\n"
+  printf "  monk tenant delete NAME [TEST_SUFFIX]\n"
   printf "  monk tenant delete --help | -h\n"
   echo
 
@@ -1160,6 +1160,11 @@ monk_tenant_delete_usage() {
     # :argument.usage
     printf "  %s\n" "NAME"
     printf "    Name of the tenant database to delete\n"
+    echo
+
+    # :argument.usage
+    printf "  %s\n" "TEST_SUFFIX"
+    printf "    Optional test suffix (for test allocations)\n"
     echo
 
   fi
@@ -3492,13 +3497,27 @@ monk_tenant_delete_command() {
 
   # Get arguments from bashly
   tenant_name="${args[name]}"
+  test_suffix="${args[test_suffix]}"
+
+  # Build full database name (same logic as create command)
+  if [ -n "$test_suffix" ]; then
+      full_db_name="${tenant_name}_${test_suffix}"
+      auth_record_name="$full_db_name"
+  else
+      full_db_name="$tenant_name"
+      auth_record_name="$tenant_name"
+  fi
 
   print_info "Deleting tenant: $tenant_name"
+  if [ -n "$test_suffix" ]; then
+      print_info "Test suffix: $test_suffix"
+      print_info "Database name: $full_db_name"
+  fi
 
   db_user=$(whoami)
 
   # First remove record from auth database tenants table
-  sql_delete="DELETE FROM tenants WHERE name = '$tenant_name';"
+  sql_delete="DELETE FROM tenants WHERE name = '$auth_record_name';"
 
   if psql -U "$db_user" -d monk-api-auth -c "$sql_delete" >/dev/null 2>&1; then
       print_success "Tenant record removed from auth database"
@@ -3508,10 +3527,10 @@ monk_tenant_delete_command() {
   fi
 
   # Then drop the actual PostgreSQL database
-  if dropdb "$tenant_name" -U "$db_user" 2>/dev/null; then
-      print_success "Database '$tenant_name' deleted successfully"
+  if dropdb "$full_db_name" -U "$db_user" 2>/dev/null; then
+      print_success "Database '$full_db_name' deleted successfully"
   else
-      print_error "Failed to delete database '$tenant_name'"
+      print_error "Failed to delete database '$full_db_name'"
       exit 1
   fi
 }
@@ -6220,6 +6239,10 @@ monk_tenant_delete_parse_requirements() {
         if [[ -z ${args['name']+x} ]]; then
           args['name']=$1
           shift
+        # :argument.case
+        elif [[ -z ${args['test_suffix']+x} ]]; then
+          args['test_suffix']=$1
+          shift
         else
           printf "invalid argument: %s\n" "$key" >&2
           exit 1
@@ -6232,7 +6255,7 @@ monk_tenant_delete_parse_requirements() {
 
   # :command.required_args_filter
   if [[ -z ${args['name']+x} ]]; then
-    printf "missing required argument: NAME\nusage: monk tenant delete NAME\n" >&2
+    printf "missing required argument: NAME\nusage: monk tenant delete NAME [TEST_SUFFIX]\n" >&2
 
     exit 1
   fi
