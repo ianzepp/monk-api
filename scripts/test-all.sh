@@ -1,25 +1,53 @@
-# Check dependencies
-check_dependencies
+#!/bin/bash
+set -e
 
-# Get arguments from bashly
-pattern="${args[pattern]}"
+# Test runner script for Monk API project
+# Extracted from monk CLI test_all_command for project-local usage
+#
+# Usage: scripts/test-all.sh [pattern]
+# 
+# Examples:
+#   scripts/test-all.sh              # Run all tests
+#   scripts/test-all.sh 05           # Run category 05 tests
+#   scripts/test-all.sh 20-30        # Run categories 20-30
+#   scripts/test-all.sh servers      # Run tests matching "servers"
 
-# Set verbose mode if needed
-if [ "$CLI_VERBOSE" = "true" ]; then
-    export CLI_VERBOSE=true
-fi
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Get test directory (simplified - use current project tests)
-TEST_BASE_DIR="../tests"
+print_error() { echo -e "${RED}✗ $1${NC}" >&2; }
+print_success() { echo -e "${GREEN}✓ $1${NC}"; }
+print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
+
+# Get pattern from command line
+pattern="${1:-}"
+
+# Verbose mode from environment
+verbose="${CLI_VERBOSE:-false}"
+
+# Test directory
+TEST_BASE_DIR="tests"
 
 if [ ! -d "$TEST_BASE_DIR" ]; then
     print_error "Test directory not found: $TEST_BASE_DIR"
-    print_info "Run from monk-api project directory or set up test environment"
+    print_info "Run from monk-api project root directory"
     exit 1
 fi
 
 print_info "Running Tests"
 echo
+
+# Show test environment information
+if [ -f "scripts/test-info.sh" ] && [ -x "scripts/test-info.sh" ]; then
+    echo "=== Test Environment ==="
+    ./scripts/test-info.sh
+    echo "========================"
+    echo
+fi
 
 # Function to find tests by pattern
 find_tests_by_pattern() {
@@ -88,7 +116,7 @@ run_single_test() {
     start_time=$(date +%s)
     test_result=0
     
-    if [ "$CLI_VERBOSE" = "true" ]; then
+    if [ "$verbose" = "true" ]; then
         # Show output in verbose mode
         (cd "$test_dir" && "./$(basename "$test_path")")
         test_result=$?
@@ -109,7 +137,7 @@ run_single_test() {
         return 0
     else
         print_error "$test_name (${duration}s)"
-        if [ "$CLI_VERBOSE" != "true" ] && [ -n "$test_output" ]; then
+        if [ "$verbose" != "true" ] && [ -n "$test_output" ]; then
             echo "Test output:"
             echo "$test_output" | sed 's/^/  /'
         fi
@@ -148,5 +176,37 @@ echo
 echo "$test_files" | while IFS= read -r test_path; do
     if [ -n "$test_path" ]; then
         run_single_test "$test_path"
+        test_result=$?
+        
+        tests_run=$((tests_run + 1))
+        if [ $test_result -eq 0 ]; then
+            tests_passed=$((tests_passed + 1))
+        else
+            tests_failed=$((tests_failed + 1))
+            failed_tests+=("$(basename "$test_path" .sh)")
+        fi
     fi
 done
+
+# Summary
+echo
+echo "=========================="
+echo "Test Summary"
+echo "=========================="
+echo "Tests run: $tests_run"
+echo "Passed: $tests_passed"
+echo "Failed: $tests_failed"
+
+if [ ${#failed_tests[@]} -gt 0 ]; then
+    echo
+    echo "Failed tests:"
+    for test in "${failed_tests[@]}"; do
+        print_error "$test"
+    done
+    echo
+    exit 1
+else
+    echo
+    print_success "All tests passed!"
+    exit 0
+fi

@@ -1,21 +1,61 @@
-# Check dependencies
-check_dependencies
+#!/bin/bash
+set -e
 
-# Get arguments from bashly
-var_name="${args[var_name]}"
+# Test environment information script for Monk API project
+# Extracted from monk CLI test_env_command for project-local usage
+#
+# Usage: scripts/test-info.sh [VAR_NAME]
+# 
+# Examples:
+#   scripts/test-info.sh              # Show full environment status
+#   scripts/test-info.sh SERVER_URL   # Show just server URL
+#   scripts/test-info.sh JWT_TOKEN    # Show just JWT token
 
-# If specific variable requested, show just that
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
+
+# Configuration files
+SERVERS_CONFIG="${HOME}/.config/monk/servers.json"
+
+# Helper functions to get monk configuration
+get_current_server_url() {
+    if command -v monk >/dev/null 2>&1; then
+        monk test env SERVER_URL 2>/dev/null || echo "http://localhost:3000"
+    else
+        echo "http://localhost:3000"
+    fi
+}
+
+get_current_jwt_token() {
+    if command -v monk >/dev/null 2>&1; then
+        monk auth token 2>/dev/null || echo ""
+    fi
+}
+
+get_current_server_name() {
+    if command -v monk >/dev/null 2>&1; then
+        monk test env CURRENT_SERVER 2>/dev/null || echo "local"
+    else
+        echo "local"
+    fi
+}
+
+# Get specific variable if requested
+var_name="${1:-}"
+
 if [ -n "$var_name" ]; then
     case "$var_name" in
         SERVER_URL)
-            get_base_url 2>/dev/null || echo "Not configured"
+            get_current_server_url
             ;;
         CURRENT_SERVER)
-            if command -v jq >/dev/null 2>&1 && [ -f "$SERVERS_CONFIG" ]; then
-                jq -r '.current // "none"' "$SERVERS_CONFIG" 2>/dev/null || echo "none"
-            else
-                echo "none"
-            fi
+            get_current_server_name
             ;;
         CURRENT_TENANT)
             if [ -f "$HOME/.monk/current_tenant" ]; then
@@ -25,14 +65,14 @@ if [ -n "$var_name" ]; then
             fi
             ;;
         JWT_TOKEN)
-            get_jwt_token || echo "Not authenticated"
+            get_current_jwt_token
             ;;
         DB_USER)
             echo "$(whoami)"
             ;;
         *)
-            print_error "Unknown variable: $var_name"
-            print_info "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
+            echo "Unknown variable: $var_name" >&2
+            echo "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER" >&2
             exit 1
             ;;
     esac
@@ -70,19 +110,19 @@ if command -v jq >/dev/null 2>&1 && [ -f "$SERVERS_CONFIG" ]; then
     fi
 else
     echo "Current Server: not configured"
-    echo "Server URL: not configured"
+    echo "Server URL: not configured"  
     echo "Server Status: servers.json not found"
 fi
 
 echo
 
 # Authentication Status
-jwt_token=$(get_jwt_token)
+jwt_token=$(get_current_jwt_token)
 if [ -n "$jwt_token" ]; then
     echo "Authentication: authenticated"
     
     # Try to decode domain from JWT
-    if [ "$JSON_PARSER" = "jq" ]; then
+    if command -v jq >/dev/null 2>&1; then
         payload=$(echo "$jwt_token" | cut -d'.' -f2)
         case $((${#payload} % 4)) in
             2) payload="${payload}==" ;;
@@ -104,7 +144,7 @@ fi
 
 echo
 
-# Tenant Information
+# Tenant Information  
 if [ -f "$HOME/.monk/current_tenant" ]; then
     current_tenant=$(cat "$HOME/.monk/current_tenant")
     echo "Current Tenant: $current_tenant"
@@ -138,5 +178,5 @@ fi
 echo
 
 # Usage help
-print_info "Usage: monk test env [VAR_NAME] to get specific variable"
+print_info "Usage: scripts/test-info.sh [VAR_NAME] to get specific variable"
 print_info "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"

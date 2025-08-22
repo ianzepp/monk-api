@@ -31,7 +31,7 @@ monk_usage() {
   printf "  %s   Schema and metadata management\n" "meta   "
   printf "  %s   Advanced search with filter DSL\n" "find   "
   printf "  %s   Server connectivity testing\n" "ping   "
-  printf "  %s   Comprehensive test management\n" "test   "
+  printf "  %s   External git-based test management\n" "test   "
   printf "  %s   Remote server management\n" "servers"
   printf "  %s   Multi-tenant database management\n" "tenant "
   echo
@@ -747,7 +747,7 @@ monk_ping_usage() {
 
 # :command.usage
 monk_test_usage() {
-  printf "monk test - Comprehensive test management\n\n"
+  printf "monk test - External git-based test management\n\n"
 
   printf "%s\n" "Usage:"
   printf "  monk test COMMAND\n"
@@ -755,11 +755,8 @@ monk_test_usage() {
   echo
   # :command.usage_commands
   printf "%s\n" "Commands:"
-  printf "  %s   Run tests (all or pattern matching)\n" "all "
-  printf "  %s   Run a single test file\n" "one "
   printf "  %s   Create/update git-aware test environment\n" "git "
   printf "  %s   Compare test results between environments\n" "diff"
-  printf "  %s   Show test environment variables\n" "env "
   echo
 
   # :command.long_usage
@@ -769,64 +766,6 @@ monk_test_usage() {
     # :command.usage_fixed_flags
     printf "  %s\n" "--help, -h"
     printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_test_all_usage() {
-  printf "monk test all - Run tests (all or pattern matching)\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk test all [PATTERN]\n"
-  printf "  monk test all --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-    # :command.usage_args
-    printf "%s\n" "Arguments:"
-
-    # :argument.usage
-    printf "  %s\n" "PATTERN"
-    printf "    Pattern to match tests (e.g., 00-20)\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_test_one_usage() {
-  printf "monk test one - Run a single test file\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk test one TEST_FILE\n"
-  printf "  monk test one --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-    # :command.usage_args
-    printf "%s\n" "Arguments:"
-
-    # :argument.usage
-    printf "  %s\n" "TEST_FILE"
-    printf "    Test file name or path (with or without .sh extension)\n"
     echo
 
   fi
@@ -895,35 +834,6 @@ monk_test_diff_usage() {
     # :argument.usage
     printf "  %s\n" "RUN2"
     printf "    Second test run to compare\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_test_env_usage() {
-  printf "monk test env - Show test environment variables\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk test env [VAR_NAME]\n"
-  printf "  monk test env --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-    # :command.usage_args
-    printf "%s\n" "Arguments:"
-
-    # :argument.usage
-    printf "  %s\n" "VAR_NAME"
-    printf "    Specific variable name (optional)\n"
     echo
 
   fi
@@ -2749,258 +2659,6 @@ monk_ping_command() {
 }
 
 # :command.function
-monk_test_all_command() {
-
-  # src/test_all_command.sh
-  # Check dependencies
-  check_dependencies
-
-  # Get arguments from bashly
-  pattern="${args[pattern]}"
-
-  # Set verbose mode if needed
-  if [ "$CLI_VERBOSE" = "true" ]; then
-      export CLI_VERBOSE=true
-  fi
-
-  # Get test directory (simplified - use current project tests)
-  TEST_BASE_DIR="../tests"
-
-  if [ ! -d "$TEST_BASE_DIR" ]; then
-      print_error "Test directory not found: $TEST_BASE_DIR"
-      print_info "Run from monk-api project directory or set up test environment"
-      exit 1
-  fi
-
-  print_info "Running Tests"
-  echo
-
-  # Function to find tests by pattern
-  find_tests_by_pattern() {
-      local pattern="$1"
-
-      if [ -z "$pattern" ]; then
-          # No pattern - find all tests
-          find "$TEST_BASE_DIR" -name "*.sh" -type f | while read -r file; do
-              if [ -x "$file" ]; then
-                  echo "$file"
-              fi
-          done | sort
-          return
-      fi
-
-      # Check if pattern is a number range (e.g., "00", "00-49")
-      if echo "$pattern" | grep -E '^[0-9]{2}(-[0-9]{2})?$' >/dev/null 2>&1; then
-          # Extract start and end numbers
-          if echo "$pattern" | grep -q '-'; then
-              start_num=$(echo "$pattern" | cut -d'-' -f1)
-              end_num=$(echo "$pattern" | cut -d'-' -f2)
-          else
-              start_num="$pattern"
-              end_num="$pattern"
-          fi
-
-          # Find tests in numeric range
-          for dir in "$TEST_BASE_DIR"/*; do
-              if [ -d "$dir" ]; then
-                  dir_name=$(basename "$dir")
-                  dir_num=$(echo "$dir_name" | grep -o '^[0-9][0-9]' | head -1)
-
-                  if [ -n "$dir_num" ] && [ "$dir_num" -ge "$start_num" ] && [ "$dir_num" -le "$end_num" ]; then
-                      find "$dir" -name "*.sh" -type f | while read -r file; do
-                          if [ -x "$file" ]; then
-                              echo "$file"
-                          fi
-                      done | sort
-                  fi
-              fi
-          done
-      else
-          # Text pattern - search in paths and filenames
-          find "$TEST_BASE_DIR" -name "*.sh" -type f | while read -r file; do
-              if [ -x "$file" ] && echo "$file" | grep -q "$pattern"; then
-                  echo "$file"
-              fi
-          done | sort
-      fi
-  }
-
-  # Run a single test
-  run_single_test() {
-      local test_path="$1"
-      local test_name=$(basename "$test_path" .sh)
-      local test_dir=$(dirname "$test_path")
-
-      print_info "Running: $test_name"
-
-      if [ ! -x "$test_path" ]; then
-          print_error "$test_name (not executable)"
-          return 1
-      fi
-
-      # Change to test directory and run the test
-      start_time=$(date +%s)
-      test_result=0
-
-      if [ "$CLI_VERBOSE" = "true" ]; then
-          # Show output in verbose mode
-          (cd "$test_dir" && "./$(basename "$test_path")")
-          test_result=$?
-      else
-          # Capture output and only show if test fails
-          if test_output=$(cd "$test_dir" && "./$(basename "$test_path")" 2>&1); then
-              test_result=0
-          else
-              test_result=$?
-          fi
-      fi
-
-      end_time=$(date +%s)
-      duration=$((end_time - start_time))
-
-      if [ $test_result -eq 0 ]; then
-          print_success "$test_name (${duration}s)"
-          return 0
-      else
-          print_error "$test_name (${duration}s)"
-          if [ "$CLI_VERBOSE" != "true" ] && [ -n "$test_output" ]; then
-              echo "Test output:"
-              echo "$test_output" | sed 's/^/  /'
-          fi
-          return 1
-      fi
-  }
-
-  # Main test execution
-  tests_run=0
-  tests_passed=0
-  tests_failed=0
-  failed_tests=()
-
-  # Get tests to run
-  if [ -n "$pattern" ]; then
-      print_info "Running tests matching pattern: $pattern"
-  else
-      print_info "Running all tests"
-  fi
-
-  test_files=$(find_tests_by_pattern "$pattern")
-
-  if [ -z "$test_files" ]; then
-      print_error "No tests found"
-      if [ -n "$pattern" ]; then
-          print_info "Pattern: $pattern"
-      fi
-      exit 1
-  fi
-
-  test_count=$(echo "$test_files" | wc -l | xargs)
-  echo "Found $test_count test(s)"
-  echo
-
-  # Run each test
-  echo "$test_files" | while IFS= read -r test_path; do
-      if [ -n "$test_path" ]; then
-          run_single_test "$test_path"
-      fi
-  done
-}
-
-# :command.function
-monk_test_one_command() {
-
-  # src/test_one_command.sh
-  # Check dependencies
-  check_dependencies
-
-  # Get arguments from bashly
-  test_file="${args[test_file]}"
-
-  # Get test directory
-  TEST_BASE_DIR="../tests"
-
-  if [ ! -d "$TEST_BASE_DIR" ]; then
-      print_error "Test directory not found: $TEST_BASE_DIR"
-      print_info "Run from monk-api project directory"
-      exit 1
-  fi
-
-  # Find the test file
-  test_path=""
-
-  # Check if it's already a full path
-  if [ -f "$test_file" ] && [ -x "$test_file" ]; then
-      test_path="$test_file"
-  elif [ -f "$test_file.sh" ] && [ -x "$test_file.sh" ]; then
-      test_path="$test_file.sh"
-  else
-      # Search in test directories
-      if echo "$test_file" | grep -q '\.sh$'; then
-          # Already has .sh extension
-          search_name="$test_file"
-      else
-          # Add .sh extension
-          search_name="$test_file.sh"
-      fi
-
-      # Find the test file in test directories
-      found_file=$(find "$TEST_BASE_DIR" -name "$search_name" -type f | head -1)
-
-      if [ -n "$found_file" ] && [ -x "$found_file" ]; then
-          test_path="$found_file"
-      else
-          print_error "Test file not found: $test_file"
-          print_info "Searched for: $search_name"
-          print_info "In directory: $TEST_BASE_DIR"
-          print_info ""
-          print_info "Available tests:"
-          find "$TEST_BASE_DIR" -name "*.sh" -type f | while read -r file; do
-              if [ -x "$file" ]; then
-                  echo "  $(basename "$file" .sh)"
-              fi
-          done | head -10
-          exit 1
-      fi
-  fi
-
-  # Run the test
-  test_name=$(basename "$test_path" .sh)
-  test_dir=$(dirname "$test_path")
-
-  print_info "Running single test: $test_name"
-  echo
-
-  if [ ! -x "$test_path" ]; then
-      print_error "$test_name (not executable)"
-      exit 1
-  fi
-
-  # Change to test directory and run the test
-  start_time=$(date +%s)
-
-  if [ "$CLI_VERBOSE" = "true" ]; then
-      # Show output in verbose mode
-      (cd "$test_dir" && "./$(basename "$test_path")")
-      test_result=$?
-  else
-      # Capture output and show it regardless (since it's a single test)
-      echo "Test output:"
-      (cd "$test_dir" && "./$(basename "$test_path")") || test_result=$?
-  fi
-
-  end_time=$(date +%s)
-  duration=$((end_time - start_time))
-
-  echo
-  if [ "${test_result:-0}" -eq 0 ]; then
-      print_success "$test_name completed successfully (${duration}s)"
-  else
-      print_error "$test_name failed (${duration}s)"
-      exit 1
-  fi
-}
-
-# :command.function
 monk_test_git_command() {
 
   # src/test_git_command.sh
@@ -3067,154 +2725,6 @@ monk_test_diff_command() {
   print_info "- Compare test results between git branches"
   print_info "- Show differences in test outcomes"
   print_info "- Performance comparison between runs"
-}
-
-# :command.function
-monk_test_env_command() {
-
-  # src/test_env_command.sh
-  # Check dependencies
-  check_dependencies
-
-  # Get arguments from bashly
-  var_name="${args[var_name]}"
-
-  # If specific variable requested, show just that
-  if [ -n "$var_name" ]; then
-      case "$var_name" in
-          SERVER_URL)
-              get_base_url 2>/dev/null || echo "Not configured"
-              ;;
-          CURRENT_SERVER)
-              if command -v jq >/dev/null 2>&1 && [ -f "$SERVERS_CONFIG" ]; then
-                  jq -r '.current // "none"' "$SERVERS_CONFIG" 2>/dev/null || echo "none"
-              else
-                  echo "none"
-              fi
-              ;;
-          CURRENT_TENANT)
-              if [ -f "$HOME/.monk/current_tenant" ]; then
-                  cat "$HOME/.monk/current_tenant"
-              else
-                  echo "none"
-              fi
-              ;;
-          JWT_TOKEN)
-              get_jwt_token || echo "Not authenticated"
-              ;;
-          DB_USER)
-              echo "$(whoami)"
-              ;;
-          *)
-              print_error "Unknown variable: $var_name"
-              print_info "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
-              exit 1
-              ;;
-      esac
-      exit 0
-  fi
-
-  # Show comprehensive environment status
-  echo
-  print_info "Current Environment Status"
-  echo
-
-  # Server Information
-  if command -v jq >/dev/null 2>&1 && [ -f "$SERVERS_CONFIG" ]; then
-      current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
-      if [ -n "$current_server" ] && [ "$current_server" != "null" ]; then
-          server_info=$(jq -r ".servers.\"$current_server\"" "$SERVERS_CONFIG" 2>/dev/null)
-          hostname=$(echo "$server_info" | jq -r '.hostname')
-          port=$(echo "$server_info" | jq -r '.port')
-          protocol=$(echo "$server_info" | jq -r '.protocol')
-          base_url="$protocol://$hostname:$port"
-
-          echo "Current Server: $current_server"
-          echo "Server URL: $base_url"
-
-          # Check if server is running
-          if lsof -i ":$port" >/dev/null 2>&1; then
-              echo "Server Status: running"
-          else
-              echo "Server Status: stopped"
-          fi
-      else
-          echo "Current Server: none"
-          echo "Server URL: not configured"
-          echo "Server Status: no server selected"
-      fi
-  else
-      echo "Current Server: not configured"
-      echo "Server URL: not configured"
-      echo "Server Status: servers.json not found"
-  fi
-
-  echo
-
-  # Authentication Status
-  jwt_token=$(get_jwt_token)
-  if [ -n "$jwt_token" ]; then
-      echo "Authentication: authenticated"
-
-      # Try to decode domain from JWT
-      if [ "$JSON_PARSER" = "jq" ]; then
-          payload=$(echo "$jwt_token" | cut -d'.' -f2)
-          case $((${#payload} % 4)) in
-              2) payload="${payload}==" ;;
-              3) payload="${payload}=" ;;
-          esac
-
-          if command -v base64 >/dev/null 2>&1; then
-              decoded=$(echo "$payload" | base64 -d 2>/dev/null || echo "")
-              if [ -n "$decoded" ]; then
-                  domain=$(echo "$decoded" | jq -r '.domain' 2>/dev/null || echo "unknown")
-                  echo "JWT Domain: $domain"
-              fi
-          fi
-      fi
-  else
-      echo "Authentication: not authenticated"
-      echo "JWT Domain: none"
-  fi
-
-  echo
-
-  # Tenant Information
-  if [ -f "$HOME/.monk/current_tenant" ]; then
-      current_tenant=$(cat "$HOME/.monk/current_tenant")
-      echo "Current Tenant: $current_tenant"
-  else
-      echo "Current Tenant: none"
-  fi
-
-  echo
-
-  # Database Information
-  echo "Database User: $(whoami)"
-  echo "Database Host: localhost"
-  echo "Database Port: 5432"
-
-  echo
-
-  # Configuration Files
-  echo "Servers Config: $SERVERS_CONFIG"
-  if [ -f "$SERVERS_CONFIG" ]; then
-      echo "Servers Config Status: exists"
-  else
-      echo "Servers Config Status: not found"
-  fi
-
-  if [ -f "$HOME/.monk/current_tenant" ]; then
-      echo "Tenant Config: ~/.monk/current_tenant (exists)"
-  else
-      echo "Tenant Config: ~/.monk/current_tenant (not found)"
-  fi
-
-  echo
-
-  # Usage help
-  print_info "Usage: monk test env [VAR_NAME] to get specific variable"
-  print_info "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
 }
 
 # :command.function
@@ -5611,20 +5121,6 @@ monk_test_parse_requirements() {
   case $action in
     -*) ;;
 
-    all)
-      action="all"
-      shift
-      monk_test_all_parse_requirements "$@"
-      shift $#
-      ;;
-
-    one)
-      action="one"
-      shift
-      monk_test_one_parse_requirements "$@"
-      shift $#
-      ;;
-
     git)
       action="git"
       shift
@@ -5636,13 +5132,6 @@ monk_test_parse_requirements() {
       action="diff"
       shift
       monk_test_diff_parse_requirements "$@"
-      shift $#
-      ;;
-
-    env)
-      action="env"
-      shift
-      monk_test_env_parse_requirements "$@"
       shift $#
       ;;
 
@@ -5679,115 +5168,6 @@ monk_test_parse_requirements() {
 
     esac
   done
-
-}
-
-# :command.parse_requirements
-monk_test_all_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_test_all_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="test all"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        # :argument.case
-        if [[ -z ${args['pattern']+x} ]]; then
-          args['pattern']=$1
-          shift
-        else
-          printf "invalid argument: %s\n" "$key" >&2
-          exit 1
-        fi
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_test_one_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_test_one_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="test one"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        # :argument.case
-        if [[ -z ${args['test_file']+x} ]]; then
-          args['test_file']=$1
-          shift
-        else
-          printf "invalid argument: %s\n" "$key" >&2
-          exit 1
-        fi
-
-        ;;
-
-    esac
-  done
-
-  # :command.required_args_filter
-  if [[ -z ${args['test_file']+x} ]]; then
-    printf "missing required argument: TEST_FILE\nusage: monk test one TEST_FILE\n" >&2
-
-    exit 1
-  fi
 
 }
 
@@ -5918,57 +5298,6 @@ monk_test_diff_parse_requirements() {
 
     exit 1
   fi
-
-}
-
-# :command.parse_requirements
-monk_test_env_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_test_env_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="test env"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        # :argument.case
-        if [[ -z ${args['var_name']+x} ]]; then
-          args['var_name']=$1
-          shift
-        else
-          printf "invalid argument: %s\n" "$key" >&2
-          exit 1
-        fi
-
-        ;;
-
-    esac
-  done
 
 }
 
@@ -6901,11 +6230,8 @@ run() {
     "find") monk_find_command ;;
     "ping") monk_ping_command ;;
     "test") monk_test_command ;;
-    "test all") monk_test_all_command ;;
-    "test one") monk_test_one_command ;;
     "test git") monk_test_git_command ;;
     "test diff") monk_test_diff_command ;;
-    "test env") monk_test_env_command ;;
     "servers") monk_servers_command ;;
     "servers add") monk_servers_add_command ;;
     "servers list") monk_servers_list_command ;;
