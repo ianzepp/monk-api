@@ -6,6 +6,9 @@
 # JWT token storage file
 JWT_TOKEN_FILE="${HOME}/.monk-jwt-token"
 
+# Servers configuration file
+SERVERS_CONFIG="${HOME}/.config/monk/servers.json"
+
 # Default configuration
 DEFAULT_BASE_URL="http://localhost:3000"
 DEFAULT_LIMIT=50
@@ -88,23 +91,99 @@ get_base_url() {
     echo "$protocol://$hostname:$port"
 }
 
-# Get stored JWT token
+# Get stored JWT token for current server
 get_jwt_token() {
-    if [ -f "$JWT_TOKEN_FILE" ]; then
-        cat "$JWT_TOKEN_FILE"
+    init_servers_config
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        # Fallback to old global token file if jq not available
+        if [ -f "$JWT_TOKEN_FILE" ]; then
+            cat "$JWT_TOKEN_FILE"
+        fi
+        return
+    fi
+    
+    # Get current server name
+    local current_server
+    current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
+    
+    if [ -z "$current_server" ] || [ "$current_server" = "null" ]; then
+        # No current server, try fallback to global token
+        if [ -f "$JWT_TOKEN_FILE" ]; then
+            cat "$JWT_TOKEN_FILE"
+        fi
+        return
+    fi
+    
+    # Get server-specific token
+    local token
+    token=$(jq -r ".servers.\"$current_server\".jwt_token // empty" "$SERVERS_CONFIG" 2>/dev/null)
+    
+    if [ -n "$token" ] && [ "$token" != "null" ]; then
+        echo "$token"
     fi
 }
 
-# Store JWT token securely
+# Store JWT token for current server
 store_token() {
     local token="$1"
-    echo "$token" > "$JWT_TOKEN_FILE"
-    chmod 600 "$JWT_TOKEN_FILE"
+    
+    init_servers_config
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        # Fallback to old global token file if jq not available
+        echo "$token" > "$JWT_TOKEN_FILE"
+        chmod 600 "$JWT_TOKEN_FILE"
+        return
+    fi
+    
+    # Get current server name
+    local current_server
+    current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
+    
+    if [ -z "$current_server" ] || [ "$current_server" = "null" ]; then
+        # No current server, store in global file as fallback
+        echo "$token" > "$JWT_TOKEN_FILE"
+        chmod 600 "$JWT_TOKEN_FILE"
+        return
+    fi
+    
+    # Store token in server configuration
+    local temp_file=$(mktemp)
+    jq --arg server "$current_server" \
+       --arg token "$token" \
+       '.servers[$server].jwt_token = $token' \
+       "$SERVERS_CONFIG" > "$temp_file" && mv "$temp_file" "$SERVERS_CONFIG"
+    
+    # Set secure permissions on config file
+    chmod 600 "$SERVERS_CONFIG"
 }
 
-# Remove stored JWT token
+# Remove stored JWT token for current server
 remove_stored_token() {
-    rm -f "$JWT_TOKEN_FILE"
+    init_servers_config
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        # Fallback to old global token file if jq not available
+        rm -f "$JWT_TOKEN_FILE"
+        return
+    fi
+    
+    # Get current server name
+    local current_server
+    current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
+    
+    if [ -z "$current_server" ] || [ "$current_server" = "null" ]; then
+        # No current server, remove global file as fallback
+        rm -f "$JWT_TOKEN_FILE"
+        return
+    fi
+    
+    # Remove token from server configuration
+    local temp_file=$(mktemp)
+    jq --arg server "$current_server" \
+       'del(.servers[$server].jwt_token)' \
+       "$SERVERS_CONFIG" > "$temp_file" && mv "$temp_file" "$SERVERS_CONFIG"
 }
 
 # Make HTTP request and handle response - programmatic by default
@@ -291,5 +370,72 @@ check_dependencies() {
         export JSON_PARSER="jshon"
     else
         export JSON_PARSER="none"
+    fi
+}
+
+# Initialize servers config if it doesn't exist
+init_servers_config() {
+    # Ensure config directory exists
+    mkdir -p "$(dirname "$SERVERS_CONFIG")"
+    
+    if [ ! -f "$SERVERS_CONFIG" ]; then
+        cat > "$SERVERS_CONFIG" << 'EOF'
+{
+  "servers": {},
+  "current": null
+}
+EOF
+    fi
+}
+
+# Parse hostname:port into components
+parse_endpoint() {
+    local endpoint="$1"
+    local hostname=""
+    local port=""
+    local protocol=""
+    
+    # Handle protocol prefixes
+    if echo "$endpoint" | grep -q "^https://"; then
+        protocol="https"
+        endpoint=$(echo "$endpoint" | sed 's|^https://||')
+    elif echo "$endpoint" | grep -q "^http://"; then
+        protocol="http"
+        endpoint=$(echo "$endpoint" | sed 's|^http://||')
+    fi
+    
+    # Parse hostname:port
+    if echo "$endpoint" | grep -q ":"; then
+        hostname=$(echo "$endpoint" | cut -d':' -f1)
+        port=$(echo "$endpoint" | cut -d':' -f2)
+    else
+        hostname="$endpoint"
+        port="80"
+    fi
+    
+    # Auto-detect protocol if not specified
+    if [ -z "$protocol" ]; then
+        if [ "$port" = "443" ]; then
+            protocol="https"
+        else
+            protocol="http"
+        fi
+    fi
+    
+    echo "$protocol|$hostname|$port"
+}
+
+# Health check a server URL
+ping_server_url() {
+    local base_url="$1"
+    local timeout="${2:-5}"
+    
+    # Try to ping the /ping endpoint with a short timeout
+    if curl -s --max-time "$timeout" --fail "$base_url/ping" >/dev/null 2>&1; then
+        return 0
+    elif curl -s --max-time "$timeout" --fail "$base_url/" >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
     fi
 }

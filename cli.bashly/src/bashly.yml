@@ -246,6 +246,10 @@ commands:
     - name: endpoint
       required: true
       help: "Server endpoint (host:port)"
+    flags:
+    - long: --description
+      arg: description
+      help: Optional server description
       
   - name: list
     help: List all servers with health status
@@ -273,6 +277,9 @@ commands:
     - name: name
       required: true
       help: Server name to ping
+      
+  - name: ping-all
+    help: Health check all registered servers
 
 # Multi-tenant database management
 - name: tenant
