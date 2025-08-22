@@ -17,7 +17,7 @@ CREATE TABLE "columns" (
 	"description" text
 );
 --> statement-breakpoint
-CREATE TABLE "schemas" (
+CREATE TABLE "schema" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"domain" text,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
@@ -31,8 +31,8 @@ CREATE TABLE "schemas" (
 	"status" text DEFAULT 'pending' NOT NULL,
 	"definition" jsonb NOT NULL,
 	"field_count" text NOT NULL,
-	CONSTRAINT "schemas_name_unique" UNIQUE("name"),
-	CONSTRAINT "schemas_table_name_unique" UNIQUE("table_name")
+	CONSTRAINT "schema_name_unique" UNIQUE("name"),
+	CONSTRAINT "schema_table_name_unique" UNIQUE("table_name")
 );
 --> statement-breakpoint
-ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schemas_name_fk" FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("name") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schema_name_fk" FOREIGN KEY ("schema_name") REFERENCES "public"."schema"("name") ON DELETE no action ON UPDATE no action;

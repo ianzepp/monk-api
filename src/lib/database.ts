@@ -32,7 +32,7 @@ export class Database {
 
     // List all schemas
     async listSchemas() {
-        const query = `SELECT * FROM ${builtins.TABLE_NAMES.schemas}`;
+        const query = `SELECT * FROM ${builtins.TABLE_NAMES.schema}`;
         const result = await this.execute(query);
         return result.rows;
     }

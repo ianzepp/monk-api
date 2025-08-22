@@ -3,7 +3,7 @@
 -- Based on drizzle schema from monk-api-hono/drizzle/0000_powerful_punisher.sql
 
 -- Schema registry table to store JSON Schema definitions
-CREATE TABLE "schemas" (
+CREATE TABLE "schema" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"domain" text,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
@@ -20,8 +20,8 @@ CREATE TABLE "schemas" (
 	"definition" jsonb NOT NULL,
 	"field_count" text NOT NULL,
 	"yaml_checksum" text,
-	CONSTRAINT "schemas_name_unique" UNIQUE("name"),
-	CONSTRAINT "schemas_table_name_unique" UNIQUE("table_name")
+	CONSTRAINT "schema_name_unique" UNIQUE("name"),
+	CONSTRAINT "schema_table_name_unique" UNIQUE("table_name")
 );
 
 -- Column registry table to store individual field metadata  
@@ -47,8 +47,8 @@ CREATE TABLE "columns" (
 );
 
 -- Add foreign key constraint
-ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schemas_name_fk" 
-    FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("name") 
+ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schema_name_fk" 
+    FOREIGN KEY ("schema_name") REFERENCES "public"."schema"("name") 
     ON DELETE no action ON UPDATE no action;
 
 -- Users table to store tenant users and their access levels
