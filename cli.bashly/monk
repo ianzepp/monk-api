@@ -761,6 +761,7 @@ monk_test_usage() {
   # :command.usage_commands
   printf "%s\n" "Commands:"
   printf "  %s   Run tests (all or pattern matching)\n" "all "
+  printf "  %s   Run a single test file\n" "one "
   printf "  %s   Create/update git-aware test environment\n" "git "
   printf "  %s   Compare test results between environments\n" "diff"
   printf "  %s   Show test environment variables\n" "env "
@@ -802,6 +803,35 @@ monk_test_all_usage() {
     # :argument.usage
     printf "  %s\n" "PATTERN"
     printf "    Pattern to match tests (e.g., 00-20)\n"
+    echo
+
+  fi
+}
+
+# :command.usage
+monk_test_one_usage() {
+  printf "monk test one - Run a single test file\n\n"
+
+  printf "%s\n" "Usage:"
+  printf "  monk test one TEST_FILE\n"
+  printf "  monk test one --help | -h\n"
+  echo
+
+  # :command.long_usage
+  if [[ -n "$long_usage" ]]; then
+    printf "%s\n" "Options:"
+
+    # :command.usage_fixed_flags
+    printf "  %s\n" "--help, -h"
+    printf "    Show this help\n"
+    echo
+
+    # :command.usage_args
+    printf "%s\n" "Arguments:"
+
+    # :argument.usage
+    printf "  %s\n" "TEST_FILE"
+    printf "    Test file name or path (with or without .sh extension)\n"
     echo
 
   fi
@@ -2727,36 +2757,321 @@ monk_ping_command() {
 monk_test_all_command() {
 
   # src/test_all_command.sh
-  echo "# This file is located at 'src/test_all_command.sh'."
-  echo "# It contains the implementation for the 'monk test all' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_test_all_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  pattern="${args[pattern]}"
+
+  # Set verbose mode if needed
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      export CLI_VERBOSE=true
+  fi
+
+  # Get test directory (simplified - use current project tests)
+  TEST_BASE_DIR="../tests"
+
+  if [ ! -d "$TEST_BASE_DIR" ]; then
+      print_error "Test directory not found: $TEST_BASE_DIR"
+      print_info "Run from monk-api project directory or set up test environment"
+      exit 1
+  fi
+
+  print_info "Running Tests"
+  echo
+
+  # Function to find tests by pattern
+  find_tests_by_pattern() {
+      local pattern="$1"
+
+      if [ -z "$pattern" ]; then
+          # No pattern - find all tests
+          find "$TEST_BASE_DIR" -name "*.sh" -type f | while read -r file; do
+              if [ -x "$file" ]; then
+                  echo "$file"
+              fi
+          done | sort
+          return
+      fi
+
+      # Check if pattern is a number range (e.g., "00", "00-49")
+      if echo "$pattern" | grep -E '^[0-9]{2}(-[0-9]{2})?$' >/dev/null 2>&1; then
+          # Extract start and end numbers
+          if echo "$pattern" | grep -q '-'; then
+              start_num=$(echo "$pattern" | cut -d'-' -f1)
+              end_num=$(echo "$pattern" | cut -d'-' -f2)
+          else
+              start_num="$pattern"
+              end_num="$pattern"
+          fi
+
+          # Find tests in numeric range
+          for dir in "$TEST_BASE_DIR"/*; do
+              if [ -d "$dir" ]; then
+                  dir_name=$(basename "$dir")
+                  dir_num=$(echo "$dir_name" | grep -o '^[0-9][0-9]' | head -1)
+
+                  if [ -n "$dir_num" ] && [ "$dir_num" -ge "$start_num" ] && [ "$dir_num" -le "$end_num" ]; then
+                      find "$dir" -name "*.sh" -type f | while read -r file; do
+                          if [ -x "$file" ]; then
+                              echo "$file"
+                          fi
+                      done | sort
+                  fi
+              fi
+          done
+      else
+          # Text pattern - search in paths and filenames
+          find "$TEST_BASE_DIR" -name "*.sh" -type f | while read -r file; do
+              if [ -x "$file" ] && echo "$file" | grep -q "$pattern"; then
+                  echo "$file"
+              fi
+          done | sort
+      fi
+  }
+
+  # Run a single test
+  run_single_test() {
+      local test_path="$1"
+      local test_name=$(basename "$test_path" .sh)
+      local test_dir=$(dirname "$test_path")
+
+      print_info "Running: $test_name"
+
+      if [ ! -x "$test_path" ]; then
+          print_error "$test_name (not executable)"
+          return 1
+      fi
+
+      # Change to test directory and run the test
+      start_time=$(date +%s)
+      test_result=0
+
+      if [ "$CLI_VERBOSE" = "true" ]; then
+          # Show output in verbose mode
+          (cd "$test_dir" && "./$(basename "$test_path")")
+          test_result=$?
+      else
+          # Capture output and only show if test fails
+          if test_output=$(cd "$test_dir" && "./$(basename "$test_path")" 2>&1); then
+              test_result=0
+          else
+              test_result=$?
+          fi
+      fi
+
+      end_time=$(date +%s)
+      duration=$((end_time - start_time))
+
+      if [ $test_result -eq 0 ]; then
+          print_success "$test_name (${duration}s)"
+          return 0
+      else
+          print_error "$test_name (${duration}s)"
+          if [ "$CLI_VERBOSE" != "true" ] && [ -n "$test_output" ]; then
+              echo "Test output:"
+              echo "$test_output" | sed 's/^/  /'
+          fi
+          return 1
+      fi
+  }
+
+  # Main test execution
+  tests_run=0
+  tests_passed=0
+  tests_failed=0
+  failed_tests=()
+
+  # Get tests to run
+  if [ -n "$pattern" ]; then
+      print_info "Running tests matching pattern: $pattern"
+  else
+      print_info "Running all tests"
+  fi
+
+  test_files=$(find_tests_by_pattern "$pattern")
+
+  if [ -z "$test_files" ]; then
+      print_error "No tests found"
+      if [ -n "$pattern" ]; then
+          print_info "Pattern: $pattern"
+      fi
+      exit 1
+  fi
+
+  test_count=$(echo "$test_files" | wc -l | xargs)
+  echo "Found $test_count test(s)"
+  echo
+
+  # Run each test
+  echo "$test_files" | while IFS= read -r test_path; do
+      if [ -n "$test_path" ]; then
+          run_single_test "$test_path"
+      fi
+  done
+}
+
+# :command.function
+monk_test_one_command() {
+
+  # src/test_one_command.sh
+  # Check dependencies
+  check_dependencies
+
+  # Get arguments from bashly
+  test_file="${args[test_file]}"
+
+  # Get test directory
+  TEST_BASE_DIR="../tests"
+
+  if [ ! -d "$TEST_BASE_DIR" ]; then
+      print_error "Test directory not found: $TEST_BASE_DIR"
+      print_info "Run from monk-api project directory"
+      exit 1
+  fi
+
+  # Find the test file
+  test_path=""
+
+  # Check if it's already a full path
+  if [ -f "$test_file" ] && [ -x "$test_file" ]; then
+      test_path="$test_file"
+  elif [ -f "$test_file.sh" ] && [ -x "$test_file.sh" ]; then
+      test_path="$test_file.sh"
+  else
+      # Search in test directories
+      if echo "$test_file" | grep -q '\.sh$'; then
+          # Already has .sh extension
+          search_name="$test_file"
+      else
+          # Add .sh extension
+          search_name="$test_file.sh"
+      fi
+
+      # Find the test file in test directories
+      found_file=$(find "$TEST_BASE_DIR" -name "$search_name" -type f | head -1)
+
+      if [ -n "$found_file" ] && [ -x "$found_file" ]; then
+          test_path="$found_file"
+      else
+          print_error "Test file not found: $test_file"
+          print_info "Searched for: $search_name"
+          print_info "In directory: $TEST_BASE_DIR"
+          print_info ""
+          print_info "Available tests:"
+          find "$TEST_BASE_DIR" -name "*.sh" -type f | while read -r file; do
+              if [ -x "$file" ]; then
+                  echo "  $(basename "$file" .sh)"
+              fi
+          done | head -10
+          exit 1
+      fi
+  fi
+
+  # Run the test
+  test_name=$(basename "$test_path" .sh)
+  test_dir=$(dirname "$test_path")
+
+  print_info "Running single test: $test_name"
+  echo
+
+  if [ ! -x "$test_path" ]; then
+      print_error "$test_name (not executable)"
+      exit 1
+  fi
+
+  # Change to test directory and run the test
+  start_time=$(date +%s)
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      # Show output in verbose mode
+      (cd "$test_dir" && "./$(basename "$test_path")")
+      test_result=$?
+  else
+      # Capture output and show it regardless (since it's a single test)
+      echo "Test output:"
+      (cd "$test_dir" && "./$(basename "$test_path")") || test_result=$?
+  fi
+
+  end_time=$(date +%s)
+  duration=$((end_time - start_time))
+
+  echo
+  if [ "${test_result:-0}" -eq 0 ]; then
+      print_success "$test_name completed successfully (${duration}s)"
+  else
+      print_error "$test_name failed (${duration}s)"
+      exit 1
+  fi
 }
 
 # :command.function
 monk_test_git_command() {
 
   # src/test_git_command.sh
-  echo "# This file is located at 'src/test_git_command.sh'."
-  echo "# It contains the implementation for the 'monk test git' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_test_git_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  branch="${args[branch]}"
+  commit="${args[commit]}"
+
+  print_info "Git Test Environment (Simplified)"
+  echo
+
+  # Show what would be tested
+  if [ -n "$commit" ]; then
+      print_info "Branch: $branch"
+      print_info "Commit: $commit"
+      print_info "This would create a test environment for specific commit"
+  else
+      print_info "Branch: $branch"
+      print_info "This would create a test environment for branch HEAD"
+  fi
+
+  echo
+  print_info "Simplified Implementation:"
+  print_info "1. The full git test environment creation is complex"
+  print_info "2. Use 'monk test all' to run tests on current codebase"
+  print_info "3. Use 'monk tenant create' to create test databases"
+  print_info "4. Use 'monk servers' to manage test environments"
+
+  echo
+  print_info "For full git-based testing, use the original CLI:"
+  print_info "  ../bin/monk test git $branch"
+  if [ -n "$commit" ]; then
+      print_info "  ../bin/monk test git $branch $commit"
+  fi
 }
 
 # :command.function
 monk_test_diff_command() {
 
   # src/test_diff_command.sh
-  echo "# This file is located at 'src/test_diff_command.sh'."
-  echo "# It contains the implementation for the 'monk test diff' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_test_diff_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  run1="${args[run1]}"
+  run2="${args[run2]}"
+
+  print_info "Test Diff Comparison (Simplified)"
+  echo
+
+  print_info "Run 1: $run1"
+  print_info "Run 2: $run2"
+
+  echo
+  print_info "Simplified Implementation:"
+  print_info "1. Test diff was never properly implemented in original CLI"
+  print_info "2. Use 'monk test all' to run current tests"
+  print_info "3. Compare results manually or use external diff tools"
+
+  echo
+  print_info "For future implementation:"
+  print_info "- Compare test results between git branches"
+  print_info "- Show differences in test outcomes"
+  print_info "- Performance comparison between runs"
 }
 
 # :command.function
@@ -5269,6 +5584,13 @@ monk_test_parse_requirements() {
       shift $#
       ;;
 
+    one)
+      action="one"
+      shift
+      monk_test_one_parse_requirements "$@"
+      shift $#
+      ;;
+
     git)
       action="git"
       shift
@@ -5374,6 +5696,64 @@ monk_test_all_parse_requirements() {
 
     esac
   done
+
+}
+
+# :command.parse_requirements
+monk_test_one_parse_requirements() {
+  # :command.fixed_flags_filter
+  while [[ $# -gt 0 ]]; do
+    key="$1"
+    case "$key" in
+      --help | -h)
+        long_usage=yes
+        monk_test_one_usage
+        exit
+        ;;
+
+      *)
+        break
+        ;;
+
+    esac
+  done
+
+  # :command.command_filter
+  action="test one"
+
+  # :command.parse_requirements_while
+  while [[ $# -gt 0 ]]; do
+    key="$1"
+    case "$key" in
+
+      -?*)
+        printf "invalid option: %s\n" "$key" >&2
+        exit 1
+        ;;
+
+      *)
+        # :command.parse_requirements_case
+        # :command.parse_requirements_case_simple
+        # :argument.case
+        if [[ -z ${args['test_file']+x} ]]; then
+          args['test_file']=$1
+          shift
+        else
+          printf "invalid argument: %s\n" "$key" >&2
+          exit 1
+        fi
+
+        ;;
+
+    esac
+  done
+
+  # :command.required_args_filter
+  if [[ -z ${args['test_file']+x} ]]; then
+    printf "missing required argument: TEST_FILE\nusage: monk test one TEST_FILE\n" >&2
+
+    exit 1
+  fi
 
 }
 
@@ -6495,6 +6875,7 @@ run() {
     "ping") monk_ping_command ;;
     "test") monk_test_command ;;
     "test all") monk_test_all_command ;;
+    "test one") monk_test_one_command ;;
     "test git") monk_test_git_command ;;
     "test diff") monk_test_diff_command ;;
     "test env") monk_test_env_command ;;
