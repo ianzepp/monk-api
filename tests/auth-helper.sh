@@ -41,82 +41,97 @@ ensure_shared_database() {
     return 0
 }
 
-# Authentication and connectivity helper using monk CLI with shared database
-authenticate_and_ping() {
-    local test_name="${1:-test}"
-    local use_dedicated_db="${2:-false}"
+# Initialize test tenant for the script (call once at script start)
+initialize_test_tenant() {
+    # Create unique tenant name for this test script
+    TEST_TENANT_NAME="test-$(date +%s)"
     
-    # Only allocate dedicated database if explicitly requested
-    if [ "$use_dedicated_db" = "true" ] && ! has_allocated_database; then
-        if ! allocate_test_database "$test_name"; then
-            print_error "Failed to allocate dedicated test database"
-            return 1
+    print_step "Creating test tenant: $TEST_TENANT_NAME"
+    
+    # Create tenant with root user (quietly)
+    if monk tenant create "$TEST_TENANT_NAME" >/dev/null 2>&1; then
+        if [ "$CLI_VERBOSE" = "true" ]; then
+            print_info "Test tenant created successfully"
         fi
-        setup_database_cleanup_trap
-    fi
-    
-    # Determine domain to use
-    local test_domain
-    if [ "$use_dedicated_db" = "true" ] && has_allocated_database; then
-        test_domain=$(get_allocated_database)
     else
-        # Use current test database (set by monk test use)
-        local test_db_file="${HOME}/.monk-test-database"
-        if [ -f "$test_db_file" ]; then
-            test_domain=$(cat "$test_db_file")
-        else
-            test_domain="${MONK_TEST_DATABASE:-monk_api_test_shared_$(whoami)}"
-        fi
-        
-        # Ensure shared database exists and is initialized
-        ensure_shared_database "$test_domain"
+        print_error "Failed to create test tenant"
+        return 1
     fi
     
-    print_step "Authenticating with test domain: $test_domain"
+    print_step "Authenticating with tenant: $TEST_TENANT_NAME as root"
     
-    # Use monk auth login command
-    if monk auth login --domain "$test_domain"; then
+    # Use monk auth login command with tenant and username
+    if monk auth login "$TEST_TENANT_NAME" "root"; then
         print_success "Authentication successful"
-        
-        # Test connectivity and database access using monk ping
-        print_step "Testing database connectivity"
-        local ping_output
-        if ping_output=$(monk ping 2>&1); then
-            print_success "Database connectivity verified"
-            
-            # Show ping details in verbose mode
-            if [ "$CLI_VERBOSE" = "true" ]; then
-                print_info "Ping response:"
-                echo "$ping_output" | sed 's/^/  /'
-            fi
-            
-            return 0
-        else
-            print_error "Database connectivity failed"
-            
-            # Show ping error details
-            print_info "Ping error details:"
-            echo "$ping_output" | sed 's/^/  /'
-            
-            return 1
-        fi
+        return 0
     else
         print_error "Authentication failed"
         return 1
     fi
 }
 
-# Cleanup authentication
+# Test connectivity using existing authentication (call after initialize_test_tenant)
+test_connectivity() {
+    print_step "Testing database connectivity"
+    local ping_output
+    if ping_output=$(monk ping 2>&1); then
+        print_success "Database connectivity verified"
+        
+        # Show ping details in verbose mode
+        if [ "$CLI_VERBOSE" = "true" ]; then
+            print_info "Ping response:"
+            echo "$ping_output" | sed 's/^/  /'
+        fi
+        
+        return 0
+    else
+        print_error "Database connectivity failed"
+        
+        # Show ping error details
+        print_info "Ping error details:"
+        echo "$ping_output" | sed 's/^/  /'
+        
+        return 1
+    fi
+}
+
+# Combined initialization and connectivity test (for backward compatibility)
+authenticate_and_ping() {
+    local test_name="${1:-test}"
+    local use_dedicated_db="${2:-false}"
+    
+    # Initialize tenant and authenticate
+    if ! initialize_test_tenant; then
+        return 1
+    fi
+    
+    # Test connectivity
+    if ! test_connectivity; then
+        return 1
+    fi
+    
+    return 0
+}
+
+# Cleanup authentication and test tenant
 cleanup_auth() {
     if [ "$CLI_VERBOSE" = "true" ]; then
-        print_step "Cleaning up authentication"
+        print_step "Cleaning up authentication and test tenant"
     fi
     
     # Logout to clear stored token
     monk auth logout > /dev/null 2>&1
+    
+    # Clean up test tenant if we created one
+    if [ -n "$TEST_TENANT_NAME" ]; then
+        if [ "$CLI_VERBOSE" = "true" ]; then
+            print_info "Deleting test tenant: $TEST_TENANT_NAME"
+        fi
+        monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
+    fi
 }
 
-# Complete cleanup - auth and database
+# Complete cleanup - auth and database (kept for backward compatibility)
 cleanup_auth_and_database() {
     cleanup_auth
     deallocate_test_database
