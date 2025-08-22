@@ -1,6 +1,5 @@
 -- Monk API Required Schema Tables
 -- These tables are required for the Hono API to function correctly
--- Based on drizzle schema from monk-api-hono/drizzle/0000_powerful_punisher.sql
 
 -- Schema registry table to store JSON Schema definitions
 CREATE TABLE "schema" (
