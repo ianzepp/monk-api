@@ -27,16 +27,395 @@ import type { System } from './system.js';
  * - `?include_deleted=true` - Shows deleted records: `WHERE trashed_at IS NULL AND (user_conditions)`  
  * - Both parameters - Shows all records: `WHERE (user_conditions)`
  * 
- * ## Usage
+ * ### WHERE Clause Operators
+ * 
+ * #### Comparison Operators
+ * - **$eq** - Equals (default for simple values)
+ *   ```typescript
+ *   { name: "John" }                    // → name = 'John'
+ *   { age: { $eq: 25 } }               // → age = 25
+ *   { status: null }                   // → status IS NULL
+ *   ```
+ * 
+ * - **$ne, $neq** - Not equals
+ *   ```typescript
+ *   { status: { $ne: "inactive" } }    // → status != 'inactive'
+ *   { age: { $neq: null } }            // → age IS NOT NULL
+ *   ```
+ * 
+ * - **$gt, $gte, $lt, $lte** - Numeric/date comparisons
+ *   ```typescript
+ *   { age: { $gt: 18 } }               // → age > 18
+ *   { age: { $gte: 21 } }              // → age >= 21
+ *   { score: { $lt: 100 } }            // → score < 100
+ *   { price: { $lte: 999.99 } }        // → price <= 999.99
+ *   { created_at: { $gte: "2024-01-01" } } // → created_at >= '2024-01-01'
+ *   ```
+ * 
+ * #### Pattern Matching Operators
+ * - **$like** - Case-sensitive pattern matching (% wildcards)
+ *   ```typescript
+ *   { name: { $like: "John%" } }       // → name LIKE 'John%'
+ *   { email: { $like: "%@gmail.com" } } // → email LIKE '%@gmail.com'
+ *   ```
+ * 
+ * - **$nlike** - Case-sensitive NOT LIKE
+ *   ```typescript
+ *   { name: { $nlike: "temp%" } }      // → name NOT LIKE 'temp%'
+ *   ```
+ * 
+ * - **$ilike** - Case-insensitive LIKE (PostgreSQL)
+ *   ```typescript
+ *   { name: { $ilike: "john%" } }      // → name ILIKE 'john%' (matches "John", "JOHN", etc.)
+ *   ```
+ * 
+ * - **$nilike** - Case-insensitive NOT LIKE
+ *   ```typescript
+ *   { name: { $nilike: "test%" } }     // → name NOT ILIKE 'test%'
+ *   ```
+ * 
+ * - **$regex** - Regular expression matching
+ *   ```typescript
+ *   { phone: { $regex: "^\\+1" } }     // → phone ~ '^\\+1'
+ *   ```
+ * 
+ * - **$nregex** - NOT regular expression
+ *   ```typescript
+ *   { email: { $nregex: ".*temp.*" } } // → email !~ '.*temp.*'
+ *   ```
+ * 
+ * #### Array Operations
+ * - **$in** - Value in array (auto-applied for array values)
+ *   ```typescript
+ *   { status: ["active", "pending"] }         // → status IN ('active', 'pending')
+ *   { id: { $in: ["uuid1", "uuid2"] } }      // → id IN ('uuid1', 'uuid2')
+ *   { priority: { $in: [1, 2, 3] } }         // → priority IN (1, 2, 3)
+ *   ```
+ * 
+ * - **$nin** - Value NOT in array
+ *   ```typescript
+ *   { status: { $nin: ["deleted", "banned"] } } // → status NOT IN ('deleted', 'banned')
+ *   ```
+ * 
+ * - **$any** - Array field contains any value (PostgreSQL arrays)
+ *   ```typescript
+ *   { tags: { $any: ["urgent", "priority"] } } // → tags && ARRAY['urgent', 'priority']
+ *   ```
+ * 
+ * - **$all** - Array field contains all values
+ *   ```typescript
+ *   { tags: { $all: ["feature", "backend"] } } // → tags @> ARRAY['feature', 'backend']
+ *   ```
+ * 
+ * - **$nany, $nall** - Negated array operations
+ *   ```typescript
+ *   { tags: { $nany: ["deprecated"] } }        // → NOT (tags && ARRAY['deprecated'])
+ *   { tags: { $nall: ["old", "legacy"] } }     // → NOT (tags @> ARRAY['old', 'legacy'])
+ *   ```
+ * 
+ * #### Logical Operators
+ * - **$and** - All conditions must be true
+ *   ```typescript
+ *   { $and: [
+ *       { age: { $gte: 18 } },
+ *       { status: "active" },
+ *       { verified: true }
+ *   ] }
+ *   // → (age >= 18 AND status = 'active' AND verified = true)
+ *   ```
+ * 
+ * - **$or** - Any condition must be true
+ *   ```typescript
+ *   { $or: [
+ *       { role: "admin" },
+ *       { role: "moderator" }
+ *   ] }
+ *   // → (role = 'admin' OR role = 'moderator')
+ *   ```
+ * 
+ * - **$not** - Negates the condition
+ *   ```typescript
+ *   { $not: { status: "banned" } }            // → NOT (status = 'banned')
+ *   { $not: { age: { $lt: 18 } } }            // → NOT (age < 18)
+ *   ```
+ * 
+ * #### Search Operators
+ * - **$find** - Full-text search (implementation specific)
+ *   ```typescript
+ *   { content: { $find: "search terms" } }    // → Full-text search implementation
+ *   ```
+ * 
+ * - **$text** - Text search with ranking
+ *   ```typescript
+ *   { description: { $text: "keyword" } }     // → Text search with relevance scoring
+ *   ```
+ * 
+ * #### Existence Operators
+ * - **$exists** - Field exists and is not null
+ *   ```typescript
+ *   { optional_field: { $exists: true } }     // → optional_field IS NOT NULL
+ *   { temp_data: { $exists: false } }         // → temp_data IS NULL
+ *   ```
+ * 
+ * - **$null** - Field is null
+ *   ```typescript
+ *   { deleted_at: { $null: true } }           // → deleted_at IS NULL
+ *   { required_field: { $null: false } }      // → required_field IS NOT NULL
+ *   ```
+ * 
+ * ### Complex Condition Examples
  * ```typescript
- * const filter = new Filter(system, schemaName, tableName);
+ * // Multiple conditions on same field (implicit AND)
+ * { age: { $gte: 18, $lt: 65 } }             // → age >= 18 AND age < 65
+ * 
+ * // Nested logical operations
+ * {
+ *   $and: [
+ *     { status: "active" },
+ *     {
+ *       $or: [
+ *         { role: "admin" },
+ *         { permissions: { $any: ["write"] } }
+ *       ]
+ *     }
+ *   ]
+ * }
+ * // → status = 'active' AND (role = 'admin' OR permissions && ARRAY['write'])
+ * 
+ * // Mixed operators
+ * {
+ *   name: { $ilike: "john%" },
+ *   age: { $gte: 21 },
+ *   tags: { $in: ["vip", "premium"] },
+ *   $not: { status: "suspended" }
+ * }
+ * // → name ILIKE 'john%' AND age >= 21 AND tags IN ('vip', 'premium') AND NOT (status = 'suspended')
+ * ```
+ * 
+ * ## ORDER BY Clause
+ * 
+ * ### Single Column Ordering
+ * ```typescript
+ * // String format: "column [direction]"
+ * { order: "name" }                          // → ORDER BY "name" ASC
+ * { order: "created_at desc" }               // → ORDER BY "created_at" DESC
+ * 
+ * // Object format
+ * { order: { column: "price", sort: "desc" } } // → ORDER BY "price" DESC
+ * { order: { name: "asc" } }                 // → ORDER BY "name" ASC
+ * ```
+ * 
+ * ### Multi-Column Ordering
+ * ```typescript
+ * { order: [
+ *     "priority desc",
+ *     "created_at",
+ *     { column: "name", sort: "asc" }
+ * ] }
+ * // → ORDER BY "priority" DESC, "created_at" ASC, "name" ASC
+ * ```
+ * 
+ * ### Case Sensitivity
+ * ```typescript
+ * // PostgreSQL collations for case-insensitive sorting
+ * { order: "name COLLATE \"C\"" }            // Case-sensitive
+ * { order: "name COLLATE \"en_US.utf8\"" }   // Locale-aware
+ * ```
+ * 
+ * ## LIMIT/OFFSET Clause
+ * 
+ * ### Basic Pagination
+ * ```typescript
+ * { limit: 10 }                              // → LIMIT 10
+ * { limit: 20, offset: 40 }                  // → LIMIT 20 OFFSET 40 (page 3)
+ * ```
+ * 
+ * ### Pagination Helper
+ * ```typescript
+ * // Page-based pagination (page 1 = first page)
+ * const page = 3;
+ * const pageSize = 25;
+ * { limit: pageSize, offset: (page - 1) * pageSize } // → LIMIT 25 OFFSET 50
+ * ```
+ * 
+ * ### Performance Considerations
+ * - Use ORDER BY with LIMIT for consistent results
+ * - Large OFFSET values can be slow - consider cursor-based pagination
+ * - Index columns used in ORDER BY for better performance
+ * 
+ * ## Tree-Based Condition Building
+ * 
+ * The Filter class builds a tree structure for complex logical operations:
+ * 
+ * ### Simple Conditions
+ * ```typescript
+ * { name: "John", age: 25 }
+ * // Tree: [condition(name=John), condition(age=25)]
+ * // SQL: name = 'John' AND age = 25
+ * ```
+ * 
+ * ### Nested Logical Operations
+ * ```typescript
+ * {
+ *   status: "active",
+ *   $or: [
+ *     { role: "admin" },
+ *     {
+ *       $and: [
+ *         { role: "user" },
+ *         { verified: true }
+ *       ]
+ *     }
+ *   ]
+ * }
+ * // Tree structure:
+ * // - condition(status=active)
+ * // - logical($or)
+ * //   - condition(role=admin)
+ * //   - logical($and)
+ * //     - condition(role=user)
+ * //     - condition(verified=true)
+ * ```
+ * 
+ * ### Performance Optimization
+ * - Place most selective conditions first
+ * - Use indexes on commonly filtered columns
+ * - Consider compound indexes for multi-column filters
+ * - Avoid excessive nesting in complex conditions
+ * 
+ * ## Comprehensive Usage Examples
+ * 
+ * ### Basic User Search
+ * ```typescript
+ * const filter = new Filter(system, "users", "users_table");
  * filter.assign({
- *   where: { name: { $like: 'John%' }, age: { $gte: 18 } },
- *   order: [{ column: 'created_at', direction: 'DESC' }],
+ *   where: {
+ *     name: { $ilike: "john%" },
+ *     status: "active",
+ *     age: { $gte: 18 }
+ *   },
+ *   order: "created_at desc",
  *   limit: 10
  * });
- * const results = await filter.execute();
+ * const users = await filter.execute();
  * ```
+ * 
+ * ### Advanced Product Search
+ * ```typescript
+ * const filter = new Filter(system, "products", "products_table");
+ * filter.assign({
+ *   where: {
+ *     $and: [
+ *       {
+ *         $or: [
+ *           { category: { $in: ["electronics", "computers"] } },
+ *           { tags: { $any: ["sale", "clearance"] } }
+ *         ]
+ *       },
+ *       { price: { $gte: 10, $lte: 1000 } },
+ *       { in_stock: true },
+ *       { $not: { discontinued: true } }
+ *     ]
+ *   },
+ *   order: [
+ *     "featured desc",
+ *     "price asc",
+ *     "name"
+ *   ],
+ *   limit: 50,
+ *   offset: 0
+ * });
+ * const products = await filter.execute();
+ * ```
+ * 
+ * ### Using with System Context
+ * ```typescript
+ * // In route handler with System integration
+ * export default async function(context: Context): Promise<any> {
+ *   return await handleContextDb(context, async (system: System) => {
+ *     const filter = new Filter(system, 'articles', 'articles_table');
+ *     
+ *     // Parse query parameters
+ *     const searchTerm = context.req.query('search');
+ *     const category = context.req.query('category');
+ *     const page = parseInt(context.req.query('page') || '1');
+ *     
+ *     // Build dynamic filter
+ *     const conditions: any = {};
+ *     if (searchTerm) {
+ *       conditions.$or = [
+ *         { title: { $ilike: `%${searchTerm}%` } },
+ *         { content: { $ilike: `%${searchTerm}%` } }
+ *       ];
+ *     }
+ *     if (category) {
+ *       conditions.category = category;
+ *     }
+ *     
+ *     filter.assign({
+ *       where: conditions,
+ *       order: "published_at desc",
+ *       limit: 20,
+ *       offset: (page - 1) * 20
+ *     });
+ *     
+ *     return await filter.execute();
+ *   });
+ * }
+ * ```
+ * 
+ * ## Reusable Query Components
+ * 
+ * ### Extracting Clauses for Complex Queries
+ * ```typescript
+ * const filter = new Filter(system, "orders", "orders_table");
+ * filter.assign({
+ *   where: { status: "pending", priority: { $gte: 5 } },
+ *   order: "created_at desc"
+ * });
+ * 
+ * // Use clauses in custom SQL
+ * const whereClause = filter.getWhereClause();
+ * const orderClause = filter.getOrderClause();
+ * const limitClause = filter.getLimitClause();
+ * 
+ * const customSQL = `
+ *   SELECT o.*, c.name as customer_name 
+ *   FROM orders o 
+ *   JOIN customers c ON o.customer_id = c.id 
+ *   WHERE ${whereClause}
+ *   ${orderClause ? `ORDER BY ${orderClause}` : ''}
+ *   ${limitClause}
+ * `;
+ * ```
+ * 
+ * ## Edge Cases and Limitations
+ * 
+ * ### Null Handling
+ * ```typescript
+ * { field: null }                    // → field IS NULL
+ * { field: { $eq: null } }           // → field IS NULL
+ * { field: { $ne: null } }           // → field IS NOT NULL
+ * ```
+ * 
+ * ### Empty Arrays
+ * ```typescript
+ * { tags: [] }                       // → No condition added (ignored)
+ * { tags: { $in: [] } }              // → False condition (matches nothing)
+ * ```
+ * 
+ * ### SQL Injection Protection
+ * All values are properly escaped and parameterized:
+ * ```typescript
+ * { name: "O'Connor" }               // → name = 'O''Connor' (safely escaped)
+ * { comment: "'; DROP TABLE users; --" } // → Safely escaped, no injection
+ * ```
+ * 
+ * ### Performance Notes
+ * - Automatic soft delete filtering adds overhead - disable via options when not needed
+ * - Complex nested conditions can impact query planning - test with EXPLAIN
+ * - Use appropriate indexes for filtered and ordered columns
+ * - Consider query caching for frequently used filter patterns
  */
 
 // Filter operation types
