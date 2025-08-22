@@ -36,25 +36,23 @@ export interface JsonSchema {
 export class SchemaManager {
     // Parse and validate YAML schema
     static parseYamlSchema(yamlContent: string): JsonSchema {
-        try {
-            const jsonSchema = yaml.load(yamlContent) as JsonSchema;
-            
-            if (!jsonSchema || typeof jsonSchema !== 'object') {
-                throw new Error('Invalid schema definition format');
-            }
-
-            if (!jsonSchema.title || !jsonSchema.properties) {
-                throw new Error('Schema must have title and properties');
-            }
-
-            return jsonSchema;
-        } catch (yamlError) {
-            throw new Error(`YAML parsing error: ${yamlError instanceof Error ? yamlError.message : 'Invalid YAML format'}`);
+        const jsonSchema = yaml.load(yamlContent) as JsonSchema;
+        
+        if (!jsonSchema || typeof jsonSchema !== 'object') {
+            throw new Error('Invalid schema definition format');
         }
+
+        if (!jsonSchema.title || !jsonSchema.properties) {
+            throw new Error('Schema must have title and properties');
+        }
+
+        return jsonSchema;
     }
 
     // Create new schema with table
     static async createSchema(tx: TxContext, yamlContent: string): Promise<any> {
+        console.warn('Starting createSchema');
+
         const jsonSchema = this.parseYamlSchema(yamlContent);
         const schemaName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
         const tableName = `${schemaName}s`;
@@ -63,6 +61,8 @@ export class SchemaManager {
         const yamlChecksum = crypto.createHash('sha256').update(yamlContent).digest('hex');
 
         // Create schema record
+        console.warn('Inserting to DB', jsonSchema);
+
         const insertQuery = `
             INSERT INTO ${builtins.TABLE_NAMES.schemas} 
             (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, domain, access_read, access_edit, access_full, access_deny)

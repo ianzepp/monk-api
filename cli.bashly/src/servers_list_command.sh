@@ -22,7 +22,7 @@ if [ -z "$server_names" ]; then
     exit 0
 fi
 
-printf "%-15s %-30s %-8s %-12s %-20s %s\n" "Name" "Endpoint" "Status" "Last Ping" "Added" "Description"
+printf "%-15s %-30s %-8s %-8s %-12s %-20s %s\n" "Name" "Endpoint" "Status" "Auth" "Last Ping" "Added" "Description"
 echo "--------------------------------------------------------------------------------------------------------"
 
 echo "$server_names" | while read -r name; do
@@ -33,6 +33,7 @@ echo "$server_names" | while read -r name; do
         port=$(echo "$server_info" | jq -r '.port')
         protocol=$(echo "$server_info" | jq -r '.protocol')
         status=$(echo "$server_info" | jq -r '.status // "unknown"')
+        jwt_token=$(echo "$server_info" | jq -r '.jwt_token // ""')
         last_ping=$(echo "$server_info" | jq -r '.last_ping // "never"')
         added_at=$(echo "$server_info" | jq -r '.added_at // "unknown"')
         description=$(echo "$server_info" | jq -r '.description // ""')
@@ -47,14 +48,20 @@ echo "$server_names" | while read -r name; do
             added_at=$(echo "$added_at" | cut -d'T' -f1)
         fi
         
+        # Check if authenticated
+        auth_status="no"
+        if [ -n "$jwt_token" ]; then
+            auth_status="yes"
+        fi
+        
         # Mark current server
         marker=""
         if [ "$name" = "$current_server" ]; then
             marker="*"
         fi
         
-        printf "%-15s %-30s %-8s %-12s %-20s %s %s\n" \
-            "$name" "$endpoint" "$status" "$last_ping" "$added_at" "$description" "$marker"
+        printf "%-15s %-30s %-8s %-8s %-12s %-20s %s %s\n" \
+            "$name" "$endpoint" "$status" "$auth_status" "$last_ping" "$added_at" "$description" "$marker"
     fi
 done
 

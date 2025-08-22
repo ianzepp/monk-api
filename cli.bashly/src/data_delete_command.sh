@@ -1,5 +1,22 @@
-echo "# This file is located at 'src/data_delete_command.sh'."
-echo "# It contains the implementation for the 'monk data delete' command."
-echo "# The code you write here will be wrapped by a function named 'monk_data_delete_command()'."
-echo "# Feel free to edit this file; your changes will persist when regenerating."
-inspect_args
+# Check dependencies
+check_dependencies
+
+# Get arguments from bashly
+schema="${args[schema]}"
+id="${args[id]}"
+
+validate_schema "$schema"
+
+# Confirmation prompt in verbose mode
+if [ "$CLI_VERBOSE" = "true" ]; then
+    print_warning "Are you sure you want to delete $schema record: $id? (y/N)" >&2
+    read -r confirmation
+    
+    if ! echo "$confirmation" | grep -E "^[Yy]$" >/dev/null 2>&1; then
+        print_info "Operation cancelled" >&2
+        exit 0
+    fi
+fi
+
+response=$(make_request "DELETE" "/api/data/$schema/$id" "")
+handle_response "$response" "delete"

@@ -469,3 +469,29 @@ init_tenant_schema() {
         return 1
     fi
 }
+
+# Validate schema exists (best effort)
+validate_schema() {
+    local schema="$1"
+    
+    # Don't validate if running in non-verbose mode for speed
+    if [ "$CLI_VERBOSE" != "true" ]; then
+        return 0
+    fi
+    
+    # Try to get schema info - if it fails, just warn but continue
+    local response
+    if response=$(make_request "GET" "/api/meta/schema" "" 2>/dev/null); then
+        if echo "$response" | grep -q "\"$schema\""; then
+            if [ "$CLI_VERBOSE" = "true" ]; then
+                print_info "Schema validated: $schema"
+            fi
+        else
+            print_warning "Schema '$schema' not found in meta API, but continuing anyway"
+        fi
+    else
+        if [ "$CLI_VERBOSE" = "true" ]; then
+            print_info "Could not validate schema dynamically, assuming valid: $schema"
+        fi
+    fi
+}

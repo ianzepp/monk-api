@@ -2259,6 +2259,32 @@ init_tenant_schema() {
     fi
 }
 
+# Validate schema exists (best effort)
+validate_schema() {
+    local schema="$1"
+
+    # Don't validate if running in non-verbose mode for speed
+    if [ "$CLI_VERBOSE" != "true" ]; then
+        return 0
+    fi
+
+    # Try to get schema info - if it fails, just warn but continue
+    local response
+    if response=$(make_request "GET" "/api/meta/schema" "" 2>/dev/null); then
+        if echo "$response" | grep -q "\"$schema\""; then
+            if [ "$CLI_VERBOSE" = "true" ]; then
+                print_info "Schema validated: $schema"
+            fi
+        else
+            print_warning "Schema '$schema' not found in meta API, but continuing anyway"
+        fi
+    else
+        if [ "$CLI_VERBOSE" = "true" ]; then
+            print_info "Could not validate schema dynamically, assuming valid: $schema"
+        fi
+    fi
+}
+
 # :command.command_functions
 
 # :command.function
@@ -2450,144 +2476,446 @@ monk_auth_info_command() {
 monk_data_list_command() {
 
   # src/data_list_command.sh
-  echo "# This file is located at 'src/data_list_command.sh'."
-  echo "# It contains the implementation for the 'monk data list' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_data_list_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  schema="${args[schema]}"
+
+  validate_schema "$schema"
+
+  response=$(make_request "GET" "/api/data/$schema" "")
+  handle_response "$response" "list"
 }
 
 # :command.function
 monk_data_get_command() {
 
   # src/data_get_command.sh
-  echo "# This file is located at 'src/data_get_command.sh'."
-  echo "# It contains the implementation for the 'monk data get' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_data_get_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  schema="${args[schema]}"
+  id="${args[id]}"
+
+  validate_schema "$schema"
+
+  response=$(make_request "GET" "/api/data/$schema/$id" "")
+  handle_response "$response" "get"
 }
 
 # :command.function
 monk_data_create_command() {
 
   # src/data_create_command.sh
-  echo "# This file is located at 'src/data_create_command.sh'."
-  echo "# It contains the implementation for the 'monk data create' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_data_create_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  schema="${args[schema]}"
+
+  validate_schema "$schema"
+
+  # Read JSON data from stdin
+  json_data=$(cat)
+
+  if [ -z "$json_data" ]; then
+      print_error "No JSON data provided on stdin"
+      exit 1
+  fi
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_info "Creating $schema record with data:"
+      echo "$json_data" | sed 's/^/  /'
+  fi
+
+  # POST /api/data/:schema expects an array, so wrap single object in array
+  array_data="[$json_data]"
+
+  response=$(make_request "POST" "/api/data/$schema" "$array_data")
+
+  # Extract single object from array response to match input format
+  if [ "$JSON_PARSER" = "jq" ]; then
+      # Extract first item from array response for single-object input
+      single_response=$(echo "$response" | jq '{"success": .success, "data": .data[0], "error": .error, "error_code": .error_code}' 2>/dev/null || echo "$response")
+      handle_response "$single_response" "create"
+  else
+      handle_response "$response" "create"
+  fi
 }
 
 # :command.function
 monk_data_update_command() {
 
   # src/data_update_command.sh
-  echo "# This file is located at 'src/data_update_command.sh'."
-  echo "# It contains the implementation for the 'monk data update' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_data_update_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  schema="${args[schema]}"
+  id="${args[id]}"
+
+  validate_schema "$schema"
+
+  # Read JSON data from stdin
+  json_data=$(cat)
+
+  if [ -z "$json_data" ]; then
+      print_error "No JSON data provided on stdin"
+      exit 1
+  fi
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_info "Updating $schema record $id with data:"
+      echo "$json_data" | sed 's/^/  /'
+  fi
+
+  response=$(make_request "PUT" "/api/data/$schema/$id" "$json_data")
+  handle_response "$response" "update"
 }
 
 # :command.function
 monk_data_delete_command() {
 
   # src/data_delete_command.sh
-  echo "# This file is located at 'src/data_delete_command.sh'."
-  echo "# It contains the implementation for the 'monk data delete' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_data_delete_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  schema="${args[schema]}"
+  id="${args[id]}"
+
+  validate_schema "$schema"
+
+  # Confirmation prompt in verbose mode
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_warning "Are you sure you want to delete $schema record: $id? (y/N)" >&2
+      read -r confirmation
+
+      if ! echo "$confirmation" | grep -E "^[Yy]$" >/dev/null 2>&1; then
+          print_info "Operation cancelled" >&2
+          exit 0
+      fi
+  fi
+
+  response=$(make_request "DELETE" "/api/data/$schema/$id" "")
+  handle_response "$response" "delete"
 }
 
 # :command.function
 monk_data_export_command() {
 
   # src/data_export_command.sh
-  echo "# This file is located at 'src/data_export_command.sh'."
-  echo "# It contains the implementation for the 'monk data export' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_data_export_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  schema="${args[schema]}"
+  directory="${args[dir]}"
+
+  validate_schema "$schema"
+
+  # Create directory if it doesn't exist
+  if [ ! -d "$directory" ]; then
+      if [ "$CLI_VERBOSE" = "true" ]; then
+          print_info "Creating directory: $directory"
+      fi
+      mkdir -p "$directory"
+  fi
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_info "Exporting $schema records to: $directory"
+  fi
+
+  # Get all records using the API
+  response=$(make_request "GET" "/api/data/$schema" "")
+
+  # Use python3 to parse JSON and export individual files
+  if command -v python3 >/dev/null 2>&1; then
+      echo "$response" | python3 -c "
+  import sys, json, os
+  try:
+      data = json.load(sys.stdin)
+      if data.get('success') and 'data' in data:
+          records = data['data']
+          count = 0
+          for record in records:
+              if 'id' in record:
+                  filename = os.path.join('$directory', record['id'] + '.json')
+                  with open(filename, 'w') as f:
+                      json.dump(record, f, indent=4)
+                  count += 1
+                  if '$CLI_VERBOSE' == 'true':
+                      print(f'Exported: {filename}')
+              else:
+                  print('Warning: Record missing id field', file=sys.stderr)
+          print(f'Successfully exported {count} records to $directory')
+      else:
+          print('Error: Invalid API response format', file=sys.stderr)
+          print(f'Response: {data}', file=sys.stderr)
+          sys.exit(1)
+  except json.JSONDecodeError as e:
+      print(f'Error: Invalid JSON in API response: {e}', file=sys.stderr)
+      sys.exit(1)
+  except Exception as e:
+      print(f'Error: {e}', file=sys.stderr)
+      sys.exit(1)
+  "
+  else
+      print_error "Python3 required for export functionality"
+      print_info "Please install Python 3 to use export operations"
+      exit 1
+  fi
 }
 
 # :command.function
 monk_data_import_command() {
 
   # src/data_import_command.sh
-  echo "# This file is located at 'src/data_import_command.sh'."
-  echo "# It contains the implementation for the 'monk data import' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_data_import_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  schema="${args[schema]}"
+  directory="${args[dir]}"
+
+  validate_schema "$schema"
+
+  if [ ! -d "$directory" ]; then
+      print_error "Directory does not exist: $directory"
+      exit 1
+  fi
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_info "Importing $schema records from: $directory"
+  fi
+
+  # Collect all JSON files into an array for bulk import
+  if command -v python3 >/dev/null 2>&1; then
+      records_json=$(python3 -c "
+  import sys, json, os, glob
+  records = []
+  json_files = glob.glob(os.path.join('$directory', '*.json'))
+
+  if not json_files:
+      print('No .json files found in $directory', file=sys.stderr)
+      sys.exit(1)
+
+  for filepath in sorted(json_files):
+      filename = os.path.basename(filepath)
+      try:
+          with open(filepath, 'r') as f:
+              record = json.load(f)
+          records.append(record)
+          if '$CLI_VERBOSE' == 'true':
+              print(f'Loaded: {filename}', file=sys.stderr)
+      except Exception as e:
+          print(f'Error loading {filename}: {e}', file=sys.stderr)
+          sys.exit(1)
+
+  if '$CLI_VERBOSE' == 'true':
+      print(f'Prepared {len(records)} records for import', file=sys.stderr)
+  json.dump(records, sys.stdout)
+  ")
+
+      if [ -n "$records_json" ]; then
+          if [ "$CLI_VERBOSE" = "true" ]; then
+              print_info "Making bulk import request..."
+          fi
+
+          response=$(make_request "PUT" "/api/data/$schema" "$records_json")
+
+          print_success "Import completed successfully"
+          handle_response "$response" "import"
+      else
+          print_error "Failed to prepare records for import"
+          exit 1
+      fi
+  else
+      print_error "Python3 required for import functionality"
+      print_info "Please install Python 3 to use import operations"
+      exit 1
+  fi
 }
 
 # :command.function
 monk_meta_list_command() {
 
   # src/meta_list_command.sh
-  echo "# This file is located at 'src/meta_list_command.sh'."
-  echo "# It contains the implementation for the 'monk meta list' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_meta_list_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  type="${args[type]}"
+
+  # Validate metadata type (currently only schema supported)
+  case "$type" in
+      schema)
+          # Valid type
+          ;;
+      *)
+          print_error "Unsupported metadata type: $type"
+          print_info "Currently supported types: schema"
+          exit 1
+          ;;
+  esac
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_info "Listing all $type objects"
+  fi
+
+  response=$(make_request "GET" "/api/meta/$type" "")
+  handle_response "$response" "list"
 }
 
 # :command.function
 monk_meta_get_command() {
 
   # src/meta_get_command.sh
-  echo "# This file is located at 'src/meta_get_command.sh'."
-  echo "# It contains the implementation for the 'monk meta get' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_meta_get_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  type="${args[type]}"
+  name="${args[name]}"
+
+  # Validate metadata type (currently only schema supported)
+  case "$type" in
+      schema)
+          # Valid type
+          ;;
+      *)
+          print_error "Unsupported metadata type: $type"
+          print_info "Currently supported types: schema"
+          exit 1
+          ;;
+  esac
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_info "Getting $type object: $name"
+  fi
+
+  response=$(make_request "GET" "/api/meta/$type/$name" "")
+  handle_response "$response" "get"
 }
 
 # :command.function
 monk_meta_create_command() {
 
   # src/meta_create_command.sh
-  echo "# This file is located at 'src/meta_create_command.sh'."
-  echo "# It contains the implementation for the 'monk meta create' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_meta_create_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  type="${args[type]}"
+
+  # Validate metadata type (currently only schema supported)
+  case "$type" in
+      schema)
+          # Valid type
+          ;;
+      *)
+          print_error "Unsupported metadata type: $type"
+          print_info "Currently supported types: schema"
+          exit 1
+          ;;
+  esac
+
+  # Read YAML/JSON data from stdin
+  data=$(cat)
+
+  if [ -z "$data" ]; then
+      print_error "No YAML/JSON data provided on stdin"
+      print_info "Usage: cat schema.yaml | monk meta create schema"
+      exit 1
+  fi
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_info "Creating $type with data:"
+      echo "$data" | sed 's/^/  /'
+  fi
+
+  response=$(make_request "POST" "/api/meta/$type" "$data")
+  handle_response "$response" "create"
 }
 
 # :command.function
 monk_meta_update_command() {
 
   # src/meta_update_command.sh
-  echo "# This file is located at 'src/meta_update_command.sh'."
-  echo "# It contains the implementation for the 'monk meta update' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_meta_update_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  type="${args[type]}"
+  name="${args[name]}"
+
+  # Validate metadata type (currently only schema supported)
+  case "$type" in
+      schema)
+          # Valid type
+          ;;
+      *)
+          print_error "Unsupported metadata type: $type"
+          print_info "Currently supported types: schema"
+          exit 1
+          ;;
+  esac
+
+  # Read YAML/JSON data from stdin
+  data=$(cat)
+
+  if [ -z "$data" ]; then
+      print_error "No YAML/JSON data provided on stdin"
+      print_info "Usage: cat schema.yaml | monk meta update schema <name>"
+      exit 1
+  fi
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_info "Updating $type '$name' with data:"
+      echo "$data" | sed 's/^/  /'
+  fi
+
+  response=$(make_request "PUT" "/api/meta/$type/$name" "$data")
+  handle_response "$response" "update"
 }
 
 # :command.function
 monk_meta_delete_command() {
 
   # src/meta_delete_command.sh
-  echo "# This file is located at 'src/meta_delete_command.sh'."
-  echo "# It contains the implementation for the 'monk meta delete' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_meta_delete_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  type="${args[type]}"
+  name="${args[name]}"
+
+  # Validate metadata type (currently only schema supported)
+  case "$type" in
+      schema)
+          # Valid type
+          ;;
+      *)
+          print_error "Unsupported metadata type: $type"
+          print_info "Currently supported types: schema"
+          exit 1
+          ;;
+  esac
+
+  if [ "$CLI_VERBOSE" = "true" ]; then
+      print_warning "Are you sure you want to delete $type '$name'? (y/N)" >&2
+      read -r confirmation
+
+      if ! echo "$confirmation" | grep -E "^[Yy]$" >/dev/null 2>&1; then
+          print_info "Operation cancelled" >&2
+          exit 0
+      fi
+  fi
+
+  response=$(make_request "DELETE" "/api/meta/$type/$name" "")
+  handle_response "$response" "delete"
 }
 
 # :command.function
@@ -2916,7 +3244,7 @@ monk_servers_list_command() {
       exit 0
   fi
 
-  printf "%-15s %-30s %-8s %-12s %-20s %s\n" "Name" "Endpoint" "Status" "Last Ping" "Added" "Description"
+  printf "%-15s %-30s %-8s %-8s %-12s %-20s %s\n" "Name" "Endpoint" "Status" "Auth" "Last Ping" "Added" "Description"
   echo "--------------------------------------------------------------------------------------------------------"
 
   echo "$server_names" | while read -r name; do
@@ -2927,6 +3255,7 @@ monk_servers_list_command() {
           port=$(echo "$server_info" | jq -r '.port')
           protocol=$(echo "$server_info" | jq -r '.protocol')
           status=$(echo "$server_info" | jq -r '.status // "unknown"')
+          jwt_token=$(echo "$server_info" | jq -r '.jwt_token // ""')
           last_ping=$(echo "$server_info" | jq -r '.last_ping // "never"')
           added_at=$(echo "$server_info" | jq -r '.added_at // "unknown"')
           description=$(echo "$server_info" | jq -r '.description // ""')
@@ -2941,14 +3270,20 @@ monk_servers_list_command() {
               added_at=$(echo "$added_at" | cut -d'T' -f1)
           fi
 
+          # Check if authenticated
+          auth_status="no"
+          if [ -n "$jwt_token" ]; then
+              auth_status="yes"
+          fi
+
           # Mark current server
           marker=""
           if [ "$name" = "$current_server" ]; then
               marker="*"
           fi
 
-          printf "%-15s %-30s %-8s %-12s %-20s %s %s\n" \
-              "$name" "$endpoint" "$status" "$last_ping" "$added_at" "$description" "$marker"
+          printf "%-15s %-30s %-8s %-8s %-12s %-20s %s %s\n" \
+              "$name" "$endpoint" "$status" "$auth_status" "$last_ping" "$added_at" "$description" "$marker"
       fi
   done
 

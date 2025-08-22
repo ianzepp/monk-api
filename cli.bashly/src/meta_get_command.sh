@@ -1,5 +1,25 @@
-echo "# This file is located at 'src/meta_get_command.sh'."
-echo "# It contains the implementation for the 'monk meta get' command."
-echo "# The code you write here will be wrapped by a function named 'monk_meta_get_command()'."
-echo "# Feel free to edit this file; your changes will persist when regenerating."
-inspect_args
+# Check dependencies
+check_dependencies
+
+# Get arguments from bashly
+type="${args[type]}"
+name="${args[name]}"
+
+# Validate metadata type (currently only schema supported)
+case "$type" in
+    schema)
+        # Valid type
+        ;;
+    *)
+        print_error "Unsupported metadata type: $type"
+        print_info "Currently supported types: schema"
+        exit 1
+        ;;
+esac
+
+if [ "$CLI_VERBOSE" = "true" ]; then
+    print_info "Getting $type object: $name"
+fi
+
+response=$(make_request "GET" "/api/meta/$type/$name" "")
+handle_response "$response" "get"

@@ -1,5 +1,24 @@
-echo "# This file is located at 'src/meta_list_command.sh'."
-echo "# It contains the implementation for the 'monk meta list' command."
-echo "# The code you write here will be wrapped by a function named 'monk_meta_list_command()'."
-echo "# Feel free to edit this file; your changes will persist when regenerating."
-inspect_args
+# Check dependencies
+check_dependencies
+
+# Get arguments from bashly
+type="${args[type]}"
+
+# Validate metadata type (currently only schema supported)
+case "$type" in
+    schema)
+        # Valid type
+        ;;
+    *)
+        print_error "Unsupported metadata type: $type"
+        print_info "Currently supported types: schema"
+        exit 1
+        ;;
+esac
+
+if [ "$CLI_VERBOSE" = "true" ]; then
+    print_info "Listing all $type objects"
+fi
+
+response=$(make_request "GET" "/api/meta/$type" "")
+handle_response "$response" "list"

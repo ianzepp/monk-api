@@ -7,27 +7,15 @@ import { handleContextTx } from '../lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
     return await handleContextTx(context, async (system: System) => {
-        try {
-            const yamlContent = await context.req.text();
-            const tx = system.dtx as TxContext;
-            
-            // Validate YAML before transaction
-            SchemaManager.parseYamlSchema(yamlContent);
+        const yamlContent = await context.req.text();
+        const tx = system.dtx as TxContext;
+        
+        console.debug('POST /api/meta/schema', yamlContent)
 
-            return await SchemaManager.createSchema(tx, yamlContent);
-        } catch (error) {
-            if (error instanceof Error && error.message.includes('YAML parsing')) {
-                return createValidationError(context, 'YAML parsing error', [{
-                    path: ['yaml'],
-                    message: error.message
-                }]);
-            }
-            
-            if (error instanceof Error && error.message.includes('Schema must have')) {
-                return createValidationError(context, error.message, []);
-            }
+        // Validate YAML before transaction
+        SchemaManager.parseYamlSchema(yamlContent);
 
-            throw error;
-        }
+        console.debug('Delegating to createSchema()')
+        return await SchemaManager.createSchema(tx, yamlContent);
     });
 }
