@@ -1,16 +1,11 @@
 import type { Context } from 'hono';
-import { System } from '../lib/system.js';
-import { handleContextDb } from '../lib/api/responses.js';
+import { SchemaMetaYAML } from '../lib/schema-meta-yaml.js';
 
-export default async function (context: Context): Promise<any> {
-    return await handleContextDb(context, async (system: System) => {
-        const schemaName = context.req.param('name');
-        const result = await system.database.toSchema(schemaName);
-
-        if (!result) {
-            throw new Error(`Schema '${schemaName}' not found`);
-        }
-        
-        return result;
-    });
+export default async function (context: Context): Promise<Response> {
+    const schemaName = context.req.param('name');
+    
+    console.debug(`GET /api/meta/schema/${schemaName}`);
+    
+    // Direct call to SchemaMetaYAML - handles all logic and returns Response
+    return await SchemaMetaYAML.getSchemaAsYaml(context, schemaName);
 }

@@ -1,4 +1,6 @@
-import { builtins, type TxContext } from '../db/index.js';
+import { builtins, type TxContext, type DbContext } from '../db/index.js';
+import { DatabaseManager } from './database-manager.js';
+import type { Context } from 'hono';
 import * as yaml from 'js-yaml';
 import crypto from 'crypto';
 
@@ -31,9 +33,27 @@ export interface JsonSchema {
 }
 
 /**
- * Schema management utilities - centralized logic for meta operations
+ * Schema Meta YAML - Direct YAML-based schema operations for meta API
+ * Bypasses System/Database abstractions for clean YAML input/output
  */
-export class SchemaManager {
+export class SchemaMetaYAML {
+    // Get database connection from Hono context
+    private static async getDatabaseFromContext(context: Context): Promise<DbContext> {
+        const payload = context.get('jwtPayload') as any;
+        const databaseName = payload?.database;
+        
+        if (!databaseName) {
+            throw new Error('No database context available');
+        }
+        
+        return await DatabaseManager.getDatabaseForDomain(databaseName);
+    }
+
+    // Get transaction from database connection
+    private static async getTransaction(db: DbContext): Promise<TxContext> {
+        return await db.connect();
+    }
+
     // Parse and validate YAML schema
     static parseYamlSchema(yamlContent: string): JsonSchema {
         const jsonSchema = yaml.load(yamlContent) as JsonSchema;
@@ -84,6 +104,193 @@ export class SchemaManager {
         await tx.query(ddl);
 
         return schemaResult.rows[0];
+    }
+
+    // Select schema and return as YAML
+    static async selectSchema(db: DbContext | TxContext, schemaName: string): Promise<string> {
+        // Get schema record from database
+        const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 LIMIT 1`;
+        const schemaResult = await db.query(selectQuery, [schemaName]);
+
+        if (schemaResult.rows.length === 0) {
+            throw new Error(`Schema '${schemaName}' not found`);
+        }
+
+        const schemaRecord = schemaResult.rows[0];
+        const jsonDefinition = schemaRecord.definition;
+
+        // Convert JSON definition back to YAML
+        const yamlOutput = yaml.dump(jsonDefinition, {
+            indent: 2,
+            lineWidth: 120,
+            noRefs: true,
+            sortKeys: false
+        });
+
+        return yamlOutput;
+    }
+
+    // High-level method: Create schema from YAML and return created schema as YAML
+    static async createSchemaFromYaml(context: Context, yamlContent: string): Promise<Response> {
+        try {
+            // Validate content-type
+            const contentType = context.req.header('content-type');
+            if (!contentType || (!contentType.includes('text/yaml') && !contentType.includes('application/yaml') && !contentType.includes('text/plain'))) {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: 'Content-Type must be text/yaml, application/yaml, or text/plain',
+                    error_code: 'INVALID_CONTENT_TYPE'
+                }), {
+                    headers: { 'Content-Type': 'application/json' },
+                    status: 400
+                });
+            }
+
+            const db = await this.getDatabaseFromContext(context);
+            const tx = await this.getTransaction(db);
+            
+            try {
+                // Validate YAML before transaction
+                const jsonSchema = this.parseYamlSchema(yamlContent);
+                const schemaName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
+                
+                console.debug('Delegating to createSchema()');
+                await this.createSchema(tx, yamlContent);
+                
+                await tx.query('COMMIT');
+                tx.release();
+                
+                // Return the created schema as YAML (fetch it back)
+                const createdYaml = await this.selectSchema(db, schemaName);
+                
+                return new Response(createdYaml, {
+                    headers: { 'Content-Type': 'text/yaml' },
+                    status: 201
+                });
+            } catch (error) {
+                await tx.query('ROLLBACK');
+                tx.release();
+                throw error;
+            }
+        } catch (error) {
+            return new Response(JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : 'Schema creation failed',
+                error_code: 'SCHEMA_CREATE_FAILED'
+            }), {
+                headers: { 'Content-Type': 'application/json' },
+                status: 400
+            });
+        }
+    }
+
+    // High-level method: Get schema as YAML (for routes to call directly)
+    static async getSchemaAsYaml(context: Context, schemaName: string): Promise<Response> {
+        try {
+            const db = await this.getDatabaseFromContext(context);
+            const yamlOutput = await this.selectSchema(db, schemaName);
+            
+            return new Response(yamlOutput, {
+                headers: { 'Content-Type': 'text/yaml' },
+                status: 200
+            });
+        } catch (error) {
+            return new Response(JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : 'Schema not found',
+                error_code: 'SCHEMA_NOT_FOUND'
+            }), {
+                headers: { 'Content-Type': 'application/json' },
+                status: 404
+            });
+        }
+    }
+
+    // High-level method: Update schema from YAML and return updated schema as YAML
+    static async updateSchemaFromYaml(context: Context, schemaName: string, yamlContent: string): Promise<Response> {
+        try {
+            // Validate content-type
+            const contentType = context.req.header('content-type');
+            if (!contentType || (!contentType.includes('text/yaml') && !contentType.includes('application/yaml') && !contentType.includes('text/plain'))) {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: 'Content-Type must be text/yaml, application/yaml, or text/plain',
+                    error_code: 'INVALID_CONTENT_TYPE'
+                }), {
+                    headers: { 'Content-Type': 'application/json' },
+                    status: 400
+                });
+            }
+
+            const db = await this.getDatabaseFromContext(context);
+            const tx = await this.getTransaction(db);
+            
+            try {
+                // Validate YAML before transaction
+                this.parseYamlSchema(yamlContent);
+                
+                console.debug('Delegating to updateSchema()');
+                await this.updateSchema(tx, schemaName, yamlContent);
+                
+                await tx.query('COMMIT');
+                tx.release();
+                
+                // Return the updated schema as YAML (fetch it back)
+                const updatedYaml = await this.selectSchema(db, schemaName);
+                
+                return new Response(updatedYaml, {
+                    headers: { 'Content-Type': 'text/yaml' },
+                    status: 200
+                });
+            } catch (error) {
+                await tx.query('ROLLBACK');
+                tx.release();
+                throw error;
+            }
+        } catch (error) {
+            return new Response(JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : 'Schema update failed',
+                error_code: 'SCHEMA_UPDATE_FAILED'
+            }), {
+                headers: { 'Content-Type': 'application/json' },
+                status: 400
+            });
+        }
+    }
+
+    // High-level method: Delete schema and return no content
+    static async deleteSchemaByName(context: Context, schemaName: string): Promise<Response> {
+        try {
+            const db = await this.getDatabaseFromContext(context);
+            const tx = await this.getTransaction(db);
+            
+            try {
+                console.debug('Delegating to deleteSchema()');
+                await this.deleteSchema(tx, schemaName);
+                
+                await tx.query('COMMIT');
+                tx.release();
+                
+                // Return no content for successful deletion
+                return new Response(null, {
+                    status: 204
+                });
+            } catch (error) {
+                await tx.query('ROLLBACK');
+                tx.release();
+                throw error;
+            }
+        } catch (error) {
+            return new Response(JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : 'Schema deletion failed',
+                error_code: 'SCHEMA_DELETE_FAILED'
+            }), {
+                headers: { 'Content-Type': 'application/json' },
+                status: 404
+            });
+        }
     }
 
     // Update existing schema with non-destructive evolution
