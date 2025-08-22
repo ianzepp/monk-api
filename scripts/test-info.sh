@@ -20,31 +20,8 @@ NC='\033[0m'
 
 print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 
-# Configuration files
-SERVERS_CONFIG="${HOME}/.config/monk/servers.json"
-
-# Helper functions to get monk configuration
-get_current_server_url() {
-    if command -v monk >/dev/null 2>&1; then
-        monk test env SERVER_URL 2>/dev/null || echo "http://localhost:3000"
-    else
-        echo "http://localhost:3000"
-    fi
-}
-
-get_current_jwt_token() {
-    if command -v monk >/dev/null 2>&1; then
-        monk auth token 2>/dev/null || echo ""
-    fi
-}
-
-get_current_server_name() {
-    if command -v monk >/dev/null 2>&1; then
-        monk test env CURRENT_SERVER 2>/dev/null || echo "local"
-    else
-        echo "local"
-    fi
-}
+# Load shared configuration helpers
+source "$(dirname "$0")/config-helper.sh"
 
 # Get specific variable if requested
 var_name="${1:-}"
@@ -85,10 +62,11 @@ print_info "Current Environment Status"
 echo
 
 # Server Information
-if command -v jq >/dev/null 2>&1 && [ -f "$SERVERS_CONFIG" ]; then
-    current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
+servers_config=$(get_servers_config)
+if command -v jq >/dev/null 2>&1 && [ -f "$servers_config" ]; then
+    current_server=$(jq -r '.current // empty' "$servers_config" 2>/dev/null)
     if [ -n "$current_server" ] && [ "$current_server" != "null" ]; then
-        server_info=$(jq -r ".servers.\"$current_server\"" "$SERVERS_CONFIG" 2>/dev/null)
+        server_info=$(jq -r ".servers.\"$current_server\"" "$servers_config" 2>/dev/null)
         hostname=$(echo "$server_info" | jq -r '.hostname')
         port=$(echo "$server_info" | jq -r '.port')
         protocol=$(echo "$server_info" | jq -r '.protocol')
@@ -169,8 +147,8 @@ echo "Database Port: 5432"
 echo
 
 # Configuration Files
-echo "Servers Config: $SERVERS_CONFIG"
-if [ -f "$SERVERS_CONFIG" ]; then
+echo "Servers Config: $servers_config"
+if [ -f "$servers_config" ]; then
     echo "Servers Config Status: exists"
 else
     echo "Servers Config Status: not found"

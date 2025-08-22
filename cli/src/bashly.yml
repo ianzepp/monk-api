@@ -208,6 +208,9 @@ commands:
       help: Git branch or reference
     - name: commit
       help: Specific commit (optional)
+    flags:
+    - long: --clean
+      help: Force clean build by removing existing environment
       
   - name: diff
     help: Compare test results between environments

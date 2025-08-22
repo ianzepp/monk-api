@@ -2,31 +2,8 @@
 # Common Test Environment Setup
 # Source this script at the top of test files to auto-configure environment
 
-# Functions to get current monk configuration
-get_current_server_url() {
-    if command -v monk >/dev/null 2>&1; then
-        # Use monk CLI to get current server URL
-        monk test env SERVER_URL 2>/dev/null || echo "http://localhost:3000"
-    else
-        echo "http://localhost:3000"
-    fi
-}
-
-get_current_jwt_token() {
-    if command -v monk >/dev/null 2>&1; then
-        # Use monk CLI to get current JWT token
-        monk auth token 2>/dev/null || echo ""
-    fi
-}
-
-get_current_server_name() {
-    if command -v monk >/dev/null 2>&1; then
-        # Use monk CLI to get current server name
-        monk test env CURRENT_SERVER 2>/dev/null || echo "local"
-    else
-        echo "local"
-    fi
-}
+# Load shared configuration helpers
+source "$(dirname "${BASH_SOURCE[0]}")/../scripts/config-helper.sh"
 
 # Auto-configure environment from persistent monk configuration
 if command -v monk >/dev/null 2>&1; then
