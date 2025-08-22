@@ -1,0 +1,331 @@
+name: monk
+help: Monk CLI - Command-line interface for PaaS Backend API
+version: 1.0.0
+
+environment_variables:
+- name: CLI_BASE_URL
+  help: "Target API server (auto-detected from monk test env)"
+- name: CLI_VERBOSE
+  help: Enable verbose output for all commands
+- name: JWT_TOKEN
+  help: "Authentication token (managed by monk auth)"
+
+commands:
+# Authentication and token management
+- name: auth
+  help: Authentication and token management
+  
+  commands:
+  - name: login
+    help: Authenticate with database domain
+    flags:
+    - long: --domain
+      arg: domain
+      help: Database domain name
+      required: true
+      
+  - name: logout
+    help: Clear stored JWT token
+    
+  - name: status
+    help: Show authentication status
+    
+  - name: token
+    help: Display current JWT token
+    
+  - name: info
+    help: Decode and display JWT token contents
+
+# Data operations on dynamic schemas
+- name: data
+  help: Data operations on dynamic schemas
+  
+  commands:
+  - name: list
+    help: List all records for schema
+    args:
+    - name: schema
+      required: true
+      help: Schema name to list records from
+      
+  - name: get
+    help: Get specific record
+    args:
+    - name: schema
+      required: true
+      help: Schema name
+    - name: id
+      required: true
+      help: Record ID to retrieve
+      
+  - name: create
+    help: Create record from stdin
+    args:
+    - name: schema
+      required: true
+      help: Schema name to create record in
+      
+  - name: update
+    help: Update record from stdin
+    args:
+    - name: schema
+      required: true
+      help: Schema name
+    - name: id
+      required: true
+      help: Record ID to update
+      
+  - name: delete
+    help: Delete record
+    args:
+    - name: schema
+      required: true
+      help: Schema name
+    - name: id
+      required: true
+      help: Record ID to delete
+      
+  - name: export
+    help: Export records to JSON files
+    args:
+    - name: schema
+      required: true
+      help: Schema name to export
+    - name: dir
+      required: true
+      help: Directory to export to
+      
+  - name: import
+    help: Import JSON files as records
+    args:
+    - name: schema
+      required: true
+      help: Schema name to import into
+    - name: dir
+      required: true
+      help: Directory to import from
+
+# Schema and metadata management
+- name: meta
+  help: Schema and metadata management
+  
+  commands:
+  - name: list
+    help: List all schemas
+    args:
+    - name: type
+      help: Type to list
+      default: schema
+      
+  - name: get
+    help: Get specific schema
+    args:
+    - name: type
+      help: Type to get
+      required: true
+    - name: name
+      required: true
+      help: Schema name to retrieve
+      
+  - name: create
+    help: "Create schema from stdin (YAML/JSON)"
+    args:
+    - name: type
+      help: Type to create
+      required: true
+      
+  - name: update
+    help: Update schema from stdin
+    args:
+    - name: type
+      help: Type to update  
+      required: true
+    - name: name
+      required: true
+      help: Schema name to update
+      
+  - name: delete
+    help: Delete schema
+    args:
+    - name: type
+      help: Type to delete
+      required: true
+    - name: name
+      required: true
+      help: Schema name to delete
+
+# Advanced search with filter DSL
+- name: find
+  help: Advanced search with filter DSL
+  args:
+  - name: schema
+    required: true
+    help: Schema to search
+  flags:
+  - long: --field
+    short: -f
+    arg: field
+    help: Extract specific field from results
+  - long: --count
+    short: -c
+    help: Return count of matching records only
+  - long: --exit-code
+    short: -x
+    help: Exit with code only (no output)
+  - long: --verbose
+    short: -v
+    help: Verbose output
+  - long: --head
+    short: -H
+    help: Return only first record
+  - long: --tail
+    short: -T
+    help: Return only last record
+
+# Server connectivity testing
+- name: ping
+  help: Server connectivity testing
+  flags:
+  - long: --verbose
+    short: -v
+    help: Verbose server information
+  - long: --jwt-token
+    short: -j
+    arg: token
+    help: Include JWT token in request
+
+# Comprehensive test management
+- name: test
+  help: Comprehensive test management
+  
+  commands:
+  - name: all
+    help: Run tests (all or pattern matching)
+    args:
+    - name: pattern
+      help: "Pattern to match tests (e.g., 00-20)"
+      
+  - name: one
+    help: Run a single test file
+    args:
+    - name: test_file
+      required: true
+      help: Test file name or path (with or without .sh extension)
+      
+  - name: git
+    help: Create/update git-aware test environment
+    args:
+    - name: branch
+      required: true
+      help: Git branch or reference
+    - name: commit
+      help: Specific commit (optional)
+      
+  - name: diff
+    help: Compare test results between environments
+    args:
+    - name: run1
+      required: true
+      help: First test run to compare
+    - name: run2
+      required: true
+      help: Second test run to compare
+      
+  - name: env
+    help: Show test environment variables
+    args:
+    - name: var_name
+      help: Specific variable name (optional)
+
+# Remote server management
+- name: servers
+  help: Remote server management
+  
+  commands:
+  - name: add
+    help: Register remote server
+    args:
+    - name: name
+      required: true
+      help: Server name
+    - name: endpoint
+      required: true
+      help: "Server endpoint (host:port)"
+    flags:
+    - long: --description
+      arg: description
+      help: Optional server description
+      
+  - name: list
+    help: List all servers with health status
+    
+  - name: current
+    help: Show currently selected server
+    
+  - name: use
+    help: "Switch to server (sets CLI_BASE_URL)"
+    args:
+    - name: name
+      required: true
+      help: Server name to switch to
+      
+  - name: delete
+    help: Remove server from registry
+    args:
+    - name: name
+      required: true
+      help: Server name to delete
+      
+  - name: ping
+    help: Health check specific server
+    args:
+    - name: name
+      required: true
+      help: Server name to ping
+      
+  - name: ping-all
+    help: Health check all registered servers
+
+# Multi-tenant database management
+- name: tenant
+  help: Multi-tenant database management
+  
+  commands:
+  - name: create
+    help: Create new tenant database and record
+    args:
+    - name: name
+      required: true
+      help: Name of the tenant database to create
+    - name: test_suffix
+      help: Optional test suffix for test allocations
+    flags:
+    - long: --host
+      arg: host
+      help: Database host
+      default: localhost
+      
+  - name: delete
+    help: Delete tenant database
+    args:
+    - name: name
+      required: true
+      help: Name of the tenant database to delete
+      
+  - name: init
+    help: Truncate and re-initialize tenant database
+    args:
+    - name: name
+      required: true
+      help: Name of the existing tenant database to re-initialize
+      
+  - name: list
+    help: List all tenant databases
+    
+  - name: use
+    help: Switch to tenant database
+    args:
+    - name: name
+      required: true
+      help: Name of the tenant to switch to
+

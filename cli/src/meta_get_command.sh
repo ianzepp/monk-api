@@ -1,0 +1,25 @@
+# Check dependencies
+check_dependencies
+
+# Get arguments from bashly
+type="${args[type]}"
+name="${args[name]}"
+
+# Validate metadata type (currently only schema supported)
+case "$type" in
+    schema)
+        # Valid type
+        ;;
+    *)
+        print_error "Unsupported metadata type: $type"
+        print_info "Currently supported types: schema"
+        exit 1
+        ;;
+esac
+
+if [ "$CLI_VERBOSE" = "true" ]; then
+    print_info "Getting $type object: $name"
+fi
+
+response=$(make_request "GET" "/api/meta/$type/$name" "")
+handle_response "$response" "get"
