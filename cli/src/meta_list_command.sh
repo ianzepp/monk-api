@@ -20,5 +20,5 @@ if [ "$CLI_VERBOSE" = "true" ]; then
     print_info "Listing all $type objects"
 fi
 
-response=$(make_request "GET" "/api/meta/$type" "")
-handle_response "$response" "list"
+response=$(make_request_json "GET" "/api/meta/$type" "")
+handle_response_json "$response" "list"

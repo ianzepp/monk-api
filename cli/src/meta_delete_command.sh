@@ -27,5 +27,5 @@ if [ "$CLI_VERBOSE" = "true" ]; then
     fi
 fi
 
-response=$(make_request "DELETE" "/api/meta/$type/$name" "")
-handle_response "$response" "delete"
+response=$(make_request_yaml "DELETE" "/api/meta/$type/$name" "")
+handle_response_yaml "$response" "delete"

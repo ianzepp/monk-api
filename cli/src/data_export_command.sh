@@ -20,7 +20,7 @@ if [ "$CLI_VERBOSE" = "true" ]; then
 fi
 
 # Get all records using the API
-response=$(make_request "GET" "/api/data/$schema" "")
+response=$(make_request_json "GET" "/api/data/$schema" "")
 
 # Use python3 to parse JSON and export individual files
 if command -v python3 >/dev/null 2>&1; then

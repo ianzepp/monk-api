@@ -18,7 +18,7 @@ if [ "$CLI_VERBOSE" = "true" ]; then
 fi
 
 # Make authentication request
-if response=$(make_request "POST" "/auth/login" "$auth_data"); then
+if response=$(make_request_json "POST" "/auth/login" "$auth_data"); then
     # Extract token from response
     token=""
     if [ "$JSON_PARSER" = "jq" ]; then

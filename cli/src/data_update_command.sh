@@ -20,5 +20,5 @@ if [ "$CLI_VERBOSE" = "true" ]; then
     echo "$json_data" | sed 's/^/  /'
 fi
 
-response=$(make_request "PUT" "/api/data/$schema/$id" "$json_data")
-handle_response "$response" "update"
+response=$(make_request_json "PUT" "/api/data/$schema/$id" "$json_data")
+handle_response_json "$response" "update"

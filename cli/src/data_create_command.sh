@@ -22,13 +22,13 @@ fi
 # POST /api/data/:schema expects an array, so wrap single object in array
 array_data="[$json_data]"
 
-response=$(make_request "POST" "/api/data/$schema" "$array_data")
+response=$(make_request_json "POST" "/api/data/$schema" "$array_data")
 
 # Extract single object from array response to match input format
 if [ "$JSON_PARSER" = "jq" ]; then
     # Extract first item from array response for single-object input
     single_response=$(echo "$response" | jq '{"success": .success, "data": .data[0], "error": .error, "error_code": .error_code}' 2>/dev/null || echo "$response")
-    handle_response "$single_response" "create"
+    handle_response_json "$single_response" "create"
 else
-    handle_response "$response" "create"
+    handle_response_json "$response" "create"
 fi

@@ -18,5 +18,5 @@ if [ "$CLI_VERBOSE" = "true" ]; then
     fi
 fi
 
-response=$(make_request "DELETE" "/api/data/$schema/$id" "")
-handle_response "$response" "delete"
+response=$(make_request_json "DELETE" "/api/data/$schema/$id" "")
+handle_response_json "$response" "delete"
