@@ -54,6 +54,21 @@ export class SchemaMetaYAML {
         return await db.connect();
     }
 
+    // Check schema status and existence in one query
+    private static async getSchemaStatus(db: DbContext | TxContext, schemaName: string): Promise<{exists: boolean, isSystem: boolean}> {
+        const statusQuery = `SELECT status FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 LIMIT 1`;
+        const statusResult = await db.query(statusQuery, [schemaName]);
+        
+        if (statusResult.rows.length === 0) {
+            return {exists: false, isSystem: false};
+        }
+        
+        return {
+            exists: true,
+            isSystem: statusResult.rows[0].status === 'system'
+        };
+    }
+
     // Parse and validate YAML schema
     static parseYamlSchema(yamlContent: string): JsonSchema {
         const jsonSchema = yaml.load(yamlContent) as JsonSchema;
@@ -154,6 +169,18 @@ export class SchemaMetaYAML {
                 const jsonSchema = this.parseYamlSchema(yamlContent);
                 const schemaName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
                 
+                // Protect system schema names from being used
+                if (schemaName === 'schema') {
+                    throw new Error('Cannot create schema with reserved system name "schema"');
+                }
+                
+                // Check schema status and existence
+                const {exists, isSystem} = await this.getSchemaStatus(tx, schemaName);
+                
+                if (exists) {
+                    throw new Error(`Schema '${schemaName}' already exists`);
+                }
+                
                 console.debug('Delegating to createSchema()');
                 await this.createSchema(tx, yamlContent);
                 
@@ -229,6 +256,17 @@ export class SchemaMetaYAML {
                 // Validate YAML before transaction
                 this.parseYamlSchema(yamlContent);
                 
+                // Check schema status and existence
+                const {exists, isSystem} = await this.getSchemaStatus(tx, schemaName);
+                
+                if (!exists) {
+                    throw new Error(`Schema '${schemaName}' not found`);
+                }
+                
+                if (isSystem) {
+                    throw new Error('System schemas are protected and cannot be modified via meta API');
+                }
+                
                 console.debug('Delegating to updateSchema()');
                 await this.updateSchema(tx, schemaName, yamlContent);
                 
@@ -266,6 +304,17 @@ export class SchemaMetaYAML {
             const tx = await this.getTransaction(db);
             
             try {
+                // Check schema status and existence
+                const {exists, isSystem} = await this.getSchemaStatus(tx, schemaName);
+                
+                if (!exists) {
+                    throw new Error(`Schema '${schemaName}' not found`);
+                }
+                
+                if (isSystem) {
+                    throw new Error('System schemas are protected and cannot be deleted via meta API');
+                }
+                
                 console.debug('Delegating to deleteSchema()');
                 await this.deleteSchema(tx, schemaName);
                 

@@ -6,7 +6,7 @@ export default async function (context: Context): Promise<any> {
         const schemaName = context.req.param('schema');
         const recordId = context.req.param('id');
         const isPermanent = context.req.query('permanent') === 'true';
-        
+
         console.debug('routes/data-record-delete-one: schemaName=%j recordId=%j permanent=%j', schemaName, recordId, isPermanent);
         
         if (isPermanent) {
