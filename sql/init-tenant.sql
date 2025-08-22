@@ -1,9 +1,8 @@
 -- Monk API Required Schema Tables
 -- These tables are required for the Hono API to function correctly
--- Based on drizzle schema from monk-api-hono/drizzle/0000_powerful_punisher.sql
 
 -- Schema registry table to store JSON Schema definitions
-CREATE TABLE "schemas" (
+CREATE TABLE "schema" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"domain" text,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
@@ -20,8 +19,8 @@ CREATE TABLE "schemas" (
 	"definition" jsonb NOT NULL,
 	"field_count" text NOT NULL,
 	"yaml_checksum" text,
-	CONSTRAINT "schemas_name_unique" UNIQUE("name"),
-	CONSTRAINT "schemas_table_name_unique" UNIQUE("table_name")
+	CONSTRAINT "schema_name_unique" UNIQUE("name"),
+	CONSTRAINT "schema_table_name_unique" UNIQUE("table_name")
 );
 
 -- Column registry table to store individual field metadata  
@@ -47,8 +46,8 @@ CREATE TABLE "columns" (
 );
 
 -- Add foreign key constraint
-ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schemas_name_fk" 
-    FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("name") 
+ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schema_name_fk" 
+    FOREIGN KEY ("schema_name") REFERENCES "public"."schema"("name") 
     ON DELETE no action ON UPDATE no action;
 
 -- Users table to store tenant users and their access levels
@@ -82,4 +81,65 @@ CREATE TABLE "pings" (
     "server_version" text,
     "database_status" text,
     "created_at" timestamp DEFAULT now() NOT NULL
+);
+
+-- Insert self-reference row to enable recursive schema discovery via data API
+-- This allows GET /api/data/schema to work by querying the schema table itself
+INSERT INTO "schema" (name, table_name, status, definition, field_count, yaml_checksum)
+VALUES (
+    'schema',
+    'schema', 
+    'system',
+    '{
+        "type": "object",
+        "title": "Schema",
+        "description": "Schema registry table for meta API schema definitions",
+        "properties": {
+            "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "description": "Unique schema name",
+                "example": "account"
+            },
+            "table_name": {
+                "type": "string", 
+                "minLength": 1,
+                "maxLength": 100,
+                "description": "Database table name",
+                "example": "accounts"
+            },
+            "status": {
+                "type": "string",
+                "enum": ["pending", "active", "disabled", "system"],
+                "default": "pending",
+                "description": "Schema status"
+            },
+            "definition": {
+                "type": "object",
+                "description": "JSON Schema definition object",
+                "additionalProperties": true
+            },
+            "field_count": {
+                "type": "string",
+                "pattern": "^[0-9]+$", 
+                "description": "Number of fields in schema",
+                "example": "5"
+            },
+            "yaml_checksum": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "SHA256 checksum of original YAML",
+                "example": "a1b2c3d4..."
+            },
+            "domain": {
+                "type": "string",
+                "description": "Domain context (nullable)"
+            }
+        },
+        "required": ["name", "table_name", "status", "definition", "field_count"],
+        "additionalProperties": false
+    }',
+    '7',
+    null
 );

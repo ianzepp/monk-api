@@ -84,7 +84,7 @@ export class SchemaMetaYAML {
         console.warn('Inserting to DB', jsonSchema);
 
         const insertQuery = `
-            INSERT INTO ${builtins.TABLE_NAMES.schemas} 
+            INSERT INTO ${builtins.TABLE_NAMES.schema} 
             (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, domain, access_read, access_edit, access_full, access_deny)
             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), NULL, '{}', '{}', '{}', '{}')
             RETURNING *
@@ -109,7 +109,7 @@ export class SchemaMetaYAML {
     // Select schema and return as YAML
     static async selectSchema(db: DbContext | TxContext, schemaName: string): Promise<string> {
         // Get schema record from database
-        const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 LIMIT 1`;
+        const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 LIMIT 1`;
         const schemaResult = await db.query(selectQuery, [schemaName]);
 
         if (schemaResult.rows.length === 0) {
@@ -298,7 +298,7 @@ export class SchemaMetaYAML {
         const newJsonSchema = this.parseYamlSchema(yamlContent);
         
         // Get existing schema
-        const existingQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 LIMIT 1`;
+        const existingQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 LIMIT 1`;
         const existingResult = await tx.query(existingQuery, [schemaName]);
 
         if (existingResult.rows.length === 0) {
@@ -326,7 +326,7 @@ export class SchemaMetaYAML {
 
         // Update schema registry
         const updateQuery = `
-            UPDATE ${builtins.TABLE_NAMES.schemas} 
+            UPDATE ${builtins.TABLE_NAMES.schema} 
             SET definition = $1, field_count = $2, yaml_checksum = $3, updated_at = NOW() 
             WHERE name = $4
         `;
@@ -370,7 +370,7 @@ export class SchemaMetaYAML {
             ]);
         }
 
-        const updatedSchemaQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 LIMIT 1`;
+        const updatedSchemaQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 LIMIT 1`;
         const updatedResult = await tx.query(updatedSchemaQuery, [schemaName]);
         return updatedResult.rows[0];
     }
@@ -378,7 +378,7 @@ export class SchemaMetaYAML {
     // Delete schema with dependency checking
     static async deleteSchema(tx: TxContext, schemaName: string): Promise<any> {
         // Get schema info
-        const schemaQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 LIMIT 1`;
+        const schemaQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 LIMIT 1`;
         const schemaResult = await tx.query(schemaQuery, [schemaName]);
 
         if (schemaResult.rows.length === 0) {
@@ -390,7 +390,7 @@ export class SchemaMetaYAML {
         // Check for dependencies
         const dependencyQuery = `
             SELECT name as schemaName, table_name as tableName 
-            FROM ${builtins.TABLE_NAMES.schemas} 
+            FROM ${builtins.TABLE_NAMES.schema} 
             WHERE definition::text LIKE $1
         `;
         const dependentResult = await tx.query(dependencyQuery, [`%"table": "${tableName}"%`]);
@@ -403,7 +403,7 @@ export class SchemaMetaYAML {
         // Drop table and clean up
         await tx.query(`DROP TABLE IF EXISTS "${tableName}"`);
         await tx.query(`DELETE FROM ${builtins.TABLE_NAMES.columns} WHERE schema_name = $1`, [schemaName]);
-        await tx.query(`DELETE FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1`, [schemaName]);
+        await tx.query(`DELETE FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1`, [schemaName]);
 
         return {
             deleted_schema: schemaName,

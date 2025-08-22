@@ -24,7 +24,7 @@ export interface Schema extends BaseFields {
 
 // Column registry table interface  
 export interface Column extends BaseFields {
-    schema_name: string; // References schemas.name
+    schema_name: string; // References schema.name
     column_name: string; // Column name
     pg_type: string; // PostgreSQL column type
     is_required: 'true' | 'false'; // Required flag as string
@@ -49,6 +49,6 @@ export type NewColumn = Omit<Column, 'id' | 'created_at' | 'updated_at'> & {
 
 // Table names as constants
 export const TABLE_NAMES = {
-    schemas: 'schemas',
+    schema: 'schema',
     columns: 'columns'
 } as const;

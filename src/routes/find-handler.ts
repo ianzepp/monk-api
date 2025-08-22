@@ -20,7 +20,7 @@ export default async function (context: Context): Promise<any> {
             // Verify schema exists using raw SQL
             const schemaQuery = `
                 SELECT name, table_name 
-                FROM ${builtins.TABLE_NAMES.schemas} 
+                FROM ${builtins.TABLE_NAMES.schema} 
                 WHERE name = $1 
                 LIMIT 1
             `;
