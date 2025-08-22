@@ -1,21 +1,11 @@
 import type { Context } from 'hono';
-import { System } from '../lib/system.js';
-import { type TxContext } from '../db/index.js';
-import { SchemaManager } from '../lib/schema-manager.js';
-import { createValidationError } from '../lib/api/responses.js';
-import { handleContextTx } from '../lib/api/responses.js';
+import { SchemaMetaYAML } from '../lib/schema-meta-yaml.js';
 
-export default async function (context: Context): Promise<any> {
-    return await handleContextTx(context, async (system: System) => {
-        const yamlContent = await context.req.text();
-        const tx = system.dtx as TxContext;
-        
-        console.debug('POST /api/meta/schema', yamlContent)
-
-        // Validate YAML before transaction
-        SchemaManager.parseYamlSchema(yamlContent);
-
-        console.debug('Delegating to createSchema()')
-        return await SchemaManager.createSchema(tx, yamlContent);
-    });
+export default async function (context: Context): Promise<Response> {
+    const yamlContent = await context.req.text();
+    
+    console.debug('POST /api/meta/schema', yamlContent);
+    
+    // Direct call to SchemaMetaYAML - handles all logic and returns Response
+    return await SchemaMetaYAML.createSchemaFromYaml(context, yamlContent);
 }

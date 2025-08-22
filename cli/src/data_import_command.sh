@@ -49,10 +49,10 @@ json.dump(records, sys.stdout)
             print_info "Making bulk import request..."
         fi
         
-        response=$(make_request "PUT" "/api/data/$schema" "$records_json")
+        response=$(make_request_json "PUT" "/api/data/$schema" "$records_json")
         
         print_success "Import completed successfully"
-        handle_response "$response" "import"
+        handle_response_json "$response" "import"
     else
         print_error "Failed to prepare records for import"
         exit 1

@@ -6,5 +6,5 @@ schema="${args[schema]}"
 
 validate_schema "$schema"
 
-response=$(make_request "GET" "/api/data/$schema" "")
-handle_response "$response" "list"
+response=$(make_request_json "GET" "/api/data/$schema" "")
+handle_response_json "$response" "list"

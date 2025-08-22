@@ -21,5 +21,5 @@ if [ "$CLI_VERBOSE" = "true" ]; then
     print_info "Getting $type object: $name"
 fi
 
-response=$(make_request "GET" "/api/meta/$type/$name" "")
-handle_response "$response" "get"
+response=$(make_request_yaml "GET" "/api/meta/$type/$name" "")
+handle_response_yaml "$response" "get"

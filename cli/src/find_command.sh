@@ -58,7 +58,7 @@ elif command -v jshon >/dev/null 2>&1; then
 fi
 
 # Make the find request
-response=$(make_request "POST" "/api/find/$schema" "$input_data")
+response=$(make_request_json "POST" "/api/find/$schema" "$input_data")
 
 # Process response with head/tail support
 if [ "$CLI_HEAD_MODE" = "true" ]; then
@@ -109,5 +109,5 @@ elif [ "$CLI_TAIL_MODE" = "true" ]; then
     fi
 else
     # Use standard response handler
-    handle_response "$response" "find"
+    handle_response_json "$response" "find"
 fi

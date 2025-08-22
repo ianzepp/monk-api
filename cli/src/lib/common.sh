@@ -186,8 +186,8 @@ remove_stored_token() {
        "$SERVERS_CONFIG" > "$temp_file" && mv "$temp_file" "$SERVERS_CONFIG"
 }
 
-# Make HTTP request and handle response - programmatic by default
-make_request() {
+# Make HTTP request with JSON content-type - programmatic by default
+make_request_json() {
     local method="$1"
     local url="$2"
     local data="$3"
@@ -253,7 +253,7 @@ make_request() {
 }
 
 # Handle response based on CLI flags - optimized for testing
-handle_response() {
+handle_response_json() {
     local response="$1"
     local operation_type="$2"  # "list", "create", "get", etc.
     
@@ -470,6 +470,90 @@ init_tenant_schema() {
     fi
 }
 
+# Make HTTP request with YAML content-type for meta API
+make_request_yaml() {
+    local method="$1"
+    local url="$2"
+    local data="$3"
+    local base_url=$(get_base_url)
+    local full_url="${base_url}${url}"
+    
+    # Only show verbose info if CLI_VERBOSE is set
+    if [ "$CLI_VERBOSE" = "true" ]; then
+        print_info "Making $method request to: $full_url with YAML content-type" >&2
+    fi
+    
+    local curl_args=(-s -X "$method" -H "Content-Type: text/yaml")
+    
+    # Add JWT token if available (unless it's an auth request)
+    if [[ "$url" != "/auth/"* ]]; then
+        local jwt_token
+        jwt_token=$(get_jwt_token)
+        if [ -n "$jwt_token" ]; then
+            curl_args+=(-H "Authorization: Bearer $jwt_token")
+            if [ "$CLI_VERBOSE" = "true" ]; then
+                print_info "Using stored JWT token" >&2
+            fi
+        fi
+    fi
+    
+    if [ -n "$data" ]; then
+        curl_args+=(-d "$data")
+    fi
+    
+    local response
+    local http_code
+    
+    # Make request and capture both response and HTTP status code
+    response=$(curl "${curl_args[@]}" -w "\n%{http_code}" "$full_url")
+    http_code=$(echo "$response" | tail -n1)
+    response=$(echo "$response" | sed '$d')
+    
+    # Handle HTTP errors
+    case "$http_code" in
+        200|201|204)
+            if [ "$CLI_VERBOSE" = "true" ]; then
+                print_success "Success ($http_code)" >&2
+            fi
+            # Return response directly (YAML format)
+            echo "$response"
+            return 0
+            ;;
+        400|404|500)
+            if [ "$CLI_VERBOSE" = "true" ]; then
+                print_error "HTTP Error ($http_code)" >&2
+            fi
+            echo "$response" >&2
+            exit 1
+            ;;
+        *)
+            if [ "$CLI_VERBOSE" = "true" ]; then
+                print_error "HTTP $http_code" >&2
+            fi
+            echo "$response" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle YAML response - much simpler than JSON
+handle_response_yaml() {
+    local response="$1"
+    local operation_type="$2"  # "create", "get", "update", "delete"
+    
+    # Exit code only mode - check if response is not empty for success
+    if [ "$CLI_EXIT_CODE_ONLY" = "true" ]; then
+        if [ -n "$response" ] || [ "$operation_type" = "delete" ]; then
+            exit 0
+        else
+            exit 1
+        fi
+    fi
+    
+    # For YAML responses, just output directly
+    echo "$response"
+}
+
 # Validate schema exists (best effort)
 validate_schema() {
     local schema="$1"
@@ -481,7 +565,7 @@ validate_schema() {
     
     # Try to get schema info - if it fails, just warn but continue
     local response
-    if response=$(make_request "GET" "/api/meta/schema" "" 2>/dev/null); then
+    if response=$(make_request_json "GET" "/api/meta/schema" "" 2>/dev/null); then
         if echo "$response" | grep -q "\"$schema\""; then
             if [ "$CLI_VERBOSE" = "true" ]; then
                 print_info "Schema validated: $schema"

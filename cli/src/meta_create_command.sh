@@ -30,5 +30,5 @@ if [ "$CLI_VERBOSE" = "true" ]; then
     echo "$data" | sed 's/^/  /'
 fi
 
-response=$(make_request "POST" "/api/meta/$type" "$data")
-handle_response "$response" "create"
+response=$(make_request_yaml "POST" "/api/meta/$type" "$data")
+handle_response_yaml "$response" "create"
