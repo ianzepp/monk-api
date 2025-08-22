@@ -13,14 +13,9 @@
     "start": "node dist/index.js",
     "pretest": "scripts/verify-config.sh",
     "test": "monk test dev \"$(pwd)\"",
+    "test:setup": "monk test setup",
     "test:unit": "vitest",
-    "test:run": "vitest run",
-    "hono:start": "scripts/hono-start.sh",
-    "hono:stop": "scripts/hono-stop.sh",
-    "hono:restart": "scripts/hono-restart.sh",
-    "hono:status": "scripts/hono-status.sh",
-    "hono:list": "scripts/hono-list.sh",
-    "hono:killall": "scripts/hono-killall.sh"
+    "test:run": "vitest run"
   },
   "keywords": [
     "hono",

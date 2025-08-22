@@ -99,6 +99,12 @@ MODULES:
     delete <name>           Remove server from registry
     ping <name>             Health check specific server
 
+  tenant                  Multi-tenant database management
+    create <name>           Create new tenant database
+    delete <name>           Delete tenant database
+    list                    List all tenant databases
+    use <name>              Switch to tenant database
+
   user                    User management and access control
     list                    List all users
     get <id>                Get specific user
@@ -171,7 +177,7 @@ esac
 # Check if module is provided
 if [ $# -eq 0 ]; then
     echo "Usage: monk <module> <operation> [args...]" >&2
-    echo "Modules: auth, data, meta, find, ping, test, pool, servers, user, root" >&2
+    echo "Modules: auth, data, meta, find, ping, test, pool, servers, tenant, user, root" >&2
     echo "Use 'monk --help' for detailed information" >&2
     exit 1
 fi
@@ -205,6 +211,9 @@ case "$MODULE" in
     servers)
         exec "cli/servers.sh" "$@"
         ;;
+    tenant)
+        exec "cli/tenant.sh" "$@"
+        ;;
     user)
         exec "cli/user.sh" "$@"
         ;;
@@ -213,7 +222,7 @@ case "$MODULE" in
         ;;
     *)
         echo "Invalid module: $MODULE" >&2
-        echo "Available modules: auth, data, meta, find, ping, test, pool, servers, user, root" >&2
+        echo "Available modules: auth, data, meta, find, ping, test, pool, servers, tenant, user, root" >&2
         exit 1
         ;;
 esac
