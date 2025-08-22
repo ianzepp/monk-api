@@ -195,24 +195,11 @@ commands:
     arg: token
     help: Include JWT token in request
 
-# Comprehensive test management
+# External git-based test management
 - name: test
-  help: Comprehensive test management
+  help: External git-based test management
   
-  commands:
-  - name: all
-    help: Run tests (all or pattern matching)
-    args:
-    - name: pattern
-      help: "Pattern to match tests (e.g., 00-20)"
-      
-  - name: one
-    help: Run a single test file
-    args:
-    - name: test_file
-      required: true
-      help: Test file name or path (with or without .sh extension)
-      
+  commands:      
   - name: git
     help: Create/update git-aware test environment
     args:
@@ -231,12 +218,6 @@ commands:
     - name: run2
       required: true
       help: Second test run to compare
-      
-  - name: env
-    help: Show test environment variables
-    args:
-    - name: var_name
-      help: Specific variable name (optional)
 
 # Remote server management
 - name: servers
