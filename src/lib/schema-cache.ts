@@ -80,8 +80,8 @@ export class SchemaCache {
     private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{name: string, yaml_checksum: string, updated_at: string}[]> {
         const result = await dtx.query(`
             SELECT name, yaml_checksum, updated_at 
-            FROM schemas 
-            WHERE status = 'active'
+            FROM schema 
+            WHERE status IN ('active', 'system')
         `);
         
         return result.rows as any[];
@@ -107,8 +107,8 @@ export class SchemaCache {
                 const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
                 const result = await dtx.query(`
                     SELECT name, yaml_checksum, updated_at 
-                    FROM schemas 
-                    WHERE name IN (${quotedNames}) AND status = 'active'
+                    FROM schema 
+                    WHERE name IN (${quotedNames}) AND status IN ('active', 'system')
                 `);
                 currentChecksums = result.rows;
             } else {
@@ -152,8 +152,8 @@ export class SchemaCache {
      */
     private async loadFullSchema(dtx: DbContext | TxContext, schemaName: string): Promise<any> {
         const result = await dtx.query(`
-            SELECT * FROM schemas 
-            WHERE name = $1 AND status = 'active'
+            SELECT * FROM schema 
+            WHERE name = $1 AND status IN ('active', 'system')
         `, [schemaName]);
         
         if (result.rows.length === 0) {

@@ -82,3 +82,64 @@ CREATE TABLE "pings" (
     "database_status" text,
     "created_at" timestamp DEFAULT now() NOT NULL
 );
+
+-- Insert self-reference row to enable recursive schema discovery via data API
+-- This allows GET /api/data/schema to work by querying the schema table itself
+INSERT INTO "schema" (name, table_name, status, definition, field_count, yaml_checksum)
+VALUES (
+    'schema',
+    'schema', 
+    'system',
+    '{
+        "type": "object",
+        "title": "Schema",
+        "description": "Schema registry table for meta API schema definitions",
+        "properties": {
+            "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "description": "Unique schema name",
+                "example": "account"
+            },
+            "table_name": {
+                "type": "string", 
+                "minLength": 1,
+                "maxLength": 100,
+                "description": "Database table name",
+                "example": "accounts"
+            },
+            "status": {
+                "type": "string",
+                "enum": ["pending", "active", "disabled", "system"],
+                "default": "pending",
+                "description": "Schema status"
+            },
+            "definition": {
+                "type": "object",
+                "description": "JSON Schema definition object",
+                "additionalProperties": true
+            },
+            "field_count": {
+                "type": "string",
+                "pattern": "^[0-9]+$", 
+                "description": "Number of fields in schema",
+                "example": "5"
+            },
+            "yaml_checksum": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "SHA256 checksum of original YAML",
+                "example": "a1b2c3d4..."
+            },
+            "domain": {
+                "type": "string",
+                "description": "Domain context (nullable)"
+            }
+        },
+        "required": ["name", "table_name", "status", "definition", "field_count"],
+        "additionalProperties": false
+    }',
+    '7',
+    null
+);
