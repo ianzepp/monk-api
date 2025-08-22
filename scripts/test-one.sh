@@ -2,13 +2,19 @@
 set -e
 
 # Single test runner script for Monk API project
-# Extracted from monk CLI test_one_command for project-local usage
+# Creates a fresh test tenant and runs a single test file
 #
-# Usage: scripts/test-one.sh <test-file>
+# Usage: scripts/test-one.sh <test-file> [--verbose]
 # 
+# Features:
+# - Creates unique test tenant with timestamp naming (test-$(date +%s))
+# - Automatically creates root user and authenticates
+# - Runs single test file with clean environment
+# - Automatically cleans up test tenant after completion
+#
 # Examples:
 #   scripts/test-one.sh tests/05-infrastructure/servers-config-test.sh
-#   scripts/test-one.sh tests/20-meta-api/basic-meta-endpoints.sh
+#   scripts/test-one.sh tests/20-meta-api/basic-meta-endpoints.sh --verbose
 
 # Colors for output
 RED='\033[0;31m'
@@ -23,21 +29,16 @@ print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 
 # Parse command line arguments
 test_file=""
-clean_mode=false
 
 while [ $# -gt 0 ]; do
     case $1 in
-        --clean)
-            clean_mode=true
-            shift
-            ;;
         --verbose)
             export CLI_VERBOSE=true
             shift
             ;;
         -*)
             print_error "Unknown option: $1"
-            echo "Usage: $0 <test-file> [--clean] [--verbose]"
+            echo "Usage: $0 <test-file> [--verbose]"
             exit 1
             ;;
         *)
@@ -49,11 +50,11 @@ done
 
 if [ -z "$test_file" ]; then
     print_error "Test file required"
-    echo "Usage: $0 <test-file> [--clean] [--verbose]"
+    echo "Usage: $0 <test-file> [--verbose]"
     echo ""
     echo "Examples:"
     echo "  $0 tests/05-infrastructure/servers-config-test.sh"
-    echo "  $0 tests/20-meta-api/basic-meta-endpoints.sh --clean"
+    echo "  $0 tests/20-meta-api/basic-meta-endpoints.sh --verbose"
     exit 1
 fi
 
@@ -77,44 +78,41 @@ test_dir=$(dirname "$test_file")
 print_info "Running single test: $test_name"
 echo
 
-# Handle clean environment setup
-if [ "$clean_mode" = true ]; then
-    echo "=== Clean Environment Setup ==="
-    
-    # Create unique tenant for clean test run
-    TEST_TENANT_NAME="test-clean-$(date +%s)"
-    
-    print_info "Creating fresh test tenant: $TEST_TENANT_NAME"
-    
-    if command -v monk >/dev/null 2>&1; then
-        # Create tenant with root user
-        if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
-            print_success "Test tenant created: $TEST_TENANT_NAME"
-        else
-            print_error "Failed to create test tenant"
-            echo "Error output:"
-            echo "$output" | sed 's/^/  /'
-            exit 1
-        fi
-        
-        # Authenticate with tenant using root user
-        print_info "Authenticating with tenant: $TEST_TENANT_NAME as root"
-        if monk auth login "$TEST_TENANT_NAME" "root" >/dev/null 2>&1; then
-            print_success "Authentication successful"
-        else
-            print_error "Authentication failed"
-            # Cleanup on failure
-            monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
-            exit 1
-        fi
+# Create fresh tenant for this test run (always clean)
+echo "=== Test Environment Setup ==="
+
+TEST_TENANT_NAME="test-$(date +%s)"
+
+print_info "Creating test tenant: $TEST_TENANT_NAME"
+
+if command -v monk >/dev/null 2>&1; then
+    # Create tenant with root user
+    if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
+        print_success "Test tenant created: $TEST_TENANT_NAME"
     else
-        print_error "monk CLI not available for clean environment setup"
+        print_error "Failed to create test tenant"
+        echo "Error output:"
+        echo "$output" | sed 's/^/  /'
         exit 1
     fi
     
-    echo "========================"
-    echo
+    # Authenticate with tenant using root user
+    print_info "Authenticating with tenant: $TEST_TENANT_NAME as root"
+    if monk auth login "$TEST_TENANT_NAME" "root" >/dev/null 2>&1; then
+        print_success "Authentication successful"
+    else
+        print_error "Authentication failed"
+        # Cleanup on failure
+        monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
+        exit 1
+    fi
+else
+    print_error "monk CLI not available for test environment setup"
+    exit 1
 fi
+
+echo "========================"
+echo
 
 # Show test environment information
 if [ -f "scripts/test-info.sh" ] && [ -x "scripts/test-info.sh" ]; then
@@ -132,8 +130,8 @@ if (cd "$test_dir" && "./$(basename "$test_file")"); then
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     
-    # Cleanup if we created a tenant in clean mode
-    if [ "$clean_mode" = true ] && [ -n "$TEST_TENANT_NAME" ]; then
+    # Always cleanup the test tenant we created
+    if [ -n "$TEST_TENANT_NAME" ]; then
         echo
         print_info "Cleaning up test tenant: $TEST_TENANT_NAME"
         monk auth logout >/dev/null 2>&1 || true
@@ -151,8 +149,8 @@ else
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     
-    # Cleanup if we created a tenant in clean mode
-    if [ "$clean_mode" = true ] && [ -n "$TEST_TENANT_NAME" ]; then
+    # Always cleanup the test tenant we created
+    if [ -n "$TEST_TENANT_NAME" ]; then
         echo
         print_info "Cleaning up test tenant: $TEST_TENANT_NAME"
         monk auth logout >/dev/null 2>&1 || true

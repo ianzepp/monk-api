@@ -2,15 +2,22 @@
 set -e
 
 # Test runner script for Monk API project
-# Extracted from monk CLI test_all_command for project-local usage
+# Creates a fresh test tenant and runs multiple test files
 #
-# Usage: scripts/test-all.sh [pattern]
+# Usage: scripts/test-all.sh [pattern] [--verbose]
 # 
+# Features:
+# - Creates unique test tenant with timestamp naming (test-$(date +%s))
+# - Automatically creates root user and authenticates once for all tests
+# - Runs all matching test files using shared authenticated session
+# - Automatically cleans up test tenant after all tests complete
+#
 # Examples:
 #   scripts/test-all.sh              # Run all tests
 #   scripts/test-all.sh 05           # Run category 05 tests
 #   scripts/test-all.sh 20-30        # Run categories 20-30
 #   scripts/test-all.sh servers      # Run tests matching "servers"
+#   scripts/test-all.sh --verbose    # Run all tests with verbose output
 
 # Colors for output
 RED='\033[0;31m'
@@ -25,21 +32,16 @@ print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 
 # Parse command line arguments
 pattern=""
-clean_mode=false
 
 while [ $# -gt 0 ]; do
     case $1 in
-        --clean)
-            clean_mode=true
-            shift
-            ;;
         --verbose)
             export CLI_VERBOSE=true
             shift
             ;;
         -*)
             print_error "Unknown option: $1"
-            echo "Usage: $0 [pattern] [--clean] [--verbose]"
+            echo "Usage: $0 [pattern] [--verbose]"
             exit 1
             ;;
         *)
@@ -64,10 +66,7 @@ fi
 print_info "Running Tests"
 echo
 
-# Handle clean environment setup
-#if [ "$clean_mode" = true ]; then
-#    # skip for now..
-#fi
+# Every test run is "clean" with unique tenant - no special handling needed
 
 echo "=== Test Environment Setup ==="
 
