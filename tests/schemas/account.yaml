@@ -1,0 +1,75 @@
+title: Account
+description: User account schema for testing data operations and authentication scenarios
+type: object
+properties:
+  name:
+    type: string
+    minLength: 2
+    maxLength: 100
+    description: Account holder full name
+    example: "John Smith"
+  email:
+    type: string
+    format: email
+    maxLength: 255
+    description: Primary email address
+    example: "john.smith@example.com"
+  username:
+    type: string
+    pattern: "^[a-zA-Z0-9_-]{3,30}$"
+    description: Unique username for login
+    example: "jsmith"
+  account_type:
+    type: string
+    enum: ["personal", "business", "trial", "premium"]
+    default: "personal"
+    description: Type of account
+  balance:
+    type: number
+    minimum: 0
+    default: 0.00
+    description: Account balance in USD
+    example: 150.75
+  is_active:
+    type: boolean
+    default: true
+    description: Whether the account is currently active
+  is_verified:
+    type: boolean
+    default: false
+    description: Whether the account email is verified
+  credit_limit:
+    type: number
+    minimum: 0
+    maximum: 10000
+    description: Credit limit for business accounts
+    example: 1000.00
+  last_login:
+    type: string
+    format: date-time
+    description: Timestamp of last login
+    example: "2024-01-15T10:30:00Z"
+  preferences:
+    type: object
+    properties:
+      notifications:
+        type: boolean
+        default: true
+      theme:
+        type: string
+        enum: ["light", "dark"]
+        default: "light"
+      language:
+        type: string
+        default: "en"
+    description: User preferences and settings
+  metadata:
+    type: object
+    description: Additional flexible metadata
+    additionalProperties: true
+required:
+  - name
+  - email
+  - username
+  - account_type
+additionalProperties: false
