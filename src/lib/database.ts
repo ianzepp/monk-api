@@ -78,14 +78,46 @@ export class Database {
 
 
     /**
-     * Soft delete multiple records by setting trashed_at timestamp.
-     * Uses individual deleteOne() calls for each record.
+     * Core batch soft delete method - optimized for multiple records.
+     * Soft delete multiple records by setting trashed_at timestamp using single batch UPDATE query.
      * Records with trashed_at set are automatically excluded from select queries via Filter class.
      */
     async deleteAll(schemaName: SchemaName, deletes: Record<string, any>[]): Promise<any[]> {
-        return Promise.all(deletes.map(record => {
-            return this.deleteOne(schemaName, record.id);
-        }));
+        if (deletes.length === 0) return [];
+        
+        console.debug(`Database.deleteAll: starting batch delete for schema '${schemaName}', ${deletes.length} records`);
+        
+        const schema = await this.toSchema(schemaName);
+        
+        // 1. Extract IDs and validate we have them
+        const ids = deletes.map(record => record.id).filter(id => id !== undefined);
+        console.debug(`Database.deleteAll: extracted ${ids.length} IDs:`, ids);
+        
+        if (ids.length !== deletes.length) {
+            throw new Error('All delete records must have an id field');
+        }
+        
+        // 2. Execute efficient batch soft delete using single UPDATE query with WHERE IN
+        console.debug(`Database.deleteAll: executing batch soft delete for ${ids.length} records`);
+        
+        const placeholders = ids.map((_, index) => `$${index + 1}`).join(', ');
+        const result = await this.execute(`
+            UPDATE "${schema.table}"
+            SET trashed_at = NOW(), updated_at = NOW()
+            WHERE id IN (${placeholders})
+            AND trashed_at IS NULL
+            RETURNING *
+        `, ids);
+        
+        console.debug(`Database.deleteAll: soft deleted ${result.rows.length} records`);
+        
+        if (result.rows.length !== ids.length) {
+            const deletedIds = result.rows.map(r => r.id);
+            const missingIds = ids.filter(id => !deletedIds.includes(id));
+            throw new Error(`Some records not found or already trashed: ${missingIds.join(', ')}`);
+        }
+        
+        return result.rows;
     }
     
     // Core data operations
@@ -320,25 +352,18 @@ export class Database {
 
     /**
      * Soft delete a single record by setting trashed_at timestamp.
-     * Uses UPDATE SET trashed_at = NOW() instead of DELETE FROM for data preservation.
+     * Delegates to deleteAll() for consistency and efficiency.
      * Records with trashed_at set are automatically excluded from select queries via Filter class.
      * @returns The updated record with trashed_at timestamp set
      */
     async deleteOne(schemaName: SchemaName, recordId: string): Promise<any> {
-        const schema = await this.toSchema(schemaName);
-
-        const result = await this.execute(`
-            UPDATE "${schema.table}"
-            SET trashed_at = NOW(), updated_at = NOW()
-            WHERE id = '${recordId}' AND trashed_at IS NULL
-            RETURNING *
-        `);
-
-        if (result.rows.length === 0) {
+        const results = await this.deleteAll(schemaName, [{ id: recordId }]);
+        
+        if (results.length === 0) {
             throw new Error(`Record '${recordId}' not found or already trashed`);
         }
-
-        return result.rows[0];
+        
+        return results[0];
     }
 
     /**
