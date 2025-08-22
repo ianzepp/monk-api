@@ -32,6 +32,9 @@ commands:
     
   - name: token
     help: Display current JWT token
+    
+  - name: info
+    help: Decode and display JWT token contents
 
 # Data operations on dynamic schemas
 - name: data

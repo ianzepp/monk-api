@@ -1,5 +1,6 @@
-echo "# This file is located at 'src/auth_logout_command.sh'."
-echo "# It contains the implementation for the 'monk auth logout' command."
-echo "# The code you write here will be wrapped by a function named 'monk_auth_logout_command()'."
-echo "# Feel free to edit this file; your changes will persist when regenerating."
-inspect_args
+if [ -f "$JWT_TOKEN_FILE" ]; then
+    remove_stored_token
+    print_success "Logged out successfully"
+else
+    print_info "Already logged out"
+fi
