@@ -9,17 +9,19 @@ set -e
 # scripts that use tenant-based authentication with the Monk API.
 #
 # Key Principles:
-# - One tenant per test script (created once, used throughout)
-# - All tests use the same authenticated session
-# - Automatic cleanup on success or failure
-# - Clear error handling and reporting
+# - Test tenant created by test-one.sh (available as $TEST_TENANT_NAME)
+# - Test files handle their own authentication scenarios
+# - Support for multi-user authentication testing
+# - Clean separation of concerns between layers
 #
 # Usage:
-#   ./tests/test-example.sh
+#   ./scripts/test-one.sh tests/test-example.sh
+#   ./scripts/test-all.sh (includes this test)
 #
 # Requirements:
 #   - Monk API server running (npm start)
 #   - monk CLI available in PATH
+#   - Run via test-one.sh (provides $TEST_TENANT_NAME)
 #
 # ===================================================================
 
@@ -58,24 +60,21 @@ echo "This demonstrates the recommended test pattern for Monk API"
 echo
 
 # ===================================================================
-# STEP 1: ONE-TIME SETUP - Initialize test tenant and authenticate
+# STEP 1: VERIFY SETUP - Check tenant is available and authenticate
 # ===================================================================
-print_step "Setting up test environment (one-time per script)"
 
-# Initialize tenant and authenticate - call this ONCE per script
-if ! initialize_test_tenant; then
-    print_error "Failed to initialize test tenant"
+# Check that tenant is available (should be exported by test-one.sh)
+if [ -z "$TEST_TENANT_NAME" ]; then
+    print_error "TEST_TENANT_NAME not available - run via scripts/test-one.sh"
     exit 1
 fi
 
+print_step "Verifying test environment"
 print_info "Using test tenant: $TEST_TENANT_NAME"
-print_info "Authenticated as: root user"
-echo
 
-# Optional: Test basic connectivity (this function is available but not required)
-if ! test_connectivity; then
-    print_error "Initial connectivity test failed"
-    cleanup_auth
+# Authenticate as root user (primary test user)
+if ! auth_as_user "root"; then
+    print_error "Failed to authenticate as root"
     exit 1
 fi
 
@@ -132,7 +131,37 @@ else
     exit 1
 fi
 
-print_step "Test Case 5: Custom Test Logic"
+print_step "Test Case 5: Multi-User Authentication Example"
+# Create a test user with limited access
+if create_test_user "alice" "read"; then
+    # Test switching between users
+    if auth_as_user "alice"; then
+        print_success "Switched to alice user"
+        
+        # Alice can read but not create (this should work)
+        if monk meta list >/dev/null 2>&1; then
+            print_success "Alice can read schemas"
+        else
+            print_error "Alice cannot read schemas"
+            exit 1
+        fi
+        
+        # Switch back to root
+        if auth_as_user "root"; then
+            print_success "Switched back to root user"
+        else
+            print_error "Failed to switch back to root"
+            exit 1
+        fi
+    else
+        print_error "Failed to authenticate as alice"
+        exit 1
+    fi
+else
+    print_info "Multi-user test skipped (user creation failed)"
+fi
+
+print_step "Test Case 6: Custom Test Logic"
 # Add your specific test cases here
 # Examples:
 # - monk data create user_schema < test-data.json
@@ -147,58 +176,78 @@ print_success "Custom test logic completed"
 echo
 
 # ===================================================================
-# STEP 3: CLEANUP - Always cleanup at the end (success or failure)
+# STEP 3: CLEANUP - Logout (tenant cleanup handled by test-one.sh)
 # ===================================================================
 
-print_step "Cleaning up test environment"
-cleanup_auth
-print_success "Test cleanup completed"
+print_step "Logging out current user"
+logout_user
+print_success "User logout completed"
 
 echo
 print_success "🎉 All example tests passed!"
-print_info "Test tenant $TEST_TENANT_NAME was created and cleaned up successfully"
+print_info "Test tenant $TEST_TENANT_NAME cleanup handled by test-one.sh"
 
 # ===================================================================
 # PATTERN SUMMARY FOR REFERENCE:
 # ===================================================================
 cat << 'EOF'
 
-📋 PATTERN SUMMARY:
-==================
+📋 THREE-LAYER ARCHITECTURE:
+=============================
 
-1. Source required helpers:
-   source "$(dirname "$0")/test-env-setup.sh"
-   source "$(dirname "$0")/auth-helper.sh"
+Layer 1: test-all.sh (Orchestrator)
+- Pattern matching and test discovery
+- Delegates execution to test-one.sh
+- Aggregates results and reporting
 
-2. Initialize tenant ONCE per script:
-   if ! initialize_test_tenant; then
-       print_error "Failed to initialize test tenant"
+Layer 2: test-one.sh (Tenant Manager)
+- Creates unique test tenant
+- Exports TEST_TENANT_NAME to test file
+- Executes individual test file
+- Cleans up tenant after completion
+
+Layer 3: Individual Test Files (Authentication & Logic)
+- Handle their own authentication scenarios
+- Can switch between multiple users
+- Focus on test logic and verification
+
+NEW TEST FILE PATTERN:
+======================
+
+1. Check tenant availability:
+   if [ -z "$TEST_TENANT_NAME" ]; then
+       print_error "Run via scripts/test-one.sh"
        exit 1
    fi
 
-3. Run all your tests using $TEST_TENANT_NAME:
-   # All monk commands now use authenticated session
-   monk meta list
-   monk data create schema
-   monk ping
-   # etc.
+2. Source auth helper:
+   source "$(dirname "$0")/../auth-helper.sh"
 
-4. Cleanup at the end:
-   cleanup_auth
+3. Authenticate and run tests:
+   auth_as_user "root"              # Authenticate as root
+   monk meta list                   # Test as root
+   
+   create_test_user "alice" "read"  # Create limited user
+   auth_as_user "alice"             # Switch to alice
+   monk meta list                   # Test as alice
+   
+   auth_as_user "root"              # Switch back to root
 
-5. Error handling - always cleanup on failure:
-   if ! some_test; then
-       cleanup_auth
-       exit 1
-   fi
+4. Logout (optional):
+   logout_user
 
 Available Helper Functions:
-- initialize_test_tenant()  : Creates tenant + authenticates (call once)
-- test_connectivity()       : Tests ping/connectivity (optional)
-- cleanup_auth()           : Logout + delete tenant (call at end)
-- authenticate_and_ping()  : Legacy function (backward compatibility)
+- auth_as_user(username)     : Authenticate as specific user in tenant
+- create_test_user(name, access) : Create additional user in tenant  
+- test_connectivity()        : Test ping/connectivity
+- logout_user()              : Logout current user
 
 Global Variables:
-- $TEST_TENANT_NAME        : Contains the created tenant name
+- $TEST_TENANT_NAME          : Tenant name (set by test-one.sh)
+
+Usage Examples:
+- scripts/test-one.sh tests/my-test.sh
+- scripts/test-all.sh 10-20
+- scripts/test-all.sh connection
 
 EOF

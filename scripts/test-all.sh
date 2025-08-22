@@ -1,16 +1,21 @@
 #!/bin/bash
 set -e
 
-# Test runner script for Monk API project
-# Creates a fresh test tenant and runs multiple test files
+# Test orchestrator script for Monk API project
+# Finds tests by pattern and delegates execution to test-one.sh
 #
 # Usage: scripts/test-all.sh [pattern] [--verbose]
 # 
+# Architecture: Three-Layer Design
+# Layer 1 (this script): Pattern matching and orchestration
+# Layer 2 (test-one.sh): Tenant lifecycle management per test file
+# Layer 3 (test files): Authentication scenarios and test logic
+#
 # Features:
-# - Creates unique test tenant with timestamp naming (test-$(date +%s))
-# - Automatically creates root user and authenticates once for all tests
-# - Runs all matching test files using shared authenticated session
-# - Automatically cleans up test tenant after all tests complete
+# - Pattern-based test discovery and filtering
+# - Delegates tenant management to test-one.sh
+# - Aggregates results from multiple test executions
+# - Each test file gets its own fresh tenant
 #
 # Examples:
 #   scripts/test-all.sh              # Run all tests
@@ -63,49 +68,8 @@ if [ ! -d "$TEST_BASE_DIR" ]; then
     exit 1
 fi
 
-print_info "Running Tests"
+print_info "Finding and running tests"
 echo
-
-# Every test run is "clean" with unique tenant - no special handling needed
-
-echo "=== Test Environment Setup ==="
-
-# Create unique tenant for this test run
-TEST_TENANT_NAME="test-$(date +%s)"
-
-# Create tenant with root user
-if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
-    print_success "Test tenant created ($TEST_TENANT_NAME)"
-else
-    print_error "Failed to create test tenant"
-    echo "Error output:"
-    echo "$output" | sed 's/^/  /'
-    exit 1
-fi
-    
-# Authenticate with tenant using root user
-if monk auth login "$TEST_TENANT_NAME" "root" >/dev/null 2>&1; then
-    print_success "Authentication successful"
-else
-    print_error "Authentication failed"
-    # Cleanup on failure
-    monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
-    exit 1
-fi
-
-print_info "Test tenant: $TEST_TENANT_NAME"
-print_info "Authenticated as: root user"
-    
-echo "========================"
-echo
-
-# Show test environment information
-if [ -f "scripts/test-info.sh" ] && [ -x "scripts/test-info.sh" ]; then
-    echo "=== Test Environment ==="
-    ./scripts/test-info.sh
-    echo "========================"
-    echo
-fi
 
 # Function to find tests by pattern
 find_tests_by_pattern() {
@@ -157,11 +121,10 @@ find_tests_by_pattern() {
     fi
 }
 
-# Run a single test
+# Run a single test via test-one.sh (delegate tenant management)
 run_single_test() {
     local test_path="$1"
     local test_name=$(basename "$test_path" .sh)
-    local test_dir=$(dirname "$test_path")
     
     print_info "Running: $test_name"
     
@@ -170,17 +133,16 @@ run_single_test() {
         return 1
     fi
     
-    # Change to test directory and run the test
+    # Delegate to test-one.sh for tenant management and execution
     start_time=$(date +%s)
-    test_result=0
     
     if [ "$verbose" = "true" ]; then
         # Show output in verbose mode
-        (cd "$test_dir" && "./$(basename "$test_path")")
+        ./scripts/test-one.sh "$test_path" --verbose
         test_result=$?
     else
         # Capture output and only show if test fails
-        if test_output=$(cd "$test_dir" && "./$(basename "$test_path")" 2>&1); then
+        if test_output=$(./scripts/test-one.sh "$test_path" 2>&1); then
             test_result=0
         else
             test_result=$?
@@ -254,16 +216,6 @@ echo "=========================="
 echo "Tests run: $tests_run"
 echo "Passed: $tests_passed"
 echo "Failed: $tests_failed"
-
-# Cleanup test tenant
-echo
-print_info "Cleaning up test environment"
-monk auth logout >/dev/null 2>&1 || true
-if monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1; then
-    print_success "Test tenant cleaned up"
-else
-    print_info "Test tenant cleanup failed (non-fatal)"
-fi
 
 if [ ${#failed_tests[@]} -gt 0 ]; then
     echo

@@ -1,16 +1,22 @@
 #!/bin/bash
 set -e
 
-# Single test runner script for Monk API project
-# Creates a fresh test tenant and runs a single test file
+# Tenant lifecycle manager for Monk API tests
+# Creates fresh tenant, runs test file, and cleans up tenant
 #
 # Usage: scripts/test-one.sh <test-file> [--verbose]
 # 
+# Architecture: Three-Layer Design (Layer 2)
+# Layer 1 (test-all.sh): Pattern matching and orchestration
+# Layer 2 (this script): Tenant lifecycle management
+# Layer 3 (test files): Authentication scenarios and test logic
+#
 # Features:
 # - Creates unique test tenant with timestamp naming (test-$(date +%s))
-# - Automatically creates root user and authenticates
-# - Runs single test file with clean environment
-# - Automatically cleans up test tenant after completion
+# - Exports TEST_TENANT_NAME for test file to use
+# - Test file handles its own authentication scenarios
+# - Automatically cleans up tenant after test completion
+# - Supports multi-user authentication testing within single tenant
 #
 # Examples:
 #   scripts/test-one.sh tests/05-infrastructure/servers-config-test.sh
@@ -78,7 +84,7 @@ test_dir=$(dirname "$test_file")
 print_info "Running single test: $test_name"
 echo
 
-# Create fresh tenant for this test run (always clean)
+# Create fresh tenant for this test run
 echo "=== Test Environment Setup ==="
 
 TEST_TENANT_NAME="test-$(date +%s)"
@@ -86,7 +92,7 @@ TEST_TENANT_NAME="test-$(date +%s)"
 print_info "Creating test tenant: $TEST_TENANT_NAME"
 
 if command -v monk >/dev/null 2>&1; then
-    # Create tenant with root user
+    # Create tenant with root user (but don't authenticate - let test file handle auth)
     if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
         print_success "Test tenant created: $TEST_TENANT_NAME"
     else
@@ -95,32 +101,17 @@ if command -v monk >/dev/null 2>&1; then
         echo "$output" | sed 's/^/  /'
         exit 1
     fi
-    
-    # Authenticate with tenant using root user
-    print_info "Authenticating with tenant: $TEST_TENANT_NAME as root"
-    if monk auth login "$TEST_TENANT_NAME" "root" >/dev/null 2>&1; then
-        print_success "Authentication successful"
-    else
-        print_error "Authentication failed"
-        # Cleanup on failure
-        monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
-        exit 1
-    fi
 else
     print_error "monk CLI not available for test environment setup"
     exit 1
 fi
 
+# Export tenant name for test file to use
+export TEST_TENANT_NAME
+
+print_info "Test tenant: $TEST_TENANT_NAME (available to test file)"
 echo "========================"
 echo
-
-# Show test environment information
-if [ -f "scripts/test-info.sh" ] && [ -x "scripts/test-info.sh" ]; then
-    echo "=== Test Environment ==="
-    ./scripts/test-info.sh
-    echo "========================"
-    echo
-fi
 
 # Run the test
 start_time=$(date +%s)
@@ -134,7 +125,6 @@ if (cd "$test_dir" && "./$(basename "$test_file")"); then
     if [ -n "$TEST_TENANT_NAME" ]; then
         echo
         print_info "Cleaning up test tenant: $TEST_TENANT_NAME"
-        monk auth logout >/dev/null 2>&1 || true
         if monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1; then
             print_success "Test tenant cleaned up"
         else
