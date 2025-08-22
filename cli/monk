@@ -52,11 +52,6 @@ monk_usage() {
     printf "%s\n" "Environment Variables:"
 
     # :environment_variable.usage
-    printf "  %s\n" "CLI_BASE_URL"
-    printf "    Target API server (auto-detected from monk test env)\n"
-    echo
-
-    # :environment_variable.usage
     printf "  %s\n" "CLI_VERBOSE"
     printf "    Enable verbose output for all commands\n"
     echo
@@ -947,7 +942,7 @@ monk_servers_usage() {
   printf "  %s   Register remote server\n" "add     "
   printf "  %s   List all servers with health status\n" "list    "
   printf "  %s   Show currently selected server\n" "current "
-  printf "  %s   Switch to server (sets CLI_BASE_URL)\n" "use     "
+  printf "  %s   Switch to server (persistent selection) or show current server\n" "use     "
   printf "  %s   Remove server from registry\n" "delete  "
   printf "  %s   Health check specific server\n" "ping    "
   printf "  %s   Health check all registered servers\n" "ping-all"
@@ -1049,10 +1044,10 @@ monk_servers_current_usage() {
 
 # :command.usage
 monk_servers_use_usage() {
-  printf "monk servers use - Switch to server (sets CLI_BASE_URL)\n\n"
+  printf "monk servers use - Switch to server (persistent selection) or show current server\n\n"
 
   printf "%s\n" "Usage:"
-  printf "  monk servers use NAME\n"
+  printf "  monk servers use [NAME]\n"
   printf "  monk servers use --help | -h\n"
   echo
 
@@ -1070,7 +1065,7 @@ monk_servers_use_usage() {
 
     # :argument.usage
     printf "  %s\n" "NAME"
-    printf "    Server name to switch to\n"
+    printf "    Server name to switch to (omit to show current server)\n"
     echo
 
   fi
@@ -3087,7 +3082,7 @@ monk_test_env_command() {
   # If specific variable requested, show just that
   if [ -n "$var_name" ]; then
       case "$var_name" in
-          CLI_BASE_URL)
+          SERVER_URL)
               get_base_url 2>/dev/null || echo "Not configured"
               ;;
           CURRENT_SERVER)
@@ -3112,7 +3107,7 @@ monk_test_env_command() {
               ;;
           *)
               print_error "Unknown variable: $var_name"
-              print_info "Available variables: CLI_BASE_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
+              print_info "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
               exit 1
               ;;
       esac
@@ -3219,7 +3214,7 @@ monk_test_env_command() {
 
   # Usage help
   print_info "Usage: monk test env [VAR_NAME] to get specific variable"
-  print_info "Available variables: CLI_BASE_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
+  print_info "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
 }
 
 # :command.function
@@ -3453,6 +3448,46 @@ monk_servers_use_command() {
   if ! command -v jq >/dev/null 2>&1; then
       print_error "jq is required for server management"
       exit 1
+  fi
+
+  # If no name provided, show current server (alias for 'current' command)
+  if [ -z "$name" ]; then
+      current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
+
+      if [ -z "$current_server" ] || [ "$current_server" = "null" ]; then
+          print_info "No current server selected"
+          print_info "Use 'monk servers use <name>' to select a server"
+          exit 0
+      fi
+
+      server_info=$(jq -r ".servers.\"$current_server\"" "$SERVERS_CONFIG" 2>/dev/null)
+      if [ "$server_info" = "null" ]; then
+          print_error "Current server '$current_server' not found in registry"
+          print_info "The server may have been deleted. Use 'monk servers list' to see available servers"
+          exit 1
+      fi
+
+      echo
+      print_info "Current Server"
+      echo
+
+      hostname=$(echo "$server_info" | jq -r '.hostname')
+      port=$(echo "$server_info" | jq -r '.port')
+      protocol=$(echo "$server_info" | jq -r '.protocol')
+      status=$(echo "$server_info" | jq -r '.status // "unknown"')
+      description=$(echo "$server_info" | jq -r '.description // ""')
+
+      echo "Name: $current_server"
+      echo "Endpoint: $protocol://$hostname:$port"
+      echo "Status: $status"
+      if [ -n "$description" ]; then
+          echo "Description: $description"
+      fi
+
+      # Show calculated base URL
+      base_url="$protocol://$hostname:$port"
+      echo "Base URL: $base_url"
+      exit 0
   fi
 
   # Check if server exists
@@ -3955,7 +3990,6 @@ parse_requirements() {
 
   # :command.environment_variables_filter
 
-  env_var_names+=("CLI_BASE_URL")
   env_var_names+=("CLI_VERBOSE")
   env_var_names+=("JWT_TOKEN")
 
@@ -6267,13 +6301,6 @@ monk_servers_use_parse_requirements() {
 
     esac
   done
-
-  # :command.required_args_filter
-  if [[ -z ${args['name']+x} ]]; then
-    printf "missing required argument: NAME\nusage: monk servers use NAME\n" >&2
-
-    exit 1
-  fi
 
 }
 
