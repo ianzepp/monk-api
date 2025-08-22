@@ -65,57 +65,54 @@ print_info "Running Tests"
 echo
 
 # Handle clean environment setup
-if [ "$clean_mode" = true ]; then
-    echo "=== Clean Environment Setup ==="
+#if [ "$clean_mode" = true ]; then
+#    # skip for now..
+#fi
+
+echo "=== Tenant Setup ==="
+
+# 1. Get git context for tenant naming
+if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
+    git_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+    git_branch_clean=$(echo "$git_branch" | sed 's/[^a-zA-Z0-9._-]/_/g')
     
-    # 1. Get git context for tenant naming
-    if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
-        git_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
-        git_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        # Clean branch name for database naming (replace invalid chars and add prefix)
-        clean_branch=$(echo "$git_branch" | sed 's/[^a-zA-Z0-9._-]/_/g')
-        tenant_name="monk_test_$clean_branch"
-        test_suffix="$git_commit"
+    tenant_name="monk_tenant_$git_branch_clean"
+    tenant_test="$(date +%s)"
+else
+    # Fallback if not in git repository
+    tenant_name="monk_tenant_untracked"
+    tenant_test="$(date +%s)"
+fi
+
+# Save tenant full database name
+tenant_database="${tenant_name}_${tenant_test}"
+
+if command -v monk >/dev/null 2>&1; then
+    # Clean mode: truncate existing tenant or create if doesn't exist
+    print_info "Creating tenant: $tenant_name (test: $tenant_test)"
+    print_info "Database name will be: $tenant_database"
+    
+    # Create new tenant
+    if output=$(monk tenant create "$tenant_name" "$tenant_test" 2>&1); then
+        print_success "Tenant created"
     else
-        # Fallback if not in git repository
-        tenant_name="monk_test_clean"
-        test_suffix="$(date +%s)"
-    fi
-    
-    print_info "Creating fresh tenant: $tenant_name (test: $test_suffix)"
-    
-    if command -v monk >/dev/null 2>&1; then
-        # Clean mode: delete existing tenant first to ensure truly clean state
-        full_tenant_name="${tenant_name}_${test_suffix}"
-        print_info "Cleaning existing tenant: $full_tenant_name"
-        monk tenant delete "$full_tenant_name" >/dev/null 2>&1 || true  # Ignore failure if doesn't exist
-        
-        if output=$(monk tenant create "$tenant_name" "$test_suffix" 2>&1); then
-            print_success "Tenant created: $tenant_name"
-        else
-            print_error "Failed to create tenant: $tenant_name"
-            echo "Error output:"
-            echo "$output" | sed 's/^/  /'
-            exit 1
-        fi
-        
-        # 2. Authenticate with new tenant (use full database name)
-        full_tenant_name="${tenant_name}_${test_suffix}"
-        print_info "Authenticating with tenant: $full_tenant_name"
-        if monk auth login --domain "$full_tenant_name" >/dev/null 2>&1; then
-            print_success "Authentication successful"
-        else
-            print_error "Authentication failed"
-            exit 1
-        fi
-    else
-        print_error "monk CLI not available for clean environment setup"
+        print_error "Failed to create tenant"
+        echo "Error output:"
+        echo "$output" | sed 's/^/  /'
         exit 1
     fi
-    
-    echo "========================"
-    echo
 fi
+    
+# 2. Authenticate with new tenant (use full database name)
+if monk auth login --domain "$tenant_database" >/dev/null 2>&1; then
+    print_success "Authentication successful"
+else
+    print_error "Authentication failed"
+    exit 1
+fi
+    
+echo "========================"
+echo
 
 # Show test environment information
 if [ -f "scripts/test-info.sh" ] && [ -x "scripts/test-info.sh" ]; then

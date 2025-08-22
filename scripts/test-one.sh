@@ -99,9 +99,10 @@ if [ "$clean_mode" = true ]; then
     
     if command -v monk >/dev/null 2>&1; then
         # Clean mode: delete existing tenant first to ensure truly clean state
-        full_tenant_name="${tenant_name}_${test_suffix}"
-        print_info "Cleaning existing tenant: $full_tenant_name"
-        monk tenant delete "$full_tenant_name" >/dev/null 2>&1 || true  # Ignore failure if doesn't exist
+        print_info "Cleaning existing tenant: $tenant_name"
+        
+        # Delete existing tenant (pass both tenant name and test suffix)
+        monk tenant delete "$tenant_name" "$test_suffix" >/dev/null 2>&1 || true
         
         if output=$(monk tenant create "$tenant_name" "$test_suffix" 2>&1); then
             print_success "Tenant created: $tenant_name"
