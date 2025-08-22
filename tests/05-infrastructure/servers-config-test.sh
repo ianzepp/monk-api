@@ -170,7 +170,49 @@ else
 fi
 
 echo ""
-echo "🧪 Test 5: Test server deletion"
+echo "🧪 Test 5: Test 'monk servers use' (no args) functionality"
+
+# Test showing current server when one is set
+if [ "$HAS_EXISTING_CONFIG" = false ] || ! grep -q '"current":' "$BACKUP_FILE" 2>/dev/null; then
+    # We have a current server set from previous test
+    USE_OUTPUT=$(monk servers use 2>/dev/null)
+    if echo "$USE_OUTPUT" | grep -q "Current Server" && echo "$USE_OUTPUT" | grep -q "$TEST_SERVER_2"; then
+        echo "✅ 'monk servers use' (no args) shows current server correctly"
+    else
+        echo "❌ 'monk servers use' (no args) failed to show current server"
+        echo "Output: $USE_OUTPUT"
+        exit 1
+    fi
+    
+    # Test showing "no current server" when none is set
+    # Temporarily remove current server setting
+    jq 'del(.current)' "$TEST_CONFIG_FILE" > "$TEST_CONFIG_FILE.tmp" && mv "$TEST_CONFIG_FILE.tmp" "$TEST_CONFIG_FILE"
+    USE_OUTPUT_EMPTY=$(monk servers use 2>/dev/null)
+    if echo "$USE_OUTPUT_EMPTY" | grep -q "No current server selected"; then
+        echo "✅ 'monk servers use' (no args) shows 'no current server' message correctly"
+    else
+        echo "❌ 'monk servers use' (no args) failed to show 'no current server' message"
+        echo "Output: $USE_OUTPUT_EMPTY"
+        exit 1
+    fi
+    
+    # Restore current server for cleanup
+    jq --arg name "$TEST_SERVER_2" '.current = $name' "$TEST_CONFIG_FILE" > "$TEST_CONFIG_FILE.tmp" && mv "$TEST_CONFIG_FILE.tmp" "$TEST_CONFIG_FILE"
+else
+    # Even with existing config, we can test that the command works without breaking anything
+    echo "📝 Testing 'monk servers use' (no args) with existing configuration"
+    USE_OUTPUT=$(monk servers use 2>/dev/null)
+    if echo "$USE_OUTPUT" | grep -q "Current Server" || echo "$USE_OUTPUT" | grep -q "No current server selected"; then
+        echo "✅ 'monk servers use' (no args) works correctly with existing configuration"
+    else
+        echo "❌ 'monk servers use' (no args) failed with existing configuration"
+        echo "Output: $USE_OUTPUT"
+        exit 1
+    fi
+fi
+
+echo ""
+echo "🧪 Test 6: Test server deletion"
 
 # Delete our test servers
 monk servers delete "$TEST_SERVER_1" >/dev/null 2>&1
@@ -189,6 +231,7 @@ echo "- ✅ Config file location: ~/.config/monk/servers.json"
 echo "- ✅ Server addition and deletion work correctly"
 echo "- ✅ Config file structure is valid"
 echo "- ✅ Server listing shows correct information"
+echo "- ✅ 'monk servers use' (no args) functionality works correctly"
 if [ "$HAS_EXISTING_CONFIG" = true ]; then
     echo "- ✅ Existing configuration preserved and restored"
 else

@@ -3,12 +3,13 @@ help: Monk CLI - Command-line interface for PaaS Backend API
 version: 1.0.0
 
 environment_variables:
-- name: CLI_BASE_URL
-  help: "Target API server (auto-detected from monk test env)"
 - name: CLI_VERBOSE
   help: Enable verbose output for all commands
 - name: JWT_TOKEN
   help: "Authentication token (managed by monk auth)"
+
+# Server selection is automatically handled via ~/.config/monk/servers.json
+# Use 'monk servers use <name>' to select target server (persistent across commands)
 
 commands:
 # Authentication and token management
@@ -263,11 +264,11 @@ commands:
     help: Show currently selected server
     
   - name: use
-    help: "Switch to server (sets CLI_BASE_URL)"
+    help: "Switch to server (persistent selection) or show current server"
     args:
     - name: name
-      required: true
-      help: Server name to switch to
+      required: false
+      help: Server name to switch to (omit to show current server)
       
   - name: delete
     help: Remove server from registry

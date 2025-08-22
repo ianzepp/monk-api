@@ -7,7 +7,7 @@ var_name="${args[var_name]}"
 # If specific variable requested, show just that
 if [ -n "$var_name" ]; then
     case "$var_name" in
-        CLI_BASE_URL)
+        SERVER_URL)
             get_base_url 2>/dev/null || echo "Not configured"
             ;;
         CURRENT_SERVER)
@@ -32,7 +32,7 @@ if [ -n "$var_name" ]; then
             ;;
         *)
             print_error "Unknown variable: $var_name"
-            print_info "Available variables: CLI_BASE_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
+            print_info "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
             exit 1
             ;;
     esac
@@ -139,4 +139,4 @@ echo
 
 # Usage help
 print_info "Usage: monk test env [VAR_NAME] to get specific variable"
-print_info "Available variables: CLI_BASE_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
+print_info "Available variables: SERVER_URL, CURRENT_SERVER, CURRENT_TENANT, JWT_TOKEN, DB_USER"
