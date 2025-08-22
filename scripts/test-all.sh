@@ -41,6 +41,14 @@ fi
 print_info "Running Tests"
 echo
 
+# Show test environment information
+if [ -f "scripts/test-info.sh" ] && [ -x "scripts/test-info.sh" ]; then
+    echo "=== Test Environment ==="
+    ./scripts/test-info.sh
+    echo "========================"
+    echo
+fi
+
 # Function to find tests by pattern
 find_tests_by_pattern() {
     local pattern="$1"

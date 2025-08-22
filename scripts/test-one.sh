@@ -54,6 +54,14 @@ test_dir=$(dirname "$test_file")
 print_info "Running single test: $test_name"
 echo
 
+# Show test environment information
+if [ -f "scripts/test-info.sh" ] && [ -x "scripts/test-info.sh" ]; then
+    echo "=== Test Environment ==="
+    ./scripts/test-info.sh
+    echo "========================"
+    echo
+fi
+
 # Run the test
 start_time=$(date +%s)
 

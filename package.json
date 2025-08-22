@@ -24,7 +24,7 @@
     "test:integration": "scripts/test-all.sh 50",
     "test:lifecycle": "scripts/test-all.sh 60",
     "test:validation": "scripts/test-all.sh 70",
-    "test:env-setup": "monk test setup",
+    "test:info": "scripts/test-info.sh",
     "test:unit": "vitest",
     "test:run": "vitest run"
   },
