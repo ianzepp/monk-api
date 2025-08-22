@@ -29,13 +29,30 @@ export class ValidationError extends Error {
 export class Schema {
     private static ajv: Ajv | null = null;
     private cachedValidator?: Function;
+    
+    // Schema properties from database record
+    private schemaName: SchemaName;
+    private tableName: string;
+    private status: string;
+    public definition?: any;
 
     constructor(
         private system: System,
-        private schemaName: SchemaName,
-        private tableName: string,
-        public definition?: any
-    ) {}
+        schemaName: SchemaName,
+        schemaRecord: any
+    ) {
+        this.schemaName = schemaName;
+        this.tableName = schemaRecord.table_name;
+        this.status = schemaRecord.status || 'active';
+        this.definition = schemaRecord.definition;
+    }
+
+    /**
+     * Check if this schema is a protected system schema
+     */
+    isSystemSchema(): boolean {
+        return this.status === 'system';
+    }
 
     /**
      * Get or initialize global AJV instance
@@ -250,5 +267,9 @@ export async function createSchema(system: System, schemaName: string): Promise<
         throw new Error(`Schema '${schemaName}' not found`);
     }
     
-    return new Schema(system, schemaName, schemaInfo.table, schemaInfo.definition);
+    return new Schema(system, schemaName, {
+        table_name: schemaInfo.table,
+        definition: schemaInfo.definition,
+        status: 'active' // Assume active for legacy calls
+    });
 }

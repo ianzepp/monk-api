@@ -8,7 +8,7 @@ export default async function (context: Context): Promise<any> {
         const recordId = context.req.param('id');            
         const recordData = await context.req.json();
         const method = context.req.method;
-        
+
         console.debug('routes/data-record-update-one: method=%j schemaName=%j recordId=%j recordData=%j options=%j', 
             method, schemaName, recordId, recordData, system.options);
         

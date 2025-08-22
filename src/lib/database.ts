@@ -6,6 +6,7 @@ import type { Context } from 'hono';
 import type { System } from './system.js';
 import { SchemaCache } from './schema-cache.js';
 import _ from 'lodash';
+import crypto from 'crypto';
 
 /**
  * Database service wrapper providing high-level operations
@@ -25,7 +26,7 @@ export class Database {
         const schemaRecord = await schemaCache.getSchema(this.system, schemaName);
         
         // Create Schema instance with validation capabilities
-        const schema = new Schema(this.system, schemaName, schemaRecord.table_name, schemaRecord.definition);
+        const schema = new Schema(this.system, schemaName, schemaRecord);
         console.debug(`Database.toSchema: schema '${schemaName}' resolved`);
         return schema;
     }
@@ -88,6 +89,11 @@ export class Database {
         console.debug(`Database.deleteAll: starting batch delete for schema '${schemaName}', ${deletes.length} records`);
         
         const schema = await this.toSchema(schemaName);
+        
+        // Protect system schemas from data operations
+        if (schema.isSystemSchema()) {
+            throw new Error(`Cannot delete records in system schema "${schemaName}" - use meta API for schema management`);
+        }
         
         // 1. Extract IDs and validate we have them
         const ids = deletes.map(record => record.id).filter(id => id !== undefined);
@@ -192,6 +198,11 @@ export class Database {
     async createOne(schemaName: SchemaName, recordData: Record<string, any>): Promise<any> {
         const schema = await this.toSchema(schemaName);
 
+        // Protect system schemas from data operations
+        if (schema.isSystemSchema()) {
+            throw new Error(`Cannot create records in system schema "${schemaName}" - use meta API for schema management`);
+        }
+
         // Validate record data against schema definition
         schema.validateOrThrow(recordData);
 
@@ -256,6 +267,11 @@ export class Database {
         console.debug(`Database.updateAll: starting batch update for schema '${schemaName}', ${updates.length} records`);
         
         const schema = await this.toSchema(schemaName);
+        
+        // Protect system schemas from data operations
+        if (schema.isSystemSchema()) {
+            throw new Error(`Cannot update records in system schema "${schemaName}" - use meta API for schema management`);
+        }
         
         // 1. Extract IDs and validate we have them
         const ids = updates.map(update => update.id).filter(id => id !== undefined);
