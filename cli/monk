@@ -74,7 +74,7 @@ monk_auth_usage() {
   echo
   # :command.usage_commands
   printf "%s\n" "Commands:"
-  printf "  %s   Authenticate with tenant\n" "login "
+  printf "  %s   Authenticate with tenant and username\n" "login "
   printf "  %s   Clear stored JWT token\n" "logout"
   printf "  %s   Show authentication status\n" "status"
   printf "  %s   Display current JWT token\n" "token "
@@ -95,10 +95,10 @@ monk_auth_usage() {
 
 # :command.usage
 monk_auth_login_usage() {
-  printf "monk auth login - Authenticate with tenant\n\n"
+  printf "monk auth login - Authenticate with tenant and username\n\n"
 
   printf "%s\n" "Usage:"
-  printf "  monk auth login TENANT\n"
+  printf "  monk auth login TENANT USERNAME\n"
   printf "  monk auth login --help | -h\n"
   echo
 
@@ -117,6 +117,11 @@ monk_auth_login_usage() {
     # :argument.usage
     printf "  %s\n" "TENANT"
     printf "    Tenant name for authentication\n"
+    echo
+
+    # :argument.usage
+    printf "  %s\n" "USERNAME"
+    printf "    Username for authentication\n"
     echo
 
   fi
@@ -1818,15 +1823,16 @@ monk_auth_login_command() {
   # Check dependencies
   check_dependencies
 
-  # Extract tenant from bashly args
+  # Extract tenant and username from bashly args
   tenant="${args[tenant]}"
+  username="${args[username]}"
 
   if [ "$CLI_VERBOSE" = "true" ]; then
-      print_info "Authenticating with tenant: $tenant"
+      print_info "Authenticating with tenant: $tenant, username: $username"
   fi
 
   # Prepare authentication request
-  auth_data="{\"tenant\": \"$tenant\"}"
+  auth_data="{\"tenant\": \"$tenant\", \"username\": \"$username\"}"
   base_url=$(get_base_url)
 
   if [ "$CLI_VERBOSE" = "true" ]; then
@@ -3481,6 +3487,16 @@ monk_tenant_create_command() {
           dropdb "$database_name" -U "$db_user" 2>/dev/null || true
           exit 1
       fi
+
+      # Insert default root user for the tenant
+      root_user_sql="INSERT INTO users (tenant_name, name, access) VALUES ('$tenant_name', 'root', 'root');"
+      if ! psql -U "$db_user" -d "$database_name" -c "$root_user_sql" >/dev/null 2>&1; then
+          print_error "Failed to create root user for tenant"
+          # Clean up the database we created
+          dropdb "$database_name" -U "$db_user" 2>/dev/null || true
+          exit 1
+      fi
+      print_success "Root user created for tenant"
   else
       print_error "Failed to create database '$database_name'"
       exit 1
@@ -3972,6 +3988,10 @@ monk_auth_login_parse_requirements() {
         if [[ -z ${args['tenant']+x} ]]; then
           args['tenant']=$1
           shift
+        # :argument.case
+        elif [[ -z ${args['username']+x} ]]; then
+          args['username']=$1
+          shift
         else
           printf "invalid argument: %s\n" "$key" >&2
           exit 1
@@ -3984,7 +4004,13 @@ monk_auth_login_parse_requirements() {
 
   # :command.required_args_filter
   if [[ -z ${args['tenant']+x} ]]; then
-    printf "missing required argument: TENANT\nusage: monk auth login TENANT\n" >&2
+    printf "missing required argument: TENANT\nusage: monk auth login TENANT USERNAME\n" >&2
+
+    exit 1
+  fi
+
+  if [[ -z ${args['username']+x} ]]; then
+    printf "missing required argument: USERNAME\nusage: monk auth login TENANT USERNAME\n" >&2
 
     exit 1
   fi

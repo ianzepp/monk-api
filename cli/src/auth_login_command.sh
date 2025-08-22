@@ -1,15 +1,16 @@
 # Check dependencies
 check_dependencies
 
-# Extract tenant from bashly args
+# Extract tenant and username from bashly args
 tenant="${args[tenant]}"
+username="${args[username]}"
 
 if [ "$CLI_VERBOSE" = "true" ]; then
-    print_info "Authenticating with tenant: $tenant"
+    print_info "Authenticating with tenant: $tenant, username: $username"
 fi
 
 # Prepare authentication request
-auth_data="{\"tenant\": \"$tenant\"}"
+auth_data="{\"tenant\": \"$tenant\", \"username\": \"$username\"}"
 base_url=$(get_base_url)
 
 if [ "$CLI_VERBOSE" = "true" ]; then

@@ -18,11 +18,14 @@ commands:
   
   commands:
   - name: login
-    help: Authenticate with tenant
+    help: Authenticate with tenant and username
     args:
     - name: tenant
       required: true
       help: Tenant name for authentication
+    - name: username
+      required: true
+      help: Username for authentication
       
   - name: logout
     help: Clear stored JWT token

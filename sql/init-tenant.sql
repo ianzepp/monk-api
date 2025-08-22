@@ -51,6 +51,23 @@ ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schemas_name_fk"
     FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("name") 
     ON DELETE no action ON UPDATE no action;
 
+-- Users table to store tenant users and their access levels
+CREATE TABLE "users" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tenant_name" text NOT NULL,
+	"name" text NOT NULL,
+	"access" text CHECK ("access" IN ('root', 'full', 'edit', 'read', 'deny')) NOT NULL,
+	"access_read" uuid[] DEFAULT '{}'::uuid[],
+	"access_edit" uuid[] DEFAULT '{}'::uuid[],
+	"access_full" uuid[] DEFAULT '{}'::uuid[],
+	"access_deny" uuid[] DEFAULT '{}'::uuid[],
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"trashed_at" timestamp,
+	"deleted_at" timestamp,
+	CONSTRAINT "users_tenant_name_name_unique" UNIQUE("tenant_name", "name")
+);
+
 -- Ping logging table to record all ping requests
 CREATE TABLE "pings" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,

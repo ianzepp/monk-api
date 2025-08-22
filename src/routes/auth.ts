@@ -23,11 +23,11 @@ declare module 'hono' {
 
 const app = new Hono();
 
-// POST /auth/login - Authenticate with tenant
+// POST /auth/login - Authenticate with tenant and username
 app.post('/login', async (c) => {
     try {
         const body = await c.req.json();
-        const { tenant } = body;
+        const { tenant, username } = body;
 
         if (!tenant) {
             return createValidationError(c, 'Tenant required', [
@@ -35,13 +35,19 @@ app.post('/login', async (c) => {
             ]);
         }
 
-        const result = await AuthService.login(tenant);
+        if (!username) {
+            return createValidationError(c, 'Username required', [
+                { path: ['username'], message: 'Username is required' }
+            ]);
+        }
+
+        const result = await AuthService.login(tenant, username);
 
         if (!result) {
             return c.json({
                 success: false,
-                error: 'Tenant authentication failed',
-                error_code: 'TENANT_AUTH_FAILED'
+                error: 'Authentication failed',
+                error_code: 'AUTH_FAILED'
             }, 401);
         }
 

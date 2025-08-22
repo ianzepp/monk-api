@@ -66,10 +66,10 @@ export class AuthService {
         return await verify(token, this.jwtSecret) as JWTPayload;
     }
 
-    // Login with tenant authentication
-    static async login(tenant: string): Promise<{ token: string; user: any } | null> {
-        if (!tenant) {
-            return null; // Tenant required
+    // Login with tenant and username authentication
+    static async login(tenant: string, username: string): Promise<{ token: string; user: any } | null> {
+        if (!tenant || !username) {
+            return null; // Both tenant and username required
         }
 
         // Look up tenant record to get database name
@@ -85,29 +85,45 @@ export class AuthService {
 
         const { name, database } = tenantResult.rows[0];
 
-        // Create test user object with tenant and database info
-        const testUser = {
-            id: 'test-user',
-            user_id: null, // No user ID for system/test authentication
+        // Look up user in the tenant's database
+        const tenantDb = await DatabaseManager.getDatabaseForDomain(database);
+        const userResult = await tenantDb.query(
+            'SELECT id, tenant_name, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE tenant_name = $1 AND name = $2 AND trashed_at IS NULL AND deleted_at IS NULL',
+            [tenant, username]
+        );
+
+        if (!userResult.rows || userResult.rows.length === 0) {
+            return null; // User not found or inactive
+        }
+
+        const user = userResult.rows[0];
+
+        // Create user object for JWT
+        const authUser = {
+            id: user.id,
+            user_id: user.id,
             tenant: name,
             database: database,
-            access: 'root', // Give everyone root access for now
-            access_read: [],
-            access_edit: [],
-            access_full: [],
+            username: user.name,
+            access: user.access,
+            access_read: user.access_read || [],
+            access_edit: user.access_edit || [],
+            access_full: user.access_full || [],
+            access_deny: user.access_deny || [],
             is_active: true
         };
 
         // Generate token
-        const token = await this.generateToken(testUser);
+        const token = await this.generateToken(authUser);
 
         return {
             token,
             user: {
-                id: testUser.id,
-                tenant: testUser.tenant,
-                database: testUser.database,
-                access: testUser.access
+                id: authUser.id,
+                username: authUser.username,
+                tenant: authUser.tenant,
+                database: authUser.database,
+                access: authUser.access
             }
         };
     }

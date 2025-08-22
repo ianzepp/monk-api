@@ -6,7 +6,7 @@ describe('AuthService', () => {
         it('should generate JWT token for valid domain', async () => {
             const domain = 'test_database_123';
             
-            const result = await AuthService.login(domain);
+            const result = await AuthService.login(domain, 'root');
             
             expect(result).toBeDefined();
             expect(result).toHaveProperty('token');
@@ -17,19 +17,19 @@ describe('AuthService', () => {
         });
 
         it('should reject login with no domain', async () => {
-            const result = await AuthService.login('');
+            const result = await AuthService.login('', 'root');
             
             expect(result).toBeNull();
         });
 
         it('should reject login with null domain', async () => {
-            const result = await AuthService.login(null as any);
+            const result = await AuthService.login(null as any, 'root');
             
             expect(result).toBeNull();
         });
 
         it('should reject login with undefined domain', async () => {
-            const result = await AuthService.login(undefined as any);
+            const result = await AuthService.login(undefined as any, 'root');
             
             expect(result).toBeNull();
         });
@@ -40,7 +40,7 @@ describe('AuthService', () => {
             const domain = 'test_db_456';
             
             // Generate token
-            const loginResult = await AuthService.login(domain);
+            const loginResult = await AuthService.login(domain, 'root');
             expect(loginResult).toBeDefined();
             
             const token = loginResult!.token;
@@ -66,7 +66,7 @@ describe('AuthService', () => {
         it('should generate tokens with correct expiration', async () => {
             const domain = 'test_expiry';
             
-            const loginResult = await AuthService.login(domain);
+            const loginResult = await AuthService.login(domain, 'root');
             const payload = await AuthService.verifyToken(loginResult!.token);
             
             const issuedAt = payload.iat;
@@ -86,7 +86,7 @@ describe('AuthService', () => {
             ];
             
             for (const domain of testDomains) {
-                const loginResult = await AuthService.login(domain);
+                const loginResult = await AuthService.login(domain, 'root');
                 const payload = await AuthService.verifyToken(loginResult!.token);
                 
                 expect(payload.domain).toBe(domain);
@@ -112,7 +112,7 @@ describe('AuthService', () => {
             const domain = 'refresh_test_db';
             
             // Generate initial token
-            const loginResult = await AuthService.login(domain);
+            const loginResult = await AuthService.login(domain, 'root');
             const originalToken = loginResult!.token;
             
             // Wait a moment to ensure different timestamps
@@ -140,7 +140,7 @@ describe('AuthService', () => {
         it('should generate new expiration time on refresh', async () => {
             const domain = 'refresh_expiry_test';
             
-            const loginResult = await AuthService.login(domain);
+            const loginResult = await AuthService.login(domain, 'root');
             const originalToken = loginResult!.token;
             const originalPayload = await AuthService.verifyToken(originalToken);
             
@@ -159,7 +159,7 @@ describe('AuthService', () => {
         it('should include all required JWT payload fields', async () => {
             const domain = 'payload_test_db';
             
-            const loginResult = await AuthService.login(domain);
+            const loginResult = await AuthService.login(domain, 'root');
             const payload = await AuthService.verifyToken(loginResult!.token);
             
             // Check all required fields exist
@@ -190,7 +190,7 @@ describe('AuthService', () => {
         it('should have admin role for test tokens', async () => {
             const domain = 'admin_role_test';
             
-            const loginResult = await AuthService.login(domain);
+            const loginResult = await AuthService.login(domain, 'root');
             const payload = await AuthService.verifyToken(loginResult!.token);
             
             expect(payload.role).toBe('admin');
@@ -199,7 +199,7 @@ describe('AuthService', () => {
         it('should have empty ACL arrays for test tokens', async () => {
             const domain = 'acl_test_db';
             
-            const loginResult = await AuthService.login(domain);
+            const loginResult = await AuthService.login(domain, 'root');
             const payload = await AuthService.verifyToken(loginResult!.token);
             
             expect(payload.access_read).toEqual([]);
@@ -215,7 +215,7 @@ describe('AuthService', () => {
             
             // Generate tokens for multiple domains
             for (const domain of domains) {
-                const loginResult = await AuthService.login(domain);
+                const loginResult = await AuthService.login(domain, 'root');
                 tokens.push(loginResult!.token);
             }
             
@@ -230,8 +230,8 @@ describe('AuthService', () => {
             const domain1 = 'unique_test_1';
             const domain2 = 'unique_test_2';
             
-            const result1 = await AuthService.login(domain1);
-            const result2 = await AuthService.login(domain2);
+            const result1 = await AuthService.login(domain1, 'root');
+            const result2 = await AuthService.login(domain2, 'root');
             
             expect(result1!.token).not.toBe(result2!.token);
             

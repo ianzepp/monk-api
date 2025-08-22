@@ -47,6 +47,16 @@ if createdb "$database_name" -U "$db_user" 2>/dev/null; then
         dropdb "$database_name" -U "$db_user" 2>/dev/null || true
         exit 1
     fi
+    
+    # Insert default root user for the tenant
+    root_user_sql="INSERT INTO users (tenant_name, name, access) VALUES ('$tenant_name', 'root', 'root');"
+    if ! psql -U "$db_user" -d "$database_name" -c "$root_user_sql" >/dev/null 2>&1; then
+        print_error "Failed to create root user for tenant"
+        # Clean up the database we created
+        dropdb "$database_name" -U "$db_user" 2>/dev/null || true
+        exit 1
+    fi
+    print_success "Root user created for tenant"
 else
     print_error "Failed to create database '$database_name'"
     exit 1
