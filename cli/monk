@@ -1100,7 +1100,7 @@ monk_tenant_create_usage() {
   printf "monk tenant create - Create new tenant database and record\n\n"
 
   printf "%s\n" "Usage:"
-  printf "  monk tenant create NAME [TEST_SUFFIX] [OPTIONS]\n"
+  printf "  monk tenant create NAME [OPTIONS]\n"
   printf "  monk tenant create --help | -h\n"
   echo
 
@@ -1113,6 +1113,11 @@ monk_tenant_create_usage() {
     printf "  %s\n" "--host HOST"
     printf "    Database host\n"
     printf "    %s\n" "Default: localhost"
+    echo
+
+    # :flag.usage
+    printf "  %s\n" "--force, -f"
+    printf "    Force creation by dropping existing database if it exists\n"
     echo
 
     # :command.usage_fixed_flags
@@ -1128,11 +1133,6 @@ monk_tenant_create_usage() {
     printf "    Name of the tenant database to create\n"
     echo
 
-    # :argument.usage
-    printf "  %s\n" "TEST_SUFFIX"
-    printf "    Optional test suffix for test allocations\n"
-    echo
-
   fi
 }
 
@@ -1141,7 +1141,7 @@ monk_tenant_delete_usage() {
   printf "monk tenant delete - Delete tenant database\n\n"
 
   printf "%s\n" "Usage:"
-  printf "  monk tenant delete NAME [TEST_SUFFIX]\n"
+  printf "  monk tenant delete NAME\n"
   printf "  monk tenant delete --help | -h\n"
   echo
 
@@ -1160,11 +1160,6 @@ monk_tenant_delete_usage() {
     # :argument.usage
     printf "  %s\n" "NAME"
     printf "    Name of the tenant database to delete\n"
-    echo
-
-    # :argument.usage
-    printf "  %s\n" "TEST_SUFFIX"
-    printf "    Optional test suffix (for test allocations)\n"
     echo
 
   fi
@@ -3440,50 +3435,66 @@ monk_tenant_create_command() {
 
   # Get arguments from bashly
   tenant_name="${args[name]}"
-  test_suffix="${args[test_suffix]}"
   host="${args[--host]}"
+  force_flag="${args[--force]}"
+
+  # Generate database name: monk-api$ + snake_case conversion
+  database_name="monk-api\$$(echo "$tenant_name" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g' | tr '[:upper:]' '[:lower:]')"
 
   print_info "Creating tenant: $tenant_name"
+  print_info "Database name: $database_name"
 
   db_user=$(whoami)
 
+  # Check if database already exists
+  if psql -U "$db_user" -lqt | cut -d'|' -f1 | grep -qw "$database_name" 2>/dev/null; then
+      if [ "$force_flag" = "1" ]; then
+          print_info "Database '$database_name' exists, dropping it (--force flag)"
+
+          # Remove tenant record from auth database first
+          sql_delete="DELETE FROM tenants WHERE database = '$database_name';"
+          if ! psql -U "$db_user" -d monk-api-auth -c "$sql_delete" >/dev/null 2>&1; then
+              print_info "No existing tenant record found in auth database (continuing)"
+          fi
+
+          # Drop the existing database
+          if ! dropdb "$database_name" -U "$db_user" 2>/dev/null; then
+              print_error "Failed to drop existing database '$database_name'"
+              exit 1
+          fi
+          print_success "Existing database '$database_name' dropped"
+      else
+          print_error "Database '$database_name' already exists (use --force to override)"
+          exit 1
+      fi
+  fi
+
   # First create the actual PostgreSQL database
-  if createdb "$tenant_name" -U "$db_user" 2>/dev/null; then
-      print_success "Database '$tenant_name' created successfully"
+  if createdb "$database_name" -U "$db_user" 2>/dev/null; then
+      print_success "Database '$database_name' created successfully"
 
       # Initialize tenant database with required schema tables
-      if ! init_tenant_schema "$tenant_name" "$db_user"; then
+      if ! init_tenant_schema "$database_name" "$db_user"; then
           # Clean up the database we created
-          dropdb "$tenant_name" -U "$db_user" 2>/dev/null || true
+          dropdb "$database_name" -U "$db_user" 2>/dev/null || true
           exit 1
       fi
   else
-      print_error "Failed to create database '$tenant_name'"
+      print_error "Failed to create database '$database_name'"
       exit 1
   fi
 
   # Then insert record into auth database tenants table
-  sql_insert="INSERT INTO tenants (name, host"
-  sql_values="VALUES ('$tenant_name', '$host'"
-
-  if [ -n "$test_suffix" ]; then
-      sql_insert="$sql_insert, test_suffix"
-      sql_values="$sql_values, '$test_suffix'"
-  fi
-
-  sql_insert="$sql_insert) $sql_values);"
+  sql_insert="INSERT INTO tenants (name, host, database) VALUES ('$tenant_name', '$host', '$database_name');"
 
   if psql -U "$db_user" -d monk-api-auth -c "$sql_insert" >/dev/null 2>&1; then
       print_success "Tenant record created in auth database"
-      if [ -n "$test_suffix" ]; then
-          print_info "Tenant: $tenant_name (test: $test_suffix) on host: $host"
-      else
-          print_info "Tenant: $tenant_name on host: $host"
-      fi
+      print_info "Tenant: $tenant_name on host: $host"
+      print_info "Database: $database_name"
   else
       print_error "Failed to create tenant record in auth database"
       # Clean up the database we created
-      dropdb "$tenant_name" -U "$db_user" 2>/dev/null || true
+      dropdb "$database_name" -U "$db_user" 2>/dev/null || true
       exit 1
   fi
 }
@@ -3497,27 +3508,29 @@ monk_tenant_delete_command() {
 
   # Get arguments from bashly
   tenant_name="${args[name]}"
-  test_suffix="${args[test_suffix]}"
-
-  # Build full database name (same logic as create command)
-  if [ -n "$test_suffix" ]; then
-      full_db_name="${tenant_name}_${test_suffix}"
-      auth_record_name="$full_db_name"
-  else
-      full_db_name="$tenant_name"
-      auth_record_name="$tenant_name"
-  fi
 
   print_info "Deleting tenant: $tenant_name"
-  if [ -n "$test_suffix" ]; then
-      print_info "Test suffix: $test_suffix"
-      print_info "Database name: $full_db_name"
-  fi
 
   db_user=$(whoami)
 
+  # Get database name from tenant record
+  database_name=$(psql -U "$db_user" -d monk-api-auth -t -c "SELECT database FROM tenants WHERE name = '$tenant_name';" 2>/dev/null | tr -d ' ')
+
+  if [ -z "$database_name" ]; then
+      print_error "Tenant '$tenant_name' not found in auth database"
+      exit 1
+  fi
+
+  print_info "Database name: $database_name"
+
+  # Check if database exists
+  if ! psql -U "$db_user" -lqt | cut -d'|' -f1 | grep -qw "$database_name" 2>/dev/null; then
+      print_error "Database '$database_name' does not exist"
+      exit 1
+  fi
+
   # First remove record from auth database tenants table
-  sql_delete="DELETE FROM tenants WHERE name = '$auth_record_name';"
+  sql_delete="DELETE FROM tenants WHERE name = '$tenant_name';"
 
   if psql -U "$db_user" -d monk-api-auth -c "$sql_delete" >/dev/null 2>&1; then
       print_success "Tenant record removed from auth database"
@@ -3527,10 +3540,10 @@ monk_tenant_delete_command() {
   fi
 
   # Then drop the actual PostgreSQL database
-  if dropdb "$full_db_name" -U "$db_user" 2>/dev/null; then
-      print_success "Database '$full_db_name' deleted successfully"
+  if dropdb "$database_name" -U "$db_user" 2>/dev/null; then
+      print_success "Database '$database_name' deleted successfully"
   else
-      print_error "Failed to delete database '$full_db_name'"
+      print_error "Failed to delete database '$database_name'"
       exit 1
   fi
 }
@@ -3594,38 +3607,33 @@ monk_tenant_list_command() {
   db_user=$(whoami)
 
   # Print header
-  printf "%-30s %-20s %-8s %-8s %-8s %-8s %s\n" \
+  printf "%-30s %-40s %-20s %-8s %-8s %-8s %-8s %s\n" \
       "TENANT" \
+      "DATABASE" \
       "HOST" \
       "STATUS" \
       "DB" \
       "SCHEMAS" \
       "COLUMNS" \
       "CREATED"
-  echo "$(printf '%.s-' {1..100})"
+  echo "$(printf '%.s-' {1..120})"
 
   # Get tenant records from auth database
-  tenants_query="SELECT name, host, test_suffix, is_active, created_at FROM tenants ORDER BY name, test_suffix;"
+  tenants_query="SELECT name, database, host, is_active, created_at FROM tenants ORDER BY name;"
 
   # Use temporary file to avoid pipe subshell issues
   temp_file=$(mktemp)
   if psql -U "$db_user" -d monk-api-auth -t -c "$tenants_query" 2>/dev/null > "$temp_file"; then
-      while IFS='|' read -r name host test_suffix is_active created_at; do
+      while IFS='|' read -r name database host is_active created_at; do
           # Clean up the fields (remove leading/trailing spaces)
           name=$(echo "$name" | xargs)
+          database=$(echo "$database" | xargs)
           host=$(echo "$host" | xargs)
 
-          test_suffix=$(echo "$test_suffix" | xargs)
           is_active=$(echo "$is_active" | xargs)
 
           # Skip empty lines
           [ -z "$name" ] && continue
-
-          # Build display name
-          display_name="$name"
-          if [ -n "$test_suffix" ] && [ "$test_suffix" != "" ]; then
-              display_name="$name (test: $test_suffix)"
-          fi
 
           # Get database stats if host is localhost
           schemas="?"
@@ -3634,14 +3642,14 @@ monk_tenant_list_command() {
 
           if [ "$host" = "localhost" ]; then
               # Check if database exists locally
-              if psql -U "$db_user" -lqt | cut -d'|' -f1 | grep -qw "$name" 2>/dev/null; then
+              if psql -U "$db_user" -lqt | cut -d'|' -f1 | grep -qw "$database" 2>/dev/null; then
                   status="local"
                   # Count tables in public schema
-                  schema_count=$(psql -U "$db_user" -d "$name" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+                  schema_count=$(psql -U "$db_user" -d "$database" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
                   schemas=$(echo "$schema_count" | xargs)
 
                   # Count columns across all tables in public schema
-                  column_count=$(psql -U "$db_user" -d "$name" -t -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+                  column_count=$(psql -U "$db_user" -d "$database" -t -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public';" 2>/dev/null || echo "0")
                   columns=$(echo "$column_count" | xargs)
               else
                   status="missing"
@@ -3657,8 +3665,9 @@ monk_tenant_list_command() {
           # Format created date
           created_display=$(echo "$created_at" | cut -d'.' -f1)
 
-          printf "%-30s %-20s %-8s %-8s %-8s %-8s %s\n" \
-              "$display_name" \
+          printf "%-30s %-40s %-20s %-8s %-8s %-8s %-8s %s\n" \
+              "$name" \
+              "$database" \
               "$host" \
               "$active_display" \
               "$status" \
@@ -6162,6 +6171,14 @@ monk_tenant_create_parse_requirements() {
         fi
         ;;
 
+      # :flag.case
+      --force | -f)
+
+        # :flag.case_no_arg
+        args['--force']=1
+        shift
+        ;;
+
       -?*)
         printf "invalid option: %s\n" "$key" >&2
         exit 1
@@ -6173,10 +6190,6 @@ monk_tenant_create_parse_requirements() {
         # :argument.case
         if [[ -z ${args['name']+x} ]]; then
           args['name']=$1
-          shift
-        # :argument.case
-        elif [[ -z ${args['test_suffix']+x} ]]; then
-          args['test_suffix']=$1
           shift
         else
           printf "invalid argument: %s\n" "$key" >&2
@@ -6190,7 +6203,7 @@ monk_tenant_create_parse_requirements() {
 
   # :command.required_args_filter
   if [[ -z ${args['name']+x} ]]; then
-    printf "missing required argument: NAME\nusage: monk tenant create NAME [TEST_SUFFIX] [OPTIONS]\n" >&2
+    printf "missing required argument: NAME\nusage: monk tenant create NAME [OPTIONS]\n" >&2
 
     exit 1
   fi
@@ -6239,10 +6252,6 @@ monk_tenant_delete_parse_requirements() {
         if [[ -z ${args['name']+x} ]]; then
           args['name']=$1
           shift
-        # :argument.case
-        elif [[ -z ${args['test_suffix']+x} ]]; then
-          args['test_suffix']=$1
-          shift
         else
           printf "invalid argument: %s\n" "$key" >&2
           exit 1
@@ -6255,7 +6264,7 @@ monk_tenant_delete_parse_requirements() {
 
   # :command.required_args_filter
   if [[ -z ${args['name']+x} ]]; then
-    printf "missing required argument: NAME\nusage: monk tenant delete NAME [TEST_SUFFIX]\n" >&2
+    printf "missing required argument: NAME\nusage: monk tenant delete NAME\n" >&2
 
     exit 1
   fi

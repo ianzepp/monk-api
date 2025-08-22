@@ -282,13 +282,14 @@ commands:
     - name: name
       required: true
       help: Name of the tenant database to create
-    - name: test_suffix
-      help: Optional test suffix for test allocations
     flags:
     - long: --host
       arg: host
       help: Database host
       default: localhost
+    - long: --force
+      short: -f
+      help: Force creation by dropping existing database if it exists
       
   - name: delete
     help: Delete tenant database
@@ -296,8 +297,6 @@ commands:
     - name: name
       required: true
       help: Name of the tenant database to delete
-    - name: test_suffix
-      help: Optional test suffix (for test allocations)
       
   - name: init
     help: Truncate and re-initialize tenant database
