@@ -25,12 +25,12 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
-# Test configuration (with fallback defaults)
-CLI_BASE_URL="${CLI_BASE_URL:-http://localhost:3000}"
+# Test configuration (from persistent monk configuration)
+SERVER_URL="${SERVER_URL:-http://localhost:3000}"
 TEST_DOMAIN="${MONK_TEST_DATABASE:-monk_connection_test_$(date +%s)}"
 
 echo "=== Basic Connection Test ==="
-echo "Server: $CLI_BASE_URL"
+echo "Server: $SERVER_URL"
 echo "Test Domain: $TEST_DOMAIN"
 echo
 
