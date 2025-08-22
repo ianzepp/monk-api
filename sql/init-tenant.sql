@@ -50,3 +50,19 @@ CREATE TABLE "columns" (
 ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schemas_name_fk" 
     FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("name") 
     ON DELETE no action ON UPDATE no action;
+
+-- Ping logging table to record all ping requests
+CREATE TABLE "pings" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "timestamp" timestamp DEFAULT now() NOT NULL,
+    "client_ip" inet,
+    "user_agent" text,
+    "request_id" text,
+    "response_time_ms" integer,
+    "jwt_domain" text,
+    "jwt_user_id" uuid,
+    "jwt_access" text,
+    "server_version" text,
+    "database_status" text,
+    "created_at" timestamp DEFAULT now() NOT NULL
+);
