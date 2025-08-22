@@ -3,6 +3,19 @@ set -e
 
 # Schema Create and Delete Test - Validates meta API endpoints
 # Uses randomized schema names to avoid conflicts
+# Expects: $TEST_TENANT_NAME to be available (created by test-one.sh)
+
+# Check that tenant is available (should be exported by test-one.sh)
+if [ -z "$TEST_TENANT_NAME" ]; then
+    echo "TEST_TENANT_NAME not available - run via scripts/test-one.sh"
+    exit 1
+fi
+
+# Auto-configure test environment
+source "$(dirname "$0")/../test-env-setup.sh"
+
+# Source auth helper for authentication utilities
+source "$(dirname "$0")/../auth-helper.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -58,16 +71,14 @@ properties:
 required:
   - name"
 
-# Load authentication helper
-source "$(dirname "$0")/../auth-helper.sh"
-
 echo "=== Schema Create and Delete Test ==="
+echo "Test Tenant: $TEST_TENANT_NAME"
 echo "Testing with schema name: $SCHEMA_NAME"
 echo
 
-# Step 0.5: Authenticate and verify connectivity
-if ! authenticate_and_ping "schema"; then
-    print_error "Initial authentication and connectivity check failed"
+# Authenticate as root user
+if ! auth_as_user "root"; then
+    print_error "Failed to authenticate as root"
     exit 1
 fi
 echo
@@ -141,8 +152,8 @@ echo
 
 print_success "🎉 Schema create/delete test completed successfully!"
 
-# Cleanup
-cleanup_auth
+# Logout (cleanup handled by test-one.sh)
+logout_user
 
 echo
 echo "Test Summary:"

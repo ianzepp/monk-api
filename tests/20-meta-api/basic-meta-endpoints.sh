@@ -3,6 +3,19 @@ set -e
 
 # Basic Meta API Test - Endpoint availability and basic operations
 # Tests: schema list → schema get (non-existent) → basic error handling
+# Expects: $TEST_TENANT_NAME to be available (created by test-one.sh)
+
+# Check that tenant is available (should be exported by test-one.sh)
+if [ -z "$TEST_TENANT_NAME" ]; then
+    echo "TEST_TENANT_NAME not available - run via scripts/test-one.sh"
+    exit 1
+fi
+
+# Auto-configure test environment
+source "$(dirname "$0")/../test-env-setup.sh"
+
+# Source auth helper for authentication utilities
+source "$(dirname "$0")/../auth-helper.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,14 +35,15 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
-# Source auth helper for authentication
-source "$(dirname "$0")/../auth-helper.sh"
-
 echo "=== Basic Meta API Test ==="
+echo "Test Tenant: $TEST_TENANT_NAME"
 echo
 
-# Authenticate first
-authenticate_and_ping "meta_basic"
+# Authenticate as root user
+if ! auth_as_user "root"; then
+    print_error "Failed to authenticate as root"
+    exit 1
+fi
 
 # Test 1: List schemas (should work even if empty)
 print_step "Testing schema list endpoint"

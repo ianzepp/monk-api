@@ -3,6 +3,19 @@ set -e
 
 # Basic Data API Test - Endpoint availability without creating schemas
 # Tests: data endpoints with non-existent schemas → proper error handling
+# Expects: $TEST_TENANT_NAME to be available (created by test-one.sh)
+
+# Check that tenant is available (should be exported by test-one.sh)
+if [ -z "$TEST_TENANT_NAME" ]; then
+    echo "TEST_TENANT_NAME not available - run via scripts/test-one.sh"
+    exit 1
+fi
+
+# Auto-configure test environment
+source "$(dirname "$0")/../test-env-setup.sh"
+
+# Source auth helper for authentication utilities
+source "$(dirname "$0")/../auth-helper.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,14 +35,15 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
-# Source auth helper for authentication
-source "$(dirname "$0")/../auth-helper.sh"
-
 echo "=== Basic Data API Test ==="
+echo "Test Tenant: $TEST_TENANT_NAME"
 echo
 
-# Authenticate first
-authenticate_and_ping "data_basic"
+# Authenticate as root user
+if ! auth_as_user "root"; then
+    print_error "Failed to authenticate as root"
+    exit 1
+fi
 
 # Test 1: List data from non-existent schema (should fail gracefully)
 print_step "Testing data list on non-existent schema"
@@ -69,3 +83,6 @@ fi
 
 echo
 print_success "All basic data API tests passed!"
+
+# Logout (cleanup handled by test-one.sh)
+logout_user
