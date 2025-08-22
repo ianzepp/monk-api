@@ -439,3 +439,33 @@ ping_server_url() {
         return 1
     fi
 }
+
+# Initialize tenant database schema
+init_tenant_schema() {
+    local tenant_name="$1"
+    local db_user="${2:-$(whoami)}"
+    
+    # Find the schema file relative to the CLI root
+    local schema_file=""
+    
+    # Try different possible locations for the schema file
+    if [ -f "../sql/init-tenant.sql" ]; then
+        schema_file="../sql/init-tenant.sql"
+    elif [ -f "../../sql/init-tenant.sql" ]; then
+        schema_file="../../sql/init-tenant.sql"
+    elif [ -f "sql/init-tenant.sql" ]; then
+        schema_file="sql/init-tenant.sql"
+    else
+        print_error "Schema file not found: init-tenant.sql"
+        return 1
+    fi
+    
+    print_info "Initializing tenant database schema..."
+    if psql -U "$db_user" -d "$tenant_name" -f "$schema_file" >/dev/null 2>&1; then
+        print_success "Tenant database schema initialized"
+        return 0
+    else
+        print_error "Failed to initialize tenant database schema"
+        return 1
+    fi
+}

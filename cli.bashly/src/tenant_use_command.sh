@@ -1,5 +1,18 @@
-echo "# This file is located at 'src/tenant_use_command.sh'."
-echo "# It contains the implementation for the 'monk tenant use' command."
-echo "# The code you write here will be wrapped by a function named 'monk_tenant_use_command()'."
-echo "# Feel free to edit this file; your changes will persist when regenerating."
-inspect_args
+# Check dependencies
+check_dependencies
+
+# Get arguments from bashly
+tenant_name="${args[name]}"
+
+print_info "Switching to tenant: $tenant_name"
+
+# Store tenant context in environment
+export CLI_TENANT="$tenant_name"
+
+# Optionally store in config file for persistence
+config_dir="$HOME/.monk"
+mkdir -p "$config_dir"
+echo "$tenant_name" > "$config_dir/current_tenant"
+
+print_success "Switched to tenant '$tenant_name'"
+print_info "Use 'monk auth login --domain $tenant_name' to authenticate"

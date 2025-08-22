@@ -2229,6 +2229,36 @@ ping_server_url() {
     fi
 }
 
+# Initialize tenant database schema
+init_tenant_schema() {
+    local tenant_name="$1"
+    local db_user="${2:-$(whoami)}"
+
+    # Find the schema file relative to the CLI root
+    local schema_file=""
+
+    # Try different possible locations for the schema file
+    if [ -f "../sql/init-tenant.sql" ]; then
+        schema_file="../sql/init-tenant.sql"
+    elif [ -f "../../sql/init-tenant.sql" ]; then
+        schema_file="../../sql/init-tenant.sql"
+    elif [ -f "sql/init-tenant.sql" ]; then
+        schema_file="sql/init-tenant.sql"
+    else
+        print_error "Schema file not found: init-tenant.sql"
+        return 1
+    fi
+
+    print_info "Initializing tenant database schema..."
+    if psql -U "$db_user" -d "$tenant_name" -f "$schema_file" >/dev/null 2>&1; then
+        print_success "Tenant database schema initialized"
+        return 0
+    else
+        print_error "Failed to initialize tenant database schema"
+        return 1
+    fi
+}
+
 # :command.command_functions
 
 # :command.function
@@ -3223,60 +3253,254 @@ monk_servers_ping_all_command() {
 monk_tenant_create_command() {
 
   # src/tenant_create_command.sh
-  echo "# This file is located at 'src/tenant_create_command.sh'."
-  echo "# It contains the implementation for the 'monk tenant create' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_tenant_create_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  tenant_name="${args[name]}"
+  test_suffix="${args[test_suffix]}"
+  host="${args[--host]}"
+
+  print_info "Creating tenant: $tenant_name"
+
+  db_user=$(whoami)
+
+  # First create the actual PostgreSQL database
+  if createdb "$tenant_name" -U "$db_user" 2>/dev/null; then
+      print_success "Database '$tenant_name' created successfully"
+
+      # Initialize tenant database with required schema tables
+      if ! init_tenant_schema "$tenant_name" "$db_user"; then
+          # Clean up the database we created
+          dropdb "$tenant_name" -U "$db_user" 2>/dev/null || true
+          exit 1
+      fi
+  else
+      print_error "Failed to create database '$tenant_name'"
+      exit 1
+  fi
+
+  # Then insert record into auth database tenants table
+  sql_insert="INSERT INTO tenants (name, host"
+  sql_values="VALUES ('$tenant_name', '$host'"
+
+  if [ -n "$test_suffix" ]; then
+      sql_insert="$sql_insert, test_suffix"
+      sql_values="$sql_values, '$test_suffix'"
+  fi
+
+  sql_insert="$sql_insert) $sql_values);"
+
+  if psql -U "$db_user" -d monk-api-auth -c "$sql_insert" >/dev/null 2>&1; then
+      print_success "Tenant record created in auth database"
+      if [ -n "$test_suffix" ]; then
+          print_info "Tenant: $tenant_name (test: $test_suffix) on host: $host"
+      else
+          print_info "Tenant: $tenant_name on host: $host"
+      fi
+  else
+      print_error "Failed to create tenant record in auth database"
+      # Clean up the database we created
+      dropdb "$tenant_name" -U "$db_user" 2>/dev/null || true
+      exit 1
+  fi
 }
 
 # :command.function
 monk_tenant_delete_command() {
 
   # src/tenant_delete_command.sh
-  echo "# This file is located at 'src/tenant_delete_command.sh'."
-  echo "# It contains the implementation for the 'monk tenant delete' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_tenant_delete_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  tenant_name="${args[name]}"
+
+  print_info "Deleting tenant: $tenant_name"
+
+  db_user=$(whoami)
+
+  # First remove record from auth database tenants table
+  sql_delete="DELETE FROM tenants WHERE name = '$tenant_name';"
+
+  if psql -U "$db_user" -d monk-api-auth -c "$sql_delete" >/dev/null 2>&1; then
+      print_success "Tenant record removed from auth database"
+  else
+      print_error "Failed to remove tenant record from auth database"
+      exit 1
+  fi
+
+  # Then drop the actual PostgreSQL database
+  if dropdb "$tenant_name" -U "$db_user" 2>/dev/null; then
+      print_success "Database '$tenant_name' deleted successfully"
+  else
+      print_error "Failed to delete database '$tenant_name'"
+      exit 1
+  fi
 }
 
 # :command.function
 monk_tenant_init_command() {
 
   # src/tenant_init_command.sh
-  echo "# This file is located at 'src/tenant_init_command.sh'."
-  echo "# It contains the implementation for the 'monk tenant init' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_tenant_init_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  tenant_name="${args[name]}"
+
+  print_info "Re-initializing tenant database: $tenant_name"
+
+  db_user=$(whoami)
+
+  # Check if database exists
+  if ! psql -U "$db_user" -lqt | cut -d'|' -f1 | grep -qw "$tenant_name" 2>/dev/null; then
+      print_error "Database '$tenant_name' does not exist"
+      print_info "Use 'monk tenant create $tenant_name' to create it first"
+      exit 1
+  fi
+
+  # Drop and recreate database
+  print_info "Dropping existing database..."
+  if dropdb "$tenant_name" -U "$db_user" 2>/dev/null; then
+      print_success "Database dropped"
+  else
+      print_error "Failed to drop database '$tenant_name'"
+      exit 1
+  fi
+
+  print_info "Creating fresh database..."
+  if createdb "$tenant_name" -U "$db_user" 2>/dev/null; then
+      print_success "Database recreated"
+  else
+      print_error "Failed to recreate database '$tenant_name'"
+      exit 1
+  fi
+
+  # Initialize with schema
+  if ! init_tenant_schema "$tenant_name" "$db_user"; then
+      exit 1
+  fi
+
+  print_success "Tenant database re-initialized successfully"
 }
 
 # :command.function
 monk_tenant_list_command() {
 
   # src/tenant_list_command.sh
-  echo "# This file is located at 'src/tenant_list_command.sh'."
-  echo "# It contains the implementation for the 'monk tenant list' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_tenant_list_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  print_info "Listing all tenant databases"
+  echo
+
+  db_user=$(whoami)
+
+  # Print header
+  printf "%-30s %-20s %-8s %-8s %-8s %-8s %s\n" \
+      "TENANT" \
+      "HOST" \
+      "STATUS" \
+      "DB" \
+      "SCHEMAS" \
+      "COLUMNS" \
+      "CREATED"
+  echo "$(printf '%.s-' {1..100})"
+
+  # Get tenant records from auth database
+  tenants_query="SELECT name, host, test_suffix, is_active, created_at FROM tenants ORDER BY name, test_suffix;"
+
+  # Use temporary file to avoid pipe subshell issues
+  temp_file=$(mktemp)
+  if psql -U "$db_user" -d monk-api-auth -t -c "$tenants_query" 2>/dev/null > "$temp_file"; then
+      while IFS='|' read -r name host test_suffix is_active created_at; do
+          # Clean up the fields (remove leading/trailing spaces)
+          name=$(echo "$name" | xargs)
+          host=$(echo "$host" | xargs)
+
+          test_suffix=$(echo "$test_suffix" | xargs)
+          is_active=$(echo "$is_active" | xargs)
+
+          # Skip empty lines
+          [ -z "$name" ] && continue
+
+          # Build display name
+          display_name="$name"
+          if [ -n "$test_suffix" ] && [ "$test_suffix" != "" ]; then
+              display_name="$name (test: $test_suffix)"
+          fi
+
+          # Get database stats if host is localhost
+          schemas="?"
+          columns="?"
+          status="remote"
+
+          if [ "$host" = "localhost" ]; then
+              # Check if database exists locally
+              if psql -U "$db_user" -lqt | cut -d'|' -f1 | grep -qw "$name" 2>/dev/null; then
+                  status="local"
+                  # Count tables in public schema
+                  schema_count=$(psql -U "$db_user" -d "$name" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+                  schemas=$(echo "$schema_count" | xargs)
+
+                  # Count columns across all tables in public schema
+                  column_count=$(psql -U "$db_user" -d "$name" -t -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+                  columns=$(echo "$column_count" | xargs)
+              else
+                  status="missing"
+              fi
+          fi
+
+          # Format active status
+          active_display="inactive"
+          if [ "$is_active" = "t" ]; then
+              active_display="active"
+          fi
+
+          # Format created date
+          created_display=$(echo "$created_at" | cut -d'.' -f1)
+
+          printf "%-30s %-20s %-8s %-8s %-8s %-8s %s\n" \
+              "$display_name" \
+              "$host" \
+              "$active_display" \
+              "$status" \
+              "$schemas" \
+              "$columns" \
+              "$created_display"
+
+      done < "$temp_file"
+      rm -f "$temp_file"
+  else
+      rm -f "$temp_file"
+      print_error "Failed to query tenants from auth database"
+      exit 1
+  fi
 }
 
 # :command.function
 monk_tenant_use_command() {
 
   # src/tenant_use_command.sh
-  echo "# This file is located at 'src/tenant_use_command.sh'."
-  echo "# It contains the implementation for the 'monk tenant use' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_tenant_use_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments from bashly
+  tenant_name="${args[name]}"
+
+  print_info "Switching to tenant: $tenant_name"
+
+  # Store tenant context in environment
+  export CLI_TENANT="$tenant_name"
+
+  # Optionally store in config file for persistence
+  config_dir="$HOME/.monk"
+  mkdir -p "$config_dir"
+  echo "$tenant_name" > "$config_dir/current_tenant"
+
+  print_success "Switched to tenant '$tenant_name'"
+  print_info "Use 'monk auth login --domain $tenant_name' to authenticate"
 }
 
 # :command.function
