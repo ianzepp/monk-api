@@ -112,7 +112,7 @@ export class Database {
         console.debug(`Database.deleteAll: soft deleted ${result.rows.length} records`);
         
         if (result.rows.length !== ids.length) {
-            const deletedIds = result.rows.map(r => r.id);
+            const deletedIds = result.rows.map((r: any) => r.id);
             const missingIds = ids.filter(id => !deletedIds.includes(id));
             throw new Error(`Some records not found or already trashed: ${missingIds.join(', ')}`);
         }

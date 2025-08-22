@@ -2,11 +2,13 @@ import type { Context } from 'hono';
 import { jwt } from 'hono/jwt';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseManager } from './database-manager.js';
+import pg from 'pg';
 
 export interface JWTPayload {
     sub: string;           // Subject/system identifier
     user_id: string | null; // User ID for database records (null for root/system)
-    domain: string;        // User's domain
+    tenant: string;        // Tenant name
+    database: string;      // Database name (converted)
     access: string;        // Access level (deny/read/edit/full/root)
     access_read: string[]; // ACL read access
     access_edit: string[]; // ACL edit access
@@ -19,13 +21,35 @@ export interface JWTPayload {
 export class AuthService {
     private static jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-this';
     private static tokenExpiry = 24 * 60 * 60; // 24 hours in seconds
+    private static authPool: pg.Pool | null = null;
+
+    // Get persistent auth database connection
+    private static getAuthDatabase(): pg.Pool {
+        if (!this.authPool) {
+            const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
+            const dbHost = process.env.DB_HOST || 'localhost';
+            const dbPort = process.env.DB_PORT || 5432;
+            
+            this.authPool = new pg.Pool({
+                user: dbUser,
+                host: dbHost,
+                database: 'monk-api-auth',
+                port: Number(dbPort),
+                max: 5,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 2000,
+            });
+        }
+        return this.authPool;
+    }
 
     // Generate JWT token for user
     static async generateToken(user: any): Promise<string> {
         const payload: JWTPayload = {
             sub: user.id,
             user_id: user.user_id || null, // User ID for database records (null for root/system)
-            domain: user.domain,
+            tenant: user.tenant,
+            database: user.database,
             access: user.access || 'root', // Access level for API operations
             access_read: user.access_read || [],
             access_edit: user.access_edit || [],
@@ -42,17 +66,31 @@ export class AuthService {
         return await verify(token, this.jwtSecret) as JWTPayload;
     }
 
-    // Login with domain for test authentication
-    static async login(domain: string): Promise<{ token: string; user: any } | null> {
-        if (!domain) {
-            return null; // Domain required
+    // Login with tenant authentication
+    static async login(tenant: string): Promise<{ token: string; user: any } | null> {
+        if (!tenant) {
+            return null; // Tenant required
         }
 
-        // Create test user object with domain and root access
+        // Look up tenant record to get database name
+        const authDb = this.getAuthDatabase();
+        const tenantResult = await authDb.query(
+            'SELECT name, database FROM tenants WHERE name = $1 AND is_active = true', 
+            [tenant]
+        );
+
+        if (!tenantResult.rows || tenantResult.rows.length === 0) {
+            return null; // Tenant not found or inactive
+        }
+
+        const { name, database } = tenantResult.rows[0];
+
+        // Create test user object with tenant and database info
         const testUser = {
             id: 'test-user',
             user_id: null, // No user ID for system/test authentication
-            domain: domain,
+            tenant: name,
+            database: database,
             access: 'root', // Give everyone root access for now
             access_read: [],
             access_edit: [],
@@ -67,7 +105,8 @@ export class AuthService {
             token,
             user: {
                 id: testUser.id,
-                domain: testUser.domain,
+                tenant: testUser.tenant,
+                database: testUser.database,
                 access: testUser.access
             }
         };
@@ -83,7 +122,8 @@ export class AuthService {
                 id: payload.sub,
                 username: payload.username,
                 email: payload.email,
-                domain: payload.domain,
+                tenant: payload.tenant,
+                database: payload.database,
                 role: payload.role,
                 access_read: payload.access_read,
                 access_edit: payload.access_edit,
@@ -110,15 +150,16 @@ export class AuthService {
             const payload = c.get('jwtPayload') as JWTPayload;
             
             try {
-                // Set up database connection for the JWT domain
-                await DatabaseManager.setDatabaseForRequest(c, payload.domain);
+                // Set up database connection for the JWT database
+                await DatabaseManager.setDatabaseForRequest(c, payload.database);
 
                 // Create user object from JWT payload (for test mode)
                 const user = {
                     id: payload.sub,
                     username: payload.username,
                     email: payload.email,
-                    domain: payload.domain,
+                    tenant: payload.tenant,
+                    database: payload.database,
                     role: payload.role,
                     access_read: payload.access_read,
                     access_edit: payload.access_edit,
@@ -130,7 +171,7 @@ export class AuthService {
                 // Set user context for handlers
                 c.set('user', user);
                 c.set('userId', payload.sub);
-                c.set('userDomain', payload.domain);
+                c.set('userDomain', payload.database); // Keep for backward compatibility
                 c.set('userRole', payload.role);
                 c.set('accessReadIds', payload.access_read || []);
                 c.set('accessEditIds', payload.access_edit || []);
@@ -140,7 +181,7 @@ export class AuthService {
                 console.error('Database setup error:', error);
                 return c.json({ 
                     success: false, 
-                    error: 'Database connection failed for domain',
+                    error: 'Database connection failed for tenant',
                     error_code: 'DATABASE_ERROR'
                 }, 500);
             }

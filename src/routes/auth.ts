@@ -23,25 +23,25 @@ declare module 'hono' {
 
 const app = new Hono();
 
-// POST /auth/login - Authenticate with domain for test mode
+// POST /auth/login - Authenticate with tenant
 app.post('/login', async (c) => {
     try {
         const body = await c.req.json();
-        const { domain } = body;
+        const { tenant } = body;
 
-        if (!domain) {
-            return createValidationError(c, 'Domain required', [
-                { path: ['domain'], message: 'Domain is required' }
+        if (!tenant) {
+            return createValidationError(c, 'Tenant required', [
+                { path: ['tenant'], message: 'Tenant is required' }
             ]);
         }
 
-        const result = await AuthService.login(domain);
+        const result = await AuthService.login(tenant);
 
         if (!result) {
             return c.json({
                 success: false,
-                error: 'Domain authentication failed',
-                error_code: 'DOMAIN_AUTH_FAILED'
+                error: 'Tenant authentication failed',
+                error_code: 'TENANT_AUTH_FAILED'
             }, 401);
         }
 
@@ -90,7 +90,8 @@ app.get('/me', AuthService.getJWTMiddleware(), AuthService.getUserContextMiddlew
             id: user.id,
             username: user.username,
             email: user.email,
-            domain: user.domain,
+            tenant: user.tenant,
+            database: user.database,
             role: user.role,
             is_active: user.is_active,
             last_login: user.last_login

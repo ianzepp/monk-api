@@ -18,12 +18,11 @@ commands:
   
   commands:
   - name: login
-    help: Authenticate with database domain
-    flags:
-    - long: --domain
-      arg: domain
-      help: Database domain name
+    help: Authenticate with tenant
+    args:
+    - name: tenant
       required: true
+      help: Tenant name for authentication
       
   - name: logout
     help: Clear stored JWT token

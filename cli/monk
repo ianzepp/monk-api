@@ -74,7 +74,7 @@ monk_auth_usage() {
   echo
   # :command.usage_commands
   printf "%s\n" "Commands:"
-  printf "  %s   Authenticate with database domain\n" "login "
+  printf "  %s   Authenticate with tenant\n" "login "
   printf "  %s   Clear stored JWT token\n" "logout"
   printf "  %s   Show authentication status\n" "status"
   printf "  %s   Display current JWT token\n" "token "
@@ -95,10 +95,10 @@ monk_auth_usage() {
 
 # :command.usage
 monk_auth_login_usage() {
-  printf "monk auth login - Authenticate with database domain\n\n"
+  printf "monk auth login - Authenticate with tenant\n\n"
 
   printf "%s\n" "Usage:"
-  printf "  monk auth login [OPTIONS]\n"
+  printf "  monk auth login TENANT\n"
   printf "  monk auth login --help | -h\n"
   echo
 
@@ -106,15 +106,17 @@ monk_auth_login_usage() {
   if [[ -n "$long_usage" ]]; then
     printf "%s\n" "Options:"
 
-    # :command.usage_flags
-    # :flag.usage
-    printf "  %s\n" "--domain DOMAIN (required)"
-    printf "    Database domain name\n"
-    echo
-
     # :command.usage_fixed_flags
     printf "  %s\n" "--help, -h"
     printf "    Show this help\n"
+    echo
+
+    # :command.usage_args
+    printf "%s\n" "Arguments:"
+
+    # :argument.usage
+    printf "  %s\n" "TENANT"
+    printf "    Tenant name for authentication\n"
     echo
 
   fi
@@ -1816,15 +1818,15 @@ monk_auth_login_command() {
   # Check dependencies
   check_dependencies
 
-  # Extract domain from bashly args
-  domain="${args[--domain]}"
+  # Extract tenant from bashly args
+  tenant="${args[tenant]}"
 
   if [ "$CLI_VERBOSE" = "true" ]; then
-      print_info "Authenticating with domain: $domain"
+      print_info "Authenticating with tenant: $tenant"
   fi
 
   # Prepare authentication request
-  auth_data="{\"domain\": \"$domain\"}"
+  auth_data="{\"tenant\": \"$tenant\"}"
   base_url=$(get_base_url)
 
   if [ "$CLI_VERBOSE" = "true" ]; then
@@ -3957,19 +3959,6 @@ monk_auth_login_parse_requirements() {
   while [[ $# -gt 0 ]]; do
     key="$1"
     case "$key" in
-      # :flag.case
-      --domain)
-
-        # :flag.case_arg
-        if [[ -n ${2+x} ]]; then
-          args['--domain']="$2"
-          shift
-          shift
-        else
-          printf "%s\n" "--domain requires an argument: --domain DOMAIN" >&2
-          exit 1
-        fi
-        ;;
 
       -?*)
         printf "invalid option: %s\n" "$key" >&2
@@ -3979,17 +3968,24 @@ monk_auth_login_parse_requirements() {
       *)
         # :command.parse_requirements_case
         # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
+        # :argument.case
+        if [[ -z ${args['tenant']+x} ]]; then
+          args['tenant']=$1
+          shift
+        else
+          printf "invalid argument: %s\n" "$key" >&2
+          exit 1
+        fi
 
         ;;
 
     esac
   done
 
-  # :command.required_flags_filter
-  if [[ -z ${args['--domain']+x} ]]; then
-    printf "missing required flag: --domain DOMAIN\n" >&2
+  # :command.required_args_filter
+  if [[ -z ${args['tenant']+x} ]]; then
+    printf "missing required argument: TENANT\nusage: monk auth login TENANT\n" >&2
+
     exit 1
   fi
 

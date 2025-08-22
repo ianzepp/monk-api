@@ -1,15 +1,15 @@
 # Check dependencies
 check_dependencies
 
-# Extract domain from bashly args
-domain="${args[--domain]}"
+# Extract tenant from bashly args
+tenant="${args[tenant]}"
 
 if [ "$CLI_VERBOSE" = "true" ]; then
-    print_info "Authenticating with domain: $domain"
+    print_info "Authenticating with tenant: $tenant"
 fi
 
 # Prepare authentication request
-auth_data="{\"domain\": \"$domain\"}"
+auth_data="{\"tenant\": \"$tenant\"}"
 base_url=$(get_base_url)
 
 if [ "$CLI_VERBOSE" = "true" ]; then
