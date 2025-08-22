@@ -161,8 +161,26 @@ commands:
   - name: schema
     required: true
     help: Schema to search
-  - name: filters
-    help: JSON filter criteria (optional)
+  flags:
+  - long: --field
+    short: -f
+    arg: field
+    help: Extract specific field from results
+  - long: --count
+    short: -c
+    help: Return count of matching records only
+  - long: --exit-code
+    short: -x
+    help: Exit with code only (no output)
+  - long: --verbose
+    short: -v
+    help: Verbose output
+  - long: --head
+    short: -H
+    help: Return only first record
+  - long: --tail
+    short: -T
+    help: Return only last record
 
 # Server connectivity testing
 - name: ping
@@ -211,26 +229,6 @@ commands:
     args:
     - name: var_name
       help: Specific variable name (optional)
-
-# Database pool management
-- name: pool
-  help: Database pool management
-  
-  commands:
-  - name: status
-    help: "Show database pool status (X/10)"
-    
-  - name: list
-    help: List all active test databases
-    
-  - name: cleanup
-    help: "Clean up old databases (default: over 24 hours)"
-    args:
-    - name: hours
-      help: "Age threshold in hours (default: 24)"
-      
-  - name: cleanup-all
-    help: Clean up all databases
 
 # Remote server management
 - name: servers
@@ -324,61 +322,3 @@ commands:
       required: true
       help: Name of the tenant to switch to
 
-# User management and access control
-- name: user
-  help: User management and access control
-  
-  commands:
-  - name: list
-    help: List all users
-    
-  - name: get
-    help: Get specific user
-    args:
-    - name: id
-      required: true
-      help: User ID to retrieve
-      
-  - name: create
-    help: Create user from stdin
-    
-  - name: update
-    help: Update user from stdin
-    args:
-    - name: id
-      required: true
-      help: User ID to update
-      
-  - name: delete
-    help: Delete user
-    args:
-    - name: id
-      required: true
-      help: User ID to delete
-      
-  - name: permissions
-    help: Manage user permissions
-    args:
-    - name: id
-      required: true
-      help: User ID to manage permissions for
-
-# System administration
-- name: root
-  help: System administration
-  
-  commands:
-  - name: status
-    help: Show system status and health
-    
-  - name: config
-    help: System configuration management
-    
-  - name: domains
-    help: Domain and database management
-    
-  - name: cleanup
-    help: System cleanup and maintenance
-    
-  - name: backup
-    help: Backup and restore operations

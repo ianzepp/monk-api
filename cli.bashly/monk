@@ -32,11 +32,8 @@ monk_usage() {
   printf "  %s   Advanced search with filter DSL\n" "find   "
   printf "  %s   Server connectivity testing\n" "ping   "
   printf "  %s   Comprehensive test management\n" "test   "
-  printf "  %s   Database pool management\n" "pool   "
   printf "  %s   Remote server management\n" "servers"
   printf "  %s   Multi-tenant database management\n" "tenant "
-  printf "  %s   User management and access control\n" "user   "
-  printf "  %s   System administration\n" "root   "
   echo
 
   # :command.long_usage
@@ -666,13 +663,44 @@ monk_find_usage() {
   printf "monk find - Advanced search with filter DSL\n\n"
 
   printf "%s\n" "Usage:"
-  printf "  monk find SCHEMA [FILTERS]\n"
+  printf "  monk find SCHEMA [OPTIONS]\n"
   printf "  monk find --help | -h\n"
   echo
 
   # :command.long_usage
   if [[ -n "$long_usage" ]]; then
     printf "%s\n" "Options:"
+
+    # :command.usage_flags
+    # :flag.usage
+    printf "  %s\n" "--field, -f FIELD"
+    printf "    Extract specific field from results\n"
+    echo
+
+    # :flag.usage
+    printf "  %s\n" "--count, -c"
+    printf "    Return count of matching records only\n"
+    echo
+
+    # :flag.usage
+    printf "  %s\n" "--exit-code, -x"
+    printf "    Exit with code only (no output)\n"
+    echo
+
+    # :flag.usage
+    printf "  %s\n" "--verbose, -v"
+    printf "    Verbose output\n"
+    echo
+
+    # :flag.usage
+    printf "  %s\n" "--head, -H"
+    printf "    Return only first record\n"
+    echo
+
+    # :flag.usage
+    printf "  %s\n" "--tail, -T"
+    printf "    Return only last record\n"
+    echo
 
     # :command.usage_fixed_flags
     printf "  %s\n" "--help, -h"
@@ -685,11 +713,6 @@ monk_find_usage() {
     # :argument.usage
     printf "  %s\n" "SCHEMA"
     printf "    Schema to search\n"
-    echo
-
-    # :argument.usage
-    printf "  %s\n" "FILTERS"
-    printf "    JSON filter criteria (optional)\n"
     echo
 
   fi
@@ -876,126 +899,6 @@ monk_test_env_usage() {
     # :argument.usage
     printf "  %s\n" "VAR_NAME"
     printf "    Specific variable name (optional)\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_pool_usage() {
-  printf "monk pool - Database pool management\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk pool COMMAND\n"
-  printf "  monk pool [COMMAND] --help | -h\n"
-  echo
-  # :command.usage_commands
-  printf "%s\n" "Commands:"
-  printf "  %s   Show database pool status (X/10)\n" "status     "
-  printf "  %s   List all active test databases\n" "list       "
-  printf "  %s   Clean up old databases (default: over 24 hours)\n" "cleanup    "
-  printf "  %s   Clean up all databases\n" "cleanup-all"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_pool_status_usage() {
-  printf "monk pool status - Show database pool status (X/10)\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk pool status\n"
-  printf "  monk pool status --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_pool_list_usage() {
-  printf "monk pool list - List all active test databases\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk pool list\n"
-  printf "  monk pool list --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_pool_cleanup_usage() {
-  printf "monk pool cleanup - Clean up old databases (default: over 24 hours)\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk pool cleanup [HOURS]\n"
-  printf "  monk pool cleanup --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-    # :command.usage_args
-    printf "%s\n" "Arguments:"
-
-    # :argument.usage
-    printf "  %s\n" "HOURS"
-    printf "    Age threshold in hours (default: 24)\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_pool_cleanup_all_usage() {
-  printf "monk pool cleanup-all - Clean up all databases\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk pool cleanup-all\n"
-  printf "  monk pool cleanup-all --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
     echo
 
   fi
@@ -1395,328 +1298,6 @@ monk_tenant_use_usage() {
     # :argument.usage
     printf "  %s\n" "NAME"
     printf "    Name of the tenant to switch to\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_user_usage() {
-  printf "monk user - User management and access control\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk user COMMAND\n"
-  printf "  monk user [COMMAND] --help | -h\n"
-  echo
-  # :command.usage_commands
-  printf "%s\n" "Commands:"
-  printf "  %s   List all users\n" "list       "
-  printf "  %s   Get specific user\n" "get        "
-  printf "  %s   Create user from stdin\n" "create     "
-  printf "  %s   Update user from stdin\n" "update     "
-  printf "  %s   Delete user\n" "delete     "
-  printf "  %s   Manage user permissions\n" "permissions"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_user_list_usage() {
-  printf "monk user list - List all users\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk user list\n"
-  printf "  monk user list --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_user_get_usage() {
-  printf "monk user get - Get specific user\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk user get ID\n"
-  printf "  monk user get --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-    # :command.usage_args
-    printf "%s\n" "Arguments:"
-
-    # :argument.usage
-    printf "  %s\n" "ID"
-    printf "    User ID to retrieve\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_user_create_usage() {
-  printf "monk user create - Create user from stdin\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk user create\n"
-  printf "  monk user create --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_user_update_usage() {
-  printf "monk user update - Update user from stdin\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk user update ID\n"
-  printf "  monk user update --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-    # :command.usage_args
-    printf "%s\n" "Arguments:"
-
-    # :argument.usage
-    printf "  %s\n" "ID"
-    printf "    User ID to update\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_user_delete_usage() {
-  printf "monk user delete - Delete user\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk user delete ID\n"
-  printf "  monk user delete --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-    # :command.usage_args
-    printf "%s\n" "Arguments:"
-
-    # :argument.usage
-    printf "  %s\n" "ID"
-    printf "    User ID to delete\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_user_permissions_usage() {
-  printf "monk user permissions - Manage user permissions\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk user permissions ID\n"
-  printf "  monk user permissions --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-    # :command.usage_args
-    printf "%s\n" "Arguments:"
-
-    # :argument.usage
-    printf "  %s\n" "ID"
-    printf "    User ID to manage permissions for\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_root_usage() {
-  printf "monk root - System administration\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk root COMMAND\n"
-  printf "  monk root [COMMAND] --help | -h\n"
-  echo
-  # :command.usage_commands
-  printf "%s\n" "Commands:"
-  printf "  %s   Show system status and health\n" "status "
-  printf "  %s   System configuration management\n" "config "
-  printf "  %s   Domain and database management\n" "domains"
-  printf "  %s   System cleanup and maintenance\n" "cleanup"
-  printf "  %s   Backup and restore operations\n" "backup "
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_root_status_usage() {
-  printf "monk root status - Show system status and health\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk root status\n"
-  printf "  monk root status --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_root_config_usage() {
-  printf "monk root config - System configuration management\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk root config\n"
-  printf "  monk root config --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_root_domains_usage() {
-  printf "monk root domains - Domain and database management\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk root domains\n"
-  printf "  monk root domains --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_root_cleanup_usage() {
-  printf "monk root cleanup - System cleanup and maintenance\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk root cleanup\n"
-  printf "  monk root cleanup --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
-    echo
-
-  fi
-}
-
-# :command.usage
-monk_root_backup_usage() {
-  printf "monk root backup - Backup and restore operations\n\n"
-
-  printf "%s\n" "Usage:"
-  printf "  monk root backup\n"
-  printf "  monk root backup --help | -h\n"
-  echo
-
-  # :command.long_usage
-  if [[ -n "$long_usage" ]]; then
-    printf "%s\n" "Options:"
-
-    # :command.usage_fixed_flags
-    printf "  %s\n" "--help, -h"
-    printf "    Show this help\n"
     echo
 
   fi
@@ -2922,12 +2503,119 @@ monk_meta_delete_command() {
 monk_find_command() {
 
   # src/find_command.sh
-  echo "# This file is located at 'src/find_command.sh'."
-  echo "# It contains the implementation for the 'monk find' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_find_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
+  # Check dependencies
+  check_dependencies
 
+  # Get arguments and flags from bashly
+  schema="${args[schema]}"
+  field_flag="${args[--field]}"
+  count_flag="${args[--count]}"
+  exit_code_flag="${args[--exit-code]}"
+  verbose_flag="${args[--verbose]}"
+  head_flag="${args[--head]}"
+  tail_flag="${args[--tail]}"
+
+  # Set environment variables based on flags
+  if [ "$field_flag" ]; then
+      export CLI_EXTRACT_FIELD="$field_flag"
+  fi
+
+  if [ "$count_flag" = "1" ]; then
+      export CLI_COUNT_MODE=true
+  fi
+
+  if [ "$exit_code_flag" = "1" ]; then
+      export CLI_EXIT_CODE_ONLY=true
+  fi
+
+  if [ "$verbose_flag" = "1" ]; then
+      export CLI_VERBOSE=true
+  fi
+
+  if [ "$head_flag" = "1" ]; then
+      export CLI_HEAD_MODE=true
+  fi
+
+  if [ "$tail_flag" = "1" ]; then
+      export CLI_TAIL_MODE=true
+  fi
+
+  # Check if we have input data
+  if [ -t 0 ]; then
+      echo '{"error":"find expects JSON search criteria via STDIN","success":false}' >&2
+      exit 1
+  fi
+
+  # Read JSON data from STDIN
+  input_data=$(cat)
+
+  # Validate JSON format (basic check)
+  if [ "$JSON_PARSER" = "jq" ]; then
+      if ! echo "$input_data" | jq . >/dev/null 2>&1; then
+          echo '{"error":"Invalid JSON format in search criteria","success":false}' >&2
+          exit 1
+      fi
+  elif command -v jshon >/dev/null 2>&1; then
+      if ! echo "$input_data" | jshon >/dev/null 2>&1; then
+          echo '{"error":"Invalid JSON format in search criteria","success":false}' >&2
+          exit 1
+      fi
+  fi
+
+  # Make the find request
+  response=$(make_request "POST" "/api/find/$schema" "$input_data")
+
+  # Process response with head/tail support
+  if [ "$CLI_HEAD_MODE" = "true" ]; then
+      # Extract first record from array
+      if [ "$JSON_PARSER" = "jq" ]; then
+          if echo "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+              first_record=$(echo "$response" | jq '.data[0] // null')
+              echo "$response" | jq --argjson first "$first_record" '{"success": .success, "data": $first}'
+          else
+              echo "$response"
+          fi
+      else
+          # Fallback for jshon or no parser
+          if echo "$response" | grep -q '"success":true'; then
+              first_record=$(echo "$response" | jshon -e data -e 0 2>/dev/null || echo "null")
+              if [ "$first_record" != "null" ]; then
+                  echo "{\"success\":true,\"data\":$first_record}"
+              else
+                  echo '{"success":true,"data":null}'
+              fi
+          else
+              echo "$response"
+          fi
+      fi
+  elif [ "$CLI_TAIL_MODE" = "true" ]; then
+      # Extract last record from array
+      if [ "$JSON_PARSER" = "jq" ]; then
+          if echo "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+              last_record=$(echo "$response" | jq '.data[-1] // null')
+              echo "$response" | jq --argjson last "$last_record" '{"success": .success, "data": $last}'
+          else
+              echo "$response"
+          fi
+      else
+          # Fallback for jshon or no parser
+          if echo "$response" | grep -q '"success":true'; then
+              array_length=$(echo "$response" | jshon -e data -l 2>/dev/null || echo "0")
+              if [ "$array_length" -gt 0 ]; then
+                  last_index=$((array_length - 1))
+                  last_record=$(echo "$response" | jshon -e data -e "$last_index" 2>/dev/null || echo "null")
+                  echo "{\"success\":true,\"data\":$last_record}"
+              else
+                  echo '{"success":true,"data":null}'
+              fi
+          else
+              echo "$response"
+          fi
+      fi
+  else
+      # Use standard response handler
+      handle_response "$response" "find"
+  fi
 }
 
 # :command.function
@@ -3078,54 +2766,6 @@ monk_test_env_command() {
   echo "# This file is located at 'src/test_env_command.sh'."
   echo "# It contains the implementation for the 'monk test env' command."
   echo "# The code you write here will be wrapped by a function named 'monk_test_env_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_pool_status_command() {
-
-  # src/pool_status_command.sh
-  echo "# This file is located at 'src/pool_status_command.sh'."
-  echo "# It contains the implementation for the 'monk pool status' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_pool_status_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_pool_list_command() {
-
-  # src/pool_list_command.sh
-  echo "# This file is located at 'src/pool_list_command.sh'."
-  echo "# It contains the implementation for the 'monk pool list' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_pool_list_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_pool_cleanup_command() {
-
-  # src/pool_cleanup_command.sh
-  echo "# This file is located at 'src/pool_cleanup_command.sh'."
-  echo "# It contains the implementation for the 'monk pool cleanup' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_pool_cleanup_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_pool_cleanup_all_command() {
-
-  # src/pool_cleanup_all_command.sh
-  echo "# This file is located at 'src/pool_cleanup_all_command.sh'."
-  echo "# It contains the implementation for the 'monk pool cleanup-all' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_pool_cleanup_all_command()'."
   echo "# Feel free to edit this file; your changes will persist when regenerating."
   inspect_args
 
@@ -3838,138 +3478,6 @@ monk_tenant_use_command() {
   print_info "Use 'monk auth login --domain $tenant_name' to authenticate"
 }
 
-# :command.function
-monk_user_list_command() {
-
-  # src/user_list_command.sh
-  echo "# This file is located at 'src/user_list_command.sh'."
-  echo "# It contains the implementation for the 'monk user list' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_user_list_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_user_get_command() {
-
-  # src/user_get_command.sh
-  echo "# This file is located at 'src/user_get_command.sh'."
-  echo "# It contains the implementation for the 'monk user get' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_user_get_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_user_create_command() {
-
-  # src/user_create_command.sh
-  echo "# This file is located at 'src/user_create_command.sh'."
-  echo "# It contains the implementation for the 'monk user create' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_user_create_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_user_update_command() {
-
-  # src/user_update_command.sh
-  echo "# This file is located at 'src/user_update_command.sh'."
-  echo "# It contains the implementation for the 'monk user update' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_user_update_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_user_delete_command() {
-
-  # src/user_delete_command.sh
-  echo "# This file is located at 'src/user_delete_command.sh'."
-  echo "# It contains the implementation for the 'monk user delete' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_user_delete_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_user_permissions_command() {
-
-  # src/user_permissions_command.sh
-  echo "# This file is located at 'src/user_permissions_command.sh'."
-  echo "# It contains the implementation for the 'monk user permissions' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_user_permissions_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_root_status_command() {
-
-  # src/root_status_command.sh
-  echo "# This file is located at 'src/root_status_command.sh'."
-  echo "# It contains the implementation for the 'monk root status' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_root_status_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_root_config_command() {
-
-  # src/root_config_command.sh
-  echo "# This file is located at 'src/root_config_command.sh'."
-  echo "# It contains the implementation for the 'monk root config' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_root_config_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_root_domains_command() {
-
-  # src/root_domains_command.sh
-  echo "# This file is located at 'src/root_domains_command.sh'."
-  echo "# It contains the implementation for the 'monk root domains' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_root_domains_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_root_cleanup_command() {
-
-  # src/root_cleanup_command.sh
-  echo "# This file is located at 'src/root_cleanup_command.sh'."
-  echo "# It contains the implementation for the 'monk root cleanup' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_root_cleanup_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
-# :command.function
-monk_root_backup_command() {
-
-  # src/root_backup_command.sh
-  echo "# This file is located at 'src/root_backup_command.sh'."
-  echo "# It contains the implementation for the 'monk root backup' command."
-  echo "# The code you write here will be wrapped by a function named 'monk_root_backup_command()'."
-  echo "# Feel free to edit this file; your changes will persist when regenerating."
-  inspect_args
-
-}
-
 # :command.parse_requirements
 parse_requirements() {
   # :command.fixed_flags_filter
@@ -4048,13 +3556,6 @@ parse_requirements() {
       shift $#
       ;;
 
-    pool)
-      action="pool"
-      shift
-      monk_pool_parse_requirements "$@"
-      shift $#
-      ;;
-
     servers)
       action="servers"
       shift
@@ -4066,20 +3567,6 @@ parse_requirements() {
       action="tenant"
       shift
       monk_tenant_parse_requirements "$@"
-      shift $#
-      ;;
-
-    user)
-      action="user"
-      shift
-      monk_user_parse_requirements "$@"
-      shift $#
-      ;;
-
-    root)
-      action="root"
-      shift
-      monk_root_parse_requirements "$@"
       shift $#
       ;;
 
@@ -5463,6 +4950,59 @@ monk_find_parse_requirements() {
   while [[ $# -gt 0 ]]; do
     key="$1"
     case "$key" in
+      # :flag.case
+      --field | -f)
+
+        # :flag.case_arg
+        if [[ -n ${2+x} ]]; then
+          args['--field']="$2"
+          shift
+          shift
+        else
+          printf "%s\n" "--field requires an argument: --field, -f FIELD" >&2
+          exit 1
+        fi
+        ;;
+
+      # :flag.case
+      --count | -c)
+
+        # :flag.case_no_arg
+        args['--count']=1
+        shift
+        ;;
+
+      # :flag.case
+      --exit-code | -x)
+
+        # :flag.case_no_arg
+        args['--exit-code']=1
+        shift
+        ;;
+
+      # :flag.case
+      --verbose | -v)
+
+        # :flag.case_no_arg
+        args['--verbose']=1
+        shift
+        ;;
+
+      # :flag.case
+      --head | -H)
+
+        # :flag.case_no_arg
+        args['--head']=1
+        shift
+        ;;
+
+      # :flag.case
+      --tail | -T)
+
+        # :flag.case_no_arg
+        args['--tail']=1
+        shift
+        ;;
 
       -?*)
         printf "invalid option: %s\n" "$key" >&2
@@ -5476,10 +5016,6 @@ monk_find_parse_requirements() {
         if [[ -z ${args['schema']+x} ]]; then
           args['schema']=$1
           shift
-        # :argument.case
-        elif [[ -z ${args['filters']+x} ]]; then
-          args['filters']=$1
-          shift
         else
           printf "invalid argument: %s\n" "$key" >&2
           exit 1
@@ -5492,7 +5028,7 @@ monk_find_parse_requirements() {
 
   # :command.required_args_filter
   if [[ -z ${args['schema']+x} ]]; then
-    printf "missing required argument: SCHEMA\nusage: monk find SCHEMA [FILTERS]\n" >&2
+    printf "missing required argument: SCHEMA\nusage: monk find SCHEMA [OPTIONS]\n" >&2
 
     exit 1
   fi
@@ -5878,281 +5414,6 @@ monk_test_env_parse_requirements() {
           printf "invalid argument: %s\n" "$key" >&2
           exit 1
         fi
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_pool_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_pool_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action=${1:-}
-
-  case $action in
-    -*) ;;
-
-    status)
-      action="status"
-      shift
-      monk_pool_status_parse_requirements "$@"
-      shift $#
-      ;;
-
-    list)
-      action="list"
-      shift
-      monk_pool_list_parse_requirements "$@"
-      shift $#
-      ;;
-
-    cleanup)
-      action="cleanup"
-      shift
-      monk_pool_cleanup_parse_requirements "$@"
-      shift $#
-      ;;
-
-    cleanup-all)
-      action="cleanup-all"
-      shift
-      monk_pool_cleanup_all_parse_requirements "$@"
-      shift $#
-      ;;
-
-    # :command.command_fallback
-    "")
-      monk_pool_usage >&2
-      exit 1
-      ;;
-
-    *)
-      printf "invalid command: %s\n" "$action" >&2
-      exit 1
-      ;;
-
-  esac
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_pool_status_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_pool_status_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="pool status"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_pool_list_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_pool_list_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="pool list"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_pool_cleanup_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_pool_cleanup_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="pool cleanup"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        # :argument.case
-        if [[ -z ${args['hours']+x} ]]; then
-          args['hours']=$1
-          shift
-        else
-          printf "invalid argument: %s\n" "$key" >&2
-          exit 1
-        fi
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_pool_cleanup_all_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_pool_cleanup_all_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="pool cleanup-all"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
 
         ;;
 
@@ -7054,752 +6315,6 @@ monk_tenant_use_parse_requirements() {
 
 }
 
-# :command.parse_requirements
-monk_user_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_user_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action=${1:-}
-
-  case $action in
-    -*) ;;
-
-    list)
-      action="list"
-      shift
-      monk_user_list_parse_requirements "$@"
-      shift $#
-      ;;
-
-    get)
-      action="get"
-      shift
-      monk_user_get_parse_requirements "$@"
-      shift $#
-      ;;
-
-    create)
-      action="create"
-      shift
-      monk_user_create_parse_requirements "$@"
-      shift $#
-      ;;
-
-    update)
-      action="update"
-      shift
-      monk_user_update_parse_requirements "$@"
-      shift $#
-      ;;
-
-    delete)
-      action="delete"
-      shift
-      monk_user_delete_parse_requirements "$@"
-      shift $#
-      ;;
-
-    permissions)
-      action="permissions"
-      shift
-      monk_user_permissions_parse_requirements "$@"
-      shift $#
-      ;;
-
-    # :command.command_fallback
-    "")
-      monk_user_usage >&2
-      exit 1
-      ;;
-
-    *)
-      printf "invalid command: %s\n" "$action" >&2
-      exit 1
-      ;;
-
-  esac
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_user_list_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_user_list_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="user list"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_user_get_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_user_get_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="user get"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        # :argument.case
-        if [[ -z ${args['id']+x} ]]; then
-          args['id']=$1
-          shift
-        else
-          printf "invalid argument: %s\n" "$key" >&2
-          exit 1
-        fi
-
-        ;;
-
-    esac
-  done
-
-  # :command.required_args_filter
-  if [[ -z ${args['id']+x} ]]; then
-    printf "missing required argument: ID\nusage: monk user get ID\n" >&2
-
-    exit 1
-  fi
-
-}
-
-# :command.parse_requirements
-monk_user_create_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_user_create_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="user create"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_user_update_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_user_update_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="user update"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        # :argument.case
-        if [[ -z ${args['id']+x} ]]; then
-          args['id']=$1
-          shift
-        else
-          printf "invalid argument: %s\n" "$key" >&2
-          exit 1
-        fi
-
-        ;;
-
-    esac
-  done
-
-  # :command.required_args_filter
-  if [[ -z ${args['id']+x} ]]; then
-    printf "missing required argument: ID\nusage: monk user update ID\n" >&2
-
-    exit 1
-  fi
-
-}
-
-# :command.parse_requirements
-monk_user_delete_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_user_delete_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="user delete"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        # :argument.case
-        if [[ -z ${args['id']+x} ]]; then
-          args['id']=$1
-          shift
-        else
-          printf "invalid argument: %s\n" "$key" >&2
-          exit 1
-        fi
-
-        ;;
-
-    esac
-  done
-
-  # :command.required_args_filter
-  if [[ -z ${args['id']+x} ]]; then
-    printf "missing required argument: ID\nusage: monk user delete ID\n" >&2
-
-    exit 1
-  fi
-
-}
-
-# :command.parse_requirements
-monk_user_permissions_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_user_permissions_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="user permissions"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        # :argument.case
-        if [[ -z ${args['id']+x} ]]; then
-          args['id']=$1
-          shift
-        else
-          printf "invalid argument: %s\n" "$key" >&2
-          exit 1
-        fi
-
-        ;;
-
-    esac
-  done
-
-  # :command.required_args_filter
-  if [[ -z ${args['id']+x} ]]; then
-    printf "missing required argument: ID\nusage: monk user permissions ID\n" >&2
-
-    exit 1
-  fi
-
-}
-
-# :command.parse_requirements
-monk_root_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_root_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action=${1:-}
-
-  case $action in
-    -*) ;;
-
-    status)
-      action="status"
-      shift
-      monk_root_status_parse_requirements "$@"
-      shift $#
-      ;;
-
-    config)
-      action="config"
-      shift
-      monk_root_config_parse_requirements "$@"
-      shift $#
-      ;;
-
-    domains)
-      action="domains"
-      shift
-      monk_root_domains_parse_requirements "$@"
-      shift $#
-      ;;
-
-    cleanup)
-      action="cleanup"
-      shift
-      monk_root_cleanup_parse_requirements "$@"
-      shift $#
-      ;;
-
-    backup)
-      action="backup"
-      shift
-      monk_root_backup_parse_requirements "$@"
-      shift $#
-      ;;
-
-    # :command.command_fallback
-    "")
-      monk_root_usage >&2
-      exit 1
-      ;;
-
-    *)
-      printf "invalid command: %s\n" "$action" >&2
-      exit 1
-      ;;
-
-  esac
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_root_status_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_root_status_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="root status"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_root_config_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_root_config_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="root config"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_root_domains_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_root_domains_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="root domains"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_root_cleanup_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_root_cleanup_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="root cleanup"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
-# :command.parse_requirements
-monk_root_backup_parse_requirements() {
-  # :command.fixed_flags_filter
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-      --help | -h)
-        long_usage=yes
-        monk_root_backup_usage
-        exit
-        ;;
-
-      *)
-        break
-        ;;
-
-    esac
-  done
-
-  # :command.command_filter
-  action="root backup"
-
-  # :command.parse_requirements_while
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case "$key" in
-
-      -?*)
-        printf "invalid option: %s\n" "$key" >&2
-        exit 1
-        ;;
-
-      *)
-        # :command.parse_requirements_case
-        # :command.parse_requirements_case_simple
-        printf "invalid argument: %s\n" "$key" >&2
-        exit 1
-
-        ;;
-
-    esac
-  done
-
-}
-
 # :command.initialize
 initialize() {
   declare -g version="1.0.0"
@@ -7847,11 +6362,6 @@ run() {
     "test git") monk_test_git_command ;;
     "test diff") monk_test_diff_command ;;
     "test env") monk_test_env_command ;;
-    "pool") monk_pool_command ;;
-    "pool status") monk_pool_status_command ;;
-    "pool list") monk_pool_list_command ;;
-    "pool cleanup") monk_pool_cleanup_command ;;
-    "pool cleanup-all") monk_pool_cleanup_all_command ;;
     "servers") monk_servers_command ;;
     "servers add") monk_servers_add_command ;;
     "servers list") monk_servers_list_command ;;
@@ -7866,19 +6376,6 @@ run() {
     "tenant init") monk_tenant_init_command ;;
     "tenant list") monk_tenant_list_command ;;
     "tenant use") monk_tenant_use_command ;;
-    "user") monk_user_command ;;
-    "user list") monk_user_list_command ;;
-    "user get") monk_user_get_command ;;
-    "user create") monk_user_create_command ;;
-    "user update") monk_user_update_command ;;
-    "user delete") monk_user_delete_command ;;
-    "user permissions") monk_user_permissions_command ;;
-    "root") monk_root_command ;;
-    "root status") monk_root_status_command ;;
-    "root config") monk_root_config_command ;;
-    "root domains") monk_root_domains_command ;;
-    "root cleanup") monk_root_cleanup_command ;;
-    "root backup") monk_root_backup_command ;;
   esac
 }
 
