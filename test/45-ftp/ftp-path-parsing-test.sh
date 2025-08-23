@@ -13,7 +13,7 @@ set -e
 # - Security checks and error handling
 #
 # Usage:
-#   ./scripts/test-one.sh tests/45-ftp/ftp-path-parsing-test.sh
+#   ./scripts/test-one.sh test/45-ftp/ftp-path-parsing-test.sh
 #
 # Requirements:
 #   - Node.js and TypeScript compilation working

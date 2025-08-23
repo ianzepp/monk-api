@@ -13,7 +13,7 @@ set -e
 # - Test data type conversion and validation
 #
 # Usage:
-#   ./scripts/test-one.sh tests/45-ftp/ftp-file-operations-test.sh
+#   ./scripts/test-one.sh test/45-ftp/ftp-file-operations-test.sh
 #
 # Requirements:
 #   - lftp client available

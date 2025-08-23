@@ -12,7 +12,7 @@ set -e
 # - Verify path parsing works in real FTP context
 #
 # Usage:
-#   ./scripts/test-one.sh tests/45-ftp/ftp-path-integration-test.sh
+#   ./scripts/test-one.sh test/45-ftp/ftp-path-integration-test.sh
 #
 # Requirements:
 #   - lftp client available

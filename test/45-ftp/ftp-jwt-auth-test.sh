@@ -13,7 +13,7 @@ set -e
 # - Test tenant isolation through JWT domain routing
 #
 # Usage:
-#   ./scripts/test-one.sh tests/45-ftp/ftp-jwt-auth-test.sh
+#   ./scripts/test-one.sh test/45-ftp/ftp-jwt-auth-test.sh
 #
 # Requirements:
 #   - Monk API server running with FTP server enabled

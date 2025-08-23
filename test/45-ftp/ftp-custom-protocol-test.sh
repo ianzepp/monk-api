@@ -12,7 +12,7 @@ set -e
 # - Test JWT authentication integration
 #
 # Usage:
-#   ./scripts/test-one.sh tests/45-ftp/ftp-custom-protocol-test.sh
+#   ./scripts/test-one.sh test/45-ftp/ftp-custom-protocol-test.sh
 #
 # Requirements:
 #   - lftp client available

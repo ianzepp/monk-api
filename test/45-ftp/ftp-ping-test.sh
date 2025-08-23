@@ -11,7 +11,7 @@ set -e
 # - Basic FTP protocol response (without authentication)
 #
 # Usage:
-#   ./scripts/test-one.sh tests/45-ftp/ftp-ping-test.sh
+#   ./scripts/test-one.sh test/45-ftp/ftp-ping-test.sh
 #
 # Requirements:
 #   - Monk API server running (npm start)

@@ -49,7 +49,7 @@ echo
 
 # Test 1: Create account schema
 print_step "Creating account schema"
-if cat "$(dirname "$0")/../../tests/schemas/account.yaml" | monk meta create schema >/dev/null 2>&1; then
+if cat "$(dirname "$0")/../../test/schemas/account.yaml" | monk meta create schema >/dev/null 2>&1; then
     print_success "Account schema created"
 else
     print_error "Account schema creation failed"

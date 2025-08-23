@@ -76,7 +76,7 @@ echo
 
 # Test 2: Create account schema via meta API
 print_step "Creating account schema via meta API"
-if cat "$(dirname "$0")/../../tests/schemas/account.yaml" | monk meta create schema >/dev/null 2>&1; then
+if cat "$(dirname "$0")/../../test/schemas/account.yaml" | monk meta create schema >/dev/null 2>&1; then
     print_success "Account schema created successfully"
 else
     print_error "Account schema creation failed"

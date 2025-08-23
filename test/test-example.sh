@@ -15,7 +15,7 @@ set -e
 # - Clean separation of concerns between layers
 #
 # Usage:
-#   ./scripts/test-one.sh tests/test-example.sh
+#   ./scripts/test-one.sh test/test-example.sh
 #   ./scripts/test-all.sh (includes this test)
 #
 # Requirements:
@@ -246,7 +246,7 @@ Global Variables:
 - $TEST_TENANT_NAME          : Tenant name (set by test-one.sh)
 
 Usage Examples:
-- scripts/test-one.sh tests/my-test.sh
+- scripts/test-one.sh test/my-test.sh
 - scripts/test-all.sh 10-20
 - scripts/test-all.sh connection
 
