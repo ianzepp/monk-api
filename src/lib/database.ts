@@ -5,6 +5,9 @@ import { DatabaseManager } from '@lib/database-manager.js';
 import type { Context } from 'hono';
 import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
 import { SchemaCache } from '@lib/schema-cache.js';
+import { ObserverRunner } from '@lib/observers/runner.js';
+import { ObserverRecursionError, SystemError } from '@lib/observers/errors.js';
+import type { OperationType } from '@lib/observers/types.js';
 import _ from 'lodash';
 import crypto from 'crypto';
 
@@ -19,6 +22,9 @@ import crypto from 'crypto';
 export class Database {
     public readonly system: SystemContextWithInfrastructure;
     public readonly dtx: DbContext | TxContext;
+    
+    /** Maximum observer recursion depth to prevent infinite loops */
+    static readonly SQL_MAX_RECURSION = 3;
 
     constructor(system: SystemContextWithInfrastructure, dtx: DbContext | TxContext) {
         this.system = system;
@@ -495,6 +501,63 @@ export class Database {
         }
         
         return await this.revertAll(schemaName, recordsToRevert);
+    }
+
+    /**
+     * Observer Pipeline Integration (Phase 3.5)
+     * 
+     * Executes the complete observer pipeline for any database operation.
+     * Handles recursion detection, transaction management, and selective ring execution.
+     */
+    private async runObserverPipeline(
+        operation: OperationType,
+        schema: string,
+        data: any[],
+        depth: number = 0
+    ): Promise<any[]> {
+        // Recursion protection
+        if (depth > Database.SQL_MAX_RECURSION) {
+            throw new ObserverRecursionError(depth, Database.SQL_MAX_RECURSION);
+        }
+
+        console.debug(`🔄 Starting observer pipeline: ${operation} on ${schema} (${data.length} records, depth ${depth})`);
+        
+        try {
+            // For now, execute observer pipeline directly 
+            // TODO: Implement proper transaction management in Ring 5
+            return await this.executeObserverPipeline(operation, schema, data, depth);
+            
+        } catch (error) {
+            console.error(`💥 Observer pipeline failed: ${operation} on ${schema}`, error);
+            throw error instanceof Error ? error : new SystemError(`Observer pipeline failed: ${error}`);
+        }
+    }
+    
+    /**
+     * Execute observer pipeline within existing transaction context
+     */
+    private async executeObserverPipeline(
+        operation: OperationType,
+        schema: string,
+        data: any[],
+        depth: number
+    ): Promise<any[]> {
+        const runner = new ObserverRunner();
+        
+        const result = await runner.execute(
+            this.system as any, // TODO: Fix System vs SystemContext type mismatch
+            operation,
+            schema,
+            data,
+            undefined, // existing records (for updates)
+            depth
+        );
+        
+        if (!result.success) {
+            throw new SystemError(`Observer pipeline validation failed: ${result.errors?.map(e => e.message).join(', ')}`);
+        }
+        
+        return result.result || data;
     }
 
     // Database class doesn't handle transactions - System class does

@@ -69,4 +69,7 @@ export interface SystemContextWithInfrastructure extends SystemContext {
     
     /** Database instance for high-level operations */
     readonly database: any; // Avoid importing Database class to prevent circular deps
+    
+    /** Track if we're already in a transaction to enable transaction reuse */
+    readonly isInTransaction?: boolean;
 }

@@ -37,6 +37,10 @@ export class DatabaseObserver extends BaseObserver {
                     context.result = await this.handleSelect(system, schema, recordId!);
                     break;
                     
+                case 'revert':
+                    context.result = await this.handleRevert(system, schema, recordId!, existing);
+                    break;
+                    
                 default:
                     throw new Error(`Unsupported database operation: ${operation}`);
             }
@@ -89,5 +93,16 @@ export class DatabaseObserver extends BaseObserver {
         
         // Use system database for select operation
         return await system.database.selectOne(schema, { where: { id: recordId } });
+    }
+    
+    private async handleRevert(system: any, schema: string, recordId: string, existing?: any): Promise<any> {
+        if (!recordId) {
+            throw new Error('No record ID provided for revert operation');
+        }
+        
+        console.debug(`🔄 DatabaseObserver: Reverting soft delete for record ${recordId} in schema ${schema}`);
+        
+        // Use system database for revert operation (undo soft delete)
+        return await system.database.revertOne(schema, recordId);
     }
 }

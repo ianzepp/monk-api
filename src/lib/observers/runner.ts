@@ -17,6 +17,7 @@ import type {
     OperationType, 
     ObserverResult
 } from './types.js';
+import { RING_OPERATION_MATRIX } from './types.js';
 import { ValidationError } from './errors.js';
 import type { ValidationWarning } from './errors.js';
 import { DATABASE_RING } from './types.js';
@@ -32,15 +33,15 @@ export class ObserverRunner {
     private readonly databaseObserver = new DatabaseObserver();
 
     /**
-     * Execute all observers for a schema operation across all rings
+     * Execute observers for a schema operation with selective ring execution
      */
     async execute(
         system: System,
         operation: OperationType,
         schema: string,
-        data?: any,
-        recordId?: string,
-        existing?: any
+        data: any[],
+        existing?: any[],
+        depth: number = 0
     ): Promise<ObserverResult> {
         const startTime = Date.now();
         
@@ -49,9 +50,8 @@ export class ObserverRunner {
             system,
             operation,
             schema,
-            data,
-            recordId,
-            existing,
+            data, // Now always an array
+            existing, // Now always an array (for updates)
             result: undefined,
             metadata: new Map(),
             errors: [],
@@ -65,8 +65,13 @@ export class ObserverRunner {
         const ringsExecuted: ObserverRing[] = [];
 
         try {
-            // Execute rings 0-9 in order
-            for (let ring = 0; ring <= 9; ring++) {
+            // Get relevant rings for this operation (selective execution)
+            const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
+            
+            console.debug(`🎯 Executing ${relevantRings.length} relevant rings for ${operation}: [${relevantRings.join(', ')}]`);
+            
+            // Execute only relevant rings for this operation
+            for (const ring of relevantRings) {
                 context.currentRing = ring as ObserverRing;
                 ringsExecuted.push(ring as ObserverRing);
 

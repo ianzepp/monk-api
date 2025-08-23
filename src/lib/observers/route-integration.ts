@@ -27,9 +27,9 @@ export async function executeObserverPipeline(
         system,
         operation,
         schema,
-        data,
-        recordId,
-        existing
+        data ? [data] : [], // Convert single record to array
+        existing ? [existing] : undefined,
+        0 // depth
     );
 }
 
