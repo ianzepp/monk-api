@@ -19,7 +19,15 @@
     "allowJs": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@src/*": ["src/*"],
+      "@lib/*": ["src/lib/*"],
+      "@observers/*": ["src/lib/observers/*"],
+      "@routes/*": ["src/routes/*"],
+      "@test/*": ["spec/*"]
+    }
   },
   "include": [
     "src/**/*"
