@@ -646,6 +646,46 @@ npm run autoinstall --clean-node --clean-dist --clean-auth
 - Always use parameterized queries for security
 - Test multi-tenant scenarios with different tenant databases
 
+## Release Management
+
+### **Version Control and Releases**
+
+The project uses **managed npm package versioning** with manual control over version bumps and automated release workflows.
+
+#### **Release Workflow**
+```bash
+# Bug fixes and patches
+npm run version:patch
+
+# New features (your discretion)
+npm run version:minor
+
+# Major releases (your discretion) 
+npm run version:major
+```
+
+#### **Automated Release Process**
+Each version command automatically:
+
+1. **Pre-version validation**: Runs `npm run compile && npm run test:all`
+2. **Version bump**: Updates `package.json` version and creates Git tag
+3. **Release automation**: 
+   - Pushes commits and tags to remote repository
+   - Creates GitHub release with auto-generated release notes
+   - Maintains release history for rollback capabilities
+
+#### **Release Guidelines**
+- **Manual Control**: Developer decides timing and type of version bump
+- **Quality Gates**: All tests must pass before version bump succeeds
+- **Professional Releases**: GitHub releases include auto-generated changelogs
+- **Branch Strategy**: Releases are created from `main` branch
+- **Rollback Safety**: Each release is tagged for easy rollback if needed
+
+#### **Version Strategy**
+- **Patch (x.x.1)**: Bug fixes, security patches, minor improvements
+- **Minor (x.1.x)**: New features, significant enhancements, API additions
+- **Major (1.x.x)**: Breaking changes, architecture changes, API restructuring
+
 ## Performance Considerations
 
 ### **Schema Operations**
@@ -680,6 +720,11 @@ monk auth login local-test root
 # Testing
 npm run test:all
 npm run test:one tests/path/test.sh
+
+# Releases
+npm run version:patch
+npm run version:minor
+npm run version:major
 
 # CLI regeneration
 cd cli/src && bashly generate
