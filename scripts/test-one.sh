@@ -102,6 +102,46 @@ monk() {
 }
 export -f monk
 
+# Check if API server is running and start if needed
+print_info "Checking API server status..."
+if server_status=$(monk servers current 2>/dev/null | grep "Status:" | awk '{print $2}'); then
+    if [ "$server_status" = "down" ]; then
+        print_info "API server is stopped, starting it..."
+        
+        # Compile TypeScript
+        print_info "Compiling TypeScript..."
+        if npm run compile >/dev/null 2>&1; then
+            print_success "Compilation successful"
+        else
+            print_error "Compilation failed"
+            exit 1
+        fi
+        
+        # Start API server in background
+        print_info "Starting API server in background..."
+        npm run api:start >/dev/null 2>&1 &
+        API_SERVER_PID=$!
+        
+        # Wait a moment for server to start
+        sleep 2
+        
+        # Verify server is responding
+        print_info "Verifying server startup..."
+        if monk ping >/dev/null 2>&1; then
+            print_success "API server is running and responding"
+        else
+            print_error "API server failed to start or not responding"
+            # Clean up background process
+            kill $API_SERVER_PID 2>/dev/null || true
+            exit 1
+        fi
+    else
+        print_success "API server is already running"
+    fi
+else
+    print_warning "Could not check server status, assuming server is available"
+fi
+
 if [ -f "$MONK_CLI" ] && [ -x "$MONK_CLI" ]; then
     # Create tenant with root user (but don't authenticate - let test file handle auth)
     if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
