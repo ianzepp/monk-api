@@ -5,6 +5,8 @@
  */
 
 import * as net from 'net';
+import { FtpAuthHandler } from './ftp-auth-handler.js';
+import type { System } from '../lib/system.js';
 
 interface Connection {
     socket: net.Socket;
@@ -15,14 +17,17 @@ interface Connection {
     dataServer?: net.Server;
     dataPort?: number;
     dataSocket?: net.Socket;
+    system?: System;  // Add System context for database operations
 }
 
 class MinimalFtpServer {
     private server: net.Server;
     private connections = new Map<string, Connection>();
+    private authHandler: FtpAuthHandler;
     
     constructor(private port: number = 2123) {
         this.server = net.createServer(this.handleConnection.bind(this));
+        this.authHandler = new FtpAuthHandler();
     }
     
     async start(): Promise<void> {
@@ -82,9 +87,7 @@ class MinimalFtpServer {
                 break;
                 
             case 'PASS':
-                conn.authenticated = true;
-                console.log(`🎯 [${conn.id}] AUTHENTICATED`);
-                this.send(conn, 230, 'Logged in');
+                await this.handleAuth(conn, args);
                 break;
                 
             case 'PWD':
@@ -379,6 +382,34 @@ class MinimalFtpServer {
         } catch (error) {
             console.error(`🎯 [${conn.id}] STOR: Error -`, error);
             this.send(conn, 550, 'File upload failed');
+        }
+    }
+    
+    private async handleAuth(conn: Connection, password: string): Promise<void> {
+        console.log(`🎯 [${conn.id}] AUTH: Validating JWT token for ${conn.username}`);
+        
+        if (!conn.username) {
+            this.send(conn, 503, 'Login with USER first');
+            return;
+        }
+        
+        try {
+            // Use real JWT authentication
+            const system = await this.authHandler.validateLogin(conn.username, password);
+            
+            if (system) {
+                conn.authenticated = true;
+                conn.system = system;
+                const user = system.getUser();
+                console.log(`🎯 [${conn.id}] AUTH: JWT authentication successful for tenant ${user.domain}`);
+                this.send(conn, 230, `User ${conn.username} logged in`);
+            } else {
+                console.log(`🎯 [${conn.id}] AUTH: JWT authentication failed`);
+                this.send(conn, 530, 'Authentication failed');
+            }
+        } catch (error) {
+            console.error(`🎯 [${conn.id}] AUTH: Error -`, error);
+            this.send(conn, 530, 'Authentication error');
         }
     }
 }
