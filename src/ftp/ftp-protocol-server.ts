@@ -48,11 +48,15 @@ interface FtpConnection {
     /** Connection ID for logging */
     id: string;
     
-    /** Data connection info for passive mode */
+    /** Data connection info for passive/active mode */
     dataConnection?: {
-        server: net.Server;
+        server: net.Server | null;
         port: number;
         socket?: net.Socket;
+        activeMode?: {
+            address: string;
+            port: number;
+        };
     };
 }
 
@@ -244,12 +248,24 @@ export class FtpProtocolServer {
                 await this.handlePasv(connection);
                 break;
                 
+            case 'EPSV':
+                await this.handleEpsv(connection);
+                break;
+                
             case 'RETR':
                 await this.handleRetr(connection, args);
                 break;
                 
             case 'STOR':
                 await this.handleStor(connection, args);
+                break;
+                
+            case 'EPRT':
+                await this.handleEprt(connection, args);
+                break;
+                
+            case 'PORT':
+                await this.handlePort(connection, args);
                 break;
                 
             case 'QUIT':
@@ -438,7 +454,7 @@ export class FtpProtocolServer {
         try {
             // Close existing data connection if any
             if (connection.dataConnection) {
-                connection.dataConnection.server.close();
+                connection.dataConnection.server?.close();
             }
             
             // Create new data server on random port
@@ -600,6 +616,118 @@ export class FtpProtocolServer {
     }
     
     /**
+     * Handle EPSV (Extended Passive Mode) command
+     */
+    private async handleEpsv(connection: FtpConnection): Promise<void> {
+        try {
+            // Close existing data connection if any
+            if (connection.dataConnection) {
+                connection.dataConnection.server?.close();
+            }
+            
+            // Create new data server on random port
+            const dataServer = net.createServer();
+            
+            return new Promise((resolve, reject) => {
+                dataServer.listen(0, '127.0.0.1', () => {
+                    const address = dataServer.address() as net.AddressInfo;
+                    const port = address.port;
+                    
+                    connection.dataConnection = {
+                        server: dataServer,
+                        port
+                    };
+                    
+                    // Set up data connection handler
+                    dataServer.on('connection', (socket) => {
+                        connection.dataConnection!.socket = socket;
+                        console.log(`📡 [${connection.id}] Extended data connection established on port ${port}`);
+                    });
+                    
+                    // EPSV response format: |||port|
+                    this.sendResponse(connection, 229, `Entering extended passive mode (|||${port}|)`);
+                    console.log(`🔗 [${connection.id}] Extended passive mode on port ${port}`);
+                    resolve();
+                });
+                
+                dataServer.on('error', (error) => {
+                    console.error(`❌ [${connection.id}] Extended data server error:`, error);
+                    reject(error);
+                });
+            });
+            
+        } catch (error) {
+            console.error(`❌ [${connection.id}] EPSV error:`, error);
+            this.sendResponse(connection, 425, 'Cannot open extended passive connection');
+        }
+    }
+    
+    /**
+     * Handle EPRT (Extended Port) command for active mode
+     */
+    private async handleEprt(connection: FtpConnection, args: string): Promise<void> {
+        // EPRT format: |protocol|address|port|
+        const match = args.match(/\|(\d+)\|([^|]+)\|(\d+)\|/);
+        
+        if (!match) {
+            this.sendResponse(connection, 501, 'Invalid EPRT format');
+            return;
+        }
+        
+        const [, protocol, address, portStr] = match;
+        const port = parseInt(portStr, 10);
+        
+        if (protocol !== '2' || isNaN(port)) {
+            this.sendResponse(connection, 501, 'Unsupported protocol or invalid port');
+            return;
+        }
+        
+        console.log(`🔗 [${connection.id}] Active mode: client will listen on ${address}:${port}`);
+        
+        // Store active mode connection info
+        connection.dataConnection = {
+            server: null as any, // Not used in active mode
+            port,
+            activeMode: {
+                address,
+                port
+            }
+        };
+        
+        this.sendResponse(connection, 200, 'Extended port command successful');
+    }
+    
+    /**
+     * Handle PORT command for active mode
+     */
+    private async handlePort(connection: FtpConnection, args: string): Promise<void> {
+        // PORT format: h1,h2,h3,h4,p1,p2 where IP=h1.h2.h3.h4 and port=p1*256+p2
+        const parts = args.split(',');
+        
+        if (parts.length !== 6) {
+            this.sendResponse(connection, 501, 'Invalid PORT format');
+            return;
+        }
+        
+        const ip = parts.slice(0, 4).join('.');
+        const port = parseInt(parts[4]) * 256 + parseInt(parts[5]);
+        
+        console.log(`🔗 [${connection.id}] Active mode: client will listen on ${ip}:${port}`);
+        
+        // Store active mode connection info
+        connection.dataConnection = {
+            server: null as any, // Not used in active mode
+            port,
+            activeMode: {
+                address: ip,
+                port
+            }
+        };
+        
+        this.sendResponse(connection, 200, 'Port command successful');
+    }
+    
+    /**
      * Handle QUIT command
      */
     private async handleQuit(connection: FtpConnection): Promise<void> {
@@ -670,7 +798,7 @@ export class FtpProtocolServer {
         
         // Close data connection
         if (connection.dataConnection) {
-            connection.dataConnection.server.close();
+            connection.dataConnection.server?.close();
             connection.dataConnection.socket?.destroy();
         }
         
