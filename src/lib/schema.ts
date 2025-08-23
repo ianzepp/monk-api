@@ -1,6 +1,6 @@
-import { type FilterData } from './filter.js';
-import { type TxContext } from '../db/index.js';
-import type { System } from './system.js';
+import { type FilterData } from '@lib/filter.js';
+import { type TxContext } from '@src/db/index.js';
+import type { SystemContext } from '@lib/types/system-context.js';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
@@ -37,7 +37,7 @@ export class Schema {
     public definition?: any;
 
     constructor(
-        private system: System,
+        private system: SystemContext,
         schemaName: SchemaName,
         schemaRecord: any
     ) {
