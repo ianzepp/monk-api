@@ -3,7 +3,7 @@ import { Schema, type SchemaName } from '@lib/schema.js';
 import { Filter, type FilterData } from '@lib/filter.js';
 import { DatabaseManager } from '@lib/database-manager.js';
 import type { Context } from 'hono';
-import type { SystemContext } from '@lib/types/system-context.js';
+import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
 import { SchemaCache } from '@lib/schema-cache.js';
 import _ from 'lodash';
 import crypto from 'crypto';
@@ -17,10 +17,10 @@ import crypto from 'crypto';
  * - DbContext/TxContext injected separately for database access
  */
 export class Database {
-    public readonly system: SystemContext;
+    public readonly system: SystemContextWithInfrastructure;
     public readonly dtx: DbContext | TxContext;
 
-    constructor(system: SystemContext, dtx: DbContext | TxContext) {
+    constructor(system: SystemContextWithInfrastructure, dtx: DbContext | TxContext) {
         this.system = system;
         this.dtx = dtx;
     }

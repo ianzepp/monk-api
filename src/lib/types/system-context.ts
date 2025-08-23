@@ -58,3 +58,15 @@ export interface SystemContext {
      */
     isRoot(): boolean;
 }
+
+/**
+ * Extended system context that includes infrastructure concerns
+ * Used during transition period before Ring 5 migration (Issue #94)
+ */
+export interface SystemContextWithInfrastructure extends SystemContext {
+    /** Database/Transaction context for direct SQL access */
+    readonly dtx: any; // Avoid importing DbContext/TxContext to prevent circular deps
+    
+    /** Database instance for high-level operations */
+    readonly database: any; // Avoid importing Database class to prevent circular deps
+}

@@ -1,4 +1,4 @@
-import type { SystemContext } from '@lib/types/system-context.js';
+import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import crypto from 'crypto';
 
@@ -166,7 +166,7 @@ export class SchemaCache {
     /**
      * Get schema with caching
      */
-    async getSchema(system: SystemContext, schemaName: string): Promise<any> {
+    async getSchema(system: SystemContextWithInfrastructure, schemaName: string): Promise<any> {
         const dbCache = this.getDatabaseCache(system.dtx);
         
         // 1. Validate checksums (batch operation, infrequent)
@@ -202,7 +202,7 @@ export class SchemaCache {
     /**
      * Invalidate specific schema in cache (for updates)
      */
-    invalidateSchema(system: SystemContext, schemaName: string): void {
+    invalidateSchema(system: SystemContextWithInfrastructure, schemaName: string): void {
         const dbCache = this.getDatabaseCache(system.dtx);
         dbCache.schemas.delete(schemaName);
         console.debug(`Schema cache invalidated manually: ${schemaName}`);
