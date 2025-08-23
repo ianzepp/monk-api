@@ -26,8 +26,8 @@ cd "$CLI_ROOT"
 if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 2))); then
     printf "bash version 4.2 or higher is required\n" >&2
     printf "You are running: $BASH_VERSION\n" >&2
-    printf "Install newer bash: brew install bash\n" >&2
-    printf "Then use: /opt/homebrew/bin/bash monk ...\n" >&2
+    printf "Install newer bash (macOS: brew install bash, Ubuntu: bash usually recent enough)\n" >&2
+    printf "Then ensure newer bash is in your PATH or use explicit path\n" >&2
     exit 1
 fi
 
