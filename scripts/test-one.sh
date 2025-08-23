@@ -91,7 +91,18 @@ TEST_TENANT_NAME="test-$(date +%s)"
 
 print_info "Creating test tenant: $TEST_TENANT_NAME"
 
-if command -v monk >/dev/null 2>&1; then
+# Setup local monk command to avoid requiring npm link
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MONK_CLI="$PROJECT_ROOT/bin/monk"
+
+# Create monk function for tests
+monk() {
+    "$MONK_CLI" "$@"
+}
+export -f monk
+
+if [ -f "$MONK_CLI" ] && [ -x "$MONK_CLI" ]; then
     # Create tenant with root user (but don't authenticate - let test file handle auth)
     if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
         print_success "Test tenant created: $TEST_TENANT_NAME"
@@ -102,7 +113,7 @@ if command -v monk >/dev/null 2>&1; then
         exit 1
     fi
 else
-    print_error "monk CLI not available for test environment setup"
+    print_error "Local monk CLI not available for test environment setup"
     exit 1
 fi
 
