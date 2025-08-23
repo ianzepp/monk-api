@@ -1,3 +1,7 @@
+// Load monk configuration before other imports
+import { MonkEnv } from './lib/monk-env.js';
+MonkEnv.load();
+
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from './db/index.js';

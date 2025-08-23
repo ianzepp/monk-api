@@ -26,15 +26,14 @@ export class AuthService {
     // Get persistent auth database connection
     private static getAuthDatabase(): pg.Pool {
         if (!this.authPool) {
-            const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-            const dbHost = process.env.DB_HOST || 'localhost';
-            const dbPort = process.env.DB_PORT || 5432;
+            // Use DATABASE_URL approach consistent with DatabaseManager
+            const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+            
+            // Build connection string for auth database
+            const authConnectionString = baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
             
             this.authPool = new pg.Pool({
-                user: dbUser,
-                host: dbHost,
-                database: 'monk-api-auth',
-                port: Number(dbPort),
+                connectionString: authConnectionString,
                 max: 5,
                 idleTimeoutMillis: 30000,
                 connectionTimeoutMillis: 2000,

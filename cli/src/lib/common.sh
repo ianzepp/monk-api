@@ -3,8 +3,7 @@
 # Common functions for bashly CLI commands
 # This file contains shared functionality migrated from cli/common.sh
 
-# JWT token storage file
-JWT_TOKEN_FILE="${HOME}/.monk-jwt-token"
+# JWT tokens are stored per-server in servers.json (no global fallback)
 
 # Servers configuration file
 SERVERS_CONFIG="${HOME}/.config/monk/servers.json"
@@ -96,11 +95,8 @@ get_jwt_token() {
     init_servers_config
     
     if ! command -v jq >/dev/null 2>&1; then
-        # Fallback to old global token file if jq not available
-        if [ -f "$JWT_TOKEN_FILE" ]; then
-            cat "$JWT_TOKEN_FILE"
-        fi
-        return
+        echo "Error: jq is required for JWT token management" >&2
+        return 1
     fi
     
     # Get current server name
@@ -108,11 +104,8 @@ get_jwt_token() {
     current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
     
     if [ -z "$current_server" ] || [ "$current_server" = "null" ]; then
-        # No current server, try fallback to global token
-        if [ -f "$JWT_TOKEN_FILE" ]; then
-            cat "$JWT_TOKEN_FILE"
-        fi
-        return
+        # No current server selected
+        return 1
     fi
     
     # Get server-specific token
@@ -121,6 +114,8 @@ get_jwt_token() {
     
     if [ -n "$token" ] && [ "$token" != "null" ]; then
         echo "$token"
+    else
+        return 1
     fi
 }
 
@@ -131,10 +126,8 @@ store_token() {
     init_servers_config
     
     if ! command -v jq >/dev/null 2>&1; then
-        # Fallback to old global token file if jq not available
-        echo "$token" > "$JWT_TOKEN_FILE"
-        chmod 600 "$JWT_TOKEN_FILE"
-        return
+        echo "Error: jq is required for JWT token management" >&2
+        return 1
     fi
     
     # Get current server name
@@ -142,10 +135,8 @@ store_token() {
     current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
     
     if [ -z "$current_server" ] || [ "$current_server" = "null" ]; then
-        # No current server, store in global file as fallback
-        echo "$token" > "$JWT_TOKEN_FILE"
-        chmod 600 "$JWT_TOKEN_FILE"
-        return
+        echo "Error: No current server selected. Use 'monk servers use <name>' first" >&2
+        return 1
     fi
     
     # Store token in server configuration
@@ -164,9 +155,8 @@ remove_stored_token() {
     init_servers_config
     
     if ! command -v jq >/dev/null 2>&1; then
-        # Fallback to old global token file if jq not available
-        rm -f "$JWT_TOKEN_FILE"
-        return
+        echo "Error: jq is required for JWT token management" >&2
+        return 1
     fi
     
     # Get current server name
@@ -174,9 +164,8 @@ remove_stored_token() {
     current_server=$(jq -r '.current // empty' "$SERVERS_CONFIG" 2>/dev/null)
     
     if [ -z "$current_server" ] || [ "$current_server" = "null" ]; then
-        # No current server, remove global file as fallback
-        rm -f "$JWT_TOKEN_FILE"
-        return
+        echo "Error: No current server selected" >&2
+        return 1
     fi
     
     # Remove token from server configuration

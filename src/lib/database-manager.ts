@@ -60,7 +60,7 @@ export class DatabaseManager {
 
     // Build connection string for domain/database
     private static buildConnectionString(domain: string): string {
-        const baseUrl = process.env.DATABASE_URL || 'postgresql://ianzepp@localhost:5432/';
+        const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
         
         // Use domain name directly as database name
         return baseUrl.replace(/\/[^\/]*$/, `/${domain}`);
