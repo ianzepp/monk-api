@@ -52,7 +52,7 @@ print_info() {
 
 # Test configuration
 echo "=== FTP Ping Test ==="
-echo "Testing basic FTP server connectivity and protocol response"
+echo "Testing custom FTP protocol server connectivity and response"
 echo
 
 # ===================================================================

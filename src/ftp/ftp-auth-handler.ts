@@ -1,5 +1,4 @@
 import type { Context } from 'hono';
-import { existsSync, mkdirSync } from 'fs';
 import { AuthService, type JWTPayload } from '../lib/auth.js';
 import { System } from '../lib/system.js';
 import { DatabaseManager } from '../lib/database-manager.js';
@@ -166,26 +165,18 @@ export class FtpAuthHandler {
     }
     
     /**
-     * Create connection context for FTP session
-     * Returns configuration object for ftp-srv library
+     * Create system context for authenticated FTP connection
+     * Used by custom FTP protocol server for database operations
      * 
      * @param system - Authenticated System instance
-     * @returns FTP connection configuration with System context
+     * @returns System instance for FTP connection operations
      */
-    createConnectionContext(system: System): { root: string; system: System } {
-        // For now, use a simple temporary directory structure
-        // TODO: Implement virtual filesystem mapping in future steps
-        const tempRoot = '/tmp/monk-ftp-root';
+    createConnectionContext(system: System): System {
+        // With custom FTP protocol, we don't need temporary directories
+        // Just return the authenticated System instance for database operations
+        const user = system.getUser();
+        console.log(`🔗 FTP connection context created for tenant: ${user.domain}`);
         
-        // Ensure the directory exists
-        if (!existsSync(tempRoot)) {
-            mkdirSync(tempRoot, { recursive: true });
-            console.log(`Created FTP root directory: ${tempRoot}`);
-        }
-        
-        return {
-            root: tempRoot,
-            system: system  // Attach System instance to connection
-        };
+        return system;
     }
 }

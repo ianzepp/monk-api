@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createMonkFtpServer } from './ftp/ftp-server.js';
+import { FtpProtocolServer } from './ftp/ftp-protocol-server.js';
 
 /**
  * Monk FTP Server CLI - Standalone FTP Server
@@ -41,8 +41,8 @@ async function startFtpServer() {
     console.log('');
     
     try {
-        // Create and start FTP server
-        const ftpServer = createMonkFtpServer(ftpPort, ftpHost);
+        // Create and start custom FTP protocol server
+        const ftpServer = new FtpProtocolServer(ftpPort, ftpHost);
         
         // Start the server
         await ftpServer.start();
@@ -61,6 +61,12 @@ async function startFtpServer() {
         console.log('🔌 Example FTP clients:');
         console.log(`   lftp -u "api-user,<JWT_TOKEN>" ${ftpHost}:${ftpPort}`);
         console.log(`   ftp ${ftpHost} ${ftpPort}`);
+        console.log('');
+        console.log('🗂️  Directory Structure:');
+        console.log('   /data/               - Data operations');
+        console.log('   /data/account/       - Account records');
+        console.log('   /data/account/123/   - Record fields');
+        console.log('   /meta/schema/        - Schema definitions');
         console.log('');
         
         // Handle graceful shutdown

@@ -54,7 +54,7 @@ print_info() {
 
 # Test configuration
 echo "=== FTP JWT Authentication Test ==="
-echo "Testing JWT token-based FTP login and tenant isolation"
+echo "Testing custom FTP protocol JWT authentication and tenant isolation"
 echo
 
 # ===================================================================
@@ -320,8 +320,8 @@ cat << 'EOF'
 📋 FTP AUTHENTICATION SUMMARY:
 ==============================
 
-✅ FTP server accepts connections
-✅ Authentication system integration ready
+✅ Custom FTP protocol server accepts connections
+✅ JWT authentication system integration ready
 ✅ JWT token validation framework in place
 ✅ Invalid credential rejection working
 
