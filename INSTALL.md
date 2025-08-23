@@ -148,9 +148,6 @@ After PostgreSQL is installed and running:
 The shell-based test suite covers groups 00-30:
 
 ```bash
-# Install monk CLI globally first
-npm link
-
 # Test specific groups (recommended for fresh install verification)
 npm run test:one tests/05-infrastructure/servers-config-test.sh
 npm run test:one tests/10-connection/ping-test.sh
