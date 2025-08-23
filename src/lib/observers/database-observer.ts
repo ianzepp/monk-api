@@ -59,8 +59,8 @@ export class DatabaseObserver implements Observer {
             throw new Error('No data provided for create operation');
         }
         
-        // Use system database for create operation
-        return await system.database.createOne(schema, data);
+        // Use internal database method to avoid recursion
+        return await system.database.createOneInternal(schema, data);
     }
 
     private async handleUpdate(system: any, schema: string, recordId: string, data: any, existing: any): Promise<any> {
@@ -72,8 +72,8 @@ export class DatabaseObserver implements Observer {
             throw new Error('No update data provided');
         }
         
-        // Use system database for update operation
-        return await system.database.updateOne(schema, recordId, data);
+        // Use internal database method to avoid recursion
+        return await system.database.updateOneInternal(schema, recordId, data);
     }
 
     private async handleDelete(system: any, schema: string, recordId: string, existing: any): Promise<any> {
@@ -81,8 +81,8 @@ export class DatabaseObserver implements Observer {
             throw new Error('No record ID provided for delete operation');
         }
         
-        // Use system database for delete operation (soft delete)
-        return await system.database.deleteOne(schema, recordId);
+        // Use internal database method to avoid recursion
+        return await system.database.deleteOneInternal(schema, recordId);
     }
 
     private async handleSelect(system: any, schema: string, recordId: string): Promise<any> {

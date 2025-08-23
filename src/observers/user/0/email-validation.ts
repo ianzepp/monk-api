@@ -16,22 +16,25 @@ export default class EmailValidator implements Observer {
     async execute(context: ObserverContext): Promise<void> {
         const { data } = context;
         
-        if (!data || !data.email) {
-            return; // No email to validate
-        }
+        // Process each record in the array
+        for (const [index, record] of data.entries()) {
+            if (!record || !record.email) {
+                continue; // No email to validate
+            }
 
-        if (!this.isValidEmail(data.email)) {
-            context.errors.push({
-                message: 'Invalid email format',
-                field: 'email',
-                code: 'INVALID_EMAIL_FORMAT',
-                ring: this.ring,
-                observer: this.name
-            });
+            if (!this.isValidEmail(record.email)) {
+                context.errors.push({
+                    message: `Invalid email format for record ${index}`,
+                    field: 'email',
+                    code: 'INVALID_EMAIL_FORMAT',
+                    ring: this.ring,
+                    observer: this.name
+                });
+            } else {
+                // Normalize email to lowercase
+                record.email = record.email.toLowerCase().trim();
+            }
         }
-
-        // Normalize email to lowercase
-        data.email = data.email.toLowerCase().trim();
     }
 
     private isValidEmail(email: string): boolean {

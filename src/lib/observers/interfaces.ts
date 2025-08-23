@@ -28,14 +28,11 @@ export interface ObserverContext {
     /** Target schema name */
     schema: string;
 
-    /** Input data for create/update operations */
-    data?: any;
+    /** Input data array for all operations (always array, even for single records) */
+    data: any[];
 
-    /** Target record ID for update/delete/select operations */
-    recordId?: string;
-
-    /** Existing record data (loaded for update operations) */
-    existing?: any;
+    /** Existing record data array (loaded for update/delete operations) */
+    existing?: any[];
 
     /** Database operation result (available in post-database rings) */
     result?: any;

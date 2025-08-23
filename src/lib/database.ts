@@ -5,6 +5,8 @@ import { DatabaseManager } from './database-manager.js';
 import type { Context } from 'hono';
 import type { System } from './system.js';
 import { SchemaCache } from './schema-cache.js';
+import { ObserverRunner } from '@observers/runner.js';
+import type { OperationType } from '@observers/types.js';
 import _ from 'lodash';
 import crypto from 'crypto';
 
@@ -14,9 +16,103 @@ import crypto from 'crypto';
  */
 export class Database {
     public readonly system: System;
+    private readonly observerRunner = new ObserverRunner();
+    private static readonly OBSERVER_BYPASS_KEY = Symbol('observer_bypass');
 
     constructor(system: System) {
         this.system = system;
+    }
+
+    /**
+     * Execute observer pipeline for database operations
+     * Handles nested calls and transaction management
+     */
+    private async runObserverPipeline(
+        operation: OperationType,
+        schema: string,
+        data?: any,
+        recordId?: string,
+        existing?: any
+    ): Promise<any> {
+        // Check if this is a nested call (to prevent infinite recursion)
+        const isNestedCall = this.isNestedObserverCall();
+        
+        if (isNestedCall) {
+            // For nested calls, execute database operation directly
+            console.debug(`🔄 Nested observer call detected: ${operation} on ${schema} - bypassing observer pipeline`);
+            return await this.executeDirectDatabaseOperation(operation, schema, data, recordId, existing);
+        }
+
+        // Mark that we're in an observer pipeline execution
+        this.markObserverExecution();
+        
+        try {
+            // Execute complete observer pipeline
+            const result = await this.observerRunner.execute(
+                this.system,
+                operation,
+                schema,
+                data,
+                recordId,
+                existing
+            );
+
+            if (!result.success) {
+                throw new Error(`Observer pipeline validation failed: ${result.errors.map(e => e.message).join('; ')}`);
+            }
+
+            return result.result;
+            
+        } finally {
+            // Clear observer execution marker
+            this.clearObserverExecution();
+        }
+    }
+
+    /**
+     * Check if we're already in an observer pipeline execution (nested call detection)
+     */
+    private isNestedObserverCall(): boolean {
+        // Check if there's an observer bypass marker in the system context
+        return !!(this.system as any)[Database.OBSERVER_BYPASS_KEY];
+    }
+
+    /**
+     * Mark that we're executing observer pipeline
+     */
+    private markObserverExecution(): void {
+        (this.system as any)[Database.OBSERVER_BYPASS_KEY] = true;
+    }
+
+    /**
+     * Clear observer execution marker
+     */
+    private clearObserverExecution(): void {
+        delete (this.system as any)[Database.OBSERVER_BYPASS_KEY];
+    }
+
+    /**
+     * Execute database operation directly (for nested calls or bypass scenarios)
+     */
+    private async executeDirectDatabaseOperation(
+        operation: OperationType,
+        schema: string,
+        data?: any,
+        recordId?: string,
+        existing?: any
+    ): Promise<any> {
+        switch (operation) {
+            case 'create':
+                return await this.createOneInternal(schema, data);
+            case 'update':
+                return await this.updateOneInternal(schema, recordId!, data);
+            case 'delete':
+                return await this.deleteOneInternal(schema, recordId!);
+            case 'select':
+                return await this.selectOne(schema, { where: { id: recordId! } });
+            default:
+                throw new Error(`Unsupported database operation: ${operation}`);
+        }
     }
 
     // Schema operations with caching - returns Schema instance
@@ -195,7 +291,17 @@ export class Database {
         return await this.deleteIds(schemaName, recordIds);
     }
 
+    /**
+     * Public createOne method with observer pipeline integration
+     */
     async createOne(schemaName: SchemaName, recordData: Record<string, any>): Promise<any> {
+        return await this.runObserverPipeline('create', schemaName, recordData);
+    }
+
+    /**
+     * Internal createOne method - actual database operation without observers
+     */
+    async createOneInternal(schemaName: SchemaName, recordData: Record<string, any>): Promise<any> {
         const schema = await this.toSchema(schemaName);
 
         // Protect system schemas from data operations

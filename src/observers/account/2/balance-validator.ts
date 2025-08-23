@@ -16,26 +16,28 @@ export default class BalanceValidator implements Observer {
     async execute(context: ObserverContext): Promise<void> {
         const { data, existing, metadata, operation } = context;
         
-        if (!data) return;
+        // Process each record in the array
+        for (const [index, record] of data.entries()) {
+            if (!record) continue;
 
-        // Validate balance is present and numeric for new accounts
-        if (operation === 'create') {
-            await this.validateNewAccount(context);
-        }
-        
-        // Validate balance changes for existing accounts
-        if (operation === 'update' && existing) {
-            await this.validateBalanceUpdate(context);
+            // Validate balance is present and numeric for new accounts
+            if (operation === 'create') {
+                await this.validateNewAccount(context, record, index);
+            }
+            
+            // Validate balance changes for existing accounts
+            if (operation === 'update' && existing && existing[index]) {
+                await this.validateBalanceUpdate(context, record, existing[index], index);
+            }
         }
     }
 
-    private async validateNewAccount(context: ObserverContext): Promise<void> {
-        const { data } = context;
+    private async validateNewAccount(context: ObserverContext, record: any, index: number): Promise<void> {
         
         // Ensure balance is provided for new accounts
-        if (typeof data.balance !== 'number') {
+        if (typeof record.balance !== 'number') {
             context.errors.push({
-                message: 'Balance must be provided for new accounts',
+                message: `Balance must be provided for new accounts (record ${index})`,
                 field: 'balance',
                 code: 'BALANCE_REQUIRED',
                 ring: this.ring,
@@ -45,9 +47,9 @@ export default class BalanceValidator implements Observer {
         }
 
         // Business rule: New accounts cannot start with negative balance
-        if (data.balance < 0) {
+        if (record.balance < 0) {
             context.errors.push({
-                message: 'New accounts cannot have negative starting balance',
+                message: `New accounts cannot have negative starting balance (record ${index})`,
                 field: 'balance',
                 code: 'NEGATIVE_STARTING_BALANCE',
                 ring: this.ring,
@@ -56,7 +58,7 @@ export default class BalanceValidator implements Observer {
         }
 
         // Store initial balance for other observers
-        context.metadata.set('initial_balance', data.balance);
+        context.metadata.set(`initial_balance_${index}`, record.balance);
     }
 
     private async validateBalanceUpdate(context: ObserverContext): Promise<void> {

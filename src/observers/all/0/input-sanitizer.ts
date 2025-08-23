@@ -16,12 +16,15 @@ export default class InputSanitizer implements Observer {
     async execute(context: ObserverContext): Promise<void> {
         const { data } = context;
         
-        if (!data || typeof data !== 'object') {
-            return;
-        }
+        // Process each record in the array
+        for (const record of data) {
+            if (!record || typeof record !== 'object') {
+                continue;
+            }
 
-        // Sanitize all string fields
-        this.sanitizeObject(data);
+            // Sanitize all string fields in the record
+            this.sanitizeObject(record);
+        }
     }
 
     private sanitizeObject(obj: any): void {

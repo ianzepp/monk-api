@@ -23,21 +23,24 @@ export default class RequiredFieldsValidator implements Observer {
     async execute(context: ObserverContext): Promise<void> {
         const { data, operation, schema } = context;
         
-        if (!data) {
-            return; // No data to validate
-        }
-
         const requiredFields = this.getRequiredFields(schema, operation);
         
-        for (const field of requiredFields) {
-            if (!this.hasValue(data, field)) {
-                context.errors.push({
-                    message: `Missing required field: ${field}`,
-                    field: field,
-                    code: 'REQUIRED_FIELD_MISSING',
-                    ring: this.ring,
-                    observer: this.name
-                });
+        // Process each record in the array
+        for (const [index, record] of data.entries()) {
+            if (!record) {
+                continue; // Skip null/undefined records
+            }
+
+            for (const field of requiredFields) {
+                if (!this.hasValue(record, field)) {
+                    context.errors.push({
+                        message: `Missing required field '${field}' for record ${index}`,
+                        field: field,
+                        code: 'REQUIRED_FIELD_MISSING',
+                        ring: this.ring,
+                        observer: this.name
+                    });
+                }
             }
         }
     }
