@@ -25,7 +25,7 @@ npm run autoinstall
 npm run start:dev
 
 # 4. Verify installation
-npm run test:one tests/10-connection/basic-ping-test.sh
+npm run test:one test/10-connection/basic-ping-test.sh
 ```
 
 The `npm run autoinstall` script handles all setup steps automatically:
@@ -51,7 +51,7 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - **Multi-server**: Switch between development, staging, production environments
 - **Full CRUD**: Complete data and meta operations matching API endpoints
 
-#### **Test Suite** (`tests/`)
+#### **Test Suite** (`test/`)
 - **Three-layer Architecture**: test-all.sh → test-one.sh → individual tests
 - **Tenant Isolation**: Each test gets fresh tenant database  
 - **Pattern-based**: Organized by categories (05-infrastructure, 15-auth, etc.)
@@ -166,13 +166,13 @@ npm run test:all [pattern]        # scripts/test-all.sh
 npm run test:one <test-file>      # scripts/test-one.sh
 
 # Layer 3: Individual test files
-tests/15-authentication/basic-auth-test.sh
+test/15-authentication/basic-auth-test.sh
 ```
 
 #### **Writing New Tests**
 ```bash
 # 1. Create test file in appropriate category
-tests/25-new-feature/my-test.sh
+test/25-new-feature/my-test.sh
 
 # 2. Use standard pattern
 #!/bin/bash
@@ -186,10 +186,10 @@ source "$(dirname "$0")/../auth-helper.sh"
 # Use $TEST_TENANT_NAME (provided by test-one.sh)
 
 # 3. Make executable
-chmod +x tests/25-new-feature/my-test.sh
+chmod +x test/25-new-feature/my-test.sh
 
 # 4. Test individually
-npm run test:one tests/25-new-feature/my-test.sh
+npm run test:one test/25-new-feature/my-test.sh
 
 # 5. Test with pattern
 npm run test:all 25
@@ -230,7 +230,7 @@ monk test git main abc123def      # Test specific commit
 
 # Then manually run tests in environment:
 cd /tmp/monk-builds/main-12345678/monk-api
-npm run test:one tests/specific-test.sh
+npm run test:one test/specific-test.sh
 ```
 
 ## Configuration Management
@@ -314,10 +314,10 @@ src/index.ts
 ### **Schema Development**
 ```bash
 # 1. Create YAML schema
-tests/schemas/new-schema.yaml
+test/schemas/new-schema.yaml
 
 # 2. Deploy for testing
-cat tests/schemas/new-schema.yaml | monk meta create schema
+cat test/schemas/new-schema.yaml | monk meta create schema
 
 # 3. Test CRUD operations
 echo '{"field": "value"}' | monk data create new-schema
@@ -385,10 +385,10 @@ npm run test:all 15              # Auth tests (15-authentication)
 npm run test:all 20-30           # Meta and data API tests
 
 # Individual test
-npm run test:one tests/15-authentication/basic-auth-test.sh
+npm run test:one test/15-authentication/basic-auth-test.sh
 
 # Verbose output
-npm run test:one tests/path/test.sh --verbose
+npm run test:one test/path/test.sh --verbose
 ```
 
 ### **Test Development Patterns**
@@ -555,7 +555,7 @@ const database = new Database(system);
 #### **Tenant Lifecycle Management**
 ```bash
 # test-all.sh (Layer 1): Pattern matching, orchestration
-npm run test:all 15              # Finds all tests/15-*/*.sh files
+npm run test:all 15              # Finds all test/15-*/*.sh files
 
 # test-one.sh (Layer 2): Tenant management per test
 scripts/test-one.sh test.sh      # Creates test-$(timestamp) tenant
@@ -563,7 +563,7 @@ scripts/test-one.sh test.sh      # Creates test-$(timestamp) tenant
                                  # Cleans up tenant after test
 
 # Individual tests (Layer 3): Test logic and scenarios  
-tests/15-authentication/basic-auth-test.sh  # Uses TEST_TENANT_NAME
+test/15-authentication/basic-auth-test.sh  # Uses TEST_TENANT_NAME
                                             # Calls auth_as_user "root"
 ```
 
@@ -679,7 +679,7 @@ monk auth login local-test root
 
 # Testing
 npm run test:all
-npm run test:one tests/path/test.sh
+npm run test:one test/path/test.sh
 
 # CLI regeneration
 cd cli/src && bashly generate

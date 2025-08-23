@@ -19,8 +19,8 @@ set -e
 # - Supports multi-user authentication testing within single tenant
 #
 # Examples:
-#   scripts/test-one.sh tests/05-infrastructure/servers-config-test.sh
-#   scripts/test-one.sh tests/20-meta-api/basic-meta-endpoints.sh --verbose
+#   scripts/test-one.sh test/05-infrastructure/servers-config-test.sh
+#   scripts/test-one.sh test/20-meta-api/basic-meta-endpoints.sh --verbose
 
 # Colors for output
 RED='\033[0;31m'
@@ -59,8 +59,8 @@ if [ -z "$test_file" ]; then
     echo "Usage: $0 <test-file> [--verbose]"
     echo ""
     echo "Examples:"
-    echo "  $0 tests/05-infrastructure/servers-config-test.sh"
-    echo "  $0 tests/20-meta-api/basic-meta-endpoints.sh --verbose"
+    echo "  $0 test/05-infrastructure/servers-config-test.sh"
+    echo "  $0 test/20-meta-api/basic-meta-endpoints.sh --verbose"
     exit 1
 fi
 

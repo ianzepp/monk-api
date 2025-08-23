@@ -189,9 +189,9 @@ The shell-based test suite covers groups 00-30:
 
 ```bash
 # Test specific groups (recommended for fresh install verification)
-npm run test:one tests/05-infrastructure/servers-config-test.sh
-npm run test:one tests/10-connection/ping-test.sh
-npm run test:one tests/20-meta-api/schema-crud-test.sh
+npm run test:one test/05-infrastructure/servers-config-test.sh
+npm run test:one test/10-connection/ping-test.sh
+npm run test:one test/20-meta-api/schema-crud-test.sh
 ```
 
 Expected to pass: All tests in groups 00-30 (setup, infrastructure, connection, meta API, data API)
@@ -220,7 +220,7 @@ npm run start:dev
 ### Testing Changes
 ```bash
 # Test specific functionality
-npm run test:one tests/20-meta-api/schema-crud-test.sh
+npm run test:one test/20-meta-api/schema-crud-test.sh
 
 # Test connection and basic functionality
 ./bin/monk ping
