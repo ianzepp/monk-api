@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { handleContextTx } from '../lib/api/responses.js';
+import { handleContextTx } from '@lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
     return await handleContextTx(context, async (system) => {

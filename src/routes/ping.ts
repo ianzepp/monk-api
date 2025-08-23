@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { AuthService } from '../lib/auth.js';
-import { DatabaseManager } from '../lib/database-manager.js';
+import { AuthService } from '@lib/auth.js';
+import { DatabaseManager } from '@lib/database-manager.js';
 
 const app = new Hono();
 

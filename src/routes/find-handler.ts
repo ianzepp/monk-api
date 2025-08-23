@@ -1,13 +1,13 @@
 import type { Context } from 'hono';
-import { System } from '../lib/system.js';
+import { System } from '@lib/system.js';
 import {
     createSuccessResponse,
     createNotFoundError,
     createInternalError,
-} from '../lib/api/responses.js';
-import { builtins } from '../db/index.js';
-import { Filter, type FilterData } from '../lib/filter.js';
-import { handleContextDb } from '../lib/api/responses.js';
+} from '@lib/api/responses.js';
+import { builtins } from '@src/db/index.js';
+import { Filter, type FilterData } from '@lib/filter.js';
+import { handleContextDb } from '@lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
     return await handleContextDb(context, async (system: System) => {

@@ -1,7 +1,8 @@
 import type { Context } from 'hono';
-import { System, type SystemOptions } from '../system.js';
-import { DatabaseManager } from '../database-manager.js'; 
-import { type TxContext } from '../../db/index.js';
+import { System } from '@lib/system.js';
+import type { SystemOptions } from '@lib/types/system-context.js';
+import { DatabaseManager } from '@lib/database-manager.js'; 
+import { type TxContext } from '@src/db/index.js';
 export interface ApiSuccessResponse<T = any> {
   success: true;
   data: T;

@@ -5,8 +5,8 @@
  * Ring: 7 (Audit) - Schema: % (all schemas) - Operations: create, update, delete
  */
 
-import type { Observer, ObserverContext } from '../../../lib/observers/interfaces.js';
-import { ObserverRing } from '../../../lib/observers/types.js';
+import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { ObserverRing } from '@lib/observers/types.js';
 
 export default class ChangeTracker implements Observer {
     ring = ObserverRing.Audit;

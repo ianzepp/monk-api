@@ -5,8 +5,8 @@
  * Ring: 2 (Business) - Schema: user - Operations: create, update
  */
 
-import type { Observer, ObserverContext } from '../../../lib/observers/interfaces.js';
-import { ObserverRing } from '../../../lib/observers/types.js';
+import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { ObserverRing } from '@lib/observers/types.js';
 
 export default class PermissionChecker implements Observer {
     ring = ObserverRing.Business;

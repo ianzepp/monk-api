@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { SchemaMetaYAML } from '../lib/schema-meta-yaml.js';
+import { SchemaMetaYAML } from '@lib/schema-meta-yaml.js';
 
 export default async function (context: Context): Promise<Response> {
     const yamlContent = await context.req.text();

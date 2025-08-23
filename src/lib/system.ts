@@ -1,17 +1,8 @@
 import type { Context } from 'hono';
-import { Database } from './database.js';
-import { DatabaseManager } from './database-manager.js';
-import type { DbContext, TxContext } from '../db/index.js';
-
-/**
- * System options for controlling query behavior
- */
-export interface SystemOptions {
-    /** Include trashed records (soft deletes) in query results */
-    trashed?: boolean;
-    /** Include permanently deleted records in query results (root access only) */
-    deleted?: boolean;
-}
+import { Database } from '@lib/database.js';
+import { DatabaseManager } from '@lib/database-manager.js';
+import type { DbContext, TxContext } from '@src/db/index.js';
+import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@lib/types/system-context.js';
 
 /**
  * System class - Per-request context management
@@ -19,8 +10,11 @@ export interface SystemOptions {
  * Initialized at the top-level route handler with Hono context.
  * Provides access to properly contextualized database operations.
  * Replaces singleton pattern with per-request instance pattern.
+ * 
+ * Implements SystemContext interface to provide business context to other components
+ * while breaking circular dependencies through dependency injection.
  */
-export class System {
+export class System implements SystemContextWithInfrastructure {
     public readonly context: Context;
     public readonly userDomain: string;
     public readonly userId: string;
@@ -42,9 +36,9 @@ export class System {
             throw new Error('Unable to initialize database or transaction context.');   
         }
 
-        // Initialize Database instance with this system reference 
+        // Initialize Database instance with dependency injection
         this.dtx = dtx;
-        this.database = new Database(this);
+        this.database = new Database(this, this.dtx);
         
         // Store query options as read-only
         this.options = Object.freeze({ ...options });
@@ -56,8 +50,9 @@ export class System {
 
     /**
      * Get user information from the request context
+     * Implementation of SystemContext interface
      */
-    getUser() {
+    getUser(): UserInfo {
         return {
             id: this.userId,
             domain: this.userDomain,
@@ -70,6 +65,7 @@ export class System {
 
     /**
      * Check if the current user has root access level
+     * Implementation of SystemContext interface
      */
     isRoot(): boolean {
         const payload = this.context.get('jwtPayload') as any;

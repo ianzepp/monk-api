@@ -1,22 +1,28 @@
-import { db, builtins, type DbContext, type TxContext } from '../db/index.js';
-import { Schema, type SchemaName } from './schema.js';
-import { Filter, type FilterData } from './filter.js';
-import { DatabaseManager } from './database-manager.js';
+import { db, builtins, type DbContext, type TxContext } from '@src/db/index.js';
+import { Schema, type SchemaName } from '@lib/schema.js';
+import { Filter, type FilterData } from '@lib/filter.js';
+import { DatabaseManager } from '@lib/database-manager.js';
 import type { Context } from 'hono';
-import type { System } from './system.js';
-import { SchemaCache } from './schema-cache.js';
+import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
+import { SchemaCache } from '@lib/schema-cache.js';
 import _ from 'lodash';
 import crypto from 'crypto';
 
 /**
  * Database service wrapper providing high-level operations
  * Per-request instance with specific database context
+ * 
+ * Uses dependency injection pattern to break circular dependencies:
+ * - SystemContext provides business context
+ * - DbContext/TxContext injected separately for database access
  */
 export class Database {
-    public readonly system: System;
+    public readonly system: SystemContextWithInfrastructure;
+    public readonly dtx: DbContext | TxContext;
 
-    constructor(system: System) {
+    constructor(system: SystemContextWithInfrastructure, dtx: DbContext | TxContext) {
         this.system = system;
+        this.dtx = dtx;
     }
 
     // Schema operations with caching - returns Schema instance
@@ -41,9 +47,9 @@ export class Database {
     // Core operation. Execute raw SQL query
     async execute(query: string, params: any[] = []): Promise<any> {
         if (params.length > 0) {
-            return await this.system.dtx.query(query, params);
+            return await this.dtx.query(query, params);
         } else {
-            return await this.system.dtx.query(query);
+            return await this.dtx.query(query);
         }
     }
 

@@ -9,7 +9,7 @@
  * - Access control validation
  */
 
-import type { System } from '../lib/system.js';
+import type { System } from '@lib/system.js';
 import type { PathInfo, PathType } from './path-parser.js';
 import type { ApiContext } from './api-context.js';
 import { FtpPathError } from './path-parser.js';

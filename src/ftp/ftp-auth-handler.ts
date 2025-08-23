@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
-import { AuthService, type JWTPayload } from '../lib/auth.js';
-import { System } from '../lib/system.js';
-import { DatabaseManager } from '../lib/database-manager.js';
+import { AuthService, type JWTPayload } from '@lib/auth.js';
+import { System } from '@lib/system.js';
+import { DatabaseManager } from '@lib/database-manager.js';
 
 /**
  * FTP Authentication Handler

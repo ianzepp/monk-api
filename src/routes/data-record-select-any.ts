@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { handleContextDb } from '../lib/api/responses.js';
+import { handleContextDb } from '@lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
     return await handleContextDb(context, async (system) => {

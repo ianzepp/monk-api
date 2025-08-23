@@ -15,7 +15,7 @@
  * /files/              - Future: File attachments
  */
 
-import type { System } from '../lib/system.js';
+import type { System } from '@lib/system.js';
 import type { PathInfo } from './path-parser.js';
 import { FtpPathError } from './path-parser.js';
 

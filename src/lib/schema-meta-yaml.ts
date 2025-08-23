@@ -1,4 +1,4 @@
-import { builtins, type TxContext, type DbContext } from '../db/index.js';
+import { builtins, type TxContext, type DbContext } from '@src/db/index.js';
 import { DatabaseManager } from './database-manager.js';
 import type { Context } from 'hono';
 import * as yaml from 'js-yaml';

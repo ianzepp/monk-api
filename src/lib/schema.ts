@@ -1,6 +1,6 @@
-import { type FilterData } from './filter.js';
-import { type TxContext } from '../db/index.js';
-import type { System } from './system.js';
+import { type FilterData } from '@lib/filter.js';
+import { type TxContext } from '@src/db/index.js';
+import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
@@ -37,7 +37,7 @@ export class Schema {
     public definition?: any;
 
     constructor(
-        private system: System,
+        private system: SystemContextWithInfrastructure,
         schemaName: SchemaName,
         schemaRecord: any
     ) {
@@ -260,7 +260,7 @@ export class Schema {
 /**
  * Factory function to create Schema instances
  */
-export async function createSchema(system: System, schemaName: string): Promise<Schema> {
+export async function createSchema(system: SystemContextWithInfrastructure, schemaName: string): Promise<Schema> {
     const schemaInfo = await system.database.toSchema(schemaName);
     
     if (!schemaInfo) {

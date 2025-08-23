@@ -6,7 +6,7 @@
 
 import * as net from 'net';
 import { FtpAuthHandler } from './ftp-auth-handler.js';
-import type { System } from '../lib/system.js';
+import type { System } from '@lib/system.js';
 
 interface Connection {
     socket: net.Socket;

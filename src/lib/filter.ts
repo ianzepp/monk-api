@@ -1,5 +1,5 @@
-import { db, type DbContext, type TxContext } from '../db/index.js';
-import type { System } from './system.js';
+import { db, type DbContext, type TxContext } from '@src/db/index.js';
+import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
 
 /**
  * Filter class for building complex database queries with support for WHERE, ORDER BY, and LIMIT clauses.
@@ -510,9 +510,9 @@ export class Filter {
     private _lookups: any[] = [];
     private _related: any[] = [];
 
-    public readonly system: System;
+    public readonly system: SystemContextWithInfrastructure;
 
-    constructor(system: System, schemaName: string, tableName: string) {
+    constructor(system: SystemContextWithInfrastructure, schemaName: string, tableName: string) {
         this.system = system;
         this._schemaName = schemaName;
         this._tableName = tableName;
