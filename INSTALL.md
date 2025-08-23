@@ -68,14 +68,29 @@ psql -d postgres -c "SELECT version();"
 # If this fails, configure your PostgreSQL authentication first
 ```
 
-### 3. Initialize Auth Database
+### 3. Configure Database Connection
+Create `.env` file with your PostgreSQL connection details:
+```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit .env file with your PostgreSQL credentials
+# DATABASE_URL=postgresql://your_username:your_password@localhost:5432/
+```
+
+**Example for local development:**
+```bash
+echo "DATABASE_URL=postgresql://$(whoami):$(whoami)@localhost:5432/" > .env
+```
+
+### 4. Initialize Auth Database
 ```bash
 # Create and initialize auth database
 createdb monk-api-auth
 psql -d monk-api-auth -f sql/init-auth.sql
 ```
 
-### 4. Configure Server
+### 5. Configure Server
 ```bash
 # Add local server configuration
 ./bin/monk servers add local localhost:9001
@@ -84,7 +99,7 @@ psql -d monk-api-auth -f sql/init-auth.sql
 ./bin/monk servers list
 ```
 
-### 5. Create Test Tenant
+### 6. Create Test Tenant
 ```bash
 # Create a test tenant
 ./bin/monk tenant create local-test
@@ -93,7 +108,7 @@ psql -d monk-api-auth -f sql/init-auth.sql
 ./bin/monk tenant list
 ```
 
-### 6. Start the Server
+### 7. Start the Server
 ```bash
 # Start in development mode (with auto-reload)
 npm run start:dev
@@ -102,7 +117,7 @@ npm run start:dev
 npm run start
 ```
 
-### 7. Test Connection
+### 8. Test Connection
 ```bash
 # Test server connectivity
 ./bin/monk ping
