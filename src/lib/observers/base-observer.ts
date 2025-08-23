@@ -26,7 +26,7 @@ import {
  */
 export abstract class BaseObserver implements Observer {
     abstract readonly ring: ObserverRing;
-    abstract readonly operations?: readonly OperationType[];
+    readonly operations?: readonly OperationType[];
     
     // Default timeout for observer execution (can be overridden)
     protected readonly timeoutMs: number = 5000; // 5 seconds
@@ -59,10 +59,11 @@ export abstract class BaseObserver implements Observer {
     }
     
     /**
-     * Pure business logic method - no error handling needed
+     * Array processing method - handles multiple records
      * 
-     * Implement this method in your observer subclass. Focus on the business
-     * logic without worrying about error handling, logging, or timeouts.
+     * Default implementation processes each record through executeOne().
+     * Override this method for complex observers that need custom array processing,
+     * cross-record business logic, or performance optimizations.
      * 
      * Error handling guidelines:
      * - Throw ValidationError for invalid input data
@@ -70,7 +71,25 @@ export abstract class BaseObserver implements Observer {
      * - Throw SystemError for unrecoverable system failures
      * - Add warnings to context.warnings for non-blocking issues
      */
-    abstract execute(context: ObserverContext): Promise<void>;
+    async execute(context: ObserverContext): Promise<void> {
+        // Default implementation: process each record sequentially
+        for (const record of context.data) {
+            await this.executeOne(record, context);
+        }
+    }
+    
+    /**
+     * Single record processing method - override for simple field validation
+     * 
+     * This method is called for each record in the array by the default execute() implementation.
+     * Use this for simple observers that validate/transform individual records.
+     * 
+     * For complex observers that need cross-record logic, override execute() instead.
+     */
+    async executeOne(record: any, context: ObserverContext): Promise<void> {
+        // Default implementation: no-op
+        // Observers can implement this for simple per-record processing
+    }
     
     /**
      * Create timeout promise for observer execution
