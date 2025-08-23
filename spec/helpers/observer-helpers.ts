@@ -5,9 +5,9 @@
  */
 
 import { vi, expect } from 'vitest';
-import type { System } from '../../src/lib/system.js';
-import type { ObserverContext, Observer } from '../../src/lib/observers/interfaces.js';
-import type { OperationType, ObserverRing } from '../../src/lib/observers/types.js';
+import type { System } from '@src/lib/system.js';
+import type { ObserverContext, Observer } from '@src/lib/observers/interfaces.js';
+import type { OperationType, ObserverRing } from '@src/lib/observers/types.js';
 
 /**
  * Create a mock System for testing

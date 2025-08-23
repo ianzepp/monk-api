@@ -3,9 +3,9 @@
  */
 
 import { describe, test, beforeEach, expect, vi } from 'vitest';
-import { ObserverRunner } from '../../../src/lib/observers/runner.js';
-import { ObserverLoader } from '../../../src/lib/observers/loader.js';
-import { ObserverRing, DATABASE_RING } from '../../../src/lib/observers/types.js';
+import { ObserverRunner } from '@src/lib/observers/runner.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
+import { ObserverRing, DATABASE_RING } from '@src/lib/observers/types.js';
 import { 
     createMockSystem, 
     createMockObserver, 
@@ -16,7 +16,7 @@ import {
 } from '../../helpers/observer-helpers.js';
 
 // Mock the ObserverLoader
-vi.mock('../../../src/lib/observers/loader.js');
+vi.mock('@src/lib/observers/loader.js');
 const mockObserverLoader = ObserverLoader as any;
 
 describe('ObserverRunner', () => {

@@ -3,8 +3,8 @@
  */
 
 import { describe, test, beforeEach, afterEach, expect } from 'vitest';
-import { ObserverLoader } from '../../../src/lib/observers/loader.js';
-import { ObserverRing } from '../../../src/lib/observers/types.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 describe('ObserverLoader', () => {
     beforeEach(() => {
