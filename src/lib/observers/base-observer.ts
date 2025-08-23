@@ -26,7 +26,7 @@ import {
  */
 export abstract class BaseObserver implements Observer {
     abstract readonly ring: ObserverRing;
-    abstract readonly operations?: OperationType[];
+    abstract readonly operations?: readonly OperationType[];
     
     // Default timeout for observer execution (can be overridden)
     protected readonly timeoutMs: number = 5000; // 5 seconds

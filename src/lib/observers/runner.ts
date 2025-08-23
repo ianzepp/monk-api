@@ -15,10 +15,10 @@ import type {
 import type { 
     ObserverRing, 
     OperationType, 
-    ObserverResult, 
-    ValidationError, 
-    ValidationWarning
+    ObserverResult
 } from './types.js';
+import { ValidationError } from './errors.js';
+import type { ValidationWarning } from './errors.js';
 import { DATABASE_RING } from './types.js';
 import { ObserverLoader } from './loader.js';
 import { DatabaseObserver } from './database-observer.js';
@@ -158,7 +158,7 @@ export class ObserverRunner {
         try {
             // Execute observer with timeout protection
             await Promise.race([
-                observer.execute(context),
+                observer.executeTry(context),
                 this._createTimeoutPromise(timeout, observer.name || 'unnamed')
             ]);
 
@@ -168,20 +168,19 @@ export class ObserverRunner {
             success = false;
             errorCount++;
             
-            const validationError: ValidationError = {
-                message: `Observer execution failed: ${error}`,
-                code: 'OBSERVER_ERROR',
-                ring: observer.ring,
-                observer: observer.name
-            };
+            const validationError = new ValidationError(
+                `Observer execution failed: ${error}`,
+                undefined,
+                'OBSERVER_ERROR'
+            );
             context.errors.push(validationError);
 
             console.warn(`❌ Observer failed: ${observer.name}`, error);
         }
 
         // Count errors/warnings added by this observer
-        const currentErrors = context.errors.filter(e => e.observer === observer.name).length;
-        const currentWarnings = context.warnings.filter(w => w.observer === observer.name).length;
+        const currentErrors = context.errors.length;
+        const currentWarnings = context.warnings.length;
         
         errorCount = Math.max(errorCount, currentErrors);
         warningCount = currentWarnings;

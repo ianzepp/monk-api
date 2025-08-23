@@ -5,12 +5,14 @@
  * This observer is automatically registered and executes database operations
  */
 
-import type { Observer, ObserverContext } from '@observers/interfaces.js';
+import type { ObserverContext } from '@observers/interfaces.js';
+import { BaseObserver } from '@observers/base-observer.js';
 import { ObserverRing } from '@observers/types.js';
+import { SystemError } from '@observers/errors.js';
 
-export class DatabaseObserver implements Observer {
-    ring = ObserverRing.Database;
-    name = 'DatabaseObserver';
+export class DatabaseObserver extends BaseObserver {
+    readonly ring = ObserverRing.Database;
+    readonly operations = ['create', 'update', 'delete', 'select', 'revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, operation, schema, data, recordId, existing } = context;
@@ -44,13 +46,8 @@ export class DatabaseObserver implements Observer {
         } catch (error) {
             console.error(`❌ Database operation failed: ${operation} on ${schema}`, error);
             
-            // Add database error to context
-            context.errors.push({
-                message: `Database operation failed: ${error}`,
-                code: 'DATABASE_OPERATION_FAILED',
-                ring: this.ring,
-                observer: this.name
-            });
+            // Database failures are system errors that should rollback transaction
+            throw new SystemError(`Database operation failed: ${error}`, error instanceof Error ? error : undefined);
         }
     }
 

@@ -66,7 +66,7 @@ export interface Observer {
     ring: ObserverRing;
 
     /** Optional: limit to specific operations (default: all operations) */
-    operations?: readonly OperationType[] | OperationType[];
+    operations?: readonly OperationType[];
 
     /** Optional: observer name for debugging and error reporting */
     name?: string;

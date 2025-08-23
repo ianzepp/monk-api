@@ -5,37 +5,44 @@
  * Ring: 7 (Audit) - Schema: % (all schemas) - Operations: create, update, delete
  */
 
-import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
+import { SystemError } from '@lib/observers/errors.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
-export default class ChangeTracker implements Observer {
-    ring = ObserverRing.Audit;
-    operations = ['create', 'update', 'delete'] as const;
-    name = 'ChangeTracker';
+export default class ChangeTracker extends BaseObserver {
+    readonly ring = ObserverRing.Audit;
+    readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, operation, schema, result, existing, data, metadata } = context;
         
-        try {
-            const auditRecord = await this.createAuditRecord(context);
-            
-            // Store audit record in audit_log table
-            await system.database?.createOne('audit_log', auditRecord);
-            
-            // Add audit reference to metadata for other observers
-            metadata.set('audit_logged', true);
-            metadata.set('audit_timestamp', auditRecord.timestamp);
-            
-        } catch (error) {
-            // Don't fail the main operation if audit logging fails
-            console.warn(`Audit logging failed for ${schema} ${operation}:`, error);
-            
-            context.warnings.push({
-                message: `Audit logging failed: ${error}`,
-                code: 'AUDIT_LOGGING_FAILED',
-                ring: this.ring,
-                observer: this.name
-            });
+        // Process data as array if needed
+        const recordsToProcess = Array.isArray(data) ? data : [{ result, existing, data }];
+        
+        for (const record of recordsToProcess) {
+            try {
+                const auditRecord = await this.createAuditRecord({
+                    ...context,
+                    result: record.result || result,
+                    existing: record.existing || existing,
+                    data: record.data || record
+                });
+                
+                // Store audit record in audit_log table
+                await system.database?.createOne('audit_log', auditRecord);
+                
+                // Add audit reference to metadata for other observers
+                metadata.set('audit_logged', true);
+                metadata.set('audit_timestamp', auditRecord.timestamp);
+                
+            } catch (error) {
+                // Audit logging failures are system errors
+                throw new SystemError(
+                    `Audit logging failed for ${schema} ${operation}: ${error}`,
+                    error instanceof Error ? error : undefined
+                );
+            }
         }
     }
 
