@@ -292,6 +292,21 @@ export class Database {
             throw new Error(`Records not found: ${missingIds.join(', ')}`);
         }
         
+        // 2.5. Validate that no records are trashed or deleted (Issue #30)
+        console.debug(`Database.updateAll: checking for trashed/deleted records`);
+        const trashedRecords = existingRecords.filter(r => r.trashed_at !== null);
+        const deletedRecords = existingRecords.filter(r => r.deleted_at !== null);
+        
+        if (trashedRecords.length > 0) {
+            const trashedIds = trashedRecords.map(r => r.id);
+            throw new Error(`Cannot update trashed record(s): ${trashedIds.join(', ')}. Restore the record(s) first using PATCH with trashed_at: null`);
+        }
+        
+        if (deletedRecords.length > 0) {
+            const deletedIds = deletedRecords.map(r => r.id);
+            throw new Error(`Cannot update deleted record(s): ${deletedIds.join(', ')}. Restore the record(s) first using PATCH with deleted_at: null`);
+        }
+        
         // 3. Create lookup map for existing records
         const existingMap = new Map(existingRecords.map(record => [record.id, record]));
         
