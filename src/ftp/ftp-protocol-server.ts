@@ -24,6 +24,7 @@ import { FtpAuthHandler } from './ftp-auth-handler.js';
 import { FtpPathParser, type PathInfo } from './path-parser.js';
 import { ApiContextBuilder } from './api-context.js';
 import { FtpDirectoryHandler } from './directory-handler.js';
+import { FtpFileHandler, type FileContent } from './file-handler.js';
 
 /**
  * FTP connection state for each client
@@ -193,7 +194,7 @@ export class FtpProtocolServer {
      * Handle FTP command from client
      */
     private async handleCommand(connection: FtpConnection, data: string): Promise<void> {
-        const lines = data.toString().trim().split('\\r\\n').filter(line => line.length > 0);
+        const lines = data.toString().trim().split('\r\n').filter(line => line.length > 0);
         
         for (const line of lines) {
             const trimmed = line.trim();
@@ -411,7 +412,7 @@ export class FtpProtocolServer {
                            ' ' + file.modified.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
                 
                 return `${permissions} 1 ${file.owner || 'monk'} ${file.group || 'monk'} ${size} ${date} ${file.name}`;
-            }).join('\\r\\n');
+            }).join('\r\n');
             
             console.log(`📋 [${connection.id}] Listing ${files.length} items for: ${listPath}`);
             
@@ -419,7 +420,7 @@ export class FtpProtocolServer {
             this.sendResponse(connection, 150, 'Opening data connection');
             
             const dataSocket = await this.waitForDataConnection(connection);
-            dataSocket.write(listing + '\\r\\n');
+            dataSocket.write(listing + '\r\n');
             dataSocket.end();
             
             this.sendResponse(connection, 226, 'Directory listing completed');
@@ -490,8 +491,47 @@ export class FtpProtocolServer {
             return;
         }
         
-        // TODO: Implement file reading (Step 5)
-        this.sendResponse(connection, 502, 'RETR not implemented yet');
+        if (!connection.dataConnection) {
+            this.sendResponse(connection, 425, 'Use PASV first');
+            return;
+        }
+        
+        try {
+            // Resolve file path
+            const filePath = this.resolvePath(connection.currentPath, filename);
+            
+            // Parse the path
+            const pathInfo = FtpPathParser.parse(filePath);
+            
+            // Check if it's a file (not directory)
+            if (pathInfo.isDirectory) {
+                this.sendResponse(connection, 550, 'Cannot retrieve directory');
+                return;
+            }
+            
+            // Read file content using file handler
+            const fileHandler = new FtpFileHandler(connection.system);
+            const fileContent = await fileHandler.readFile(pathInfo);
+            
+            console.log(`📥 [${connection.id}] Downloading: ${filePath} (${fileContent.size} bytes)`);
+            
+            // Send file over data connection
+            this.sendResponse(connection, 150, `Opening data connection for ${filename}`);
+            
+            const dataSocket = await this.waitForDataConnection(connection);
+            dataSocket.write(fileContent.content);
+            dataSocket.end();
+            
+            this.sendResponse(connection, 226, 'Transfer complete');
+            
+        } catch (error) {
+            console.error(`❌ [${connection.id}] RETR error:`, error);
+            if (error instanceof Error && error.message.includes('not found')) {
+                this.sendResponse(connection, 550, 'File not found');
+            } else {
+                this.sendResponse(connection, 550, 'File transfer failed');
+            }
+        }
     }
     
     /**
@@ -503,8 +543,60 @@ export class FtpProtocolServer {
             return;
         }
         
-        // TODO: Implement file writing (Step 5)
-        this.sendResponse(connection, 502, 'STOR not implemented yet');
+        if (!connection.dataConnection) {
+            this.sendResponse(connection, 425, 'Use PASV first');
+            return;
+        }
+        
+        try {
+            // Resolve file path
+            const filePath = this.resolvePath(connection.currentPath, filename);
+            
+            // Parse the path
+            const pathInfo = FtpPathParser.parse(filePath);
+            
+            // Check if it's a file (not directory)
+            if (pathInfo.isDirectory) {
+                this.sendResponse(connection, 550, 'Cannot store to directory');
+                return;
+            }
+            
+            console.log(`📤 [${connection.id}] Uploading: ${filePath}`);
+            
+            // Prepare to receive file data
+            this.sendResponse(connection, 150, `Opening data connection for ${filename}`);
+            
+            const dataSocket = await this.waitForDataConnection(connection);
+            let fileContent = '';
+            
+            dataSocket.on('data', (chunk: Buffer) => {
+                fileContent += chunk.toString('utf8');
+            });
+            
+            dataSocket.on('end', async () => {
+                try {
+                    // Write file content using file handler
+                    const fileHandler = new FtpFileHandler(connection.system!);
+                    await fileHandler.writeFile(pathInfo, fileContent);
+                    
+                    console.log(`✅ [${connection.id}] Upload complete: ${filePath} (${fileContent.length} bytes)`);
+                    this.sendResponse(connection, 226, 'Transfer complete');
+                    
+                } catch (error) {
+                    console.error(`❌ [${connection.id}] STOR write error:`, error);
+                    this.sendResponse(connection, 550, 'File write failed');
+                }
+            });
+            
+            dataSocket.on('error', (error) => {
+                console.error(`❌ [${connection.id}] Data connection error:`, error);
+                this.sendResponse(connection, 426, 'Data connection error');
+            });
+            
+        } catch (error) {
+            console.error(`❌ [${connection.id}] STOR error:`, error);
+            this.sendResponse(connection, 550, 'File upload failed');
+        }
     }
     
     /**
@@ -520,7 +612,7 @@ export class FtpProtocolServer {
      * Send FTP response to client
      */
     private sendResponse(connection: FtpConnection, code: number, message: string): void {
-        const response = `${code} ${message}\\r\\n`;
+        const response = `${code} ${message}\r\n`;
         connection.socket.write(response);
         console.log(`📤 [${connection.id}] Response: ${code} ${message}`);
     }

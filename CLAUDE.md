@@ -179,3 +179,4 @@ monk test all 20-30  # Meta and Data API tests
 - **Comprehensive Testing**: Structured test organization with clear progression
 
 This architecture provides a robust foundation for API development with proper context management and comprehensive testing capabilities.
+- Use 15s as a bash timeout
