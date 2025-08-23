@@ -135,8 +135,9 @@ export class ObserverLoader {
      */
     private static async _loadObserverFile(filePattern: ObserverFilePattern): Promise<void> {
         try {
-            // Dynamic import of the observer module
-            const observerModule = await import(`../../../../${filePattern.filepath}`);
+            // Dynamic import of the observer module using path mapping
+            const importPath = filePattern.filepath.replace('src/', '@src/');
+            const observerModule = await import(importPath);
             
             // Get the default export (should be observer class constructor)
             const ObserverClass = observerModule.default as ObserverConstructor;
