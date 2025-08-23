@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { FtpProtocolServer } from './ftp/ftp-protocol-server.js';
+import { MinimalFtpServer } from './ftp/ftp-server.js';
 
 /**
  * Monk FTP Server CLI - Standalone FTP Server
@@ -41,8 +41,8 @@ async function startFtpServer() {
     console.log('');
     
     try {
-        // Create and start custom FTP protocol server
-        const ftpServer = new FtpProtocolServer(ftpPort, ftpHost);
+        // Create and start minimal FTP server
+        const ftpServer = new MinimalFtpServer(ftpPort);
         
         // Start the server
         await ftpServer.start();
