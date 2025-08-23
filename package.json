@@ -15,6 +15,7 @@
     "ftp:start": "scripts/ftp-start.sh",
     "ftp:dev": "scripts/ftp-dev.sh",
     "compile": "tsc",
+    "autoinstall": "scripts/autoinstall.sh",
     "test": "scripts/test-all.sh",
     "test:info": "scripts/test-info.sh",
     "test:all": "scripts/test-all.sh",

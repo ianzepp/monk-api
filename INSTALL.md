@@ -36,6 +36,15 @@ Visit [PostgreSQL Downloads](https://www.postgresql.org/download/) for your plat
 
 ## Installation Steps
 
+**Quick Setup:** For automated installation, run `npm run autoinstall` after cloning and installing PostgreSQL. This script automates all the steps below with comprehensive logging and error checking.
+
+**Clean Options:** The autoinstall script supports clean rebuild options:
+- `npm run autoinstall -- --clean-node` - Remove and reinstall dependencies
+- `npm run autoinstall -- --clean-dist` - Remove and recompile TypeScript  
+- `npm run autoinstall -- --clean-auth` - Remove and recreate auth database
+
+**Manual Setup:** Follow the steps below for manual installation or if you prefer to understand each step:
+
 ### 1. Clone and Setup Repository
 ```bash
 # Clone the repository
