@@ -4,8 +4,7 @@
 # Auto-configure test environment
 source "$(dirname "${BASH_SOURCE[0]}")/test-env-setup.sh"
 
-# Source database helper for pooled database management  
-source "$(dirname "${BASH_SOURCE[0]}")/10-connection/db-helper.sh"
+# Note: Database pool management was removed - tenant management now handled by test-one.sh
 
 # Ensure shared test database exists and is initialized
 ensure_shared_database() {
@@ -143,10 +142,10 @@ cleanup_auth() {
     logout_user
 }
 
-# Complete cleanup - auth and database (kept for backward compatibility)
+# Complete cleanup - auth only (database cleanup handled by test-one.sh)
 cleanup_auth_and_database() {
     cleanup_auth
-    deallocate_test_database
+    # Note: Database cleanup now handled by test-one.sh tenant management
 }
 
 # Setup complete cleanup trap
