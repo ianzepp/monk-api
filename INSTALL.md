@@ -7,6 +7,7 @@
 - **npm**: Comes with Node.js
 - **Git**: For repository management
 - **PostgreSQL**: Database server and client tools
+- **jq**: JSON processor for CLI configuration management
 - **Bash**: Version 4.2 or higher (usually available on Linux/macOS)
 
 ### Install PostgreSQL
@@ -33,6 +34,21 @@ brew services start postgresql
 
 #### Other Systems:
 Visit [PostgreSQL Downloads](https://www.postgresql.org/download/) for your platform.
+
+### Install jq
+
+#### Ubuntu/Debian:
+```bash
+sudo apt install jq
+```
+
+#### macOS (Homebrew):
+```bash
+brew install jq
+```
+
+#### Other Systems:
+Visit [jq Downloads](https://jqlang.github.io/jq/download/) for your platform.
 
 ## Installation Steps
 

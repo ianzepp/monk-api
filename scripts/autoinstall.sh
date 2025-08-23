@@ -132,6 +132,14 @@ echo
 
 # Step 1: Verify PostgreSQL Connection and DATABASE_URL
 print_header "Step 1: Verify PostgreSQL Connection and DATABASE_URL"
+print_step "Checking required tools..."
+
+# Check jq availability
+if ! command -v jq >/dev/null 2>&1; then
+    handle_error "jq not found" "Install jq: sudo apt install jq (Ubuntu) or brew install jq (macOS)"
+fi
+print_success "jq is available"
+
 print_step "Testing PostgreSQL connectivity..."
 
 if psql -d postgres -c "SELECT version();" >/dev/null 2>&1; then
