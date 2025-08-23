@@ -14,6 +14,7 @@ import authRouter from './routes/auth.js';
 import pingRouter from './routes/ping.js';
 import rootRouter from './routes/root.js';
 import { AuthService } from './lib/auth.js';
+import { ObserverLoader } from '@observers/loader.js';
 
 // Create Hono app
 const app = new Hono();
@@ -105,6 +106,16 @@ app.notFound((c) => {
 
 // Server configuration
 const port = Number(process.env.PORT) || 9001;
+
+// Initialize observer system
+console.log(`🔄 Preloading observer system...`);
+try {
+    await ObserverLoader.preloadObservers();
+    console.log(`✅ Observer system ready`);
+} catch (error) {
+    console.error(`❌ Observer system initialization failed:`, error);
+    console.log(`⚠️  Continuing without observer system`);
+}
 
 // Start HTTP server only
 console.log(`🚀 Starting Monk HTTP API Server (Hono)...`);

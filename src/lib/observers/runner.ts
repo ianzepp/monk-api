@@ -21,6 +21,7 @@ import type {
 } from './types.js';
 import { DATABASE_RING } from './types.js';
 import { ObserverLoader } from './loader.js';
+import { DatabaseObserver } from './database-observer.js';
 
 /**
  * Observer execution engine with ring-based execution
@@ -28,6 +29,7 @@ import { ObserverLoader } from './loader.js';
 export class ObserverRunner {
     private readonly defaultTimeout = 5000; // 5 seconds
     private readonly collectStats = true;
+    private readonly databaseObserver = new DatabaseObserver();
 
     /**
      * Execute all observers for a schema operation across all rings
@@ -69,10 +71,11 @@ export class ObserverRunner {
                 ringsExecuted.push(ring as ObserverRing);
 
                 if (ring === DATABASE_RING) {
-                    // DATABASE RING (5): Placeholder for actual database operation
-                    // This will be implemented in Phase 3
-                    console.debug(`🎯 DATABASE RING (${ring}): Placeholder - no database integration yet`);
-                    context.result = { placeholder: true, operation, schema, data, recordId };
+                    // DATABASE RING (5): Execute actual database operation
+                    const dbStats = await this._executeObserver(this.databaseObserver, context);
+                    if (this.collectStats) {
+                        stats.push(dbStats);
+                    }
                 } else {
                     // Execute observers for this ring
                     const observers = ObserverLoader.getObservers(schema, ring as ObserverRing);
