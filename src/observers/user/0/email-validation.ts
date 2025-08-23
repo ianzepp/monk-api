@@ -5,8 +5,8 @@
  * Ring: 0 (Validation) - Schema: users - Operations: create, update
  */
 
-import type { Observer, ObserverContext } from '../../../lib/observers/interfaces.js';
-import { ObserverRing } from '../../../lib/observers/types.js';
+import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { ObserverRing } from '@lib/observers/types.js';
 
 export default class EmailValidator implements Observer {
     ring = ObserverRing.Validation;

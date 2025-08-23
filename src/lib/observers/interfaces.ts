@@ -5,7 +5,7 @@
  * observer definitions, and execution contracts.
  */
 
-import type { System } from '../system.js';
+import type { System } from '@lib/system.js';
 import type { 
     ObserverRing, 
     OperationType, 

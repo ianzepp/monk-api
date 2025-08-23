@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
-import { handleContextTx } from '../lib/api/responses.js'
-import { System } from '../lib/system.js'
+import { handleContextTx } from '@lib/api/responses.js'
+import { System } from '@lib/system.js'
 
 const root = new Hono()
 

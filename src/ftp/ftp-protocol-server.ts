@@ -19,7 +19,7 @@
 
 import * as net from 'net';
 import * as os from 'os';
-import type { System } from '../lib/system.js';
+import type { System } from '@lib/system.js';
 import { FtpAuthHandler } from './ftp-auth-handler.js';
 import { FtpPathParser, type PathInfo } from './path-parser.js';
 import { ApiContextBuilder } from './api-context.js';

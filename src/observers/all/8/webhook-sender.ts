@@ -5,8 +5,8 @@
  * Ring: 8 (Integration) - Schema: % (all schemas) - Operations: create, update, delete
  */
 
-import type { Observer, ObserverContext } from '../../../lib/observers/interfaces.js';
-import { ObserverRing } from '../../../lib/observers/types.js';
+import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { ObserverRing } from '@lib/observers/types.js';
 
 interface WebhookEndpoint {
     url: string;

@@ -1,12 +1,12 @@
 import type { Context } from 'hono';
-import { System } from '../lib/system.js';
-import { handleContextTx } from '../lib/api/responses.js';
-import { createSchema } from '../lib/schema.js';
+import { System } from '@lib/system.js';
+import { handleContextTx } from '@lib/api/responses.js';
+import { createSchema } from '@lib/schema.js';
 import {
     createSuccessResponse,
     createValidationError,
     createInternalError,
-} from '../lib/api/responses.js';
+} from '@lib/api/responses.js';
 
 export enum BulkOperationType {
     // Read operations

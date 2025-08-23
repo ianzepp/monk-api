@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
-import { AuthService } from '../lib/auth.js';
+import { AuthService } from '@lib/auth.js';
 import { 
     createSuccessResponse, 
     createValidationError,
     createInternalError 
-} from '../lib/api/responses.js';
+} from '@lib/api/responses.js';
 
 // Extend Hono context for our custom variables
 declare module 'hono' {
