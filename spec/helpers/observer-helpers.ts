@@ -4,6 +4,7 @@
  * Utilities for testing the observer framework
  */
 
+import { vi, expect } from 'vitest';
 import type { System } from '../../src/lib/system.js';
 import type { ObserverContext, Observer } from '../../src/lib/observers/interfaces.js';
 import type { OperationType, ObserverRing } from '../../src/lib/observers/types.js';
@@ -14,13 +15,13 @@ import type { OperationType, ObserverRing } from '../../src/lib/observers/types.
 export function createMockSystem(): System {
     return {
         database: {
-            createOne: jest.fn(),
-            updateOne: jest.fn(),
-            deleteOne: jest.fn(),
-            selectOne: jest.fn(),
-            selectAll: jest.fn()
+            createOne: vi.fn(),
+            updateOne: vi.fn(),
+            deleteOne: vi.fn(),
+            selectOne: vi.fn(),
+            selectAll: vi.fn()
         },
-        getUserId: jest.fn(() => 'test-user-id')
+        getUserId: vi.fn(() => 'test-user-id')
     } as any;
 }
 
@@ -61,11 +62,11 @@ export function createMockObserver(
     shouldThrow = false,
     executionDelay = 0
 ): Observer {
-    return {
+    const observer = {
         ring,
         operations,
         name,
-        async execute(context: ObserverContext): Promise<void> {
+        execute: vi.fn(async (context: ObserverContext): Promise<void> => {
             if (executionDelay > 0) {
                 await new Promise(resolve => setTimeout(resolve, executionDelay));
             }
@@ -76,8 +77,10 @@ export function createMockObserver(
             
             // Add a test marker to metadata
             context.metadata.set(`${name || 'mock'}_executed`, true);
-        }
+        })
     };
+    
+    return observer;
 }
 
 /**
@@ -92,7 +95,7 @@ export function createValidationObserver(
     return {
         ring,
         name,
-        async execute(context: ObserverContext): Promise<void> {
+        execute: vi.fn(async (context: ObserverContext): Promise<void> => {
             if (shouldAddError) {
                 context.errors.push({
                     message: 'Test validation error',
@@ -112,7 +115,7 @@ export function createValidationObserver(
                     observer: name
                 });
             }
-        }
+        })
     };
 }
 

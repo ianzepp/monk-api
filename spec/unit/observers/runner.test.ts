@@ -2,6 +2,7 @@
  * ObserverRunner Tests
  */
 
+import { describe, test, beforeEach, expect, vi } from 'vitest';
 import { ObserverRunner } from '../../../src/lib/observers/runner.js';
 import { ObserverLoader } from '../../../src/lib/observers/loader.js';
 import { ObserverRing, DATABASE_RING } from '../../../src/lib/observers/types.js';
@@ -15,8 +16,8 @@ import {
 } from '../../helpers/observer-helpers.js';
 
 // Mock the ObserverLoader
-jest.mock('../../../src/lib/observers/loader.js');
-const mockObserverLoader = ObserverLoader as jest.Mocked<typeof ObserverLoader>;
+vi.mock('../../../src/lib/observers/loader.js');
+const mockObserverLoader = ObserverLoader as any;
 
 describe('ObserverRunner', () => {
     let runner: ObserverRunner;
@@ -27,7 +28,7 @@ describe('ObserverRunner', () => {
         mockSystem = createMockSystem();
         
         // Reset mock
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         mockObserverLoader.getObservers.mockReturnValue([]);
     });
 
@@ -41,17 +42,17 @@ describe('ObserverRunner', () => {
             const auditObserver = createMockObserver(ObserverRing.Audit, undefined, 'audit');
             
             // Track execution order
-            validationObserver.execute = jest.fn(async (context) => {
+            validationObserver.execute = vi.fn(async (context) => {
                 executionOrder.push(ObserverRing.Validation);
                 context.metadata.set('validator_executed', true);
             });
             
-            businessObserver.execute = jest.fn(async (context) => {
+            businessObserver.execute = vi.fn(async (context) => {
                 executionOrder.push(ObserverRing.Business);
                 context.metadata.set('business_executed', true);
             });
             
-            auditObserver.execute = jest.fn(async (context) => {
+            auditObserver.execute = vi.fn(async (context) => {
                 executionOrder.push(ObserverRing.Audit);
                 context.metadata.set('audit_executed', true);
             });
@@ -198,7 +199,10 @@ describe('ObserverRunner', () => {
                 'CreateOnlyObserver'
             );
 
-            mockObserverLoader.getObservers.mockReturnValue([createOnlyObserver]);
+            // Mock to return observer only for validation ring
+            mockObserverLoader.getObservers.mockImplementation((schema, ring) => {
+                return ring === ObserverRing.Validation ? [createOnlyObserver] : [];
+            });
 
             // Test with create operation - should execute
             const createResult = await runner.execute(
@@ -212,8 +216,10 @@ describe('ObserverRunner', () => {
             expect(createOnlyObserver.execute).toHaveBeenCalledTimes(1);
 
             // Reset mock
-            jest.clearAllMocks();
-            mockObserverLoader.getObservers.mockReturnValue([createOnlyObserver]);
+            vi.clearAllMocks();
+            mockObserverLoader.getObservers.mockImplementation((schema, ring) => {
+                return ring === ObserverRing.Validation ? [createOnlyObserver] : [];
+            });
 
             // Test with update operation - should not execute
             const updateResult = await runner.execute(
@@ -235,7 +241,7 @@ describe('ObserverRunner', () => {
                 'ContextChecker'
             );
             
-            contextCheckObserver.execute = jest.fn(async (context) => {
+            contextCheckObserver.execute = vi.fn(async (context) => {
                 expect(context.system).toBe(mockSystem);
                 expect(context.operation).toBe('update');
                 expect(context.schema).toBe('users');

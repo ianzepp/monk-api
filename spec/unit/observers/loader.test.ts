@@ -2,6 +2,7 @@
  * ObserverLoader Tests
  */
 
+import { describe, test, beforeEach, afterEach, expect } from 'vitest';
 import { ObserverLoader } from '../../../src/lib/observers/loader.js';
 import { ObserverRing } from '../../../src/lib/observers/types.js';
 
@@ -19,13 +20,15 @@ describe('ObserverLoader', () => {
     describe('cache management', () => {
         test('should start with empty cache', () => {
             expect(ObserverLoader.isLoaded()).toBe(false);
-            expect(ObserverLoader.getAllObservers().size).toBe(0);
+            // Should throw error when trying to access cache before loading
+            expect(() => ObserverLoader.getAllObservers()).toThrow('Observers not loaded');
         });
 
         test('should clear cache properly', () => {
             ObserverLoader.clearCache();
             expect(ObserverLoader.isLoaded()).toBe(false);
-            expect(ObserverLoader.getAllObservers().size).toBe(0);
+            // Should throw error when trying to access cache after clearing
+            expect(() => ObserverLoader.getAllObservers()).toThrow('Observers not loaded');
         });
     });
 
