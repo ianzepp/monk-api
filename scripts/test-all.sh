@@ -192,8 +192,8 @@ test_count=$(echo "$test_files" | wc -l | xargs)
 echo "Found $test_count test(s)"
 echo
 
-# Run each test
-echo "$test_files" | while IFS= read -r test_path; do
+# Run each test (using process substitution to avoid subshell variable scope issues)
+while IFS= read -r test_path; do
     if [ -n "$test_path" ]; then
         run_single_test "$test_path"
         test_result=$?
@@ -206,7 +206,7 @@ echo "$test_files" | while IFS= read -r test_path; do
             failed_tests+=("$(basename "$test_path" .sh)")
         fi
     fi
-done
+done < <(echo "$test_files")
 
 # Summary
 echo
