@@ -2,6 +2,8 @@ import FtpServer from 'ftp-srv';
 import { createWriteStream, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { FtpAuthHandler } from './ftp-auth-handler.js';
+import type { System } from '../lib/system.js';
 
 /**
  * MonkFtpServer - FTP interface for filesystem-based API access
@@ -19,11 +21,16 @@ export class MonkFtpServer {
     private ftpServer: FtpServer;
     private isRunning: boolean = false;
     private ftpRoot: string;
+    private authHandler: FtpAuthHandler;
 
     constructor(private port: number = 2121, private host: string = 'localhost') {
         // Create temporary FTP root directory
         this.ftpRoot = join(tmpdir(), 'monk-ftp-root');
         this.ensureFtpRoot();
+        
+        // Initialize authentication handler
+        this.authHandler = new FtpAuthHandler();
+        
         // Initialize FTP server with basic configuration
         this.ftpServer = new FtpServer({
             url: `ftp://${host}:${port}`,
@@ -42,18 +49,37 @@ export class MonkFtpServer {
      * Setup FTP server event handlers
      */
     private setupEventHandlers(): void {
-        // Connection event
-        this.ftpServer.on('login', (data, resolve, reject) => {
+        // Connection event with JWT authentication
+        this.ftpServer.on('login', async (data, resolve, reject) => {
             console.log(`FTP login attempt: ${data.username}`);
             
-            // For now, accept any login (authentication will be implemented in step 2)
-            // TODO: Integrate with JWT authentication system
-            if (data.username && data.password) {
-                console.log(`FTP login successful: ${data.username}`);
-                resolve({ root: this.ftpRoot }); // Use configured root directory
-            } else {
-                console.log(`FTP login failed: missing credentials`);
-                reject(new Error('Username and password required'));
+            try {
+                // Validate credentials using JWT authentication
+                const system = await this.authHandler.validateLogin(data.username, data.password);
+                
+                if (system) {
+                    // Authentication successful - create connection context
+                    const connectionContext = this.authHandler.createConnectionContext(system);
+                    console.log(`FTP login successful: ${data.username} for tenant ${system.getUser().domain}`);
+                    
+                    // Store System instance in connection data for later use
+                    const connection = data.connection;
+                    if (connection) {
+                        (connection as any).system = connectionContext.system;
+                    }
+                    
+                    // Resolve with root directory only (ftp-srv expects specific format)
+                    resolve({ 
+                        root: connectionContext.root
+                    });
+                } else {
+                    console.log(`FTP login failed: invalid JWT token for user ${data.username}`);
+                    reject(new Error('Invalid credentials or JWT token'));
+                }
+                
+            } catch (error) {
+                console.error(`FTP authentication error:`, error);
+                reject(new Error('Authentication failed'));
             }
         });
 

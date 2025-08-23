@@ -10,7 +10,6 @@ import authRouter from './routes/auth.js';
 import pingRouter from './routes/ping.js';
 import rootRouter from './routes/root.js';
 import { AuthService } from './lib/auth.js';
-import { createMonkFtpServer } from './ftp/ftp-server.js';
 
 // Create Hono app
 const app = new Hono();
@@ -102,50 +101,29 @@ app.notFound((c) => {
 
 // Server configuration
 const port = Number(process.env.PORT) || 9001;
-const ftpPort = Number(process.env.FTP_PORT) || 2121;
 
-// Start HTTP server
-console.log(`Starting Monk API (Hono) on port ${port}...`);
+// Start HTTP server only
+console.log(`🚀 Starting Monk HTTP API Server (Hono)...`);
+console.log(`📡 For FTP server, use: npm run ftp:start`);
 
 const server = serve({
     fetch: app.fetch,
     port,
 });
 
-console.log(`HTTP server running at http://localhost:${port}`);
-
-// Start FTP server
-console.log(`Starting Monk FTP interface on port ${ftpPort}...`);
-
-const ftpServer = createMonkFtpServer(ftpPort);
-
-try {
-    await ftpServer.start();
-    console.log(`FTP server running at ftp://localhost:${ftpPort}`);
-} catch (error) {
-    console.error(`Failed to start FTP server:`, error);
-    console.log(`HTTP server still available at http://localhost:${port}`);
-}
+console.log(`✅ HTTP API server running at http://localhost:${port}`);
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-    console.log('\nShutting down gracefully...');
+    console.log('\n🛑 Shutting down HTTP API server gracefully...');
     
     // Stop HTTP server
     server.close();
-    console.log('HTTP server stopped');
-    
-    // Stop FTP server
-    try {
-        await ftpServer.stop();
-        console.log('FTP server stopped');
-    } catch (error) {
-        console.log('FTP server already stopped or not running');
-    }
+    console.log('✅ HTTP server stopped');
     
     // Close database connections
     await closeDatabaseConnection();
-    console.log('Database connections closed');
+    console.log('✅ Database connections closed');
     
     process.exit(0);
 };
