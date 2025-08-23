@@ -133,6 +133,47 @@ class MinimalFtpServer {
                 await this.handleList(conn);
                 break;
                 
+            case 'RETR':
+                if (!conn.authenticated) {
+                    this.send(conn, 530, 'Not logged in');
+                    return;
+                }
+                await this.handleRetr(conn, args);
+                break;
+                
+            case 'SIZE':
+                if (!conn.authenticated) {
+                    this.send(conn, 530, 'Not logged in');
+                    return;
+                }
+                console.log(`🎯 [${conn.id}] SIZE: "${args}" -> 100 bytes`);
+                this.send(conn, 213, '100');
+                break;
+                
+            case 'MDTM':
+                if (!conn.authenticated) {
+                    this.send(conn, 530, 'Not logged in');
+                    return;
+                }
+                const now = new Date();
+                const timestamp = now.getFullYear() +
+                    (now.getMonth() + 1).toString().padStart(2, '0') +
+                    now.getDate().toString().padStart(2, '0') +
+                    now.getHours().toString().padStart(2, '0') +
+                    now.getMinutes().toString().padStart(2, '0') +
+                    now.getSeconds().toString().padStart(2, '0');
+                console.log(`🎯 [${conn.id}] MDTM: "${args}" -> ${timestamp}`);
+                this.send(conn, 213, timestamp);
+                break;
+                
+            case 'STOR':
+                if (!conn.authenticated) {
+                    this.send(conn, 530, 'Not logged in');
+                    return;
+                }
+                await this.handleStor(conn, args);
+                break;
+                
             case 'QUIT':
                 console.log(`🎯 [${conn.id}] QUIT REQUEST`);
                 this.send(conn, 221, 'Goodbye');
@@ -259,6 +300,85 @@ class MinimalFtpServer {
         } catch (error) {
             console.error(`🎯 [${conn.id}] LIST: Error -`, error);
             this.send(conn, 550, 'Directory listing failed');
+        }
+    }
+    
+    private async handleRetr(conn: Connection, filename: string): Promise<void> {
+        console.log(`🎯 [${conn.id}] RETR: Download request for "${filename}"`);
+        
+        if (!conn.dataSocket) {
+            console.log(`🎯 [${conn.id}] RETR: No data connection`);
+            this.send(conn, 425, 'Use PASV first');
+            return;
+        }
+        
+        // Generate exactly 100 bytes for all files
+        const content = `Fake content for ${filename}`.padEnd(100, ' ');
+        
+        try {
+            this.send(conn, 150, `Opening data connection for ${filename}`);
+            console.log(`🎯 [${conn.id}] RETR: Sending ${content.length} bytes for "${filename}"`);
+            
+            conn.dataSocket.write(content);
+            conn.dataSocket.end();
+            
+            this.send(conn, 226, 'Transfer complete');
+            console.log(`🎯 [${conn.id}] RETR: Download completed successfully`);
+            
+        } catch (error) {
+            console.error(`🎯 [${conn.id}] RETR: Error -`, error);
+            this.send(conn, 550, 'File transfer failed');
+        }
+    }
+    
+    private getFileSize(filename: string): number {
+        // Return consistent file size that matches what RETR will send
+        if (filename.endsWith('.txt')) {
+            return `This is fake content for ${filename}\nGenerated at: ${new Date().toISOString()}\nRandom data: 0.123456789`.length;
+        } else if (filename.endsWith('.json')) {
+            const obj = {
+                filename: filename,
+                generated: new Date().toISOString(),
+                size: 500,
+                fake: true
+            };
+            return JSON.stringify(obj, null, 2).length;
+        } else {
+            return `Fake binary content for ${filename}\nSize: 5000 bytes`.length;
+        }
+    }
+    
+    private async handleStor(conn: Connection, filename: string): Promise<void> {
+        console.log(`🎯 [${conn.id}] STOR: Upload request for "${filename}"`);
+        
+        if (!conn.dataSocket) {
+            console.log(`🎯 [${conn.id}] STOR: No data connection`);
+            this.send(conn, 425, 'Use PASV first');
+            return;
+        }
+        
+        try {
+            this.send(conn, 150, `Opening data connection for ${filename}`);
+            console.log(`🎯 [${conn.id}] STOR: Ready to receive data for "${filename}"`);
+            
+            let content = '';
+            let totalBytes = 0;
+            
+            conn.dataSocket.on('data', (chunk: Buffer) => {
+                content += chunk.toString();
+                totalBytes += chunk.length;
+                console.log(`🎯 [${conn.id}] STOR: Received ${chunk.length} bytes (total: ${totalBytes})`);
+            });
+            
+            conn.dataSocket.on('end', () => {
+                console.log(`🎯 [${conn.id}] STOR: Upload complete - ${totalBytes} total bytes`);
+                console.log(`🎯 [${conn.id}] STOR: Content preview: "${content.substring(0, 100)}..."`);
+                this.send(conn, 226, 'Transfer complete');
+            });
+            
+        } catch (error) {
+            console.error(`🎯 [${conn.id}] STOR: Error -`, error);
+            this.send(conn, 550, 'File upload failed');
         }
     }
 }

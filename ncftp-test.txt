@@ -1,0 +1,3 @@
+This is fake content for /tmp/ncftp-test.txt
+Generated at: 2025-08-23T03:24:35.266Z
+Random data: 0.8200280483662821
