@@ -103,17 +103,12 @@ npm run start
 
 ## Fresh Install Issues & Solutions
 
-### Issue 1: Platform-specific Shebang
-- **Problem**: `bin/monk` uses macOS-specific `#!/opt/homebrew/bin/bash`
-- **Solution**: Fixed to use portable `#!/usr/bin/env bash`
-- **Status**: ✅ Fixed in repository
-
-### Issue 2: Missing Server Configuration
+### Issue 1: Missing Server Configuration
 - **Problem**: CLI requires server configuration before first use
 - **Solution**: Run `./bin/monk servers add local localhost:9001`
 - **Auto-fix**: CLI guides you through this on first run
 
-### Issue 3: PostgreSQL Dependencies
+### Issue 2: PostgreSQL Dependencies
 - **Problem**: Missing PostgreSQL server and client tools
 - **Symptoms**: 
   - `monk tenant create` fails with "psql: command not found"
@@ -126,7 +121,7 @@ npm run start
     - `FATAL: role "username" does not exist` (User doesn't exist)
 - **Solution**: Install PostgreSQL and ensure you can connect with `psql -d postgres -c "SELECT version();"`
 
-### Issue 4: Missing Auth Database
+### Issue 3: Missing Auth Database
 - **Problem**: Fresh install doesn't have auth database initialized
 - **Solution**: Create and initialize with provided SQL script:
   ```bash
@@ -134,7 +129,7 @@ npm run start
   psql -d monk-api-auth -f sql/init-auth.sql
   ```
 
-### Issue 5: Authentication Setup
+### Issue 4: Authentication Setup
 After PostgreSQL is installed and running:
 ```bash
 # Create tenant database
