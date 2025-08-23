@@ -22,7 +22,7 @@ import { ValidationError } from './errors.js';
 import type { ValidationWarning } from './errors.js';
 import { DATABASE_RING } from './types.js';
 import { ObserverLoader } from './loader.js';
-import { DatabaseObserver } from './database-observer.js';
+import { SqlObserver } from './sql-observer.js';
 
 /**
  * Observer execution engine with ring-based execution
@@ -30,7 +30,7 @@ import { DatabaseObserver } from './database-observer.js';
 export class ObserverRunner {
     private readonly defaultTimeout = 5000; // 5 seconds
     private readonly collectStats = true;
-    private readonly databaseObserver = new DatabaseObserver();
+    private readonly sqlObserver = new SqlObserver();
 
     /**
      * Execute observers for a schema operation with selective ring execution
@@ -77,7 +77,7 @@ export class ObserverRunner {
 
                 if (ring === DATABASE_RING) {
                     // DATABASE RING (5): Execute actual database operation
-                    const dbStats = await this._executeObserver(this.databaseObserver, context);
+                    const dbStats = await this._executeObserver(this.sqlObserver, context);
                     if (this.collectStats) {
                         stats.push(dbStats);
                     }
