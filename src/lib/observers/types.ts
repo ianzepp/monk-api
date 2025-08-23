@@ -65,11 +65,11 @@ export interface ObserverResult {
 }
 
 /**
- * Universal schema targeting keywords
+ * Universal schema targeting keyword
  * Used in observer file paths to target all schemas
  */
-export const UNIVERSAL_SCHEMA_KEYWORDS = ['%', 'all', '-'] as const;
-export type UniversalSchemaKeyword = typeof UNIVERSAL_SCHEMA_KEYWORDS[number];
+export const UNIVERSAL_SCHEMA_KEYWORD = 'all' as const;
+export type UniversalSchemaKeyword = typeof UNIVERSAL_SCHEMA_KEYWORD;
 
 /**
  * Observer file pattern for directory structure:

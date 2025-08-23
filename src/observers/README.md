@@ -9,10 +9,10 @@ Observers follow a strict directory pattern:
 src/observers/:schema/:ring_number/observer-name.ts
 
 Examples:
-src/observers/users/0/email-validation.ts      # Users schema, validation ring
-src/observers/users/2/password-policy.ts       # Users schema, business logic ring  
-src/observers/accounts/1/balance-check.ts      # Accounts schema, security ring
-src/observers/%/7/audit-logger.ts              # All schemas, audit ring
+src/observers/user/0/email-validation.ts       # User schema, validation ring
+src/observers/user/2/password-policy.ts        # User schema, business logic ring  
+src/observers/account/1/balance-check.ts       # Account schema, security ring
+src/observers/all/7/audit-logger.ts            # All schemas, audit ring
 src/observers/all/8/webhook-sender.ts          # All schemas, integration ring
 ```
 
@@ -44,11 +44,11 @@ Target a specific schema by using the schema name in the directory path:
 ```
 
 ### Universal Schema
-Target ALL schemas using universal keywords (`%`, `all`, or `-`):
+Target ALL schemas using the `all` keyword:
 ```typescript
-// src/observers/%/7/audit-logger.ts
+// src/observers/all/7/audit-logger.ts
 // src/observers/all/8/cache-invalidator.ts  
-// src/observers/-/9/notifier.ts
+// src/observers/all/9/notifier.ts
 // All execute for ANY schema operation
 ```
 
@@ -56,9 +56,9 @@ Target ALL schemas using universal keywords (`%`, `all`, or `-`):
 
 ### Basic Observer Template
 ```typescript
-// src/observers/users/0/email-validator.ts
-import type { Observer, ObserverContext } from '../../lib/observers/interfaces.js';
-import { ObserverRing } from '../../lib/observers/types.js';
+// src/observers/user/0/email-validator.ts
+import type { Observer, ObserverContext } from '@observers/interfaces.js';
+import { ObserverRing } from '@observers/types.js';
 
 export default class EmailValidator implements Observer {
     ring = ObserverRing.Validation;
@@ -88,9 +88,9 @@ export default class EmailValidator implements Observer {
 
 ### Universal Observer Template
 ```typescript
-// src/observers/%/7/audit-logger.ts  
-import type { Observer, ObserverContext } from '../../lib/observers/interfaces.js';
-import { ObserverRing } from '../../lib/observers/types.js';
+// src/observers/all/7/audit-logger.ts  
+import type { Observer, ObserverContext } from '@observers/interfaces.js';
+import { ObserverRing } from '@observers/types.js';
 
 export default class AuditLogger implements Observer {
     ring = ObserverRing.Audit;

@@ -16,7 +16,7 @@ export type {
 export { 
     ObserverRing,
     DATABASE_RING,
-    UNIVERSAL_SCHEMA_KEYWORDS
+    UNIVERSAL_SCHEMA_KEYWORD
 } from './types.js';
 
 export type { 

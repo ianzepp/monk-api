@@ -15,7 +15,7 @@ import type {
     ObserverFilePattern,
     UniversalSchemaKeyword 
 } from './types.js';
-import { UNIVERSAL_SCHEMA_KEYWORDS } from './types.js';
+import { UNIVERSAL_SCHEMA_KEYWORD } from './types.js';
 
 /**
  * Observer loader with file-based discovery and caching
@@ -203,12 +203,10 @@ export class ObserverLoader {
         const specific = this.cache.get(specificKey) || [];
         observers.push(...specific);
 
-        // Get universal observers (%, all, -)
-        for (const keyword of UNIVERSAL_SCHEMA_KEYWORDS) {
-            const universalKey = `${keyword}:${ring}`;
-            const universal = this.cache.get(universalKey) || [];
-            observers.push(...universal);
-        }
+        // Get universal observers (all)
+        const universalKey = `${UNIVERSAL_SCHEMA_KEYWORD}:${ring}`;
+        const universal = this.cache.get(universalKey) || [];
+        observers.push(...universal);
 
         return observers;
     }
