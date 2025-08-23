@@ -5,33 +5,31 @@
  * Ring: 0 (Validation) - Schema: users - Operations: create, update
  */
 
-import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
 import { ObserverRing } from '@lib/observers/types.js';
+import { ValidationError } from '@lib/observers/errors.js';
 
-export default class EmailValidator implements Observer {
+export default class EmailValidator extends BaseObserver {
     ring = ObserverRing.Validation;
     operations = ['create', 'update'] as const;
-    name = 'EmailValidator';
 
     async execute(context: ObserverContext): Promise<void> {
         const { data } = context;
         
-        if (!data || !data.email) {
-            return; // No email to validate
-        }
+        // Process each record in the array
+        for (const record of data) {
+            if (!record || !record.email) {
+                continue; // No email to validate
+            }
 
-        if (!this.isValidEmail(data.email)) {
-            context.errors.push({
-                message: 'Invalid email format',
-                field: 'email',
-                code: 'INVALID_EMAIL_FORMAT',
-                ring: this.ring,
-                observer: this.name
-            });
-        }
+            if (!this.isValidEmail(record.email)) {
+                throw new ValidationError('Invalid email format', 'email');
+            }
 
-        // Normalize email to lowercase
-        data.email = data.email.toLowerCase().trim();
+            // Normalize email to lowercase
+            record.email = record.email.toLowerCase().trim();
+        }
     }
 
     private isValidEmail(email: string): boolean {
