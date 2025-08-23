@@ -470,10 +470,17 @@ export class FtpProtocolServer {
                         port
                     };
                     
-                    // Set up data connection handler
+                    // Set up data connection handler - CRITICAL: Store socket when client connects
                     dataServer.on('connection', (socket) => {
                         connection.dataConnection!.socket = socket;
-                        console.log(`📡 [${connection.id}] Data connection established on port ${port}`);
+                        console.log(`📡 [${connection.id}] PASV data connection established on port ${port}`);
+                        
+                        socket.on('close', () => {
+                            console.log(`📡 [${connection.id}] PASV data connection closed`);
+                            if (connection.dataConnection) {
+                                connection.dataConnection.socket = undefined;
+                            }
+                        });
                     });
                     
                     // Format response: IP as comma-separated bytes + port as two bytes
@@ -642,6 +649,13 @@ export class FtpProtocolServer {
                     dataServer.on('connection', (socket) => {
                         connection.dataConnection!.socket = socket;
                         console.log(`📡 [${connection.id}] Extended data connection established on port ${port}`);
+                        
+                        socket.on('close', () => {
+                            console.log(`📡 [${connection.id}] Extended data connection closed`);
+                            if (connection.dataConnection) {
+                                connection.dataConnection.socket = undefined;
+                            }
+                        });
                     });
                     
                     // EPSV response format: |||port|
@@ -748,22 +762,29 @@ export class FtpProtocolServer {
     /**
      * Wait for data connection to be established
      */
-    private async waitForDataConnection(connection: FtpConnection, timeout = 5000): Promise<net.Socket> {
+    private async waitForDataConnection(connection: FtpConnection, timeout = 2000): Promise<net.Socket> {
+        // Check if data socket already exists (connected during PASV)
+        if (connection.dataConnection?.socket) {
+            console.log(`📡 [${connection.id}] Using existing data connection`);
+            return connection.dataConnection.socket;
+        }
+        
+        // Otherwise wait for new connection
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error('Data connection timeout'));
             }, timeout);
             
-            const checkConnection = () => {
-                if (connection.dataConnection?.socket) {
+            if (connection.dataConnection?.server) {
+                connection.dataConnection.server.once('connection', (socket) => {
                     clearTimeout(timer);
-                    resolve(connection.dataConnection.socket);
-                } else {
-                    setTimeout(checkConnection, 100);
-                }
-            };
-            
-            checkConnection();
+                    console.log(`📡 [${connection.id}] New data connection established`);
+                    resolve(socket);
+                });
+            } else {
+                clearTimeout(timer);
+                reject(new Error('No data server'));
+            }
         });
     }
     
