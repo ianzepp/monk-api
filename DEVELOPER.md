@@ -41,10 +41,12 @@ The `npm run autoinstall` script handles all setup steps automatically:
 
 #### **Hono API Server** (`src/`)
 - **Observer-Driven Architecture**: Universal business logic execution through ring-based observer pipeline
+- **Path-Based Route Structure**: Intuitive file organization where file path = URL path
 - **Middleware Pattern**: System context and response formatting through clean middleware chain
 - **Multi-tenant**: JWT-based database routing with auth database validation
-- **High Performance**: Schema caching, bulk operations, selective ring execution
-- **Security**: ACL enforcement, soft deletes, observer-based validation and audit
+- **High Performance**: Schema caching, bulk operations, selective ring execution, parameterized SQL
+- **Security**: SQL injection prevention, ACL enforcement, soft deletes, observer-based validation and audit
+- **Structured Logging**: Environment-aware logging with correlation tracking and rich metadata
 
 #### **Bashly CLI** (`cli/`)
 - **Generated CLI**: Source in `cli/src/`, compiled to `cli/monk`
@@ -54,9 +56,11 @@ The `npm run autoinstall` script handles all setup steps automatically:
 
 #### **Observer System** (`src/lib/observers/`, `src/observers/`)
 - **Ring-Based Execution**: 10 ordered rings (0-9) for structured business logic execution
+- **executeOne() Pattern**: Simplified per-record processing for field validation observers
 - **Universal Coverage**: All database operations automatically run through observer pipeline
 - **File-Based Discovery**: Observers organized by schema and ring number for easy management
 - **Extensible Business Logic**: Add validation, security, audit, integration without touching core code
+- **Clean Architecture**: BaseObserver pattern with consistent error handling and logging
 
 #### **Test Suite** (`tests/`)
 - **Three-layer Architecture**: test-all.sh → test-one.sh → individual tests
@@ -69,6 +73,8 @@ The `npm run autoinstall` script handles all setup steps automatically:
 #### **System Class** (`src/lib/system.ts`)
 - **Per-request context**: Created by `systemContextMiddleware` and attached to `context.get('system')`
 - **Database routing**: JWT-based multi-tenant database context management
+- **Service Integration**: Provides system.database.* and system.metabase.* unified APIs
+- **Structured Logging**: Built-in system.info() and system.warn() with automatic correlation tracking
 - **Dependency Injection**: Provides SystemContext interface to break circular dependencies
 
 #### **Database Class** (`src/lib/database.ts`)  
@@ -76,6 +82,14 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - **Single→Array→Pipeline**: Consistent pattern across all CRUD methods
 - **Recursion Protection**: `SQL_MAX_RECURSION = 3` prevents infinite observer loops
 - **Universal Coverage**: createOne, updateOne, deleteOne, selectOne, revertOne all use observers
+- **Parameterized SQL**: Secure queries using Filter.toSQL() pattern with PostgreSQL placeholders
+
+#### **Metabase Class** (`src/lib/metabase.ts`)
+- **Schema Definition Management**: Clean CRUD operations for schema YAML definitions
+- **Consistent Patterns**: Follows Database class architecture (createOne, selectOne, updateOne, deleteOne)
+- **Transaction Management**: Clean begin/commit/rollback pattern with run() method
+- **DDL Generation**: Automatic PostgreSQL table creation from JSON Schema
+- **System Integration**: Available via system.metabase.* for consistency with system.database.*
 
 #### **Observer System** (`src/lib/observers/`)
 - **Ring-Based Execution**: 10 ordered rings (0-9) with selective execution per operation type
@@ -83,10 +97,17 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - **SqlObserver (Ring 5)**: Handles direct SQL execution using `system.dtx.query()`
 - **File-Based Discovery**: Auto-loads observers from `src/observers/schema/ring/observer.ts`
 
+#### **Logging System** (`src/lib/logger.ts`)
+- **Universal Logger**: Standalone Logger class available anywhere via import
+- **System Integration**: system.info() and system.warn() with automatic request context
+- **Environment-Aware**: Pretty development logs, structured JSON for production
+- **Correlation Tracking**: Automatic correlation IDs for request debugging
+- **Rich Metadata**: Structured logging with tenant, operation, and timing context
+
 #### **Middleware Architecture** (`src/lib/middleware/`)
 - **systemContextMiddleware**: Universal System setup and global error handling
 - **responseJsonMiddleware**: Automatic JSON formatting for `/api/data/*` routes  
-- **responseYamlMiddleware**: YAML formatting for `/api/meta/*` routes
+- **responseYamlMiddleware**: Enhanced YAML formatting with automatic error handling for `/api/meta/*` routes
 - **Clean Route Handlers**: Direct `context.get('system').database.*()` access
 
 #### **Auth System** (`src/lib/auth.ts`, `src/routes/auth.ts`)
@@ -353,6 +374,15 @@ monk data list account            # Lists from staging database
 - **Isolation**: Each tenant gets separate database and user management
 
 ## API Endpoints & Patterns
+
+### **Path-Based Route Structure**
+Routes follow intuitive file organization where file path directly maps to URL path:
+```
+/routes/data/:schema/POST.ts        → POST /api/data/:schema
+/routes/data/:schema/:id/GET.ts     → GET /api/data/:schema/:id
+/routes/meta/schema/:name/PUT.ts    → PUT /api/meta/schema/:name
+/routes/auth/login/POST.ts          → POST /auth/login
+```
 
 ### **Consistent Array/Object Pattern**
 ```bash
