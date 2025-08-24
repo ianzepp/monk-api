@@ -24,29 +24,40 @@ app.get('/', async (c) => {
     
     try {
         const authHeader = c.req.header('Authorization');
+        console.debug(`🔐 Auth header present: ${!!authHeader}`);
+        
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.substring(7);
+            console.debug(`🎫 JWT token extracted (${token.length} chars)`);
+            
             const payload = await AuthService.verifyToken(token);
-            domain = payload.domain;
+            console.debug(`✅ JWT verified, payload:`, payload);
+            
+            domain = payload.tenant;  // JWT uses 'tenant' field, not 'domain'
             jwtUserId = payload.user_id;
             jwtAccess = payload.access;
             
-            // Test database connection for the domain
-            if (domain) {
+            // Test database connection using full database name from JWT
+            if (payload.database) {
                 try {
-                    db = await DatabaseManager.getDatabaseForDomain(domain);
+                    db = await DatabaseManager.getDatabaseForDomain(payload.database);
                     
                     // Execute a fast connection test query
                     await db.query('SELECT 1 as test_connection');
                     
                     databaseStatus = 'ok';
+                    console.debug(`✅ Database connection test passed for domain: ${domain}`);
                 } catch (dbError) {
                     databaseStatus = dbError instanceof Error ? dbError.message : 'Database connection failed';
+                    console.debug(`❌ Database connection failed:`, dbError);
                 }
             }
+        } else {
+            console.debug(`🚫 No valid Authorization header found`);
         }
     } catch (error) {
         // JWT verification failed, but ping should still work
+        console.debug(`❌ JWT verification failed:`, error);
         // domain remains null
     }
     

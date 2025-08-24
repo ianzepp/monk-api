@@ -25,11 +25,19 @@ import {
 /**
  * System context middleware - sets up System instance and global error handling
  * 
+ * Only applies to /api/* routes that require authenticated database context.
+ * Skips /ping, /auth, and other public endpoints that don't need System context.
+ * 
  * Attaches system to context.set('system', system) for use in route handlers.
  * Provides global error handling with proper error categorization.
- * Handles automatic response formatting for successful operations.
  */
 export async function systemContextMiddleware(context: Context, next: Next) {
+    // Skip system context setup for non-API routes
+    if (!context.req.path.startsWith('/api/')) {
+        await next();
+        return;
+    }
+
     try {
         // Initialize database context from JWT/auth
         const dtx = DatabaseManager.getDatabaseFromContext(context);
@@ -50,7 +58,7 @@ export async function systemContextMiddleware(context: Context, next: Next) {
         await next();
         
     } catch (error) {
-        // Global error handling with proper categorization
+        // Global error handling with proper error categorization
         console.error(`💥 Request failed: ${context.req.method} ${context.req.url}`, error);
         
         if (error instanceof ValidationError) {
