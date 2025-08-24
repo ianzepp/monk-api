@@ -4,14 +4,24 @@ import { FilterWhere } from '@lib/filter-where.js';
 import { FilterOrder } from '@lib/filter-order.js';
 
 /**
- * Filter class for building complex database queries with support for WHERE, ORDER BY, and LIMIT clauses.
+ * Filter - Schema-aware database query builder
+ * 
+ * High-level query builder that combines WHERE, ORDER BY, and LIMIT clauses
+ * for complete SQL query generation. Uses FilterWhere and FilterOrder internally
+ * for consistent clause generation with schema-aware features.
  * 
  * ## Core Features
- * - Tree-based condition building with logical operators (AND, OR, NOT)
- * - Rich operator support for comparisons, pattern matching, and array operations
- * - Automatic soft delete filtering via trashed_at column
- * - Order and limit clause generation
- * - SQL injection protection through parameterized queries
+ * - **Schema-aware querying**: Integrated with Schema class for validation
+ * - **Complete query building**: WHERE + ORDER BY + LIMIT in single interface
+ * - **Soft delete integration**: Automatic trashed_at/deleted_at filtering
+ * - **SQL injection protection**: Parameterized queries via FilterWhere/FilterOrder
+ * - **Performance optimization**: Query plan caching through parameterization
+ * 
+ * ## Architecture Integration
+ * - **FilterWhere**: Handles WHERE clause generation and parameterization
+ * - **FilterOrder**: Handles ORDER BY clause generation and column sanitization
+ * - **Schema validation**: Integrates with Schema class for field validation
+ * - **System context**: Uses SystemContext for soft delete options
  * 
  * ## WHERE Conditions
  * The Filter class automatically excludes soft-deleted and permanently deleted records by adding 

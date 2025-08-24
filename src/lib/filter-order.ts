@@ -1,15 +1,50 @@
 /**
  * FilterOrder - Schema-independent ORDER BY clause generation
  * 
- * Extracted from Filter class to enable ORDER BY clause generation without
- * requiring full schema setup. Provides consistent ordering syntax for
- * any SQL operation that needs sorting.
+ * Generates ORDER BY clauses without requiring schema setup.
+ * Extracted from Filter class to enable reusable ORDER BY generation
+ * in SqlObserver and other contexts that need sorting logic.
  * 
- * Key benefits:
- * - Schema independence: No schema name or table name required
- * - Consistent syntax: Same order object format as Filter class
- * - Composable: Can be combined with any SQL operation
- * - Validation: Prevents SQL injection in column names and sort directions
+ * ## Core Features
+ * - **Schema independence**: No schema name or table name required
+ * - **Multiple input formats**: String, array, and object formats supported
+ * - **Column sanitization**: Prevents SQL injection in column names
+ * - **Sort normalization**: Consistent ASC/DESC handling
+ * - **Composable design**: Can be combined with any SQL operation
+ * 
+ * ## Usage Examples
+ * 
+ * ### String format
+ * ```typescript
+ * FilterOrder.generate('created_at desc');
+ * // Result: ORDER BY "created_at" DESC
+ * ```
+ * 
+ * ### Array format
+ * ```typescript
+ * FilterOrder.generate([
+ *     { column: 'priority', sort: 'desc' },
+ *     { column: 'name', sort: 'asc' }
+ * ]);
+ * // Result: ORDER BY "priority" DESC, "name" ASC
+ * ```
+ * 
+ * ### Object format
+ * ```typescript
+ * FilterOrder.generate({ created_at: 'desc', name: 'asc' });
+ * // Result: ORDER BY "created_at" DESC, "name" ASC
+ * ```
+ * 
+ * ### Mixed array format
+ * ```typescript
+ * FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
+ * // Result: ORDER BY "name" ASC, "created_at" DESC
+ * ```
+ * 
+ * ## Security Features
+ * - **Column sanitization**: Removes non-alphanumeric characters except underscore
+ * - **Direction validation**: Only allows ASC/DESC (defaults to ASC for invalid input)
+ * - **Injection prevention**: Column names quoted and sanitized
  */
 
 export type SortDirection = 'asc' | 'desc' | 'ASC' | 'DESC';
@@ -59,6 +94,8 @@ export class FilterOrder {
         } else if (Array.isArray(orderData)) {
             // Handle array format: [{ column: 'name', sort: 'asc' }]
             orderData.forEach(item => {
+                if (!item) return; // Skip null/undefined items
+                
                 if (typeof item === 'string') {
                     this.parseOrderString(item);
                 } else if (item.column && item.sort) {
