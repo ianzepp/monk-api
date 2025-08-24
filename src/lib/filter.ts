@@ -510,6 +510,10 @@ export class Filter {
     private _lookups: any[] = [];
     private _related: any[] = [];
 
+    // Parameter collection for SQL parameterization (Issue #105)
+    private _paramValues: any[] = [];
+    private _paramIndex: number = 0;
+
     public readonly system: SystemContextWithInfrastructure;
 
     constructor(system: SystemContextWithInfrastructure, schemaName: string, tableName: string) {
@@ -520,6 +524,15 @@ export class Filter {
         // For dynamic schemas, we'll build queries using raw SQL
         // since Drizzle's type system doesn't know about runtime tables
         this._query = null; // Will build SQL manually
+    }
+
+    /**
+     * Add parameter to collection and return PostgreSQL placeholder
+     * Creates parameterized queries for security and performance
+     */
+    private PARAM(value: any): string {
+        this._paramValues.push(value);
+        return `$${++this._paramIndex}`;
     }
 
     // Main assignment method - handles multiple input formats
@@ -776,13 +789,15 @@ export class Filter {
      * Generate SQL query and parameters (Issue #102 - toSQL pattern)
      * 
      * Returns SQL query and parameters for execution by Database methods.
-     * This enables proper observer pipeline coverage for read operations.
+     * Uses parameterized queries for security and performance (Issue #105).
      */
     toSQL(): { query: string; params: any[] } {
+        // Reset parameter collection for fresh query generation
+        this._paramValues = [];
+        this._paramIndex = 0;
+        
         const query = this._buildSQL();
-        // Note: Current implementation doesn't use parameterized queries
-        // This can be enhanced later to return proper parameters
-        return { query, params: [] };
+        return { query, params: this._paramValues };
     }
 
     /**
@@ -792,10 +807,12 @@ export class Filter {
      * to build COUNT queries or other custom SQL statements.
      */
     toWhereSQL(): { whereClause: string; params: any[] } {
+        // Reset parameter collection for fresh clause generation
+        this._paramValues = [];
+        this._paramIndex = 0;
+        
         const whereClause = this.getWhereClause();
-        // Note: Current implementation doesn't use parameterized queries
-        // This can be enhanced later to return proper parameters
-        return { whereClause, params: [] };
+        return { whereClause, params: this._paramValues };
     }
 
     /**
@@ -1008,10 +1025,10 @@ export class Filter {
         
         switch (node.operator) {
             case FilterOp.EQ:
-                return `${quotedColumn} = ${this._formatSQLValue(data)}`;
+                return `${quotedColumn} = ${this.PARAM(data)}`;
             case FilterOp.NE:
             case FilterOp.NEQ:
-                return `${quotedColumn} != ${this._formatSQLValue(data)}`;
+                return `${quotedColumn} != ${this.PARAM(data)}`;
             case FilterOp.GT:
                 return `${quotedColumn} > ${data}`;
             case FilterOp.GTE:
@@ -1021,15 +1038,15 @@ export class Filter {
             case FilterOp.LTE:
                 return `${quotedColumn} <= ${data}`;
             case FilterOp.LIKE:
-                return `${quotedColumn} LIKE ${this._formatSQLValue(data)}`;
+                return `${quotedColumn} LIKE ${this.PARAM(data)}`;
             case FilterOp.ILIKE:
-                return `${quotedColumn} ILIKE ${this._formatSQLValue(data)}`;
+                return `${quotedColumn} ILIKE ${this.PARAM(data)}`;
             case FilterOp.IN:
                 const inValues = Array.isArray(data) ? data : [data];
-                return `${quotedColumn} IN (${inValues.map(v => this._formatSQLValue(v)).join(', ')})`;
+                return `${quotedColumn} IN (${inValues.map(v => this.PARAM(v)).join(', ')})`;
             case FilterOp.NIN:
                 const ninValues = Array.isArray(data) ? data : [data];
-                return `${quotedColumn} NOT IN (${ninValues.map(v => this._formatSQLValue(v)).join(', ')})`;
+                return `${quotedColumn} NOT IN (${ninValues.map(v => this.PARAM(v)).join(', ')})`;
             default:
                 this.system.warn('Unsupported filter operator', { operator: node.operator });
                 return '';
@@ -1093,31 +1110,31 @@ export class Filter {
                 if (data === null || data === undefined) {
                     return `${quotedColumn} IS NULL`;
                 }
-                return `${quotedColumn} = ${this._formatSQLValue(data)}`;
+                return `${quotedColumn} = ${this.PARAM(data)}`;
             case FilterOp.NE:
             case FilterOp.NEQ:
                 if (data === null || data === undefined) {
                     return `${quotedColumn} IS NOT NULL`;
                 }
-                return `${quotedColumn} != ${this._formatSQLValue(data)}`;
+                return `${quotedColumn} != ${this.PARAM(data)}`;
             case FilterOp.GT:
-                return `${quotedColumn} > ${data}`;
+                return `${quotedColumn} > ${this.PARAM(data)}`;
             case FilterOp.GTE:
-                return `${quotedColumn} >= ${data}`;
+                return `${quotedColumn} >= ${this.PARAM(data)}`;
             case FilterOp.LT:
-                return `${quotedColumn} < ${data}`;
+                return `${quotedColumn} < ${this.PARAM(data)}`;
             case FilterOp.LTE:
-                return `${quotedColumn} <= ${data}`;
+                return `${quotedColumn} <= ${this.PARAM(data)}`;
             case FilterOp.LIKE:
-                return `${quotedColumn} LIKE ${this._formatSQLValue(data)}`;
+                return `${quotedColumn} LIKE ${this.PARAM(data)}`;
             case FilterOp.ILIKE:
-                return `${quotedColumn} ILIKE ${this._formatSQLValue(data)}`;
+                return `${quotedColumn} ILIKE ${this.PARAM(data)}`;
             case FilterOp.IN:
                 const inValues = Array.isArray(data) ? data : [data];
-                return `${quotedColumn} IN (${inValues.map(v => this._formatSQLValue(v)).join(', ')})`;
+                return `${quotedColumn} IN (${inValues.map(v => this.PARAM(v)).join(', ')})`;
             case FilterOp.NIN:
                 const ninValues = Array.isArray(data) ? data : [data];
-                return `${quotedColumn} NOT IN (${ninValues.map(v => this._formatSQLValue(v)).join(', ')})`;
+                return `${quotedColumn} NOT IN (${ninValues.map(v => this.PARAM(v)).join(', ')})`;
             default:
                 this.system.warn('Unsupported filter operator', { operator });
                 return null;

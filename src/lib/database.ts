@@ -65,7 +65,7 @@ export class Database {
 
         // Issue #102: Use toCountSQL() pattern instead of manual query building
         const { query, params } = filter.toCountSQL();
-        const result = await this.execute(query);
+        const result = await this.execute(query, params);
 
         return parseInt(result.rows[0].count as string);
     }
@@ -137,7 +137,7 @@ export class Database {
         
         // Issue #102: Use toSQL() pattern instead of direct filter.execute()
         const { query, params } = filter.toSQL();
-        const result = await this.system.database.execute(query);
+        const result = await this.system.database.execute(query, params);
         return result.rows;
     }
 
