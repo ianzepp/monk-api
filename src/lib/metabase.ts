@@ -58,6 +58,8 @@ export class Metabase {
             // Validate schema protection
             this.validateSchemaProtection(schemaName);
             
+            this.system.info('Creating schema', { schemaName, tableName });
+            
             // Generate and execute DDL
             const ddl = this.generateCreateTableDDL(tableName, jsonSchema);
             await tx.query(ddl);
@@ -65,6 +67,8 @@ export class Metabase {
             // Insert schema metadata
             const yamlChecksum = this.generateYamlChecksum(yamlContent);
             await this.insertSchemaRecord(tx, schemaName, tableName, jsonSchema, yamlChecksum);
+            
+            this.system.info('Schema created successfully', { schemaName, tableName });
             
             return { name: schemaName, table: tableName, created: true };
         });

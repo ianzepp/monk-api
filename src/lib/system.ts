@@ -20,6 +20,7 @@ export class System implements SystemContextWithInfrastructure {
     public readonly userDomain: string;
     public readonly userId: string;
     public readonly options: Readonly<SystemOptions>;
+    public readonly correlationId: string;
 
     // System services
     public readonly database: Database;
@@ -50,6 +51,9 @@ export class System implements SystemContextWithInfrastructure {
         // Extract user information from context (set by auth middleware)
         this.userDomain = c.get('userDomain') || 'default';
         this.userId = c.get('userId') || 'anonymous';
+        
+        // Generate correlation ID once per request
+        this.correlationId = c.req.header('x-request-id') || this.generateCorrelationId();
     }
 
     /**
@@ -74,5 +78,52 @@ export class System implements SystemContextWithInfrastructure {
     isRoot(): boolean {
         const payload = this.context.get('jwtPayload') as any;
         return payload?.access === 'root';
+    }
+
+    /**
+     * Log info message with request context
+     */
+    info(message: string, meta?: any) {
+        console.info(this.formatLog('INFO', message, meta));
+    }
+    
+    /**
+     * Log warning message with request context
+     */
+    warn(message: string, meta?: any) {
+        console.warn(this.formatLog('WARN', message, meta));
+    }
+
+    /**
+     * Format log message with environment-aware output
+     */
+    private formatLog(level: string, message: string, meta?: any): string {
+        const timestamp = new Date().toISOString();
+        
+        if (process.env.NODE_ENV === 'production') {
+            // Structured JSON for production log aggregation
+            return JSON.stringify({
+                timestamp,
+                level,
+                message,
+                correlationId: this.correlationId,
+                userId: this.userId,
+                tenant: this.userDomain,
+                operation: `${this.context.req.method} ${this.context.req.path}`,
+                ...(meta && { meta })
+            });
+        } else {
+            // Pretty format for development
+            const ctx = `[${this.correlationId}]{${this.userDomain}}`;
+            const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
+            return `${level} ${ctx} ${message}${metaStr}`;
+        }
+    }
+
+    /**
+     * Generate correlation ID for request tracking
+     */
+    private generateCorrelationId(): string {
+        return 'req-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     }
 }
