@@ -127,13 +127,22 @@ if [ "$test_count" -eq 1 ]; then
     print_info "Running single spec test: $(basename "$test_file")"
     exec scripts/spec-one.sh "$test_file" $verbose_flag
 else
-    # Multiple test files - run all with vitest
-    print_info "Running all matching spec tests with vitest"
+    # Multiple test files - run in sorted order for proper dependency flow
+    print_info "Running matching spec tests in sorted order"
     
     if [ -n "$verbose_flag" ]; then
         print_info "Running with verbose output"
     fi
     
-    # Convert file list to vitest pattern
-    echo "$test_files" | tr '\n' ' ' | xargs npx vitest run $verbose_flag
+    # Run tests in sorted order (infrastructure → auth → meta → data)
+    # This ensures core features are validated before complex features
+    echo "$test_files" | while IFS= read -r test_file; do
+        if [ -n "$test_file" ]; then
+            print_info "Running: $(basename "$(dirname "$test_file")")/$(basename "$test_file")"
+            npx vitest run "$test_file" $verbose_flag || {
+                print_error "Test failed: $test_file"
+                exit 1
+            }
+        fi
+    done
 fi
