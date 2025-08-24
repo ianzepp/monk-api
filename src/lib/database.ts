@@ -276,7 +276,7 @@ export class Database {
         try {
             // For now, execute observer pipeline directly 
             // TODO: Implement proper transaction management in Ring 5
-            return await this.executeObserverPipeline(operation, schema, data, depth);
+            return await this.executeObserverPipeline(operation, schema, data, depth + 1);
             
         } catch (error) {
             console.error(`💥 Observer pipeline failed: ${operation} on ${schema}`, error);
