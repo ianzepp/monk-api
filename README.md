@@ -1,463 +1,153 @@
-# Monk API (Hono) - High-Performance PaaS Backend
+# Monk API
 
-Enterprise-grade PaaS backend API built with Hono, featuring System pattern architecture, advanced caching, and multi-tenant database routing.
+Lightweight PaaS backend API built with **Hono** and **TypeScript**, featuring observer-driven architecture and multi-tenant database routing.
 
-## 🚀 Key Features
+## What is Monk API?
 
-- **🏗️ System Pattern Architecture** - Clean per-request database context management
-- **⚡ High-Performance Schema Caching** - 15x speedup with SHA256 checksum validation
-- **🔒 Multi-Tenant Database Routing** - JWT domain-based database isolation
-- **📊 JSON Schema Validation** - AJV-based validation with compiled validator caching
-- **🔄 Optimized Batch Operations** - Efficient updateAll/createAll with raw SQL
-- **🎯 Consistent API Design** - Array/object endpoint pattern throughout
-- **🛡️ JWT Authentication** - Domain-based authentication with request logging
-- **🔍 Advanced Query System** - MongoDB-style filter DSL with complex queries
+A high-performance backend API that provides:
+- **Schema-first development** - Define your data models in YAML
+- **Multi-tenant architecture** - Each tenant gets isolated databases
+- **Observer pattern** - Event-driven business logic hooks
+- **CLI integration** - Full command-line management interface
 
-## 📋 Tech Stack
+Perfect for building SaaS applications that need flexible data modeling and tenant isolation.
 
-- **[Hono](https://hono.dev/)** (~50KB) - Ultra-lightweight web framework
-- **TypeScript** - Full type safety with advanced patterns
-- **PostgreSQL** - Production database with custom SQL optimization
-- **Drizzle ORM** - Schema management and migrations
-- **AJV** - High-performance JSON Schema validation
-- **JWT** - Secure authentication with domain routing
-- **Node.js 18+** - Multi-runtime deployable (Bun, Deno, Cloudflare Workers)
+## Quick Start
 
-## 🏛️ System Pattern Architecture
-
-### Core Classes
-
-#### **System Class** (`src/lib/system.ts`)
-Per-request context management and database routing:
-```typescript
-// Read operations (no transaction)
-return await handleContextDb(context, async (system: System) => {
-    return system.database.selectAny(schemaName);
-});
-
-// Write operations (with transaction)
-return await handleContextTx(context, async (system: System) => {
-    return system.database.createOne(schemaName, recordData);
-});
-```
-
-#### **Database Class** (`src/lib/database.ts`)
-High-level database operations using System's context:
-- Uses `this.system.dtx` for all operations
-- No tx/dtx parameters needed - all use system context
-- Raw SQL generation for maximum performance
-
-#### **Schema Class** (`src/lib/schema.ts`)
-Schema operations with integrated validation:
-- AJV validator compilation and caching
-- Multi-database schema caching with SHA256 checksums
-- Efficient null handling for optional fields
-
-#### **Filter Class** (`src/lib/filter.ts`)
-Advanced query filtering with MongoDB-style operators:
-- Complex WHERE/ORDER/LIMIT clause generation
-- Support for `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`, `$regex`, `$exists`
-- Reusable clause extraction methods: `getWhereClause()`, `getOrderClause()`, `getLimitClause()`
-- Filter-based bulk operations: `updateAny()`, `deleteAny()` for mass updates
-- Advanced query patterns with nested conditions and logical operators
-
-#### **DatabaseManager Class** (`src/lib/database-manager.ts`)
-Dynamic database connection management for multi-tenant architecture:
-- Per-domain database connection pooling
-- JWT domain-based routing to separate databases
-- Automatic connection creation for test environments
-- Efficient resource management and connection reuse
-
-#### **Route Helpers** (`src/lib/route-helpers.ts`)
-Infrastructure utilities providing 80% code reduction in route handlers:
-- Centralized error handling and transaction management
-- Clean separation: handlers show business logic, utilities handle infrastructure
-- Consistent response patterns and validation
-- Transaction boundary management for write operations
-
-## 🎯 API Endpoints
-
-### Authentication
-- `POST /auth/login` - Domain-based authentication (returns JWT)
-- `POST /auth/refresh` - JWT token refresh  
-- `GET /auth/me` - Current user information
-
-### Data Operations (Protected)
-**Consistent Array/Object Pattern:**
-```
-# Array endpoints (multiple records)
-GET    /api/data/:schema          # List records → array
-POST   /api/data/:schema          # Create records → accepts/returns arrays  
-PUT    /api/data/:schema          # Update records → accepts/returns arrays
-DELETE /api/data/:schema          # Delete records → accepts/returns arrays
-
-# Object endpoints (single record)
-GET    /api/data/:schema/:id      # Get record → object
-PUT    /api/data/:schema/:id      # Update record → accepts/returns object
-DELETE /api/data/:schema/:id      # Delete record → returns object
-```
-
-### Schema Management (Protected)
-```
-GET    /api/meta/schema           # List all schemas
-GET    /api/meta/schema/:name     # Get specific schema
-POST   /api/meta/schema           # Create schema (YAML/JSON)
-PUT    /api/meta/schema/:name     # Update schema
-DELETE /api/meta/schema/:name     # Delete schema
-```
-
-### Advanced Search & Utilities
-```
-POST   /api/find/:schema          # Advanced search with filter DSL
-POST   /api/bulk                  # Multi-schema bulk operations
-GET    /ping                      # Connectivity testing
-GET    /health                    # Health check with database status
-```
-
-### Bulk Operations
-```
-POST   /api/bulk                  # Multi-schema transactions
-```
-**Bulk Operation Types:**
-- **Multi-schema transactions**: Perform operations across multiple schemas atomically
-- **Filter-based updates**: Use `updateAny()` with query filters for mass updates
-- **Filter-based deletions**: Use `deleteAny()` with query filters for mass deletions
-- **Batch record processing**: Create/update/delete multiple records efficiently
-
-## ⚡ Performance Architecture
-
-### High-Performance Schema Caching
-- **15x Performance Improvement**: Schema access reduced from 240ms → 16ms
-- **Multi-Database Caching**: Isolated cache space per database for multi-tenant safety
-- **SHA256 Checksum Validation**: Fast cache invalidation using YAML content checksums
-- **Compiled Validator Caching**: AJV validators cached in Schema instances
-- **Batch Optimization**: Single query validates multiple schema checksums
-
-### Optimized Database Operations
-- **Raw SQL Performance**: Custom SQL generation without ORM overhead
-- **Batch Operations**: `updateAll()` uses single `selectIds()` + batch updates vs N queries
-- **Efficient Null Handling**: Set-based lookup (O(1) vs O(n)) for validation cleaning
-- **Filter Clause Extraction**: Reusable WHERE/ORDER/LIMIT clauses
-- **404 Operation Patterns**: Consistent `select404()`, `update404()`, `delete404()` error handling
-- **Bulk Filter Operations**: `updateAny()` and `deleteAny()` for filter-based mass operations
-
-## 🗄️ Database Architecture
-
-### Multi-Tenant Database Routing
-- **JWT Domain Field**: Contains database name for request routing
-- **Dynamic Connections**: Creates database connections on-demand per domain
-- **System Integration**: Each request gets proper database context
-
-### Required Schema Tables
-- **`schemas`**: Schema definitions and metadata with YAML checksums
-- **`columns`**: Individual field metadata and constraints
-- **Dynamic Tables**: Created automatically when schemas are defined
-
-## 🚀 Quick Start
-
-### Installation
 ```bash
-# Clone the repository
-git clone https://github.com/ianzepp/monk-api-hono.git
-cd monk-api-hono
+# Clone and setup
+git clone https://github.com/ianzepp/monk-api.git
+cd monk-api
 
-# Install dependencies
-npm install
+# Automated setup (handles database, CLI, and test tenant)
+npm run autoinstall
 
-# Set up environment (copy and edit)
-cp .env.example .env
+# Start development server
+npm run start:dev
+
+# Test connectivity
+npm run test:one tests/10-connection/basic-ping-test.sh
 ```
 
-### Database Setup
-```bash
-# Generate and run migrations
-npm run db:generate
-npm run db:migrate
+## Core Features
 
-# Seed with initial schemas
-npm run db:seed
-
-# Optional: Open Drizzle Studio
-npm run db:studio
-```
-
-### Development Server
-```bash
-# Start development server with hot reload
-npm run dev
-
-# Server will be available at http://localhost:3000
-```
-
-## 🔧 Development Workflow
-
-### Local Development with monk-cli
-```bash
-# Start the API server
-npm run dev
-
-# In another terminal, use monk-cli
-monk hono start              # Or use monk-cli's server management
-monk tenant create my-test-db
-monk auth login my-test-db root
-monk meta list schema
-monk data list account
-```
-
-### Testing with Git-Aware Environments
-```bash
-# Create test environment for current branch
-monk test git main
-
-# Create test environment for feature branch  
-monk test git feature/new-api --description "Testing new API endpoints"
-
-# Compare different implementations
-monk test diff main feature/new-api
-
-# Run comprehensive tests
-monk test all 20-30          # Meta and Data API tests
-```
-
-### Database Management
-```bash
-# Database operations
-npm run db:generate          # Generate new migrations
-npm run db:migrate           # Apply pending migrations
-npm run db:seed             # Seed with metadata schemas
-npm run db:clean            # Clean database (destructive)
-
-# Development tools
-npm run db:studio           # Open Drizzle Studio GUI
-```
-
-## 📝 Schema Definition
-
-Schemas are defined in YAML format and support full JSON Schema validation:
+### 🎯 Schema Management
+Define data models using YAML with JSON Schema validation:
 
 ```yaml
-# Example: User schema (save as user.yaml)
+# user.yaml
 name: user
-table: users
-description: User management schema
 properties:
-  id:
-    type: string
-    format: uuid
-    description: Unique user identifier
-  name:
-    type: string
-    minLength: 1
-    maxLength: 100
-    description: User's full name
-  email:
-    type: string
-    format: email
-    description: User's email address
-  created_at:
-    type: string
-    format: date-time
-    description: Creation timestamp
-required:
-  - name
-  - email
+  name: {type: string, minLength: 1}
+  email: {type: string, format: email}
+  role: {type: string, enum: [admin, user]}
+required: [name, email]
 ```
 
-### Create Schema via API
+### 🔒 Multi-Tenant Architecture
+- JWT-based tenant routing
+- Isolated databases per tenant (`monk-api$tenant-name`)
+- Dynamic database connections
+
+### 🎭 Observer System
+Ring-based business logic execution (0-9 rings):
+- **Ring 0**: Validation
+- **Ring 2**: Business logic  
+- **Ring 5**: Database execution
+- **Ring 7**: Audit logging
+- **Ring 8**: Webhooks/integrations
+
+### 📡 RESTful API
+Consistent array/object patterns:
 ```bash
-# Create schema from YAML file
+GET  /api/data/users      # List all users
+POST /api/data/users      # Create users (bulk)
+GET  /api/data/users/123  # Get specific user
+PUT  /api/data/users/123  # Update specific user
+```
+
+## Built-in CLI
+
+The included CLI provides full API management:
+
+```bash
+# Tenant management
+monk tenant create my-app
+monk auth login my-app root
+
+# Schema management  
 cat user.yaml | monk meta create schema
+monk meta list schema
 
-# Or create via JSON
-echo '{
-  "name": "task",
-  "table": "tasks", 
-  "properties": {
-    "title": {"type": "string", "minLength": 1},
-    "completed": {"type": "boolean", "default": false}
-  },
-  "required": ["title"]
-}' | monk meta create schema
-```
-
-## 🔍 Advanced Search & Bulk Operations
-
-### Advanced Search Examples
-
-The `/api/find/:schema` endpoint supports MongoDB-style queries:
-
-```bash
-# Find active users
-echo '{
-  "where": {"status": "active"},
-  "select": ["name", "email"],
-  "orderBy": {"created_at": "desc"},
-  "limit": 10
-}' | monk find user
-
-# Complex query with multiple conditions  
-echo '{
-  "where": {
-    "age": {"$gte": 18, "$lt": 65},
-    "role": {"$in": ["admin", "user"]},
-    "name": {"$regex": "^John"}
-  },
-  "orderBy": {"last_login": "desc"}
-}' | monk find user
-
-# Advanced logical operators
-echo '{
-  "where": {
-    "$or": [
-      {"department": "engineering"},
-      {"$and": [{"role": "admin"}, {"active": true}]}
-    ]
-  }
-}' | monk find user
-
-# Count matching records
-echo '{"where": {"active": true}}' | monk find user -c
-
-# Get only first result
-echo '{"where": {"email": {"$regex": "@company.com$"}}}' | monk find user --head
-```
-
-### Bulk Operations Examples
-
-The `/api/bulk` endpoint supports multi-schema transactions and filter-based operations:
-
-```bash
-# Multi-schema transaction
-echo '{
-  "operations": [
-    {
-      "type": "create",
-      "schema": "user",
-      "data": {"name": "John", "email": "john@company.com"}
-    },
-    {
-      "type": "update", 
-      "schema": "account",
-      "filter": {"owner_email": "john@company.com"},
-      "data": {"status": "active"}
-    }
-  ]
-}' | curl -X POST http://localhost:3000/api/bulk -d @-
-
-# Filter-based bulk update (updateAny)
-echo '{
-  "type": "updateAny",
-  "schema": "user",
-  "filter": {"department": "sales"},
-  "data": {"manager": "Sarah Johnson"}
-}' | curl -X POST http://localhost:3000/api/bulk -d @-
-
-# Filter-based bulk deletion (deleteAny)
-echo '{
-  "type": "deleteAny", 
-  "schema": "session",
-  "filter": {"expires_at": {"$lt": "2025-01-01T00:00:00Z"}}
-}' | curl -X POST http://localhost:3000/api/bulk -d @-
-```
-
-## 📊 Performance Benefits
-
-### vs Next.js API Routes
-- **🚀 Cold starts**: ~10x improvement
-- **💾 Memory usage**: ~5x reduction  
-- **🔥 Throughput**: ~3x more requests/second
-- **📦 Bundle size**: ~50KB vs ~2MB
-
-### Schema Caching Performance
-- **Database queries**: 93% reduction for repeated schema access
-- **Validation speed**: Instant validation with compiled AJV validators
-- **Multi-tenant safety**: Isolated caches prevent cross-contamination
-- **Cache invalidation**: SHA256 checksums ensure data consistency
-
-## 🌐 Multi-Runtime Deployment
-
-Hono enables deployment to multiple JavaScript runtimes:
-
-### Node.js (Current)
-```bash
-npm run build
-npm run start
-```
-
-### Bun
-```bash
-# Replace @hono/node-server with Bun's built-in server
-bun run src/index.ts
-```
-
-### Deno
-```typescript
-// Minimal changes needed for Deno compatibility
-import { serve } from "https://deno.land/std/http/server.ts";
-```
-
-### Cloudflare Workers
-```bash
-# Use Hono's Cloudflare Workers adapter
-npm install @hono/cloudflare-workers
-```
-
-## 🛡️ Security Features
-
-- **JWT Authentication**: Secure token-based authentication
-- **Domain Isolation**: Multi-tenant database routing prevents data leakage
-- **Input Validation**: Comprehensive JSON Schema validation
-- **SQL Injection Protection**: Parameterized queries and raw SQL safety
-- **Request Logging**: Complete audit trail for debugging and monitoring
-
-## 🔗 Integration with monk-cli
-
-This API works seamlessly with the [monk-cli](https://github.com/ianzepp/monk-cli) project:
-
-```bash
-# Set target API server
-export CLI_BASE_URL=http://localhost:3000
-
-# Or use monk servers for remote deployment management
-monk servers add prod api.company.com:443
-monk servers use prod
-
-# All CLI commands work with any monk API deployment
-monk tenant create production-db
-monk auth login production-db root
+# Data operations
+echo '{"name":"John","email":"john@example.com"}' | monk data create user
 monk data list user
-monk meta create schema < user.yaml
 ```
 
-## 🧪 Testing Integration
+## Observer Development
 
-Works with [monk-api-test](https://github.com/ianzepp/monk-api-test) for comprehensive testing:
+Add business logic without touching core code:
+
+```typescript
+// src/observers/user/0/email-validator.ts
+export default class EmailValidator extends BaseObserver {
+    ring = ObserverRing.Validation;
+    operations = ['create', 'update'] as const;
+    
+    async execute(context: ObserverContext): Promise<void> {
+        for (const record of context.data) {
+            if (!record.email.endsWith('@company.com')) {
+                throw new ValidationError('Only company emails allowed', 'email');
+            }
+        }
+    }
+}
+```
+
+## Testing
+
+Comprehensive test suite with isolated environments:
 
 ```bash
-# Automated test suite with multiple environments
-monk test git main                    # Test main branch
-monk test git feature/new-endpoint    # Test feature branch
-monk test all 20-30                   # Run API-specific tests
-monk test diff main feature/new-endpoint  # Compare implementations
+# Run all tests
+npm run test:all
+
+# Run specific test categories
+npm run test:all 15        # Authentication tests
+npm run test:all 20-30     # Meta and data API tests
+
+# Individual test
+npm run test:one tests/15-authentication/basic-auth-test.sh
 ```
 
-## 📚 Related Projects
+## Performance
 
-- **[monk-cli](https://github.com/ianzepp/monk-cli)** - Command-line interface with advanced features
-- **[monk-api-test](https://github.com/ianzepp/monk-api-test)** - Comprehensive test suite
+- **15x faster schema access** with SHA256 caching
+- **Ultra-lightweight** (~50KB Hono framework)
+- **Raw SQL performance** without ORM overhead
+- **Multi-runtime support** (Node.js, Bun, Deno, Cloudflare Workers)
 
-## 🤝 Contributing
+## Tech Stack
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- **[Hono](https://hono.dev/)** - Ultra-fast web framework
+- **TypeScript** - Type-safe development
+- **PostgreSQL** - Multi-tenant database architecture
+- **AJV** - High-performance JSON Schema validation
+- **Bashly** - Generated CLI interface
 
-## 📄 License
+> 📖 For detailed architecture, development workflows, and implementation guides, see **[DEVELOPER.md](DEVELOPER.md)**
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Documentation
 
----
+- **[DEVELOPER.md](DEVELOPER.md)** - Comprehensive development guide
+- **[INSTALL.md](INSTALL.md)** - Installation instructions
+- **Observer System** - Event-driven architecture patterns
 
-**Built with ❤️ using the System pattern for clean, scalable API architecture.**
+## Related Projects
+
+- **[monk-cli](https://github.com/ianzepp/monk-cli)** - Standalone CLI for remote API management
+- **[monk-api-test](https://github.com/ianzepp/monk-api-test)** - Git-aware testing framework
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
