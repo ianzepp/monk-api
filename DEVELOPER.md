@@ -575,6 +575,99 @@ fi
 - **Automatic cleanup** handled by test-one.sh
 - **Authentication isolation** per test run
 
+## TypeScript Test Framework (Vitest)
+
+### **Running Spec Tests**
+```bash
+# All spec tests
+npm run spec:all
+
+# Pattern matching (sorted execution order)
+npm run spec:all 05              # Infrastructure tests (05-infrastructure)
+npm run spec:all 15              # Authentication tests (15-authentication)
+npm run spec:all 05-20           # Infrastructure through meta-api tests
+npm run spec:all auth            # Tests matching "auth" pattern
+
+# Individual test
+npm run spec:one spec/15-authentication/basic-auth.test.ts
+
+# Verbose output
+npm run spec:all 05 --verbose
+npm run spec:one spec/path/test.test.ts --verbose
+```
+
+### **Spec Test Architecture**
+```bash
+# TypeScript test structure
+spec/
+├── 05-infrastructure/          # Core connectivity and configuration
+│   ├── connectivity.test.ts    # Database, Metabase, System connectivity
+│   └── server-config.test.ts   # TenantService and environment setup
+├── 15-authentication/          # Authentication workflow
+│   └── basic-auth.test.ts      # Tenant creation → login → authenticated operations
+├── 20-meta-api/               # Schema management (YAML)
+│   └── schema-operations.test.ts # metabase.createOne() → selectOne() → deleteOne()
+├── 30-data-api/               # Data operations (JSON)
+│   └── data-operations.test.ts # database.createAll() → selectAny() → updateAll()
+└── helpers/
+    └── test-tenant.ts         # Real tenant creation and TypeScript context setup
+```
+
+### **Spec Test Development Patterns**
+```typescript
+// Standard vitest test template
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import { createTestTenant, createTestContext, type TestTenantManager, type TestContext } from '@spec/helpers/test-tenant.js';
+import { TenantService } from '@lib/services/tenant.js';
+
+describe('Category: Test Suite Name', () => {
+  let tenantManager: TestTenantManager;
+  let testContext: TestContext;
+
+  beforeAll(async () => {
+    // Create fresh tenant for this test suite
+    tenantManager = await createTestTenant();
+    
+    // Create authenticated test context
+    testContext = await createTestContext(tenantManager.tenant!, 'root');
+  });
+
+  afterAll(async () => {
+    // Automatic tenant cleanup
+    if (tenantManager) {
+      await tenantManager.cleanup();
+    }
+  });
+
+  test('should test functionality', async () => {
+    // Test implementation using testContext.database, testContext.metabase, etc.
+    const result = await testContext.database.selectAny('schema');
+    expect(result).toBeDefined();
+  });
+});
+```
+
+### **TypeScript Testing Features**
+- **Real Database Testing**: Fresh tenant per test suite using `TenantService.createTenant()`
+- **TypeScript Classes**: Direct testing of System, Database, Metabase, TenantService
+- **Observer Integration**: Full 10-ring observer pipeline execution with `ObserverLoader.preloadObservers()`
+- **Authenticated Context**: Proper JWT generation and System context setup
+- **Automatic Cleanup**: Tenant and database cleanup after each test suite
+- **Path Aliases**: Clean imports using `@lib`, `@spec`, `@src` patterns
+
+### **Spec vs Shell Tests**
+- **spec/** directory: TypeScript vitest tests for unit and integration testing
+- **tests/** directory: Shell integration tests for CLI and end-to-end workflows
+- **Both frameworks**: Support same numbering pattern (05, 15, 20, 30)
+- **Execution order**: Both run tests in sorted order (infrastructure → auth → apis)
+- **Fresh tenants**: Both create isolated test environments per test
+
+### **Vitest Testing Requirements**
+- **Observer preloading**: Call `await ObserverLoader.preloadObservers()` in `beforeAll`
+- **Real tenants**: Use `createTestTenant()` for isolated database testing
+- **TypeScript context**: Use `createTestContext()` for authenticated System instances
+- **Proper imports**: Use path aliases (`@lib`, `@spec`) for clean code organization
+
 ## Contributing Guidelines
 
 ### **Git Workflow**
@@ -879,10 +972,15 @@ npm run start:dev
 monk servers use local
 monk auth login local-test root
 
-# Testing
+# Shell Testing
 npm run test:all
 npm run test:one tests/path/test.sh
 npm run test:one tests/85-observer-integration/observer-startup-test.sh
+
+# TypeScript Testing  
+npm run spec:all
+npm run spec:all 05-20
+npm run spec:one spec/15-authentication/basic-auth.test.ts
 
 # Releases
 npm run version:patch
@@ -904,6 +1002,11 @@ monk data get schema <id>                               # Observer coverage auto
 # Observer development
 # Create observer: src/observers/schema/ring/observer.ts
 # Test loading: npm run test:one tests/85-observer-integration/observer-startup-test.sh
+
+# TypeScript testing (direct class method testing)
+# Infrastructure: npm run spec:all 05
+# Authentication: npm run spec:all 15  
+# Meta/Data APIs: npm run spec:all 20-30
 ```
 
 ### **Key Configuration Files**
