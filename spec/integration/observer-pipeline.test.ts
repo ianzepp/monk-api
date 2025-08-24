@@ -8,7 +8,7 @@ import { describe, test, beforeEach, expect, vi, beforeAll } from 'vitest';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
-import { createMockSystem } from '../helpers/observer-helpers.js';
+import { createMockSystem } from '@spec/helpers/observer-helpers.js';
 
 describe('Observer Pipeline Integration', () => {
     let runner: ObserverRunner;

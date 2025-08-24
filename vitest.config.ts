@@ -13,7 +13,7 @@ export default defineConfig({
             '@lib': resolve(__dirname, 'src/lib'),
             '@observers': resolve(__dirname, 'src/lib/observers'),
             '@routes': resolve(__dirname, 'src/routes'),
-            '@test': resolve(__dirname, 'spec'),
+            '@spec': resolve(__dirname, 'spec'),
         },
     },
 });
