@@ -2,7 +2,7 @@
  * Infrastructure Tests - TypeScript Configuration
  * 
  * Tests core TypeScript classes and configuration setup
- * Equivalent to tests/05-infrastructure/servers-config-test.sh
+ * Equivalent to test/05-infrastructure/servers-config-test.sh
  */
 
 import { describe, test, expect } from 'vitest';

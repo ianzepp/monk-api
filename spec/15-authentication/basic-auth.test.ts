@@ -6,7 +6,7 @@
  * 2. Login as root (TenantService.login) 
  * 3. Verify connectivity (System/Database operations)
  * 
- * Equivalent to tests/15-authentication/basic-auth-test.sh
+ * Equivalent to test/15-authentication/basic-auth-test.sh
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';

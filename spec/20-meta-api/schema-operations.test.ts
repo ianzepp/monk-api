@@ -6,7 +6,7 @@
  * 2. Select schema as YAML (metabase.selectOne) 
  * 3. Delete schema (metabase.deleteOne)
  * 
- * Equivalent to tests/20-meta-api/ bash tests
+ * Equivalent to test/20-meta-api/ bash tests
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
@@ -35,7 +35,7 @@ describe('20-meta-api: Schema Operations', () => {
     testContext = await createTestContext(tenantManager.tenant, 'root');
 
     // Load test YAML schemas
-    const schemaDir = join(process.cwd(), 'tests/schemas');
+    const schemaDir = join(process.cwd(), 'test/schemas');
     accountYaml = readFileSync(join(schemaDir, 'account.yaml'), 'utf8');
     contactYaml = readFileSync(join(schemaDir, 'contact.yaml'), 'utf8');
   });

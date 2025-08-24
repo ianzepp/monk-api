@@ -10,7 +10,7 @@
  * - Array endpoints: createAll(), selectAny() - bulk operations
  * - Object endpoints: createOne(), selectOne() - single records
  * 
- * Equivalent to tests/30-data-api/basic-data-endpoints.sh
+ * Equivalent to test/30-data-api/basic-data-endpoints.sh
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';

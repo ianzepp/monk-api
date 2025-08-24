@@ -2,7 +2,7 @@
  * Infrastructure Tests - Basic Connectivity
  * 
  * Tests basic database and system connectivity using TypeScript classes
- * Equivalent to tests/10-connection/basic-ping-test.sh
+ * Equivalent to test/10-connection/basic-ping-test.sh
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
