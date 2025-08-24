@@ -6,7 +6,7 @@ import {
     createInternalError,
 } from '@lib/api/responses.js';
 import { builtins } from '@src/db/index.js';
-import { Filter, type FilterData } from '@lib/filter.js';
+import type { FilterData } from '@lib/filter.js';
 import { handleContextDb } from '@lib/api/responses.js';
 
 export default async function (context: Context): Promise<any> {
@@ -33,12 +33,9 @@ export default async function (context: Context): Promise<any> {
 
             const tableName = result.rows[0].table_name;
 
-            // Create filter and apply conditions
-            const filter = new Filter(system, schemaName, tableName);
-            filter.assign(filterData);
-
-            // Execute query
-            const results = await filter.execute();
+            // Issue #102: Use Database.selectAny() instead of direct filter.execute()
+            // This uses the toSQL() pattern and prepares for future observer pipeline integration
+            const results = await system.database.selectAny(schemaName, filterData);
 
             return createSuccessResponse(context, results);
         } catch (error) {

@@ -772,16 +772,66 @@ export class Filter {
     // 🚨 TODO: ARCHITECTURAL ISSUE - Filter should NOT execute database operations
     // This method bypasses the observer pipeline and violates separation of concerns.
     // Should be replaced with toSQL() method that returns query + parameters.
-    // See Issue #102: Refactor Filter class to use toSQL() pattern
+    /**
+     * Generate SQL query and parameters (Issue #102 - toSQL pattern)
+     * 
+     * Returns SQL query and parameters for execution by Database methods.
+     * This enables proper observer pipeline coverage for read operations.
+     */
+    toSQL(): { query: string; params: any[] } {
+        const query = this._buildSQL();
+        // Note: Current implementation doesn't use parameterized queries
+        // This can be enhanced later to return proper parameters
+        return { query, params: [] };
+    }
+
+    /**
+     * Generate WHERE clause with parameters for use in custom queries
+     * 
+     * Returns WHERE clause conditions and parameters that can be used
+     * to build COUNT queries or other custom SQL statements.
+     */
+    toWhereSQL(): { whereClause: string; params: any[] } {
+        const whereClause = this.getWhereClause();
+        // Note: Current implementation doesn't use parameterized queries
+        // This can be enhanced later to return proper parameters
+        return { whereClause, params: [] };
+    }
+
+    /**
+     * Generate COUNT query with parameters
+     * 
+     * Returns a COUNT(*) query using the current filter conditions.
+     * Useful for pagination and result count operations.
+     */
+    toCountSQL(): { query: string; params: any[] } {
+        const { whereClause, params } = this.toWhereSQL();
+        
+        let query = `SELECT COUNT(*) as count FROM "${this._tableName}"`;
+        if (whereClause) {
+            query += ` WHERE ${whereClause}`;
+        }
+        
+        return { query, params };
+    }
+
+    /**
+     * @deprecated Use Database.selectAny() instead (Issue #102)
+     * 
+     * This method bypasses the observer pipeline and violates separation of concerns.
+     * Use system.database.selectAny(schema, filterData) for proper architecture.
+     */
     async execute(): Promise<any[]> {
-        console.warn('⚠️  Filter.execute() bypasses observer pipeline - use Database.selectAny() instead (Issue #102)');
+        console.warn('⚠️  DEPRECATED: Filter.execute() bypasses observer pipeline');
+        console.warn('   Use Database.selectAny() instead for proper architecture (Issue #102)');
+        console.warn('   Example: await system.database.selectAny(schemaName, filterData)');
         
         try {
-            // Build complete SQL query
-            const sqlQuery = this._buildSQL();
+            // Use toSQL() pattern for consistency
+            const { query, params } = this.toSQL();
             
             // Execute using System's database context (bypasses observers!)
-            const result = await this.system.database.execute(sqlQuery);
+            const result = await this.system.database.execute(query);
             return result.rows;
         } catch (error) {
             console.error('Filter execution error:', error);

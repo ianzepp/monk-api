@@ -64,9 +64,9 @@ export class Database {
         const schema = await this.toSchema(schemaName);
         const filter = new Filter(this.system, schemaName, schema.table).assign(filterData);
 
-        // Generate WHERE clause from filter and use it in COUNT query
-        const whereClause = filter.getWhereClause();
-        const result = await this.execute(`SELECT COUNT(*) as count FROM "${schema.table}" WHERE ${whereClause}`);
+        // Issue #102: Use toCountSQL() pattern instead of manual query building
+        const { query, params } = filter.toCountSQL();
+        const result = await this.execute(query);
 
         return parseInt(result.rows[0].count as string);
     }
@@ -134,7 +134,11 @@ export class Database {
     async selectAny(schemaName: SchemaName, filterData: FilterData = {}): Promise<any[]> {
         const schema = await this.toSchema(schemaName);
         const filter = new Filter(this.system, schemaName, schema.table).assign(filterData);
-        return await filter.execute();
+        
+        // Issue #102: Use toSQL() pattern instead of direct filter.execute()
+        const { query, params } = filter.toSQL();
+        const result = await this.system.database.execute(query);
+        return result.rows;
     }
 
     async updateAny(schemaName: string, filterData: FilterData, changes: Record<string, any>): Promise<any[]> {

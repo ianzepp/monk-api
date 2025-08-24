@@ -41,10 +41,11 @@ export class ObserverRunner {
         schema: string,
         data: any[],
         existing?: any[],
-        depth: number = 0
+        depth: number = 0,
+        filter?: any
     ): Promise<ObserverResult> {
         const startTime = Date.now();
-        const context = this._createContext(system, operation, schema, data, existing);
+        const context = this._createContext(system, operation, schema, data, existing, filter);
         const stats: ObserverStats[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
@@ -86,14 +87,16 @@ export class ObserverRunner {
         operation: OperationType,
         schema: string,
         data: any[],
-        existing?: any[]
+        existing?: any[],
+        filter?: any
     ): ObserverContext {
         return {
             system,
             operation,
             schema,
-            data, // Now always an array
-            existing, // Now always an array (for updates)
+            data, // For create/update operations, or populated by ring 5 for select
+            filter, // For select operations (rings 0-4), undefined for other operations
+            existing, // For update operations
             result: undefined,
             metadata: new Map(),
             errors: [],

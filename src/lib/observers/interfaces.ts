@@ -30,6 +30,9 @@ export interface ObserverContext {
     /** Input data for create/update operations */
     data?: any;
 
+    /** Filter criteria for select operations (rings 0-4), becomes data after ring 5 */
+    filter?: any;
+
     /** Target record ID for update/delete/select operations */
     recordId?: string;
 
