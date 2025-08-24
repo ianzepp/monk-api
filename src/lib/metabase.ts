@@ -80,8 +80,8 @@ export class Metabase {
     async selectOne(schemaName: string): Promise<string> {
         const db = this.system.dtx;
         
-        // Get schema record from database
-        const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 LIMIT 1`;
+        // Get schema record from database (exclude soft-deleted schemas)
+        const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 AND trashed_at IS NULL LIMIT 1`;
         const schemaResult = await db.query(selectQuery, [schemaName]);
 
         if (schemaResult.rows.length === 0) {

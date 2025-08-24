@@ -57,7 +57,7 @@ describe('20-meta-api: Schema Operations', () => {
       
       // Should return the created schema information
       expect(result.name).toBe('account');
-      expect(result.status).toBeDefined();
+      expect(result.created).toBe(true);
       
       console.log('✅ Account schema created successfully');
     }, 15000);
@@ -69,7 +69,7 @@ describe('20-meta-api: Schema Operations', () => {
       
       expect(result).toBeDefined();
       expect(result.name).toBe('contact');
-      expect(result.status).toBeDefined();
+      expect(result.created).toBe(true);
       
       console.log('✅ Contact schema created successfully');
     }, 15000);
