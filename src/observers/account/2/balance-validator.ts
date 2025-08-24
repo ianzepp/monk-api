@@ -5,27 +5,39 @@
  * Ring: 2 (Business) - Schema: account - Operations: create, update
  */
 
-import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
+import { ValidationError, BusinessLogicError, ValidationWarning } from '@lib/observers/errors.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
-export default class BalanceValidator implements Observer {
-    ring = ObserverRing.Business;
-    operations = ['create', 'update'] as const;
-    name = 'BalanceValidator';
+export default class BalanceValidator extends BaseObserver {
+    readonly ring = ObserverRing.Business;
+    readonly operations = ['create', 'update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { data, existing, metadata, operation } = context;
         
-        if (!data) return;
-
-        // Validate balance is present and numeric for new accounts
-        if (operation === 'create') {
-            await this.validateNewAccount(context);
-        }
+        // Process data as array if needed
+        const recordsToProcess = Array.isArray(data) ? data : [data];
         
-        // Validate balance changes for existing accounts
-        if (operation === 'update' && existing) {
-            await this.validateBalanceUpdate(context);
+        for (const record of recordsToProcess) {
+            if (!record) continue;
+            
+            const recordContext = {
+                ...context,
+                data: record,
+                existing: Array.isArray(existing) ? existing[recordsToProcess.indexOf(record)] : existing
+            };
+
+            // Validate balance is present and numeric for new accounts
+            if (operation === 'create') {
+                await this.validateNewAccount(recordContext);
+            }
+            
+            // Validate balance changes for existing accounts
+            if (operation === 'update' && recordContext.existing) {
+                await this.validateBalanceUpdate(recordContext);
+            }
         }
     }
 
@@ -34,25 +46,12 @@ export default class BalanceValidator implements Observer {
         
         // Ensure balance is provided for new accounts
         if (typeof data.balance !== 'number') {
-            context.errors.push({
-                message: 'Balance must be provided for new accounts',
-                field: 'balance',
-                code: 'BALANCE_REQUIRED',
-                ring: this.ring,
-                observer: this.name
-            });
-            return;
+            throw new ValidationError('Balance must be provided for new accounts', 'balance', 'BALANCE_REQUIRED');
         }
 
         // Business rule: New accounts cannot start with negative balance
         if (data.balance < 0) {
-            context.errors.push({
-                message: 'New accounts cannot have negative starting balance',
-                field: 'balance',
-                code: 'NEGATIVE_STARTING_BALANCE',
-                ring: this.ring,
-                observer: this.name
-            });
+            throw new BusinessLogicError('New accounts cannot have negative starting balance', { balance: data.balance }, 'NEGATIVE_STARTING_BALANCE');
         }
 
         // Store initial balance for other observers
@@ -77,24 +76,22 @@ export default class BalanceValidator implements Observer {
 
         // Business rule: Cannot exceed credit limit on negative balance changes
         if (balanceChange < 0 && Math.abs(newBalance) > creditLimit) {
-            context.errors.push({
-                message: `Transaction would exceed credit limit. Available credit: ${creditLimit}, attempted balance: ${newBalance}`,
-                field: 'balance',
-                code: 'CREDIT_LIMIT_EXCEEDED',
-                ring: this.ring,
-                observer: this.name
-            });
+            throw new BusinessLogicError(
+                `Transaction would exceed credit limit. Available credit: ${creditLimit}, attempted balance: ${newBalance}`,
+                { creditLimit, newBalance, currentBalance },
+                'CREDIT_LIMIT_EXCEEDED'
+            );
         }
 
         // Business rule: Large balance changes require additional validation
         if (Math.abs(balanceChange) > 10000) {
-            context.warnings.push({
-                message: 'Large balance change detected - may require additional approval',
-                field: 'balance',
-                code: 'LARGE_BALANCE_CHANGE',
-                ring: this.ring,
-                observer: this.name
-            });
+            context.warnings.push(
+                new ValidationWarning(
+                    'Large balance change detected - may require additional approval',
+                    'balance',
+                    'LARGE_BALANCE_CHANGE'
+                )
+            );
             
             // Flag for audit systems
             metadata.set('requires_audit', true);

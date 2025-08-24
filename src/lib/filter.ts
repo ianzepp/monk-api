@@ -768,12 +768,19 @@ export class Filter {
     }
 
     // Execute the query
+    // 
+    // 🚨 TODO: ARCHITECTURAL ISSUE - Filter should NOT execute database operations
+    // This method bypasses the observer pipeline and violates separation of concerns.
+    // Should be replaced with toSQL() method that returns query + parameters.
+    // See Issue #102: Refactor Filter class to use toSQL() pattern
     async execute(): Promise<any[]> {
+        console.warn('⚠️  Filter.execute() bypasses observer pipeline - use Database.selectAny() instead (Issue #102)');
+        
         try {
             // Build complete SQL query
             const sqlQuery = this._buildSQL();
             
-            // Execute using System's database context
+            // Execute using System's database context (bypasses observers!)
             const result = await this.system.database.execute(sqlQuery);
             return result.rows;
         } catch (error) {

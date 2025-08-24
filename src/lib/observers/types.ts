@@ -28,30 +28,23 @@ export const DATABASE_RING = ObserverRing.Database;
 
 /**
  * Database operation types that observers can target
+ * Includes revert operation for undoing soft deletes
  */
-export type OperationType = 'create' | 'update' | 'delete' | 'select';
+export type OperationType = 'create' | 'update' | 'delete' | 'select' | 'revert';
 
 /**
- * Validation error collected during observer execution
+ * Ring execution matrix - defines which rings execute for each operation type
+ * 
+ * This optimizes performance by skipping irrelevant rings for certain operations.
+ * For example, selects skip business logic rings since they don't modify data.
  */
-export interface ValidationError {
-    message: string;
-    field?: string;
-    code?: string;
-    ring?: ObserverRing;
-    observer?: string;
-}
-
-/**
- * Non-blocking warning collected during observer execution
- */
-export interface ValidationWarning {
-    message: string;
-    field?: string;
-    code?: string;
-    ring?: ObserverRing;
-    observer?: string;
-}
+export const RING_OPERATION_MATRIX = {
+    'select': [0, 1, 5, 8, 9],           // Validation, Security, Database, Integration, Notification
+    'create': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings
+    'update': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings  
+    'delete': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings
+    'revert': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings - undoing soft deletes
+} as const;
 
 /**
  * Result of observer execution
@@ -59,8 +52,8 @@ export interface ValidationWarning {
 export interface ObserverResult {
     success: boolean;
     result?: any;
-    errors: ValidationError[];
-    warnings: ValidationWarning[];
+    errors: any[]; // ValidationError instances from errors.js
+    warnings: any[]; // ValidationWarning instances from errors.js
     metadata: Map<string, any>;
 }
 

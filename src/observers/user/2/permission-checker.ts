@@ -5,13 +5,14 @@
  * Ring: 2 (Business) - Schema: user - Operations: create, update
  */
 
-import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
+import { ValidationError, BusinessLogicError } from '@lib/observers/errors.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
-export default class PermissionChecker implements Observer {
-    ring = ObserverRing.Business;
-    operations = ['create', 'update'] as const;
-    name = 'PermissionChecker';
+export default class PermissionChecker extends BaseObserver {
+    readonly ring = ObserverRing.Business;
+    readonly operations = ['create', 'update'] as const;
 
     // Define role hierarchy (higher number = more permissions)
     private readonly roleHierarchy: Record<string, number> = {
@@ -25,16 +26,27 @@ export default class PermissionChecker implements Observer {
     async execute(context: ObserverContext): Promise<void> {
         const { data, existing, operation, system } = context;
         
-        if (!data) return;
-
-        // Get current user role from system
+        // Process data as array if needed
+        const recordsToProcess = Array.isArray(data) ? data : [data];
+        
+        // Get current user role from system (once per execution)
         const currentUserRole = await this.getCurrentUserRole(system);
         const currentUserLevel = this.roleHierarchy[currentUserRole] || 0;
+        
+        for (const record of recordsToProcess) {
+            if (!record) continue;
+            
+            const recordContext = {
+                ...context,
+                data: record,
+                existing: Array.isArray(existing) ? existing[recordsToProcess.indexOf(record)] : existing
+            };
 
-        if (operation === 'create') {
-            await this.validateUserCreation(context, currentUserLevel);
-        } else if (operation === 'update') {
-            await this.validateUserUpdate(context, currentUserLevel);
+            if (operation === 'create') {
+                await this.validateUserCreation(recordContext, currentUserLevel);
+            } else if (operation === 'update') {
+                await this.validateUserUpdate(recordContext, currentUserLevel);
+            }
         }
     }
 
@@ -46,24 +58,20 @@ export default class PermissionChecker implements Observer {
 
         // Business rule: Users cannot create accounts with higher privileges than themselves
         if (targetLevel >= currentUserLevel) {
-            context.errors.push({
-                message: `Insufficient permissions to create user with role: ${targetRole}`,
-                field: 'role',
-                code: 'INSUFFICIENT_PERMISSIONS',
-                ring: this.ring,
-                observer: this.name
-            });
+            throw new BusinessLogicError(
+                `Insufficient permissions to create user with role: ${targetRole}`,
+                { targetRole, targetLevel, currentUserLevel },
+                'INSUFFICIENT_PERMISSIONS'
+            );
         }
 
         // Business rule: Only admins+ can create admin users
         if (targetLevel >= this.roleHierarchy['admin'] && currentUserLevel < this.roleHierarchy['admin']) {
-            context.errors.push({
-                message: 'Admin privileges required to create admin users',
-                field: 'role',
-                code: 'ADMIN_REQUIRED',
-                ring: this.ring,
-                observer: this.name
-            });
+            throw new BusinessLogicError(
+                'Admin privileges required to create admin users',
+                { targetRole, requiredLevel: this.roleHierarchy['admin'], currentUserLevel },
+                'ADMIN_REQUIRED'
+            );
         }
 
         // Store permission context for audit
@@ -90,24 +98,20 @@ export default class PermissionChecker implements Observer {
 
         // Business rule: Cannot modify users with equal or higher privileges
         if (currentTargetLevel >= currentUserLevel) {
-            context.errors.push({
-                message: 'Insufficient permissions to modify this user',
-                code: 'INSUFFICIENT_PERMISSIONS_MODIFY',
-                ring: this.ring,
-                observer: this.name
-            });
-            return;
+            throw new BusinessLogicError(
+                'Insufficient permissions to modify this user',
+                { currentTargetLevel, currentUserLevel },
+                'INSUFFICIENT_PERMISSIONS_MODIFY'
+            );
         }
 
         // Business rule: Cannot promote users to equal or higher level
         if (newTargetLevel >= currentUserLevel) {
-            context.errors.push({
-                message: `Insufficient permissions to promote user to role: ${newRole}`,
-                field: 'role',
-                code: 'INSUFFICIENT_PERMISSIONS_PROMOTE',
-                ring: this.ring,
-                observer: this.name
-            });
+            throw new BusinessLogicError(
+                `Insufficient permissions to promote user to role: ${newRole}`,
+                { newRole, newTargetLevel, currentUserLevel },
+                'INSUFFICIENT_PERMISSIONS_PROMOTE'
+            );
         }
 
         // Audit significant role changes
@@ -129,12 +133,11 @@ export default class PermissionChecker implements Observer {
         const adminRequired = sensitiveFields.some(field => field in data);
         
         if (adminRequired && currentUserLevel < this.roleHierarchy['admin']) {
-            context.errors.push({
-                message: 'Admin privileges required to modify sensitive user fields',
-                code: 'ADMIN_REQUIRED_SENSITIVE_FIELDS',
-                ring: this.ring,
-                observer: this.name
-            });
+            throw new BusinessLogicError(
+                'Admin privileges required to modify sensitive user fields',
+                { sensitiveFields, requiredLevel: this.roleHierarchy['admin'], currentUserLevel },
+                'ADMIN_REQUIRED_SENSITIVE_FIELDS'
+            );
         }
 
         // Business rule: Users can only modify their own non-sensitive data
@@ -142,12 +145,11 @@ export default class PermissionChecker implements Observer {
         const currentUserId = context.system.getUser?.()?.id || null;
         
         if (targetUserId !== currentUserId && currentUserLevel < this.roleHierarchy['moderator']) {
-            context.errors.push({
-                message: 'Insufficient permissions to modify other users',
-                code: 'INSUFFICIENT_PERMISSIONS_OTHER_USER',
-                ring: this.ring,
-                observer: this.name
-            });
+            throw new BusinessLogicError(
+                'Insufficient permissions to modify other users',
+                { targetUserId, currentUserId, requiredLevel: this.roleHierarchy['moderator'] },
+                'INSUFFICIENT_PERMISSIONS_OTHER_USER'
+            );
         }
     }
 

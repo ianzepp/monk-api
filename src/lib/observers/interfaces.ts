@@ -9,10 +9,9 @@ import type { System } from '@lib/system.js';
 import type { 
     ObserverRing, 
     OperationType, 
-    ValidationError, 
-    ValidationWarning, 
     ObserverResult 
 } from './types.js';
+import type { ValidationError, ValidationWarning } from './errors.js';
 
 /**
  * Shared context passed through all observer rings
@@ -67,7 +66,7 @@ export interface Observer {
     ring: ObserverRing;
 
     /** Optional: limit to specific operations (default: all operations) */
-    operations?: readonly OperationType[] | OperationType[];
+    operations?: readonly OperationType[];
 
     /** Optional: observer name for debugging and error reporting */
     name?: string;
@@ -76,7 +75,13 @@ export interface Observer {
     timeout?: number;
 
     /**
-     * Execute the observer logic
+     * Public method with error handling, logging, and timeout protection
+     * @param context Shared context with request data and state
+     */
+    executeTry(context: ObserverContext): Promise<void>;
+    
+    /**
+     * Pure business logic method - implement this in your observer
      * @param context Shared context with request data and state
      */
     execute(context: ObserverContext): Promise<void>;

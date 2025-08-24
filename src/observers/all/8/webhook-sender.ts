@@ -5,7 +5,9 @@
  * Ring: 8 (Integration) - Schema: % (all schemas) - Operations: create, update, delete
  */
 
-import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
+import { SystemError, ValidationWarning } from '@lib/observers/errors.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
 interface WebhookEndpoint {
@@ -17,10 +19,9 @@ interface WebhookEndpoint {
     retries?: number;
 }
 
-export default class WebhookSender implements Observer {
-    ring = ObserverRing.Integration;
-    operations = ['create', 'update', 'delete'] as const;
-    name = 'WebhookSender';
+export default class WebhookSender extends BaseObserver {
+    readonly ring = ObserverRing.Integration;
+    readonly operations = ['create', 'update', 'delete'] as const;
 
     // In a real implementation, this would come from database configuration
     private readonly webhookEndpoints: WebhookEndpoint[] = [
@@ -45,7 +46,7 @@ export default class WebhookSender implements Observer {
     ];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, operation } = context;
+        const { schema, operation, data, result, existing, metadata } = context;
         
         // Get applicable webhook endpoints
         const endpoints = this.getApplicableEndpoints(schema, operation);
@@ -54,43 +55,62 @@ export default class WebhookSender implements Observer {
             return; // No webhooks configured for this schema/operation
         }
 
-        // Send webhooks in parallel (don't block on external services)
-        const webhookPromises = endpoints.map(endpoint => 
-            this.sendWebhook(endpoint, context).catch(error => {
-                console.warn(`Webhook failed for ${endpoint.url}:`, error);
-                return { success: false, error };
-            })
-        );
+        // Process data as array if needed
+        const recordsToProcess = Array.isArray(data) ? data : [{ result, existing, data }];
+        
+        // Send webhooks for each record
+        let totalSuccess = 0;
+        let totalFailures = 0;
+        
+        for (const record of recordsToProcess) {
+            const recordContext = {
+                ...context,
+                result: record.result || result,
+                existing: record.existing || existing,
+                data: record.data || record
+            };
+            
+            // Send webhooks in parallel for this record
+            const webhookPromises = endpoints.map(endpoint => 
+                this.sendWebhook(endpoint, recordContext).catch(error => {
+                    console.warn(`Webhook failed for ${endpoint.url}:`, error);
+                    return { success: false, error };
+                })
+            );
 
-        try {
-            const results = await Promise.allSettled(webhookPromises);
-            
-            // Track webhook results in metadata
-            const successCount = results.filter(r => r.status === 'fulfilled').length;
-            const failureCount = results.filter(r => r.status === 'rejected').length;
-            
-            context.metadata.set('webhooks_sent', successCount);
-            context.metadata.set('webhooks_failed', failureCount);
-            context.metadata.set('webhook_timestamp', new Date().toISOString());
-            
-            if (failureCount > 0) {
-                context.warnings.push({
-                    message: `${failureCount} webhook(s) failed to send`,
-                    code: 'WEBHOOK_PARTIAL_FAILURE',
-                    ring: this.ring,
-                    observer: this.name
-                });
+            try {
+                const results = await Promise.allSettled(webhookPromises);
+                
+                // Track webhook results
+                const successCount = results.filter(r => r.status === 'fulfilled').length;
+                const failureCount = results.filter(r => r.status === 'rejected').length;
+                
+                totalSuccess += successCount;
+                totalFailures += failureCount;
+                
+            } catch (error) {
+                // Webhook processing errors are system errors
+                throw new SystemError(
+                    `Webhook processing failed for ${schema} ${operation}: ${error}`,
+                    error instanceof Error ? error : undefined
+                );
             }
-            
-        } catch (error) {
-            console.error(`Webhook processing failed:`, error);
-            
-            context.warnings.push({
-                message: `Webhook processing failed: ${error}`,
-                code: 'WEBHOOK_PROCESSING_ERROR',
-                ring: this.ring,
-                observer: this.name
-            });
+        }
+        
+        // Update metadata with totals
+        metadata.set('webhooks_sent', totalSuccess);
+        metadata.set('webhooks_failed', totalFailures);
+        metadata.set('webhook_timestamp', new Date().toISOString());
+        
+        // Add warning for partial failures
+        if (totalFailures > 0) {
+            context.warnings.push(
+                new ValidationWarning(
+                    `${totalFailures} webhook(s) failed to send`,
+                    undefined,
+                    'WEBHOOK_PARTIAL_FAILURE'
+                )
+            );
         }
     }
 

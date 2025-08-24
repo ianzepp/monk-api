@@ -15,13 +15,14 @@ import type {
 import type { 
     ObserverRing, 
     OperationType, 
-    ObserverResult, 
-    ValidationError, 
-    ValidationWarning
+    ObserverResult
 } from './types.js';
+import { RING_OPERATION_MATRIX } from './types.js';
+import { ValidationError } from './errors.js';
+import type { ValidationWarning } from './errors.js';
 import { DATABASE_RING } from './types.js';
 import { ObserverLoader } from './loader.js';
-import { DatabaseObserver } from './database-observer.js';
+import { SqlObserver } from './sql-observer.js';
 
 /**
  * Observer execution engine with ring-based execution
@@ -29,18 +30,18 @@ import { DatabaseObserver } from './database-observer.js';
 export class ObserverRunner {
     private readonly defaultTimeout = 5000; // 5 seconds
     private readonly collectStats = true;
-    private readonly databaseObserver = new DatabaseObserver();
+    private readonly sqlObserver = new SqlObserver();
 
     /**
-     * Execute all observers for a schema operation across all rings
+     * Execute observers for a schema operation with selective ring execution
      */
     async execute(
         system: System,
         operation: OperationType,
         schema: string,
-        data?: any,
-        recordId?: string,
-        existing?: any
+        data: any[],
+        existing?: any[],
+        depth: number = 0
     ): Promise<ObserverResult> {
         const startTime = Date.now();
         
@@ -49,9 +50,8 @@ export class ObserverRunner {
             system,
             operation,
             schema,
-            data,
-            recordId,
-            existing,
+            data, // Now always an array
+            existing, // Now always an array (for updates)
             result: undefined,
             metadata: new Map(),
             errors: [],
@@ -65,14 +65,19 @@ export class ObserverRunner {
         const ringsExecuted: ObserverRing[] = [];
 
         try {
-            // Execute rings 0-9 in order
-            for (let ring = 0; ring <= 9; ring++) {
+            // Get relevant rings for this operation (selective execution)
+            const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
+            
+            console.debug(`🎯 Executing ${relevantRings.length} relevant rings for ${operation}: [${relevantRings.join(', ')}]`);
+            
+            // Execute only relevant rings for this operation
+            for (const ring of relevantRings) {
                 context.currentRing = ring as ObserverRing;
                 ringsExecuted.push(ring as ObserverRing);
 
                 if (ring === DATABASE_RING) {
                     // DATABASE RING (5): Execute actual database operation
-                    const dbStats = await this._executeObserver(this.databaseObserver, context);
+                    const dbStats = await this._executeObserver(this.sqlObserver, context);
                     if (this.collectStats) {
                         stats.push(dbStats);
                     }
@@ -158,7 +163,7 @@ export class ObserverRunner {
         try {
             // Execute observer with timeout protection
             await Promise.race([
-                observer.execute(context),
+                observer.executeTry(context),
                 this._createTimeoutPromise(timeout, observer.name || 'unnamed')
             ]);
 
@@ -168,20 +173,19 @@ export class ObserverRunner {
             success = false;
             errorCount++;
             
-            const validationError: ValidationError = {
-                message: `Observer execution failed: ${error}`,
-                code: 'OBSERVER_ERROR',
-                ring: observer.ring,
-                observer: observer.name
-            };
+            const validationError = new ValidationError(
+                `Observer execution failed: ${error}`,
+                undefined,
+                'OBSERVER_ERROR'
+            );
             context.errors.push(validationError);
 
             console.warn(`❌ Observer failed: ${observer.name}`, error);
         }
 
         // Count errors/warnings added by this observer
-        const currentErrors = context.errors.filter(e => e.observer === observer.name).length;
-        const currentWarnings = context.warnings.filter(w => w.observer === observer.name).length;
+        const currentErrors = context.errors.length;
+        const currentWarnings = context.warnings.length;
         
         errorCount = Math.max(errorCount, currentErrors);
         warningCount = currentWarnings;

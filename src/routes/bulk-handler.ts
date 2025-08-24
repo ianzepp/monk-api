@@ -1,12 +1,7 @@
 import type { Context } from 'hono';
 import { System } from '@lib/system.js';
-import { handleContextTx } from '@lib/api/responses.js';
+import { setRouteResult } from '@lib/middleware/system-context.js';
 import { createSchema } from '@lib/schema.js';
-import {
-    createSuccessResponse,
-    createValidationError,
-    createInternalError,
-} from '@lib/api/responses.js';
 
 export enum BulkOperationType {
     // Read operations
@@ -54,33 +49,33 @@ export interface BulkOperation {
 }
 
 export default async function (c: Context): Promise<any> {
-    return await handleContextTx(c, async (system: System) => {
-        const operations: BulkOperation[] = await c.req.json();
+    const system = c.get('system');
+    const operations: BulkOperation[] = await c.req.json();
 
-        // Validate input
-        if (!Array.isArray(operations)) {
-            throw new Error('Request body must be an array of operations');
+    // Validate input
+    if (!Array.isArray(operations)) {
+        throw new Error('Request body must be an array of operations');
+    }
+
+    if (operations.length === 0) {
+        setRouteResult(c, []);
+        return;
+    }
+
+    // Validate each operation
+    for (let i = 0; i < operations.length; i++) {
+        const op = operations[i];
+        if (!op.operation || !op.schema) {
+            throw new Error(`Operation at index ${i} missing required fields: operation and schema are required`);
         }
+    }
 
-        if (operations.length === 0) {
-            return [];
-        }
+    // Execute all operations in transaction
+    for (let i = 0; i < operations.length; i++) {
+        operations[i].result = await executeOperation(operations[i], system);
+    }
 
-        // Validate each operation
-        for (let i = 0; i < operations.length; i++) {
-            const op = operations[i];
-            if (!op.operation || !op.schema) {
-                throw new Error(`Operation at index ${i} missing required fields: operation and schema are required`);
-            }
-        }
-
-        // Execute all operations in transaction
-        for (let i = 0; i < operations.length; i++) {
-            operations[i].result = await executeOperation(operations[i], system);
-        }
-
-        return operations;
-    });
+    setRouteResult(c, operations);
 }
 
 async function executeOperation(op: BulkOperation, system: System): Promise<any> {

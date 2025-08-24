@@ -5,13 +5,14 @@
  * Ring: 0 (Validation) - Schema: % (all schemas) - Operations: create, update
  */
 
-import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
 import { ObserverRing } from '@lib/observers/types.js';
+import { ValidationError } from '@lib/observers/errors.js';
 
-export default class RequiredFieldsValidator implements Observer {
+export default class RequiredFieldsValidator extends BaseObserver {
     ring = ObserverRing.Validation;
     operations = ['create', 'update'] as const;
-    name = 'RequiredFieldsValidator';
 
     // Common required fields by schema
     private readonly requiredFields: Record<string, string[]> = {
@@ -23,21 +24,18 @@ export default class RequiredFieldsValidator implements Observer {
     async execute(context: ObserverContext): Promise<void> {
         const { data, operation, schema } = context;
         
-        if (!data) {
-            return; // No data to validate
-        }
-
         const requiredFields = this.getRequiredFields(schema, operation);
         
-        for (const field of requiredFields) {
-            if (!this.hasValue(data, field)) {
-                context.errors.push({
-                    message: `Missing required field: ${field}`,
-                    field: field,
-                    code: 'REQUIRED_FIELD_MISSING',
-                    ring: this.ring,
-                    observer: this.name
-                });
+        // Process each record in the array
+        for (const record of data) {
+            if (!record) {
+                continue; // Skip null/undefined records
+            }
+
+            for (const field of requiredFields) {
+                if (!this.hasValue(record, field)) {
+                    throw new ValidationError(`Missing required field: ${field}`, field);
+                }
             }
         }
     }

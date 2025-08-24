@@ -5,29 +5,39 @@
  * Ring: 8 (Integration) - Schema: all - Operations: create, update, delete
  */
 
-import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
+import { SystemError } from '@lib/observers/errors.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
-export default class CacheInvalidator implements Observer {
-    ring = ObserverRing.Integration;
-    operations = ['create', 'update', 'delete'] as const;
-    name = 'CacheInvalidator';
+export default class CacheInvalidator extends BaseObserver {
+    readonly ring = ObserverRing.Integration;
+    readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, result, existing, metadata, operation } = context;
+        const { schema, result, existing, metadata, operation, data } = context;
+        
+        // Process data as array if needed
+        const recordsToProcess = Array.isArray(data) ? data : [{ result, existing }];
         
         try {
-            // Invalidate schema-level caches
+            // Invalidate schema-level caches (once per execution)
             await this.invalidateSchemaCache(schema);
             
-            // Invalidate record-level caches
-            const recordId = this.getRecordId(result, existing);
-            if (recordId) {
-                await this.invalidateRecordCache(schema, recordId);
+            // Process each record
+            for (const record of recordsToProcess) {
+                const recordResult = record.result || result;
+                const recordExisting = record.existing || existing;
+                
+                // Invalidate record-level caches
+                const recordId = this.getRecordId(recordResult, recordExisting);
+                if (recordId) {
+                    await this.invalidateRecordCache(schema, recordId);
+                }
+                
+                // Invalidate relationship caches
+                await this.invalidateRelationshipCaches(schema, recordResult, recordExisting);
             }
-            
-            // Invalidate relationship caches
-            await this.invalidateRelationshipCaches(schema, result, existing);
             
             // Invalidate search/index caches
             await this.invalidateSearchCache(schema, operation);
@@ -37,15 +47,11 @@ export default class CacheInvalidator implements Observer {
             metadata.set('cache_invalidation_timestamp', new Date().toISOString());
             
         } catch (error) {
-            // Don't fail the main operation if cache invalidation fails
-            console.warn(`Cache invalidation failed for ${schema} ${operation}:`, error);
-            
-            context.warnings.push({
-                message: `Cache invalidation failed: ${error}`,
-                code: 'CACHE_INVALIDATION_FAILED',
-                ring: this.ring,
-                observer: this.name
-            });
+            // Cache invalidation failures are system errors
+            throw new SystemError(
+                `Cache invalidation failed for ${schema} ${operation}: ${error}`,
+                error instanceof Error ? error : undefined
+            );
         }
     }
 

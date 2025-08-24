@@ -23,6 +23,7 @@ export class System implements SystemContextWithInfrastructure {
     // System services
     public readonly database: Database;
     public readonly dtx: DbContext | TxContext;
+    public readonly isInTransaction: boolean = false;
 
     constructor(c: Context, dtx?: DbContext | TxContext, options: SystemOptions = {}) {
         this.context = c;

@@ -39,6 +39,10 @@ function extractOptionsFromContext(context: Context): SystemOptions {
 }
 
 // Request handlers
+/**
+ * @deprecated Use systemContextMiddleware instead - routes can access context.get('system') directly
+ * This helper will be removed once all routes migrate to middleware pattern
+ */
 export async function handleContextDb<T>(context: Context, fn: (system: System) => Promise<T>) {
     try {
         const contextDb = DatabaseManager.getDatabaseFromContext(context);
@@ -53,6 +57,10 @@ export async function handleContextDb<T>(context: Context, fn: (system: System) 
     }
 }
 
+/**
+ * @deprecated Transaction management now handled by observer pipeline (Ring 5)
+ * Use systemContextMiddleware and Database methods instead
+ */
 export async function handleContextTx<T>(context: Context, fn: (system: System) => Promise<T>) {
     try {
         const contextDb = DatabaseManager.getDatabaseFromContext(context);

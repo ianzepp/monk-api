@@ -16,17 +16,28 @@ export type {
 export { 
     ObserverRing,
     DATABASE_RING,
-    UNIVERSAL_SCHEMA_KEYWORD
+    UNIVERSAL_SCHEMA_KEYWORD,
+    RING_OPERATION_MATRIX
 } from './types.js';
 
 export type { 
     OperationType, 
-    ValidationError, 
-    ValidationWarning, 
     ObserverResult,
     UniversalSchemaKeyword,
     ObserverFilePattern 
 } from './types.js';
+
+// Error types and base observer
+export { 
+    ValidationError,
+    BusinessLogicError, 
+    SystemError,
+    ValidationWarning,
+    ObserverTimeoutError,
+    ObserverRecursionError
+} from './errors.js';
+
+export { BaseObserver } from './base-observer.js';
 
 // Core implementation classes
 export { ObserverLoader } from './loader.js';

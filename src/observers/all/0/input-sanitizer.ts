@@ -5,23 +5,28 @@
  * Ring: 0 (Validation) - Schema: all - Operations: create, update
  */
 
-import type { Observer, ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
+import { ValidationError } from '@lib/observers/errors.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
-export default class InputSanitizer implements Observer {
-    ring = ObserverRing.Validation;
-    operations = ['create', 'update'] as const;
-    name = 'InputSanitizer';
+export default class InputSanitizer extends BaseObserver {
+    readonly ring = ObserverRing.Validation;
+    readonly operations = ['create', 'update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { data } = context;
         
-        if (!data || typeof data !== 'object') {
-            return;
+        // Process data as array
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                if (item && typeof item === 'object') {
+                    this.sanitizeObject(item);
+                }
+            }
+        } else if (data && typeof data === 'object') {
+            this.sanitizeObject(data);
         }
-
-        // Sanitize all string fields
-        this.sanitizeObject(data);
     }
 
     private sanitizeObject(obj: any): void {
