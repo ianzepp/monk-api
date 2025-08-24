@@ -8,6 +8,7 @@
 import type { System } from '@lib/system.js';
 import { Schema, type SchemaName } from '@lib/schema.js';
 import { SchemaCache } from '@lib/schema-cache.js';
+import { Logger } from '@lib/logger.js';
 import type { 
     Observer, 
     ObserverContext, 
@@ -319,14 +320,15 @@ export class ObserverRunner {
      * Load Schema object from SchemaCache (moved from Database.toSchema)
      */
     private async loadSchemaObject(system: System, schemaName: string): Promise<Schema> {
-        console.debug(`ObserverRunner: Loading schema '${schemaName}'`);
+        const logger = new Logger();
+        logger.info('Loading schema for observer pipeline', { schemaName });
         
         const schemaCache = SchemaCache.getInstance();
         const schemaRecord = await schemaCache.getSchema(system, schemaName);
         
         // Create Schema instance with validation capabilities
         const schema = new Schema(system, schemaName, schemaRecord);
-        console.debug(`ObserverRunner: Schema '${schemaName}' loaded`);
+        logger.info('Schema loaded for observer pipeline', { schemaName });
         
         return schema;
     }
