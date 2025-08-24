@@ -49,7 +49,7 @@ export class ObserverLoader {
     private static async _doPreloadObservers(): Promise<void> {
         try {
             const observerFiles = await this._findObserverFiles();
-            console.debug(`🔍 Found ${observerFiles.length} observer files to load`);
+            logger.info('Observer files discovered', { fileCount: observerFiles.length });
 
             for (const filePattern of observerFiles) {
                 try {
@@ -64,7 +64,7 @@ export class ObserverLoader {
             }
 
             this.loaded = true;
-            console.debug(`✅ Observer preloading complete: ${this.cache.size} cache entries`);
+            logger.info('Observer preloading complete', { cacheEntries: this.cache.size });
         } catch (error) {
             console.error('❌ Observer preloading failed:', error);
             throw new Error(`Observer preloading failed: ${error}`);
@@ -167,7 +167,7 @@ export class ObserverLoader {
             }
             this.cache.get(cacheKey)!.push(observer);
 
-            console.debug(`✅ Loaded observer: ${observer.name} (${cacheKey})`);
+            logger.info('Observer loaded', { name: observer.name, cacheKey });
         } catch (error) {
             throw new Error(`Failed to load observer from ${filePattern.filepath}: ${error}`);
         }

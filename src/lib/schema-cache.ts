@@ -1,5 +1,6 @@
 import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
 import type { DbContext, TxContext } from '@src/db/index.js';
+import { logger } from '@lib/logger.js';
 import crypto from 'crypto';
 
 // Cached schema entry
@@ -142,7 +143,7 @@ export class SchemaCache {
             }
             
         } catch (error) {
-            console.error('Failed to validate schema checksums:', error);
+            logger.warn('Failed to validate schema checksums', { error: error instanceof Error ? error.message : String(error) });
             // Fail gracefully - don't break the request
         }
     }

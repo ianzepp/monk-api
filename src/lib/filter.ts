@@ -822,9 +822,7 @@ export class Filter {
      * Use system.database.selectAny(schema, filterData) for proper architecture.
      */
     async execute(): Promise<any[]> {
-        console.warn('⚠️  DEPRECATED: Filter.execute() bypasses observer pipeline');
-        console.warn('   Use Database.selectAny() instead for proper architecture (Issue #102)');
-        console.warn('   Example: await system.database.selectAny(schemaName, filterData)');
+        this.system.warn('Using deprecated Filter.execute() method - use Database.selectAny() instead');
         
         try {
             // Use toSQL() pattern for consistency
@@ -1033,7 +1031,7 @@ export class Filter {
                 const ninValues = Array.isArray(data) ? data : [data];
                 return `${quotedColumn} NOT IN (${ninValues.map(v => this._formatSQLValue(v)).join(', ')})`;
             default:
-                console.warn(`Unsupported operator: ${node.operator}`);
+                this.system.warn('Unsupported filter operator', { operator: node.operator });
                 return '';
         }
     }
@@ -1062,7 +1060,7 @@ export class Filter {
                     : `NOT (${childClauses.join(' AND ')})`;
                     
             default:
-                console.warn(`Unsupported logical operator: ${node.logicalOp}`);
+                this.system.warn('Unsupported logical operator', { operator: node.logicalOp });
                 return '';
         }
     }
@@ -1121,7 +1119,7 @@ export class Filter {
                 const ninValues = Array.isArray(data) ? data : [data];
                 return `${quotedColumn} NOT IN (${ninValues.map(v => this._formatSQLValue(v)).join(', ')})`;
             default:
-                console.warn(`Unsupported operator: ${operator}`);
+                this.system.warn('Unsupported filter operator', { operator });
                 return null;
         }
     }

@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import path from 'path';
+import { logger } from '@lib/logger.js';
 
 /**
  * MonkEnv - Configuration management for Monk API
@@ -38,7 +39,7 @@ export class MonkEnv {
                 
                 // Validate config is an object
                 if (typeof configData !== 'object' || configData === null) {
-                    console.warn(`⚠️  Invalid monk configuration in ${configPath}: not an object`);
+                    logger.warn('Invalid monk configuration - not an object', { configPath });
                     continue;
                 }
                 
@@ -51,7 +52,7 @@ export class MonkEnv {
                     }
                 }
                 
-                console.log(`📁 Loaded monk configuration from: ${configPath} (${loadedCount} variables)`);
+                logger.info('Loaded monk configuration', { configPath, variableCount: loadedCount });
                 this.loaded = true;
                 return;
                 
@@ -62,7 +63,7 @@ export class MonkEnv {
         }
         
         // No config found - use environment variables or defaults
-        console.log('📁 No monk configuration found, using environment variables');
+        logger.info('No monk configuration found, using environment variables');
         this.loaded = true;
     }
     

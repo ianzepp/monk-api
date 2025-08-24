@@ -73,7 +73,10 @@ export default class WebhookSender extends BaseObserver {
             // Send webhooks in parallel for this record
             const webhookPromises = endpoints.map(endpoint => 
                 this.sendWebhook(endpoint, recordContext).catch(error => {
-                    console.warn(`Webhook failed for ${endpoint.url}:`, error);
+                    context.system.warn('Webhook delivery failed', { 
+                        url: endpoint.url, 
+                        error: error instanceof Error ? error.message : String(error) 
+                    });
                     return { success: false, error };
                 })
             );

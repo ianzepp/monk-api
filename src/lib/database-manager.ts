@@ -1,5 +1,6 @@
 import pg from 'pg';
 import type { Context } from 'hono';
+import { logger } from '@lib/logger.js';
 
 const { Pool } = pg;
 
@@ -45,7 +46,7 @@ export class DatabaseManager {
         // Cache for reuse
         this.connectionPools.set(domain, pool);
         
-        console.log(`✅ Connected to database: ${domain}`);
+        logger.info('Database connection established', { database: domain });
         return pool;
     }
 
@@ -68,12 +69,12 @@ export class DatabaseManager {
 
     // Cleanup connections (for graceful shutdown)
     static async closeAllConnections() {
-        console.log('🛑 Closing all database connections...');
+        logger.info('Closing all database connections');
         
         for (const [domain, pool] of this.connectionPools) {
             try {
                 await pool.end();
-                console.log(`  ✅ Closed connection to: ${domain}`);
+                logger.info('Database connection closed', { database: domain });
             } catch (error) {
                 console.error(`  ❌ Failed to close connection to ${domain}:`, error);
             }
