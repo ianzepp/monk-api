@@ -15,14 +15,14 @@ export default class CacheInvalidator extends BaseObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, result, existing, metadata, operation, data } = context;
+        const { schemaName, result, existing, metadata, operation, data } = context;
         
         // Process data as array if needed
         const recordsToProcess = Array.isArray(data) ? data : [{ result, existing }];
         
         try {
             // Invalidate schema-level caches (once per execution)
-            await this.invalidateSchemaCache(schema);
+            await this.invalidateSchemaCache(schemaName);
             
             // Process each record
             for (const record of recordsToProcess) {
@@ -32,15 +32,15 @@ export default class CacheInvalidator extends BaseObserver {
                 // Invalidate record-level caches
                 const recordId = this.getRecordId(recordResult, recordExisting);
                 if (recordId) {
-                    await this.invalidateRecordCache(schema, recordId);
+                    await this.invalidateRecordCache(schemaName, recordId);
                 }
                 
                 // Invalidate relationship caches
-                await this.invalidateRelationshipCaches(schema, recordResult, recordExisting);
+                await this.invalidateRelationshipCaches(schemaName, recordResult, recordExisting);
             }
             
             // Invalidate search/index caches
-            await this.invalidateSearchCache(schema, operation);
+            await this.invalidateSearchCache(schemaName, operation);
             
             // Mark cache invalidation complete
             metadata.set('cache_invalidated', true);
@@ -49,7 +49,7 @@ export default class CacheInvalidator extends BaseObserver {
         } catch (error) {
             // Cache invalidation failures are system errors
             throw new SystemError(
-                `Cache invalidation failed for ${schema} ${operation}: ${error}`,
+                `Cache invalidation failed for ${schemaName} ${operation}: ${error}`,
                 error instanceof Error ? error : undefined
             );
         }

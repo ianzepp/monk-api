@@ -6,6 +6,7 @@
  */
 
 import type { System } from '@lib/system.js';
+import type { Schema } from '@lib/schema.js';
 import type { 
     ObserverRing, 
     OperationType, 
@@ -25,7 +26,10 @@ export interface ObserverContext {
     operation: OperationType;
 
     /** Target schema name */
-    schema: string;
+    schemaName: string;
+
+    /** Loaded Schema object with validation and metadata */
+    schema: Schema;
 
     /** Input data for create/update operations */
     data?: any;

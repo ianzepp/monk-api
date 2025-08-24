@@ -18,40 +18,40 @@ export class SqlObserver extends BaseObserver {
     readonly operations = ['create', 'update', 'delete', 'select', 'revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, operation, schema, data } = context;
+        const { system, operation, schemaName, schema, data } = context;
         
-        console.debug(`🎯 SQL RING (${this.ring}): Executing ${operation} on ${schema} (${data.length} records)`);
+        console.debug(`🎯 SQL RING (${this.ring}): Executing ${operation} on ${schemaName} (${data.length} records)`);
         
         try {
             switch (operation) {
                 case 'create':
-                    context.result = await this.bulkCreate(system, schema, data);
+                    context.result = await this.bulkCreate(system, schemaName, data);
                     break;
                     
                 case 'update':
-                    context.result = await this.bulkUpdate(system, schema, data);
+                    context.result = await this.bulkUpdate(system, schemaName, data);
                     break;
                     
                 case 'delete':
-                    context.result = await this.bulkDelete(system, schema, data);
+                    context.result = await this.bulkDelete(system, schemaName, data);
                     break;
                     
                 case 'select':
-                    context.result = await this.bulkSelect(system, schema, data);
+                    context.result = await this.bulkSelect(system, schemaName, data);
                     break;
                     
                 case 'revert':
-                    context.result = await this.bulkRevert(system, schema, data);
+                    context.result = await this.bulkRevert(system, schemaName, data);
                     break;
                     
                 default:
                     throw new SystemError(`Unsupported SQL operation: ${operation}`);
             }
             
-            console.debug(`✅ SQL operation completed: ${operation} on ${schema} (${context.result?.length || 0} results)`);
+            console.debug(`✅ SQL operation completed: ${operation} on ${schemaName} (${context.result?.length || 0} results)`);
             
         } catch (error) {
-            console.error(`❌ SQL operation failed: ${operation} on ${schema}`, error);
+            console.error(`❌ SQL operation failed: ${operation} on ${schemaName}`, error);
             throw new SystemError(`SQL operation failed: ${error}`, error instanceof Error ? error : undefined);
         }
     }

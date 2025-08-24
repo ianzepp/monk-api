@@ -6,6 +6,8 @@
  */
 
 import type { System } from '@lib/system.js';
+import { Schema, type SchemaName } from '@lib/schema.js';
+import { SchemaCache } from '@lib/schema-cache.js';
 import type { 
     Observer, 
     ObserverContext, 
@@ -38,14 +40,18 @@ export class ObserverRunner {
     async execute(
         system: System,
         operation: OperationType,
-        schema: string,
+        schemaName: string,
         data: any[],
         existing?: any[],
         depth: number = 0,
         filter?: any
     ): Promise<ObserverResult> {
         const startTime = Date.now();
-        const context = this._createContext(system, operation, schema, data, existing, filter);
+        
+        // Load Schema object before creating context (moved from Database.toSchema)
+        const schemaObj = await this.loadSchemaObject(system, schemaName);
+        
+        const context = this._createContext(system, operation, schemaName, schemaObj, data, existing, filter);
         const stats: ObserverStats[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
@@ -85,7 +91,8 @@ export class ObserverRunner {
     private _createContext(
         system: System,
         operation: OperationType,
-        schema: string,
+        schemaName: string,
+        schema: Schema,
         data: any[],
         existing?: any[],
         filter?: any
@@ -93,6 +100,7 @@ export class ObserverRunner {
         return {
             system,
             operation,
+            schemaName,
             schema,
             data, // For create/update operations, or populated by ring 5 for select
             filter, // For select operations (rings 0-4), undefined for other operations
@@ -187,7 +195,7 @@ export class ObserverRunner {
         context: ObserverContext, 
         stats: ObserverStats[]
     ): Promise<boolean> {
-        const observers = ObserverLoader.getObservers(context.schema, ring);
+        const observers = ObserverLoader.getObservers(context.schemaName, ring);
         
         for (const observer of observers) {
             if (this._shouldExecuteObserver(observer, context)) {
@@ -258,7 +266,7 @@ export class ObserverRunner {
         return {
             observerName: observer.name || 'unnamed',
             ring: observer.ring,
-            schema: context.schema,
+            schema: context.schemaName,
             operation: context.operation,
             executionTimeMs: executionTime,
             success,
@@ -305,5 +313,21 @@ export class ObserverRunner {
             context.warnings &&
             typeof context.startTime === 'number'
         );
+    }
+
+    /**
+     * Load Schema object from SchemaCache (moved from Database.toSchema)
+     */
+    private async loadSchemaObject(system: System, schemaName: string): Promise<Schema> {
+        console.debug(`ObserverRunner: Loading schema '${schemaName}'`);
+        
+        const schemaCache = SchemaCache.getInstance();
+        const schemaRecord = await schemaCache.getSchema(system, schemaName);
+        
+        // Create Schema instance with validation capabilities
+        const schema = new Schema(system, schemaName, schemaRecord);
+        console.debug(`ObserverRunner: Schema '${schemaName}' loaded`);
+        
+        return schema;
     }
 }
