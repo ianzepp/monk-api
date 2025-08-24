@@ -82,7 +82,7 @@ export class SqlObserver extends BaseObserver {
             // Generate record with base fields (simplified version)
             const record = {
                 id: this.generateId(),
-                domain: recordData.domain || null,
+                tenant: recordData.tenant || null,
                 access_read: recordData.access_read || [],
                 access_edit: recordData.access_edit || [],
                 access_full: recordData.access_full || [],

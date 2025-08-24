@@ -175,7 +175,7 @@ export class FtpAuthHandler {
         // With custom FTP protocol, we don't need temporary directories
         // Just return the authenticated System instance for database operations
         const user = system.getUser();
-        console.log(`🔗 FTP connection context created for tenant: ${user.domain}`);
+        console.log(`🔗 FTP connection context created for tenant: ${user.tenant}`);
         
         return system;
     }

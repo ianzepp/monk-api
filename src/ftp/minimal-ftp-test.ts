@@ -401,7 +401,7 @@ class MinimalFtpServer {
                 conn.authenticated = true;
                 conn.system = system;
                 const user = system.getUser();
-                console.log(`🎯 [${conn.id}] AUTH: JWT authentication successful for tenant ${user.domain}`);
+                console.log(`🎯 [${conn.id}] AUTH: JWT authentication successful for tenant ${user.tenant}`);
                 this.send(conn, 230, `User ${conn.username} logged in`);
             } else {
                 console.log(`🎯 [${conn.id}] AUTH: JWT authentication failed`);

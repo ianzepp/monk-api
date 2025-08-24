@@ -332,7 +332,7 @@ export class FtpProtocolServer {
             if (system) {
                 connection.system = system;
                 const user = system.getUser();
-                console.log(`✅ [${connection.id}] Login successful for tenant: ${user.domain}`);
+                console.log(`✅ [${connection.id}] Login successful for tenant: ${user.tenant}`);
                 this.sendResponse(connection, 230, `User ${connection.username} logged in`);
             } else {
                 console.log(`❌ [${connection.id}] Login failed for ${connection.username}`);
