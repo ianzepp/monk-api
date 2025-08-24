@@ -186,8 +186,6 @@ export class AuthService {
                 // Set user context for handlers
                 c.set('user', user);
                 c.set('userId', payload.sub);
-                c.set('userDomain', payload.database); // Keep for backward compatibility
-                c.set('userRole', payload.role);
                 c.set('accessReadIds', payload.access_read || []);
                 c.set('accessEditIds', payload.access_edit || []);
                 c.set('accessFullIds', payload.access_full || []);
@@ -222,29 +220,4 @@ export class AuthService {
         };
     }
 
-    // Domain access middleware  
-    static requireDomainAccess() {
-        return async (c: Context, next: Function) => {
-            const requestDomain = c.req.query('domain');
-            const userDomain = c.get('userDomain');
-            const userRole = c.get('userRole');
-            
-            // Admins can access any domain
-            if (userRole === 'admin') {
-                await next();
-                return;
-            }
-            
-            // Users can only access their own domain or public data
-            if (requestDomain && requestDomain !== userDomain) {
-                return c.json({
-                    success: false,
-                    error: 'Domain access denied',
-                    error_code: 'DOMAIN_ACCESS_DENIED'
-                }, 403);
-            }
-            
-            await next();
-        };
-    }
 }

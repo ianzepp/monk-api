@@ -142,8 +142,6 @@ export class FtpAuthHandler {
         // Set auth context variables (simulates getUserContextMiddleware behavior)
         mockContext.set('jwtPayload', payload);
         mockContext.set('userId', payload.sub);
-        mockContext.set('userDomain', payload.database);
-        mockContext.set('userRole', payload.access || 'user');
         mockContext.set('accessReadIds', payload.access_read || []);
         mockContext.set('accessEditIds', payload.access_edit || []);
         mockContext.set('accessFullIds', payload.access_full || []);

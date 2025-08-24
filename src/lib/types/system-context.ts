@@ -39,9 +39,6 @@ export interface UserInfo {
  * - Lightweight and easily mockable for testing
  */
 export interface SystemContext {
-    /** User domain from authentication context */
-    readonly userDomain: string;
-    
     /** User ID from authentication context */
     readonly userId: string;
     

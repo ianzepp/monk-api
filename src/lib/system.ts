@@ -17,7 +17,6 @@ import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@
  */
 export class System implements SystemContextWithInfrastructure {
     public readonly context: Context;
-    public readonly userDomain: string;
     public readonly userId: string;
     public readonly options: Readonly<SystemOptions>;
     public readonly correlationId: string;
@@ -49,7 +48,6 @@ export class System implements SystemContextWithInfrastructure {
         this.options = Object.freeze({ ...options });
         
         // Extract user information from context (set by auth middleware)
-        this.userDomain = c.get('userDomain') || 'default';
         this.userId = c.get('userId') || 'anonymous';
         
         // Generate correlation ID once per request
@@ -61,10 +59,11 @@ export class System implements SystemContextWithInfrastructure {
      * Implementation of SystemContext interface
      */
     getUser(): UserInfo {
+        const payload = this.context.get('jwtPayload') as any;
         return {
             id: this.userId,
-            tenant: this.userDomain,
-            role: this.context.get('userRole') || 'user',
+            tenant: payload?.tenant || 'unknown',
+            role: payload?.access || 'user',
             accessRead: this.context.get('accessReadIds') || [],
             accessEdit: this.context.get('accessEditIds') || [],
             accessFull: this.context.get('accessFullIds') || [],
@@ -108,16 +107,24 @@ export class System implements SystemContextWithInfrastructure {
                 message,
                 correlationId: this.correlationId,
                 userId: this.userId,
-                tenant: this.userDomain,
+                tenant: this.getTenant(),
                 operation: `${this.context.req.method} ${this.context.req.path}`,
                 ...(meta && { meta })
             });
         } else {
             // Pretty format for development
-            const ctx = `[${this.correlationId}]{${this.userDomain}}`;
+            const ctx = `[${this.correlationId}]{${this.getTenant()}}`;
             const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
             return `${level} ${ctx} ${message}${metaStr}`;
         }
+    }
+
+    /**
+     * Get actual tenant name from JWT payload
+     */
+    private getTenant(): string {
+        const payload = this.context.get('jwtPayload') as any;
+        return payload?.tenant || 'unknown';
     }
 
     /**
