@@ -165,7 +165,7 @@ try {
 
 // Start HTTP server only
 logger.info('Starting Monk HTTP API Server (Hono)');
-logger.info('For FTP server, use: npm run ftp:start');
+logger.info('For FTP server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
 
 const server = serve({
     fetch: app.fetch,

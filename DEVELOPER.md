@@ -66,7 +66,7 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - **Three-layer Architecture**: test-all.sh → test-one.sh → individual tests
 - **Tenant Isolation**: Each test gets fresh tenant database  
 - **Pattern-based**: Organized by categories (05-infrastructure, 15-auth, etc.)
-- **Comprehensive**: Authentication, meta API, data API, FTP, integration tests
+- **Comprehensive**: Authentication, meta API, data API, integration tests
 
 ### Observer-Driven Architecture
 
@@ -409,7 +409,6 @@ npm run test:all 25
 - **15-authentication**: Auth flows, JWT, multi-user scenarios
 - **20-meta-api**: Schema management, meta operations
 - **30-data-api**: CRUD operations, data validation
-- **45-ftp**: FTP server functionality
 - **50-integration**: End-to-end workflows  
 - **60-lifecycle**: Record lifecycle, soft deletes
 - **70-validation**: Schema validation, constraints
@@ -859,8 +858,7 @@ npm run start:dev                 # http://localhost:9001 with auto-reload
 # Production build
 npm run compile && npm run start
 
-# FTP server development  
-npm run ftp:dev                   # FTP server on port 2121
+# For FTP server development, see: https://github.com/ianzepp/monk-ftp
 ```
 
 ## Advanced Topics

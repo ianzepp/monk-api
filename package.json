@@ -12,8 +12,6 @@
     "start:dev": "tsx watch src/index.ts",
     "api:start": "scripts/api-start.sh",
     "api:dev": "scripts/api-dev.sh",
-    "ftp:start": "scripts/ftp-start.sh",
-    "ftp:dev": "scripts/ftp-dev.sh",
     "compile": "tsc",
     "autoinstall": "scripts/autoinstall.sh",
     "test": "scripts/test-all.sh",
