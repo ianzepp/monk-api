@@ -32,12 +32,6 @@ import {
  * Provides global error handling with proper error categorization.
  */
 export async function systemContextMiddleware(context: Context, next: Next) {
-    // Skip system context setup for non-API routes
-    if (!context.req.path.startsWith('/api/')) {
-        await next();
-        return;
-    }
-
     try {
         // Initialize database context from JWT/auth
         const dtx = DatabaseManager.getDatabaseFromContext(context);

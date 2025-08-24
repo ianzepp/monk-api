@@ -26,6 +26,12 @@ import AuthLoginPost from './routes/auth/login/POST.js';               // POST /
 import AuthRefreshPost from './routes/auth/refresh/POST.js';           // POST /auth/refresh
 import AuthMeGet from './routes/auth/me/GET.js';                       // GET /auth/me
 
+// FTP Middleware handlers
+import FtpListPost from '@src/routes/ftp/list.js';                        // POST /ftp/list
+import FtpRetrievePost from '@src/routes/ftp/retrieve.js';                // POST /ftp/retrieve  
+import FtpStorePost from '@src/routes/ftp/store.js';                      // POST /ftp/store
+import FtpStatPost from '@src/routes/ftp/stat.js';                        // POST /ftp/stat
+
 // Special endpoints
 import BulkPost from './routes/bulk/POST.js';                          // POST /api/bulk
 import FindSchemaPost from './routes/find/:schema/POST.js';            // POST /api/find/:schema
@@ -95,13 +101,11 @@ app.use('*', async (c, next) => {
     logger.info('Request completed', { method, path, status, duration });
 });
 
-// System context middleware - sets up System instance for all requests
-app.use('*', systemContextMiddleware);
-
 // Granular response formatting middleware by API path
 app.use('/api/data/*', responseJsonMiddleware);  // Data API: JSON responses
 app.use('/api/meta/*', responseYamlMiddleware);  // Meta API: YAML responses  
 app.use('/api/file/*', responseFileMiddleware);  // Future: File responses
+app.use('/ftp/*', responseJsonMiddleware);       // FTP Middleware: JSON responses
 
 // Public routes
 app.post('/auth/login', AuthLoginPost);                             // POST /auth/login
@@ -112,6 +116,12 @@ app.get('/ping', PingGet);                                          // GET /ping
 // Protected API routes - require JWT authentication
 app.use('/api/*', AuthService.getJWTMiddleware());
 app.use('/api/*', AuthService.getUserContextMiddleware());
+app.use('/api/*', systemContextMiddleware);
+
+// FTP Middleware routes - require JWT authentication  
+app.use('/ftp/*', AuthService.getJWTMiddleware());
+app.use('/ftp/*', AuthService.getUserContextMiddleware());
+app.use('/ftp/*', systemContextMiddleware);
 
 // Data API routes
 app.post('/api/data/:schema', DataSchemaPost);                      // Create records
@@ -127,6 +137,12 @@ app.post('/api/meta/schema', MetaSchemaPost);                       // Create sc
 app.get('/api/meta/schema/:name', MetaSchemaNameGet);               // Get schema
 app.put('/api/meta/schema/:name', MetaSchemaNamePut);               // Update schema
 app.delete('/api/meta/schema/:name', MetaSchemaNameDelete);         // Delete schema
+
+// FTP Middleware routes
+app.post('/ftp/list', FtpListPost);                                 // Directory listing
+app.post('/ftp/retrieve', FtpRetrievePost);                         // File retrieval
+app.post('/ftp/store', FtpStorePost);                               // File storage
+app.post('/ftp/stat', FtpStatPost);                                 // File status
 
 // Special API routes
 app.post('/api/bulk', BulkPost);                                    // Bulk operations

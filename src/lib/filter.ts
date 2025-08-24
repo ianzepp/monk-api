@@ -467,13 +467,14 @@ import { FilterOrder } from '@lib/filter-order.js';
  * ```
  * 
  * ### FTP Wildcard Pattern Translation
+ *
  * ```typescript
- * // FTP path: /data/users/*admin*/email/*@company.com/
- * const filter = new Filter(system, "users", "users_table");
+ * // FTP path: /data/account/*admin/email/*@company.com/
+ * const filter = new Filter(system, "account", "account_table");
  * filter.assign({
  *   where: {
  *     $and: [
- *       { id: { $like: '%admin%' } },           // *admin* wildcard
+ *       { id: { $like: '%admin' } },           // *admin wildcard
  *       { email: { $like: '%@company.com' } },  // *@company.com wildcard
  *       { status: 'active' },
  *       { access_read: { $any: ['user-123'] } } // User can access
