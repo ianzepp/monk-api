@@ -48,80 +48,13 @@ export default class WebhookSender extends BaseObserver {
     ];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, operation, data, result, existing, metadata } = context;
+        const { schema, operation, metadata } = context;
         
         // TODO: Temporarily disabled for testing - re-enable when webhook endpoints are configured
         console.log(`📡 Webhook observer triggered for ${schema} ${operation} (disabled for testing)`);
         metadata.set('webhooks_sent', 0);
-        return;
-        
-        // Get applicable webhook endpoints
-        const endpoints = this.getApplicableEndpoints(schema, operation);
-        
-        if (endpoints.length === 0) {
-            return; // No webhooks configured for this schema/operation
-        }
-
-        // Process data as array if needed
-        const recordsToProcess = Array.isArray(data) ? data : [{ result, existing, data }];
-        
-        // Send webhooks for each record
-        let totalSuccess = 0;
-        let totalFailures = 0;
-        
-        for (const record of recordsToProcess) {
-            const recordContext = {
-                ...context,
-                result: record.result || result,
-                existing: record.existing || existing,
-                data: record.data || record
-            };
-            
-            // Send webhooks in parallel for this record
-            const webhookPromises = endpoints.map(endpoint => 
-                this.sendWebhook(endpoint, recordContext).catch(error => {
-                    context.system.warn('Webhook delivery failed', { 
-                        url: endpoint.url, 
-                        error: error instanceof Error ? error.message : String(error) 
-                    });
-                    return { success: false, error };
-                })
-            );
-
-            try {
-                const results = await Promise.allSettled(webhookPromises);
-                
-                // Track webhook results
-                const successCount = results.filter(r => r.status === 'fulfilled').length;
-                const failureCount = results.filter(r => r.status === 'rejected').length;
-                
-                totalSuccess += successCount;
-                totalFailures += failureCount;
-                
-            } catch (error) {
-                // Webhook processing errors are system errors
-                throw new SystemError(
-                    `Webhook processing failed for ${schema} ${operation}: ${error}`,
-                    error instanceof Error ? error : undefined
-                );
-            }
-        }
-        
-        // Update metadata with totals
-        metadata.set('webhooks_sent', totalSuccess);
-        metadata.set('webhooks_failed', totalFailures);
+        metadata.set('webhooks_failed', 0);
         metadata.set('webhook_timestamp', new Date().toISOString());
-        
-        // Add warning for partial failures
-        if (totalFailures > 0) {
-            context.warnings.push(
-                new ValidationWarning(
-                    `${totalFailures} webhook(s) failed to send`,
-                    undefined,
-                    'WEBHOOK_PARTIAL_FAILURE'
-                )
-            );
-        }
     }
 
     private getApplicableEndpoints(schema: string, operation: string): WebhookEndpoint[] {

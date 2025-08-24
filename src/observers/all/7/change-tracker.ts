@@ -23,35 +23,9 @@ export default class ChangeTracker extends BaseObserver {
         console.log(`📝 Change tracker triggered for ${schema} ${operation} (disabled for testing)`);
         metadata.set('audit_logged', true);
         metadata.set('audit_timestamp', new Date().toISOString());
+        
+        // Early return - disabled for testing
         return;
-        
-        // Process data as array if needed
-        const recordsToProcess = Array.isArray(data) ? data : [{ result, existing, data }];
-        
-        for (const record of recordsToProcess) {
-            try {
-                const auditRecord = await this.createAuditRecord({
-                    ...context,
-                    result: record.result || result,
-                    existing: record.existing || existing,
-                    data: record.data || record
-                });
-                
-                // Store audit record in audit_log table
-                await system.database?.createOne('audit_log', auditRecord);
-                
-                // Add audit reference to metadata for other observers
-                metadata.set('audit_logged', true);
-                metadata.set('audit_timestamp', auditRecord.timestamp);
-                
-            } catch (error) {
-                // Audit logging failures are system errors
-                throw new SystemError(
-                    `Audit logging failed for ${schema} ${operation}: ${error}`,
-                    error instanceof Error ? error : undefined
-                );
-            }
-        }
     }
 
     private async createAuditRecord(context: ObserverContext): Promise<any> {
