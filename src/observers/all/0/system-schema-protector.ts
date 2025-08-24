@@ -22,12 +22,13 @@ export default class SystemSchemaProtector extends BaseObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, schemaName, operation, metadata } = context;
+        const { system, schema, schemaName, operation, metadata } = context;
         
         // Check if this is a system schema using Schema.isSystemSchema()
         if (schema.isSystemSchema()) {
             throw new ValidationError(
                 `Cannot ${operation} records in system schema "${schemaName}" - use meta API for schema management`,
+                undefined, // No specific field
                 'SYSTEM_SCHEMA_PROTECTION'
             );
         }
