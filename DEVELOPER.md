@@ -173,9 +173,59 @@ Ring 4: Enrichment      // Data enrichment, defaults, computed fields
 Ring 5: Database        // 🎯 SQL EXECUTION (SqlObserver)
 Ring 6: PostDatabase    // Immediate post-database processing
 Ring 7: Audit           // Audit logging, change tracking, compliance
-Ring 8: Integration     // External APIs, webhooks, cache invalidation
-Ring 9: Notification    // User notifications, email alerts, real-time updates
+Ring 8: Integration     // External APIs, webhooks, cache invalidation (async)
+Ring 9: Notification    // User notifications, email alerts, real-time updates (async)
 ```
+
+#### **Async Observer Architecture**
+
+**Purpose**: Non-blocking execution for post-database operations that don't need to block API responses
+- **Rings 6-9**: Perfect candidates for async execution (PostDatabase, Audit, Integration, Notification)
+- **External operations**: Webhooks, email sending, cache clearing, audit logging
+- **Error isolation**: Async failures don't trigger transaction rollback or affect committed data
+
+**BaseAsyncObserver Usage**:
+```typescript
+import { BaseAsyncObserver } from '@lib/observers/base-async-observer.js';
+
+export default class NotificationSender extends BaseAsyncObserver {
+    ring = ObserverRing.Notification;
+    operations = ['create', 'update'] as const;
+    
+    async execute(context: ObserverContext): Promise<void> {
+        // This executes asynchronously - doesn't block API response
+        await this.sendEmailNotification(context.result);
+        await this.sendPushNotification(context.result);
+    }
+}
+```
+
+**Async Execution Benefits**:
+- ✅ **Faster responses**: External operations don't block API response
+- ✅ **Error isolation**: Async failures logged via `system.warn()`, don't affect committed data
+- ✅ **Timeout protection**: 10s default timeout for external service operations
+- ✅ **Transaction safety**: Executes outside transaction context after commit
+
+#### **Execution Profiling**
+
+**Automatic Performance Monitoring**: All observers automatically tracked with nanosecond precision
+- **Per-observer timing**: `[TIME] Observer: JsonSchemaValidator 23.527ms { ring: 1, operation: "create" }`
+- **Async observer timing**: `[TIME] AsyncObserver: WebhookSender 156.789ms { ring: 8, status: "success" }`
+- **Rich context**: Ring, operation, schema, success/failure status in timing logs
+
+**Profiling Output Examples**:
+```
+[TIME] Observer: RecordPreloader 1.291ms { ring: 0, operation: "update", schemaName: "users", status: "success" }
+[TIME] Observer: JsonSchemaValidator 0.090ms { ring: 1, operation: "update", schemaName: "users", status: "success" }
+[TIME] Observer: SqlObserver 3.257ms { ring: 5, operation: "update", schemaName: "users", status: "success" }
+[TIME] AsyncObserver: CacheInvalidator 1.625ms { ring: 8, operation: "update", status: "success" }
+```
+
+**Performance Analysis Enabled**:
+- **Bottleneck identification**: Immediately see which observers are slow
+- **Ring performance**: Understand time distribution across observer rings
+- **Schema compilation caching**: See JsonSchemaValidator performance improve with caching
+- **Database efficiency**: Monitor SQL operation timing and optimization opportunities
 
 #### **Creating New Observers**
 ```bash
@@ -183,9 +233,11 @@ Ring 9: Notification    // User notifications, email alerts, real-time updates
 src/observers/users/0/custom-validation.ts     # User schema, validation ring
 src/observers/all/7/audit-logger.ts            # All schemas, audit ring
 
-# 2. Extend BaseObserver with business logic
+# 2. Choose appropriate base class and implement business logic
+
+# Synchronous Observer (Rings 0-5: blocking execution)
 export default class CustomValidator extends BaseObserver {
-    ring = ObserverRing.Validation;
+    ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
     
     async execute(context: ObserverContext): Promise<void> {
@@ -209,6 +261,24 @@ export default class CustomValidator extends BaseObserver {
     }
 }
 
+# Asynchronous Observer (Rings 6-9: non-blocking execution)
+export default class EmailNotifier extends BaseAsyncObserver {
+    ring = ObserverRing.Notification;
+    operations = ['create', 'update'] as const;
+    
+    async execute(context: ObserverContext): Promise<void> {
+        const { operation, schemaName, result } = context;
+        
+        // This executes asynchronously after database commit
+        // Failures are logged but don't affect the API response
+        await this.sendEmailNotification({
+            event: `${schemaName}.${operation}`,
+            data: result,
+            timestamp: new Date()
+        });
+    }
+}
+
 # 3. Observer auto-discovery loads it at server startup
 npm run start:dev  # Observer system loads new observer automatically
 ```
@@ -227,6 +297,9 @@ src/observers/all/1/required-fields.ts         # Ring 1: Input validation, requi
 src/observers/all/2/soft-delete-protector.ts   # Ring 2: Security, soft delete protection
 src/observers/all/2/existence-validator.ts     # Ring 2: Security, record existence validation
 src/observers/all/4/uuid-array-processor.ts    # Ring 4: Enrichment, PostgreSQL UUID arrays
+src/observers/all/7/change-tracker.ts          # Ring 7: Audit, change tracking (sync)
+src/observers/all/8/cache-invalidator.ts       # Ring 8: Integration, cache invalidation (async)
+src/observers/all/8/webhook-sender.ts          # Ring 8: Integration, webhook notifications (async)
 
 Custom Examples:
 src/observers/user/1/email-validation.ts       # Ring 1: User schema, email validation
@@ -949,11 +1022,19 @@ npm run autoinstall --clean-node --clean-dist --clean-auth
 - **Schema loading**: ObserverRunner loads Schema objects once per operation for all observers
 - **Test integration**: Observer pipeline transparent to existing database tests
 
+#### **Transaction Management**
+- **Clean DB/TX separation**: `system.db` (always available) vs `system.tx` (SQL Observer managed)
+- **Observer-driven transactions**: Observers signal transaction needs via `this.needsTransaction(context, reason)`
+- **SQL Observer control**: Ring 5 manages all transaction boundaries (begin/commit/rollback)
+- **Transaction visibility**: Nested database calls automatically use active transaction context
+- **ACID compliance**: Multi-observer operations maintain data integrity with proper isolation
+
 #### **Logging Patterns**
 - **`system.info/warn`**: Use in observers and route handlers (has request context)
 - **`logger.info/warn`**: Use in infrastructure code (no System context available)
 - **Observer logging**: Always use `system.info()` since `context.system` is available
 - **Structured metadata**: Include schemaName, operation, and relevant context in logs
+- **Performance timing**: Use `system.time(label, startTime, context)` for automatic profiling with hrtime precision
 
 ## Release Management
 
