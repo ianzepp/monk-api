@@ -31,7 +31,6 @@ import AuthMeGet from './routes/auth/me/GET.js';                       // GET /a
 import BulkPost from './routes/bulk/POST.js';                          // POST /api/bulk
 import FindSchemaPost from './routes/find/:schema/POST.js';            // POST /api/find/:schema
 import PingGet from './routes/ping/GET.js';                            // GET /ping
-import rootRouter from './routes/root.js';
 import { AuthService } from './lib/auth.js';
 import { ObserverLoader } from '@observers/loader.js';
 import { 
@@ -133,7 +132,6 @@ app.delete('/api/meta/schema/:name', MetaSchemaNameDelete);         // Delete sc
 // Special API routes
 app.post('/api/bulk', BulkPost);                                    // Bulk operations
 app.post('/api/find/:schema', FindSchemaPost);                     // Advanced search
-app.route('/api/root', rootRouter);                                 // Root operations (unchanged)
 
 // Error handling
 app.onError((err, c) => {
