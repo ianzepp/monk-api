@@ -8,7 +8,6 @@ import { SchemaCache } from '@lib/schema-cache.js';
 import { ObserverRunner } from '@lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@lib/observers/errors.js';
 import type { OperationType } from '@lib/observers/types.js';
-import _ from 'lodash';
 import crypto from 'crypto';
 
 /**
@@ -101,7 +100,8 @@ export class Database {
     
     // Core data operations
     async selectOne(schemaName: SchemaName, filterData: FilterData): Promise<any | null> {
-        return await this.selectAny(schemaName, filterData).then(_.head);
+        const results = await this.selectAny(schemaName, filterData);
+        return results[0] || null;
     }
 
     async select404(schemaName: SchemaName, filter: FilterData, message?: string): Promise<any> {

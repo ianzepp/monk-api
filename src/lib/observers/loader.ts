@@ -5,7 +5,7 @@
  * Preloads all observers at server startup for optimal performance.
  */
 
-import { glob } from 'glob';
+import { glob } from '@lib/glob.local.js';
 import { join, dirname, basename, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
