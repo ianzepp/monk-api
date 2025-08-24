@@ -1,11 +1,9 @@
-import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { AuthService } from '@lib/auth.js';
 import { DatabaseManager } from '@lib/database-manager.js';
 
-const app = new Hono();
-
 // GET /ping - Simple health check with optional JWT domain and database connection test
-app.get('/', async (c) => {
+export default async function (c: Context): Promise<any> {
     const startTime = Date.now();
     const timestamp = new Date().toISOString();
     
@@ -101,6 +99,4 @@ app.get('/', async (c) => {
     }
     
     return c.json(response);
-});
-
-export default app;
+}

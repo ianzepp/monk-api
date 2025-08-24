@@ -20,7 +20,7 @@ export interface SystemOptions {
  */
 export interface UserInfo {
     id: string;
-    domain: string;
+    tenant: string;
     role: string;
     accessRead: string[];
     accessEdit: string[];
