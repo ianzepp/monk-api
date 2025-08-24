@@ -58,6 +58,14 @@ export class SqlObserver extends BaseObserver {
     /**
      * Bulk create operation - direct SQL execution
      * Handles array of records with optimized bulk INSERT operations
+     * 
+     * 🚨 CRITICAL TODO: This is a simplified implementation that MISSING key features:
+     * - Schema protection (system schema checks) 
+     * - Schema validation (validateOrThrow)
+     * - Proper parameterized queries (SQL injection protection)
+     * - UUID array handling for access_* fields (access_read, access_edit, etc.)
+     * - Complex field processing and transformation logic
+     * See Issue #101 for complete migration requirements
      */
     private async bulkCreate(system: any, schema: string, records: any[]): Promise<any[]> {
         if (!records || records.length === 0) {
@@ -65,9 +73,9 @@ export class SqlObserver extends BaseObserver {
         }
         
         console.debug(`🔨 SqlObserver: Bulk creating ${records.length} records in schema ${schema}`);
+        console.warn(`⚠️  USING SIMPLIFIED SQL IMPLEMENTATION - See Issue #101 for complete feature parity`);
         
-        // Basic bulk INSERT implementation
-        // TODO: Move full Database.createOne logic here for complete feature parity
+        // SIMPLIFIED implementation - missing critical features
         const results = [];
         
         for (const recordData of records) {
@@ -100,6 +108,13 @@ export class SqlObserver extends BaseObserver {
     
     /**
      * Bulk update operation - direct SQL execution
+     * 
+     * 🚨 CRITICAL TODO: Simplified implementation missing original Database.updateAll() features:
+     * - Complex merge logic and validation
+     * - Proper transaction handling
+     * - System schema protection
+     * - Advanced field processing
+     * See Issue #101 for complete migration requirements
      */
     private async bulkUpdate(system: any, schema: string, records: any[]): Promise<any[]> {
         if (!records || records.length === 0) {
