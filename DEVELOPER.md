@@ -189,11 +189,23 @@ export default class CustomValidator extends BaseObserver {
     operations = ['create', 'update'] as const;
     
     async execute(context: ObserverContext): Promise<void> {
-        for (const record of context.data) {
+        const { system, schema, schemaName, data, metadata } = context;
+        
+        // Use preloaded data from RecordPreloader (Ring 0) for efficiency
+        const existingRecords = RecordPreloader.getPreloadedRecords(context);
+        
+        for (const record of data) {
+            // Access Schema object for validation
+            schema.validateOrThrow(record);
+            
             if (!this.isValid(record)) {
                 throw new ValidationError('Invalid data', 'field');
             }
         }
+        
+        // Record validation metadata for audit
+        metadata.set('custom_validation', 'passed');
+        system.info('Custom validation completed', { schemaName, recordCount: data.length });
     }
 }
 
@@ -205,7 +217,16 @@ npm run start:dev  # Observer system loads new observer automatically
 ```
 src/observers/:schema/:ring/:observer-name.ts
 
-Examples:
+Phase 1+2 Examples (Data Integrity Pipeline):
+src/observers/all/0/record-preloader.ts        # All schemas, efficient record preloading
+src/observers/all/0/system-schema-protector.ts # All schemas, system schema protection
+src/observers/all/0/json-schema-validator.ts   # All schemas, JSON schema validation
+src/observers/all/1/soft-delete-protector.ts   # All schemas, soft delete protection
+src/observers/all/2/existence-validator.ts     # All schemas, record existence validation
+src/observers/all/2/update-merger.ts           # All schemas, update data merging
+src/observers/all/4/uuid-array-processor.ts    # All schemas, PostgreSQL UUID arrays
+
+Custom Examples:
 src/observers/users/0/email-validation.ts      # Users schema, validation ring
 src/observers/account/2/balance-checker.ts     # Account schema, business ring  
 src/observers/all/7/change-tracker.ts          # All schemas, audit ring
@@ -897,12 +918,25 @@ npm run autoinstall --clean-node --clean-dist --clean-auth
 - **Test integration**: Use vitest framework for real database observer testing
 - **Check logs**: Look for `✅ Observer executed:` messages during development
 
-#### **Phase 1 Validation Observers** (Issue #101)
-- **SystemSchemaProtector** (Ring 0): Prevents data operations on system schemas
-- **JsonSchemaValidator** (Ring 0): Validates all data against JSON Schema definitions  
-- **UuidArrayProcessor** (Ring 4): Processes UUID arrays for PostgreSQL compatibility
-- **Real validation**: JsonSchemaValidator actively prevents invalid data insertion
-- **Testing**: 29/29 observer unit tests + integration testing with real databases
+#### **Data Integrity Observer Pipeline** (Issue #101 Complete)
+
+**Phase 1: Schema Validation (Ring 0)**
+- **SystemSchemaProtector**: Prevents data operations on system schemas using `schema.isSystemSchema()`
+- **JsonSchemaValidator**: Validates all data against JSON Schema definitions with `schema.validateOrThrow()`
+- **29 unit tests** covering schema protection and validation workflows
+
+**Phase 2: Data Integrity & Business Logic (Rings 0-2)**
+- **RecordPreloader** (Ring 0): Efficient single-query preloading of existing records for other observers
+- **SoftDeleteProtector** (Ring 1): Prevents operations on trashed/deleted records using preloaded data
+- **ExistenceValidator** (Ring 2): Validates records exist before update/delete/revert operations
+- **UpdateMerger** (Ring 2): Proper record merging preserving unchanged fields with timestamp management
+- **131 unit tests total** covering complete data integrity pipeline
+
+**Universal Coverage & Performance**
+- **All schemas protected**: Every database operation gets validation, security, business logic automatically
+- **Single query preloading**: O(1) vs O(N) database calls for multi-record operations
+- **Read-only safety**: Frozen preloaded objects prevent accidental mutation
+- **Clean SQL transport**: SqlObserver (Ring 5) handles pure database operations after validation
 
 #### **Database Development**  
 - **All CRUD operations** now use universal observer pipeline with Schema object context
@@ -1016,10 +1050,11 @@ echo '{"field":"value"}' | monk data create schema     # Validation, business lo
 monk data list schema                                   # Security, integration rings
 monk data get schema <id>                               # Observer coverage automatic
 
-# Observer development (Schema objects available in context)
+# Observer development (Phase 1+2 data integrity pipeline complete)
 # Create observer: src/observers/schema/ring/observer.ts
 # Unit test: npm run spec:one spec/unit/observers/observer-name.test.ts
 # Integration test: npm run test:one test/85-observer-integration/observer-startup-test.sh
+# Phase 2 observer tests: npm run spec:all unit/observers
 
 # TypeScript testing (direct class method testing)
 # Infrastructure: npm run spec:all 05
