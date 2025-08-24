@@ -888,18 +888,35 @@ npm run autoinstall --clean-node --clean-dist --clean-auth
 - Check `~/.config/monk/servers.json` for server configuration
 
 #### **Observer Development**
-- All Database operations automatically run observer pipeline
-- Create observers in `src/observers/schema/ring/` for auto-discovery
-- Use `BaseObserver` class with executeTry/execute pattern
-- Test observer loading with observer-startup-test.sh
-- Check logs for `✅ Observer executed:` messages during development
+- **All Database operations** automatically run observer pipeline with 10-ring execution
+- **Schema objects available**: Observers receive full `Schema` objects with validation capabilities
+- **Create observers** in `src/observers/schema/ring/` for auto-discovery by ObserverRunner
+- **Use `BaseObserver`** class with executeTry/execute pattern for error handling
+- **Observer context**: Access `context.schema.isSystemSchema()`, `context.schema.validateOrThrow()`
+- **Unit testable**: Most observers can be unit tested without database setup
+- **Test integration**: Use vitest framework for real database observer testing
+- **Check logs**: Look for `✅ Observer executed:` messages during development
+
+#### **Phase 1 Validation Observers** (Issue #101)
+- **SystemSchemaProtector** (Ring 0): Prevents data operations on system schemas
+- **JsonSchemaValidator** (Ring 0): Validates all data against JSON Schema definitions  
+- **UuidArrayProcessor** (Ring 4): Processes UUID arrays for PostgreSQL compatibility
+- **Real validation**: JsonSchemaValidator actively prevents invalid data insertion
+- **Testing**: 29/29 observer unit tests + integration testing with real databases
 
 #### **Database Development**  
-- All CRUD operations now use universal observer pipeline
-- Database methods follow single→array→pipeline pattern consistently
-- Use `context.get('system').database.*()` in route handlers
-- Observer pipeline provides validation, security, audit automatically
-- Test with existing database tests - observer pipeline is transparent
+- **All CRUD operations** now use universal observer pipeline with Schema object context
+- **Database methods** follow single→array→pipeline pattern consistently
+- **Route handlers**: Use `context.get('system').database.*()` for database operations
+- **Observer pipeline**: Provides validation, security, audit automatically with Schema objects
+- **Schema loading**: ObserverRunner loads Schema objects once per operation for all observers
+- **Test integration**: Observer pipeline transparent to existing database tests
+
+#### **Logging Patterns**
+- **`system.info/warn`**: Use in observers and route handlers (has request context)
+- **`logger.info/warn`**: Use in infrastructure code (no System context available)
+- **Observer logging**: Always use `system.info()` since `context.system` is available
+- **Structured metadata**: Include schemaName, operation, and relevant context in logs
 
 ## Release Management
 
@@ -999,9 +1016,10 @@ echo '{"field":"value"}' | monk data create schema     # Validation, business lo
 monk data list schema                                   # Security, integration rings
 monk data get schema <id>                               # Observer coverage automatic
 
-# Observer development
+# Observer development (Schema objects available in context)
 # Create observer: src/observers/schema/ring/observer.ts
-# Test loading: npm run test:one tests/85-observer-integration/observer-startup-test.sh
+# Unit test: npm run spec:one spec/unit/observers/observer-name.test.ts
+# Integration test: npm run test:one test/85-observer-integration/observer-startup-test.sh
 
 # TypeScript testing (direct class method testing)
 # Infrastructure: npm run spec:all 05
