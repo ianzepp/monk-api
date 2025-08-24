@@ -4,7 +4,7 @@
 -- Schema registry table to store JSON Schema definitions
 CREATE TABLE "schema" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"domain" text,
+	"tenant" text,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
 	"access_edit" uuid[] DEFAULT '{}'::uuid[],
 	"access_full" uuid[] DEFAULT '{}'::uuid[],
@@ -26,7 +26,7 @@ CREATE TABLE "schema" (
 -- Column registry table to store individual field metadata  
 CREATE TABLE "columns" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"domain" text,
+	"tenant" text,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
 	"access_edit" uuid[] DEFAULT '{}'::uuid[],
 	"access_full" uuid[] DEFAULT '{}'::uuid[],
@@ -132,9 +132,9 @@ VALUES (
                 "description": "SHA256 checksum of original YAML",
                 "example": "a1b2c3d4..."
             },
-            "domain": {
+            "tenant": {
                 "type": "string",
-                "description": "Domain context (nullable)"
+                "description": "Tenant context (nullable)"
             }
         },
         "required": ["name", "table_name", "status", "definition", "field_count"],

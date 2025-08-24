@@ -3,6 +3,8 @@
  * 
  * Universal integration observer that sends webhooks for data changes
  * Ring: 8 (Integration) - Schema: % (all schemas) - Operations: create, update, delete
+ * 
+ * TODO: Re-enable when webhook endpoints are configured
  */
 
 import { BaseObserver } from '@lib/observers/base-observer.js';
@@ -47,6 +49,11 @@ export default class WebhookSender extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { schema, operation, data, result, existing, metadata } = context;
+        
+        // TODO: Temporarily disabled for testing - re-enable when webhook endpoints are configured
+        console.log(`📡 Webhook observer triggered for ${schema} ${operation} (disabled for testing)`);
+        metadata.set('webhooks_sent', 0);
+        return;
         
         // Get applicable webhook endpoints
         const endpoints = this.getApplicableEndpoints(schema, operation);
