@@ -40,10 +40,11 @@ The `npm run autoinstall` script handles all setup steps automatically:
 ### Core Components
 
 #### **Hono API Server** (`src/`)
-- **System Pattern**: Per-request context management with clean database routing
+- **Observer-Driven Architecture**: Universal business logic execution through ring-based observer pipeline
+- **Middleware Pattern**: System context and response formatting through clean middleware chain
 - **Multi-tenant**: JWT-based database routing with auth database validation
-- **High Performance**: Schema caching, batch operations, raw SQL generation
-- **Security**: ACL enforcement, soft deletes, authentication middleware
+- **High Performance**: Schema caching, bulk operations, selective ring execution
+- **Security**: ACL enforcement, soft deletes, observer-based validation and audit
 
 #### **Bashly CLI** (`cli/`)
 - **Generated CLI**: Source in `cli/src/`, compiled to `cli/monk`
@@ -51,24 +52,42 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - **Multi-server**: Switch between development, staging, production environments
 - **Full CRUD**: Complete data and meta operations matching API endpoints
 
+#### **Observer System** (`src/lib/observers/`, `src/observers/`)
+- **Ring-Based Execution**: 10 ordered rings (0-9) for structured business logic execution
+- **Universal Coverage**: All database operations automatically run through observer pipeline
+- **File-Based Discovery**: Observers organized by schema and ring number for easy management
+- **Extensible Business Logic**: Add validation, security, audit, integration without touching core code
+
 #### **Test Suite** (`tests/`)
 - **Three-layer Architecture**: test-all.sh → test-one.sh → individual tests
 - **Tenant Isolation**: Each test gets fresh tenant database  
 - **Pattern-based**: Organized by categories (05-infrastructure, 15-auth, etc.)
 - **Comprehensive**: Authentication, meta API, data API, FTP, integration tests
 
-### System Pattern Architecture
+### Observer-Driven Architecture
 
 #### **System Class** (`src/lib/system.ts`)
-- **Per-request context**: `System.fromContext(context)` 
-- **Database routing**: `handleContextDb()` for reads, `handleContextTx()` for writes
-- **Multi-tenant support**: JWT-based database context management
+- **Per-request context**: Created by `systemContextMiddleware` and attached to `context.get('system')`
+- **Database routing**: JWT-based multi-tenant database context management
+- **Dependency Injection**: Provides SystemContext interface to break circular dependencies
 
 #### **Database Class** (`src/lib/database.ts`)  
-- **System integration**: `new Database(system: System)`
-- **High-level operations**: Uses `this.system.dtx` for all database access
-- **Batch optimization**: Efficient updateAll, createAll, deleteAll methods
-- **Security**: Soft delete protection, ACL integration, validation
+- **Observer Integration**: All operations run through universal observer pipeline
+- **Single→Array→Pipeline**: Consistent pattern across all CRUD methods
+- **Recursion Protection**: `SQL_MAX_RECURSION = 3` prevents infinite observer loops
+- **Universal Coverage**: createOne, updateOne, deleteOne, selectOne, revertOne all use observers
+
+#### **Observer System** (`src/lib/observers/`)
+- **Ring-Based Execution**: 10 ordered rings (0-9) with selective execution per operation type
+- **BaseObserver Pattern**: executeTry/execute separation with comprehensive error handling
+- **SqlObserver (Ring 5)**: Handles direct SQL execution using `system.dtx.query()`
+- **File-Based Discovery**: Auto-loads observers from `src/observers/schema/ring/observer.ts`
+
+#### **Middleware Architecture** (`src/lib/middleware/`)
+- **systemContextMiddleware**: Universal System setup and global error handling
+- **responseJsonMiddleware**: Automatic JSON formatting for `/api/data/*` routes  
+- **responseYamlMiddleware**: YAML formatting for `/api/meta/*` routes
+- **Clean Route Handlers**: Direct `context.get('system').database.*()` access
 
 #### **Auth System** (`src/lib/auth.ts`, `src/routes/auth.ts`)
 - **Multi-tenant auth**: Validates tenants against `monk-api-auth` database
@@ -116,6 +135,78 @@ monk meta list schema
 
 # Delete schema
 monk meta delete schema schema-name
+```
+
+### Observer Development
+
+#### **Observer Ring System**
+The observer system executes business logic in **10 ordered rings (0-9)** for every database operation:
+
+```typescript
+// Ring allocation and execution order
+Ring 0: Validation     // JSON Schema validation, input sanitization
+Ring 1: Security       // Access control, PII detection, rate limiting
+Ring 2: Business       // Complex business logic, domain rules
+Ring 3: PreDatabase    // Final pre-database checks, transaction setup
+Ring 4: Enrichment     // Data enrichment, defaults, computed fields
+Ring 5: Database       // 🎯 SQL EXECUTION (SqlObserver)
+Ring 6: PostDatabase   // Immediate post-database processing
+Ring 7: Audit          // Audit logging, change tracking, compliance
+Ring 8: Integration    // External APIs, webhooks, cache invalidation
+Ring 9: Notification   // User notifications, email alerts, real-time updates
+```
+
+#### **Creating New Observers**
+```bash
+# 1. Create observer file in appropriate directory
+src/observers/users/0/custom-validation.ts     # User schema, validation ring
+src/observers/all/7/audit-logger.ts            # All schemas, audit ring
+
+# 2. Extend BaseObserver with business logic
+export default class CustomValidator extends BaseObserver {
+    ring = ObserverRing.Validation;
+    operations = ['create', 'update'] as const;
+    
+    async execute(context: ObserverContext): Promise<void> {
+        for (const record of context.data) {
+            if (!this.isValid(record)) {
+                throw new ValidationError('Invalid data', 'field');
+            }
+        }
+    }
+}
+
+# 3. Observer auto-discovery loads it at server startup
+npm run start:dev  # Observer system loads new observer automatically
+```
+
+#### **Observer File Organization**
+```
+src/observers/:schema/:ring/:observer-name.ts
+
+Examples:
+src/observers/users/0/email-validation.ts      # Users schema, validation ring
+src/observers/account/2/balance-checker.ts     # Account schema, business ring  
+src/observers/all/7/change-tracker.ts          # All schemas, audit ring
+```
+
+#### **Schema Targeting**
+- **Specific schema**: `src/observers/users/` → Only applies to "users" schema
+- **All schemas**: `src/observers/all/` → Applies to every schema
+- **Auto-discovery**: Observer system loads all observers at server startup
+
+#### **Observer Error Handling**
+```typescript
+// BaseObserver provides executeTry/execute pattern
+abstract class BaseObserver {
+    async executeTry(context) { /* Error handling, timeouts, logging */ }
+    abstract async execute(context) { /* Pure business logic */ }
+}
+
+// Error types for proper handling
+throw new ValidationError('Invalid email', 'email');     // User feedback
+throw new BusinessLogicError('Insufficient balance');    // Business rules  
+throw new SystemError('External API failed');           // Transaction rollback
 ```
 
 ### CLI Development
@@ -299,16 +390,20 @@ Three-tier access pattern:
 # 1. Create route handler
 src/routes/new-endpoint.ts
 
-# 2. Use System pattern
-export default async function (context: Context): Promise<any> {
-    return await handleContextDb(context, async (system: System) => {
-        // Read operation logic
-        return system.database.selectAny(schemaName);
-    });
+# 2. Use middleware pattern (systemContextMiddleware provides system)
+export default async function (context: Context) {
+    const schema = context.req.param('schema');
+    const system = context.get('system');
+    
+    // Database operations automatically run observer pipeline
+    const result = await system.database.selectAny(schema);
+    setRouteResult(context, result);
 }
 
-# 3. Register in main router
+# 3. Register in main router with appropriate response middleware
 src/index.ts
+app.use('/api/new/*', responseJsonMiddleware);  // For JSON responses
+app.route('/api/new', newRouter);
 ```
 
 ### **Schema Development**
@@ -322,6 +417,35 @@ cat tests/schemas/new-schema.yaml | monk meta create schema
 # 3. Test CRUD operations
 echo '{"field": "value"}' | monk data create new-schema
 monk data list new-schema
+```
+
+### **Observer Development**
+```bash
+# 1. Create observer file (auto-discovery by file location)
+src/observers/users/0/custom-validator.ts      # User schema, validation ring
+src/observers/all/7/audit-logger.ts            # All schemas, audit ring
+
+# 2. Implement observer extending BaseObserver
+export default class CustomValidator extends BaseObserver {
+    ring = ObserverRing.Validation;
+    operations = ['create', 'update'] as const;
+    
+    async execute(context: ObserverContext): Promise<void> {
+        for (const record of context.data) {
+            // Validation logic
+            if (!this.isValid(record)) {
+                throw new ValidationError('Invalid data', 'field');
+            }
+        }
+    }
+}
+
+# 3. Test observer execution
+npm run start:dev                              # Auto-loads new observer
+npm run test:one tests/85-observer-integration/observer-startup-test.sh
+
+# 4. Verify observer loading in logs
+# Look for: "✅ Observer loaded: CustomValidator (ring 0, schema users)"
 ```
 
 ### **Database Operations**
@@ -640,11 +764,19 @@ npm run autoinstall --clean-node --clean-dist --clean-auth
 - Test commands individually before batch testing
 - Check `~/.config/monk/servers.json` for server configuration
 
+#### **Observer Development**
+- All Database operations automatically run observer pipeline
+- Create observers in `src/observers/schema/ring/` for auto-discovery
+- Use `BaseObserver` class with executeTry/execute pattern
+- Test observer loading with observer-startup-test.sh
+- Check logs for `✅ Observer executed:` messages during development
+
 #### **Database Development**  
-- Use System pattern for all database operations
-- Prefer batch operations (updateAll, createAll) for performance
-- Always use parameterized queries for security
-- Test multi-tenant scenarios with different tenant databases
+- All CRUD operations now use universal observer pipeline
+- Database methods follow single→array→pipeline pattern consistently
+- Use `context.get('system').database.*()` in route handlers
+- Observer pipeline provides validation, security, audit automatically
+- Test with existing database tests - observer pipeline is transparent
 
 ## Release Management
 
@@ -720,6 +852,7 @@ monk auth login local-test root
 # Testing
 npm run test:all
 npm run test:one tests/path/test.sh
+npm run test:one tests/85-observer-integration/observer-startup-test.sh
 
 # Releases
 npm run version:patch
@@ -733,10 +866,14 @@ cd cli/src && bashly generate
 cat schema.yaml | monk meta create schema
 monk meta list schema
 
-# Data operations
-echo '{"field":"value"}' | monk data create schema
-monk data list schema
-monk data get schema <id>
+# Data operations (automatically run observer pipeline)
+echo '{"field":"value"}' | monk data create schema     # Validation, business logic, audit
+monk data list schema                                   # Security, integration rings
+monk data get schema <id>                               # Observer coverage automatic
+
+# Observer development
+# Create observer: src/observers/schema/ring/observer.ts
+# Test loading: npm run test:one tests/85-observer-integration/observer-startup-test.sh
 ```
 
 ### **Key Configuration Files**
