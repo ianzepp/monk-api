@@ -1,9 +1,17 @@
 /**
  * SQL Observer - Ring 5 Database Transport Layer
  * 
- * Handles direct SQL execution using system.dtx.query() for all database operations.
- * Works with arrays of records and performs bulk operations for optimal performance.
- * Does NOT call Database class methods to prevent infinite recursion.
+ * Pure SQL execution layer that operates on pre-validated, pre-processed data from
+ * earlier observer rings. Handles direct database operations using system.dtx.query()
+ * with proper parameterized queries and bulk operations for optimal performance.
+ * 
+ * By Ring 5, data has already been:
+ * ✅ Validated (Ring 0): Schema validation, system schema protection
+ * ✅ Secured (Ring 1): Soft delete protection, access control
+ * ✅ Processed (Ring 2): Existence validation, update merging
+ * ✅ Enriched (Ring 4): UUID array processing, field transformations
+ * 
+ * This observer focuses solely on efficient SQL transport without business logic.
  */
 
 import type { ObserverContext } from '@observers/interfaces.js';
@@ -18,88 +26,105 @@ export class SqlObserver extends BaseObserver {
     readonly operations = ['create', 'update', 'delete', 'select', 'revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, operation, schemaName, schema, data } = context;
+        const { system, operation, schemaName, schema, data, metadata } = context;
         
-        console.debug(`🎯 SQL RING (${this.ring}): Executing ${operation} on ${schemaName} (${data.length} records)`);
+        system.info(`SQL transport layer executing ${operation}`, {
+            schemaName,
+            operation,
+            recordCount: data?.length || 0,
+            ring: this.ring
+        });
         
         try {
+            let result: any[];
+            
             switch (operation) {
                 case 'create':
-                    context.result = await this.bulkCreate(system, schemaName, data);
+                    result = await this.bulkCreate(system, schemaName, data, metadata);
                     break;
                     
                 case 'update':
-                    context.result = await this.bulkUpdate(system, schemaName, data);
+                    result = await this.bulkUpdate(system, schemaName, data, metadata);
                     break;
                     
                 case 'delete':
-                    context.result = await this.bulkDelete(system, schemaName, data);
+                    result = await this.bulkDelete(system, schemaName, data, metadata);
                     break;
                     
                 case 'select':
-                    context.result = await this.bulkSelect(system, schemaName, data);
+                    result = await this.bulkSelect(system, schemaName, data, metadata);
                     break;
                     
                 case 'revert':
-                    context.result = await this.bulkRevert(system, schemaName, data);
+                    result = await this.bulkRevert(system, schemaName, data, metadata);
                     break;
                     
                 default:
                     throw new SystemError(`Unsupported SQL operation: ${operation}`);
             }
             
-            console.debug(`✅ SQL operation completed: ${operation} on ${schemaName} (${context.result?.length || 0} results)`);
+            context.result = result;
+            
+            system.info(`SQL transport completed successfully`, {
+                schemaName,
+                operation,
+                inputRecords: data?.length || 0,
+                outputRecords: result?.length || 0,
+                executionTime: Date.now() - context.startTime
+            });
             
         } catch (error) {
-            console.error(`❌ SQL operation failed: ${operation} on ${schemaName}`, error);
-            throw new SystemError(`SQL operation failed: ${error}`, error instanceof Error ? error : undefined);
+            system.warn(`SQL transport layer failed`, {
+                schemaName,
+                operation,
+                recordCount: data?.length || 0,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw new SystemError(
+                `SQL transport failed for ${operation} on ${schemaName}`,
+                error instanceof Error ? error : undefined
+            );
         }
     }
 
     /**
      * Bulk create operation - direct SQL execution
-     * Handles array of records with optimized bulk INSERT operations
      * 
-     * 🚨 CRITICAL TODO: This is a simplified implementation that MISSING key features:
-     * - Schema protection (system schema checks) 
-     * - Schema validation (validateOrThrow)
-     * - Proper parameterized queries (SQL injection protection)
-     * - UUID array handling for access_* fields (access_read, access_edit, etc.)
-     * - Complex field processing and transformation logic
-     * See Issue #101 for complete migration requirements
+     * Operates on pre-validated data from earlier observer rings.
+     * Uses proper parameterized queries and handles PostgreSQL-specific data types.
      */
-    private async bulkCreate(system: any, schema: string, records: any[]): Promise<any[]> {
+    private async bulkCreate(system: any, schema: string, records: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!records || records.length === 0) {
             return [];
         }
         
-        console.debug(`🔨 SqlObserver: Bulk creating ${records.length} records in schema ${schema}`);
-        console.warn('USING SIMPLIFIED SQL IMPLEMENTATION - See Issue #101 for complete feature parity');
-        
-        // SIMPLIFIED implementation - missing critical features
         const results = [];
+        const timestamp = new Date().toISOString();
         
         for (const recordData of records) {
-            // Generate record with base fields (simplified version)
+            // Set up record with required system fields
             const record = {
-                id: this.generateId(),
-                tenant: recordData.tenant || null,
-                access_read: recordData.access_read || [],
-                access_edit: recordData.access_edit || [],
-                access_full: recordData.access_full || [],
-                access_deny: recordData.access_deny || [],
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                id: recordData.id || this.generateId(),
+                created_at: recordData.created_at || timestamp,
+                updated_at: recordData.updated_at || timestamp,
                 ...recordData
             };
             
-            // Build INSERT query
-            const fields = Object.keys(record);
-            const values = Object.values(record);
-            const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
+            // Process UUID arrays if flagged by UuidArrayProcessor
+            const processedRecord = this.processUuidArrays(record, metadata);
             
-            const query = `INSERT INTO "${schema}" (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+            // Build parameterized INSERT query
+            const fields = Object.keys(processedRecord);
+            const values = Object.values(processedRecord);
+            const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
+            const fieldList = fields.map(field => `"${field}"`).join(', ');
+            
+            const query = `INSERT INTO "${schema}" (${fieldList}) VALUES (${placeholders}) RETURNING *`;
             const result = await system.dtx.query(query, values);
+            
+            if (result.rows.length === 0) {
+                throw new SystemError(`Failed to create record in ${schema}`);
+            }
             
             results.push(result.rows[0]);
         }
@@ -110,35 +135,32 @@ export class SqlObserver extends BaseObserver {
     /**
      * Bulk update operation - direct SQL execution
      * 
-     * 🚨 CRITICAL TODO: Simplified implementation missing original Database.updateAll() features:
-     * - Complex merge logic and validation
-     * - Proper transaction handling
-     * - System schema protection
-     * - Advanced field processing
-     * See Issue #101 for complete migration requirements
+     * Operates on pre-merged data from UpdateMerger observer (Ring 2).
+     * Data has already been merged with existing records and validated.
      */
-    private async bulkUpdate(system: any, schema: string, records: any[]): Promise<any[]> {
+    private async bulkUpdate(system: any, schema: string, records: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!records || records.length === 0) {
             return [];
         }
-        
-        console.debug(`🔨 SqlObserver: Bulk updating ${records.length} records in schema ${schema}`);
         
         const results = [];
         
         for (const record of records) {
             if (!record.id) {
-                throw new SystemError('Record must have id for update operation');
+                throw new SystemError('Update record must have id field');
             }
             
             const { id, ...updateFields } = record;
-            updateFields.updated_at = new Date().toISOString();
             
-            const fields = Object.keys(updateFields);
-            const values = Object.values(updateFields);
+            // Process UUID arrays if flagged by UuidArrayProcessor
+            const processedFields = this.processUuidArrays(updateFields, metadata);
+            
+            const fields = Object.keys(processedFields);
+            const values = Object.values(processedFields);
             
             if (fields.length === 0) {
-                throw new SystemError('No fields to update');
+                // No fields to update after processing - skip this record
+                continue;
             }
             
             const setClause = fields.map((field, i) => `"${field}" = $${i + 1}`).join(', ');
@@ -154,7 +176,7 @@ export class SqlObserver extends BaseObserver {
             
             const result = await system.dtx.query(query, allParams);
             if (result.rows.length === 0) {
-                throw new SystemError(`Record not found or already deleted: ${id}`);
+                throw new SystemError(`Update failed - record not found: ${id}`);
             }
             
             results.push(result.rows[0]);
@@ -165,42 +187,48 @@ export class SqlObserver extends BaseObserver {
     
     /**
      * Bulk delete operation - direct SQL execution (soft delete)
+     * 
+     * Operates on pre-validated records from earlier observer rings.
+     * All records have been confirmed to exist and be deletable.
      */
-    private async bulkDelete(system: any, schema: string, records: any[]): Promise<any[]> {
+    private async bulkDelete(system: any, schema: string, records: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!records || records.length === 0) {
             return [];
         }
         
-        console.debug(`🔨 SqlObserver: Bulk deleting ${records.length} records in schema ${schema}`);
-        
         const ids = records.map(record => record.id).filter(id => id);
         if (ids.length === 0) {
-            throw new SystemError('Records must have ids for delete operation');
+            throw new SystemError('Delete records must have id fields');
         }
         
         // Use FilterWhere for consistent WHERE clause generation
         const { whereClause, params } = FilterWhere.generate({
-            id: { $in: ids }  // Convert ANY($1) to proper IN operation
+            id: { $in: ids }
         });
         
         const query = `UPDATE "${schema}" SET trashed_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
         const result = await system.dtx.query(query, params);
+        
+        // Existence validation already confirmed these records exist
+        if (result.rows.length !== ids.length) {
+            throw new SystemError(`Delete operation affected ${result.rows.length} records, expected ${ids.length}`);
+        }
         
         return result.rows;
     }
     
     /**
      * Bulk select operation - direct SQL execution
+     * 
+     * Executes SELECT queries with proper WHERE clause generation and ordering.
      */
-    private async bulkSelect(system: any, schema: string, filters: any[]): Promise<any[]> {
+    private async bulkSelect(system: any, schema: string, filters: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!filters || filters.length === 0) {
             return [];
         }
         
-        console.debug(`🔨 SqlObserver: Bulk selecting from schema ${schema}`);
-        
         // Use FilterWhere for consistent WHERE clause generation
-        const { whereClause, params } = FilterWhere.generate({});  // No specific conditions, just default filtering
+        const { whereClause, params } = FilterWhere.generate({});  // Default filtering for soft deletes
         
         const query = `SELECT * FROM "${schema}" WHERE ${whereClause} ORDER BY "created_at" DESC`;
         const result = await system.dtx.query(query, params);
@@ -210,32 +238,60 @@ export class SqlObserver extends BaseObserver {
     
     /**
      * Bulk revert operation - direct SQL execution (undo soft deletes)
+     * 
+     * Operates on pre-validated trashed records from earlier observer rings.
+     * Records have been confirmed to exist and be in trashed state.
      */
-    private async bulkRevert(system: any, schema: string, records: any[]): Promise<any[]> {
+    private async bulkRevert(system: any, schema: string, records: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!records || records.length === 0) {
             return [];
         }
         
-        console.debug(`🔄 SqlObserver: Bulk reverting ${records.length} records in schema ${schema}`);
-        
-        const ids = records.map(record => record.id).filter(id => id);
+        const ids = records.map(record => record.id || record).filter(id => id);
         if (ids.length === 0) {
-            throw new SystemError('Records must have ids for revert operation');
+            throw new SystemError('Revert records must have id fields');
         }
         
         // Use FilterWhere for consistent WHERE clause generation
         const { whereClause, params } = FilterWhere.generate({
-            id: { $in: ids }  // IDs to revert
+            id: { $in: ids }
         }, 0, {
-            includeTrashed: true  // Need to include trashed records for revert
+            includeTrashed: true  // Include trashed records for revert operation
         });
         
-        // Build revert query with additional trashed_at IS NOT NULL condition
+        // Build revert query - only revert actually trashed records
         const fullWhereClause = `${whereClause} AND "trashed_at" IS NOT NULL`;
         const query = `UPDATE "${schema}" SET trashed_at = NULL, updated_at = NOW() WHERE ${fullWhereClause} RETURNING *`;
         const result = await system.dtx.query(query, params);
         
+        // ExistenceValidator already confirmed these are trashed records
+        if (result.rows.length !== ids.length) {
+            throw new SystemError(`Revert operation affected ${result.rows.length} records, expected ${ids.length}`);
+        }
+        
         return result.rows;
+    }
+    
+    /**
+     * Process UUID arrays for PostgreSQL compatibility
+     * 
+     * Converts JavaScript arrays to PostgreSQL array literals for UUID fields
+     * based on metadata flags set by UuidArrayProcessor in Ring 4.
+     */
+    private processUuidArrays(record: any, metadata: Map<string, any>): any {
+        const processed = { ...record };
+        
+        // Check each potential UUID array field
+        const uuidFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
+        
+        for (const fieldName of uuidFields) {
+            if (metadata.get(`${fieldName}_is_uuid_array`) && Array.isArray(processed[fieldName])) {
+                // Convert JavaScript array to PostgreSQL array literal
+                processed[fieldName] = `{${processed[fieldName].join(',')}}`;
+            }
+        }
+        
+        return processed;
     }
     
     /**

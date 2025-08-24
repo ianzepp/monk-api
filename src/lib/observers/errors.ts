@@ -34,6 +34,21 @@ export class ValidationError extends ObserverError {
 }
 
 /**
+ * SecurityError - Recoverable errors that violate security policies
+ * 
+ * These errors indicate security violations but don't require transaction rollback.
+ * Examples: access denied, soft delete protection, permission violations.
+ */
+export class SecurityError extends ObserverError {
+    public readonly context?: Record<string, any>;
+    
+    constructor(message: string, context?: Record<string, any>, code = 'SECURITY_ERROR') {
+        super(message, code);
+        this.context = context;
+    }
+}
+
+/**
  * BusinessLogicError - Recoverable errors that violate business rules
  * 
  * These errors indicate business rule violations but don't require transaction rollback.
