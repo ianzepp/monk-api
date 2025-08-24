@@ -6,8 +6,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { TenantManager } from '../../src/lib/tenant-manager.js';
-import { AuthService } from '../../src/lib/auth.js';
+import { TenantService } from '../../src/lib/services/tenant.js';
 import os from 'os';
 import path from 'path';
 import { readFileSync, existsSync } from 'fs';
@@ -15,27 +14,23 @@ import { readFileSync, existsSync } from 'fs';
 describe('05-infrastructure: TypeScript Configuration', () => {
 
   describe('Core Classes', () => {
-    test('should be able to instantiate TenantManager', () => {
-      const tenantManager = new TenantManager();
-      expect(tenantManager).toBeDefined();
-      expect(typeof tenantManager.createTenant).toBe('function');
-      expect(typeof tenantManager.deleteTenant).toBe('function');
-      expect(typeof tenantManager.listTenants).toBe('function');
-    });
-
-    test('should be able to access AuthService methods', () => {
-      expect(AuthService).toBeDefined();
-      expect(typeof AuthService.login).toBe('function');
-      expect(typeof AuthService.verifyToken).toBe('function');
-      expect(typeof AuthService.generateToken).toBe('function');
+    test('should be able to access TenantService methods', () => {
+      expect(TenantService).toBeDefined();
+      expect(typeof TenantService.createTenant).toBe('function');
+      expect(typeof TenantService.deleteTenant).toBe('function');
+      expect(typeof TenantService.listTenants).toBe('function');
+      expect(typeof TenantService.login).toBe('function');
+      expect(typeof TenantService.verifyToken).toBe('function');
+      expect(typeof TenantService.generateToken).toBe('function');
     });
 
     test('should have valid database connection configuration', () => {
-      // Test that TenantManager can access auth database configuration
-      const tenantManager = new TenantManager();
+      // Test that TenantService can access auth database configuration
+      expect(TenantService).toBeDefined();
       
       // This implicitly tests that database configuration is accessible
-      expect(tenantManager).toBeDefined();
+      expect(typeof TenantService.tenantExists).toBe('function');
+      expect(typeof TenantService.databaseExists).toBe('function');
     });
   });
 
@@ -89,11 +84,9 @@ describe('05-infrastructure: TypeScript Configuration', () => {
 
   describe('Database Configuration', () => {
     test('should be able to connect to auth database', async () => {
-      const tenantManager = new TenantManager();
-      
       // Test that we can check for existing tenants (tests auth DB connection)
       try {
-        const tenants = await tenantManager.listTenants();
+        const tenants = await TenantService.listTenants();
         expect(Array.isArray(tenants)).toBe(true);
       } catch (error: any) {
         // If this fails, it should be a connection error, not a config error
@@ -103,9 +96,7 @@ describe('05-infrastructure: TypeScript Configuration', () => {
     }, 10000);
 
     test('should have valid database naming convention', () => {
-      const tenantManager = new TenantManager();
-      
-      // Access private method via prototype to test naming convention
+      // Test naming convention pattern used by TenantService
       const testNames = [
         'test-simple',
         'test_with_underscores',
@@ -115,7 +106,7 @@ describe('05-infrastructure: TypeScript Configuration', () => {
       ];
       
       testNames.forEach(name => {
-        // We can't directly test the private method, but we can test the pattern
+        // Test the expected naming convention pattern
         const expectedPattern = /^monk-api\$[a-z0-9-]+$/;
         const database = `monk-api$${name.replace(/[^a-zA-Z0-9]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '').toLowerCase()}`;
         expect(database).toMatch(expectedPattern);

@@ -6,9 +6,8 @@
  */
 
 import { randomBytes } from 'crypto';
-import { TenantManager, TenantInfo } from '../../src/lib/tenant-manager.js';
+import { TenantService, TenantInfo } from '../../src/lib/services/tenant.js';
 import { System } from '../../src/lib/system.js';
-import { AuthService } from '../../src/lib/auth.js';
 import { Database } from '../../src/lib/database.js';
 import { Metabase } from '../../src/lib/metabase.js';
 import { DatabaseManager } from '../../src/lib/database-manager.js';
@@ -19,12 +18,12 @@ export interface TestTenantManager {
   cleanup(): Promise<void>;
 }
 
-export interface TestSystemContext {
+export interface TestContext {
   tenant: TenantInfo;
   system: System;
   database: Database;
   metabase: Metabase;
-  auth: typeof AuthService;
+  tenantService: typeof TenantService;
 }
 
 /**
@@ -38,11 +37,9 @@ export async function createTestTenant(): Promise<TestTenantManager> {
 
   console.log(`🔧 Creating test tenant: ${tenantName}`);
 
-  const tenantManager = new TenantManager();
-
   try {
-    // Create tenant using TenantManager
-    const tenant = await tenantManager.createTenant(tenantName, 'localhost', false);
+    // Create tenant using TenantService
+    const tenant = await TenantService.createTenant(tenantName, 'localhost', false);
 
     console.log(`✅ Test tenant created: ${tenantName}`);
     console.log(`📊 Database: ${tenant.database}`);
@@ -50,7 +47,7 @@ export async function createTestTenant(): Promise<TestTenantManager> {
     return {
       tenant,
       async cleanup() {
-        await cleanupTestTenant(tenant, tenantManager);
+        await cleanupTestTenant(tenant);
       }
     };
 
@@ -64,14 +61,14 @@ export async function createTestTenant(): Promise<TestTenantManager> {
 /**
  * Clean up test tenant and database
  */
-async function cleanupTestTenant(tenant: TenantInfo, tenantManager: TenantManager): Promise<void> {
+async function cleanupTestTenant(tenant: TenantInfo): Promise<void> {
   if (!tenant) return;
 
   console.log(`🧹 Cleaning up test tenant: ${tenant.name}`);
 
   try {
-    // Delete tenant using TenantManager
-    await tenantManager.deleteTenant(tenant.name, true);
+    // Delete tenant using TenantService
+    await TenantService.deleteTenant(tenant.name, true);
 
     console.log(`✅ Test tenant cleaned up: ${tenant.name}`);
   } catch (error) {
@@ -81,20 +78,20 @@ async function cleanupTestTenant(tenant: TenantInfo, tenantManager: TenantManage
 }
 
 /**
- * Create a test system context for the tenant
+ * Create a test context for the tenant
  */
-export async function createTestSystemContext(tenant: TenantInfo, username: string = 'root'): Promise<TestSystemContext> {
-  console.log(`🔧 Creating test system context for ${tenant.name}`);
+export async function createTestContext(tenant: TenantInfo, username: string = 'root'): Promise<TestContext> {
+  console.log(`🔧 Creating test context for ${tenant.name}`);
 
-  // Use AuthService to generate JWT token for the user
-  const loginResult = await AuthService.login(tenant.name, username);
+  // Use TenantService to generate JWT token for the user
+  const loginResult = await TenantService.login(tenant.name, username);
   
   if (!loginResult || !loginResult.token) {
     throw new Error(`Failed to authenticate user ${username} in tenant ${tenant.name}`);
   }
 
   // Decode the JWT token to get the payload
-  const jwtPayload = await AuthService.verifyToken(loginResult.token);
+  const jwtPayload = await TenantService.verifyToken(loginResult.token);
 
   // Create mock Hono context with proper database setup
   const mockContext = {
@@ -129,14 +126,14 @@ export async function createTestSystemContext(tenant: TenantInfo, username: stri
   const database = system.database;
   const metabase = system.metabase;
 
-  console.log(`✅ Test system context created for ${tenant.name}`);
+  console.log(`✅ Test context created for ${tenant.name}`);
 
   return {
     tenant,
     system,
     database,
     metabase,
-    auth: AuthService
+    tenantService: TenantService
   };
 }
 

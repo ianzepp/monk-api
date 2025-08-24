@@ -1,16 +1,23 @@
 /**
- * Tenant Manager - Database-level tenant operations
+ * TenantService - Consolidated tenant and authentication operations
  * 
- * WARNING: This class makes direct database calls to monk-api-auth and should
- * NEVER be used by the API server. It's intended for CLI operations and testing.
+ * Handles all operations related to tenant management and authentication
+ * against the monk-api-auth database (tenant registry database).
  * 
- * Similar to Auth class, this bypasses the normal System/Database patterns
- * and connects directly to PostgreSQL for tenant management operations.
+ * WARNING: This service makes direct database calls and should NEVER be used
+ * by the API server. It's intended for CLI operations and testing only.
+ * 
+ * Consolidates functionality from:
+ * - AuthService (login, JWT operations, tenant validation)
+ * - TenantManager (tenant CRUD operations)
  */
 
 import { Client } from 'pg';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { sign, verify } from 'hono/jwt';
+import { DatabaseManager } from '../database-manager.js';
+import pg from 'pg';
 
 export interface TenantInfo {
   name: string;
@@ -18,18 +25,44 @@ export interface TenantInfo {
   database: string;
 }
 
-export class TenantManager {
-  private authConnectionString: string;
+export interface JWTPayload {
+    sub: string;           // Subject/system identifier
+    user_id: string | null; // User ID for database records (null for root/system)
+    tenant: string;        // Tenant name
+    database: string;      // Database name (converted)
+    access: string;        // Access level (deny/read/edit/full/root)
+    access_read: string[]; // ACL read access
+    access_edit: string[]; // ACL edit access
+    access_full: string[]; // ACL full access
+    iat: number;           // Issued at
+    exp: number;           // Expires at
+    [key: string]: any;    // Index signature for Hono compatibility
+}
 
-  constructor(authConnectionString?: string) {
-    // Default to standard auth database connection
-    this.authConnectionString = authConnectionString || this.getDefaultAuthConnection();
-  }
+export interface LoginResult {
+  token: string;
+  user: {
+    id: string;
+    username: string;
+    tenant: string;
+    database: string;
+    access: string;
+  };
+}
+
+export class TenantService {
+  private static jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-this';
+  private static tokenExpiry = 24 * 60 * 60; // 24 hours in seconds
+  private static authPool: pg.Pool | null = null;
+
+  // ==========================================
+  // TENANT MANAGEMENT OPERATIONS
+  // ==========================================
 
   /**
    * Get default auth database connection string
    */
-  private getDefaultAuthConnection(): string {
+  private static getAuthConnectionString(): string {
     const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
     const dbHost = process.env.DB_HOST || 'localhost';
     const dbPort = process.env.DB_PORT || '5432';
@@ -37,9 +70,30 @@ export class TenantManager {
   }
 
   /**
+   * Get persistent auth database connection pool
+   */
+  private static getAuthDatabase(): pg.Pool {
+    if (!this.authPool) {
+      // Use DATABASE_URL approach consistent with DatabaseManager
+      const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+      
+      // Build connection string for auth database
+      const authConnectionString = baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
+      
+      this.authPool = new pg.Pool({
+        connectionString: authConnectionString,
+        max: 5,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+      });
+    }
+    return this.authPool;
+  }
+
+  /**
    * Convert tenant name to snake_case database naming convention
    */
-  private tenantNameToDatabase(tenantName: string): string {
+  private static tenantNameToDatabase(tenantName: string): string {
     const snakeCase = tenantName
       .replace(/[^a-zA-Z0-9]/g, '-')  // Replace non-alphanumeric with dashes
       .replace(/--+/g, '-')          // Collapse multiple dashes
@@ -52,8 +106,8 @@ export class TenantManager {
   /**
    * Check if tenant already exists
    */
-  async tenantExists(tenantName: string): Promise<boolean> {
-    const client = new Client({ connectionString: this.authConnectionString });
+  static async tenantExists(tenantName: string): Promise<boolean> {
+    const client = new Client({ connectionString: this.getAuthConnectionString() });
     
     try {
       await client.connect();
@@ -72,7 +126,7 @@ export class TenantManager {
   /**
    * Check if database exists
    */
-  async databaseExists(databaseName: string): Promise<boolean> {
+  static async databaseExists(databaseName: string): Promise<boolean> {
     // Connect to postgres database to check if target database exists
     const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
     const dbHost = process.env.DB_HOST || 'localhost';
@@ -98,7 +152,7 @@ export class TenantManager {
   /**
    * Create new tenant with database and auth record
    */
-  async createTenant(tenantName: string, host: string = 'localhost', force: boolean = false): Promise<TenantInfo> {
+  static async createTenant(tenantName: string, host: string = 'localhost', force: boolean = false): Promise<TenantInfo> {
     const databaseName = this.tenantNameToDatabase(tenantName);
     
     // Check if tenant already exists
@@ -154,7 +208,7 @@ export class TenantManager {
   /**
    * Delete tenant and its database
    */
-  async deleteTenant(tenantName: string, force: boolean = false): Promise<void> {
+  static async deleteTenant(tenantName: string, force: boolean = false): Promise<void> {
     const databaseName = this.tenantNameToDatabase(tenantName);
     
     if (!force && !await this.tenantExists(tenantName)) {
@@ -162,7 +216,7 @@ export class TenantManager {
     }
     
     // Remove tenant record from auth database
-    const authClient = new Client({ connectionString: this.authConnectionString });
+    const authClient = new Client({ connectionString: this.getAuthConnectionString() });
     try {
       await authClient.connect();
       await authClient.query(
@@ -188,8 +242,8 @@ export class TenantManager {
   /**
    * List all tenants
    */
-  async listTenants(): Promise<TenantInfo[]> {
-    const client = new Client({ connectionString: this.authConnectionString });
+  static async listTenants(): Promise<TenantInfo[]> {
+    const client = new Client({ connectionString: this.getAuthConnectionString() });
     
     try {
       await client.connect();
@@ -211,8 +265,8 @@ export class TenantManager {
   /**
    * Get tenant information
    */
-  async getTenant(tenantName: string): Promise<TenantInfo | null> {
-    const client = new Client({ connectionString: this.authConnectionString });
+  static async getTenant(tenantName: string): Promise<TenantInfo | null> {
+    const client = new Client({ connectionString: this.getAuthConnectionString() });
     
     try {
       await client.connect();
@@ -236,10 +290,120 @@ export class TenantManager {
     }
   }
 
+  // ==========================================
+  // AUTHENTICATION OPERATIONS
+  // ==========================================
+
+  /**
+   * Generate JWT token for user
+   */
+  static async generateToken(user: any): Promise<string> {
+    const payload: JWTPayload = {
+      sub: user.id,
+      user_id: user.user_id || null, // User ID for database records (null for root/system)
+      tenant: user.tenant,
+      database: user.database,
+      access: user.access || 'root', // Access level for API operations
+      access_read: user.access_read || [],
+      access_edit: user.access_edit || [],
+      access_full: user.access_full || [],
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + this.tokenExpiry
+    };
+
+    return await sign(payload, this.jwtSecret);
+  }
+
+  /**
+   * Verify and decode JWT token
+   */
+  static async verifyToken(token: string): Promise<JWTPayload> {
+    return await verify(token, this.jwtSecret) as JWTPayload;
+  }
+
+  /**
+   * Login with tenant and username authentication
+   */
+  static async login(tenant: string, username: string): Promise<LoginResult | null> {
+    if (!tenant || !username) {
+      return null; // Both tenant and username required
+    }
+
+    // Look up tenant record to get database name
+    const authDb = this.getAuthDatabase();
+    const tenantResult = await authDb.query(
+      'SELECT name, database FROM tenants WHERE name = $1',
+      [tenant]
+    );
+
+    if (!tenantResult.rows || tenantResult.rows.length === 0) {
+      return null; // Tenant not found or inactive
+    }
+
+    const { name, database } = tenantResult.rows[0];
+
+    // Look up user in the tenant's database
+    const tenantDb = await DatabaseManager.getDatabaseForDomain(database);
+    const userResult = await tenantDb.query(
+      'SELECT id, tenant_name, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE tenant_name = $1 AND name = $2 AND trashed_at IS NULL AND deleted_at IS NULL',
+      [tenant, username]
+    );
+
+    if (!userResult.rows || userResult.rows.length === 0) {
+      return null; // User not found or inactive
+    }
+
+    const user = userResult.rows[0];
+
+    // Create user object for JWT
+    const authUser = {
+      id: user.id,
+      user_id: user.id,
+      tenant: name,
+      database: database,
+      username: user.name,
+      access: user.access,
+      access_read: user.access_read || [],
+      access_edit: user.access_edit || [],
+      access_full: user.access_full || [],
+      access_deny: user.access_deny || [],
+      is_active: true
+    };
+
+    // Generate token
+    const token = await this.generateToken(authUser);
+
+    return {
+      token,
+      user: {
+        id: authUser.id,
+        username: authUser.username,
+        tenant: authUser.tenant,
+        database: authUser.database,
+        access: authUser.access
+      }
+    };
+  }
+
+  /**
+   * Validate JWT token and return payload
+   */
+  static async validateToken(token: string): Promise<JWTPayload | null> {
+    try {
+      return await this.verifyToken(token);
+    } catch (error) {
+      return null; // Invalid token
+    }
+  }
+
+  // ==========================================
+  // PRIVATE HELPER METHODS
+  // ==========================================
+
   /**
    * Create PostgreSQL database
    */
-  private async createDatabase(databaseName: string): Promise<void> {
+  private static async createDatabase(databaseName: string): Promise<void> {
     const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
     const dbHost = process.env.DB_HOST || 'localhost';
     const dbPort = process.env.DB_PORT || '5432';
@@ -259,7 +423,7 @@ export class TenantManager {
   /**
    * Drop PostgreSQL database
    */
-  private async dropDatabase(databaseName: string): Promise<void> {
+  private static async dropDatabase(databaseName: string): Promise<void> {
     const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
     const dbHost = process.env.DB_HOST || 'localhost';
     const dbPort = process.env.DB_PORT || '5432';
@@ -279,7 +443,7 @@ export class TenantManager {
   /**
    * Initialize tenant database schema using sql/init-tenant.sql
    */
-  private async initializeTenantSchema(databaseName: string): Promise<void> {
+  private static async initializeTenantSchema(databaseName: string): Promise<void> {
     const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
     const dbHost = process.env.DB_HOST || 'localhost';
     const dbPort = process.env.DB_PORT || '5432';
@@ -291,7 +455,7 @@ export class TenantManager {
       await client.connect();
       
       // Load and execute init-tenant.sql
-      const sqlPath = join(__dirname, '../../sql/init-tenant.sql');
+      const sqlPath = join(__dirname, '../../../sql/init-tenant.sql');
       const initSql = readFileSync(sqlPath, 'utf8');
       
       await client.query(initSql);
@@ -303,7 +467,7 @@ export class TenantManager {
   /**
    * Create root user in tenant database
    */
-  private async createRootUser(databaseName: string, tenantName: string): Promise<void> {
+  private static async createRootUser(databaseName: string, tenantName: string): Promise<void> {
     const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
     const dbHost = process.env.DB_HOST || 'localhost';
     const dbPort = process.env.DB_PORT || '5432';
@@ -326,8 +490,8 @@ export class TenantManager {
   /**
    * Insert tenant record in auth database
    */
-  private async insertTenantRecord(tenantName: string, host: string, databaseName: string): Promise<void> {
-    const client = new Client({ connectionString: this.authConnectionString });
+  private static async insertTenantRecord(tenantName: string, host: string, databaseName: string): Promise<void> {
+    const client = new Client({ connectionString: this.getAuthConnectionString() });
     
     try {
       await client.connect();
