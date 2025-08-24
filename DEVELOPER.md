@@ -218,18 +218,20 @@ npm run start:dev  # Observer system loads new observer automatically
 src/observers/:schema/:ring/:observer-name.ts
 
 Phase 1+2 Examples (Data Integrity Pipeline):
-src/observers/all/0/record-preloader.ts        # All schemas, efficient record preloading
-src/observers/all/0/system-schema-protector.ts # All schemas, system schema protection
-src/observers/all/0/json-schema-validator.ts   # All schemas, JSON schema validation
-src/observers/all/1/soft-delete-protector.ts   # All schemas, soft delete protection
-src/observers/all/2/existence-validator.ts     # All schemas, record existence validation
-src/observers/all/2/update-merger.ts           # All schemas, update data merging
-src/observers/all/4/uuid-array-processor.ts    # All schemas, PostgreSQL UUID arrays
+src/observers/all/0/record-preloader.ts        # Ring 0: Data preparation, record preloading
+src/observers/all/0/update-merger.ts           # Ring 0: Data preparation, update merging  
+src/observers/all/0/input-sanitizer.ts         # Ring 0: Data preparation, input sanitization
+src/observers/all/1/json-schema-validator.ts   # Ring 1: Input validation, JSON schema validation
+src/observers/all/1/system-schema-protector.ts # Ring 1: Input validation, system schema protection
+src/observers/all/1/required-fields.ts         # Ring 1: Input validation, required field checks
+src/observers/all/2/soft-delete-protector.ts   # Ring 2: Security, soft delete protection
+src/observers/all/2/existence-validator.ts     # Ring 2: Security, record existence validation
+src/observers/all/4/uuid-array-processor.ts    # Ring 4: Enrichment, PostgreSQL UUID arrays
 
 Custom Examples:
-src/observers/users/0/email-validation.ts      # Users schema, validation ring
-src/observers/account/2/balance-checker.ts     # Account schema, business ring  
-src/observers/all/7/change-tracker.ts          # All schemas, audit ring
+src/observers/user/1/email-validation.ts       # Ring 1: User schema, email validation
+src/observers/account/3/balance-validator.ts   # Ring 3: Account schema, business logic  
+src/observers/all/7/change-tracker.ts          # Ring 7: All schemas, audit tracking
 ```
 
 #### **Schema Targeting**
@@ -927,9 +929,10 @@ npm run autoinstall --clean-node --clean-dist --clean-auth
 
 **Phase 2: Data Integrity & Business Logic (Rings 0-2)**
 - **RecordPreloader** (Ring 0): Efficient single-query preloading of existing records for other observers
-- **SoftDeleteProtector** (Ring 1): Prevents operations on trashed/deleted records using preloaded data
+- **UpdateMerger** (Ring 0): Proper record merging preserving unchanged fields with timestamp management
+- **JsonSchemaValidator** (Ring 1): Validates all data against JSON Schema definitions after data preparation
+- **SoftDeleteProtector** (Ring 2): Prevents operations on trashed/deleted records using preloaded data
 - **ExistenceValidator** (Ring 2): Validates records exist before update/delete/revert operations
-- **UpdateMerger** (Ring 2): Proper record merging preserving unchanged fields with timestamp management
 - **131 unit tests total** covering complete data integrity pipeline
 
 **Universal Coverage & Performance**
