@@ -74,18 +74,33 @@ export class TenantService {
    */
   private static getAuthDatabase(): pg.Pool {
     if (!this.authPool) {
-      // Use DATABASE_URL approach consistent with DatabaseManager
-      const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+      // Parse DATABASE_URL to extract components
+      const dbUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
       
-      // Build connection string for auth database
-      const authConnectionString = baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
-      
-      this.authPool = new pg.Pool({
-        connectionString: authConnectionString,
-        max: 5,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      });
+      try {
+        const url = new URL(dbUrl);
+        
+        this.authPool = new pg.Pool({
+          host: url.hostname,
+          port: parseInt(url.port) || 5432,
+          database: 'monk-api-auth',
+          user: url.username || process.env.USER || 'postgres',
+          password: url.password || '', // Ensure password is string
+          max: 5,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 2000,
+        });
+      } catch (error) {
+        // Fallback to connection string if URL parsing fails
+        const authConnectionString = dbUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
+        
+        this.authPool = new pg.Pool({
+          connectionString: authConnectionString,
+          max: 5,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 2000,
+        });
+      }
     }
     return this.authPool;
   }

@@ -6,6 +6,7 @@
  */
 
 import { randomBytes } from 'crypto';
+import { MonkEnv } from '../../src/lib/monk-env.js';
 import { TenantService, TenantInfo } from '../../src/lib/services/tenant.js';
 import { System } from '../../src/lib/system.js';
 import { Database } from '../../src/lib/database.js';
@@ -30,6 +31,14 @@ export interface TestContext {
  * Create a fresh test tenant with unique name
  */
 export async function createTestTenant(): Promise<TestTenantManager> {
+  // Load monk configuration before any database operations
+  MonkEnv.load();
+  
+  // Debug database configuration
+  console.log(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
+  console.log(`🔍 DB_USER: ${process.env.DB_USER}`);
+  console.log(`🔍 DB_HOST: ${process.env.DB_HOST}`);
+  
   // Generate unique tenant name with timestamp
   const timestamp = Date.now();
   const randomId = randomBytes(4).toString('hex');

@@ -40,8 +40,14 @@ export async function systemContextMiddleware(context: Context, next: Next) {
             return createInternalError(context, 'Unable to initialize database context');
         }
         
+        // Extract system options from query parameters
+        const options = {
+            trashed: context.req.query('include_trashed') === 'true',
+            deleted: context.req.query('include_deleted') === 'true'
+        };
+        
         // Create System instance for this request
-        const system = new System(context, dtx);
+        const system = new System(context, options);
         
         // Attach system to Hono context for route handler access
         context.set('system', system);
