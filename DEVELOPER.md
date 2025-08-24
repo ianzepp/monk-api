@@ -790,74 +790,218 @@ npm run spec:all
 npm run spec:all 05              # Infrastructure tests (05-infrastructure)
 npm run spec:all 15              # Authentication tests (15-authentication)
 npm run spec:all 05-20           # Infrastructure through meta-api tests
-npm run spec:all auth            # Tests matching "auth" pattern
+npm run spec:all unit            # All unit tests (no database required)
+npm run spec:all integration     # All integration tests (requires database)
 
-# Individual test
+# Category-specific testing
+npm run spec:all unit/filter     # Filter operator tests
+npm run spec:all unit/ftp        # FTP middleware unit tests
+npm run spec:all unit/observers  # Observer system unit tests
+
+# Individual test files
 npm run spec:one spec/15-authentication/basic-auth.test.ts
+npm run spec:one spec/unit/filter/logical-operators.test.ts
 
 # Verbose output
-npm run spec:all 05 --verbose
+npm run spec:all unit --verbose
 npm run spec:one spec/path/test.test.ts --verbose
 ```
 
-### **Spec Test Architecture**
+### **Comprehensive Test Architecture**
+
+#### **Current Test Structure**
 ```bash
-# TypeScript test structure
 spec/
-├── 05-infrastructure/          # Core connectivity and configuration
-│   ├── connectivity.test.ts    # Database, Metabase, System connectivity
-│   └── server-config.test.ts   # TenantService and environment setup
-├── 15-authentication/          # Authentication workflow
-│   └── basic-auth.test.ts      # Tenant creation → login → authenticated operations
-├── 20-meta-api/               # Schema management (YAML)
-│   └── schema-operations.test.ts # metabase.createOne() → selectOne() → deleteOne()
-├── 30-data-api/               # Data operations (JSON)
-│   └── data-operations.test.ts # database.createAll() → selectAny() → updateAll()
+├── 05-infrastructure/                    # Core connectivity and configuration
+│   ├── connectivity.test.ts             # Database, Metabase, System connectivity
+│   └── server-config.test.ts            # TenantService and environment setup
+├── 15-authentication/                    # Authentication workflow
+│   └── basic-auth.test.ts               # Tenant creation → login → authenticated operations
+├── 20-meta-api/                         # Schema management (YAML)
+│   └── schema-operations.test.ts        # metabase.createOne() → selectOne() → deleteOne()
+├── 30-data-api/                         # Data operations (JSON)
+│   └── data-operations.test.ts          # database.createAll() → selectAny() → updateAll()
+├── unit/                                # Unit tests (no database dependencies)
+│   ├── filter/                          # Enhanced Filter system tests
+│   │   ├── logical-operators.test.ts    # AND, OR, NOT, NAND, NOR operations
+│   │   ├── array-operators.test.ts      # PostgreSQL array operations ($any, $all, $size)
+│   │   ├── search-operators.test.ts     # Full-text search ($find, $text)
+│   │   ├── range-existence-operators.test.ts # Range ($between) and existence ($exists, $null)
+│   │   └── complex-scenarios.test.ts    # Real-world ACL and FTP wildcard scenarios
+│   ├── ftp/                             # FTP middleware unit tests
+│   │   ├── ftp-path-parsing.test.ts     # Path structure validation and parsing
+│   │   └── ftp-utilities.test.ts        # Permission calculation, content formatting
+│   └── observers/                       # Observer system unit tests
+│       ├── sql-observer.test.ts         # Database operation observer
+│       ├── uuid-array-processor.test.ts # PostgreSQL array processing
+│       └── filter-where.test.ts         # WHERE clause generation
+├── integration/                         # Integration tests (require database)
+│   ├── observer-pipeline.test.ts        # Complete observer pipeline testing
+│   └── ftp/                             # FTP middleware integration tests
+│       ├── ftp-list.test.ts             # Directory listing with real data
+│       ├── ftp-retrieve.test.ts         # File retrieval and content handling
+│       ├── ftp-store.test.ts            # Record creation and field updates
+│       └── ftp-stat.test.ts             # Status information and metadata
 └── helpers/
-    └── test-tenant.ts         # Real tenant creation and TypeScript context setup
+    ├── test-tenant.ts                   # Real tenant creation and TypeScript context
+    └── observer-helpers.ts              # Mock system and observer testing utilities
 ```
 
-### **Spec Test Development Patterns**
+#### **Test Categories and Coverage**
+
+##### **Unit Tests (No Database Required) - 210+ Tests**
+- **Filter Operators (162 tests)**: Comprehensive coverage of 25+ operators
+  - **Logical operators**: Deep nesting, complex combinations, parameter management
+  - **PostgreSQL arrays**: ACL filtering, array operations, size constraints
+  - **Search operations**: Full-text search, content discovery patterns
+  - **Range/existence**: Date ranges, field validation, null handling
+  - **Complex scenarios**: Real-world ACL, FTP wildcards, enterprise patterns
+
+- **FTP Middleware (48 tests)**: Path parsing, utilities, protocol compliance
+  - **Path parsing**: All path levels, wildcard detection, normalization
+  - **Utilities**: Permission calculation, content formatting, ETag generation
+  - **Protocol compliance**: FTP timestamps, content types, response structures
+
+- **Observer System (35+ tests)**: Business logic validation and execution
+  - **Individual observers**: SQL observer, UUID processors, validators
+  - **Observer patterns**: BaseObserver, execution flows, error handling
+
+##### **Integration Tests (Database Required) - 100+ Tests**
+- **API Operations**: Real database testing of System, Database, Metabase classes
+- **Observer Pipeline**: Complete 10-ring execution with real data
+- **FTP Endpoints**: End-to-end workflow testing with account/contact schemas
+- **Authentication**: JWT generation, tenant creation, user context setup
+
+### **Test Development Patterns**
+
+#### **Unit Test Pattern (No Database)**
 ```typescript
-// Standard vitest test template
+// Unit tests for pure logic validation
+import { describe, test, expect } from 'vitest';
+import { FilterWhere } from '@lib/filter-where.js';
+
+describe('Component Unit Tests', () => {
+  test('should validate core logic', () => {
+    // Test pure functions and logic
+    const { whereClause, params } = FilterWhere.generate({
+      $and: [
+        { access_read: { $any: ['user-123'] } },
+        { status: 'active' }
+      ]
+    });
+    
+    expect(whereClause).toContain('"access_read" && ARRAY[$1]');
+    expect(params).toEqual(['user-123', 'active']);
+  });
+  
+  test('should handle edge cases', () => {
+    // Test boundary conditions and error scenarios
+    expect(() => {
+      FilterWhere.generate({ field: { $between: [null] } });
+    }).toThrow('$between requires array with exactly 2 values');
+  });
+});
+```
+
+#### **Integration Test Pattern (Database Required)**
+```typescript
+// Integration tests with real database operations
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { createTestTenant, createTestContext, type TestTenantManager, type TestContext } from '@spec/helpers/test-tenant.js';
-import { TenantService } from '@lib/services/tenant.js';
+import { readFile } from 'fs/promises';
 
-describe('Category: Test Suite Name', () => {
+describe('Integration Test Suite', () => {
   let tenantManager: TestTenantManager;
   let testContext: TestContext;
 
   beforeAll(async () => {
     // Create fresh tenant for this test suite
     tenantManager = await createTestTenant();
-    
-    // Create authenticated test context
     testContext = await createTestContext(tenantManager.tenant!, 'root');
+
+    // Create test schemas and data
+    const schemaYaml = await readFile('test/schemas/account.yaml', 'utf-8');
+    await testContext.metabase.createOne('account', schemaYaml);
+    
+    await testContext.database.createOne('account', {
+      id: 'test-account',
+      name: 'Test User',
+      email: 'test@example.com',
+      username: 'testuser',
+      account_type: 'personal'
+    });
   });
 
   afterAll(async () => {
-    // Automatic tenant cleanup
     if (tenantManager) {
       await tenantManager.cleanup();
     }
   });
 
-  test('should test functionality', async () => {
-    // Test implementation using testContext.database, testContext.metabase, etc.
-    const result = await testContext.database.selectAny('schema');
+  test('should test database operations', async () => {
+    const result = await testContext.database.selectOne('account', {
+      where: { id: 'test-account' }
+    });
+    
     expect(result).toBeDefined();
+    expect(result.name).toBe('Test User');
+  });
+});
+```
+
+#### **HTTP Endpoint Testing Pattern**
+```typescript
+// Testing HTTP endpoints with real requests
+describe('HTTP Endpoint Tests', () => {
+  beforeAll(async () => {
+    // Set up test tenant and context
+    tenantManager = await createTestTenant();
+    testContext = await createTestContext(tenantManager.tenant!, 'root');
+  });
+
+  test('should test API endpoint', async () => {
+    const response = await fetch('http://localhost:9001/ftp/list', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${testContext.jwtToken}`
+      },
+      body: JSON.stringify({
+        path: '/data/',
+        ftp_options: { show_hidden: false, long_format: true, recursive: false }
+      })
+    });
+
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.success).toBe(true);
   });
 });
 ```
 
 ### **TypeScript Testing Features**
+
+#### **Core Capabilities**
 - **Real Database Testing**: Fresh tenant per test suite using `TenantService.createTenant()`
 - **TypeScript Classes**: Direct testing of System, Database, Metabase, TenantService
 - **Observer Integration**: Full 10-ring observer pipeline execution with `ObserverLoader.preloadObservers()`
 - **Authenticated Context**: Proper JWT generation and System context setup
 - **Automatic Cleanup**: Tenant and database cleanup after each test suite
 - **Path Aliases**: Clean imports using `@lib`, `@spec`, `@src` patterns
+
+#### **Advanced Testing Capabilities**
+- **Complex Filter Testing**: 6+ level nesting, 500+ parameters, PostgreSQL array operations
+- **HTTP Endpoint Testing**: Real API requests with authentication and validation
+- **Mock System Support**: Observer testing with controlled environments
+- **Schema Integration**: Real YAML schemas from test/schemas/ directory
+- **Performance Testing**: Large datasets, complex queries, stress scenarios
+- **Error Boundary Testing**: Comprehensive error handling validation
+
+#### **Test Data Management**
+- **Schema Templates**: account.yaml, contact.yaml for realistic testing
+- **Isolated Tenants**: Fresh database per test suite prevents pollution
+- **Controlled Data**: Predictable test records for consistent assertions
+- **Edge Case Coverage**: Null values, empty arrays, validation failures
 
 ### **Spec vs Shell Tests**
 - **spec/** directory: TypeScript vitest tests for unit and integration testing
@@ -866,11 +1010,51 @@ describe('Category: Test Suite Name', () => {
 - **Execution order**: Both run tests in sorted order (infrastructure → auth → apis)
 - **Fresh tenants**: Both create isolated test environments per test
 
-### **Vitest Testing Requirements**
-- **Observer preloading**: Call `await ObserverLoader.preloadObservers()` in `beforeAll`
+### **Testing Best Practices**
+
+#### **Unit vs Integration Test Selection**
+- **Unit Tests**: Use for pure logic, utilities, parsing, validation without database
+- **Integration Tests**: Use for database operations, API endpoints, observer pipeline
+- **Performance**: Unit tests run faster (no database setup), prefer when possible
+
+#### **Test Organization Guidelines**
+- **Group by functionality**: Filter tests in `unit/filter/`, FTP tests in `unit/ftp/`
+- **Logical separation**: One test file per major component or operator group
+- **Descriptive naming**: Clear test descriptions that explain the scenario being tested
+
+#### **Vitest Testing Requirements**
+- **Observer preloading**: Call `await ObserverLoader.preloadObservers()` in `beforeAll` for integration tests
 - **Real tenants**: Use `createTestTenant()` for isolated database testing
 - **TypeScript context**: Use `createTestContext()` for authenticated System instances
-- **Proper imports**: Use path aliases (`@lib`, `@spec`) for clean code organization
+- **Proper imports**: Use path aliases (`@lib`, `@spec`, `@src`) for clean code organization
+
+#### **Common Testing Patterns**
+```typescript
+// Test complex Filter operators
+const { whereClause, params } = FilterWhere.generate({
+  $and: [
+    { access_read: { $any: ['user-123'] } },
+    { status: { $nin: ['deleted', 'suspended'] } }
+  ]
+});
+
+// Test HTTP endpoints
+const response = await fetch('http://localhost:9001/ftp/list', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}` },
+  body: JSON.stringify({ path: '/data/' })
+});
+
+// Test database operations  
+const record = await testContext.database.createOne('account', testData);
+expect(record.id).toBeDefined();
+```
+
+#### **Test Data Strategy**
+- **Use existing schemas**: `test/schemas/account.yaml`, `contact.yaml` for realistic testing
+- **Predictable IDs**: Use descriptive test record IDs like `account-test-001`
+- **Edge cases**: Test null values, empty arrays, boundary conditions
+- **Performance data**: Large objects, many records for stress testing
 
 ## Contributing Guidelines
 
@@ -1219,10 +1403,22 @@ npm run test:all
 npm run test:one tests/path/test.sh
 npm run test:one tests/85-observer-integration/observer-startup-test.sh
 
-# TypeScript Testing  
-npm run spec:all
-npm run spec:all 05-20
-npm run spec:one spec/15-authentication/basic-auth.test.ts
+# TypeScript Testing (Vitest Framework)
+npm run spec:all                        # All TypeScript tests
+npm run spec:all unit                   # All unit tests (no database)
+npm run spec:all integration            # All integration tests (requires database)
+
+# Component-specific testing
+npm run spec:all unit/filter            # Enhanced Filter operator tests (162 tests)
+npm run spec:all unit/ftp               # FTP middleware unit tests (48 tests)
+npm run spec:all unit/observers         # Observer system unit tests
+npm run spec:all 05-20                  # Infrastructure through meta-api tests
+npm run spec:all auth                   # Authentication-related tests
+
+# Individual test files
+npm run spec:one spec/unit/filter/logical-operators.test.ts
+npm run spec:one spec/integration/ftp/ftp-list.test.ts
+npm run spec:one spec/20-meta-api/schema-operations.test.ts
 
 # Releases
 npm run version:patch
@@ -1247,10 +1443,18 @@ monk data get schema <id>                               # Observer coverage auto
 # Integration test: npm run test:one test/85-observer-integration/observer-startup-test.sh
 # Phase 2 observer tests: npm run spec:all unit/observers
 
-# TypeScript testing (direct class method testing)
-# Infrastructure: npm run spec:all 05
-# Authentication: npm run spec:all 15  
-# Meta/Data APIs: npm run spec:all 20-30
+# Advanced testing examples
+npm run spec:all unit/filter/logical-operators  # Deep logical operator nesting
+npm run spec:all unit/filter/complex-scenarios  # Real-world ACL and FTP patterns
+npm run spec:one spec/unit/ftp/ftp-path-parsing.test.ts # FTP path validation
+
+# Enterprise Filter System testing (Issue #121)
+npm run spec:all unit/filter                    # All 162 filter operator tests
+npm run spec:one spec/unit/filter/array-operators.test.ts # PostgreSQL array operations
+
+# FTP Middleware testing (Issue #123)  
+npm run spec:all unit/ftp                       # FTP middleware unit tests (48 tests)
+npm run spec:all integration/ftp                # FTP endpoint integration tests (database required)
 ```
 
 ### **Key Configuration Files**
