@@ -10,7 +10,7 @@ import type { ObserverContext } from '@observers/interfaces.js';
 import { BaseObserver } from '@observers/base-observer.js';
 import { ObserverRing } from '@observers/types.js';
 import { SystemError } from '@observers/errors.js';
-import { Filter } from '@lib/filter.js';
+import { FilterWhere } from '@lib/filter-where.js';
 import crypto from 'crypto';
 
 export class SqlObserver extends BaseObserver {
@@ -143,10 +143,14 @@ export class SqlObserver extends BaseObserver {
             
             const setClause = fields.map((field, i) => `"${field}" = $${i + 1}`).join(', ');
             
-            // WHERE clause: id parameter starts after SET clause parameters
-            const idParamIndex = fields.length + 1;
-            const query = `UPDATE "${schema}" SET ${setClause} WHERE "id" = $${idParamIndex} AND "trashed_at" IS NULL RETURNING *`;
-            const allParams = [...values, id];
+            // Use FilterWhere for consistent WHERE clause generation
+            const { whereClause, params: whereParams } = FilterWhere.generate(
+                { id },  // WHERE conditions
+                fields.length  // Start WHERE parameters after SET parameters
+            );
+            
+            const query = `UPDATE "${schema}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
+            const allParams = [...values, ...whereParams];
             
             const result = await system.dtx.query(query, allParams);
             if (result.rows.length === 0) {
@@ -174,9 +178,13 @@ export class SqlObserver extends BaseObserver {
             throw new SystemError('Records must have ids for delete operation');
         }
         
-        // Soft delete: Set trashed_at timestamp
-        const query = `UPDATE "${schema}" SET trashed_at = NOW(), updated_at = NOW() WHERE id = ANY($1) AND trashed_at IS NULL RETURNING *`;
-        const result = await system.dtx.query(query, [ids]);
+        // Use FilterWhere for consistent WHERE clause generation
+        const { whereClause, params } = FilterWhere.generate({
+            id: { $in: ids }  // Convert ANY($1) to proper IN operation
+        });
+        
+        const query = `UPDATE "${schema}" SET trashed_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
+        const result = await system.dtx.query(query, params);
         
         return result.rows;
     }
@@ -191,9 +199,11 @@ export class SqlObserver extends BaseObserver {
         
         console.debug(`🔨 SqlObserver: Bulk selecting from schema ${schema}`);
         
-        // Simple select all for now - TODO: Implement proper filter processing
-        const query = `SELECT * FROM "${schema}" WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY created_at DESC`;
-        const result = await system.dtx.query(query);
+        // Use FilterWhere for consistent WHERE clause generation
+        const { whereClause, params } = FilterWhere.generate({});  // No specific conditions, just default filtering
+        
+        const query = `SELECT * FROM "${schema}" WHERE ${whereClause} ORDER BY "created_at" DESC`;
+        const result = await system.dtx.query(query, params);
         
         return result.rows;
     }
@@ -213,9 +223,17 @@ export class SqlObserver extends BaseObserver {
             throw new SystemError('Records must have ids for revert operation');
         }
         
-        // Revert soft delete: Clear trashed_at timestamp
-        const query = `UPDATE "${schema}" SET trashed_at = NULL, updated_at = NOW() WHERE id = ANY($1) AND trashed_at IS NOT NULL RETURNING *`;
-        const result = await system.dtx.query(query, [ids]);
+        // Use FilterWhere for consistent WHERE clause generation
+        const { whereClause, params } = FilterWhere.generate({
+            id: { $in: ids }  // IDs to revert
+        }, 0, {
+            includeTrashed: true  // Need to include trashed records for revert
+        });
+        
+        // Build revert query with additional trashed_at IS NOT NULL condition
+        const fullWhereClause = `${whereClause} AND "trashed_at" IS NOT NULL`;
+        const query = `UPDATE "${schema}" SET trashed_at = NULL, updated_at = NOW() WHERE ${fullWhereClause} RETURNING *`;
+        const result = await system.dtx.query(query, params);
         
         return result.rows;
     }

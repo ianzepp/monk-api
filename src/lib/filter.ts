@@ -1,5 +1,7 @@
 import { db, type DbContext, type TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
+import { FilterWhere } from '@lib/filter-where.js';
+import { FilterOrder } from '@lib/filter-order.js';
 
 /**
  * Filter class for building complex database queries with support for WHERE, ORDER BY, and LIMIT clauses.
@@ -807,12 +809,40 @@ export class Filter {
      * to build COUNT queries or other custom SQL statements.
      */
     toWhereSQL(): { whereClause: string; params: any[] } {
-        // Reset parameter collection for fresh clause generation
-        this._paramValues = [];
-        this._paramIndex = 0;
+        // Use FilterWhere for consistent WHERE clause generation
+        const whereData = this.extractWhereData();
+        const options = {
+            includeTrashed: this.system.options.trashed || false,
+            includeDeleted: this.system.options.deleted || false
+        };
         
-        const whereClause = this.getWhereClause();
-        return { whereClause, params: this._paramValues };
+        return FilterWhere.generate(whereData, 0, options);
+    }
+
+    /**
+     * Extract WHERE data from Filter's internal state for FilterWhere
+     */
+    private extractWhereData(): any {
+        // Convert Filter's internal _where conditions to FilterWhere format
+        const whereData: any = {};
+        
+        for (const whereInfo of this._where) {
+            const { column, operator, data } = whereInfo;
+            
+            if (!column) continue; // Skip conditions without column
+            
+            if (operator === FilterOp.EQ) {
+                whereData[column] = data;
+            } else {
+                // Complex operators stored as objects
+                if (!whereData[column]) {
+                    whereData[column] = {};
+                }
+                whereData[column][operator] = data;
+            }
+        }
+        
+        return whereData;
     }
 
     /**
@@ -887,11 +917,23 @@ export class Filter {
 
     // Get just the ORDER BY clause for use in other queries
     getOrderClause(): string {
-        if (this._order.length > 0) {
-            const orders = this._order.map(o => `"${o.column}" ${o.sort.toUpperCase()}`);
-            return orders.join(', ');
-        }
-        return '';
+        // Use FilterOrder for consistent ORDER BY generation
+        const orderData = this.extractOrderData();
+        const orderClause = FilterOrder.generate(orderData);
+        
+        // Remove "ORDER BY" prefix since getOrderClause() returns just the clause part
+        return orderClause.replace(/^ORDER BY\s+/, '');
+    }
+
+    /**
+     * Extract ORDER data from Filter's internal state for FilterOrder
+     */
+    private extractOrderData(): any {
+        // Convert Filter's internal _order to FilterOrder format
+        return this._order.map(orderInfo => ({
+            column: orderInfo.column,
+            sort: orderInfo.sort
+        }));
     }
 
     // Get just the LIMIT/OFFSET clause for use in other queries
