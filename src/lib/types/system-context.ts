@@ -71,12 +71,15 @@ export interface SystemContext {
  * Used during transition period before Ring 5 migration (Issue #94)
  */
 export interface SystemContextWithInfrastructure extends SystemContext {
-    /** Database/Transaction context for direct SQL access */
-    readonly dtx: any; // Avoid importing DbContext/TxContext to prevent circular deps
+    /** Database connection - always available for database operations */
+    readonly db: any; // Avoid importing DbContext to prevent circular deps
+    
+    /** Transaction context - set by SQL Observer when transactions needed */
+    tx?: any; // Avoid importing TxContext to prevent circular deps
     
     /** Database instance for high-level operations */
     readonly database: any; // Avoid importing Database class to prevent circular deps
     
-    /** Track if we're already in a transaction to enable transaction reuse */
-    readonly isInTransaction?: boolean;
+    /** Metabase instance for schema operations */
+    readonly metabase: any; // Avoid importing Metabase class to prevent circular deps
 }

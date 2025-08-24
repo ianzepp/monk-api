@@ -2,7 +2,7 @@
  * SQL Observer - Ring 5 Database Transport Layer
  * 
  * Pure SQL execution layer that operates on pre-validated, pre-processed data from
- * earlier observer rings. Handles direct database operations using system.dtx.query()
+ * earlier observer rings. Handles direct database operations using this.getDbContext(system).query()
  * with proper parameterized queries and bulk operations for optimal performance.
  * 
  * By Ring 5, data has already been:
@@ -28,12 +28,31 @@ export class SqlObserver extends BaseObserver {
     async execute(context: ObserverContext): Promise<void> {
         const { system, operation, schemaName, schema, data, metadata } = context;
         
+        // Check if any observer requested a transaction
+        const needsTx = BaseObserver.isTransactionRequired(context);
+        const reasons = BaseObserver.getTransactionReasons(context);
+        
         system.info(`SQL transport layer executing ${operation}`, {
             schemaName,
             operation,
             recordCount: data?.length || 0,
-            ring: this.ring
+            ring: this.ring,
+            transactionRequired: needsTx,
+            transactionReasons: reasons.length
         });
+        
+        // Start transaction if requested and not already in one
+        if (needsTx && !system.tx) {
+            system.tx = await system.db.connect();
+            await system.tx.query('BEGIN');
+            
+            system.info('Transaction started for observer pipeline', {
+                operation,
+                schemaName,
+                requestingObservers: reasons.length,
+                reasons: reasons.map(r => `${r.observer}(Ring ${r.ring}): ${r.reason}`)
+            });
+        }
         
         try {
             let result: any[];
@@ -70,7 +89,8 @@ export class SqlObserver extends BaseObserver {
                 operation,
                 inputRecords: data?.length || 0,
                 outputRecords: result?.length || 0,
-                executionTime: Date.now() - context.startTime
+                executionTime: Date.now() - context.startTime,
+                usedTransaction: !!system.tx
             });
             
         } catch (error) {
@@ -78,7 +98,8 @@ export class SqlObserver extends BaseObserver {
                 schemaName,
                 operation,
                 recordCount: data?.length || 0,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
+                usedTransaction: !!system.tx
             });
             throw new SystemError(
                 `SQL transport failed for ${operation} on ${schemaName}`,
@@ -120,7 +141,7 @@ export class SqlObserver extends BaseObserver {
             const fieldList = fields.map(field => `"${field}"`).join(', ');
             
             const query = `INSERT INTO "${schema.table}" (${fieldList}) VALUES (${placeholders}) RETURNING *`;
-            const result = await system.dtx.query(query, values);
+            const result = await this.getDbContext(system).query(query, values);
             
             if (result.rows.length === 0) {
                 throw new SystemError(`Failed to create record in ${schema.name}`);
@@ -175,7 +196,7 @@ export class SqlObserver extends BaseObserver {
             const query = `UPDATE "${schema.table}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
             const allParams = [...values, ...whereParams];
             
-            const result = await system.dtx.query(query, allParams);
+            const result = await this.getDbContext(system).query(query, allParams);
             if (result.rows.length === 0) {
                 throw new SystemError(`Update failed - record not found: ${id}`);
             }
@@ -209,7 +230,7 @@ export class SqlObserver extends BaseObserver {
         });
         
         const query = `UPDATE "${schema.table}" SET trashed_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
-        const result = await system.dtx.query(query, params);
+        const result = await this.getDbContext(system).query(query, params);
         
         // Existence validation already confirmed these records exist
         if (result.rows.length !== ids.length) {
@@ -233,7 +254,7 @@ export class SqlObserver extends BaseObserver {
         const { whereClause, params } = FilterWhere.generate({});  // Default filtering for soft deletes
         
         const query = `SELECT * FROM "${schema.table}" WHERE ${whereClause} ORDER BY "created_at" DESC`;
-        const result = await system.dtx.query(query, params);
+        const result = await this.getDbContext(system).query(query, params);
         
         return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
@@ -264,7 +285,7 @@ export class SqlObserver extends BaseObserver {
         // Build revert query - only revert actually trashed records
         const fullWhereClause = `${whereClause} AND "trashed_at" IS NOT NULL`;
         const query = `UPDATE "${schema.table}" SET trashed_at = NULL, updated_at = NOW() WHERE ${fullWhereClause} RETURNING *`;
-        const result = await system.dtx.query(query, params);
+        const result = await this.getDbContext(system).query(query, params);
         
         // ExistenceValidator already confirmed these are trashed records
         if (result.rows.length !== ids.length) {
@@ -335,6 +356,14 @@ export class SqlObserver extends BaseObserver {
         }
         
         return processed;
+    }
+    
+    /**
+     * Get transaction-aware database context
+     * Uses transaction if available, otherwise uses database connection
+     */
+    private getDbContext(system: any): any {
+        return system.tx || system.db;
     }
     
     /**

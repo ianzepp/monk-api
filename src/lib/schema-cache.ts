@@ -168,10 +168,10 @@ export class SchemaCache {
      * Get schema with caching
      */
     async getSchema(system: SystemContextWithInfrastructure, schemaName: string): Promise<any> {
-        const dbCache = this.getDatabaseCache(system.dtx);
+        const dbCache = this.getDatabaseCache(system.db);
         
         // 1. Validate checksums (batch operation, infrequent)
-        await this.validateCacheChecksums(system.dtx, [schemaName]);
+        await this.validateCacheChecksums(system.db, [schemaName]);
         
         // 2. Check cache
         const cached = dbCache.schemas.get(schemaName);
@@ -182,7 +182,7 @@ export class SchemaCache {
         
         // 3. Cache miss - load full schema
         console.debug(`Schema cache miss: ${schemaName}`);
-        const schema = await this.loadFullSchema(system.dtx, schemaName);
+        const schema = await this.loadFullSchema(system.db, schemaName);
         
         // 4. Update cache with full schema
         if (cached) {
@@ -204,7 +204,7 @@ export class SchemaCache {
      * Invalidate specific schema in cache (for updates)
      */
     invalidateSchema(system: SystemContextWithInfrastructure, schemaName: string): void {
-        const dbCache = this.getDatabaseCache(system.dtx);
+        const dbCache = this.getDatabaseCache(system.db);
         dbCache.schemas.delete(schemaName);
         console.debug(`Schema cache invalidated manually: ${schemaName}`);
     }

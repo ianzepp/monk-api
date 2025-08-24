@@ -20,14 +20,20 @@ import crypto from 'crypto';
  */
 export class Database {
     public readonly system: SystemContextWithInfrastructure;
-    public readonly dtx: DbContext | TxContext;
     
     /** Maximum observer recursion depth to prevent infinite loops */
     static readonly SQL_MAX_RECURSION = 3;
 
-    constructor(system: SystemContextWithInfrastructure, dtx: DbContext | TxContext) {
+    constructor(system: SystemContextWithInfrastructure) {
         this.system = system;
-        this.dtx = dtx;
+    }
+    
+    /**
+     * Get transaction-aware database context
+     * Uses transaction if available, otherwise uses database connection
+     */
+    private get dbContext(): DbContext | TxContext {
+        return this.system.tx || this.system.db;
     }
 
     // Schema operations with caching - returns Schema instance
@@ -51,10 +57,11 @@ export class Database {
 
     // Core operation. Execute raw SQL query
     async execute(query: string, params: any[] = []): Promise<any> {
+        const dbContext = this.dbContext;
         if (params.length > 0) {
-            return await this.dtx.query(query, params);
+            return await dbContext.query(query, params);
         } else {
-            return await this.dtx.query(query);
+            return await dbContext.query(query);
         }
     }
 
@@ -321,12 +328,57 @@ export class Database {
         console.debug(`🔄 Starting observer pipeline: ${operation} on ${schema} (${data.length} records, depth ${depth})`);
         
         try {
-            // For now, execute observer pipeline directly 
-            // TODO: Implement proper transaction management in Ring 5
-            return await this.executeObserverPipeline(operation, schema, data, depth + 1);
+            // Execute observer pipeline (SQL Observer may start transaction)
+            const result = await this.executeObserverPipeline(operation, schema, data, depth + 1);
+            
+            // Commit transaction if one was started by SQL Observer
+            if (this.system.tx) {
+                await this.system.tx.query('COMMIT');
+                
+                this.system.info('Transaction committed successfully', {
+                    operation,
+                    schemaName: schema,
+                    recordCount: data.length
+                });
+                
+                // Release transaction client
+                if ('release' in this.system.tx) {
+                    (this.system.tx as any).release();
+                }
+                this.system.tx = undefined;
+            }
+            
+            return result;
             
         } catch (error) {
             console.error(`💥 Observer pipeline failed: ${operation} on ${schema}`, error);
+            
+            // Rollback transaction if one was started
+            if (this.system.tx) {
+                try {
+                    await this.system.tx.query('ROLLBACK');
+                    
+                    this.system.warn('Transaction rolled back due to observer pipeline failure', {
+                        operation,
+                        schemaName: schema,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                } catch (rollbackError) {
+                    this.system.warn('Failed to rollback transaction after observer failure', {
+                        operation,
+                        schemaName: schema,
+                        originalError: error instanceof Error ? error.message : String(error),
+                        rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+                    });
+                } finally {
+                    // Release transaction client
+                    if ('release' in this.system.tx) {
+                        (this.system.tx as any).release();
+                    }
+                    this.system.tx = undefined;
+                }
+            }
+            
             throw error instanceof Error ? error : new SystemError(`Observer pipeline failed: ${error}`);
         }
     }

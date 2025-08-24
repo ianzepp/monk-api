@@ -78,7 +78,7 @@ export class Metabase {
      * Get schema as YAML content
      */
     async selectOne(schemaName: string): Promise<string> {
-        const db = this.system.dtx;
+        const db = this.system.db;
         
         // Get schema record from database (exclude soft-deleted schemas)
         const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 AND trashed_at IS NULL LIMIT 1`;
@@ -179,7 +179,7 @@ export class Metabase {
         schemaName: string,
         fn: (tx: TxContext) => Promise<any>
     ): Promise<any> {
-        const db = this.system.dtx;
+        const db = this.system.db;
         
         console.debug(`🔄 Starting metabase operation: ${operation} on schema ${schemaName}`);
         

@@ -47,7 +47,7 @@ export async function handleContextDb<T>(context: Context, fn: (system: System) 
     try {
         const contextDb = DatabaseManager.getDatabaseFromContext(context);
         const options = extractOptionsFromContext(context);
-        const result = await fn(new System(context, contextDb, options));
+        const result = await fn(new System(context, options));
 
         // Success!
         return createSuccessResponse(context, result, 200);
@@ -71,7 +71,9 @@ export async function handleContextTx<T>(context: Context, fn: (system: System) 
         try {
             await client.query('BEGIN');
             const options = extractOptionsFromContext(context);
-            const result = await fn(new System(context, client, options));
+            const system = new System(context, options);
+            system.tx = client; // Set transaction context
+            const result = await fn(system);
             await client.query('COMMIT');
             return createSuccessResponse(context, result, 200);
         } catch (error) {

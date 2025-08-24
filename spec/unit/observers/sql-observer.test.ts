@@ -20,12 +20,12 @@ describe('Unit: SQL Observer', () => {
         observer = new SqlObserver();
         mockQueryResults = [];
         
-        // Create mock context with database transaction
+        // Create mock context with database connection
         mockContext = {
             system: {
                 info: () => {},
                 warn: () => {},
-                dtx: {
+                db: {
                     query: async (query: string, params?: any[]) => {
                         // Store query details for verification
                         mockQueryResults.push({ query, params });
@@ -38,8 +38,13 @@ describe('Unit: SQL Observer', () => {
                             return { rows: [{ id: 'selected-record', name: 'Selected' }] };
                         }
                         return { rows: [] };
-                    }
-                }
+                    },
+                    connect: async () => ({
+                        query: async () => ({ rows: [] }),
+                        release: () => {}
+                    })
+                },
+                tx: undefined
             } as any,
             schemaName: 'test_schema',
             schema: {} as any,
@@ -340,7 +345,7 @@ describe('Unit: SQL Observer', () => {
         test('should validate affected row count', async () => {
             mockContext.data = [{ id: 'id1' }, { id: 'id2' }];
             // Mock returning only 1 row when 2 expected
-            mockContext.system.dtx.query = async (query: string, params?: any[]) => {
+            mockContext.system.db.query = async (query: string, params?: any[]) => {
                 mockQueryResults.push({ query, params });
                 return { rows: [{ id: 'id1' }] };
             };
@@ -355,7 +360,7 @@ describe('Unit: SQL Observer', () => {
 
         test('should handle bulk deletes', async () => {
             mockContext.data = [{ id: 'id1' }, { id: 'id2' }, { id: 'id3' }];
-            mockContext.system.dtx.query = async (query: string, params?: any[]) => {
+            mockContext.system.db.query = async (query: string, params?: any[]) => {
                 mockQueryResults.push({ query, params });
                 return { rows: [{ id: 'id1' }, { id: 'id2' }, { id: 'id3' }] };
             };
@@ -386,7 +391,7 @@ describe('Unit: SQL Observer', () => {
 
         test('should handle ID strings directly', async () => {
             mockContext.data = ['id1', 'id2', 'id3']; // Array of ID strings
-            mockContext.system.dtx.query = async (query: string, params?: any[]) => {
+            mockContext.system.db.query = async (query: string, params?: any[]) => {
                 mockQueryResults.push({ query, params });
                 return { rows: [{ id: 'id1' }, { id: 'id2' }, { id: 'id3' }] };
             };
@@ -399,7 +404,7 @@ describe('Unit: SQL Observer', () => {
 
         test('should validate affected row count', async () => {
             mockContext.data = ['id1', 'id2'];
-            mockContext.system.dtx.query = async (query: string, params?: any[]) => {
+            mockContext.system.db.query = async (query: string, params?: any[]) => {
                 mockQueryResults.push({ query, params });
                 return { rows: [{ id: 'id1' }] };
             };
@@ -486,7 +491,7 @@ describe('Unit: SQL Observer', () => {
         test('should wrap database errors in SystemError', async () => {
             mockContext.operation = 'create';
             mockContext.data = [{ name: 'Test' }];
-            mockContext.system.dtx.query = async () => {
+            mockContext.system.db.query = async () => {
                 throw new Error('Database connection failed');
             };
             
@@ -497,7 +502,7 @@ describe('Unit: SQL Observer', () => {
         test('should handle database transaction failures', async () => {
             mockContext.operation = 'create';
             mockContext.data = [{ name: 'Test' }];
-            mockContext.system.dtx.query = async (query: string, params?: any[]) => {
+            mockContext.system.db.query = async (query: string, params?: any[]) => {
                 mockQueryResults.push({ query, params });
                 return { rows: [] }; // No rows returned
             };

@@ -23,27 +23,32 @@ export class System implements SystemContextWithInfrastructure {
     public readonly correlationId: string;
     private readonly logger: Logger;
 
+    // Database context - always available for database operations
+    public readonly db: DbContext;
+    
+    // Transaction context - set by SQL Observer when transactions needed
+    public tx?: TxContext;
+    
     // System services
     public readonly database: Database;
     public readonly metabase: Metabase;
-    public readonly dtx: DbContext | TxContext;
-    public readonly isInTransaction: boolean = false;
 
-    constructor(c: Context, dtx?: DbContext | TxContext, options: SystemOptions = {}) {
+    constructor(c: Context, options: SystemOptions = {}) {
         this.context = c;
         
-        // Get database context from Hono context or use provided one
-        if (dtx === undefined) {
-            dtx = DatabaseManager.getDatabaseFromContext(c);
-        }
+        // Get database connection from Hono context (always required)
+        const db = DatabaseManager.getDatabaseFromContext(c);
         
-        if (dtx === undefined) {
-            throw new Error('Unable to initialize database or transaction context.');   
+        if (!db) {
+            throw new Error('Unable to initialize database connection - ensure database middleware is applied');
         }
 
-        // Initialize service instances with dependency injection
-        this.dtx = dtx;
-        this.database = new Database(this, this.dtx);
+        // Initialize database connection (always available)
+        this.db = db;
+        this.tx = undefined; // Will be set by SQL Observer when transactions needed
+        
+        // Initialize service instances with clean dependency injection
+        this.database = new Database(this);
         this.metabase = new Metabase(this);
         
         // Store query options as read-only
