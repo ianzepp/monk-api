@@ -10,6 +10,7 @@ import type { ObserverContext } from '@observers/interfaces.js';
 import { BaseObserver } from '@observers/base-observer.js';
 import { ObserverRing } from '@observers/types.js';
 import { SystemError } from '@observers/errors.js';
+import { Filter } from '@lib/filter.js';
 import crypto from 'crypto';
 
 export class SqlObserver extends BaseObserver {
@@ -140,12 +141,16 @@ export class SqlObserver extends BaseObserver {
                 throw new SystemError('No fields to update');
             }
             
-            const setClause = fields.map((field, i) => `\${field} = $\${i + 1}`).join(', ');
-            const query = `UPDATE "\${schema}" SET \${setClause} WHERE id = $\${fields.length + 1} AND trashed_at IS NULL RETURNING *`;
+            const setClause = fields.map((field, i) => `"${field}" = $${i + 1}`).join(', ');
             
-            const result = await system.dtx.query(query, [...values, id]);
+            // WHERE clause: id parameter starts after SET clause parameters
+            const idParamIndex = fields.length + 1;
+            const query = `UPDATE "${schema}" SET ${setClause} WHERE "id" = $${idParamIndex} AND "trashed_at" IS NULL RETURNING *`;
+            const allParams = [...values, id];
+            
+            const result = await system.dtx.query(query, allParams);
             if (result.rows.length === 0) {
-                throw new SystemError(`Record not found or already deleted: \${id}`);
+                throw new SystemError(`Record not found or already deleted: ${id}`);
             }
             
             results.push(result.rows[0]);
@@ -170,7 +175,7 @@ export class SqlObserver extends BaseObserver {
         }
         
         // Soft delete: Set trashed_at timestamp
-        const query = `UPDATE "\${schema}" SET trashed_at = NOW(), updated_at = NOW() WHERE id = ANY($1) AND trashed_at IS NULL RETURNING *`;
+        const query = `UPDATE "${schema}" SET trashed_at = NOW(), updated_at = NOW() WHERE id = ANY($1) AND trashed_at IS NULL RETURNING *`;
         const result = await system.dtx.query(query, [ids]);
         
         return result.rows;
@@ -187,7 +192,7 @@ export class SqlObserver extends BaseObserver {
         console.debug(`🔨 SqlObserver: Bulk selecting from schema ${schema}`);
         
         // Simple select all for now - TODO: Implement proper filter processing
-        const query = `SELECT * FROM "\${schema}" WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY created_at DESC`;
+        const query = `SELECT * FROM "${schema}" WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY created_at DESC`;
         const result = await system.dtx.query(query);
         
         return result.rows;
@@ -209,7 +214,7 @@ export class SqlObserver extends BaseObserver {
         }
         
         // Revert soft delete: Clear trashed_at timestamp
-        const query = `UPDATE "\${schema}" SET trashed_at = NULL, updated_at = NOW() WHERE id = ANY($1) AND trashed_at IS NOT NULL RETURNING *`;
+        const query = `UPDATE "${schema}" SET trashed_at = NULL, updated_at = NOW() WHERE id = ANY($1) AND trashed_at IS NOT NULL RETURNING *`;
         const result = await system.dtx.query(query, [ids]);
         
         return result.rows;
