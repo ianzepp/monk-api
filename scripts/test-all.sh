@@ -60,7 +60,7 @@ done
 verbose="${CLI_VERBOSE:-false}"
 
 # Test directory
-TEST_BASE_DIR="tests"
+TEST_BASE_DIR="test"
 
 if [ ! -d "$TEST_BASE_DIR" ]; then
     print_error "Test directory not found: $TEST_BASE_DIR"
