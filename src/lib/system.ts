@@ -56,7 +56,7 @@ export class System implements SystemContextWithInfrastructure {
     getUser(): UserInfo {
         return {
             id: this.userId,
-            domain: this.userDomain,
+            tenant: this.userDomain,
             role: this.context.get('userRole') || 'user',
             accessRead: this.context.get('accessReadIds') || [],
             accessEdit: this.context.get('accessEditIds') || [],
