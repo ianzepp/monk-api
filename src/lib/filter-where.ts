@@ -47,6 +47,7 @@
  */
 
 export enum FilterOp {
+    // Comparison operators
     EQ = '$eq',
     NE = '$ne', 
     NEQ = '$neq',
@@ -54,14 +55,43 @@ export enum FilterOp {
     GTE = '$gte',
     LT = '$lt',
     LTE = '$lte',
+    
+    // Pattern matching operators
     LIKE = '$like',
     NLIKE = '$nlike',
     ILIKE = '$ilike',
     NILIKE = '$nilike',
     REGEX = '$regex',
     NREGEX = '$nregex',
+    
+    // Array membership operators
     IN = '$in',
-    NIN = '$nin'
+    NIN = '$nin',
+    
+    // PostgreSQL array operations (CRITICAL for ACL)
+    ANY = '$any',       // Array overlap: access_read && ARRAY[user_id, group_id]
+    ALL = '$all',       // Array contains: tags @> ARRAY['feature', 'backend']
+    NANY = '$nany',     // NOT array overlap: NOT (access_deny && ARRAY[user_id])
+    NALL = '$nall',     // NOT array contains: NOT (permissions @> ARRAY['admin'])
+    SIZE = '$size',     // Array size: array_length(tags, 1) = 3
+    
+    // Logical operators (CRITICAL for FTP wildcards)
+    AND = '$and',       // Explicit AND: { $and: [condition1, condition2] }
+    OR = '$or',         // OR conditions: { $or: [{ role: 'admin' }, { role: 'mod' }] }
+    NOT = '$not',       // NOT condition: { $not: { status: 'banned' } }
+    NAND = '$nand',     // NAND operations
+    NOR = '$nor',       // NOR operations
+    
+    // Range operations
+    BETWEEN = '$between', // Range: { age: { $between: [18, 65] } } → age BETWEEN 18 AND 65
+    
+    // Search operations
+    FIND = '$find',     // Full-text search: { content: { $find: 'search terms' } }
+    TEXT = '$text',     // Text search: { description: { $text: 'keyword' } }
+    
+    // Existence operators
+    EXISTS = '$exists', // Field exists: { field: { $exists: true } } → field IS NOT NULL
+    NULL = '$null'      // Field is null: { field: { $null: true } } → field IS NULL
 }
 
 export interface FilterWhereInfo {
@@ -131,18 +161,21 @@ export class FilterWhere {
             return;
         }
 
-        for (const [column, value] of Object.entries(whereData)) {
-            if (value === null || value === undefined) {
+        for (const [key, value] of Object.entries(whereData)) {
+            // Handle logical operators
+            if (key.startsWith('$') && this.isLogicalOperator(key as FilterOp)) {
+                this.parseLogicalOperator(key as FilterOp, value);
+            } else if (value === null || value === undefined) {
                 // Handle null values
                 this._conditions.push({
-                    column,
+                    column: key,
                     operator: FilterOp.EQ,
                     data: null
                 });
             } else if (Array.isArray(value)) {
                 // Handle arrays as IN operations
                 this._conditions.push({
-                    column,
+                    column: key,
                     operator: FilterOp.IN,
                     data: value
                 });
@@ -151,7 +184,7 @@ export class FilterWhere {
                 for (const [op, data] of Object.entries(value)) {
                     if (Object.values(FilterOp).includes(op as FilterOp)) {
                         this._conditions.push({
-                            column,
+                            column: key,
                             operator: op as FilterOp,
                             data
                         });
@@ -160,12 +193,35 @@ export class FilterWhere {
             } else {
                 // Handle direct equality
                 this._conditions.push({
-                    column,
+                    column: key,
                     operator: FilterOp.EQ,
                     data: value
                 });
             }
         }
+    }
+
+    /**
+     * Check if operator is a logical operator
+     */
+    private isLogicalOperator(op: FilterOp): boolean {
+        return [FilterOp.AND, FilterOp.OR, FilterOp.NOT, FilterOp.NAND, FilterOp.NOR].includes(op);
+    }
+
+    /**
+     * Parse logical operator with nested conditions
+     */
+    private parseLogicalOperator(operator: FilterOp, data: any): void {
+        if (!Array.isArray(data)) {
+            throw new Error(`Logical operator ${operator} requires array of conditions`);
+        }
+
+        // Create a special condition that represents the logical operation
+        this._conditions.push({
+            column: '', // No specific column for logical operators
+            operator,
+            data: data // Array of nested conditions
+        });
     }
 
     /**
@@ -201,6 +257,11 @@ export class FilterWhere {
      */
     private buildSQLCondition(whereInfo: FilterWhereInfo): string | null {
         const { column, operator, data } = whereInfo;
+        
+        // Handle logical operators (no specific column)
+        if (!column && this.isLogicalOperator(operator)) {
+            return this.buildLogicalOperatorSQL(operator, data);
+        }
         
         if (!column) return null;
         const quotedColumn = `"${column}"`;
@@ -263,9 +324,194 @@ export class FilterWhere {
                 }
                 return `${quotedColumn} NOT IN (${ninValues.map(v => this.PARAM(v)).join(', ')})`;
 
+            // PostgreSQL array operations
+            case FilterOp.ANY:
+                const anyValues = Array.isArray(data) ? data : [data];
+                if (anyValues.length === 0) {
+                    return '1=0'; // No values = always false
+                }
+                return `${quotedColumn} && ARRAY[${anyValues.map(v => this.PARAM(v)).join(', ')}]`;
+
+            case FilterOp.ALL:
+                const allValues = Array.isArray(data) ? data : [data];
+                if (allValues.length === 0) {
+                    return '1=1'; // No values = always true
+                }
+                return `${quotedColumn} @> ARRAY[${allValues.map(v => this.PARAM(v)).join(', ')}]`;
+
+            case FilterOp.NANY:
+                const nanyValues = Array.isArray(data) ? data : [data];
+                if (nanyValues.length === 0) {
+                    return '1=1'; // No values = always true
+                }
+                return `NOT (${quotedColumn} && ARRAY[${nanyValues.map(v => this.PARAM(v)).join(', ')}])`;
+
+            case FilterOp.NALL:
+                const nallValues = Array.isArray(data) ? data : [data];
+                if (nallValues.length === 0) {
+                    return '1=0'; // No values = always false
+                }
+                return `NOT (${quotedColumn} @> ARRAY[${nallValues.map(v => this.PARAM(v)).join(', ')}])`;
+
+            case FilterOp.SIZE:
+                if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+                    // Handle nested operators: { $size: { $gte: 1 } }
+                    const entries = Object.entries(data);
+                    if (entries.length === 1) {
+                        const [nestedOp, nestedValue] = entries[0];
+                        const arrayLengthExpression = `array_length(${quotedColumn}, 1)`;
+                        return this.buildSizeOperatorSQL(arrayLengthExpression, nestedOp as FilterOp, nestedValue);
+                    }
+                }
+                return `array_length(${quotedColumn}, 1) = ${this.PARAM(data)}`;
+
+            // Range operations
+            case FilterOp.BETWEEN:
+                if (!Array.isArray(data) || data.length !== 2) {
+                    throw new Error('$between requires array with exactly 2 values: [min, max]');
+                }
+                if (data[0] === null || data[0] === undefined || data[1] === null || data[1] === undefined) {
+                    throw new Error('$between requires non-null values: [min, max]');
+                }
+                return `${quotedColumn} BETWEEN ${this.PARAM(data[0])} AND ${this.PARAM(data[1])}`;
+
+            // Existence operators
+            case FilterOp.EXISTS:
+                return data ? `${quotedColumn} IS NOT NULL` : `${quotedColumn} IS NULL`;
+
+            case FilterOp.NULL:
+                return data ? `${quotedColumn} IS NULL` : `${quotedColumn} IS NOT NULL`;
+
+            // Search operations (basic implementation)
+            case FilterOp.FIND:
+                // For now, implement as ILIKE - can be enhanced with PostgreSQL full-text search later
+                return `${quotedColumn} ILIKE ${this.PARAM(`%${data}%`)}`;
+
+            case FilterOp.TEXT:
+                // For now, implement as ILIKE - can be enhanced with PostgreSQL text search later
+                return `${quotedColumn} ILIKE ${this.PARAM(`%${data}%`)}`;
+
             default:
                 console.warn('Unsupported filter operator', { operator });
                 return null;
         }
+    }
+
+    /**
+     * Build SQL for size operator with nested operators
+     */
+    private buildSizeOperatorSQL(arrayLengthExpression: string, operator: FilterOp, value: any): string {
+        switch (operator) {
+            case FilterOp.EQ:
+                return `${arrayLengthExpression} = ${this.PARAM(value)}`;
+            case FilterOp.NE:
+            case FilterOp.NEQ:
+                return `${arrayLengthExpression} != ${this.PARAM(value)}`;
+            case FilterOp.GT:
+                return `${arrayLengthExpression} > ${this.PARAM(value)}`;
+            case FilterOp.GTE:
+                return `${arrayLengthExpression} >= ${this.PARAM(value)}`;
+            case FilterOp.LT:
+                return `${arrayLengthExpression} < ${this.PARAM(value)}`;
+            case FilterOp.LTE:
+                return `${arrayLengthExpression} <= ${this.PARAM(value)}`;
+            case FilterOp.BETWEEN:
+                if (!Array.isArray(value) || value.length !== 2) {
+                    throw new Error('$size with $between requires array with exactly 2 values: [min, max]');
+                }
+                return `${arrayLengthExpression} BETWEEN ${this.PARAM(value[0])} AND ${this.PARAM(value[1])}`;
+            case FilterOp.IN:
+                const inValues = Array.isArray(value) ? value : [value];
+                if (inValues.length === 0) {
+                    return '1=0'; // No values = always false
+                }
+                return `${arrayLengthExpression} IN (${inValues.map(v => this.PARAM(v)).join(', ')})`;
+            case FilterOp.NIN:
+                const ninValues = Array.isArray(value) ? value : [value];
+                if (ninValues.length === 0) {
+                    return '1=1'; // No values = always true
+                }
+                return `${arrayLengthExpression} NOT IN (${ninValues.map(v => this.PARAM(v)).join(', ')})`;
+            default:
+                throw new Error(`Unsupported operator for $size: ${operator}`);
+        }
+    }
+
+    /**
+     * Build SQL for logical operators
+     */
+    private buildLogicalOperatorSQL(operator: FilterOp, data: any): string | null {
+        if (!Array.isArray(data)) {
+            throw new Error(`${operator} operator requires array of conditions`);
+        }
+
+        const clauses = data.map(condition => this.buildNestedCondition(condition)).filter(Boolean);
+
+        switch (operator) {
+            case FilterOp.AND:
+                if (clauses.length === 0) {
+                    return '1=1'; // Empty AND = always true
+                }
+                return `(${clauses.join(' AND ')})`;
+
+            case FilterOp.OR:
+                if (clauses.length === 0) {
+                    return '1=0'; // Empty OR = always false
+                }
+                return `(${clauses.join(' OR ')})`;
+
+            case FilterOp.NOT:
+                if (clauses.length === 0) {
+                    return '1=0'; // Empty NOT = always false
+                }
+                return `NOT (${clauses.join(' AND ')})`;
+
+            case FilterOp.NAND:
+                if (clauses.length === 0) {
+                    return '1=1'; // Empty NAND = always true
+                }
+                return `NOT (${clauses.join(' AND ')})`;
+
+            case FilterOp.NOR:
+                if (clauses.length === 0) {
+                    return '1=1'; // Empty NOR = always true
+                }
+                return `NOT (${clauses.join(' OR ')})`;
+
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Build nested condition for logical operators
+     * Recursively processes nested filter conditions
+     */
+    private buildNestedCondition(condition: any): string | null {
+        if (!condition || typeof condition !== 'object') {
+            return null;
+        }
+
+        // Create a temporary FilterWhere instance for the nested condition
+        const nestedFilter = new FilterWhere(this._paramIndex);
+        nestedFilter.parseWhereData(condition);
+        
+        // Build the nested conditions
+        const nestedConditions = nestedFilter._conditions
+            .map(cond => nestedFilter.buildSQLCondition(cond))
+            .filter(Boolean);
+
+        // Update our parameter index to account for nested parameters
+        this._paramIndex = nestedFilter._paramIndex;
+        this._paramValues.push(...nestedFilter._paramValues);
+
+        // Return combined nested conditions
+        if (nestedConditions.length === 0) {
+            return null;
+        }
+        if (nestedConditions.length === 1) {
+            return nestedConditions[0];
+        }
+        return `(${nestedConditions.join(' AND ')})`;
     }
 }

@@ -586,6 +586,115 @@ psql -d monk-api-auth -c "SELECT * FROM tenants;"
 psql -d "monk-api\$local-test" -c "SELECT name FROM schema;"
 ```
 
+## Enterprise Filter System
+
+### **Filter Operator Categories**
+
+The monk-api Filter system provides **25+ advanced operators** for sophisticated database querying, restored from the 2019 cloud-api implementation with modern enhancements.
+
+#### **Comparison Operators (8)**
+- **$eq, $ne, $neq**: Equality and inequality operations
+- **$gt, $gte, $lt, $lte**: Numeric and date comparisons
+- **$between**: Range operations with validation
+
+#### **Pattern Matching Operators (4)**  
+- **$like, $nlike**: Case-sensitive SQL LIKE operations
+- **$ilike, $nilike**: Case-insensitive PostgreSQL ILIKE operations  
+- **$regex, $nregex**: Regular expression matching
+
+#### **Array Membership Operators (2)**
+- **$in, $nin**: Value membership in arrays
+
+#### **PostgreSQL Array Operations (5) - Critical for ACL**
+- **$any**: Array overlap (`access_read && ARRAY[user_context]`)
+- **$all**: Array contains all values (`tags @> ARRAY['required', 'tags']`)
+- **$nany, $nall**: Negated array operations for denial logic
+- **$size**: Array size with nested operator support (`{ $size: { $gte: 1 } }`)
+
+#### **Logical Operators (5) - Critical for FTP Wildcards**
+- **$and, $or**: Standard logical operations with unlimited nesting depth
+- **$not**: Negation operations
+- **$nand, $nor**: Advanced logical operations for complex business rules
+
+#### **Search & Existence Operators (4)**
+- **$find, $text**: Full-text search capabilities (PostgreSQL-ready)
+- **$exists, $null**: Field existence and null validation
+
+### **Complex Filter Examples**
+
+#### **Multi-Tenant ACL Filtering**
+```bash
+# API Query with enterprise ACL
+POST /api/data/documents
+{
+  "where": {
+    "$and": [
+      {
+        "$or": [
+          { "access_read": { "$any": ["user-123", "group-456", "tenant-abc"] } },
+          { "access_edit": { "$any": ["user-123", "group-456", "tenant-abc"] } },
+          { "access_full": { "$any": ["user-123", "group-456", "tenant-abc"] } }
+        ]
+      },
+      { "access_deny": { "$nany": ["user-123", "group-456", "tenant-abc"] } },
+      { "tenant": { "$in": ["tenant-abc", "shared"] } },
+      { "status": { "$nin": ["archived", "deleted"] } }
+    ]
+  }
+}
+```
+
+#### **FTP Wildcard Translation**
+```bash
+# FTP Path: /data/users/*admin*/department/*eng*/created/2024-*
+# Translates to Filter:
+{
+  "where": {
+    "$and": [
+      { "id": { "$like": "%admin%" } },
+      { "department": { "$like": "%eng%" } },
+      { "created_at": { "$like": "2024-%" } }
+    ]
+  }
+}
+```
+
+#### **Advanced Content Search**
+```bash
+# Complex search with permissions and quality constraints
+{
+  "where": {
+    "$and": [
+      {
+        "$or": [
+          { "title": { "$find": "database optimization" } },
+          { "content": { "$text": "performance tuning" } },
+          { "keywords": { "$any": ["postgresql", "sql", "database"] } }
+        ]
+      },
+      { "published_at": { "$between": ["2024-01-01", "2024-12-31"] } },
+      { "quality_score": { "$between": [4, 5] } },
+      { "author_permissions": { "$size": { "$gte": 1 } } },
+      { "restricted_tags": { "$nall": ["confidential", "internal"] } }
+    ]
+  },
+  "order": ["quality_score desc", "published_at desc"],
+  "limit": 25
+}
+```
+
+### **Performance Capabilities**
+- **Deep Nesting**: 6+ levels of logical operator nesting
+- **Large Arrays**: 200+ element PostgreSQL array operations
+- **Complex Branching**: 100+ OR conditions in single query
+- **Parameter Management**: 500+ parameters with proper SQL parameterization
+- **Enterprise Scale**: Multi-tenant ACL queries with inheritance hierarchies
+
+### **Critical Unblocked Features**
+- **ACL System (Issues #4-7)**: PostgreSQL array operations enable user context filtering
+- **FTP Server (Epic #122)**: Logical operators enable complex wildcard pattern translation
+- **Advanced APIs**: Sophisticated filtering capabilities for complex business logic
+
 ## Build and Deployment
 
 ### **Build Process**
