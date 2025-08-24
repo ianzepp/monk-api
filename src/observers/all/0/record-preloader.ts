@@ -17,7 +17,7 @@ import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
 export default class RecordPreloader extends BaseObserver {
-    readonly ring = ObserverRing.Validation;
+    readonly ring = ObserverRing.DataPreparation;
     readonly operations = ['update', 'delete', 'revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {

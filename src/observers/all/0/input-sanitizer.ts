@@ -11,7 +11,7 @@ import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
 export default class InputSanitizer extends BaseObserver {
-    readonly ring = ObserverRing.Validation;
+    readonly ring = ObserverRing.DataPreparation;
     readonly operations = ['create', 'update'] as const;
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {

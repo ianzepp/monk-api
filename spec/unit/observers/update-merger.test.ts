@@ -6,7 +6,7 @@
  */
 
 import { describe, test, expect, beforeEach } from 'vitest';
-import UpdateMerger from '@src/observers/all/2/update-merger.js';
+import UpdateMerger from '@src/observers/all/0/update-merger.js';
 import { BusinessLogicError } from '@lib/observers/errors.js';
 import { ObserverRing } from '@lib/observers/types.js';
 import type { ObserverContext } from '@lib/observers/interfaces.js';

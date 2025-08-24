@@ -9,7 +9,7 @@
  * from the schema table. No additional database calls needed since Schema object
  * is loaded by ObserverRunner before observers execute.
  * 
- * Ring: 0 (Validation) - Schema: all - Operations: create, update, delete
+ * Ring: 1 (Input Validation) - Schema: all - Operations: create, update, delete
  */
 
 import { BaseObserver } from '@lib/observers/base-observer.js';
@@ -18,7 +18,7 @@ import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
 export default class SystemSchemaProtector extends BaseObserver {
-    readonly ring = ObserverRing.Validation;
+    readonly ring = ObserverRing.InputValidation;
     readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {

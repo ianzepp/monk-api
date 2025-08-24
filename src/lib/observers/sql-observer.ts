@@ -40,23 +40,23 @@ export class SqlObserver extends BaseObserver {
             
             switch (operation) {
                 case 'create':
-                    result = await this.bulkCreate(system, schemaName, data, metadata);
+                    result = await this.bulkCreate(system, schema, data, metadata);
                     break;
                     
                 case 'update':
-                    result = await this.bulkUpdate(system, schemaName, data, metadata);
+                    result = await this.bulkUpdate(system, schema, data, metadata);
                     break;
                     
                 case 'delete':
-                    result = await this.bulkDelete(system, schemaName, data, metadata);
+                    result = await this.bulkDelete(system, schema, data, metadata);
                     break;
                     
                 case 'select':
-                    result = await this.bulkSelect(system, schemaName, data, metadata);
+                    result = await this.bulkSelect(system, schema, data, metadata);
                     break;
                     
                 case 'revert':
-                    result = await this.bulkRevert(system, schemaName, data, metadata);
+                    result = await this.bulkRevert(system, schema, data, metadata);
                     break;
                     
                 default:
@@ -93,7 +93,7 @@ export class SqlObserver extends BaseObserver {
      * Operates on pre-validated data from earlier observer rings.
      * Uses proper parameterized queries and handles PostgreSQL-specific data types.
      */
-    private async bulkCreate(system: any, schema: string, records: any[], metadata: Map<string, any>): Promise<any[]> {
+    private async bulkCreate(system: any, schema: any, records: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!records || records.length === 0) {
             return [];
         }
@@ -119,14 +119,15 @@ export class SqlObserver extends BaseObserver {
             const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
             const fieldList = fields.map(field => `"${field}"`).join(', ');
             
-            const query = `INSERT INTO "${schema}" (${fieldList}) VALUES (${placeholders}) RETURNING *`;
+            const query = `INSERT INTO "${schema.table}" (${fieldList}) VALUES (${placeholders}) RETURNING *`;
             const result = await system.dtx.query(query, values);
             
             if (result.rows.length === 0) {
-                throw new SystemError(`Failed to create record in ${schema}`);
+                throw new SystemError(`Failed to create record in ${schema.name}`);
             }
             
-            results.push(result.rows[0]);
+            const convertedResult = this.convertPostgreSQLTypes(result.rows[0], schema);
+            results.push(convertedResult);
         }
         
         return results;
@@ -135,10 +136,10 @@ export class SqlObserver extends BaseObserver {
     /**
      * Bulk update operation - direct SQL execution
      * 
-     * Operates on pre-merged data from UpdateMerger observer (Ring 2).
+     * Operates on pre-merged data from UpdateMerger observer (Ring 0).
      * Data has already been merged with existing records and validated.
      */
-    private async bulkUpdate(system: any, schema: string, records: any[], metadata: Map<string, any>): Promise<any[]> {
+    private async bulkUpdate(system: any, schema: any, records: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!records || records.length === 0) {
             return [];
         }
@@ -171,7 +172,7 @@ export class SqlObserver extends BaseObserver {
                 fields.length  // Start WHERE parameters after SET parameters
             );
             
-            const query = `UPDATE "${schema}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
+            const query = `UPDATE "${schema.table}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
             const allParams = [...values, ...whereParams];
             
             const result = await system.dtx.query(query, allParams);
@@ -179,7 +180,8 @@ export class SqlObserver extends BaseObserver {
                 throw new SystemError(`Update failed - record not found: ${id}`);
             }
             
-            results.push(result.rows[0]);
+            const convertedResult = this.convertPostgreSQLTypes(result.rows[0], schema);
+            results.push(convertedResult);
         }
         
         return results;
@@ -191,7 +193,7 @@ export class SqlObserver extends BaseObserver {
      * Operates on pre-validated records from earlier observer rings.
      * All records have been confirmed to exist and be deletable.
      */
-    private async bulkDelete(system: any, schema: string, records: any[], metadata: Map<string, any>): Promise<any[]> {
+    private async bulkDelete(system: any, schema: any, records: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!records || records.length === 0) {
             return [];
         }
@@ -206,7 +208,7 @@ export class SqlObserver extends BaseObserver {
             id: { $in: ids }
         });
         
-        const query = `UPDATE "${schema}" SET trashed_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
+        const query = `UPDATE "${schema.table}" SET trashed_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
         const result = await system.dtx.query(query, params);
         
         // Existence validation already confirmed these records exist
@@ -214,7 +216,7 @@ export class SqlObserver extends BaseObserver {
             throw new SystemError(`Delete operation affected ${result.rows.length} records, expected ${ids.length}`);
         }
         
-        return result.rows;
+        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
     
     /**
@@ -222,7 +224,7 @@ export class SqlObserver extends BaseObserver {
      * 
      * Executes SELECT queries with proper WHERE clause generation and ordering.
      */
-    private async bulkSelect(system: any, schema: string, filters: any[], metadata: Map<string, any>): Promise<any[]> {
+    private async bulkSelect(system: any, schema: any, filters: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!filters || filters.length === 0) {
             return [];
         }
@@ -230,10 +232,10 @@ export class SqlObserver extends BaseObserver {
         // Use FilterWhere for consistent WHERE clause generation
         const { whereClause, params } = FilterWhere.generate({});  // Default filtering for soft deletes
         
-        const query = `SELECT * FROM "${schema}" WHERE ${whereClause} ORDER BY "created_at" DESC`;
+        const query = `SELECT * FROM "${schema.table}" WHERE ${whereClause} ORDER BY "created_at" DESC`;
         const result = await system.dtx.query(query, params);
         
-        return result.rows;
+        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
     
     /**
@@ -242,7 +244,7 @@ export class SqlObserver extends BaseObserver {
      * Operates on pre-validated trashed records from earlier observer rings.
      * Records have been confirmed to exist and be in trashed state.
      */
-    private async bulkRevert(system: any, schema: string, records: any[], metadata: Map<string, any>): Promise<any[]> {
+    private async bulkRevert(system: any, schema: any, records: any[], metadata: Map<string, any>): Promise<any[]> {
         if (!records || records.length === 0) {
             return [];
         }
@@ -261,7 +263,7 @@ export class SqlObserver extends BaseObserver {
         
         // Build revert query - only revert actually trashed records
         const fullWhereClause = `${whereClause} AND "trashed_at" IS NOT NULL`;
-        const query = `UPDATE "${schema}" SET trashed_at = NULL, updated_at = NOW() WHERE ${fullWhereClause} RETURNING *`;
+        const query = `UPDATE "${schema.table}" SET trashed_at = NULL, updated_at = NOW() WHERE ${fullWhereClause} RETURNING *`;
         const result = await system.dtx.query(query, params);
         
         // ExistenceValidator already confirmed these are trashed records
@@ -269,9 +271,50 @@ export class SqlObserver extends BaseObserver {
             throw new SystemError(`Revert operation affected ${result.rows.length} records, expected ${ids.length}`);
         }
         
-        return result.rows;
+        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
     
+    /**
+     * Convert PostgreSQL string results back to proper JSON types
+     * 
+     * PostgreSQL returns all values as strings by default. This method converts
+     * them back to the correct JSON types based on the schema definition.
+     */
+    private convertPostgreSQLTypes(record: any, schema: any): any {
+        if (!schema.definition?.properties) {
+            return record;
+        }
+        
+        const converted = { ...record };
+        const properties = schema.definition.properties;
+        
+        for (const [fieldName, fieldDef] of Object.entries(properties)) {
+            if (converted[fieldName] !== null && converted[fieldName] !== undefined) {
+                const fieldDefinition = fieldDef as any;
+                
+                switch (fieldDefinition.type) {
+                    case 'number':
+                    case 'integer':
+                        if (typeof converted[fieldName] === 'string') {
+                            converted[fieldName] = Number(converted[fieldName]);
+                        }
+                        break;
+                        
+                    case 'boolean':
+                        if (typeof converted[fieldName] === 'string') {
+                            converted[fieldName] = converted[fieldName] === 'true';
+                        }
+                        break;
+                        
+                    // Arrays and objects should already be handled by PostgreSQL
+                    // Strings and dates can remain as strings
+                }
+            }
+        }
+        
+        return converted;
+    }
+
     /**
      * Process UUID arrays for PostgreSQL compatibility
      * 

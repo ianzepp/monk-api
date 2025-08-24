@@ -9,10 +9,10 @@
  * Observer execution rings (0-9) with semantic assignments
  */
 export enum ObserverRing {
-    Validation = 0,      // JSON Schema validation, input sanitization
-    Security = 1,        // Access control, PII detection, rate limiting  
-    Business = 2,        // Complex business logic, domain rules
-    PreDatabase = 3,     // Final pre-database checks, transaction setup
+    DataPreparation = 0, // Data loading, merging, input preparation
+    InputValidation = 1, // Schema validation, format checks, basic integrity
+    Security = 2,        // Access control, protection policies, rate limiting  
+    Business = 3,        // Complex business logic, domain rules, workflows
     Enrichment = 4,      // Data enrichment, defaults, computed fields
     Database = 5,        // 🎯 DATABASE RING - SQL execution
     PostDatabase = 6,    // Immediate post-database processing

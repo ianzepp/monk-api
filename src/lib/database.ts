@@ -138,7 +138,50 @@ export class Database {
         // Issue #102: Use toSQL() pattern instead of direct filter.execute()
         const { query, params } = filter.toSQL();
         const result = await this.system.database.execute(query, params);
-        return result.rows;
+        
+        // Convert PostgreSQL string types back to proper JSON types
+        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
+    }
+    
+    /**
+     * Convert PostgreSQL string results back to proper JSON types
+     * 
+     * PostgreSQL returns all values as strings by default. This method converts
+     * them back to the correct JSON types based on the schema definition.
+     */
+    private convertPostgreSQLTypes(record: any, schema: any): any {
+        if (!schema.definition?.properties) {
+            return record;
+        }
+        
+        const converted = { ...record };
+        const properties = schema.definition.properties;
+        
+        for (const [fieldName, fieldDef] of Object.entries(properties)) {
+            if (converted[fieldName] !== null && converted[fieldName] !== undefined) {
+                const fieldDefinition = fieldDef as any;
+                
+                switch (fieldDefinition.type) {
+                    case 'number':
+                    case 'integer':
+                        if (typeof converted[fieldName] === 'string') {
+                            converted[fieldName] = Number(converted[fieldName]);
+                        }
+                        break;
+                        
+                    case 'boolean':
+                        if (typeof converted[fieldName] === 'string') {
+                            converted[fieldName] = converted[fieldName] === 'true';
+                        }
+                        break;
+                        
+                    // Arrays and objects should already be handled by PostgreSQL
+                    // Strings and dates can remain as strings
+                }
+            }
+        }
+        
+        return converted;
     }
 
     async updateAny(schemaName: string, filterData: FilterData, changes: Record<string, any>): Promise<any[]> {

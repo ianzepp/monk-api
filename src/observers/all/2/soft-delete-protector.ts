@@ -10,7 +10,7 @@
  * - Direct access: Allow ID retrieval of trashed records (GET /api/data/:schema/:id)
  * - Update operations: Block modifications until restoration (this observer)
  * 
- * Ring: 1 (Security) - Schema: all - Operations: update, delete
+ * Ring: 2 (Security) - Schema: all - Operations: update, delete
  */
 
 import { BaseObserver } from '@lib/observers/base-observer.js';

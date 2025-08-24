@@ -11,7 +11,7 @@ import { ObserverRing } from '@lib/observers/types.js';
 import { ValidationError } from '@lib/observers/errors.js';
 
 export default class EmailValidator extends BaseObserver {
-    ring = ObserverRing.Validation;
+    ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {

@@ -8,7 +8,7 @@
  * Ensures data integrity by preventing operations on non-existent records, providing clear
  * error messages about which records are missing.
  * 
- * Ring: 2 (Business Logic) - Schema: all - Operations: update, delete, revert
+ * Ring: 2 (Security) - Schema: all - Operations: update, delete, revert
  */
 
 import { BaseObserver } from '@lib/observers/base-observer.js';
@@ -18,7 +18,7 @@ import { ObserverRing } from '@lib/observers/types.js';
 import RecordPreloader from '../0/record-preloader.js';
 
 export default class ExistenceValidator extends BaseObserver {
-    readonly ring = ObserverRing.Business;
+    readonly ring = ObserverRing.Security;
     readonly operations = ['update', 'delete', 'revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {

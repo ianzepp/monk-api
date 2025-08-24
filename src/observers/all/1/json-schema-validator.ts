@@ -5,10 +5,13 @@
  * the Schema object's validateOrThrow() method. Ensures all data conforms
  * to the defined schema structure before database operations.
  * 
+ * For create operations: validates raw input data
+ * For update operations: validates merged data from UpdateMerger (also Ring 0)
+ * 
  * Uses the Schema object loaded by ObserverRunner - no additional database
  * calls needed since Schema object contains validation capabilities.
  * 
- * Ring: 0 (Validation) - Schema: all - Operations: create, update
+ * Ring: 1 (Input Validation) - Schema: all - Operations: create, update
  */
 
 import { BaseObserver } from '@lib/observers/base-observer.js';
@@ -17,7 +20,7 @@ import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
 export default class JsonSchemaValidator extends BaseObserver {
-    readonly ring = ObserverRing.Validation;
+    readonly ring = ObserverRing.InputValidation;
     readonly operations = ['create', 'update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {

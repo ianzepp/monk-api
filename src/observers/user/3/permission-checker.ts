@@ -2,7 +2,7 @@
  * User Permission Checker
  * 
  * Business logic validator for user permission operations
- * Ring: 2 (Business) - Schema: user - Operations: create, update
+ * Ring: 3 (Business Logic) - Schema: user - Operations: create, update
  */
 
 import { BaseObserver } from '@lib/observers/base-observer.js';

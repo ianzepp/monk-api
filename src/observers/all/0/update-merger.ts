@@ -11,17 +11,17 @@
  * - Setting updated_at timestamp for modified records
  * - Validating that merged data is still valid
  * 
- * Ring: 2 (Business Logic) - Schema: all - Operations: update
+ * Ring: 0 (Validation) - Schema: all - Operations: update
  */
 
 import { BaseObserver } from '@lib/observers/base-observer.js';
 import { BusinessLogicError } from '@lib/observers/errors.js';
 import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
-import RecordPreloader from '../0/record-preloader.js';
+import RecordPreloader from './record-preloader.js';
 
 export default class UpdateMerger extends BaseObserver {
-    readonly ring = ObserverRing.Business;
+    readonly ring = ObserverRing.DataPreparation;
     readonly operations = ['update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {

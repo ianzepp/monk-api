@@ -2,7 +2,7 @@
  * Required Fields Validator
  * 
  * Universal validator that checks for required fields based on schema metadata
- * Ring: 0 (Validation) - Schema: % (all schemas) - Operations: create, update
+ * Ring: 1 (Input Validation) - Schema: % (all schemas) - Operations: create, update
  */
 
 import type { ObserverContext } from '@lib/observers/interfaces.js';
@@ -11,7 +11,7 @@ import { ObserverRing } from '@lib/observers/types.js';
 import { ValidationError } from '@lib/observers/errors.js';
 
 export default class RequiredFieldsValidator extends BaseObserver {
-    ring = ObserverRing.Validation;
+    ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
 
     // Common required fields by schema

@@ -165,16 +165,16 @@ The observer system executes business logic in **10 ordered rings (0-9)** for ev
 
 ```typescript
 // Ring allocation and execution order
-Ring 0: Validation     // JSON Schema validation, input sanitization
-Ring 1: Security       // Access control, PII detection, rate limiting
-Ring 2: Business       // Complex business logic, domain rules
-Ring 3: PreDatabase    // Final pre-database checks, transaction setup
-Ring 4: Enrichment     // Data enrichment, defaults, computed fields
-Ring 5: Database       // 🎯 SQL EXECUTION (SqlObserver)
-Ring 6: PostDatabase   // Immediate post-database processing
-Ring 7: Audit          // Audit logging, change tracking, compliance
-Ring 8: Integration    // External APIs, webhooks, cache invalidation
-Ring 9: Notification   // User notifications, email alerts, real-time updates
+Ring 0: DataPreparation // Data loading, merging, input preparation
+Ring 1: InputValidation // Schema validation, format checks, basic integrity
+Ring 2: Security        // Access control, protection policies, rate limiting
+Ring 3: Business        // Complex business logic, domain rules, workflows
+Ring 4: Enrichment      // Data enrichment, defaults, computed fields
+Ring 5: Database        // 🎯 SQL EXECUTION (SqlObserver)
+Ring 6: PostDatabase    // Immediate post-database processing
+Ring 7: Audit           // Audit logging, change tracking, compliance
+Ring 8: Integration     // External APIs, webhooks, cache invalidation
+Ring 9: Notification    // User notifications, email alerts, real-time updates
 ```
 
 #### **Creating New Observers**
