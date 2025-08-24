@@ -107,6 +107,13 @@ export class System implements SystemContextWithInfrastructure {
     warn(message: string, meta?: any) {
         this.logger.warn(message, meta);
     }
+    
+    /**
+     * Log timing data with precise hrtime measurement (delegates to Logger)
+     */
+    time(label: string, startTime: bigint, meta?: any): void {
+        this.logger.time(label, startTime, meta);
+    }
 
     /**
      * Get actual tenant name from JWT payload

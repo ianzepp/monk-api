@@ -30,6 +30,19 @@ export class Logger {
     }
 
     /**
+     * Log timing data with calculated elapsed time using hrtime precision
+     * Takes start time from process.hrtime.bigint() and calculates duration
+     */
+    time(label: string, startTime: bigint, meta?: any): void {
+        const endTime = process.hrtime.bigint();
+        const durationNs = endTime - startTime;
+        const durationMs = Number(durationNs) / 1_000_000;
+        const elapsed = `${durationMs.toFixed(3)}ms`;
+        
+        console.info('[TIME]', label, elapsed, meta);
+    }
+
+    /**
      * Create child logger with additional context
      */
     child(additionalContext: Partial<LoggerContext>): Logger {

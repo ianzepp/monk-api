@@ -32,14 +32,15 @@ export abstract class BaseObserver implements Observer {
     protected readonly timeoutMs: number = 5000; // 5 seconds
     
     /**
-     * Public method - handles errors, timeouts, logging
+     * Public method - handles errors, timeouts, logging, and profiling
      * 
      * This method should be called by the ObserverRunner. It wraps the
-     * execute() method with consistent error handling and logging.
+     * execute() method with consistent error handling, logging, and execution profiling.
      */
     async executeTry(context: ObserverContext): Promise<void> {
-        const startTime = Date.now();
+        const startTime = process.hrtime.bigint();
         const observerName = this.constructor.name;
+        const { system, operation, schemaName } = context;
         
         try {
             // Execute with timeout protection
@@ -48,13 +49,26 @@ export abstract class BaseObserver implements Observer {
                 this.createTimeoutPromise(observerName)
             ]);
             
-            // Success logging
-            const duration = Date.now() - startTime;
-            console.debug(`✅ Observer executed: ${observerName} (ring ${this.ring}) - ${duration}ms`);
+            // Log successful execution with precise timing
+            system.time(`Observer: ${observerName}`, startTime, {
+                ring: this.ring,
+                operation,
+                schemaName,
+                status: 'success'
+            });
             
         } catch (error) {
-            const duration = Date.now() - startTime;
-            this.handleObserverError(error, observerName, context, duration);
+            // Log failed execution with precise timing
+            system.time(`Observer: ${observerName}`, startTime, {
+                ring: this.ring,
+                operation,
+                schemaName,
+                status: 'failed',
+                error: error instanceof Error ? error.message : String(error)
+            });
+            
+            // Handle observer error (unchanged logic)
+            this.handleObserverError(error, observerName, context, 0); // Duration not needed since timing logged above
         }
     }
     

@@ -7,7 +7,7 @@
  * TODO: Re-enable when webhook endpoints are configured
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
+import { BaseAsyncObserver } from '@lib/observers/base-async-observer.js';
 import { SystemError, ValidationWarning } from '@lib/observers/errors.js';
 import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
@@ -21,7 +21,7 @@ interface WebhookEndpoint {
     retries?: number;
 }
 
-export default class WebhookSender extends BaseObserver {
+export default class WebhookSender extends BaseAsyncObserver {
     readonly ring = ObserverRing.Integration;
     readonly operations = ['create', 'update', 'delete'] as const;
 
