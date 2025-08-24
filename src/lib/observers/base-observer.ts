@@ -134,7 +134,7 @@ export abstract class BaseObserver implements Observer {
                 'UNKNOWN_ERROR'
             );
             context.warnings.push(warning);
-            console.warn(`⚠️  Unknown error in ${observerName}: ${error.message} (${duration}ms)`);
+            console.warn(`Unknown error in ${observerName}: ${error.message} (${duration}ms)`);
             
         } else {
             // Non-Error objects become warnings
@@ -144,7 +144,7 @@ export abstract class BaseObserver implements Observer {
                 'UNKNOWN_ERROR'
             );
             context.warnings.push(warning);
-            console.warn(`⚠️  Unknown error in ${observerName}: ${String(error)} (${duration}ms)`);
+            console.warn(`Unknown error in ${observerName}: ${String(error)} (${duration}ms)`);
         }
     }
     

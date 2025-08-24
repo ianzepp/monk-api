@@ -242,7 +242,8 @@ export class ObserverRunner {
             );
             context.errors.push(validationError);
 
-            console.warn(`❌ Observer failed: ${observer.name}`, error);
+            // Note: Observer errors should be handled by BaseObserver.executeTry()
+            // This is a fallback that shouldn't normally execute
         }
 
         // Count errors/warnings added by this observer

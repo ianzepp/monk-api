@@ -6,6 +6,7 @@
  */
 
 import { glob } from '@lib/glob.local.js';
+import { logger } from '@lib/logger.js';
 import { join, dirname, basename, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -54,7 +55,10 @@ export class ObserverLoader {
                 try {
                     await this._loadObserverFile(filePattern);
                 } catch (error) {
-                    console.warn(`⚠️  Failed to load observer: ${filePattern.filepath}`, error);
+                    logger.warn('Failed to load observer', { 
+                        file: filePattern.filepath, 
+                        error: error instanceof Error ? error.message : String(error) 
+                    });
                     // Continue loading other observers - don't fail entire startup
                 }
             }
@@ -107,7 +111,7 @@ export class ObserverLoader {
 
         // Expected: ['src', 'observers', ':schema', ':ring_number', 'file-name.ts']
         if (pathParts.length < 5 || pathParts[0] !== 'src' || pathParts[1] !== 'observers') {
-            console.warn(`⚠️  Invalid observer path pattern: ${relativePath}`);
+            logger.warn('Invalid observer path pattern', { path: relativePath });
             return null;
         }
 
@@ -118,7 +122,7 @@ export class ObserverLoader {
         // Validate ring number
         const ringNum = parseInt(ringStr, 10);
         if (isNaN(ringNum) || ringNum < 0 || ringNum > 9) {
-            console.warn(`⚠️  Invalid ring number in observer path: ${relativePath} (ring: ${ringStr})`);
+            logger.warn('Invalid ring number in observer path', { path: relativePath, ring: ringStr });
             return null;
         }
 
@@ -183,7 +187,11 @@ export class ObserverLoader {
 
         // Ring in file path should match ring in observer
         if (observer.ring !== filePattern.ring) {
-            console.warn(`⚠️  Ring mismatch: file path suggests ring ${filePattern.ring}, observer declares ring ${observer.ring} (${filePattern.filepath})`);
+            logger.warn('Ring mismatch between file path and observer declaration', { 
+                file: filePattern.filepath, 
+                pathRing: filePattern.ring, 
+                observerRing: observer.ring 
+            });
         }
     }
 

@@ -332,7 +332,7 @@ export class Database {
             if (allowedFields.includes(key)) {
                 filteredChanges[key] = value;
             } else {
-                console.warn(`Ignoring non-access field in accessOne: ${key}`);
+                this.system.warn('Ignoring non-access field in accessOne', { field: key });
             }
         }
 

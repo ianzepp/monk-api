@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { Database } from '@lib/database.js';
 import { Metabase } from '@lib/metabase.js';
+import { Logger } from '@lib/logger.js';
 import { DatabaseManager } from '@lib/database-manager.js';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@lib/types/system-context.js';
@@ -20,6 +21,7 @@ export class System implements SystemContextWithInfrastructure {
     public readonly userId: string;
     public readonly options: Readonly<SystemOptions>;
     public readonly correlationId: string;
+    private readonly logger: Logger;
 
     // System services
     public readonly database: Database;
@@ -52,6 +54,14 @@ export class System implements SystemContextWithInfrastructure {
         
         // Generate correlation ID once per request
         this.correlationId = c.req.header('x-request-id') || this.generateCorrelationId();
+        
+        // Create contextual logger once per request
+        this.logger = new Logger({
+            correlationId: this.correlationId,
+            tenant: this.getTenant(),
+            operation: `${this.context.req.method} ${this.context.req.path}`,
+            userId: this.userId
+        });
     }
 
     /**
@@ -80,43 +90,17 @@ export class System implements SystemContextWithInfrastructure {
     }
 
     /**
-     * Log info message with request context
+     * Log info message with request context (delegates to Logger)
      */
     info(message: string, meta?: any) {
-        console.info(this.formatLog('INFO', message, meta));
+        this.logger.info(message, meta);
     }
     
     /**
-     * Log warning message with request context
+     * Log warning message with request context (delegates to Logger)
      */
     warn(message: string, meta?: any) {
-        console.warn(this.formatLog('WARN', message, meta));
-    }
-
-    /**
-     * Format log message with environment-aware output
-     */
-    private formatLog(level: string, message: string, meta?: any): string {
-        const timestamp = new Date().toISOString();
-        
-        if (process.env.NODE_ENV === 'production') {
-            // Structured JSON for production log aggregation
-            return JSON.stringify({
-                timestamp,
-                level,
-                message,
-                correlationId: this.correlationId,
-                userId: this.userId,
-                tenant: this.getTenant(),
-                operation: `${this.context.req.method} ${this.context.req.path}`,
-                ...(meta && { meta })
-            });
-        } else {
-            // Pretty format for development
-            const ctx = `[${this.correlationId}]{${this.getTenant()}}`;
-            const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-            return `${level} ${ctx} ${message}${metaStr}`;
-        }
+        this.logger.warn(message, meta);
     }
 
     /**
@@ -131,6 +115,6 @@ export class System implements SystemContextWithInfrastructure {
      * Generate correlation ID for request tracking
      */
     private generateCorrelationId(): string {
-        return 'req-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        return Logger.generateCorrelationId();
     }
 }

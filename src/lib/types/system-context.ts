@@ -54,6 +54,16 @@ export interface SystemContext {
      * Check if the current user has root access level
      */
     isRoot(): boolean;
+    
+    /**
+     * Log info message with request context
+     */
+    info(message: string, meta?: any): void;
+    
+    /**
+     * Log warning message with request context
+     */
+    warn(message: string, meta?: any): void;
 }
 
 /**

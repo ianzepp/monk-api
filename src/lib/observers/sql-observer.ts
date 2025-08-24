@@ -73,7 +73,7 @@ export class SqlObserver extends BaseObserver {
         }
         
         console.debug(`🔨 SqlObserver: Bulk creating ${records.length} records in schema ${schema}`);
-        console.warn(`⚠️  USING SIMPLIFIED SQL IMPLEMENTATION - See Issue #101 for complete feature parity`);
+        console.warn('USING SIMPLIFIED SQL IMPLEMENTATION - See Issue #101 for complete feature parity');
         
         // SIMPLIFIED implementation - missing critical features
         const results = [];

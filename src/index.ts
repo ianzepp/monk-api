@@ -31,6 +31,7 @@ import BulkPost from './routes/bulk/POST.js';                          // POST /
 import FindSchemaPost from './routes/find/:schema/POST.js';            // POST /api/find/:schema
 import PingGet from './routes/ping/GET.js';                            // GET /ping
 import { AuthService } from './lib/auth.js';
+import { logger } from './lib/logger.js';
 import { ObserverLoader } from '@observers/loader.js';
 import { 
     systemContextMiddleware, 
@@ -91,7 +92,7 @@ app.use('*', async (c, next) => {
     const duration = Date.now() - start;
     const status = c.res.status;
     
-    console.log(`${method} ${path} - ${status} (${duration}ms)`);
+    logger.info('Request completed', { method, path, status, duration });
 });
 
 // System context middleware - sets up System instance for all requests
@@ -153,37 +154,37 @@ app.notFound((c) => {
 const port = Number(process.env.PORT) || 9001;
 
 // Initialize observer system
-console.log(`🔄 Preloading observer system...`);
+logger.info('Preloading observer system');
 try {
     await ObserverLoader.preloadObservers();
-    console.log(`✅ Observer system ready`);
+    logger.info('Observer system ready');
 } catch (error) {
     console.error(`❌ Observer system initialization failed:`, error);
-    console.log(`⚠️  Continuing without observer system`);
+    logger.warn('Continuing without observer system');
 }
 
 // Start HTTP server only
-console.log(`🚀 Starting Monk HTTP API Server (Hono)...`);
-console.log(`📡 For FTP server, use: npm run ftp:start`);
+logger.info('Starting Monk HTTP API Server (Hono)');
+logger.info('For FTP server, use: npm run ftp:start');
 
 const server = serve({
     fetch: app.fetch,
     port,
 });
 
-console.log(`✅ HTTP API server running at http://localhost:${port}`);
+logger.info('HTTP API server running', { port, url: `http://localhost:${port}` });
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-    console.log('\n🛑 Shutting down HTTP API server gracefully...');
+    logger.info('Shutting down HTTP API server gracefully');
     
     // Stop HTTP server
     server.close();
-    console.log('✅ HTTP server stopped');
+    logger.info('HTTP server stopped');
     
     // Close database connections
     await closeDatabaseConnection();
-    console.log('✅ Database connections closed');
+    logger.info('Database connections closed');
     
     process.exit(0);
 };
