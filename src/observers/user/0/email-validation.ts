@@ -14,22 +14,17 @@ export default class EmailValidator extends BaseObserver {
     ring = ObserverRing.Validation;
     operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
-        const { data } = context;
-        
-        // Process each record in the array
-        for (const record of data) {
-            if (!record || !record.email) {
-                continue; // No email to validate
-            }
-
-            if (!this.isValidEmail(record.email)) {
-                throw new ValidationError('Invalid email format', 'email');
-            }
-
-            // Normalize email to lowercase
-            record.email = record.email.toLowerCase().trim();
+    async executeOne(record: any, context: ObserverContext): Promise<void> {
+        if (!record || !record.email) {
+            return; // No email to validate
         }
+
+        if (!this.isValidEmail(record.email)) {
+            throw new ValidationError('Invalid email format', 'email');
+        }
+
+        // Normalize email to lowercase
+        record.email = record.email.toLowerCase().trim();
     }
 
     private isValidEmail(email: string): boolean {

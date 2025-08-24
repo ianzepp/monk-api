@@ -14,18 +14,9 @@ export default class InputSanitizer extends BaseObserver {
     readonly ring = ObserverRing.Validation;
     readonly operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
-        const { data } = context;
-        
-        // Process data as array
-        if (Array.isArray(data)) {
-            for (const item of data) {
-                if (item && typeof item === 'object') {
-                    this.sanitizeObject(item);
-                }
-            }
-        } else if (data && typeof data === 'object') {
-            this.sanitizeObject(data);
+    async executeOne(record: any, context: ObserverContext): Promise<void> {
+        if (record && typeof record === 'object') {
+            this.sanitizeObject(record);
         }
     }
 

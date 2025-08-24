@@ -21,21 +21,17 @@ export default class RequiredFieldsValidator extends BaseObserver {
         // Add more schema-specific required fields as needed
     };
 
-    async execute(context: ObserverContext): Promise<void> {
-        const { data, operation, schema } = context;
-        
-        const requiredFields = this.getRequiredFields(schema, operation);
-        
-        // Process each record in the array
-        for (const record of data) {
-            if (!record) {
-                continue; // Skip null/undefined records
-            }
+    async executeOne(record: any, context: ObserverContext): Promise<void> {
+        if (!record) {
+            return; // Skip null/undefined records
+        }
 
-            for (const field of requiredFields) {
-                if (!this.hasValue(record, field)) {
-                    throw new ValidationError(`Missing required field: ${field}`, field);
-                }
+        const { operation, schema } = context;
+        const requiredFields = this.getRequiredFields(schema, operation);
+
+        for (const field of requiredFields) {
+            if (!this.hasValue(record, field)) {
+                throw new ValidationError(`Missing required field: ${field}`, field);
             }
         }
     }

@@ -54,30 +54,31 @@ Target ALL schemas using the `all` keyword:
 
 ## Observer Implementation
 
-### Basic Observer Template
+### Simple Field Validation (executeOne Pattern)
+For simple per-record validation and transformation, use the `executeOne()` pattern:
+
 ```typescript
 // src/observers/user/0/email-validator.ts
-import type { Observer, ObserverContext } from '@observers/interfaces.js';
-import { ObserverRing } from '@observers/types.js';
+import type { ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
+import { ObserverRing } from '@lib/observers/types.js';
+import { ValidationError } from '@lib/observers/errors.js';
 
-export default class EmailValidator implements Observer {
+export default class EmailValidator extends BaseObserver {
     ring = ObserverRing.Validation;
-    operations = ['create', 'update'];  // Optional: limit to specific operations
-    name = 'EmailValidator';            // Optional: for debugging
-    timeout = 3000;                     // Optional: custom timeout (default: 5000ms)
+    operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
-        const { data } = context;
-        
-        if (data.email && !this.isValidEmail(data.email)) {
-            context.errors.push({
-                message: 'Invalid email format',
-                field: 'email',
-                code: 'INVALID_EMAIL',
-                ring: this.ring,
-                observer: this.name
-            });
+    async executeOne(record: any, context: ObserverContext): Promise<void> {
+        if (!record || !record.email) {
+            return; // No email to validate
         }
+
+        if (!this.isValidEmail(record.email)) {
+            throw new ValidationError('Invalid email format', 'email');
+        }
+
+        // Normalize email to lowercase
+        record.email = record.email.toLowerCase().trim();
     }
 
     private isValidEmail(email: string): boolean {
@@ -85,6 +86,64 @@ export default class EmailValidator implements Observer {
     }
 }
 ```
+
+**Benefits of executeOne() pattern:**
+- **Cleaner code**: No manual array processing boilerplate
+- **Better readability**: Focus on single-record validation logic
+- **Easier testing**: Test individual record validation separately
+- **Automatic array handling**: BaseObserver handles the loop automatically
+
+### Complex Business Logic (execute Pattern)
+For complex observers that need cross-record analysis or custom array processing, override the `execute()` method:
+
+```typescript
+// src/observers/account/2/balance-validator.ts
+import type { ObserverContext } from '@lib/observers/interfaces.js';
+import { BaseObserver } from '@lib/observers/base-observer.js';
+import { ObserverRing } from '@lib/observers/types.js';
+import { BusinessLogicError } from '@lib/observers/errors.js';
+
+export default class BalanceValidator extends BaseObserver {
+    ring = ObserverRing.Business;
+    operations = ['create', 'update'] as const;
+
+    async execute(context: ObserverContext): Promise<void> {
+        const { data } = context;
+        
+        // Complex logic requiring cross-record analysis
+        const totalDeposits = data
+            .filter(record => record.type === 'deposit')
+            .reduce((sum, record) => sum + record.amount, 0);
+            
+        const totalWithdrawals = data
+            .filter(record => record.type === 'withdrawal')
+            .reduce((sum, record) => sum + record.amount, 0);
+
+        if (totalWithdrawals > totalDeposits * 1.1) {
+            throw new BusinessLogicError('Batch exceeds overdraft limit');
+        }
+    }
+}
+```
+
+**When to use execute() pattern:**
+- Cross-record business logic validation
+- Batch processing optimizations
+- Complex array transformations
+- External API integration requiring batch processing
+
+### Choosing the Right Pattern
+
+| Use Case | Pattern | Example |
+|----------|---------|---------|
+| Field validation | `executeOne()` | Email format validation |
+| Data sanitization | `executeOne()` | Input sanitization |
+| Field transformation | `executeOne()` | Date normalization |
+| Required field checks | `executeOne()` | Mandatory field validation |
+| Cross-record logic | `execute()` | Balance calculations |
+| Batch optimizations | `execute()` | Bulk API calls |
+| Complex aggregations | `execute()` | Statistical calculations |
+| Audit logging | `execute()` | Change tracking |
 
 ### Universal Observer Template
 ```typescript
@@ -192,12 +251,14 @@ export default class PasswordValidator implements Observer {
 
 ## Development Tips
 
-1. **Keep observers focused**: Each observer should have a single responsibility
-2. **Use meaningful names**: Observer name helps with debugging and error tracking
-3. **Handle errors gracefully**: Don't throw exceptions - add to context.errors
-4. **Share computed values**: Use metadata Map to avoid duplicate calculations
-5. **Test thoroughly**: Each observer should have comprehensive unit tests
-6. **Consider performance**: Observers execute on every request - keep them fast
+1. **Choose the right pattern**: Use `executeOne()` for simple field validation, `execute()` for complex business logic
+2. **Keep observers focused**: Each observer should have a single responsibility
+3. **Use meaningful names**: Observer name helps with debugging and error tracking
+4. **Handle errors with proper types**: Use ValidationError, BusinessLogicError, or SystemError
+5. **Extend BaseObserver**: Always extend BaseObserver for consistent error handling and logging
+6. **Share computed values**: Use metadata Map to avoid duplicate calculations
+7. **Test thoroughly**: Each observer should have comprehensive unit tests
+8. **Consider performance**: Observers execute on every request - keep them fast
 
 ## Testing Observers
 
