@@ -44,23 +44,7 @@ export class ObserverRunner {
         depth: number = 0
     ): Promise<ObserverResult> {
         const startTime = Date.now();
-        
-        // Create shared observer context
-        const context: ObserverContext = {
-            system,
-            operation,
-            schema,
-            data, // Now always an array
-            existing, // Now always an array (for updates)
-            result: undefined,
-            metadata: new Map(),
-            errors: [],
-            warnings: [],
-            startTime,
-            currentRing: undefined,
-            currentObserver: undefined
-        };
-
+        const context = this._createContext(system, operation, schema, data, existing);
         const stats: ObserverStats[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
@@ -76,73 +60,148 @@ export class ObserverRunner {
                 ringsExecuted.push(ring as ObserverRing);
 
                 if (ring === DATABASE_RING) {
-                    // DATABASE RING (5): Execute actual database operation
-                    const dbStats = await this._executeObserver(this.sqlObserver, context);
-                    if (this.collectStats) {
-                        stats.push(dbStats);
-                    }
+                    await this._executeDatabaseRing(context, stats);
                 } else {
-                    // Execute observers for this ring
-                    const observers = ObserverLoader.getObservers(schema, ring as ObserverRing);
-                    
-                    for (const observer of observers) {
-                        if (this._shouldExecuteObserver(observer, context)) {
-                            const observerStats = await this._executeObserver(observer, context);
-                            if (this.collectStats) {
-                                stats.push(observerStats);
-                            }
-                        }
-                    }
-
-                    // Check for errors after each pre-database ring
-                    if (context.errors.length > 0 && ring < DATABASE_RING) {
-                        console.debug(`🛑 Stopping execution due to ${context.errors.length} errors in ring ${ring}`);
-                        break;
+                    const shouldContinue = await this._executeObserverRing(ring as ObserverRing, context, stats);
+                    if (!shouldContinue) {
+                        break; // Stop execution due to errors
                     }
                 }
             }
 
             const totalTime = Date.now() - startTime;
-            const success = context.errors.length === 0;
-
-            // Create execution summary
-            const summary: ObserverExecutionSummary = {
-                schema,
-                operation,
-                totalTimeMs: totalTime,
-                ringsExecuted,
-                observersExecuted: stats.length,
-                totalErrors: context.errors.length,
-                totalWarnings: context.warnings.length,
-                success,
-                stats
-            };
-
-            console.debug(`🏁 Observer execution complete: ${success ? 'SUCCESS' : 'FAILED'} (${totalTime}ms)`);
-
-            return {
-                success,
-                result: context.result,
-                errors: context.errors,
-                warnings: context.warnings,
-                metadata: context.metadata
-            };
+            return this._createSuccessResult(context, stats, ringsExecuted, totalTime);
 
         } catch (error) {
             const totalTime = Date.now() - startTime;
-            console.error('❌ Observer execution failed:', error);
-            
-            return {
-                success: false,
-                result: undefined,
-                errors: [{
-                    message: `Observer execution failed: ${error}`,
-                    code: 'OBSERVER_EXECUTION_ERROR'
-                }],
-                warnings: context.warnings,
-                metadata: context.metadata
-            };
+            return this._createErrorResult(context, error, totalTime);
         }
+    }
+
+    /**
+     * Create observer context for execution
+     */
+    private _createContext(
+        system: System,
+        operation: OperationType,
+        schema: string,
+        data: any[],
+        existing?: any[]
+    ): ObserverContext {
+        return {
+            system,
+            operation,
+            schema,
+            data, // Now always an array
+            existing, // Now always an array (for updates)
+            result: undefined,
+            metadata: new Map(),
+            errors: [],
+            warnings: [],
+            startTime: Date.now(),
+            currentRing: undefined,
+            currentObserver: undefined
+        };
+    }
+
+    /**
+     * Create successful execution result
+     */
+    private _createSuccessResult(
+        context: ObserverContext,
+        stats: ObserverStats[],
+        ringsExecuted: ObserverRing[],
+        totalTime: number
+    ): ObserverResult {
+        const success = context.errors.length === 0;
+        
+        // Create execution summary for debugging
+        const summary = {
+            schema: context.schema,
+            operation: context.operation,
+            totalTimeMs: totalTime,
+            ringsExecuted,
+            observersExecuted: stats.length,
+            totalErrors: context.errors.length,
+            totalWarnings: context.warnings.length,
+            success,
+            stats
+        };
+
+        console.debug(`🏁 Observer execution complete: ${success ? 'SUCCESS' : 'FAILED'} (${totalTime}ms)`);
+
+        return {
+            success,
+            result: context.result,
+            errors: context.errors,
+            warnings: context.warnings,
+            metadata: context.metadata
+        };
+    }
+
+    /**
+     * Create error result for execution failures
+     */
+    private _createErrorResult(
+        context: ObserverContext,
+        error: unknown,
+        totalTime: number
+    ): ObserverResult {
+        console.error('❌ Observer execution failed:', error);
+        
+        return {
+            success: false,
+            result: undefined,
+            errors: [{
+                message: `Observer execution failed: ${error}`,
+                code: 'OBSERVER_EXECUTION_ERROR'
+            }],
+            warnings: context.warnings,
+            metadata: context.metadata
+        };
+    }
+
+    /**
+     * Execute database ring (Ring 5) - handles actual SQL execution
+     */
+    private async _executeDatabaseRing(
+        context: ObserverContext, 
+        stats: ObserverStats[]
+    ): Promise<void> {
+        console.debug(`🎯 DATABASE RING (${DATABASE_RING}): Executing SQL operation`);
+        
+        const dbStats = await this._executeObserver(this.sqlObserver, context);
+        if (this.collectStats) {
+            stats.push(dbStats);
+        }
+    }
+
+    /**
+     * Execute observers for a specific ring
+     */
+    private async _executeObserverRing(
+        ring: ObserverRing, 
+        context: ObserverContext, 
+        stats: ObserverStats[]
+    ): Promise<boolean> {
+        const observers = ObserverLoader.getObservers(context.schema, ring);
+        
+        for (const observer of observers) {
+            if (this._shouldExecuteObserver(observer, context)) {
+                const observerStats = await this._executeObserver(observer, context);
+                if (this.collectStats) {
+                    stats.push(observerStats);
+                }
+            }
+        }
+
+        // Check for errors after each pre-database ring
+        if (context.errors.length > 0 && ring < DATABASE_RING) {
+            console.debug(`🛑 Stopping execution due to ${context.errors.length} errors in ring ${ring}`);
+            return false; // Stop execution
+        }
+        
+        return true; // Continue execution
     }
 
     /**
