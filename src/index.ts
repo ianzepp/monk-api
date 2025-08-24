@@ -16,7 +16,6 @@ import DataSchemaIdPut from './routes/data/:schema/:id/PUT.js';       // PUT /ap
 import DataSchemaIdDelete from './routes/data/:schema/:id/DELETE.js'; // DELETE /api/data/:schema/:id
 
 // Meta API handlers  
-import MetaSchemaGet from './routes/meta/schema/GET.js';               // GET /api/meta/schema
 import MetaSchemaPost from './routes/meta/schema/POST.js';             // POST /api/meta/schema
 import MetaSchemaNameGet from './routes/meta/schema/:name/GET.js';     // GET /api/meta/schema/:name
 import MetaSchemaNamePut from './routes/meta/schema/:name/PUT.js';     // PUT /api/meta/schema/:name
@@ -123,7 +122,6 @@ app.put('/api/data/:schema/:id', DataSchemaIdPut);                  // Update si
 app.delete('/api/data/:schema/:id', DataSchemaIdDelete);            // Delete single record
 
 // Meta API routes
-app.get('/api/meta/schema', MetaSchemaGet);                         // List schemas
 app.post('/api/meta/schema', MetaSchemaPost);                       // Create schema
 app.get('/api/meta/schema/:name', MetaSchemaNameGet);               // Get schema
 app.put('/api/meta/schema/:name', MetaSchemaNamePut);               // Update schema

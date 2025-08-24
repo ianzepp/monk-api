@@ -94,15 +94,33 @@ export async function responseJsonMiddleware(context: Context, next: Next) {
 /**
  * YAML response middleware for /api/meta/* routes
  * 
- * Meta API routes handle their own YAML formatting via SchemaMetaYAML methods,
- * so this middleware is mainly for consistency and future YAML auto-formatting.
+ * Automatically formats route results as YAML responses and handles errors consistently.
  */
 export async function responseYamlMiddleware(context: Context, next: Next) {
-    await next();
-    
-    // Meta API routes use SchemaMetaYAML methods that return Response objects directly
-    // This middleware could be enhanced in the future for automatic YAML formatting
-    // if route handlers start returning raw data instead of Response objects
+    try {
+        await next();
+        
+        // Check if route handler set a result for YAML formatting
+        const routeResult = context.get('routeResult');
+        
+        if (routeResult !== undefined && !context.res.body) {
+            // Auto-format as YAML response
+            return new Response(routeResult, {
+                headers: { 'Content-Type': 'text/yaml' }
+            });
+        }
+    } catch (error) {
+        // Consistent error handling for all meta operations
+        console.error(`Meta API error: ${context.req.method} ${context.req.path}`, error);
+        
+        return new Response(JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : 'Meta operation failed'
+        }), {
+            headers: { 'Content-Type': 'application/json' },
+            status: error instanceof Error && error.message.includes('not found') ? 404 : 400
+        });
+    }
 }
 
 /**
@@ -121,7 +139,7 @@ export async function responseFileMiddleware(context: Context, next: Next) {
  * Helper for route handlers to set their result for automatic formatting
  * 
  * Use this for data API routes that should be JSON formatted.
- * Meta API routes should continue using SchemaMetaYAML methods directly.
+ * Meta API routes use system.metabase methods with automatic YAML formatting.
  */
 export function setRouteResult(context: Context, result: any) {
     context.set('routeResult', result);

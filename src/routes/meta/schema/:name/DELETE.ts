@@ -1,11 +1,15 @@
 import type { Context } from 'hono';
-import { SchemaMetaYAML } from '@lib/schema-meta-yaml.js';
+import { setRouteResult } from '@lib/middleware/system-context.js';
 
-export default async function (context: Context): Promise<Response> {
+export default async function (context: Context) {
+    const system = context.get('system');
     const schemaName = context.req.param('name');
     
     console.debug(`DELETE /api/meta/schema/${schemaName}`);
     
-    // Direct call to SchemaMetaYAML - handles all logic and returns Response
-    return await SchemaMetaYAML.deleteSchemaByName(context, schemaName);
+    // Delete schema via Metabase
+    const result = await system.metabase.deleteOne(schemaName);
+    
+    // Set result for middleware formatting (DELETE returns JSON, not YAML)
+    setRouteResult(context, result);
 }

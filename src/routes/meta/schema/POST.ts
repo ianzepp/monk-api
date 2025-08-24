@@ -1,11 +1,19 @@
 import type { Context } from 'hono';
-import { SchemaMetaYAML } from '@lib/schema-meta-yaml.js';
+import { setRouteResult } from '@lib/middleware/system-context.js';
 
-export default async function (context: Context): Promise<Response> {
+export default async function (context: Context) {
+    const system = context.get('system');
     const yamlContent = await context.req.text();
     
     console.debug('POST /api/meta/schema', yamlContent);
     
-    // Direct call to SchemaMetaYAML - handles all logic and returns Response
-    return await SchemaMetaYAML.createSchemaFromYaml(context, yamlContent);
+    // Parse YAML to get schema name
+    const jsonSchema = system.metabase.parseYaml(yamlContent);
+    const schemaName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
+    
+    // Create schema via Metabase
+    await system.metabase.createOne(schemaName, yamlContent);
+    
+    // Set result for middleware formatting
+    setRouteResult(context, yamlContent);
 }

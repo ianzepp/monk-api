@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { Database } from '@lib/database.js';
+import { Metabase } from '@lib/metabase.js';
 import { DatabaseManager } from '@lib/database-manager.js';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@lib/types/system-context.js';
@@ -22,6 +23,7 @@ export class System implements SystemContextWithInfrastructure {
 
     // System services
     public readonly database: Database;
+    public readonly metabase: Metabase;
     public readonly dtx: DbContext | TxContext;
     public readonly isInTransaction: boolean = false;
 
@@ -37,9 +39,10 @@ export class System implements SystemContextWithInfrastructure {
             throw new Error('Unable to initialize database or transaction context.');   
         }
 
-        // Initialize Database instance with dependency injection
+        // Initialize service instances with dependency injection
         this.dtx = dtx;
         this.database = new Database(this, this.dtx);
+        this.metabase = new Metabase(this);
         
         // Store query options as read-only
         this.options = Object.freeze({ ...options });
