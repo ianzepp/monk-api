@@ -200,7 +200,7 @@ export class ObserverRunner {
 
         // Check for errors after each pre-database ring
         if (context.errors.length > 0 && ring < DATABASE_RING) {
-            console.debug(`🛑 Stopping execution due to ${context.errors.length} errors in ring ${ring}`);
+            // Keep as debug - detailed execution flow for development
             return false; // Stop execution
         }
         

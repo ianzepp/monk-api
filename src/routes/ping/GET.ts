@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { AuthService } from '@lib/auth.js';
 import { DatabaseManager } from '@lib/database-manager.js';
+import { logger } from '@lib/logger.js';
 
 // GET /ping - Simple health check with optional JWT domain and database connection test
 export default async function (c: Context): Promise<any> {
@@ -84,7 +85,7 @@ export default async function (c: Context): Promise<any> {
             );
         } catch (logError) {
             // Ignore logging errors - ping should still succeed
-            console.warn('Failed to log ping request:', logError);
+            logger.warn('Failed to log ping request', { error: logError instanceof Error ? logError.message : String(logError) });
         }
     }
     
