@@ -1,12 +1,12 @@
 import type { Context } from 'hono';
-import { handleContextDb } from '@lib/api/responses.js';
+import { setRouteResult } from '@lib/middleware/system-context.js';
 
-export default async function (context: Context): Promise<any> {
-    return await handleContextDb(context, async (system) => {
-        const schemaName = context.req.param('schema');
-        
-        console.debug('routes/data-record-select-any: schemaName=%j', schemaName);
-        
-        return system.database.selectAny(schemaName);
-    });
+export default async function (context: Context) {
+    const system = context.get('system');
+    const schemaName = context.req.param('schema');
+    
+    console.debug('routes/data-record-select-any: schemaName=%j', schemaName);
+    
+    const result = await system.database.selectAny(schemaName);
+    setRouteResult(context, result);
 }

@@ -18,6 +18,8 @@ declare module 'hono' {
         accessFullIds: string[];
         database: any;
         databaseDomain: string;
+        system: any; // System instance attached by systemContextMiddleware
+        routeResult: any; // Route result for automatic formatting
     }
 }
 

@@ -15,6 +15,12 @@ import pingRouter from './routes/ping.js';
 import rootRouter from './routes/root.js';
 import { AuthService } from './lib/auth.js';
 import { ObserverLoader } from '@observers/loader.js';
+import { 
+    systemContextMiddleware, 
+    responseJsonMiddleware, 
+    responseYamlMiddleware,
+    responseFileMiddleware 
+} from '@lib/middleware/system-context.js';
 
 // Create Hono app
 const app = new Hono();
@@ -70,6 +76,14 @@ app.use('*', async (c, next) => {
     
     console.log(`${method} ${path} - ${status} (${duration}ms)`);
 });
+
+// System context middleware - sets up System instance for all requests
+app.use('*', systemContextMiddleware);
+
+// Granular response formatting middleware by API path
+app.use('/api/data/*', responseJsonMiddleware);  // Data API: JSON responses
+app.use('/api/meta/*', responseYamlMiddleware);  // Meta API: YAML responses  
+app.use('/api/file/*', responseFileMiddleware);  // Future: File responses
 
 // Public routes
 app.route('/auth', authRouter);
