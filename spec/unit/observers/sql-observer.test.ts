@@ -5,7 +5,7 @@
  * using parameterized queries after data has been processed by earlier rings.
  */
 
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { SqlObserver } from '@lib/observers/sql-observer.js';
 import { SystemError } from '@lib/observers/errors.js';
 import { ObserverRing } from '@lib/observers/types.js';
@@ -47,7 +47,7 @@ describe('Unit: SQL Observer', () => {
                 tx: undefined
             } as any,
             schemaName: 'test_schema',
-            schema: {} as any,
+            schema: { table: 'test_schema' } as any,
             operation: 'create' as any,
             data: [],
             metadata: new Map(),
@@ -513,6 +513,303 @@ describe('Unit: SQL Observer', () => {
             } catch (error) {
                 expect(error.originalError?.message).toContain('Failed to create record');
             }
+        });
+    });
+
+    describe('JSONB Field Processing', () => {
+        let mockSchemaWithJsonb: any;
+
+        beforeEach(() => {
+            // Mock schema with JSONB fields (object and array types)
+            mockSchemaWithJsonb = {
+                name: 'contact',
+                table: 'contact',
+                definition: {
+                    properties: {
+                        name: { type: 'string' },
+                        age: { type: 'integer' },
+                        address: {
+                            type: 'object',
+                            properties: {
+                                street: { type: 'string' },
+                                city: { type: 'string' },
+                                state: { type: 'string' },
+                                postal_code: { type: 'string' }
+                            }
+                        },
+                        tags: {
+                            type: 'array',
+                            items: { type: 'string' }
+                        },
+                        metadata: { type: 'object' },
+                        skills: { type: 'array' }
+                    }
+                }
+            };
+            mockContext.schema = mockSchemaWithJsonb;
+        });
+
+        describe('Serialization (Input Processing)', () => {
+            test('should serialize object fields to JSON strings', async () => {
+                mockContext.operation = 'create';
+                mockContext.data = [{
+                    name: 'John Doe',
+                    address: {
+                        street: '123 Main St',
+                        city: 'New York',
+                        state: 'NY',
+                        postal_code: '10001'
+                    }
+                }];
+
+                await observer.execute(mockContext);
+
+                const { params } = mockQueryResults[0];
+                // Find the address parameter (should be serialized JSON string)
+                const addressParam = params.find((p: any) => typeof p === 'string' && p.includes('123 Main St'));
+                expect(addressParam).toBeDefined();
+                expect(() => JSON.parse(addressParam)).not.toThrow();
+                expect(JSON.parse(addressParam)).toEqual({
+                    street: '123 Main St',
+                    city: 'New York',
+                    state: 'NY',
+                    postal_code: '10001'
+                });
+            });
+
+            test('should serialize array fields to JSON strings', async () => {
+                mockContext.operation = 'create';
+                mockContext.data = [{
+                    name: 'Jane Smith',
+                    tags: ['vip', 'technical', 'decision-maker'],
+                    skills: ['javascript', 'python', 'sql']
+                }];
+
+                await observer.execute(mockContext);
+
+                const { params } = mockQueryResults[0];
+                
+                // Find tags parameter (should be serialized JSON array string)
+                const tagsParam = params.find((p: any) => typeof p === 'string' && p.includes('vip'));
+                expect(tagsParam).toBeDefined();
+                expect(() => JSON.parse(tagsParam)).not.toThrow();
+                expect(JSON.parse(tagsParam)).toEqual(['vip', 'technical', 'decision-maker']);
+
+                // Find skills parameter
+                const skillsParam = params.find((p: any) => typeof p === 'string' && p.includes('javascript'));
+                expect(skillsParam).toBeDefined();
+                expect(JSON.parse(skillsParam)).toEqual(['javascript', 'python', 'sql']);
+            });
+
+            test('should handle null JSONB fields', async () => {
+                mockContext.operation = 'create';
+                mockContext.data = [{
+                    name: 'Test User',
+                    address: null,
+                    tags: null
+                }];
+
+                await observer.execute(mockContext);
+
+                const { params } = mockQueryResults[0];
+                // Null values should remain null, not be serialized
+                expect(params).toContain(null);
+            });
+
+            test('should handle undefined JSONB fields', async () => {
+                mockContext.operation = 'create';
+                mockContext.data = [{
+                    name: 'Test User'
+                    // address and tags are undefined
+                }];
+
+                await observer.execute(mockContext);
+
+                // Should not throw an error
+                expect(mockQueryResults).toHaveLength(1);
+            });
+
+            test('should skip already-serialized string values', async () => {
+                mockContext.operation = 'create';
+                mockContext.data = [{
+                    name: 'Test User',
+                    address: '{"street":"123 Main St","city":"NYC"}', // Already a JSON string
+                    tags: '["tag1","tag2"]' // Already a JSON string
+                }];
+
+                await observer.execute(mockContext);
+
+                const { params } = mockQueryResults[0];
+                // Should remain as strings, not be double-serialized
+                expect(params).toContain('{"street":"123 Main St","city":"NYC"}');
+                expect(params).toContain('["tag1","tag2"]');
+            });
+
+            test('should work in bulkUpdate operations', async () => {
+                mockContext.operation = 'update';
+                mockContext.data = [{
+                    id: 'test-id',
+                    address: { street: '456 Oak Ave', city: 'Boston' },
+                    tags: ['updated', 'test']
+                }];
+
+                await observer.execute(mockContext);
+
+                const { params } = mockQueryResults[0];
+                
+                // Find the serialized address in parameters
+                const addressParam = params.find((p: any) => typeof p === 'string' && p.includes('456 Oak Ave'));
+                expect(addressParam).toBeDefined();
+                expect(JSON.parse(addressParam)).toEqual({ street: '456 Oak Ave', city: 'Boston' });
+
+                const tagsParam = params.find((p: any) => typeof p === 'string' && p.includes('updated'));
+                expect(tagsParam).toBeDefined();
+                expect(JSON.parse(tagsParam)).toEqual(['updated', 'test']);
+            });
+
+            test('should throw error on JSON serialization failure', async () => {
+                mockContext.operation = 'create';
+                
+                // Create a circular reference that will fail JSON.stringify
+                const circularObj: any = { name: 'Test' };
+                circularObj.self = circularObj;
+                
+                mockContext.data = [{
+                    name: 'Test User',
+                    metadata: circularObj
+                }];
+
+                await expect(observer.execute(mockContext)).rejects.toThrow('SQL transport failed');
+                
+                // Also check that the original error was about JSON serialization
+                try {
+                    await observer.execute(mockContext);
+                } catch (error: any) {
+                    expect(error.message).toContain('SQL transport failed');
+                    // The original SystemError from processJsonbFields should be wrapped
+                    expect(error.originalError?.message || error.message).toContain('Failed to serialize JSONB field');
+                }
+            });
+        });
+
+        describe('Deserialization (Output Processing)', () => {
+            test('should parse JSONB string results back to objects', () => {
+                const mockRecord = {
+                    id: 'test-id',
+                    name: 'Test User',
+                    address: '{"street":"123 Main St","city":"New York"}',
+                    tags: '["vip","technical"]'
+                };
+
+                // Access the private method using bracket notation
+                const result = (observer as any).convertPostgreSQLTypes(mockRecord, mockSchemaWithJsonb);
+
+                expect(result.address).toEqual({
+                    street: '123 Main St',
+                    city: 'New York'
+                });
+                expect(result.tags).toEqual(['vip', 'technical']);
+                expect(result.name).toBe('Test User'); // Non-JSONB fields unchanged
+            });
+
+            test('should handle already-parsed JSONB objects', () => {
+                const mockRecord = {
+                    id: 'test-id',
+                    address: { street: '123 Main St', city: 'New York' }, // Already parsed
+                    tags: ['vip', 'technical'] // Already parsed
+                };
+
+                const result = (observer as any).convertPostgreSQLTypes(mockRecord, mockSchemaWithJsonb);
+
+                // Should remain as objects/arrays (normal PostgreSQL behavior)
+                expect(result.address).toEqual({ street: '123 Main St', city: 'New York' });
+                expect(result.tags).toEqual(['vip', 'technical']);
+            });
+
+            test('should handle malformed JSONB strings gracefully', () => {
+                const mockRecord = {
+                    id: 'test-id',
+                    address: '{"invalid": json}', // Malformed JSON
+                    tags: '[unclosed array'
+                };
+
+                // Mock console.warn to verify warning is logged
+                const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+                const result = (observer as any).convertPostgreSQLTypes(mockRecord, mockSchemaWithJsonb);
+
+                // Should leave malformed JSON as strings and log warnings
+                expect(result.address).toBe('{"invalid": json}');
+                expect(result.tags).toBe('[unclosed array');
+                expect(consoleSpy).toHaveBeenCalledTimes(2);
+                
+                consoleSpy.mockRestore();
+            });
+
+            test('should handle null JSONB values in output', () => {
+                const mockRecord = {
+                    id: 'test-id',
+                    address: null,
+                    tags: null
+                };
+
+                const result = (observer as any).convertPostgreSQLTypes(mockRecord, mockSchemaWithJsonb);
+
+                expect(result.address).toBe(null);
+                expect(result.tags).toBe(null);
+            });
+        });
+
+        describe('Integration with UUID Array Processing', () => {
+            test('should process both UUID arrays and JSONB fields', async () => {
+                // Set up metadata to flag UUID array processing
+                mockContext.metadata.set('access_read_is_uuid_array', true);
+                mockContext.operation = 'create';
+                mockContext.data = [{
+                    name: 'Test User',
+                    access_read: ['user-123', 'user-456'], // UUID array
+                    address: { street: '123 Main St' },    // JSONB object
+                    tags: ['tag1', 'tag2']                 // JSONB array
+                }];
+
+                await observer.execute(mockContext);
+
+                const { params } = mockQueryResults[0];
+                
+                // UUID array should be PostgreSQL array literal format
+                expect(params).toContain('{user-123,user-456}');
+                
+                // JSONB fields should be JSON strings
+                const addressParam = params.find((p: any) => typeof p === 'string' && p.includes('123 Main St'));
+                expect(addressParam).toBeDefined();
+                expect(JSON.parse(addressParam)).toEqual({ street: '123 Main St' });
+                
+                const tagsParam = params.find((p: any) => typeof p === 'string' && p.includes('tag1'));
+                expect(tagsParam).toBeDefined();
+                expect(JSON.parse(tagsParam)).toEqual(['tag1', 'tag2']);
+            });
+        });
+
+        describe('Schema Edge Cases', () => {
+            test('should handle schema without properties', async () => {
+                mockContext.schema = { name: 'test', definition: {} };
+                mockContext.operation = 'create';
+                mockContext.data = [{ name: 'test' }];
+
+                // Should not throw an error
+                await observer.execute(mockContext);
+                expect(mockQueryResults).toHaveLength(1);
+            });
+
+            test('should handle schema without definition', async () => {
+                mockContext.schema = { name: 'test' };
+                mockContext.operation = 'create';
+                mockContext.data = [{ name: 'test' }];
+
+                // Should not throw an error
+                await observer.execute(mockContext);
+                expect(mockQueryResults).toHaveLength(1);
+            });
         });
     });
 });
