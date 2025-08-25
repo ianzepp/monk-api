@@ -508,6 +508,270 @@ Three-tier access pattern:
 - **🔍 Direct Access**: Allow ID retrieval (`monk data get <id>`)  
 - **🔒 Update Operations**: Block modifications until restoration
 
+### **FTP Middleware Endpoints (Phase 3)**
+
+#### **FTP Path Structure**
+FTP middleware provides filesystem-like access to API data with intuitive path mapping:
+```
+/data/                          → List all schemas
+/data/users/                    → List all user records
+/data/users/user-123/           → List record fields + .json file
+/data/users/user-123.json       → Complete record as JSON
+/data/users/user-123/email      → Individual field access
+/meta/schema/                   → Schema definitions
+```
+
+#### **Core FTP Operations**
+
+##### **Directory Listing - POST /ftp/list**
+Advanced directory listing with wildcard support and performance optimization:
+```bash
+# Basic listing
+curl -X POST http://localhost:9001/ftp/list \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "path": "/data/users/",
+    "ftp_options": {
+      "show_hidden": false,
+      "long_format": true,
+      "recursive": false
+    }
+  }'
+
+# Wildcard patterns (Phase 2)
+curl -X POST http://localhost:9001/ftp/list \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "path": "/data/users/admin*",
+    "ftp_options": {
+      "pattern_optimization": true,
+      "use_pattern_cache": true
+    }
+  }'
+```
+
+##### **File Storage - POST /ftp/store**
+Atomic file storage with transaction management and schema validation:
+```bash
+# Create new record
+curl -X POST http://localhost:9001/ftp/store \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "path": "/data/users/new-user.json",
+    "content": {
+      "name": "New User",
+      "email": "user@example.com"
+    },
+    "ftp_options": {
+      "atomic": true,
+      "overwrite": true,
+      "validate_schema": true
+    }
+  }'
+
+# Update specific field
+curl -X POST http://localhost:9001/ftp/store \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "path": "/data/users/user-123/email",
+    "content": "newemail@example.com",
+    "ftp_options": {
+      "atomic": true,
+      "append_mode": false
+    }
+  }'
+```
+
+##### **File Deletion - POST /ftp/delete**
+Safe deletion with soft-delete support and comprehensive safety checks:
+```bash
+# Soft delete (recoverable)
+curl -X POST http://localhost:9001/ftp/delete \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "path": "/data/users/user-123",
+    "ftp_options": {
+      "permanent": false,
+      "atomic": true,
+      "force": false
+    }
+  }'
+
+# Permanent deletion
+curl -X POST http://localhost:9001/ftp/delete \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "path": "/data/users/old-user",
+    "ftp_options": {
+      "permanent": true,
+      "atomic": true,
+      "force": true
+    }
+  }'
+
+# Field clearing
+curl -X POST http://localhost:9001/ftp/delete \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "path": "/data/users/user-123/temp_field",
+    "ftp_options": {
+      "atomic": true
+    }
+  }'
+```
+
+#### **Advanced FTP Features**
+
+##### **Transaction Management**
+All FTP operations support atomic transactions with automatic rollback:
+```typescript
+// Automatic transaction (default)
+{
+  "ftp_options": {
+    "atomic": true  // Creates transaction automatically
+  }
+}
+
+// Join existing transaction
+{
+  "metadata": {
+    "transaction_id": "ftp-store-1703123456789-abc123"
+  },
+  "ftp_options": {
+    "atomic": true
+  }
+}
+```
+
+##### **Content Processing**
+Intelligent content type detection and processing:
+```bash
+# JSON content (auto-detected)
+{
+  "content": {"name": "User"},
+  "metadata": {"content_type": "application/json"}
+}
+
+# Binary content  
+{
+  "content": "base64-encoded-data",
+  "ftp_options": {"binary_mode": true},
+  "metadata": {"content_type": "application/octet-stream"}
+}
+
+# String append mode
+{
+  "path": "/data/users/user-123/description",
+  "content": " - Additional info",
+  "ftp_options": {"append_mode": true}
+}
+```
+
+##### **Wildcard Pattern Support (Phase 2)**
+Complex pattern matching with performance optimization:
+```bash
+# Multiple wildcards
+"/data/users/*admin*/department/eng*/"
+
+# Alternative patterns  
+"/data/orders/status/(pending|active|shipped)/"
+
+# Range patterns
+"/data/logs/2024-[01-12]*/level/error/"
+
+# Cross-schema patterns
+"/data/*/recent_activity/"
+```
+
+##### **Performance & Caching**
+Built-in optimization and caching systems:
+```bash
+# Pattern caching (automatic)
+{
+  "ftp_options": {
+    "use_pattern_cache": true,
+    "pattern_optimization": true
+  }
+}
+
+# Performance hints
+{
+  "performance_hints": {
+    "expected_result_count": 100,
+    "priority": "speed",
+    "timeout_ms": 15000
+  }
+}
+```
+
+#### **FTP Response Format**
+Consistent response structure across all FTP operations:
+```typescript
+// LIST response
+{
+  "success": true,
+  "entries": [
+    {
+      "name": "user-123",
+      "ftp_type": "d",           // Directory, File, Link
+      "ftp_size": 1024,
+      "ftp_permissions": "rwx",
+      "ftp_modified": "20241201120000",
+      "path": "/data/users/user-123/",
+      "api_context": {
+        "schema": "users",
+        "record_id": "user-123",
+        "access_level": "full"
+      }
+    }
+  ],
+  "pattern_info": {
+    "complexity": "complex",
+    "cache_hit": true,
+    "query_time_ms": 45.67
+  }
+}
+
+// STORE response  
+{
+  "success": true,
+  "operation": "create",
+  "result": {
+    "record_id": "user-123",
+    "size": 256,
+    "created": true,
+    "validation_passed": true
+  },
+  "ftp_metadata": {
+    "modified_time": "20241201120000",
+    "permissions": "rwx",
+    "etag": "abc123def456",
+    "content_type": "application/json"
+  },
+  "transaction_info": {
+    "transaction_id": "ftp-store-...",
+    "can_rollback": false,
+    "timeout_ms": 30000
+  }
+}
+```
+
+#### **Security & Permissions**
+FTP operations integrate with the ACL system:
+```bash
+# Permission requirements
+- Record creation: Any schema access
+- Record updates: access_edit or access_full
+- Record deletion: access_full required
+- Field operations: access_edit or access_full
+
+# Permission validation
+- Root user: All operations allowed
+- Regular users: ACL-based validation  
+- Cross-tenant: Blocked automatically
+- Dangerous operations: Require force=true
+```
+
 ## Common Development Tasks
 
 ### **Adding New API Endpoints**
@@ -1612,8 +1876,9 @@ npm run spec:all integration            # All integration tests (requires databa
 
 # Component-specific testing
 npm run spec:all unit/filter            # Enhanced Filter operator tests (162 tests)
-npm run spec:all unit/ftp               # FTP middleware unit tests (48 tests)
+npm run spec:all unit/ftp               # FTP middleware unit tests (93+ tests)
 npm run spec:all unit/observers         # Observer system unit tests
+npm run spec:all integration/ftp        # FTP integration tests (database required)
 npm run spec:all 05-20                  # Infrastructure through meta-api tests
 npm run spec:all auth                   # Authentication-related tests
 
@@ -1654,9 +1919,20 @@ npm run spec:one spec/unit/ftp/ftp-path-parsing.test.ts # FTP path validation
 npm run spec:all unit/filter                    # All 162 filter operator tests
 npm run spec:one spec/unit/filter/array-operators.test.ts # PostgreSQL array operations
 
-# FTP Middleware testing (Issue #123)  
-npm run spec:all unit/ftp                       # FTP middleware unit tests (48 tests)
+# FTP Middleware testing (Issues #123-125)  
+npm run spec:all unit/ftp                       # FTP middleware unit tests (93+ tests)
 npm run spec:all integration/ftp                # FTP endpoint integration tests (database required)
+
+# FTP File Operations testing (Phase 3 - Issue #125)
+npm run spec:one spec/unit/ftp/file-operations.test.ts           # File ops unit tests
+npm run spec:one spec/integration/ftp/file-operations-integration.test.ts # HTTP integration
+
+# FTP Operation Examples
+curl -X POST http://localhost:9001/ftp/store -H "Authorization: Bearer $TOKEN" \
+  -d '{"path": "/data/users/test.json", "content": {"name": "Test"}, "ftp_options": {"atomic": true}}'
+
+curl -X POST http://localhost:9001/ftp/delete -H "Authorization: Bearer $TOKEN" \
+  -d '{"path": "/data/users/test", "ftp_options": {"permanent": false, "atomic": true}}'
 ```
 
 ### **Key Configuration Files**
