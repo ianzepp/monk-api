@@ -12,12 +12,10 @@
  * - TenantManager (tenant CRUD operations)
  */
 
-import { Client } from 'pg';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { sign, verify } from 'hono/jwt';
-import { DatabaseManager } from '../database-manager.js';
-import { MonkEnv } from '../monk-env.js';
+import { DatabaseConnection } from '../database-connection.js';
 import pg from 'pg';
 
 export interface TenantInfo {
@@ -54,66 +52,37 @@ export interface LoginResult {
 export class TenantService {
   private static jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-this';
   private static tokenExpiry = 24 * 60 * 60; // 24 hours in seconds
-  private static authPool: pg.Pool | null = null;
 
   // ==========================================
   // TENANT MANAGEMENT OPERATIONS
   // ==========================================
 
   /**
-   * Get default auth database connection string
+   * Get auth database pool (master database)
    */
-  private static getAuthConnectionString(): string {
-    // Ensure monk configuration is loaded
-    MonkEnv.load();
-    
-    const baseUrl = process.env.DATABASE_URL;
-    if (!baseUrl) {
-      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
-    }
-    
-    return baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
+  private static getAuthPool(): pg.Pool {
+    return DatabaseConnection.getBasePool();
   }
 
   /**
-   * Get persistent auth database connection pool
+   * Create one-time client for auth database operations
    */
-  private static getAuthDatabase(): pg.Pool {
-    if (!this.authPool) {
-      // Ensure monk configuration is loaded
-      MonkEnv.load();
-      
-      const dbUrl = process.env.DATABASE_URL;
-      if (!dbUrl) {
-        throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
-      }
-      
-      try {
-        const url = new URL(dbUrl);
-        
-        this.authPool = new pg.Pool({
-          host: url.hostname,
-          port: parseInt(url.port) || 5432,
-          database: 'monk-api-auth',
-          user: url.username || process.env.USER || 'postgres',
-          password: url.password || '', // Ensure password is string
-          max: 5,
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 2000,
-        });
-      } catch (error) {
-        // Fallback to connection string if URL parsing fails
-        const authConnectionString = dbUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
-        
-        this.authPool = new pg.Pool({
-          connectionString: authConnectionString,
-          max: 5,
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 2000,
-        });
-      }
-    }
-    return this.authPool;
+  private static createAuthClient(): pg.Client {
+    return DatabaseConnection.createClient('monk-api-auth');
+  }
+
+  /**
+   * Create one-time client for tenant database operations
+   */
+  private static createTenantClient(tenantName: string): pg.Client {
+    return DatabaseConnection.createClient(tenantName);
+  }
+
+  /**
+   * Create one-time client for postgres system database
+   */
+  private static createPostgresClient(): pg.Client {
+    return DatabaseConnection.createClient('postgres');
   }
 
   /**
@@ -133,7 +102,7 @@ export class TenantService {
    * Check if tenant already exists
    */
   static async tenantExists(tenantName: string): Promise<boolean> {
-    const client = new Client({ connectionString: this.getAuthConnectionString() });
+    const client = this.createAuthClient();
     
     try {
       await client.connect();
@@ -153,17 +122,7 @@ export class TenantService {
    * Check if database exists
    */
   static async databaseExists(databaseName: string): Promise<boolean> {
-    // Connect to postgres database to check if target database exists
-    MonkEnv.load();
-    
-    const baseUrl = process.env.DATABASE_URL;
-    if (!baseUrl) {
-      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
-    }
-    
-    const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
-    
-    const client = new Client({ connectionString: postgresConnection });
+    const client = this.createPostgresClient();
     
     try {
       await client.connect();
@@ -246,7 +205,7 @@ export class TenantService {
     }
     
     // Remove tenant record from auth database
-    const authClient = new Client({ connectionString: this.getAuthConnectionString() });
+    const authClient = this.createAuthClient();
     try {
       await authClient.connect();
       await authClient.query(
@@ -273,7 +232,7 @@ export class TenantService {
    * List all tenants
    */
   static async listTenants(): Promise<TenantInfo[]> {
-    const client = new Client({ connectionString: this.getAuthConnectionString() });
+    const client = this.createAuthClient();
     
     try {
       await client.connect();
@@ -296,7 +255,7 @@ export class TenantService {
    * Get tenant information
    */
   static async getTenant(tenantName: string): Promise<TenantInfo | null> {
-    const client = new Client({ connectionString: this.getAuthConnectionString() });
+    const client = this.createAuthClient();
     
     try {
       await client.connect();
@@ -360,7 +319,7 @@ export class TenantService {
     }
 
     // Look up tenant record to get database name
-    const authDb = this.getAuthDatabase();
+    const authDb = this.getAuthPool();
     const tenantResult = await authDb.query(
       'SELECT name, database FROM tenants WHERE name = $1',
       [tenant]
@@ -373,7 +332,7 @@ export class TenantService {
     const { name, database } = tenantResult.rows[0];
 
     // Look up user in the tenant's database
-    const tenantDb = await DatabaseManager.getDatabaseForDomain(database);
+    const tenantDb = DatabaseConnection.getTenantPool(database);
     const userResult = await tenantDb.query(
       'SELECT id, tenant_name, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE tenant_name = $1 AND name = $2 AND trashed_at IS NULL AND deleted_at IS NULL',
       [tenant, username]
@@ -434,16 +393,7 @@ export class TenantService {
    * Create PostgreSQL database
    */
   private static async createDatabase(databaseName: string): Promise<void> {
-    MonkEnv.load();
-    
-    const baseUrl = process.env.DATABASE_URL;
-    if (!baseUrl) {
-      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
-    }
-    
-    const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
-    
-    const client = new Client({ connectionString: postgresConnection });
+    const client = this.createPostgresClient();
     
     try {
       await client.connect();
@@ -458,16 +408,7 @@ export class TenantService {
    * Drop PostgreSQL database
    */
   private static async dropDatabase(databaseName: string): Promise<void> {
-    MonkEnv.load();
-    
-    const baseUrl = process.env.DATABASE_URL;
-    if (!baseUrl) {
-      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
-    }
-    
-    const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
-    
-    const client = new Client({ connectionString: postgresConnection });
+    const client = this.createPostgresClient();
     
     try {
       await client.connect();
@@ -482,16 +423,7 @@ export class TenantService {
    * Initialize tenant database schema using sql/init-tenant.sql
    */
   private static async initializeTenantSchema(databaseName: string): Promise<void> {
-    MonkEnv.load();
-    
-    const baseUrl = process.env.DATABASE_URL;
-    if (!baseUrl) {
-      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
-    }
-    
-    const tenantConnection = baseUrl.replace(/\/[^\/]*$/, `/${databaseName}`);
-    
-    const client = new Client({ connectionString: tenantConnection });
+    const client = this.createTenantClient(databaseName);
     
     try {
       await client.connect();
@@ -510,16 +442,7 @@ export class TenantService {
    * Create root user in tenant database
    */
   private static async createRootUser(databaseName: string, tenantName: string): Promise<void> {
-    MonkEnv.load();
-    
-    const baseUrl = process.env.DATABASE_URL;
-    if (!baseUrl) {
-      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
-    }
-    
-    const tenantConnection = baseUrl.replace(/\/[^\/]*$/, `/${databaseName}`);
-    
-    const client = new Client({ connectionString: tenantConnection });
+    const client = this.createTenantClient(databaseName);
     
     try {
       await client.connect();
@@ -537,7 +460,7 @@ export class TenantService {
    * Insert tenant record in auth database
    */
   private static async insertTenantRecord(tenantName: string, host: string, databaseName: string): Promise<void> {
-    const client = new Client({ connectionString: this.getAuthConnectionString() });
+    const client = this.createAuthClient();
     
     try {
       await client.connect();

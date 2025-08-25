@@ -1,21 +1,14 @@
 import pg from 'pg';
 import * as schema from './schema.js';
+import { DatabaseConnection } from '@lib/database-connection.js';
 
-const { Pool } = pg;
-
-// Database connection configuration
-const connectionString = process.env.DATABASE_URL || 'postgresql://ianzepp@localhost:5432/monk_api_hono_dev';
-
-// Create connection pool
-const pool = new Pool({
-  connectionString,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+// Export lazy-loaded centralized pool - ONLY source of database connections
+export const db = new Proxy({} as pg.Pool, {
+  get(target, prop, receiver) {
+    const pool = DatabaseConnection.getBasePool();
+    return Reflect.get(pool, prop, receiver);
+  }
 });
-
-// Export the pool directly for raw SQL queries
-export const db = pool;
 
 // Export schema interfaces and constants
 export const builtins = schema;
@@ -26,18 +19,14 @@ export type TxContext = pg.PoolClient;
 
 // Health check function
 export async function checkDatabaseConnection(): Promise<boolean> {
-  try {
-    const client = await pool.connect();
-    await client.query('SELECT 1');
-    client.release();
-    return true;
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    return false;
+  const result = await DatabaseConnection.healthCheck();
+  if (!result.success) {
+    console.error('Database connection failed:', result.error);
   }
+  return result.success;
 }
 
 // Graceful shutdown
 export async function closeDatabaseConnection(): Promise<void> {
-  await pool.end();
+  await DatabaseConnection.closeAllConnections();
 }

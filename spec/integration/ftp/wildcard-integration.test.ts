@@ -22,8 +22,8 @@ describe('Enhanced FTP Wildcard - Integration Tests', () => {
         testContext = await createTestContext(tenantManager.tenant!, 'root');
         
         // Create test schemas
-        const userYaml = await readFile('test/schemas/account.yaml', 'utf-8');
-        const productYaml = await readFile('test/schemas/contact.yaml', 'utf-8');
+        const userYaml = await readFile('spec/fixtures/schema/account.yaml', 'utf-8');
+        const productYaml = await readFile('spec/fixtures/schema/contact.yaml', 'utf-8');
         
         await testContext.metabase.createOne('users', userYaml);
         await testContext.metabase.createOne('products', productYaml);

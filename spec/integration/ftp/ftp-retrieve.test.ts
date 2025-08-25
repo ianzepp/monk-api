@@ -13,8 +13,8 @@ describe('FTP Retrieve Endpoint - Integration Tests', () => {
     testContext = await createTestContext(tenantManager.tenant!, 'root');
 
     // Create test schemas
-    const accountYaml = await readFile('test/schemas/account.yaml', 'utf-8');
-    const contactYaml = await readFile('test/schemas/contact.yaml', 'utf-8');
+    const accountYaml = await readFile('spec/fixtures/schema/account.yaml', 'utf-8');
+    const contactYaml = await readFile('spec/fixtures/schema/contact.yaml', 'utf-8');
     
     await testContext.metabase.createOne('account', accountYaml);
     await testContext.metabase.createOne('contact', contactYaml);

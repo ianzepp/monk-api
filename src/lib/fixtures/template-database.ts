@@ -7,11 +7,12 @@
  * Independent from TenantService - handles its own database connections and operations.
  */
 
-import { Client } from 'pg';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { DatabaseConnection } from '../database-connection.js';
+import pg from 'pg';
 
 import type { TenantInfo } from '../services/tenant.js';
 
@@ -22,46 +23,18 @@ export class TemplateDatabase {
   private static readonly TEMPLATE_PREFIX = 'monk-api$test-template-';
   
   /**
-   * Get DATABASE_URL from ~/.config/monk/env.json with early failure
+   * Create postgres client for admin operations
    */
-  private static getConfiguredDatabaseUrl(): string {
-    const configPath = join(process.env.HOME!, '.config/monk/env.json');
-    
-    if (!existsSync(configPath)) {
-      throw new Error('Configuration file not found: ~/.config/monk/env.json');
-    }
-    
-    let config: any;
-    try {
-      config = JSON.parse(readFileSync(configPath, 'utf-8'));
-    } catch (error) {
-      throw new Error(`Invalid JSON in ~/.config/monk/env.json: ${error}`);
-    }
-    
-    if (!config.DATABASE_URL) {
-      throw new Error('DATABASE_URL not configured in ~/.config/monk/env.json');
-    }
-    
-    return config.DATABASE_URL;
+  private static createPostgresClient(): pg.Client {
+    return DatabaseConnection.createClient('postgres');
   }
   
   /**
-   * Get connection string for postgres database (for admin operations)
+   * Create client for specific database
    */
-  private static getPostgresConnection(): string {
-    const baseUrl = this.getConfiguredDatabaseUrl();
-    return baseUrl.replace(/\/[^\/]*$/, '/postgres');
+  private static createDatabaseClient(databaseName: string): pg.Client {
+    return DatabaseConnection.createClient(databaseName);
   }
-  
-  /**
-   * Get connection string for specific template database
-   */
-  private static getTemplateConnection(templateName: string): string {
-    const baseUrl = this.getConfiguredDatabaseUrl();
-    const templateDbName = `${this.TEMPLATE_PREFIX}${templateName}`;
-    return baseUrl.replace(/\/[^\/]*$/, `/${templateDbName}`);
-  }
-  
   /**
    * Get full template database name
    */
@@ -73,7 +46,7 @@ export class TemplateDatabase {
    * Check if database exists
    */
   static async databaseExists(databaseName: string): Promise<boolean> {
-    const client = new Client({ connectionString: this.getPostgresConnection() });
+    const client = this.createPostgresClient();
     
     try {
       await client.connect();
@@ -93,7 +66,7 @@ export class TemplateDatabase {
    * Create PostgreSQL database
    */
   private static async createDatabase(databaseName: string): Promise<void> {
-    const client = new Client({ connectionString: this.getPostgresConnection() });
+    const client = this.createPostgresClient();
     
     try {
       await client.connect();
@@ -108,7 +81,7 @@ export class TemplateDatabase {
    * Drop PostgreSQL database (public for testing)
    */
   static async dropDatabase(databaseName: string): Promise<void> {
-    const client = new Client({ connectionString: this.getPostgresConnection() });
+    const client = this.createPostgresClient();
     
     try {
       await client.connect();
@@ -186,7 +159,7 @@ export class TemplateDatabase {
    * List available template databases
    */
   static async listTemplates(): Promise<string[]> {
-    const client = new Client({ connectionString: this.getPostgresConnection() });
+    const client = this.createPostgresClient();
     
     try {
       await client.connect();
@@ -313,7 +286,7 @@ export class TemplateDatabase {
    * Clone database using PostgreSQL template feature (very fast)
    */
   private static async cloneDatabaseFromTemplate(templateName: string, targetName: string): Promise<void> {
-    const client = new Client({ connectionString: this.getPostgresConnection() });
+    const client = this.createPostgresClient();
     
     try {
       await client.connect();
@@ -328,7 +301,7 @@ export class TemplateDatabase {
    * Initialize template database with tenant schema and root user
    */
   private static async initializeTemplateDatabase(templateName: string): Promise<void> {
-    const client = new Client({ connectionString: this.getTemplateConnection(templateName) });
+    const client = this.createDatabaseClient(this.getTemplateDbName(templateName));
     
     try {
       await client.connect();
