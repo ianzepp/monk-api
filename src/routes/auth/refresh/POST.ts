@@ -1,35 +1,26 @@
 import type { Context } from 'hono';
 import { AuthService } from '@lib/auth.js';
-import { 
-    createSuccessResponse, 
-    createValidationError,
-    createInternalError 
-} from '@lib/api/responses.js';
+import { setRouteResult } from '@lib/middleware/system-context.js';
 
-export default async function (context: Context): Promise<any> {
-    try {
-        const body = await context.req.json();
-        const { token } = body;
+export default async function (context: Context) {
+    const { token } = await context.req.json();
 
-        if (!token) {
-            return createValidationError(context, 'Token required for refresh', [
-                { path: ['token'], message: 'Token is required' }
-            ]);
-        }
-
-        const newToken = await AuthService.refreshToken(token);
-
-        if (!newToken) {
-            return context.json({
-                success: false,
-                error: 'Token refresh failed',
-                error_code: 'TOKEN_REFRESH_FAILED'
-            }, 401);
-        }
-
-        return createSuccessResponse(context, { token: newToken });
-    } catch (error) {
-        console.error('Token refresh error:', error);
-        return createInternalError(context, 'Token refresh failed');
+    // Input validation
+    if (!token) {
+        throw new Error('Token is required for refresh');
     }
+
+    const newToken = await AuthService.refreshToken(token);
+
+    if (!newToken) {
+        // Auth-specific error handling
+        context.status(401);
+        return context.json({
+            success: false,
+            error: 'Token refresh failed',
+            error_code: 'TOKEN_REFRESH_FAILED'
+        });
+    }
+
+    setRouteResult(context, { token: newToken });
 }

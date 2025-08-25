@@ -106,6 +106,7 @@ app.use('/api/data/*', responseJsonMiddleware);  // Data API: JSON responses
 app.use('/api/meta/*', responseYamlMiddleware);  // Meta API: YAML responses  
 app.use('/api/file/*', responseFileMiddleware);  // Future: File responses
 app.use('/ftp/*', responseJsonMiddleware);       // FTP Middleware: JSON responses
+app.use('/auth/*', responseJsonMiddleware);      // Auth API: JSON responses
 
 // Public routes
 app.post('/auth/login', AuthLoginPost);                             // POST /auth/login
