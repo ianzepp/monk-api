@@ -10,6 +10,6 @@ echo "📦 Compiling TypeScript..."
 npm run compile
 
 # Build templates using dedicated TypeScript file
-npx tsx src/scripts/fixtures-build.ts
+npx tsx src/scripts/fixtures-build.ts "$@"
 
 echo "✅ Template databases built successfully"

@@ -25,7 +25,9 @@ export class FixtureManager {
       
       // Dynamic import for ESM modules
       const module = await import(`file://${definitionPath}`);
-      const fixtureKey = `${name}Fixture`;
+      // Convert hyphenated names to PascalCase for export name
+      const pascalCaseName = name.replace(/(^|-)([a-z])/g, (match, dash, letter) => letter.toUpperCase());
+      const fixtureKey = `${pascalCaseName}Fixture`;
       
       if (!module[fixtureKey]) {
         throw new Error(`Fixture definition '${fixtureKey}' not found in ${definitionPath}`);

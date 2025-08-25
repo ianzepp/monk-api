@@ -484,6 +484,7 @@ npm run test:prepare
 
 **Available Fixtures:**
 - `basic`: Account and contact schemas (15+ accounts, 25+ contacts)
+- `basic-large`: Large-scale basic fixture for performance testing (1,500+ accounts, 2,500+ contacts)
 - `ecommerce`: E-commerce scenarios with products, orders, customers
 - `user-management`: Users, roles, and permissions
 - `performance`: Large datasets for stress testing

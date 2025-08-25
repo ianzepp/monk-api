@@ -8,13 +8,27 @@
 
 import { TemplateDatabase } from '../lib/fixtures/template-database.js';
 
+/**
+ * Convert hyphenated fixture name to camelCase for export name
+ */
+function toCamelCase(str: string): string {
+  return str.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+}
+
 async function buildFixtures(): Promise<void> {
   console.log('🔨 Building template databases...');
   
+  // Get fixture names from command line arguments
+  const fixtureNames = process.argv.slice(2);
+  
+  // Default to basic if no fixtures specified
+  const fixturesToBuild = fixtureNames.length > 0 ? fixtureNames : ['basic'];
+  
   try {
-    // Build basic template
-    console.log('🏗️  Building basic template...');
-    await TemplateDatabase.buildTemplateFromFixture('basic');
+    for (const fixtureName of fixturesToBuild) {
+      console.log(`🏗️  Building ${fixtureName} template...`);
+      await TemplateDatabase.buildTemplateFromFixture(fixtureName);
+    }
     
     console.log('✅ Template databases built successfully');
     
