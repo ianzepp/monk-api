@@ -79,6 +79,17 @@ export interface TestDataHelpers {
   // Test data assertions
   assertRecordExists(schemaName: string, criteria: any): Promise<void>;
   assertRecordCount(schemaName: string, expectedCount: number): Promise<void>;
+  
+  // NEW: Enhanced helper methods
+  createTestRecord(schemaName: string, overrides?: any): Promise<any>;
+  seedCustomData(schemaName: string, count: number, template?: any): Promise<any[]>;
+  cleanupTestData(schemaName: string, criteria?: any): Promise<number>;
+  findRecordsWhere(schemaName: string, criteria: any, limit?: number): Promise<any[]>;
+  
+  // Performance monitoring
+  getPerformanceMetrics(): TestPerformanceMetrics;
+  startTimer(label: string): void;
+  endTimer(label: string): number;
 }
 
 /**
@@ -89,6 +100,36 @@ export interface TemplateLoadOptions {
   mockTemplate?: boolean;
   customData?: Record<string, any[]>;
   skipValidation?: boolean;
+  customFixture?: CustomFixtureDefinition;
+}
+
+/**
+ * Custom fixture definition for inline fixture creation
+ */
+export interface CustomFixtureDefinition {
+  name: string;
+  description?: string;
+  schemas: string[];
+  data: Record<string, any[]>;
+  relationships?: Array<{from: string, to: string}>;
+  options?: {
+    seedRandom?: number;
+    includeEdgeCases?: boolean;
+    recordMultiplier?: number;
+  };
+}
+
+/**
+ * Performance metrics for test execution monitoring
+ */
+export interface TestPerformanceMetrics {
+  setupTime: number;
+  dataLoadTime: number;
+  testExecutionTime: number;
+  totalTime: number;
+  templateSource: 'cloned' | 'manual' | 'mock';
+  recordCounts: Record<string, number>;
+  customTimers: Record<string, number>;
 }
 
 /**
@@ -265,7 +306,7 @@ export async function createTestContextWithFixture(
   fixtureName: string,
   options: TemplateLoadOptions = {}
 ): Promise<TestContextWithData> {
-  const { user = 'root', mockTemplate = false, customData, skipValidation = false } = options;
+  const { user = 'root', mockTemplate = false, customData, skipValidation = false, customFixture } = options;
 
   console.log(`🎯 Creating test context with fixture: ${fixtureName}`);
 
@@ -278,7 +319,29 @@ export async function createTestContextWithFixture(
   let fixture: any;
   let recordCounts: Record<string, number> = {};
 
-  if (mockTemplate) {
+  if (customFixture) {
+    // Handle custom inline fixtures
+    console.log(`🎨 Using custom fixture: ${customFixture.name}`);
+    
+    testDatabase = baseContext.tenant.database;
+    templateSource = 'mock';
+    
+    fixture = {
+      name: customFixture.name,
+      description: customFixture.description || `Custom fixture: ${customFixture.name}`,
+      schemas: customFixture.schemas.reduce((acc, schema) => {
+        acc[schema] = {}; // Schema definitions would be loaded separately
+        return acc;
+      }, {} as Record<string, any>),
+      recordCounts: Object.fromEntries(
+        Object.entries(customFixture.data).map(([schema, data]) => [schema, data.length])
+      ),
+      relationships: customFixture.relationships || []
+    };
+    
+    recordCounts = await createCustomFixtureData(baseContext, customFixture);
+    
+  } else if (mockTemplate) {
     // Mock mode for development/testing when template system isn't working
     console.log(`🎭 Using mock template for ${fixtureName}`);
     
@@ -760,6 +823,16 @@ export function validateFixtureComposition(fixtureNames: string[]): {
  * Create helper methods for test context
  */
 function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelpers {
+  // Performance tracking
+  const performanceTimers: Record<string, number> = {};
+  const performanceMetrics: Partial<TestPerformanceMetrics> = {
+    setupTime: 0,
+    dataLoadTime: 0,
+    testExecutionTime: 0,
+    totalTime: 0,
+    customTimers: {}
+  };
+
   return {
     async getRecordCount(schemaName: string): Promise<number> {
       try {
@@ -818,7 +891,211 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       if (actualCount !== expectedCount) {
         throw new Error(`Expected ${expectedCount} records in ${schemaName}, found ${actualCount}`);
       }
+    },
+
+    // NEW: Enhanced helper methods
+    async createTestRecord(schemaName: string, overrides: any = {}): Promise<any> {
+      try {
+        // Generate a basic test record with overrides
+        const baseRecord = await generateBasicRecord(schemaName, overrides);
+        const mergedRecord = { ...baseRecord, ...overrides };
+        
+        return await context.database.createOne(schemaName, mergedRecord);
+      } catch (error) {
+        console.warn(`⚠️  Could not create test record in ${schemaName}:`, error.message);
+        throw error;
+      }
+    },
+
+    async seedCustomData(schemaName: string, count: number, template: any = {}): Promise<any[]> {
+      const records: any[] = [];
+      
+      for (let i = 0; i < count; i++) {
+        try {
+          const record = await this.createTestRecord(schemaName, {
+            ...template,
+            // Add index to ensure uniqueness
+            name: template.name ? `${template.name} ${i}` : `Test Record ${i}`,
+            email: template.email ? `test${i}@example.com` : undefined
+          });
+          records.push(record);
+        } catch (error) {
+          console.warn(`⚠️  Failed to create record ${i} for ${schemaName}:`, error.message);
+        }
+      }
+      
+      console.log(`✅ Seeded ${records.length}/${count} records in ${schemaName}`);
+      return records;
+    },
+
+    async cleanupTestData(schemaName: string, criteria: any = {}): Promise<number> {
+      try {
+        // Find records matching criteria
+        const records = await context.database.selectAny(schemaName, criteria);
+        
+        if (records.length === 0) {
+          return 0;
+        }
+        
+        // Delete found records
+        const ids = records.map(r => r.id);
+        await context.database.deleteIds(schemaName, ids);
+        
+        console.log(`🗑️  Cleaned up ${records.length} records from ${schemaName}`);
+        return records.length;
+      } catch (error) {
+        console.warn(`⚠️  Could not cleanup records in ${schemaName}:`, error.message);
+        return 0;
+      }
+    },
+
+    async findRecordsWhere(schemaName: string, criteria: any, limit: number = 10): Promise<any[]> {
+      try {
+        return await context.database.selectAny(schemaName, { ...criteria, limit });
+      } catch (error) {
+        console.warn(`⚠️  Could not find records in ${schemaName}:`, error.message);
+        return [];
+      }
+    },
+
+    // Performance monitoring
+    getPerformanceMetrics(): TestPerformanceMetrics {
+      return {
+        setupTime: performanceMetrics.setupTime || 0,
+        dataLoadTime: performanceMetrics.dataLoadTime || 0,
+        testExecutionTime: performanceMetrics.testExecutionTime || 0,
+        totalTime: (performanceMetrics.setupTime || 0) + (performanceMetrics.dataLoadTime || 0) + (performanceMetrics.testExecutionTime || 0),
+        templateSource: (context as any).templateSource || 'manual',
+        recordCounts: (context as any).recordCounts || {},
+        customTimers: { ...performanceMetrics.customTimers }
+      };
+    },
+
+    startTimer(label: string): void {
+      performanceTimers[label] = Date.now();
+    },
+
+    endTimer(label: string): number {
+      const startTime = performanceTimers[label];
+      if (!startTime) {
+        console.warn(`⚠️  Timer '${label}' was not started`);
+        return 0;
+      }
+      
+      const duration = Date.now() - startTime;
+      performanceMetrics.customTimers![label] = duration;
+      delete performanceTimers[label];
+      
+      return duration;
     }
+  };
+}
+
+/**
+ * Create custom fixture data from inline definition
+ */
+async function createCustomFixtureData(
+  context: TestContext,
+  customFixture: CustomFixtureDefinition
+): Promise<Record<string, number>> {
+  console.log(`🎨 Creating custom fixture data: ${customFixture.name}`);
+  
+  const recordCounts: Record<string, number> = {};
+
+  // Create schemas first
+  for (const schemaName of customFixture.schemas) {
+    await ensureSchemaExists(context, schemaName);
+  }
+
+  // Create data for each schema
+  for (const [schemaName, records] of Object.entries(customFixture.data)) {
+    try {
+      console.log(`📝 Creating ${records.length} ${schemaName} records`);
+      
+      // Apply options if specified
+      let finalRecords = [...records];
+      
+      if (customFixture.options?.recordMultiplier && customFixture.options.recordMultiplier > 1) {
+        // Multiply records by creating variations
+        const multiplier = customFixture.options.recordMultiplier;
+        const originalCount = finalRecords.length;
+        
+        for (let i = 1; i < multiplier; i++) {
+          const variations = records.map(record => ({
+            ...record,
+            name: record.name ? `${record.name} v${i}` : `Record v${i}`,
+            email: record.email ? record.email.replace('@', `+v${i}@`) : undefined
+          }));
+          finalRecords.push(...variations);
+        }
+        
+        console.log(`🔢 Multiplied ${originalCount} records by ${multiplier} = ${finalRecords.length} total`);
+      }
+      
+      // Insert all records
+      if (finalRecords.length > 0) {
+        await context.database.createAll(schemaName, finalRecords);
+        recordCounts[schemaName] = finalRecords.length;
+        console.log(`✅ Created ${finalRecords.length} ${schemaName} records`);
+      }
+      
+    } catch (error) {
+      console.warn(`⚠️  Failed to create ${schemaName} records:`, error.message);
+      recordCounts[schemaName] = 0;
+    }
+  }
+
+  return recordCounts;
+}
+
+/**
+ * Create test context with custom inline fixture
+ */
+export async function createTestContextWithCustomFixture(
+  customFixture: CustomFixtureDefinition,
+  options: Omit<TemplateLoadOptions, 'customFixture'> = {}
+): Promise<TestContextWithData> {
+  return await createTestContextWithFixture('custom', {
+    ...options,
+    customFixture
+  });
+}
+
+/**
+ * Generate basic test record for a schema
+ */
+async function generateBasicRecord(schemaName: string, overrides: any = {}): Promise<any> {
+  const baseRecords: Record<string, any> = {
+    account: {
+      name: 'Test Account',
+      email: 'test@example.com',
+      username: 'testaccount',
+      account_type: 'personal',
+      balance: 100.00,
+      is_active: true,
+      is_verified: true
+    },
+    contact: {
+      first_name: 'Test',
+      last_name: 'Contact',
+      email: 'contact@example.com',
+      contact_type: 'customer',
+      status: 'active',
+      priority: 'normal',
+      is_active: true
+    },
+    user: {
+      name: 'Test User',
+      email: 'user@example.com',
+      username: 'testuser',
+      role: 'user',
+      is_active: true
+    }
+  };
+
+  return baseRecords[schemaName] || {
+    name: 'Test Record',
+    description: 'Generated test record'
   };
 }
 
