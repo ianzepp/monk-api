@@ -16,11 +16,15 @@ import { createSuccessResponse, createValidationError } from '@lib/api/responses
 export async function executeObserverPipeline(
     system: System,
     operation: OperationType,
-    schema: string,
+    schemaName: string,
     data?: any,
     recordId?: string,
     existing?: any
 ): Promise<ObserverResult> {
+    // Resolve schema object - this helper needs to do its own resolution
+    // since it's not going through Database.runObserverPipeline()
+    const schema = await system.database.toSchema(schemaName);
+    
     const runner = new ObserverRunner();
     
     return await runner.execute(
