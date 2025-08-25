@@ -15,6 +15,10 @@ build/
 *.db
 *.db-*
 
+# Template databases (persistent but not in git)
+# These are created locally via npm run fixtures:build
+*.template-*
+
 # Logs
 logs/
 *.log

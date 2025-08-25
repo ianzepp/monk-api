@@ -8,6 +8,7 @@
 import { randomBytes } from 'crypto';
 import { MonkEnv } from '../../src/lib/monk-env.js';
 import { TenantService, TenantInfo } from '../../src/lib/services/tenant.js';
+import { TemplateDatabase } from '../../src/lib/fixtures/template-database.js';
 import { System } from '../../src/lib/system.js';
 import { Database } from '../../src/lib/database.js';
 import { Metabase } from '../../src/lib/metabase.js';
@@ -25,6 +26,11 @@ export interface TestContext {
   database: Database;
   metabase: Metabase;
   tenantService: typeof TenantService;
+}
+
+export interface TestContextWithTemplate extends TestContext {
+  templateName: string;
+  jwtToken: string;
 }
 
 /**
@@ -208,4 +214,71 @@ export async function testMetabaseConnectivity(metabase: Metabase): Promise<bool
     console.error(`❌ Metabase connectivity test failed:`, error);
     return false;
   }
+}
+
+// ==========================================
+// TEMPLATE-BASED TEST HELPERS
+// ==========================================
+
+/**
+ * Create test tenant from template database (fast cloning)
+ */
+export async function createTestTenantFromTemplate(templateName: string): Promise<TestTenantManager> {
+  // Load monk configuration
+  MonkEnv.load();
+  
+  // Generate unique tenant name
+  const timestamp = Date.now();
+  const randomId = randomBytes(4).toString('hex');
+  const tenantName = `test-${timestamp}-${randomId}`;
+  
+  console.log(`⚡ Creating test tenant from template: ${tenantName} (template: ${templateName})`);
+  
+  try {
+    // Fast clone from template instead of slow tenant creation
+    const tenant = await TemplateDatabase.createTenantFromTemplate(tenantName, templateName);
+    
+    console.log(`✅ Test tenant cloned from template: ${tenantName}`);
+    
+    return {
+      tenant,
+      async cleanup() {
+        await cleanupTestTenant(tenant);
+      }
+    };
+  } catch (error) {
+    console.error(`❌ Failed to create tenant from template: ${tenantName}`);
+    throw error;
+  }
+}
+
+/**
+ * Create test context with template-based tenant and JWT token
+ */
+export async function createTestContextWithTemplate(templateName: string, user: string = 'root'): Promise<TestContextWithTemplate> {
+  // Create tenant from template
+  const tenantManager = await createTestTenantFromTemplate(templateName);
+  
+  if (!tenantManager.tenant) {
+    throw new Error('Failed to create tenant from template');
+  }
+  
+  // Create authenticated test context
+  const testContext = await createTestContext(tenantManager.tenant, user);
+  
+  // Get JWT token for HTTP testing
+  const loginResult = await TenantService.login(tenantManager.tenant.name, user);
+  
+  if (!loginResult?.token) {
+    throw new Error(`Failed to get JWT token for user ${user} in template-based tenant`);
+  }
+  
+  // TODO: Review where JWT token generation should live in test helpers
+  // For now, including it here for HTTP endpoint testing convenience
+  
+  return {
+    ...testContext,
+    templateName,
+    jwtToken: loginResult.token
+  };
 }
