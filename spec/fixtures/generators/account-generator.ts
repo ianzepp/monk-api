@@ -1,8 +1,8 @@
 /**
  * Account Generator
  * 
- * Generates realistic account/user records with proper relationships
- * and edge cases for comprehensive testing.
+ * Generates realistic account records based on the account.yaml schema
+ * with proper validation constraints and edge cases.
  */
 
 import { BaseGenerator } from './base-generator.js';
@@ -41,22 +41,29 @@ export class AccountGenerator extends BaseGenerator {
       const accountId = this.generateDeterministicUuid('account', `account-${i}`);
       const username = this.generateUsername(firstName, lastName, i);
       const email = this.generateRealisticEmail(firstName, lastName, domain);
+      const createdAt = this.generateCreatedDate(i);
       
       const account: GeneratedRecord = {
+        // Required fields
         id: accountId,
         name: `${firstName} ${lastName}`,
         email: email,
         username: username,
-        account_type: this.getAccountType(i),
+        account_type: this.generateAccountType(i),
+        
+        // Optional fields with defaults
         balance: this.generateBalance(i),
         is_active: this.generateActiveStatus(i),
         is_verified: this.generateVerifiedStatus(i),
+        
+        // Nullable fields
         credit_limit: this.generateCreditLimit(i),
-        last_login: this.generateLastLogin(i),
+        last_login: this.generateLastLogin(createdAt, i),
+        phone: this.generatePhone(i),
+        
+        // Complex objects
         preferences: this.generatePreferences(i),
-        metadata: this.generateMetadata(i),
-        phone: options.realistic_names ? this.generatePhoneNumber() : null
-        // Note: created_at and updated_at are added automatically by the system
+        metadata: this.generateMetadata(i)
       };
       
       accounts.push(account);
@@ -71,26 +78,29 @@ export class AccountGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate username with variations to avoid conflicts
+   * Generate username following pattern: ^[a-zA-Z0-9_-]{3,50}$
    */
   private generateUsername(firstName: string, lastName: string, index: number): string {
-    const base = `${firstName.toLowerCase()}${lastName.toLowerCase()}`;
+    const baseFirst = firstName.toLowerCase().replace(/[^a-z]/g, '');
+    const baseLast = lastName.toLowerCase().replace(/[^a-z]/g, '');
     
+    // Create variations to ensure uniqueness
     if (index === 0) {
-      return base;
+      return `${baseFirst}_${baseLast}`;
     } else if (index < 10) {
-      return `${base}${index}`;
+      return `${baseFirst}_${baseLast}${index}`;
+    } else if (index < 100) {
+      return `${baseFirst}-${baseLast}-${index}`;
     } else {
-      // Add random suffix for higher indexes
-      const suffix = Math.floor(index / 10) * 10 + (index % 10);
-      return `${base}${suffix}`;
+      // For larger indexes, use more compact format
+      return `user_${baseFirst}${index}`;
     }
   }
   
   /**
    * Generate account type with realistic distribution
    */
-  private getAccountType(index: number): string {
+  private generateAccountType(index: number): string {
     if (index % 10 === 0) return 'business';    // 10% business
     if (index % 20 === 1) return 'premium';     // 5% premium
     if (index % 15 === 2) return 'trial';       // ~7% trial
@@ -98,20 +108,25 @@ export class AccountGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate realistic balance with distribution
+   * Generate balance (0 to 1,000,000 per schema)
    */
   private generateBalance(index: number): number {
-    // Most accounts have low balances, some have higher amounts
     const seed = this.seededRandom(`balance-${index}`);
     
-    if (seed > 0.9) {
-      // 10% have high balances ($1000-$10000)
-      return Math.round((1000 + seed * 9000) * 100) / 100;
+    if (seed > 0.95) {
+      // 5% have very high balances ($100,000-$1,000,000)
+      return Math.round((100000 + seed * 900000) * 100) / 100;
+    } else if (seed > 0.9) {
+      // 5% have high balances ($10,000-$100,000)
+      return Math.round((10000 + seed * 90000) * 100) / 100;
     } else if (seed > 0.7) {
-      // 20% have medium balances ($100-$1000)
+      // 20% have medium balances ($1,000-$10,000)
+      return Math.round((1000 + seed * 9000) * 100) / 100;
+    } else if (seed > 0.3) {
+      // 40% have low balances ($100-$1,000)
       return Math.round((100 + seed * 900) * 100) / 100;
     } else {
-      // 70% have low balances ($0-$100)
+      // 30% have minimal balances ($0-$100)
       return Math.round((seed * 100) * 100) / 100;
     }
   }
@@ -131,30 +146,31 @@ export class AccountGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate credit limit for business accounts
+   * Generate credit limit for business/premium accounts (nullable)
    */
   private generateCreditLimit(index: number): number | null {
-    const accountType = this.getAccountType(index);
+    const accountType = this.generateAccountType(index);
     
     if (accountType === 'business' || accountType === 'premium') {
       const seed = this.seededRandom(`credit-${index}`);
-      // Business accounts get $500-$10000 credit limits
+      // Business/premium accounts get $500-$10,000 credit limits
       return Math.round((500 + seed * 9500) * 100) / 100;
     }
     
-    return null; // Personal and trial accounts don't get credit limits
+    // Personal and trial accounts don't get credit limits
+    return null;
   }
   
   /**
-   * Generate last login date (realistic activity pattern)
+   * Generate last login date (nullable)
    */
-  private generateLastLogin(index: number): string | null {
-    // 80% of accounts have logged in recently
+  private generateLastLogin(createdAt: string, index: number): string | null {
+    // 20% never logged in
     if (index % 5 === 0) {
-      return null; // 20% never logged in
+      return null;
     }
     
-    // Last login within the last 6 months
+    // Last login within the last 6 months from now
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
     const lastLogin = this.generateDateInRange(sixMonthsAgo, now);
@@ -163,13 +179,35 @@ export class AccountGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate user preferences object
+   * Generate phone number (nullable, matching pattern)
+   */
+  private generatePhone(index: number): string | null {
+    // 60% have phone numbers
+    if (index % 10 < 4) {
+      return null;
+    }
+    
+    // Generate US format phone numbers
+    const areaCode = ['555', '415', '212', '310', '617'][index % 5];
+    const exchange = String(200 + (index % 800)).padStart(3, '0');
+    const number = String(1000 + (index % 9000)).padStart(4, '0');
+    
+    // Alternate between formats
+    if (index % 2 === 0) {
+      return `+1 (${areaCode}) ${exchange}-${number}`;
+    } else {
+      return `+1${areaCode}${exchange}${number}`;
+    }
+  }
+  
+  /**
+   * Generate preferences object
    */
   private generatePreferences(index: number): object {
     return {
-      notifications: index % 3 !== 0, // 67% enable notifications
+      notifications: index % 3 !== 0,           // 67% enable notifications
       theme: index % 4 === 0 ? 'dark' : 'light', // 25% dark theme
-      language: index % 10 === 0 ? 'es' : 'en' // 10% Spanish, 90% English
+      language: index % 10 === 0 ? 'es' : 'en'   // 10% Spanish, 90% English
     };
   }
   
@@ -179,7 +217,8 @@ export class AccountGenerator extends BaseGenerator {
   private generateMetadata(index: number): object {
     const metadata: any = {
       source: index % 7 === 0 ? 'referral' : 'signup',
-      ip_country: 'US'
+      ip_country: 'US',
+      created_at: this.generateCreatedDate(index)
     };
     
     // Add optional metadata for some accounts
@@ -190,13 +229,19 @@ export class AccountGenerator extends BaseGenerator {
     
     if (index % 8 === 0) {
       metadata.beta_tester = true;
+      metadata.early_adopter = true;
+    }
+    
+    if (index % 12 === 0) {
+      metadata.referral_code = `REF${1000 + index}`;
+      metadata.referred_by = 'user-123';
     }
     
     return metadata;
   }
   
   /**
-   * Generate realistic creation dates
+   * Generate creation date
    */
   private generateCreatedDate(index: number): string {
     // Accounts created over the last 2 years
@@ -213,49 +258,134 @@ export class AccountGenerator extends BaseGenerator {
   private generateEdgeCases(): GeneratedRecord[] {
     return [
       {
-        id: this.generateDeterministicUuid('account', 'edge-null-values'),
-        name: 'Edge Case Null',
-        email: 'edge.null@example.com',
-        username: 'edgenull',
-        account_type: 'trial',
-        balance: 0.00,
+        // Minimal data - only required fields
+        id: this.generateDeterministicUuid('account', 'edge-minimal'),
+        name: 'M',  // Minimum 2 characters
+        email: 'a@b.c',
+        username: 'min',  // Minimum 3 characters
+        account_type: 'personal',
+        balance: 0,
         is_active: false,
         is_verified: false,
         credit_limit: null,
         last_login: null,
-        preferences: { notifications: false, theme: 'light', language: 'en' },
-        metadata: { source: 'manual', ip_country: 'US' },
-        phone: null
+        phone: null,
+        preferences: {
+          notifications: false,
+          theme: 'light',
+          language: 'en'
+        },
+        metadata: {}
       },
       {
-        id: this.generateDeterministicUuid('account', 'edge-max-values'),
-        name: 'Edge Case Maximum Values Test User',
-        email: 'very.long.email.address.for.testing@very-long-domain-name-example.com',
-        username: 'verylongusernamefortesting123456',
+        // Maximum values
+        id: this.generateDeterministicUuid('account', 'edge-maximum'),
+        name: 'A'.repeat(100), // Maximum 100 characters
+        email: `${'very'.repeat(50)}long@${'domain'.repeat(20)}.com`.substring(0, 255), // Max 255
+        username: 'a'.repeat(50), // Maximum 50 characters
         account_type: 'premium',
-        balance: 999999.99,
+        balance: 1000000.00, // Maximum balance
         is_active: true,
         is_verified: true,
-        credit_limit: 10000.00,
+        credit_limit: 10000.00, // Maximum credit limit
         last_login: new Date().toISOString(),
-        preferences: { notifications: true, theme: 'dark', language: 'en' },
-        metadata: { source: 'premium_signup', ip_country: 'US', beta_tester: true },
-        phone: '+1 (999) 999-9999'
+        phone: '+12345678901234', // 14 digits max international
+        preferences: {
+          notifications: true,
+          theme: 'dark',
+          language: 'es'
+        },
+        metadata: {
+          source: 'premium_upgrade',
+          ip_country: 'US',
+          beta_tester: true,
+          marketing_consent: true,
+          custom_field_1: 'value1',
+          custom_field_2: 'value2',
+          nested: {
+            level1: {
+              level2: 'deep'
+            }
+          }
+        }
       },
       {
+        // Special characters in text fields
         id: this.generateDeterministicUuid('account', 'edge-special-chars'),
-        name: 'Test O\'Reilly-Smith',
-        email: 'test.special+chars@example.com',
-        username: 'testspecial',
-        account_type: 'personal',
-        balance: 123.45,
+        name: "O'Reilly-Smith, Jr.",
+        email: 'test.user+special@example.com',
+        username: 'user_with-dashes',
+        account_type: 'business',
+        balance: 12345.67,
         is_active: true,
         is_verified: true,
-        credit_limit: null,
+        credit_limit: 5000.00,
         last_login: new Date().toISOString(),
-        preferences: { notifications: true, theme: 'light', language: 'en' },
-        metadata: { source: 'signup', ip_country: 'US', marketing_consent: true },
-        phone: '+1 (123) 456-7890'
+        phone: '+1 (555) 123-4567',
+        preferences: {
+          notifications: true,
+          theme: 'light',
+          language: 'en'
+        },
+        metadata: {
+          source: 'referral',
+          ip_country: 'CA',
+          notes: "Special chars: & < > \" ' / \\ | @ # $ % ^ * ( ) { } [ ]",
+          unicode: '日本語 français español Deutsch',
+          emoji: '🎉 🚀 ✨'
+        }
+      },
+      {
+        // Null/empty optional fields
+        id: this.generateDeterministicUuid('account', 'edge-null-values'),
+        name: 'Null Test User',
+        email: 'null.test@example.com',
+        username: 'null_tester',
+        account_type: 'trial',
+        balance: 0.01, // Minimal non-zero balance
+        is_active: true,
+        is_verified: false,
+        credit_limit: null,
+        last_login: null,
+        phone: null,
+        preferences: {
+          notifications: true,
+          theme: 'light',
+          language: 'en'
+        },
+        metadata: {
+          // Minimal metadata
+          source: 'test'
+        }
+      },
+      {
+        // Business account with all features
+        id: this.generateDeterministicUuid('account', 'edge-business-full'),
+        name: 'Enterprise Business Account',
+        email: 'enterprise@business.com',
+        username: 'enterprise_account',
+        account_type: 'business',
+        balance: 999999.99, // Just under max
+        is_active: true,
+        is_verified: true,
+        credit_limit: 9999.99, // Just under max
+        last_login: new Date().toISOString(),
+        phone: '+14155551234',
+        preferences: {
+          notifications: true,
+          theme: 'dark',
+          language: 'en'
+        },
+        metadata: {
+          source: 'enterprise_sales',
+          ip_country: 'US',
+          company_name: 'Big Corp Inc.',
+          tax_id: 'TAX123456',
+          contract_id: 'CONTRACT-2024-001',
+          account_manager: 'John Doe',
+          sla_level: 'platinum',
+          custom_integration: true
+        }
       }
     ];
   }

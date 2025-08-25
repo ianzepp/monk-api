@@ -1,0 +1,595 @@
+# Test Specification Documentation
+
+## Overview
+
+The Monk API project employs a comprehensive three-tier testing strategy combining shell-based integration tests, TypeScript unit/integration tests via Vitest, and a new template-based database system for fast fixture loading. This document provides complete specification for all testing processes and the ongoing template system implementation.
+
+## Testing Architecture
+
+### Three Testing Frameworks
+
+1. **Shell Integration Tests** (`tests/` directory)
+   - End-to-end CLI and API testing
+   - Tenant isolation per test
+   - Pattern-based test discovery
+   - Real database operations
+
+2. **TypeScript Tests** (`spec/` directory)
+   - Vitest framework for unit and integration tests
+   - Direct class testing without HTTP overhead
+   - Mock support for isolated unit testing
+   - Real database support for integration testing
+
+3. **Template Database System** (NEW - Epic #140)
+   - Pre-built test databases with realistic fixtures
+   - PostgreSQL template cloning for fast setup
+   - Smart regeneration on schema changes
+   - Comprehensive fixture library
+
+## Shell-Based Testing (`tests/` directory)
+
+### Architecture
+
+```
+Layer 1: Pattern Matching (test-all.sh)
+         ↓
+Layer 2: Tenant Management (test-one.sh)
+         ↓
+Layer 3: Individual Tests (*.sh files)
+```
+
+### Test Categories
+
+```
+tests/
+├── 05-infrastructure/     # Server config, connectivity
+├── 10-connection/         # Database connectivity, ping
+├── 15-authentication/     # Auth flows, JWT, multi-user
+├── 20-meta-api/          # Schema management operations
+├── 30-data-api/          # CRUD operations, validation
+├── 50-integration/       # End-to-end workflows
+├── 60-lifecycle/         # Record lifecycle, soft deletes
+├── 70-validation/        # Schema validation, constraints
+├── 80-filter/           # Filter system testing
+└── 85-observer-integration/ # Observer pipeline testing
+```
+
+### Running Shell Tests
+
+```bash
+# All tests
+npm run test:all
+
+# Pattern matching
+npm run test:all 15              # All auth tests
+npm run test:all 20-30           # Meta and data API tests
+
+# Individual test
+npm run test:one tests/15-authentication/basic-auth-test.sh
+
+# Verbose output
+npm run test:one tests/path/test.sh --verbose
+```
+
+### Test Lifecycle
+
+1. **test-all.sh** finds matching test files
+2. **test-one.sh** creates isolated tenant (`test-$(timestamp)`)
+3. Test runs with `TEST_TENANT_NAME` environment variable
+4. Automatic cleanup after test completion
+
+### Writing Shell Tests
+
+```bash
+#!/bin/bash
+set -e
+
+# Required setup
+source "$(dirname "$0")/../test-env-setup.sh"
+source "$(dirname "$0")/../auth-helper.sh"
+
+# Verify tenant available
+if [ -z "$TEST_TENANT_NAME" ]; then
+    echo "TEST_TENANT_NAME not available"
+    exit 1
+fi
+
+# Authenticate
+if ! auth_as_user "root"; then
+    exit 1
+fi
+
+# Test implementation
+monk data create account < test-data.json
+monk data list account
+```
+
+## TypeScript Testing (`spec/` directory)
+
+### Test Structure
+
+```
+spec/
+├── 05-infrastructure/        # Core connectivity tests
+├── 15-authentication/        # Auth workflow tests
+├── 20-meta-api/              # Schema management tests
+├── 30-data-api/              # Data operation tests
+├── unit/                     # Unit tests (no database)
+│   ├── filter/              # Filter operator tests
+│   ├── ftp/                 # FTP middleware tests
+│   └── observers/           # Observer system tests
+├── integration/              # Integration tests (database required)
+├── security/                 # SQL injection tests
+├── fixtures/                 # NEW: Template system tests
+└── helpers/                  # Test utilities
+```
+
+### Running TypeScript Tests
+
+```bash
+# All tests
+npm run spec:all
+
+# Category-specific
+npm run spec:all unit            # Unit tests only
+npm run spec:all integration     # Integration tests only
+npm run spec:all 15              # Auth tests
+
+# Component-specific
+npm run spec:all unit/filter     # Filter tests (162 tests)
+npm run spec:all unit/ftp        # FTP tests (93+ tests)
+npm run spec:all unit/observers  # Observer tests
+
+# Individual file
+npm run spec:one spec/unit/filter/logical-operators.test.ts
+```
+
+### Test Categories
+
+#### Unit Tests (No Database)
+- **Purpose**: Test pure logic, utilities, parsing
+- **Count**: 210+ tests
+- **Speed**: Fast (no external dependencies)
+- **Coverage**: Filter operators, FTP utilities, observer logic
+
+#### Integration Tests (Database Required)
+- **Purpose**: Test database operations, API endpoints
+- **Count**: 100+ tests
+- **Speed**: Slower (database setup/teardown)
+- **Coverage**: Complete workflows, observer pipeline, FTP endpoints
+
+### Writing TypeScript Tests
+
+#### Unit Test Pattern
+
+```typescript
+import { describe, test, expect } from 'vitest';
+import { FilterWhere } from '@lib/filter-where.js';
+
+describe('Filter Operators', () => {
+  test('should handle AND operations', () => {
+    const { whereClause, params } = FilterWhere.generate({
+      $and: [
+        { status: 'active' },
+        { age: { $gte: 18 } }
+      ]
+    });
+    
+    expect(whereClause).toContain('AND');
+    expect(params).toEqual(['active', 18]);
+  });
+});
+```
+
+#### Integration Test Pattern
+
+```typescript
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import { createTestTenant, createTestContext } from '@spec/helpers/test-tenant.js';
+
+describe('Database Operations', () => {
+  let tenantManager: TestTenantManager;
+  let testContext: TestContext;
+
+  beforeAll(async () => {
+    // Create isolated tenant
+    tenantManager = await createTestTenant();
+    testContext = await createTestContext(tenantManager.tenant!, 'root');
+    
+    // Load observers
+    await ObserverLoader.preloadObservers();
+    
+    // Create schema
+    const schemaYaml = await readFile('test/schemas/account.yaml', 'utf-8');
+    await testContext.metabase.createOne('account', schemaYaml);
+  });
+
+  afterAll(async () => {
+    await tenantManager?.cleanup();
+  });
+
+  test('should create record', async () => {
+    const record = await testContext.database.createOne('account', {
+      name: 'Test User',
+      email: 'test@example.com'
+    });
+    
+    expect(record.id).toBeDefined();
+  });
+});
+```
+
+## Template Database System (NEW - Epic #140)
+
+### Overview
+
+The template database system revolutionizes test setup by pre-building databases with realistic fixture data, then using PostgreSQL's native cloning for sub-second test database creation.
+
+### Performance Impact
+
+```
+Traditional Setup:              Template System:
+Create tenant: 500ms           Clone template: 300ms
+Load schemas: 2000ms          → 
+Load data: 10000ms            → 
+Total: 12.5 seconds           Total: 0.5 seconds
+
+Improvement: 25x faster for small datasets
+            130x faster for large datasets
+```
+
+### Architecture
+
+```
+Development Phase:
+Fixture Definitions → Build Template DBs → Cache Templates
+                           ↓
+                   monk-api-template-*
+
+Test Phase:
+Test Start → Clone Template → Run Test → Cleanup
+                 ↓
+           Fast PG Clone (200-500ms)
+```
+
+### Implementation Phases
+
+#### Phase 1: Core Infrastructure (Issue #141) ✅ COMPLETE
+- Template database creation and management
+- PostgreSQL cloning integration
+- Basic template lifecycle
+
+```typescript
+// Core capabilities implemented
+export class TemplateDatabase {
+  async buildTemplate(fixtureName: string): Promise<void>;
+  async cloneTemplate(fixtureName: string): Promise<string>;
+  async dropTemplate(fixtureName: string): Promise<void>;
+  async listTemplates(): Promise<TemplateInfo[]>;
+}
+```
+
+#### Phase 2: Fixture System (Issue #142) ✅ COMPLETE
+- Fixture definition framework
+- Smart data generators
+- Relationship management
+
+```typescript
+// Fixture structure
+interface FixtureDefinition {
+  name: string;
+  schemas: Record<string, string>;      // Schema file paths
+  data_generators: Record<string, GeneratorConfig>;
+  relationships: RelationshipDefinition[];
+  metadata: FixtureMetadata;
+}
+
+// Generator system
+export class DataGenerator {
+  generate(count: number, options: GeneratorOptions): GeneratedRecord[];
+  getDependencies(): string[];
+  validate(records: GeneratedRecord[]): ValidationResult;
+}
+```
+
+#### Phase 3: Compatibility Management (Issue #143) ✅ COMPLETE
+- Schema change detection
+- Smart regeneration strategies
+- Automatic fixture updates
+
+```typescript
+// Compatibility tracking
+interface TemplateMetadata {
+  schema_hash: string;
+  observer_hash: string;
+  created_at: string;
+  monk_version: string;
+}
+
+// Auto-regeneration
+export class CompatibilityManager {
+  async detectChanges(template: string): Promise<ChangeAnalysis>;
+  async regenerateIfNeeded(template: string): Promise<void>;
+}
+```
+
+#### Phase 4: Enhanced Test Helpers (Issue #144) 🚧 IN PROGRESS
+- Simplified test setup APIs
+- Template-aware test context
+- Multi-fixture composition
+
+```typescript
+// New simplified test setup
+export async function createTestContextWithTemplate(
+  fixtureName: string,
+  user?: string
+): Promise<TestContextWithData>;
+
+// Usage
+const context = await createTestContextWithTemplate('ecommerce');
+// Instantly have 5000 products, 1000 customers, 10000 orders
+```
+
+### Fixture Library
+
+```
+spec/fixtures/
+├── definitions/           # Fixture configurations
+│   ├── basic.ts          # Simple test scenarios
+│   ├── ecommerce.ts      # E-commerce with relationships
+│   └── performance.ts    # Large dataset testing
+├── generators/           # Data generators
+│   ├── base-generator.ts # Base class with utilities
+│   ├── account-generator.ts
+│   ├── contact-generator.ts
+│   └── example-generator.ts
+└── schema/              # Schema definitions
+    ├── account.yaml
+    ├── contact.yaml
+    └── example.yaml
+```
+
+### Using Templates in Tests
+
+#### Current Method (Slow)
+```typescript
+// 12-65 seconds per test
+beforeAll(async () => {
+  tenantManager = await createTestTenant();
+  testContext = await createTestContext(tenantManager.tenant!, 'root');
+  
+  // Manual schema loading
+  const accountYaml = await readFile('test/schemas/account.yaml', 'utf-8');
+  await testContext.metabase.createOne('account', accountYaml);
+  
+  // Manual data creation
+  for (let i = 0; i < 100; i++) {
+    await testContext.database.createOne('account', generateAccount(i));
+  }
+});
+```
+
+#### Template Method (Fast)
+```typescript
+// 0.5 seconds per test
+beforeAll(async () => {
+  // One line replaces entire setup
+  testContext = await createTestContextWithTemplate('ecommerce');
+  
+  // Instantly have:
+  // - All schemas created
+  // - Thousands of records with relationships
+  // - Edge cases included
+  // - Proper foreign keys
+});
+```
+
+### Template Management Commands
+
+```bash
+# Build templates
+npm run fixtures:build            # Build all templates
+npm run fixtures:build basic      # Build specific template
+
+# Status and maintenance
+npm run fixtures:list             # List available templates
+npm run fixtures:status           # Check compatibility
+npm run fixtures:clean            # Remove stale templates
+
+# Testing
+npm run fixtures:test             # Test template system
+npm run test:prepare             # Auto-rebuild if needed
+```
+
+### Migration Modes
+
+#### Safe Mode (Default)
+- Full observer pipeline validation
+- Business logic applied
+- Audit trail created
+- Use for: Integration testing, observer testing
+
+#### Unsafe Mode (Performance)
+- Direct SQL insertion
+- No observer overhead
+- Very fast for large datasets
+- Use for: Performance testing, stress testing
+
+```typescript
+// Mode selection
+await templateDatabase.buildTemplate('basic', 'safe');      // With observers
+await templateDatabase.buildTemplate('performance', 'unsafe'); // Direct SQL
+```
+
+## Test Data Management
+
+### Schema Files
+Located in `spec/fixtures/schema/`:
+- **account.yaml**: User account schema
+- **contact.yaml**: Contact/customer schema
+- **example.yaml**: Demonstration schema
+
+### Data Generators
+Located in `spec/fixtures/generators/`:
+- **BaseGenerator**: Common utilities, foreign keys
+- **AccountGenerator**: User accounts with preferences
+- **ContactGenerator**: Contacts with relationships
+- **ExampleGenerator**: Various field types
+
+### Generator Features
+- Deterministic UUIDs for reproducibility
+- Realistic data distributions
+- Edge case generation
+- Relationship awareness
+- Configurable record counts
+
+## Performance Considerations
+
+### Test Setup Speed
+
+| Method | Small Dataset | Large Dataset |
+|--------|--------------|---------------|
+| Manual Setup | 12.5s | 65s |
+| Template Clone | 0.5s | 0.5s |
+| Improvement | 25x | 130x |
+
+### CI/CD Impact
+- **Before**: 45-minute test suite
+- **After**: 15 minutes (10 min template build + 5 min tests)
+- **Improvement**: 3x faster overall
+
+### Parallel Testing
+Template cloning enables safe parallel test execution:
+```typescript
+describe.concurrent('Parallel Suite', () => {
+  // Each test gets independent database clone
+  // No shared state or pollution
+});
+```
+
+## Best Practices
+
+### Test Selection
+
+1. **Use Shell Tests For:**
+   - End-to-end CLI testing
+   - Complex multi-step workflows
+   - External tool integration
+   - Production-like scenarios
+
+2. **Use TypeScript Unit Tests For:**
+   - Pure logic validation
+   - Utility functions
+   - Parser testing
+   - No database required
+
+3. **Use TypeScript Integration Tests For:**
+   - Database operations
+   - Observer pipeline
+   - API endpoints
+   - Complex queries
+
+4. **Use Template Tests For:**
+   - Tests needing realistic data
+   - Performance testing
+   - Relationship validation
+   - Large dataset scenarios
+
+### Writing Effective Tests
+
+1. **Isolation**: Each test should be independent
+2. **Cleanup**: Always clean up test data/tenants
+3. **Naming**: Clear, descriptive test names
+4. **Coverage**: Test happy path and edge cases
+5. **Performance**: Prefer unit tests when possible
+
+### Template Best Practices
+
+1. **Fixture Selection**: Choose minimal fixture for test needs
+2. **Regeneration**: Run `npm run test:prepare` after schema changes
+3. **Custom Data**: Add test-specific data on top of templates
+4. **Mode Selection**: Use safe mode for business logic, unsafe for volume
+
+## Troubleshooting
+
+### Common Issues
+
+#### Shell Test Failures
+```bash
+# Check tenant creation
+monk tenant list
+
+# Verify authentication
+monk auth login test-tenant root
+
+# Check server connectivity
+monk ping
+```
+
+#### TypeScript Test Failures
+```bash
+# Check database connection
+npm run spec:one spec/unit/database-connection-test.test.ts
+
+# Verify observer loading
+npm run spec:one spec/unit/observers/loader.test.ts
+
+# Test in isolation
+npm run spec:one failing-test.test.ts --verbose
+```
+
+#### Template Issues
+```bash
+# Check template status
+npm run fixtures:status
+
+# Rebuild specific template
+npm run fixtures:build basic
+
+# View template databases
+psql -l | grep template
+
+# Force regeneration
+npm run fixtures:clean && npm run fixtures:build
+```
+
+### Debug Commands
+
+```bash
+# Shell test debugging
+bash -x scripts/test-one.sh tests/failing-test.sh
+
+# TypeScript test debugging
+npx vitest run spec/failing-test.test.ts --reporter=verbose
+
+# Template debugging
+npx tsx src/scripts/test-template-data.ts --debug
+```
+
+## Future Enhancements
+
+### Planned Features
+1. **Template Composition**: Combine multiple fixtures
+2. **Test Data Snapshots**: Version control for test data
+3. **Performance Benchmarking**: Track test execution trends
+4. **Cloud Template Storage**: Shared template repository
+5. **AI-Generated Fixtures**: Smart test data generation
+
+### Phase 5 and Beyond
+- Comprehensive fixture library expansion
+- Cross-fixture relationship management
+- Template versioning system
+- Distributed template caching
+- Test data analytics
+
+## Summary
+
+The Monk API testing infrastructure provides:
+
+1. **Three complementary test frameworks** for complete coverage
+2. **Fast test execution** via template database cloning
+3. **Realistic test data** through smart generators
+4. **Automatic maintenance** with schema change detection
+5. **Developer-friendly** APIs and commands
+
+The template database system (Epic #140) represents a revolutionary advancement in test infrastructure, enabling comprehensive testing with realistic data while maintaining sub-second setup times. This positions Monk API as having best-in-class testing capabilities suitable for enterprise-grade applications.

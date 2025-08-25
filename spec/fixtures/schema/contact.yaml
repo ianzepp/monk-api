@@ -2,6 +2,11 @@ title: Contact
 description: Contact information schema for testing relationships and data operations
 type: object
 properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique contact identifier
+    example: "550e8400-e29b-41d4-a716-446655440000"
   first_name:
     type: string
     minLength: 1
@@ -74,7 +79,7 @@ properties:
     type: string
     enum: ["active", "inactive", "pending", "qualified"]
     default: "active"
-    description: Contact status
+    description: Current status of the contact
   priority:
     type: string
     enum: ["low", "normal", "high", "urgent"]
@@ -111,6 +116,7 @@ properties:
     description: Tags for categorizing contacts
     example: ["vip", "technical", "decision-maker"]
 required:
+  - id
   - first_name
   - last_name
   - email

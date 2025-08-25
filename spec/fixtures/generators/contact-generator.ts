@@ -1,8 +1,8 @@
 /**
  * Contact Generator
  * 
- * Generates realistic contact records with relationships to accounts
- * and proper edge cases for comprehensive testing.
+ * Generates realistic contact records based on the contact.yaml schema
+ * with proper relationships and edge cases for comprehensive testing.
  */
 
 import { BaseGenerator } from './base-generator.js';
@@ -29,14 +29,19 @@ export class ContactGenerator extends BaseGenerator {
     'Web Development Co', 'AI Research', 'Blockchain Solutions', 'Cyber Security'
   ];
   
-  private readonly contactTypes = ['customer', 'vendor', 'partner', 'employee', 'lead', 'prospect'];
-  private readonly statuses = ['active', 'inactive', 'pending', 'qualified'];
-  private readonly priorities = ['low', 'normal', 'high', 'urgent'];
-  private readonly sources = ['website', 'referral', 'advertising', 'trade_show', 'cold_call', 'other'];
   private readonly jobTitles = [
     'Software Engineer', 'Product Manager', 'Sales Director', 'Marketing Manager',
     'CEO', 'CTO', 'VP Sales', 'Account Executive', 'Developer', 'Designer',
     'Operations Manager', 'Customer Success', 'Business Analyst', 'Consultant'
+  ];
+  
+  private readonly contactTypes = ['customer', 'vendor', 'partner', 'employee', 'lead', 'prospect'];
+  private readonly statuses = ['active', 'inactive', 'pending', 'qualified'];
+  private readonly priorities = ['low', 'normal', 'high', 'urgent'];
+  private readonly sources = ['website', 'referral', 'advertising', 'trade_show', 'cold_call', 'other'];
+  private readonly tags = [
+    'vip', 'technical', 'decision-maker', 'budget-holder', 'influencer', 
+    'champion', 'blocker', 'early-adopter', 'key-contact', 'stakeholder'
   ];
   
   generate(count: number, options: DataGeneratorOptions, context?: GeneratorContext): GeneratedRecord[] {
@@ -51,25 +56,29 @@ export class ContactGenerator extends BaseGenerator {
       const email = this.generateRealisticEmail(firstName, lastName);
       
       const contact: GeneratedRecord = {
+        // Required fields
         id: contactId,
         first_name: firstName,
         last_name: lastName,
-        company: this.getCompany(i, options),
-        job_title: this.getJobTitle(i, options),
         email: email,
-        phone: this.generatePhoneNumber(),
-        mobile: this.generateMobileNumber(i),
-        address: this.generateAddress(i, options),
-        contact_type: this.getContactType(i),
-        status: this.getStatus(i),
-        priority: this.getPriority(i),
-        source: this.getSource(i),
-        account_id: this.getAccountId(context, i, options),
-        notes: this.generateNotes(firstName, lastName, i, options),
+        contact_type: this.generateContactType(i),
+        
+        // Optional fields with defaults
+        status: this.generateStatus(i),
+        priority: this.generatePriority(i),
         is_active: this.generateActiveStatus(i),
+        
+        // Nullable fields
+        company: this.generateCompany(i, options),
+        job_title: this.generateJobTitle(i, options),
+        phone: this.generatePhone(i),
+        mobile: this.generateMobile(i),
+        address: this.generateAddress(i, options),
+        source: this.generateSource(i),
+        account_id: this.generateAccountId(context, i, options),
+        notes: this.generateNotes(firstName, lastName, i, options),
         last_contacted: this.generateLastContactedDate(i),
-        tags: this.generateTags(i, options)
-        // Note: created_at and updated_at are added automatically by the system
+        tags: this.generateTags(i)
       };
       
       contacts.push(contact);
@@ -84,9 +93,48 @@ export class ContactGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate company name with realistic distribution
+   * Generate contact type with realistic distribution
    */
-  private getCompany(index: number, options: DataGeneratorOptions): string | null {
+  private generateContactType(index: number): string {
+    if (index % 2 === 0) return 'customer';      // 50% customers
+    if (index % 4 === 1) return 'prospect';      // 25% prospects
+    if (index % 8 === 3) return 'partner';       // 12.5% partners
+    if (index % 16 === 7) return 'employee';     // 6.25% employees
+    if (index % 32 === 15) return 'lead';        // 3.125% leads
+    return 'vendor';                             // Remaining vendors
+  }
+  
+  /**
+   * Generate status with realistic distribution
+   */
+  private generateStatus(index: number): string {
+    if (index % 5 === 0) return 'inactive';      // 20% inactive
+    if (index % 7 === 1) return 'pending';       // ~14% pending
+    if (index % 6 === 2) return 'qualified';     // ~17% qualified
+    return 'active';                             // ~49% active
+  }
+  
+  /**
+   * Generate priority with realistic distribution
+   */
+  private generatePriority(index: number): string {
+    if (index % 10 === 0) return 'urgent';       // 10% urgent
+    if (index % 5 === 1) return 'high';          // 20% high
+    if (index % 8 === 2) return 'low';           // 12.5% low
+    return 'normal';                             // 57.5% normal
+  }
+  
+  /**
+   * Generate active status (85% active)
+   */
+  private generateActiveStatus(index: number): boolean {
+    return index % 7 !== 0; // ~85% active, ~15% inactive
+  }
+  
+  /**
+   * Generate company name (nullable, max 100 chars)
+   */
+  private generateCompany(index: number, options: DataGeneratorOptions): string | null {
     // 30% of contacts don't have a company
     if (index % 10 < 3) {
       return null;
@@ -100,9 +148,9 @@ export class ContactGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate job title with realistic distribution
+   * Generate job title (nullable, max 100 chars)
    */
-  private getJobTitle(index: number, options: DataGeneratorOptions): string | null {
+  private generateJobTitle(index: number, options: DataGeneratorOptions): string | null {
     // 20% of contacts don't have a job title
     if (index % 5 === 0) {
       return null;
@@ -116,19 +164,46 @@ export class ContactGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate mobile number (different from phone)
+   * Generate phone number (nullable, pattern: ^[+]?[0-9\s\-\(\)]{10,20}$)
    */
-  private generateMobileNumber(index: number): string | null {
-    // 60% of contacts have mobile numbers
+  private generatePhone(index: number): string | null {
+    // 40% don't have phone
+    if (index % 5 < 2) {
+      return null;
+    }
+    
+    const areaCode = ['212', '415', '718', '310', '312'][index % 5];
+    const exchange = String(200 + (index % 800)).padStart(3, '0');
+    const number = String(1000 + (index % 9000)).padStart(4, '0');
+    
+    // Alternate formats for variety
+    if (index % 3 === 0) {
+      return `+1 (${areaCode}) ${exchange}-${number}`;
+    } else if (index % 3 === 1) {
+      return `(${areaCode}) ${exchange}-${number}`;
+    } else {
+      return `${areaCode}-${exchange}-${number}`;
+    }
+  }
+  
+  /**
+   * Generate mobile number (nullable, different from phone)
+   */
+  private generateMobile(index: number): string | null {
+    // 60% have mobile numbers
     if (index % 5 > 2) {
       return null;
     }
     
-    return this.generatePhoneNumber('555'); // Use 555 area code for mobile
+    const areaCode = '555'; // Use 555 for mobile
+    const exchange = String(300 + (index % 700)).padStart(3, '0');
+    const number = String(2000 + (index % 8000)).padStart(4, '0');
+    
+    return `+1 (${areaCode}) ${exchange}-${number}`;
   }
   
   /**
-   * Generate address object
+   * Generate address object (nullable)
    */
   private generateAddress(index: number, options: DataGeneratorOptions): object | null {
     // 40% of contacts have addresses
@@ -160,32 +235,15 @@ export class ContactGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate contact type with realistic distribution
-   */
-  private getContactType(index: number): string {
-    if (index % 2 === 0) return 'customer';      // 50% customers
-    if (index % 4 === 1) return 'prospect';      // 25% prospects
-    if (index % 8 === 3) return 'partner';       // 12.5% partners
-    if (index % 16 === 7) return 'employee';     // 6.25% employees
-    if (index % 32 === 15) return 'lead';        // 3.125% leads
-    return 'vendor';                             // Remaining vendors
-  }
-  
-  /**
-   * Generate priority with realistic distribution
-   */
-  private getPriority(index: number): string {
-    if (index % 10 === 0) return 'urgent';       // 10% urgent
-    if (index % 5 === 1) return 'high';         // 20% high
-    if (index % 8 === 2) return 'low';          // 12.5% low
-    return 'normal';                             // 57.5% normal
-  }
-  
-  /**
    * Generate source with realistic distribution
    */
-  private getSource(index: number): string {
-    if (index % 3 === 0) return 'website';       // 33% website
+  private generateSource(index: number): string | null {
+    // 10% have no source
+    if (index % 10 === 9) {
+      return null;
+    }
+    
+    if (index % 3 === 0) return 'website';       // 30% website
     if (index % 5 === 1) return 'referral';      // 20% referral
     if (index % 7 === 2) return 'advertising';   // ~14% advertising
     if (index % 11 === 3) return 'trade_show';   // ~9% trade show
@@ -194,39 +252,23 @@ export class ContactGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate active status (85% active)
+   * Generate account relationship (nullable, UUID)
    */
-  private generateActiveStatus(index: number): boolean {
-    return index % 7 !== 0; // 85% active, 15% inactive
-  }
-  
-  /**
-   * Generate tags array
-   */
-  private generateTags(index: number, options: DataGeneratorOptions): string[] {
-    // 30% of contacts have tags
-    if (index % 10 > 2) {
-      return [];
+  private generateAccountId(context: GeneratorContext | undefined, index: number, options: DataGeneratorOptions): string | null {
+    if (!options.link_to_accounts || !context) {
+      return null;
     }
     
-    const availableTags = ['vip', 'technical', 'decision-maker', 'budget-holder', 'influencer', 'champion'];
-    const tagCount = Math.floor(Math.random() * 3) + 1; // 1-3 tags
+    // 70% of contacts are linked to accounts
+    if (index % 10 > 6) {
+      return null;
+    }
     
-    return this.getRandomItems(availableTags, tagCount);
+    return this.generateForeignKey(context, 'account', 'id');
   }
   
   /**
-   * Generate status with realistic distribution
-   */
-  private getStatus(index: number): string {
-    if (index % 5 === 0) return 'inactive';      // 20% inactive
-    if (index % 7 === 1) return 'pending';       // ~14% pending
-    if (index % 6 === 2) return 'qualified';     // ~17% qualified
-    return 'active';                             // ~49% active
-  }
-  
-  /**
-   * Generate realistic notes
+   * Generate notes (nullable, max 1000 chars)
    */
   private generateNotes(firstName: string, lastName: string, index: number, options: DataGeneratorOptions): string | null {
     // 40% of contacts have notes
@@ -239,30 +281,21 @@ export class ContactGenerator extends BaseGenerator {
       `Follow up needed with ${lastName} on project requirements.`,
       `Discussed pricing options during last call.`,
       `Interested in enterprise features. Schedule demo.`,
-      `Previous customer, good relationship established.`
+      `Previous customer, good relationship established.`,
+      `Met at trade show, very interested in our solutions.`,
+      `Referred by existing customer. High potential.`,
+      `Needs custom integration. Technical discussion required.`
     ];
     
     if (options.realistic_names) {
       return this.getRandomItem(noteTemplates);
     }
     
-    return `Notes for contact ${index}`;
+    return `Notes for contact ${index}: Standard test note content.`;
   }
   
   /**
-   * Generate creation date (contacts are newer than accounts)
-   */
-  private generateCreatedDate(index: number): string {
-    // Contacts created over the last year
-    const now = new Date();
-    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-    const createdDate = this.generateDateInRange(oneYearAgo, now);
-    
-    return createdDate.toISOString();
-  }
-  
-  /**
-   * Generate last contacted date (realistic interaction timeline)
+   * Generate last contacted date (nullable)
    */
   private generateLastContactedDate(index: number): string | null {
     // 60% of contacts have been contacted recently
@@ -279,101 +312,158 @@ export class ContactGenerator extends BaseGenerator {
   }
   
   /**
-   * Generate account relationship if accounts exist
+   * Generate tags array (max 10 items, each max 50 chars)
    */
-  private getAccountId(context: GeneratorContext | undefined, index: number, options: DataGeneratorOptions): string | null {
-    if (!options.link_to_accounts || !context) {
-      return null;
+  private generateTags(index: number): string[] {
+    // 30% have no tags
+    if (index % 10 < 3) {
+      return [];
     }
     
-    // 70% of contacts are linked to accounts
-    if (index % 10 > 6) {
-      return null;
+    // 40% have 1-2 tags
+    if (index % 10 < 7) {
+      const tagCount = 1 + (index % 2);
+      return this.getRandomItems(this.tags, tagCount);
     }
     
-    return this.generateForeignKey(context, 'account', 'id');
+    // 30% have 3-5 tags
+    const tagCount = 3 + (index % 3);
+    return this.getRandomItems(this.tags, Math.min(tagCount, 10));
   }
   
   /**
-   * Generate edge case records
+   * Generate edge case records for testing boundary conditions
    */
   private generateEdgeCases(context: GeneratorContext | undefined, options: DataGeneratorOptions): GeneratedRecord[] {
-    const edgeCases = [
+    const edgeCases: GeneratedRecord[] = [
       {
+        // Minimal data - only required fields
         id: this.generateDeterministicUuid('contact', 'edge-minimal'),
-        first_name: 'Min',
-        last_name: 'Data',
-        company: null,
-        job_title: null,
-        email: 'min@example.com',
-        phone: null,
-        mobile: null,
-        address: null,
+        first_name: 'A', // Minimum 1 character
+        last_name: 'B',  // Minimum 1 character
+        email: 'a@b.c',
         contact_type: 'customer',
         status: 'active',
         priority: 'normal',
-        source: 'other',
+        is_active: true,
+        company: null,
+        job_title: null,
+        phone: null,
+        mobile: null,
+        address: null,
+        source: null,
         account_id: null,
         notes: null,
-        is_active: true,
         last_contacted: null,
         tags: []
       },
       {
+        // Maximum values
         id: this.generateDeterministicUuid('contact', 'edge-maximum'),
-        first_name: 'Maximum',
-        last_name: 'Data-Testing-Very-Long-Name',
-        company: 'Very Long Company Name for Testing Maximum Length Fields Inc.',
-        job_title: 'Senior Vice President of Business Development and Strategic Partnerships',
-        email: 'maximum.data.testing.very.long.name@very-long-domain-example.com',
-        phone: '+1 (999) 888-7777',
-        mobile: '+1 (999) 777-8888',
-        address: {
-          street: '12345 Very Long Street Name for Testing Maximum Length',
-          city: 'Very Long City Name',
-          state: 'California',
-          postal_code: '99999-9999',
-          country: 'United States'
-        },
+        first_name: 'A'.repeat(50), // Maximum 50 characters
+        last_name: 'B'.repeat(50),  // Maximum 50 characters
+        email: `${'very'.repeat(50)}long@${'domain'.repeat(20)}.com`.substring(0, 255), // Max 255
         contact_type: 'partner',
         status: 'qualified',
         priority: 'urgent',
+        is_active: true,
+        company: 'C'.repeat(100), // Maximum 100 characters
+        job_title: 'D'.repeat(100), // Maximum 100 characters
+        phone: '+12345678901234567890', // Maximum 20 chars
+        mobile: '+19876543210987654321', // Maximum 20 chars
+        address: {
+          street: 'S'.repeat(200), // Maximum 200 characters
+          city: 'C'.repeat(100),   // Maximum 100 characters
+          state: 'S'.repeat(50),   // Maximum 50 characters
+          postal_code: 'P'.repeat(20), // Maximum 20 characters
+          country: 'C'.repeat(50)  // Maximum 50 characters
+        },
         source: 'trade_show',
         account_id: options.link_to_accounts && context 
           ? this.generateForeignKey(context, 'account', 'id') 
-          : null,
-        notes: 'This is a very long note field designed to test the maximum length handling of the notes field in the database. It contains multiple sentences and should help validate proper text handling.',
-        is_active: true,
+          : this.generateDeterministicUuid('account', 'test-account'),
+        notes: 'N'.repeat(1000), // Maximum 1000 characters
         last_contacted: new Date().toISOString(),
-        tags: ['vip', 'technical', 'decision-maker']
+        tags: Array(10).fill('tag').map((t, i) => `${t}${i}`.substring(0, 50)) // 10 tags max
       },
       {
+        // Special characters and Unicode
         id: this.generateDeterministicUuid('contact', 'edge-special-chars'),
         first_name: 'José',
-        last_name: 'O\'Reilly-Smith',
-        company: 'Café & Restaurant Solutions',
-        job_title: 'Maître d\'Hôtel',
+        last_name: "O'Reilly-Smith",
         email: 'jose.oreilly+test@example.com',
-        phone: '+1 (555) 123-4567',
-        mobile: '+1 (555) 765-4321',
-        address: {
-          street: '123 Café Street',
-          city: 'San José',
-          state: 'CA',
-          postal_code: '95110',
-          country: 'US'
-        },
         contact_type: 'customer',
         status: 'active',
         priority: 'high',
+        is_active: true,
+        company: 'Café & Co. "Special" Solutions',
+        job_title: "Maître d'Hôtel / Manager",
+        phone: '+1 (555) 123-4567',
+        mobile: '+1 (555) 987-6543',
+        address: {
+          street: '123 Café Street #456',
+          city: 'San José',
+          state: 'CA',
+          postal_code: '95110-1234',
+          country: 'United States'
+        },
         source: 'referral',
         account_id: options.link_to_accounts && context 
           ? this.generateForeignKey(context, 'account', 'id') 
           : null,
-        notes: 'Special characters: àáâãäåæçèéêë',
-        is_active: true,
+        notes: 'Special chars test: àáâãäå çèéêë ìíîï ñòóôõö ùúûü ýÿ & < > " \' @#$%^*()',
         last_contacted: new Date().toISOString(),
-        tags: ['international', 'special-chars']
+        tags: ['español', 'français', '日本語', 'special-chars']
+      },
+      {
+        // Business contact with full data
+        id: this.generateDeterministicUuid('contact', 'edge-business-full'),
+        first_name: 'Enterprise',
+        last_name: 'Contact',
+        email: 'enterprise.contact@bigcorp.com',
+        contact_type: 'partner',
+        status: 'qualified',
+        priority: 'urgent',
+        is_active: true,
+        company: 'Big Corporation International LLC',
+        job_title: 'Senior Vice President of Strategic Partnerships',
+        phone: '+1 (212) 555-0100',
+        mobile: '+1 (917) 555-0200',
+        address: {
+          street: '1 Corporate Plaza, Suite 1000',
+          city: 'New York',
+          state: 'NY',
+          postal_code: '10001',
+          country: 'US'
+        },
+        source: 'trade_show',
+        account_id: options.link_to_accounts && context 
+          ? this.generateForeignKey(context, 'account', 'id') 
+          : this.generateDeterministicUuid('account', 'enterprise-account'),
+        notes: 'Key strategic partner. Multiple ongoing projects. Executive sponsor: CEO. Annual contract value: $1M+. Renewal date: Q4.',
+        last_contacted: new Date().toISOString(),
+        tags: ['vip', 'decision-maker', 'budget-holder', 'champion', 'key-contact', 'strategic']
+      },
+      {
+        // Prospect with minimal info
+        id: this.generateDeterministicUuid('contact', 'edge-prospect'),
+        first_name: 'Unknown',
+        last_name: 'Prospect',
+        email: 'info@prospect-company.com',
+        contact_type: 'prospect',
+        status: 'pending',
+        priority: 'low',
+        is_active: true,
+        company: 'Prospect Company',
+        job_title: null,
+        phone: null,
+        mobile: null,
+        address: null,
+        source: 'cold_call',
+        account_id: null,
+        notes: 'Cold outreach. No response yet.',
+        last_contacted: null,
+        tags: ['cold-lead']
       }
     ];
     
