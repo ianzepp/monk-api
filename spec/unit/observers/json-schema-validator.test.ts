@@ -6,7 +6,7 @@
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import JsonSchemaValidator from '@src/observers/all/0/json-schema-validator.js';
+import JsonSchemaValidator from '@src/observers/all/1/json-schema-validator.js';
 import { ValidationError } from '@lib/observers/errors.js';
 import { ObserverRing } from '@lib/observers/types.js';
 
@@ -37,7 +37,7 @@ describe('JsonSchemaValidator', () => {
 
   describe('configuration', () => {
     test('should be configured for validation ring', () => {
-      expect(validator.ring).toBe(ObserverRing.Validation);
+      expect(validator.ring).toBe(ObserverRing.InputValidation);
       expect(validator.operations).toEqual(['create', 'update']);
     });
   });
