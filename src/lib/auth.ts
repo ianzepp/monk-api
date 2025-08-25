@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { jwt } from 'hono/jwt';
 import { sign, verify } from 'hono/jwt';
-import { DatabaseManager } from './database-manager.js';
+import { DatabaseConnection } from './database-connection.js';
 import pg from 'pg';
 
 export interface JWTPayload {
@@ -25,21 +25,8 @@ export class AuthService {
 
     // Get persistent auth database connection
     private static getAuthDatabase(): pg.Pool {
-        if (!this.authPool) {
-            // Use DATABASE_URL approach consistent with DatabaseManager
-            const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
-            
-            // Build connection string for auth database
-            const authConnectionString = baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
-            
-            this.authPool = new pg.Pool({
-                connectionString: authConnectionString,
-                max: 5,
-                idleTimeoutMillis: 30000,
-                connectionTimeoutMillis: 2000,
-            });
-        }
-        return this.authPool;
+        // Use centralized database connection
+        return DatabaseConnection.getBasePool();
     }
 
     // Generate JWT token for user
@@ -85,7 +72,7 @@ export class AuthService {
         const { name, database } = tenantResult.rows[0];
 
         // Look up user in the tenant's database
-        const tenantDb = await DatabaseManager.getDatabaseForDomain(database);
+        const tenantDb = DatabaseConnection.getTenantPool(database);
         const userResult = await tenantDb.query(
             'SELECT id, tenant_name, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE tenant_name = $1 AND name = $2 AND trashed_at IS NULL AND deleted_at IS NULL',
             [tenant, username]
@@ -166,7 +153,7 @@ export class AuthService {
             
             try {
                 // Set up database connection for the JWT database
-                await DatabaseManager.setDatabaseForRequest(c, payload.database);
+                DatabaseConnection.setDatabaseForRequest(c, payload.database);
 
                 // Create user object from JWT payload (for test mode)
                 const user = {

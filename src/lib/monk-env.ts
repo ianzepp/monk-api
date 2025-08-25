@@ -82,6 +82,25 @@ export class MonkEnv {
     }
     
     /**
+     * Load configuration into process.env for server startup
+     * This should be called EXACTLY ONCE during server initialization
+     * Throws error if critical configuration is missing
+     */
+    static loadIntoProcessEnv(): void {
+        this.load();
+        
+        // Validate critical configuration is present
+        if (!process.env.DATABASE_URL) {
+            throw new Error(
+                'DATABASE_URL not found in configuration. ' +
+                'Ensure ~/.config/monk/env.json contains DATABASE_URL.'
+            );
+        }
+        
+        logger.info('Configuration loaded into process.env for server startup');
+    }
+    
+    /**
      * Check if configuration is loaded from file
      * @returns true if config was loaded from JSON file
      */

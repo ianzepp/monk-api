@@ -21,7 +21,7 @@ describe('FTP File Operations - Integration Tests (Phase 3)', () => {
         testContext = await createTestContext(tenantManager.tenant!, 'root');
         
         // Create test schemas
-        const userYaml = await readFile('test/schemas/account.yaml', 'utf-8');
+        const userYaml = await readFile('spec/fixtures/schema/account.yaml', 'utf-8');
         await testContext.metabase.createOne('users', userYaml);
         
         // Create initial test data

@@ -8,26 +8,24 @@
  */
 
 import { TemplateDatabase } from '../lib/fixtures/template-database.js';
-import { Client } from 'pg';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { DatabaseConnection } from '../lib/database-connection.js';
+import { MonkEnv } from '../lib/monk-env.js';
+import pg from 'pg';
 
 async function testTemplateData(templateName: string): Promise<void> {
   console.log(`🔍 Testing data in template: ${templateName}`);
   
   try {
+    // Load configuration
+    MonkEnv.loadIntoProcessEnv();
+    
     // Create test tenant from template
     const testTenantName = `test-demo-${Date.now()}`;
     const tenant = await TemplateDatabase.createTenantFromTemplate(testTenantName, templateName);
     console.log(`✅ Created test tenant from template: ${tenant.name}`);
     
-    // Connect to the cloned database
-    const configPath = join(process.env.HOME!, '.config/monk/env.json');
-    const config = JSON.parse(readFileSync(configPath, 'utf-8'));
-    const baseUrl = config.DATABASE_URL;
-    const tenantConnection = baseUrl.replace(/\/[^\/]*$/, `/${tenant.database}`);
-    
-    const client = new Client({ connectionString: tenantConnection });
+    // Connect to the cloned database using centralized connection
+    const client = DatabaseConnection.createClient(tenant.database);
     await client.connect();
     
     console.log('📋 Template database content:');
