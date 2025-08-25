@@ -63,10 +63,9 @@ export class TenantService {
    * Get default auth database connection string
    */
   private static getAuthConnectionString(): string {
-    const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-    const dbHost = process.env.DB_HOST || 'localhost';
-    const dbPort = process.env.DB_PORT || '5432';
-    return `postgresql://${dbUser}@${dbHost}:${dbPort}/monk-api-auth`;
+    // Use DATABASE_URL approach to include password
+    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    return baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
   }
 
   /**
@@ -143,10 +142,9 @@ export class TenantService {
    */
   static async databaseExists(databaseName: string): Promise<boolean> {
     // Connect to postgres database to check if target database exists
-    const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-    const dbHost = process.env.DB_HOST || 'localhost';
-    const dbPort = process.env.DB_PORT || '5432';
-    const postgresConnection = `postgresql://${dbUser}@${dbHost}:${dbPort}/postgres`;
+    // Use same base URL as other connections to include password
+    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
     
     const client = new Client({ connectionString: postgresConnection });
     
@@ -419,10 +417,9 @@ export class TenantService {
    * Create PostgreSQL database
    */
   private static async createDatabase(databaseName: string): Promise<void> {
-    const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-    const dbHost = process.env.DB_HOST || 'localhost';
-    const dbPort = process.env.DB_PORT || '5432';
-    const postgresConnection = `postgresql://${dbUser}@${dbHost}:${dbPort}/postgres`;
+    // Use DATABASE_URL approach to include password
+    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
     
     const client = new Client({ connectionString: postgresConnection });
     
@@ -439,10 +436,9 @@ export class TenantService {
    * Drop PostgreSQL database
    */
   private static async dropDatabase(databaseName: string): Promise<void> {
-    const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-    const dbHost = process.env.DB_HOST || 'localhost';
-    const dbPort = process.env.DB_PORT || '5432';
-    const postgresConnection = `postgresql://${dbUser}@${dbHost}:${dbPort}/postgres`;
+    // Use DATABASE_URL approach to include password
+    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
     
     const client = new Client({ connectionString: postgresConnection });
     
@@ -459,10 +455,9 @@ export class TenantService {
    * Initialize tenant database schema using sql/init-tenant.sql
    */
   private static async initializeTenantSchema(databaseName: string): Promise<void> {
-    const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-    const dbHost = process.env.DB_HOST || 'localhost';
-    const dbPort = process.env.DB_PORT || '5432';
-    const tenantConnection = `postgresql://${dbUser}@${dbHost}:${dbPort}/${databaseName}`;
+    // Use DATABASE_URL approach to include password
+    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    const tenantConnection = baseUrl.replace(/\/[^\/]*$/, `/${databaseName}`);
     
     const client = new Client({ connectionString: tenantConnection });
     
@@ -483,10 +478,9 @@ export class TenantService {
    * Create root user in tenant database
    */
   private static async createRootUser(databaseName: string, tenantName: string): Promise<void> {
-    const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-    const dbHost = process.env.DB_HOST || 'localhost';
-    const dbPort = process.env.DB_PORT || '5432';
-    const tenantConnection = `postgresql://${dbUser}@${dbHost}:${dbPort}/${databaseName}`;
+    // Use DATABASE_URL approach to include password
+    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    const tenantConnection = baseUrl.replace(/\/[^\/]*$/, `/${databaseName}`);
     
     const client = new Client({ connectionString: tenantConnection });
     
