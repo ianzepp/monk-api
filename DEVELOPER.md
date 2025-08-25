@@ -25,7 +25,7 @@ npm run autoinstall
 npm run start:dev
 
 # 4. Verify installation
-npm run test:one tests/10-connection/basic-ping-test.sh
+npm run spec:sh spec/10-connection/basic-ping.test.sh
 
 # 5. (Optional) Build test fixtures for enhanced testing
 npm run fixtures:build basic
@@ -65,8 +65,9 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - **Extensible Business Logic**: Add validation, security, audit, integration without touching core code
 - **Clean Architecture**: BaseObserver pattern with consistent error handling and logging
 
-#### **Test Suite** (`tests/`, `spec/`)
-- **Three-layer Architecture**: test-all.sh → test-one.sh → individual tests
+#### **Unified Test Suite** (`spec/`)
+- **Side-by-side Organization**: TypeScript (.test.ts) and Shell (.test.sh) tests co-located by functionality
+- **Three-tier Commands**: `npm run spec` (both), `npm run spec:ts` (TypeScript), `npm run spec:sh` (Shell)
 - **Tenant Isolation**: Each test gets fresh tenant database  
 - **Pattern-based**: Organized by categories (05-infrastructure, 15-auth, etc.)
 - **Comprehensive**: Authentication, meta API, data API, integration tests
@@ -401,52 +402,113 @@ npm run test:all [pattern]        # scripts/test-all.sh
 npm run test:one <test-file>      # scripts/test-one.sh
 
 # Layer 3: Individual test files
-tests/15-authentication/basic-auth-test.sh
+spec/15-authentication/basic-auth.test.sh
+```
+
+#### **Unified Test Commands**
+
+**Primary Commands:**
+```bash
+npm run spec [pattern]              # Complete coverage (TypeScript → Shell)
+npm run spec:ts [pattern]           # TypeScript tests only  
+npm run spec:sh [pattern]           # Shell tests only
+```
+
+**Smart Pattern Resolution:**
+```bash
+# Run everything
+npm run spec                        # All tests (both TypeScript and Shell)
+
+# Run by category
+npm run spec 15                     # All auth tests (both .test.ts and .test.sh)
+npm run spec:ts 15                  # Only TypeScript auth tests
+npm run spec:sh 15                  # Only Shell auth tests
+
+# Run specific tests
+npm run spec:ts spec/unit/filter/logical-operators.test.ts
+npm run spec:sh spec/15-authentication/basic-auth.test.sh
+
+# Run by pattern
+npm run spec auth                   # All tests matching "auth"
+npm run spec unit/filter            # All tests in unit/filter/
 ```
 
 #### **Writing New Tests**
+
+**Shell Tests (.test.sh):**
 ```bash
 # 1. Create test file in appropriate category
-tests/25-new-feature/my-test.sh
+spec/25-new-feature/my-feature.test.sh
 
 # 2. Use standard pattern
 #!/bin/bash
 set -e
 
 # Auto-configure test environment
-source "$(dirname "$0")/../test-env-setup.sh"
-source "$(dirname "$0")/../auth-helper.sh"
+source "$(dirname "$0")/../helpers/test-env-setup.sh"
+source "$(dirname "$0")/../helpers/auth-helper.sh"
 
 # Test implementation with auth_as_user "root"
 # Use $TEST_TENANT_NAME (provided by test-one.sh)
 
 # 3. Make executable
-chmod +x tests/25-new-feature/my-test.sh
+chmod +x spec/25-new-feature/my-feature.test.sh
 
-# 4. Test individually
-npm run test:one tests/25-new-feature/my-test.sh
+# 4. Test individually  
+npm run spec:sh spec/25-new-feature/my-feature.test.sh
 
-# 5. Test with pattern
-npm run test:all 25
+# 5. Test category
+npm run spec 25
 ```
 
-#### **Test Categories**
+**TypeScript Tests (.test.ts):**
+```typescript
+// spec/25-new-feature/my-feature.test.ts
+import { describe, test, expect, beforeAll } from 'vitest';
+import { createTestContextWithFixture } from '../helpers/test-tenant.js';
 
-**Shell Tests** (`tests/`):
-- **05-infrastructure**: Server config, basic connectivity
-- **10-connection**: Database connectivity, ping tests
-- **15-authentication**: Auth flows, JWT, multi-user scenarios
-- **20-meta-api**: Schema management, meta operations
-- **30-data-api**: CRUD operations, data validation
-- **50-integration**: End-to-end workflows  
-- **60-lifecycle**: Record lifecycle, soft deletes
-- **70-validation**: Schema validation, constraints
+describe('25-new-feature: My Feature', () => {
+  let testContext: TestContextWithData;
 
-**TypeScript Tests** (`spec/`) - Enhanced with Template System:
-- **unit/**: Fast tests with no database dependencies
+  beforeAll(async () => {
+    testContext = await createTestContextWithFixture('basic');
+  });
+
+  test('should implement feature logic', async () => {
+    // Test implementation
+  });
+});
+```
+
+#### **Unified Test Categories** (`spec/`)
+
+Each category contains both TypeScript (.test.ts) and Shell (.test.sh) tests side-by-side:
+
+- **05-infrastructure/**: Server config, connectivity tests
+  - `connectivity.test.ts`, `server-config.test.ts`, `servers-config.test.sh`
+- **10-connection/**: Database connectivity, ping tests  
+  - `basic-ping.test.sh`
+- **15-authentication/**: Auth flows, JWT, multi-user scenarios
+  - `basic-auth.test.ts`, `basic-auth.test.sh`, `auth-failure.test.sh`, `multi-user-auth.test.sh`, `token-management.test.sh`
+- **20-meta-api/**: Schema management, meta operations
+  - `schema-operations.test.ts`, `schema-create.test.sh`, `schema-protection.test.sh`, `recursive-discovery.test.sh`
+- **30-data-api/**: CRUD operations, data validation
+  - `data-operations.test.ts`, `basic-data-endpoints.test.sh`
+- **50-integration/**: End-to-end workflows
+  - `test-pipeline.test.sh`, `complete-pipeline.test.ts`, `observer-pipeline.test.ts`
+- **60-lifecycle/**: Record lifecycle, soft deletes
+  - `soft-deletes.test.sh`, `validation-constraints.test.sh`
+- **70-validation/**: Schema validation, constraints
+  - `schema-restrict.test.sh`, `schema-validations-change.test.sh`
+- **85-observer-integration/**: Observer system testing
+  - `basic-observer.test.sh`, `observer-startup.test.sh`
+
+**Specialized TypeScript Directories:**
+- **unit/**: Fast tests with no database dependencies (filter/, ftp/, observers/)
 - **integration/**: Database-dependent tests with fixture support
-- **examples/**: Template system demonstrations and migration examples
+- **examples/**: Template system demonstrations and migration examples  
 - **fixtures/**: Schema definitions, generators, and template configurations
+- **helpers/**: Shared test utilities for both TypeScript and Shell tests
 
 #### **Template-Based Testing (NEW)**
 
@@ -514,7 +576,7 @@ monk test git main abc123def      # Test specific commit
 
 # Then manually run tests in environment:
 cd /tmp/monk-builds/main-12345678/monk-api
-npm run test:one tests/specific-test.sh
+npm run spec:sh spec/specific-test.sh
 ```
 
 ## Configuration Management
@@ -669,7 +731,7 @@ export default class CustomValidator extends BaseObserver {
 
 # 3. Test observer execution
 npm run start:dev                              # Auto-loads new observer
-npm run test:one tests/85-observer-integration/observer-startup-test.sh
+npm run spec:sh spec/85-observer-integration/observer-startup-test.sh
 
 # 4. Verify observer loading in logs
 # Look for: "✅ Observer loaded: CustomValidator (ring 0, schema users)"
@@ -831,10 +893,10 @@ npm run test:all 15              # Auth tests (15-authentication)
 npm run test:all 20-30           # Meta and data API tests
 
 # Individual test
-npm run test:one tests/15-authentication/basic-auth-test.sh
+npm run spec:sh spec/15-authentication/basic-auth-test.sh
 
 # Verbose output
-npm run test:one tests/path/test.sh --verbose
+npm run spec:sh spec/path/test.sh --verbose
 ```
 
 ### **Test Development Patterns**
@@ -1285,7 +1347,7 @@ scripts/test-one.sh test.sh      # Creates test-$(timestamp) tenant
                                  # Cleans up tenant after test
 
 # Individual tests (Layer 3): Test logic and scenarios  
-tests/15-authentication/basic-auth-test.sh  # Uses TEST_TENANT_NAME
+spec/15-authentication/basic-auth.test.sh  # Uses TEST_TENANT_NAME
                                             # Calls auth_as_user "root"
 ```
 
@@ -1690,8 +1752,8 @@ monk auth login local-test root
 
 # Shell Testing
 npm run test:all
-npm run test:one tests/path/test.sh
-npm run test:one tests/85-observer-integration/observer-startup-test.sh
+npm run spec:sh spec/path/test.sh
+npm run spec:sh spec/85-observer-integration/observer-startup-test.sh
 
 # TypeScript Testing (Vitest Framework)
 npm run spec:all                        # All TypeScript tests

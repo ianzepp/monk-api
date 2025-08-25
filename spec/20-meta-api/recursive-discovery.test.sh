@@ -12,10 +12,10 @@ if [ -z "$TEST_TENANT_NAME" ]; then
 fi
 
 # Auto-configure test environment
-source "$(dirname "$0")/../test-env-setup.sh"
+source "$(dirname "$0")/../helpers/test-env-setup.sh"
 
 # Source auth helper for authentication utilities
-source "$(dirname "$0")/../auth-helper.sh"
+source "$(dirname "$0")/../helpers/auth-helper.sh"
 
 # Colors for output
 RED='\033[0;31m'

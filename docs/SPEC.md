@@ -8,7 +8,7 @@ The Monk API project employs a comprehensive three-tier testing strategy combini
 
 ### Three Testing Frameworks
 
-1. **Shell Integration Tests** (`tests/` directory)
+1. **Shell Integration Tests** (`spec/*.test.sh` files)
    - End-to-end CLI and API testing
    - Tenant isolation per test
    - Pattern-based test discovery
@@ -26,7 +26,7 @@ The Monk API project employs a comprehensive three-tier testing strategy combini
    - Smart regeneration on schema changes
    - Comprehensive fixture library
 
-## Shell-Based Testing (`tests/` directory)
+## Shell-Based Testing (`spec/*.test.sh` files)
 
 ### Architecture
 
@@ -65,10 +65,10 @@ npm run test:all 15              # All auth tests
 npm run test:all 20-30           # Meta and data API tests
 
 # Individual test
-npm run test:one tests/15-authentication/basic-auth-test.sh
+npm run spec:sh spec/15-authentication/basic-auth-test.sh
 
 # Verbose output
-npm run test:one tests/path/test.sh --verbose
+npm run spec:sh spec/path/test.sh --verbose
 ```
 
 ### Test Lifecycle
@@ -949,7 +949,7 @@ npm run fixtures:clean && npm run fixtures:build
 
 ```bash
 # Shell test debugging
-bash -x scripts/test-one.sh tests/failing-test.sh
+bash -x scripts/test-one.sh spec/failing-test.test.sh
 
 # TypeScript test debugging
 npx vitest run spec/failing-test.test.ts --reporter=verbose

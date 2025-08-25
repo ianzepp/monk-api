@@ -62,7 +62,7 @@ required:
 TASK_RECORD='{"title": "Test CLI Pipeline", "description": "End-to-end test of the PaaS system", "priority": "high"}'
 
 # Load authentication helper
-source "$(dirname "$0")/../auth-helper.sh"
+source "$(dirname "$0")/../helpers/auth-helper.sh"
 
 echo "=== CLI Pipeline Test ==="
 echo

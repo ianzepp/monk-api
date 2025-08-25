@@ -272,7 +272,7 @@ src/observers/users/0/
 ```typescript
 // email-validator.test.ts
 import EmailValidator from './email-validator.js';
-import { createMockContext } from '../../../test/helpers/observer-helpers.js';
+import { createMockContext } from '../../../spec/helpers/observer-helpers.js';
 
 describe('EmailValidator', () => {
     const validator = new EmailValidator();

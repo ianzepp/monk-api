@@ -6,7 +6,7 @@ set -e
 # Expects: $TEST_TENANT_NAME to be available (created by test-one.sh)
 
 # Auto-configure test environment
-source "$(dirname "$0")/../test-env-setup.sh"
+source "$(dirname "$0")/../helpers/test-env-setup.sh"
 
 # Colors for output
 RED='\033[0;31m'

@@ -92,7 +92,7 @@ required:
   - department_id"
 
 # Load authentication helper
-source "$(dirname "$0")/../auth-helper.sh"
+source "$(dirname "$0")/../helpers/auth-helper.sh"
 
 echo "=== Foreign Key Relationship Test ==="
 echo "Parent schema: $PARENT_SCHEMA (department)"

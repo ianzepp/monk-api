@@ -26,7 +26,7 @@ npm run autoinstall
 npm run start:dev
 
 # Test connectivity
-npm run test:one tests/10-connection/basic-ping-test.sh
+npm run spec:sh spec/10-connection/basic-ping.test.sh
 ```
 
 ## Core Features
@@ -117,7 +117,7 @@ npm run test:all 15        # Authentication tests
 npm run test:all 20-30     # Meta and data API tests
 
 # Individual test
-npm run test:one tests/15-authentication/basic-auth-test.sh
+npm run spec:sh spec/15-authentication/basic-auth.test.sh
 ```
 
 ## Performance
