@@ -260,8 +260,8 @@ export class AccountGenerator extends BaseGenerator {
       {
         // Minimal data - only required fields
         id: this.generateDeterministicUuid('account', 'edge-minimal'),
-        name: 'M',  // Minimum 2 characters
-        email: 'a@b.c',
+        name: 'Mi',  // Minimum 2 characters
+        email: 'a@b.co',  // Valid minimal email
         username: 'min',  // Minimum 3 characters
         account_type: 'personal',
         balance: 0,
@@ -281,7 +281,7 @@ export class AccountGenerator extends BaseGenerator {
         // Maximum values
         id: this.generateDeterministicUuid('account', 'edge-maximum'),
         name: 'A'.repeat(100), // Maximum 100 characters
-        email: `${'very'.repeat(50)}long@${'domain'.repeat(20)}.com`.substring(0, 255), // Max 255
+        email: `${'x'.repeat(240)}@example.com`, // Max 255 chars but valid format
         username: 'a'.repeat(50), // Maximum 50 characters
         account_type: 'premium',
         balance: 1000000.00, // Maximum balance

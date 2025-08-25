@@ -33,6 +33,32 @@ export interface JsonSchema {
 }
 
 /**
+ * System fields that are automatically added to all tables by the PaaS platform.
+ * These fields should not be included in user-defined schemas as they are managed by the system.
+ */
+export const SYSTEM_FIELDS = [
+    'id',           // UUID primary key
+    'tenant',       // Tenant identifier
+    'access_read',  // Read access control list
+    'access_edit',  // Edit access control list
+    'access_full',  // Full access control list
+    'access_deny',  // Deny access control list
+    'created_at',   // Record creation timestamp
+    'updated_at',   // Last update timestamp
+    'trashed_at',   // Soft delete timestamp
+    'deleted_at'    // Hard delete timestamp
+] as const;
+
+export type SystemField = typeof SYSTEM_FIELDS[number];
+
+/**
+ * Helper function to check if a field name is a system field
+ */
+export function isSystemField(fieldName: string): boolean {
+    return SYSTEM_FIELDS.includes(fieldName as SystemField);
+}
+
+/**
  * Metabase Class - Schema Definition Management
  * 
  * Handles schema YAML operations following the same patterns as Database class.
@@ -257,6 +283,12 @@ export class Metabase {
 
         // Schema-specific fields
         for (const [fieldName, property] of Object.entries(properties)) {
+            // Skip system fields that are already defined
+            if (isSystemField(fieldName)) {
+                console.warn(`Schema defines system field '${fieldName}' which is automatically managed by the platform. Ignoring user-defined version.`);
+                continue;
+            }
+            
             const pgType = this.jsonSchemaTypeToPostgres(property);
             const isRequired = required.includes(fieldName);
             const nullable = isRequired ? ' NOT NULL' : '';

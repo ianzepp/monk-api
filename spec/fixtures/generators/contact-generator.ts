@@ -362,7 +362,7 @@ export class ContactGenerator extends BaseGenerator {
         id: this.generateDeterministicUuid('contact', 'edge-maximum'),
         first_name: 'A'.repeat(50), // Maximum 50 characters
         last_name: 'B'.repeat(50),  // Maximum 50 characters
-        email: `${'very'.repeat(50)}long@${'domain'.repeat(20)}.com`.substring(0, 255), // Max 255
+        email: `${'x'.repeat(240)}@example.com`, // Max 255 chars but valid format
         contact_type: 'partner',
         status: 'qualified',
         priority: 'urgent',
