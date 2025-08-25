@@ -67,9 +67,14 @@ properties:
     description: Mailing address
   contact_type:
     type: string
-    enum: ["customer", "vendor", "partner", "employee", "lead"]
+    enum: ["customer", "vendor", "partner", "employee", "lead", "prospect"]
     default: "customer"
     description: Type of contact relationship
+  status:
+    type: string
+    enum: ["active", "inactive", "pending", "qualified"]
+    default: "active"
+    description: Contact status
   priority:
     type: string
     enum: ["low", "normal", "high", "urgent"]

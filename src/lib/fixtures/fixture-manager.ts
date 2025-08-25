@@ -124,9 +124,14 @@ export class FixtureManager {
   ): Promise<void> {
     console.log(`🔨 Building template with data: ${templateName}`);
     
-    // Import System/Database classes dynamically to avoid circular dependencies
+    // Import System/Database classes and ObserverLoader dynamically to avoid circular dependencies
     const { System } = await import('../system.js');
     const { DatabaseManager } = await import('../database-manager.js');
+    const { ObserverLoader } = await import('../observers/loader.js');
+    
+    // Preload observers for database operations
+    console.log('🔧 Preloading observers for template building...');
+    await ObserverLoader.preloadObservers();
     
     // Create mock context for template operations
     const mockContext = this.createMockContext(tenantInfo);

@@ -51,8 +51,12 @@ export class AccountGenerator extends BaseGenerator {
         balance: this.generateBalance(i),
         is_active: this.generateActiveStatus(i),
         is_verified: this.generateVerifiedStatus(i),
-        created_at: this.generateCreatedDate(i),
+        credit_limit: this.generateCreditLimit(i),
+        last_login: this.generateLastLogin(i),
+        preferences: this.generatePreferences(i),
+        metadata: this.generateMetadata(i),
         phone: options.realistic_names ? this.generatePhoneNumber() : null
+        // Note: created_at and updated_at are added automatically by the system
       };
       
       accounts.push(account);
@@ -127,6 +131,71 @@ export class AccountGenerator extends BaseGenerator {
   }
   
   /**
+   * Generate credit limit for business accounts
+   */
+  private generateCreditLimit(index: number): number | null {
+    const accountType = this.getAccountType(index);
+    
+    if (accountType === 'business' || accountType === 'premium') {
+      const seed = this.seededRandom(`credit-${index}`);
+      // Business accounts get $500-$10000 credit limits
+      return Math.round((500 + seed * 9500) * 100) / 100;
+    }
+    
+    return null; // Personal and trial accounts don't get credit limits
+  }
+  
+  /**
+   * Generate last login date (realistic activity pattern)
+   */
+  private generateLastLogin(index: number): string | null {
+    // 80% of accounts have logged in recently
+    if (index % 5 === 0) {
+      return null; // 20% never logged in
+    }
+    
+    // Last login within the last 6 months
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+    const lastLogin = this.generateDateInRange(sixMonthsAgo, now);
+    
+    return lastLogin.toISOString();
+  }
+  
+  /**
+   * Generate user preferences object
+   */
+  private generatePreferences(index: number): object {
+    return {
+      notifications: index % 3 !== 0, // 67% enable notifications
+      theme: index % 4 === 0 ? 'dark' : 'light', // 25% dark theme
+      language: index % 10 === 0 ? 'es' : 'en' // 10% Spanish, 90% English
+    };
+  }
+  
+  /**
+   * Generate metadata object (flexible additional data)
+   */
+  private generateMetadata(index: number): object {
+    const metadata: any = {
+      source: index % 7 === 0 ? 'referral' : 'signup',
+      ip_country: 'US'
+    };
+    
+    // Add optional metadata for some accounts
+    if (index % 6 === 0) {
+      metadata.marketing_consent = true;
+      metadata.newsletter_subscribed = true;
+    }
+    
+    if (index % 8 === 0) {
+      metadata.beta_tester = true;
+    }
+    
+    return metadata;
+  }
+  
+  /**
    * Generate realistic creation dates
    */
   private generateCreatedDate(index: number): string {
@@ -152,7 +221,10 @@ export class AccountGenerator extends BaseGenerator {
         balance: 0.00,
         is_active: false,
         is_verified: false,
-        created_at: new Date().toISOString(),
+        credit_limit: null,
+        last_login: null,
+        preferences: { notifications: false, theme: 'light', language: 'en' },
+        metadata: { source: 'manual', ip_country: 'US' },
         phone: null
       },
       {
@@ -164,8 +236,11 @@ export class AccountGenerator extends BaseGenerator {
         balance: 999999.99,
         is_active: true,
         is_verified: true,
-        created_at: new Date('2020-01-01').toISOString(),
-        phone: '(999) 999-9999'
+        credit_limit: 10000.00,
+        last_login: new Date().toISOString(),
+        preferences: { notifications: true, theme: 'dark', language: 'en' },
+        metadata: { source: 'premium_signup', ip_country: 'US', beta_tester: true },
+        phone: '+1 (999) 999-9999'
       },
       {
         id: this.generateDeterministicUuid('account', 'edge-special-chars'),
@@ -176,8 +251,11 @@ export class AccountGenerator extends BaseGenerator {
         balance: 123.45,
         is_active: true,
         is_verified: true,
-        created_at: new Date().toISOString(),
-        phone: '(123) 456-7890'
+        credit_limit: null,
+        last_login: new Date().toISOString(),
+        preferences: { notifications: true, theme: 'light', language: 'en' },
+        metadata: { source: 'signup', ip_country: 'US', marketing_consent: true },
+        phone: '+1 (123) 456-7890'
       }
     ];
   }

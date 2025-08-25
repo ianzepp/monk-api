@@ -29,8 +29,15 @@ export class ContactGenerator extends BaseGenerator {
     'Web Development Co', 'AI Research', 'Blockchain Solutions', 'Cyber Security'
   ];
   
-  private readonly contactTypes = ['customer', 'prospect', 'partner', 'vendor'];
+  private readonly contactTypes = ['customer', 'vendor', 'partner', 'employee', 'lead', 'prospect'];
   private readonly statuses = ['active', 'inactive', 'pending', 'qualified'];
+  private readonly priorities = ['low', 'normal', 'high', 'urgent'];
+  private readonly sources = ['website', 'referral', 'advertising', 'trade_show', 'cold_call', 'other'];
+  private readonly jobTitles = [
+    'Software Engineer', 'Product Manager', 'Sales Director', 'Marketing Manager',
+    'CEO', 'CTO', 'VP Sales', 'Account Executive', 'Developer', 'Designer',
+    'Operations Manager', 'Customer Success', 'Business Analyst', 'Consultant'
+  ];
   
   generate(count: number, options: DataGeneratorOptions, context?: GeneratorContext): GeneratedRecord[] {
     const contacts: GeneratedRecord[] = [];
@@ -47,15 +54,22 @@ export class ContactGenerator extends BaseGenerator {
         id: contactId,
         first_name: firstName,
         last_name: lastName,
+        company: this.getCompany(i, options),
+        job_title: this.getJobTitle(i, options),
         email: email,
         phone: this.generatePhoneNumber(),
-        company: this.getCompany(i, options),
+        mobile: this.generateMobileNumber(i),
+        address: this.generateAddress(i, options),
         contact_type: this.getContactType(i),
         status: this.getStatus(i),
+        priority: this.getPriority(i),
+        source: this.getSource(i),
+        account_id: this.getAccountId(context, i, options),
         notes: this.generateNotes(firstName, lastName, i, options),
-        created_at: this.generateCreatedDate(i),
+        is_active: this.generateActiveStatus(i),
         last_contacted: this.generateLastContactedDate(i),
-        account_id: this.getAccountId(context, i, options)
+        tags: this.generateTags(i, options)
+        // Note: created_at and updated_at are added automatically by the system
       };
       
       contacts.push(contact);
@@ -86,13 +100,119 @@ export class ContactGenerator extends BaseGenerator {
   }
   
   /**
+   * Generate job title with realistic distribution
+   */
+  private getJobTitle(index: number, options: DataGeneratorOptions): string | null {
+    // 20% of contacts don't have a job title
+    if (index % 5 === 0) {
+      return null;
+    }
+    
+    if (options.realistic_names) {
+      return this.getRandomItem(this.jobTitles);
+    }
+    
+    return `Job Title ${Math.floor(index / 5) + 1}`;
+  }
+  
+  /**
+   * Generate mobile number (different from phone)
+   */
+  private generateMobileNumber(index: number): string | null {
+    // 60% of contacts have mobile numbers
+    if (index % 5 > 2) {
+      return null;
+    }
+    
+    return this.generatePhoneNumber('555'); // Use 555 area code for mobile
+  }
+  
+  /**
+   * Generate address object
+   */
+  private generateAddress(index: number, options: DataGeneratorOptions): object | null {
+    // 40% of contacts have addresses
+    if (index % 5 > 1) {
+      return null;
+    }
+    
+    if (options.realistic_names) {
+      const streets = ['123 Main St', '456 Oak Ave', '789 Pine Dr', '321 Elm St', '654 Cedar Ln'];
+      const cities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'];
+      const states = ['NY', 'CA', 'IL', 'TX', 'AZ'];
+      
+      return {
+        street: this.getRandomItem(streets),
+        city: this.getRandomItem(cities),
+        state: this.getRandomItem(states),
+        postal_code: String(Math.floor(Math.random() * 90000) + 10000),
+        country: 'US'
+      };
+    }
+    
+    return {
+      street: `${100 + index} Test St`,
+      city: 'Test City',
+      state: 'TS',
+      postal_code: `${10000 + index}`,
+      country: 'US'
+    };
+  }
+  
+  /**
    * Generate contact type with realistic distribution
    */
   private getContactType(index: number): string {
     if (index % 2 === 0) return 'customer';      // 50% customers
     if (index % 4 === 1) return 'prospect';      // 25% prospects
     if (index % 8 === 3) return 'partner';       // 12.5% partners
-    return 'vendor';                             // 12.5% vendors
+    if (index % 16 === 7) return 'employee';     // 6.25% employees
+    if (index % 32 === 15) return 'lead';        // 3.125% leads
+    return 'vendor';                             // Remaining vendors
+  }
+  
+  /**
+   * Generate priority with realistic distribution
+   */
+  private getPriority(index: number): string {
+    if (index % 10 === 0) return 'urgent';       // 10% urgent
+    if (index % 5 === 1) return 'high';         // 20% high
+    if (index % 8 === 2) return 'low';          // 12.5% low
+    return 'normal';                             // 57.5% normal
+  }
+  
+  /**
+   * Generate source with realistic distribution
+   */
+  private getSource(index: number): string {
+    if (index % 3 === 0) return 'website';       // 33% website
+    if (index % 5 === 1) return 'referral';      // 20% referral
+    if (index % 7 === 2) return 'advertising';   // ~14% advertising
+    if (index % 11 === 3) return 'trade_show';   // ~9% trade show
+    if (index % 13 === 4) return 'cold_call';    // ~8% cold call
+    return 'other';                              // Remaining other
+  }
+  
+  /**
+   * Generate active status (85% active)
+   */
+  private generateActiveStatus(index: number): boolean {
+    return index % 7 !== 0; // 85% active, 15% inactive
+  }
+  
+  /**
+   * Generate tags array
+   */
+  private generateTags(index: number, options: DataGeneratorOptions): string[] {
+    // 30% of contacts have tags
+    if (index % 10 > 2) {
+      return [];
+    }
+    
+    const availableTags = ['vip', 'technical', 'decision-maker', 'budget-holder', 'influencer', 'champion'];
+    const tagCount = Math.floor(Math.random() * 3) + 1; // 1-3 tags
+    
+    return this.getRandomItems(availableTags, tagCount);
   }
   
   /**
@@ -183,47 +303,77 @@ export class ContactGenerator extends BaseGenerator {
         id: this.generateDeterministicUuid('contact', 'edge-minimal'),
         first_name: 'Min',
         last_name: 'Data',
+        company: null,
+        job_title: null,
         email: 'min@example.com',
         phone: null,
-        company: null,
+        mobile: null,
+        address: null,
         contact_type: 'customer',
         status: 'active',
+        priority: 'normal',
+        source: 'other',
+        account_id: null,
         notes: null,
-        created_at: new Date().toISOString(),
+        is_active: true,
         last_contacted: null,
-        account_id: null
+        tags: []
       },
       {
         id: this.generateDeterministicUuid('contact', 'edge-maximum'),
         first_name: 'Maximum',
         last_name: 'Data-Testing-Very-Long-Name',
-        email: 'maximum.data.testing.very.long.name@very-long-domain-example.com',
-        phone: '(999) 888-7777 ext 12345',
         company: 'Very Long Company Name for Testing Maximum Length Fields Inc.',
+        job_title: 'Senior Vice President of Business Development and Strategic Partnerships',
+        email: 'maximum.data.testing.very.long.name@very-long-domain-example.com',
+        phone: '+1 (999) 888-7777',
+        mobile: '+1 (999) 777-8888',
+        address: {
+          street: '12345 Very Long Street Name for Testing Maximum Length',
+          city: 'Very Long City Name',
+          state: 'California',
+          postal_code: '99999-9999',
+          country: 'United States'
+        },
         contact_type: 'partner',
         status: 'qualified',
-        notes: 'This is a very long note field designed to test the maximum length handling of the notes field in the database. It contains multiple sentences and should help validate proper text handling.',
-        created_at: new Date('2020-01-01').toISOString(),
-        last_contacted: new Date().toISOString(),
+        priority: 'urgent',
+        source: 'trade_show',
         account_id: options.link_to_accounts && context 
           ? this.generateForeignKey(context, 'account', 'id') 
-          : null
+          : null,
+        notes: 'This is a very long note field designed to test the maximum length handling of the notes field in the database. It contains multiple sentences and should help validate proper text handling.',
+        is_active: true,
+        last_contacted: new Date().toISOString(),
+        tags: ['vip', 'technical', 'decision-maker']
       },
       {
         id: this.generateDeterministicUuid('contact', 'edge-special-chars'),
         first_name: 'José',
         last_name: 'O\'Reilly-Smith',
-        email: 'jose.oreilly+test@example.com',
-        phone: '(555) 123-4567',
         company: 'Café & Restaurant Solutions',
+        job_title: 'Maître d\'Hôtel',
+        email: 'jose.oreilly+test@example.com',
+        phone: '+1 (555) 123-4567',
+        mobile: '+1 (555) 765-4321',
+        address: {
+          street: '123 Café Street',
+          city: 'San José',
+          state: 'CA',
+          postal_code: '95110',
+          country: 'US'
+        },
         contact_type: 'customer',
         status: 'active',
-        notes: 'Special characters: àáâãäåæçèéêë',
-        created_at: new Date().toISOString(),
-        last_contacted: new Date().toISOString(),
+        priority: 'high',
+        source: 'referral',
         account_id: options.link_to_accounts && context 
           ? this.generateForeignKey(context, 'account', 'id') 
-          : null
+          : null,
+        notes: 'Special characters: àáâãäåæçèéêë',
+        is_active: true,
+        last_contacted: new Date().toISOString(),
+        tags: ['international', 'special-chars']
       }
     ];
     

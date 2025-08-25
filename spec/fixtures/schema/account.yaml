@@ -63,6 +63,11 @@ properties:
         type: string
         default: "en"
     description: User preferences and settings
+  phone:
+    type: string
+    pattern: "^[+]?[0-9\\s\\-\\(\\)]{10,20}$"
+    description: Phone number
+    example: "+1 (555) 123-4567"
   metadata:
     type: object
     description: Additional flexible metadata
