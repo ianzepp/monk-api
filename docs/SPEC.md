@@ -721,6 +721,187 @@ describe.concurrent('Parallel Suite', () => {
 3. **Custom Data**: Add test-specific data on top of templates
 4. **Mode Selection**: Use safe mode for business logic, unsafe for volume
 
+## Template Database Management
+
+### Template Lifecycle
+
+#### Building Templates
+Templates are built from fixture definitions containing schemas and data generators:
+
+```bash
+# Build specific template
+npm run fixtures:build basic
+
+# Build all templates
+npm run fixtures:build-all
+
+# Force rebuild (ignores existing templates)
+npm run fixtures:rebuild basic
+```
+
+#### Template Storage
+Templates are stored as PostgreSQL databases with naming convention:
+```
+monk-api$test-template-{fixture-name}
+
+Examples:
+- monk-api$test-template-basic
+- monk-api$test-template-ecommerce  
+- monk-api$test-template-performance
+```
+
+#### Template Cloning
+When tests use templates, PostgreSQL's fast cloning creates test databases:
+```
+Template DB: monk-api$test-template-basic
+     ↓ (PostgreSQL CREATE DATABASE WITH TEMPLATE)
+Test DB: monk-api$test-1756132407957-abc123
+```
+
+### Cleanup Procedures
+
+#### Automatic Cleanup
+The system automatically manages template databases:
+
+```bash
+# Daily cleanup (removes templates older than 7 days)
+npm run fixtures:clean
+
+# Custom cleanup period
+npm run fixtures:clean --days 3
+
+# Emergency cleanup (removes all templates)
+npm run fixtures:clean --force
+```
+
+#### Manual Cleanup
+For troubleshooting or manual maintenance:
+
+```bash
+# List all template databases
+npm run fixtures:list
+
+# Remove specific template
+npm run fixtures:remove basic
+
+# PostgreSQL direct cleanup (emergency only)
+psql -c "DROP DATABASE \"monk-api\$test-template-basic\";"
+```
+
+#### Test Database Cleanup
+Test databases (cloned from templates) are automatically cleaned:
+
+```typescript
+// Automatic cleanup after each test
+afterAll(async () => {
+  await tenantManager?.cleanup(); // Removes test database
+});
+```
+
+#### Cleanup Monitoring
+Monitor cleanup operations:
+
+```bash
+# View cleanup logs
+npm run fixtures:status
+
+# Check template disk usage
+npm run fixtures:stats
+
+# Verify cleanup completed
+psql -l | grep "monk-api\$test"
+```
+
+### Maintenance Operations
+
+#### Template Health Checks
+Regular maintenance commands:
+
+```bash
+# Check template compatibility with current schema
+npm run fixtures:verify basic
+
+# Test template cloning performance
+npm run fixtures:benchmark basic
+
+# Validate template data integrity
+npm run fixtures:validate basic
+```
+
+#### Schema Change Handling
+When schemas change, templates need regeneration:
+
+```bash
+# Check if templates need updates
+npm run test:prepare
+
+# The system will automatically:
+# 1. Detect schema changes via hash comparison
+# 2. Regenerate affected templates
+# 3. Log regeneration activity
+# 4. Validate new templates work
+```
+
+#### Storage Management
+Template databases consume disk space:
+
+```bash
+# Monitor template storage
+npm run fixtures:disk-usage
+
+# Typical template sizes:
+# - basic: ~50MB (100 records)
+# - ecommerce: ~200MB (5,000 records)  
+# - performance: ~2GB (50,000+ records)
+```
+
+#### Backup and Recovery
+Template databases can be backed up:
+
+```bash
+# Backup template (PostgreSQL dump)
+pg_dump monk-api$test-template-basic > backups/template-basic.sql
+
+# Restore template  
+psql -c "CREATE DATABASE \"monk-api\$test-template-basic\";"
+psql monk-api$test-template-basic < backups/template-basic.sql
+```
+
+### Production Considerations
+
+#### CI/CD Integration
+In continuous integration:
+
+```yaml
+# .github/workflows/test.yml
+jobs:
+  test:
+    steps:
+      - name: Build Templates
+        run: npm run fixtures:build-all
+      
+      - name: Run Tests  
+        run: npm run spec:all
+        
+      - name: Cleanup Templates
+        run: npm run fixtures:clean
+```
+
+#### PostgreSQL Requirements
+Template cloning requires:
+- PostgreSQL 12+ (for reliable template support)
+- Sufficient disk space (2x dataset size during cloning)
+- Database user with CREATEDB privilege
+- Shared buffers sized appropriately for template operations
+
+#### Monitoring and Alerts
+Production monitoring should track:
+- Template build success/failure rates
+- Template cloning performance (should be <1s)
+- Template storage usage
+- Failed cleanup operations
+- Schema compatibility issues
+
 ## Troubleshooting
 
 ### Common Issues

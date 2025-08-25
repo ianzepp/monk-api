@@ -26,6 +26,9 @@ npm run start:dev
 
 # 4. Verify installation
 npm run test:one tests/10-connection/basic-ping-test.sh
+
+# 5. (Optional) Build test fixtures for enhanced testing
+npm run fixtures:build basic
 ```
 
 The `npm run autoinstall` script handles all setup steps automatically:
@@ -62,11 +65,12 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - **Extensible Business Logic**: Add validation, security, audit, integration without touching core code
 - **Clean Architecture**: BaseObserver pattern with consistent error handling and logging
 
-#### **Test Suite** (`tests/`)
+#### **Test Suite** (`tests/`, `spec/`)
 - **Three-layer Architecture**: test-all.sh → test-one.sh → individual tests
 - **Tenant Isolation**: Each test gets fresh tenant database  
 - **Pattern-based**: Organized by categories (05-infrastructure, 15-auth, etc.)
 - **Comprehensive**: Authentication, meta API, data API, integration tests
+- **Template Database System**: Advanced fixture-based testing with 25-130x performance improvement (see [SPEC.md](docs/SPEC.md))
 
 ### Observer-Driven Architecture
 
@@ -427,6 +431,8 @@ npm run test:all 25
 ```
 
 #### **Test Categories**
+
+**Shell Tests** (`tests/`):
 - **05-infrastructure**: Server config, basic connectivity
 - **10-connection**: Database connectivity, ping tests
 - **15-authentication**: Auth flows, JWT, multi-user scenarios
@@ -435,6 +441,54 @@ npm run test:all 25
 - **50-integration**: End-to-end workflows  
 - **60-lifecycle**: Record lifecycle, soft deletes
 - **70-validation**: Schema validation, constraints
+
+**TypeScript Tests** (`spec/`) - Enhanced with Template System:
+- **unit/**: Fast tests with no database dependencies
+- **integration/**: Database-dependent tests with fixture support
+- **examples/**: Template system demonstrations and migration examples
+- **fixtures/**: Schema definitions, generators, and template configurations
+
+#### **Template-Based Testing (NEW)**
+
+Enhanced testing infrastructure providing 25-130x faster test setup:
+
+```typescript
+// Traditional approach (12-65 seconds per test)
+beforeAll(async () => {
+  tenantManager = await createTestTenant();
+  testContext = await createTestContext(tenantManager.tenant!, 'root');
+  // ... manual schema and data loading
+});
+
+// Template approach (0.5 seconds per test)  
+beforeAll(async () => {
+  testContext = await createTestContextWithFixture('basic');
+  // Instantly have realistic data with relationships
+});
+```
+
+**Template Management:**
+```bash
+# Build fixture templates
+npm run fixtures:build basic
+
+# Clean old templates  
+npm run fixtures:clean
+
+# Test template system
+npm run fixtures:test
+
+# Prepare templates for testing
+npm run test:prepare
+```
+
+**Available Fixtures:**
+- `basic`: Account and contact schemas (15+ accounts, 25+ contacts)
+- `ecommerce`: E-commerce scenarios with products, orders, customers
+- `user-management`: Users, roles, and permissions
+- `performance`: Large datasets for stress testing
+
+See [SPEC.md](docs/SPEC.md) for complete template system documentation.
 
 ### Git-based Testing
 
