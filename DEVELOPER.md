@@ -1211,83 +1211,264 @@ monk test git main               # /tmp/monk-builds/main-12345678/
 
 ## Troubleshooting
 
+### **Systematic Debugging Approach**
+
+When issues arise, follow this systematic approach based on recent debugging experience:
+
+#### **1. Isolate the Problem Scope**
+```bash
+# Determine if issue is environmental or code-related
+git status                              # Check for uncommitted changes
+npm run compile                         # Verify TypeScript compilation
+npm run spec:all unit                   # Test unit tests (no external dependencies)
+
+# Check basic connectivity
+psql -d monk-api-auth -c "SELECT current_user;"   # Test direct PostgreSQL
+curl http://localhost:9001/health               # Test HTTP API if running
+```
+
+#### **2. Environment vs Code Issues**
+```bash
+# If psql works but Node.js fails → Environment issue
+# If both fail → PostgreSQL configuration issue  
+# If HTTP API works but tests fail → Test configuration issue
+# If compilation fails → Code issue
+
+# Check environment configuration
+cat ~/.config/monk/env.json
+echo $DATABASE_URL                     # Should match env.json
+node --version && npm --version        # Check runtime versions
+```
+
+#### **3. Database-Specific Debugging**
+```bash
+# Test database layers systematically
+psql -d postgres -c "SELECT version();"                    # PostgreSQL server
+psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"   # Auth database
+psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schema;" # Tenant database
+
+# Test Node.js database connections
+npm run spec:one spec/unit/database-connection-test.test.ts  # Direct connections
+npm run spec:one spec/05-infrastructure/connectivity.test.ts # Integration tests
+```
+
 ### **Common Issues**
 
-#### **Authentication Problems**
+#### **PostgreSQL Authentication Problems**
+
+##### **SCRAM Authentication Error**
 ```bash
-# Check current server
-monk servers current
+# Error: "SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string"
+# Symptoms: psql works fine, but Node.js applications fail
 
-# Verify connectivity  
-monk ping
+# Root Cause: Connection strings missing passwords for SCRAM authentication
+# PostgreSQL 17.6+ defaults to SCRAM-SHA-256 which requires explicit passwords
 
-# Re-authenticate
-monk auth login local-test root
-```
+# Diagnostic Steps:
+psql -U $USER -d monk-api-auth -c "SELECT current_user;"    # Should work
+npm run spec:one spec/unit/tenant-service-debug.test.ts     # May fail
 
-#### **Database Connection Issues**
-```bash
-# Check PostgreSQL
-psql -d postgres -c "SELECT version();"
-
-# Verify auth database
-psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"
-
-# Check tenant database
-psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schema;"
-```
-
-#### **TypeScript Integration Test Issues**
-```bash
-# SCRAM Authentication Error: "client password must be a string"
-# Symptoms: psql works fine, but spec tests fail with SCRAM error
-# Cause: PostgreSQL 17.6+ requires explicit password authentication
-
-# Verify psql works but Node.js fails
-psql -U ianzepp -d monk-api-auth -c "SELECT current_user;"  # ✅ Should work
-npm run spec:one spec/05-infrastructure/connectivity.test.ts   # ❌ May fail
-
-# Check DATABASE_URL includes password
+# Verify DATABASE_URL configuration
 cat ~/.config/monk/env.json | grep DATABASE_URL
-# Should show: "DATABASE_URL": "postgresql://user:password@localhost:5432/"
+# Must include password: "postgresql://user:password@localhost:5432/"
 
-# Test direct database connection
-npm run spec:one spec/unit/database-connection-test.test.ts
-
-# Solution: Ensure TenantService uses DATABASE_URL consistently
-# All connection strings should include password for SCRAM compatibility
+# Fix: Update TenantService to use DATABASE_URL consistently
+# All connection strings should use baseUrl.replace() pattern
 ```
 
-#### **CLI Regeneration Issues**
+##### **Connection Refused Errors**
 ```bash
-# Ensure Ruby and bashly
-ruby --version && gem list bashly
+# Check PostgreSQL service status
+sudo systemctl status postgresql
+sudo systemctl start postgresql
 
-# Clean regeneration
-cd cli/src
-rm -f ../monk
-bashly generate
-chmod +x ../monk
+# Check listening ports
+sudo netstat -tlnp | grep 5432
+ps aux | grep postgres
 ```
 
-#### **Build Issues**
-```bash
-# Clean rebuild
-rm -rf dist/ node_modules/
-npm install
-npm run compile
+#### **TypeScript Testing Issues**
 
-# Reset environment
-npm run autoinstall --clean-node --clean-dist --clean-auth
+##### **Integration Tests Failing**
+```bash
+# Check observer system preloading
+npm run spec:one spec/05-infrastructure/connectivity.test.ts
+
+# Common issue: Observers not loaded
+# Solution: Add await ObserverLoader.preloadObservers() to test setup
+
+# Check test tenant creation
+npm run spec:one spec/unit/tenant-service-debug.test.ts
+
+# Environment isolation issues
+# Each test creates fresh tenant - verify cleanup working
+```
+
+##### **Unit Tests vs Integration Tests**
+```bash
+# Unit tests should always work (no external dependencies)
+npm run spec:all unit                   # Should pass consistently
+
+# Integration tests require database and configuration
+npm run spec:all integration            # May fail with config issues
+
+# If unit tests fail → Code issue
+# If integration tests fail → Environment/config issue
+```
+
+#### **HTTP API Issues**
+
+##### **Server Won't Start**
+```bash
+# Check port availability
+lsof -i :9001
+netstat -tlnp | grep 9001
+
+# Check database connectivity before server start
+psql -d monk-api-auth -c "SELECT 1;"
+
+# Check observer system
+npm run compile                         # Ensure TypeScript compiled
+# Look for observer loading errors in startup logs
+```
+
+##### **API Endpoints Failing**
+```bash
+# Test with minimal endpoint first
+curl http://localhost:9001/health
+
+# Check authentication
+curl -H "Authorization: Bearer $(monk auth token)" http://localhost:9001/ping
+
+# Test database-dependent endpoints
+curl -X POST http://localhost:9001/ftp/list \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(monk auth token)" \
+  -d '{"path": "/", "ftp_options": {"show_hidden": false, "long_format": true, "recursive": false}}'
+```
+
+#### **Configuration Issues**
+```bash
+# Verify monk configuration exists and is valid
+ls -la ~/.config/monk/
+cat ~/.config/monk/env.json | jq .      # Validate JSON syntax
+
+# Check required environment variables
+echo $DATABASE_URL                      # Must include password
+echo $JWT_SECRET                        # Should be set
+echo $NODE_ENV                          # Should be development/production
+
+# Reset configuration if corrupted
+npm run autoinstall                     # Regenerate configuration
+```
+
+#### **Observer System Issues**
+```bash
+# Check observer loading
+npm run compile                         # Compile observers
+npm run start:dev                       # Look for observer loading logs
+
+# Test observer system directly
+npm run spec:all unit/observers         # Unit test observers
+npm run spec:one spec/integration/observer-pipeline.test.ts
+
+# Common observer issues:
+# - Missing observer files in src/observers/
+# - TypeScript compilation errors
+# - Circular dependency issues
+```
+
+### **Advanced Debugging Techniques**
+
+#### **When "Everything Worked Before" Issues**
+```bash
+# Systematic git archaeology approach
+git log --oneline -10                   # Check recent commits
+git log --oneline --since="4 hours ago" # Recent changes
+
+# Test specific commits to isolate when issue started
+git checkout <commit-hash>              # Test earlier commit
+npm run spec:one spec/05-infrastructure/connectivity.test.ts
+
+# Common causes of "worked before" issues:
+# - External system updates (PostgreSQL, Node.js, OS packages)
+# - Environment configuration changes
+# - Dependency version changes (check package-lock.json)
+# - Database authentication method changes
+```
+
+#### **Environment vs Code Issue Identification**
+```bash
+# Create diagnostic matrix
+# ✅ psql works + ❌ Node.js fails = Authentication/environment issue
+# ❌ psql fails + ❌ Node.js fails = PostgreSQL server issue  
+# ✅ HTTP API works + ❌ Tests fail = Test configuration issue
+# ❌ HTTP API fails + ❌ Tests fail = Code/database issue
+
+# Test each layer independently
+curl http://localhost:9001/health       # HTTP layer
+npm run spec:all unit                   # Code logic layer  
+npm run spec:one spec/unit/database-connection-test.test.ts # Database layer
+```
+
+#### **Database Connection Debugging**
+```bash
+# Compare working vs failing connection patterns
+# Working: DatabaseManager (main API) 
+# Failing: TenantService (tests)
+
+# Check connection string differences
+echo "Main API uses: $DATABASE_URL"
+echo "TenantService builds: postgresql://user@host:port/db"
+
+# Test connection methods systematically:
+# 1. Direct psql command
+# 2. Node.js pg client with connection string
+# 3. Node.js pg client with explicit parameters
+# 4. Integration test tenant creation
+```
+
+#### **Filter System Debugging**
+```bash
+# Test filter operators systematically by category
+npm run spec:all unit/filter/logical-operators      # AND, OR, NOT operations
+npm run spec:all unit/filter/array-operators        # PostgreSQL arrays
+npm run spec:all unit/filter/complex-scenarios      # Real-world patterns
+
+# Debug SQL generation
+const { whereClause, params } = FilterWhere.generate({ complex: 'filter' });
+console.log('SQL:', whereClause);
+console.log('Params:', params);
+
+# Test specific operator combinations
+npm run spec:one spec/unit/filter/logical-operators.test.ts
+```
+
+#### **FTP Middleware Debugging**
+```bash
+# Test FTP endpoints systematically
+# 1. Unit tests (path parsing, utilities)
+npm run spec:all unit/ftp
+
+# 2. Direct HTTP endpoint testing  
+TOKEN=$(monk auth token)
+curl -X POST http://localhost:9001/ftp/list \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"path": "/", "ftp_options": {}}'
+
+# 3. Integration tests (requires database)
+npm run spec:all integration/ftp
 ```
 
 ### **Development Tips**
 
 #### **Debugging API Issues**
-- Use `npm run start:dev` for auto-reload and console logging
-- Check `console.debug()` output for database operations
-- Use `monk ping` to verify server connectivity and auth
-- Check JWT token contents with `monk auth info`
+- **Start simple**: Test `/health` endpoint first, then build complexity
+- **Layer by layer**: HTTP → Auth → Database → Business Logic
+- **Systematic isolation**: Unit tests → Integration tests → HTTP endpoints
+- **Environment first**: Rule out external dependencies before code debugging
+- **Use manual testing**: curl commands to verify endpoint functionality
+- **Check logs**: `npm run start:dev` provides detailed operation logging
 
 #### **CLI Development**
 - Always regenerate CLI after bashly.yml changes: `bashly generate`
