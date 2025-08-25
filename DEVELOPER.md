@@ -1237,6 +1237,27 @@ psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"
 psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schema;"
 ```
 
+#### **TypeScript Integration Test Issues**
+```bash
+# SCRAM Authentication Error: "client password must be a string"
+# Symptoms: psql works fine, but spec tests fail with SCRAM error
+# Cause: PostgreSQL 17.6+ requires explicit password authentication
+
+# Verify psql works but Node.js fails
+psql -U ianzepp -d monk-api-auth -c "SELECT current_user;"  # ✅ Should work
+npm run spec:one spec/05-infrastructure/connectivity.test.ts   # ❌ May fail
+
+# Check DATABASE_URL includes password
+cat ~/.config/monk/env.json | grep DATABASE_URL
+# Should show: "DATABASE_URL": "postgresql://user:password@localhost:5432/"
+
+# Test direct database connection
+npm run spec:one spec/unit/database-connection-test.test.ts
+
+# Solution: Ensure TenantService uses DATABASE_URL consistently
+# All connection strings should include password for SCRAM compatibility
+```
+
 #### **CLI Regeneration Issues**
 ```bash
 # Ensure Ruby and bashly
