@@ -2,49 +2,17 @@
  * FilterOrder - Schema-independent ORDER BY clause generation
  * 
  * Generates ORDER BY clauses without requiring schema setup.
- * Extracted from Filter class to enable reusable ORDER BY generation
- * in SqlObserver and other contexts that need sorting logic.
+ * Extracted from Filter class to enable reusable sorting logic in SqlObserver
+ * and other contexts.
  * 
- * ## Core Features
- * - **Schema independence**: No schema name or table name required
- * - **Multiple input formats**: String, array, and object formats supported
- * - **Column sanitization**: Prevents SQL injection in column names
- * - **Sort normalization**: Consistent ASC/DESC handling
- * - **Composable design**: Can be combined with any SQL operation
+ * Features: Multiple input formats, column sanitization, sort normalization
  * 
- * ## Usage Examples
+ * Quick Examples:
+ * - String: `FilterOrder.generate('created_at desc')`
+ * - Array: `FilterOrder.generate([{ column: 'priority', sort: 'desc' }])`
+ * - Object: `FilterOrder.generate({ created_at: 'desc', name: 'asc' })`
  * 
- * ### String format
- * ```typescript
- * FilterOrder.generate('created_at desc');
- * // Result: ORDER BY "created_at" DESC
- * ```
- * 
- * ### Array format
- * ```typescript
- * FilterOrder.generate([
- *     { column: 'priority', sort: 'desc' },
- *     { column: 'name', sort: 'asc' }
- * ]);
- * // Result: ORDER BY "priority" DESC, "name" ASC
- * ```
- * 
- * ### Object format
- * ```typescript
- * FilterOrder.generate({ created_at: 'desc', name: 'asc' });
- * // Result: ORDER BY "created_at" DESC, "name" ASC
- * ```
- * 
- * ### Mixed array format
- * ```typescript
- * FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
- * // Result: ORDER BY "name" ASC, "created_at" DESC
- * ```
- * 
- * ## Security Features
- * - **Column sanitization**: Removes non-alphanumeric characters except underscore
- * - **Direction validation**: Only allows ASC/DESC (defaults to ASC for invalid input)
- * - **Injection prevention**: Column names quoted and sanitized
+ * See docs/FILTER.md for complete examples and security features.
  */
 
 export type SortDirection = 'asc' | 'desc' | 'ASC' | 'DESC';

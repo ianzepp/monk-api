@@ -2,48 +2,17 @@
  * FilterWhere - Schema-independent WHERE clause generation
  * 
  * Generates parameterized WHERE clauses without requiring schema setup.
- * Extracted from Filter class to enable reusable WHERE clause generation
- * in SqlObserver and other contexts that need filtering logic.
+ * Extracted from Filter class to enable reusable filtering logic in SqlObserver
+ * and other contexts.
  * 
- * ## Core Features
- * - **Schema independence**: No schema name or table name required
- * - **Parameter offsetting**: Supports starting parameter index for complex queries
- * - **SQL injection protection**: All values properly parameterized using $1, $2, $3
- * - **Consistent syntax**: Same filter object format as Filter class
- * - **Soft delete handling**: Configurable trashed_at/deleted_at filtering
+ * Features: Parameter offsetting, SQL injection protection, soft delete handling
  * 
- * ## Usage Examples
+ * Quick Examples:
+ * - Simple: `FilterWhere.generate({ name: 'John', age: 25 })`
+ * - Offset: `FilterWhere.generate({ id: 'record-123' }, 2)` → uses $3, $4, etc.
+ * - Options: `FilterWhere.generate(filter, 0, { includeTrashed: true })`
  * 
- * ### Simple WHERE clause
- * ```typescript
- * const { whereClause, params } = FilterWhere.generate({ name: 'John', age: 25 });
- * // Result: "name" = $1 AND "age" = $2 AND "trashed_at" IS NULL AND "deleted_at" IS NULL
- * // Params: ['John', 25]
- * ```
- * 
- * ### Complex queries with parameter offsetting
- * ```typescript
- * // For UPDATE queries: SET field1 = $1, field2 = $2 WHERE conditions
- * const { whereClause, params } = FilterWhere.generate({ id: 'record-123' }, 2);
- * // Result: "id" = $3 AND "trashed_at" IS NULL AND "deleted_at" IS NULL
- * // Params: ['record-123']
- * ```
- * 
- * ### Including soft-deleted records
- * ```typescript
- * const { whereClause, params } = FilterWhere.generate(
- *     { id: { $in: ['id1', 'id2'] } },
- *     0,
- *     { includeTrashed: true }
- * );
- * ```
- * 
- * ## Supported Operators
- * - **Equality**: `{ field: value }` → `"field" = $1`
- * - **Comparison**: `{ field: { $gt: 10 } }` → `"field" > $1`
- * - **Arrays**: `{ field: ['a', 'b'] }` → `"field" IN ($1, $2)`
- * - **Pattern matching**: `{ field: { $like: 'prefix%' } }` → `"field" LIKE $1`
- * - **Null handling**: `{ field: null }` → `"field" IS NULL`
+ * See docs/FILTER.md for complete operator reference and examples.
  */
 
 export enum FilterOp {

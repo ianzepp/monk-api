@@ -125,10 +125,15 @@ For detailed technical documentation, refer to these specialized guides:
 - **Advanced Features**: Transaction management, wildcard patterns, caching
 - **Testing Examples**: Unit tests, integration tests, manual curl commands
 
+### **📁 [docs/FILTER.md](docs/FILTER.md)** - Filter System
+- **Operator Reference**: 25+ operators with detailed examples and SQL generation
+- **PostgreSQL Arrays**: ACL operations ($any, $all, $nany, $nall, $size)
+- **Logical Operations**: Deep nesting with $and, $or, $not, $nand, $nor
+- **Performance Patterns**: Complex queries, parameter management, optimization
+
 ### **🔄 Future Documentation**
 - **docs/API.md** - REST API endpoints and patterns
 - **docs/Observer.md** - Observer system development guide  
-- **docs/Filter.md** - Filter operator reference
 - **docs/Testing.md** - Comprehensive testing guide
 
 > **Quick Reference**: This DEVELOPER.md file focuses on architecture overviews, development workflows, and quick command references. For detailed syntax, JSON schemas, and comprehensive examples, see the specialized docs/ files.
