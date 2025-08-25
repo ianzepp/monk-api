@@ -80,7 +80,6 @@ export abstract class BaseAsyncObserver implements Observer {
         });
         
         // Return immediately - pipeline continues without waiting
-        console.debug(`🚀 Async observer started: ${observerName} (Ring ${this.ring})`);
     }
     
     /**

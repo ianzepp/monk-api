@@ -7,6 +7,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { logger } from '@lib/logger.js';
 import type { FixtureDefinition, FixtureData, DataGeneratorConfig, GeneratorContext, IDataGenerator } from './types.js';
 import type { TenantInfo } from '../services/tenant.js';
 
@@ -83,7 +84,10 @@ export class FixtureManager {
         }
         
         if (validation.warnings.length > 0) {
-          console.warn(`⚠️  Warnings for ${schemaName}: ${validation.warnings.join(', ')}`);
+          logger.warn('Generator validation warnings', { 
+            schemaName, 
+            warnings: validation.warnings 
+          });
         }
       }
       
@@ -206,7 +210,7 @@ export class FixtureManager {
         const generator = await this.loadGenerator(config.generator);
         dependencies[schemaName] = generator.getDependencies ? generator.getDependencies() : [];
       } catch (error) {
-        console.warn(`⚠️  Could not load dependencies for ${schemaName}: ${error}`);
+        logger.warn('Could not load generator dependencies', { schemaName, error: String(error) });
         dependencies[schemaName] = [];
       }
     }

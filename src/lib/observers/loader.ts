@@ -66,7 +66,9 @@ export class ObserverLoader {
             this.loaded = true;
             logger.info('Observer preloading complete', { cacheEntries: this.cache.size });
         } catch (error) {
-            console.error('❌ Observer preloading failed:', error);
+            logger.warn('Observer preloading failed', { 
+                error: error instanceof Error ? error.message : String(error) 
+            });
             throw new Error(`Observer preloading failed: ${error}`);
         }
     }

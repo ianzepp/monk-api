@@ -38,13 +38,11 @@ export class Database {
 
     // Schema operations with caching - returns Schema instance
     async toSchema(schemaName: SchemaName): Promise<Schema> {
-        console.debug(`Database.toSchema: requesting schema '${schemaName}'`);
         const schemaCache = SchemaCache.getInstance();
         const schemaRecord = await schemaCache.getSchema(this.system, schemaName);
         
         // Create Schema instance with validation capabilities
         const schema = new Schema(this.system, schemaName, schemaRecord);
-        console.debug(`Database.toSchema: schema '${schemaName}' resolved`);
         return schema;
     }
 
@@ -325,7 +323,14 @@ export class Database {
             throw new ObserverRecursionError(depth, Database.SQL_MAX_RECURSION);
         }
 
-        console.debug(`🔄 Starting observer pipeline: ${operation} on ${schemaName} (${data.length} records, depth ${depth})`);
+        const startTime = Date.now();
+        
+        this.system.info('Observer pipeline started', { 
+            operation, 
+            schemaName, 
+            recordCount: data.length, 
+            depth 
+        });
         
         // 🎯 SINGLE POINT: Convert schemaName → schema object here
         const schema = await this.toSchema(schemaName);
@@ -351,10 +356,26 @@ export class Database {
                 this.system.tx = undefined;
             }
             
+            // Performance timing for successful pipeline
+            const duration = Date.now() - startTime;
+            this.system.info('Observer pipeline completed', {
+                operation,
+                schemaName: schema.name,
+                recordCount: data.length,
+                depth,
+                durationMs: duration
+            });
+            
             return result;
             
         } catch (error) {
-            console.error(`💥 Observer pipeline failed: ${operation} on ${schema.name}`, error);
+            this.system.warn('Observer pipeline failed', {
+                operation,
+                schemaName: schema.name,
+                recordCount: data.length,
+                depth,
+                error: error instanceof Error ? error.message : String(error)
+            });
             
             // Rollback transaction if one was started
             if (this.system.tx) {

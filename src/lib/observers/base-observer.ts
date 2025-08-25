@@ -128,16 +128,20 @@ export abstract class BaseObserver implements Observer {
         if (error instanceof ValidationError) {
             // Recoverable validation errors - collect for user feedback
             context.errors.push(error);
-            console.debug(`❌ Validation error in ${observerName}: ${error.message} (${duration}ms)`);
             
         } else if (error instanceof BusinessLogicError) {
             // Recoverable business logic errors - collect for user feedback
             context.errors.push(error);
-            console.debug(`❌ Business logic error in ${observerName}: ${error.message} (${duration}ms)`);
             
         } else if (error instanceof SystemError || error instanceof ObserverTimeoutError) {
             // Unrecoverable system errors - should rollback entire transaction
-            console.error(`💥 System error in ${observerName}: ${error.message} (${duration}ms)`);
+            context.system.warn('Observer system error', {
+                observerName,
+                operation: context.operation,
+                schemaName: context.schema.name,
+                error: error.message,
+                durationMs: duration
+            });
             throw error; // Propagate to rollback transaction
             
         } else if (error instanceof Error) {
@@ -148,7 +152,13 @@ export abstract class BaseObserver implements Observer {
                 'UNKNOWN_ERROR'
             );
             context.warnings.push(warning);
-            console.warn(`Unknown error in ${observerName}: ${error.message} (${duration}ms)`);
+            context.system.warn('Observer unknown error', {
+                observerName,
+                operation: context.operation,
+                schemaName: context.schema.name,
+                error: error.message,
+                durationMs: duration
+            });
             
         } else {
             // Non-Error objects become warnings
@@ -158,7 +168,13 @@ export abstract class BaseObserver implements Observer {
                 'UNKNOWN_ERROR'
             );
             context.warnings.push(warning);
-            console.warn(`Unknown error in ${observerName}: ${String(error)} (${duration}ms)`);
+            context.system.warn('Observer unknown error (non-Error object)', {
+                observerName,
+                operation: context.operation,
+                schemaName: context.schema.name,
+                error: String(error),
+                durationMs: duration
+            });
         }
     }
     
