@@ -54,7 +54,7 @@ export interface FtpStoreResponse {
 /**
  * Transaction Manager for FTP Operations (Phase 3)
  */
-class FtpTransactionManager {
+export class FtpTransactionManager {
     private static transactions = new Map<string, FtpTransaction>();
     
     static async beginTransaction(
@@ -300,7 +300,7 @@ class FtpContentProcessor {
         return 'application/octet-stream';
     }
     
-    private static calculateSize(content: any): number {
+    static calculateSize(content: any): number {
         if (typeof content === 'string') {
             return Buffer.byteLength(content, 'utf8');
         }
@@ -440,7 +440,7 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
         path: requestBody.path,
         options: requestBody.ftp_options,
         hasContent: !!requestBody.content,
-        contentSize: FtpContentProcessor.calculateSize(requestBody.content)
+        contentSize: JSON.stringify(requestBody.content).length
     });
     
     let transactionId: string | undefined;
@@ -448,13 +448,13 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
     try {
         // Default options
         const options = {
-            binary_mode: false,
-            overwrite: true,
-            append_mode: false,
-            create_path: false,
-            atomic: true,
-            validate_schema: true,
-            ...requestBody.ftp_options
+            ...requestBody.ftp_options,
+            binary_mode: requestBody.ftp_options.binary_mode ?? false,
+            overwrite: requestBody.ftp_options.overwrite ?? true,
+            append_mode: requestBody.ftp_options.append_mode ?? false,
+            create_path: requestBody.ftp_options.create_path ?? false,
+            atomic: requestBody.ftp_options.atomic ?? true,
+            validate_schema: requestBody.ftp_options.validate_schema ?? true
         };
         
         // Parse FTP path to understand the storage operation

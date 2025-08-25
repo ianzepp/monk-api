@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { setRouteResult } from '@lib/middleware/system-context.js';
-import { FtpTransactionManager, FtpTransaction } from './store.js';
+import { FtpTransactionManager, type FtpTransaction } from './store.js';
 
 // Enhanced FTP Delete Transport Types (Phase 3)
 export interface FtpDeleteRequest {
@@ -392,11 +392,11 @@ export default async function ftpDeleteHandler(context: Context): Promise<any> {
     try {
         // Default options with safety-first approach
         const options = {
-            recursive: false,
-            force: false,
-            permanent: false,
-            atomic: true,
-            ...requestBody.ftp_options
+            ...requestBody.ftp_options,
+            recursive: requestBody.ftp_options.recursive ?? false,
+            force: requestBody.ftp_options.force ?? false,
+            permanent: requestBody.ftp_options.permanent ?? false,
+            atomic: requestBody.ftp_options.atomic ?? true
         };
         
         // Parse FTP path to understand the delete operation
