@@ -132,7 +132,10 @@ export class SqlObserver extends BaseObserver {
             };
             
             // Process UUID arrays if flagged by UuidArrayProcessor
-            const processedRecord = this.processUuidArrays(record, metadata);
+            let processedRecord = this.processUuidArrays(record, metadata);
+            
+            // Process JSONB fields (objects/arrays) for PostgreSQL serialization
+            processedRecord = this.processJsonbFields(processedRecord, schema);
             
             // Build parameterized INSERT query
             const fields = Object.keys(processedRecord);
@@ -175,7 +178,10 @@ export class SqlObserver extends BaseObserver {
             const { id, ...updateFields } = record;
             
             // Process UUID arrays if flagged by UuidArrayProcessor
-            const processedFields = this.processUuidArrays(updateFields, metadata);
+            let processedFields = this.processUuidArrays(updateFields, metadata);
+            
+            // Process JSONB fields (objects/arrays) for PostgreSQL serialization
+            processedFields = this.processJsonbFields(processedFields, schema);
             
             const fields = Object.keys(processedFields);
             const values = Object.values(processedFields);
@@ -327,7 +333,22 @@ export class SqlObserver extends BaseObserver {
                         }
                         break;
                         
-                    // Arrays and objects should already be handled by PostgreSQL
+                    case 'object':
+                    case 'array':
+                        // JSONB fields: PostgreSQL returns these as already parsed objects/arrays
+                        // but in some cases they might come back as strings, so handle both
+                        if (typeof converted[fieldName] === 'string') {
+                            try {
+                                converted[fieldName] = JSON.parse(converted[fieldName]);
+                            } catch (error) {
+                                // If JSON parsing fails, leave as string
+                                // This handles edge cases where JSONB might return malformed data
+                                console.warn(`Failed to parse JSONB field '${fieldName}':`, error);
+                            }
+                        }
+                        // If already an object/array, leave as-is (normal PostgreSQL JSONB behavior)
+                        break;
+                        
                     // Strings and dates can remain as strings
                 }
             }
@@ -352,6 +373,43 @@ export class SqlObserver extends BaseObserver {
             if (metadata.get(`${fieldName}_is_uuid_array`) && Array.isArray(processed[fieldName])) {
                 // Convert JavaScript array to PostgreSQL array literal
                 processed[fieldName] = `{${processed[fieldName].join(',')}}`;
+            }
+        }
+        
+        return processed;
+    }
+    
+    /**
+     * Process JSONB fields for PostgreSQL compatibility
+     * 
+     * Converts JavaScript objects and arrays to JSON strings for JSONB columns
+     * based on schema field type definitions (type: object or type: array).
+     */
+    private processJsonbFields(record: any, schema: any): any {
+        if (!schema.definition?.properties) {
+            return record;
+        }
+        
+        const processed = { ...record };
+        const properties = schema.definition.properties;
+        
+        for (const [fieldName, fieldDef] of Object.entries(properties)) {
+            const fieldDefinition = fieldDef as any;
+            
+            // Check if this is a JSONB field (object or array type)
+            if (fieldDefinition.type === 'object' || fieldDefinition.type === 'array') {
+                const value = processed[fieldName];
+                
+                // Only process non-null values that aren't already strings
+                if (value !== null && value !== undefined && typeof value !== 'string') {
+                    try {
+                        processed[fieldName] = JSON.stringify(value);
+                    } catch (error) {
+                        throw new SystemError(
+                            `Failed to serialize JSONB field '${fieldName}': ${error instanceof Error ? error.message : String(error)}`
+                        );
+                    }
+                }
             }
         }
         
