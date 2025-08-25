@@ -443,6 +443,217 @@ Located in `spec/fixtures/generators/`:
 - Relationship awareness
 - Configurable record counts
 
+## Schema to Generator Development Process
+
+### Overview
+
+The fixture system uses a two-part approach: YAML schemas define the data structure and validation rules, while TypeScript generators create realistic test data that conforms to those schemas. This separation allows for clear data contracts while maintaining flexibility in test data generation.
+
+### Step-by-Step Process
+
+#### 1. Define the Schema (YAML)
+
+Start by creating a YAML schema file that defines all fields, types, and validation constraints:
+
+```yaml
+# spec/fixtures/schema/example.yaml
+title: Example
+type: object
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier
+  title:
+    type: string
+    minLength: 1
+    maxLength: 200
+  status:
+    type: string
+    enum: ["draft", "pending", "approved", "rejected", "archived"]
+    default: "draft"
+  priority:
+    type: integer
+    minimum: 1
+    maximum: 5
+  value:
+    type: number
+    minimum: 0
+    maximum: 100000
+required:
+  - id
+  - title
+  - status
+  - priority
+```
+
+#### 2. Create the Generator Class
+
+Build a generator that produces data matching the schema constraints:
+
+```typescript
+// spec/fixtures/generators/example-generator.ts
+export class ExampleGenerator extends BaseGenerator {
+  generate(count: number, options: DataGeneratorOptions): GeneratedRecord[] {
+    const examples: GeneratedRecord[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      const example: GeneratedRecord = {
+        // Required fields (must always be present)
+        id: this.generateDeterministicUuid('example', `example-${i}`),
+        title: this.generateTitle(i, options),
+        status: this.generateStatus(i),
+        priority: this.generatePriority(i),
+        
+        // Optional fields (include based on schema defaults)
+        value: this.generateValue(i),
+        
+        // Nullable fields (can be null)
+        expires_at: this.generateExpiresAt(i)
+      };
+      
+      examples.push(example);
+    }
+    
+    return examples;
+  }
+}
+```
+
+#### 3. Implement Field Generators
+
+Create methods that respect schema constraints:
+
+```typescript
+private generateStatus(index: number): string {
+  // Match enum values from schema
+  if (index % 2 === 0) return 'approved';     // 50% approved
+  if (index % 5 === 1) return 'pending';      // 20% pending
+  if (index % 7 === 2) return 'draft';        // ~14% draft
+  if (index % 11 === 3) return 'rejected';    // ~9% rejected
+  return 'archived';                          // ~7% archived
+}
+
+private generatePriority(index: number): number {
+  // Respect min/max constraints (1-5)
+  if (index % 10 === 0) return 5;  // 10% highest
+  if (index % 5 === 1) return 4;   // 20% high
+  if (index % 7 === 2) return 2;   // ~14% low
+  if (index % 9 === 3) return 1;   // ~11% lowest
+  return 3;                         // ~45% medium
+}
+
+private generateValue(index: number): number {
+  const seed = this.seededRandom(`value-${index}`);
+  // Ensure value stays within 0-100000 range
+  return Math.round(seed * 100000 * 100) / 100;
+}
+```
+
+#### 4. Add Edge Cases
+
+Include boundary conditions for comprehensive testing:
+
+```typescript
+private generateEdgeCases(): GeneratedRecord[] {
+  return [
+    {
+      // Minimal values
+      id: this.generateDeterministicUuid('example', 'edge-minimal'),
+      title: 'M',  // Min length 1
+      status: 'draft',
+      priority: 1,  // Minimum
+      value: 0      // Minimum
+    },
+    {
+      // Maximum values
+      id: this.generateDeterministicUuid('example', 'edge-maximum'),
+      title: 'A'.repeat(200),  // Max length
+      status: 'archived',
+      priority: 5,  // Maximum
+      value: 100000 // Maximum
+    }
+  ];
+}
+```
+
+### Real-World Examples
+
+#### Account Schema → Generator
+
+The **account.yaml** schema defines:
+- Required fields: id, name, email, username, account_type
+- Constraints: username pattern `^[a-zA-Z0-9_-]{3,50}$`, balance 0-1,000,000
+- Nullable fields: credit_limit (only for business accounts), phone, last_login
+
+The **AccountGenerator** implements:
+- Username generation that follows the regex pattern
+- Balance distribution: 30% minimal ($0-100), 40% low ($100-1000), 20% medium ($1000-10000)
+- Credit limits only for business/premium accounts
+- 60% have phone numbers, 80% have logged in
+
+#### Contact Schema → Generator
+
+The **contact.yaml** schema defines:
+- Required fields: id, first_name, last_name, email, contact_type
+- Complex object: address with street, city, state, postal_code, country
+- Array field: tags (max 10 items, each max 50 chars)
+
+The **ContactGenerator** implements:
+- 50% customers, 25% prospects distribution
+- 40% have addresses, 60% have mobile numbers
+- Realistic tag distribution: 30% no tags, 40% have 1-2 tags, 30% have 3-5 tags
+- Foreign key relationships to accounts (70% linked)
+
+### Schema-Generator Alignment Checklist
+
+When creating or updating generators:
+
+1. **Required Fields**: Ensure all required fields from schema are always generated
+2. **Type Matching**: Match exact types (string, number, boolean, array, object)
+3. **Constraints**: Respect minLength, maxLength, minimum, maximum values
+4. **Enums**: Only use values listed in enum arrays
+5. **Patterns**: Generate data matching regex patterns
+6. **Defaults**: Use schema defaults for optional fields when appropriate
+7. **Nullable Fields**: Allow null values where schema doesn't require the field
+8. **Format Compliance**: Follow formats (uuid, email, date-time)
+9. **Edge Cases**: Test boundaries of all constraints
+
+### Benefits of This Approach
+
+1. **Contract Clarity**: YAML schemas serve as clear data contracts
+2. **Validation Ready**: Schemas can be used for runtime validation
+3. **Realistic Data**: Generators create believable test scenarios
+4. **Maintainability**: Changes to schemas guide generator updates
+5. **Documentation**: Schemas self-document the data structure
+6. **Type Safety**: TypeScript generators catch type mismatches at compile time
+
+### Common Patterns
+
+#### Distribution Patterns
+```typescript
+// Use modulo for deterministic distributions
+if (index % 10 === 0) return 'special';  // 10%
+if (index % 5 === 1) return 'common';    // 20%
+return 'default';                        // 70%
+```
+
+#### Nullable Fields
+```typescript
+// Return null for some percentage
+if (index % 5 === 0) {
+  return null;  // 20% null
+}
+return generateValue();
+```
+
+#### Constrained Values
+```typescript
+// Always check schema constraints
+const value = Math.random() * 100;
+return Math.min(Math.max(value, schema.minimum), schema.maximum);
+```
+
 ## Performance Considerations
 
 ### Test Setup Speed
