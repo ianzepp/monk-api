@@ -17,6 +17,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseManager } from '../database-manager.js';
+import { MonkEnv } from '../monk-env.js';
 import pg from 'pg';
 
 export interface TenantInfo {
@@ -63,8 +64,14 @@ export class TenantService {
    * Get default auth database connection string
    */
   private static getAuthConnectionString(): string {
-    // Use DATABASE_URL approach to include password
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    // Ensure monk configuration is loaded
+    MonkEnv.load();
+    
+    const baseUrl = process.env.DATABASE_URL;
+    if (!baseUrl) {
+      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
+    }
+    
     return baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
   }
 
@@ -73,8 +80,13 @@ export class TenantService {
    */
   private static getAuthDatabase(): pg.Pool {
     if (!this.authPool) {
-      // Parse DATABASE_URL to extract components
-      const dbUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+      // Ensure monk configuration is loaded
+      MonkEnv.load();
+      
+      const dbUrl = process.env.DATABASE_URL;
+      if (!dbUrl) {
+        throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
+      }
       
       try {
         const url = new URL(dbUrl);
@@ -142,8 +154,13 @@ export class TenantService {
    */
   static async databaseExists(databaseName: string): Promise<boolean> {
     // Connect to postgres database to check if target database exists
-    // Use same base URL as other connections to include password
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    MonkEnv.load();
+    
+    const baseUrl = process.env.DATABASE_URL;
+    if (!baseUrl) {
+      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
+    }
+    
     const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
     
     const client = new Client({ connectionString: postgresConnection });
@@ -417,8 +434,13 @@ export class TenantService {
    * Create PostgreSQL database
    */
   private static async createDatabase(databaseName: string): Promise<void> {
-    // Use DATABASE_URL approach to include password
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    MonkEnv.load();
+    
+    const baseUrl = process.env.DATABASE_URL;
+    if (!baseUrl) {
+      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
+    }
+    
     const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
     
     const client = new Client({ connectionString: postgresConnection });
@@ -436,8 +458,13 @@ export class TenantService {
    * Drop PostgreSQL database
    */
   private static async dropDatabase(databaseName: string): Promise<void> {
-    // Use DATABASE_URL approach to include password
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    MonkEnv.load();
+    
+    const baseUrl = process.env.DATABASE_URL;
+    if (!baseUrl) {
+      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
+    }
+    
     const postgresConnection = baseUrl.replace(/\/[^\/]*$/, '/postgres');
     
     const client = new Client({ connectionString: postgresConnection });
@@ -455,8 +482,13 @@ export class TenantService {
    * Initialize tenant database schema using sql/init-tenant.sql
    */
   private static async initializeTenantSchema(databaseName: string): Promise<void> {
-    // Use DATABASE_URL approach to include password
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    MonkEnv.load();
+    
+    const baseUrl = process.env.DATABASE_URL;
+    if (!baseUrl) {
+      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
+    }
+    
     const tenantConnection = baseUrl.replace(/\/[^\/]*$/, `/${databaseName}`);
     
     const client = new Client({ connectionString: tenantConnection });
@@ -478,8 +510,13 @@ export class TenantService {
    * Create root user in tenant database
    */
   private static async createRootUser(databaseName: string, tenantName: string): Promise<void> {
-    // Use DATABASE_URL approach to include password
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    MonkEnv.load();
+    
+    const baseUrl = process.env.DATABASE_URL;
+    if (!baseUrl) {
+      throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
+    }
+    
     const tenantConnection = baseUrl.replace(/\/[^\/]*$/, `/${databaseName}`);
     
     const client = new Client({ connectionString: tenantConnection });

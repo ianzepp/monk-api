@@ -1,6 +1,7 @@
 import pg from 'pg';
 import type { Context } from 'hono';
 import { logger } from '@lib/logger.js';
+import { MonkEnv } from './monk-env.js';
 
 const { Pool } = pg;
 
@@ -61,7 +62,13 @@ export class DatabaseManager {
 
     // Build connection string for domain/database
     private static buildConnectionString(domain: string): string {
-        const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+        // Ensure monk configuration is loaded
+        MonkEnv.load();
+        
+        const baseUrl = process.env.DATABASE_URL;
+        if (!baseUrl) {
+            throw new Error('DATABASE_URL not configured. Ensure ~/.config/monk/env.json contains DATABASE_URL.');
+        }
         
         // Use domain name directly as database name
         return baseUrl.replace(/\/[^\/]*$/, `/${domain}`);

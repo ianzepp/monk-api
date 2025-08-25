@@ -3,6 +3,14 @@ import path from 'path';
 import { logger } from '@lib/logger.js';
 
 /**
+ * Configuration file paths in order of precedence
+ */
+const MONK_CONFIG_PATHS = [
+    './.config/monk/env.json',  // Test environment (current directory)
+    `${process.env.HOME}/.config/monk/env.json`  // User environment
+];
+
+/**
  * MonkEnv - Configuration management for Monk API
  * 
  * Loads environment configuration from JSON files in order of precedence:
@@ -28,12 +36,7 @@ export class MonkEnv {
             return;
         }
         
-        const configPaths = [
-            './.config/monk/env.json',  // Test environment (current directory)
-            `${process.env.HOME}/.config/monk/env.json`  // User environment
-        ];
-        
-        for (const configPath of configPaths) {
+        for (const configPath of MONK_CONFIG_PATHS) {
             try {
                 const configData = JSON.parse(readFileSync(configPath, 'utf8'));
                 
@@ -86,14 +89,4 @@ export class MonkEnv {
         return this.loaded;
     }
     
-    /**
-     * Get expected configuration file paths
-     * @returns Array of configuration file paths in order of precedence
-     */
-    static getConfigPaths(): string[] {
-        return [
-            './.config/monk/env.json',
-            `${process.env.HOME}/.config/monk/env.json`
-        ];
-    }
 }
