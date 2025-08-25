@@ -221,7 +221,7 @@ NEW TEST FILE PATTERN:
    fi
 
 2. Source auth helper:
-   source "$(dirname "$0")/../auth-helper.sh"
+   source "$(dirname "$0")/../helpers/auth-helper.sh"
 
 3. Authenticate and run tests:
    auth_as_user "root"              # Authenticate as root

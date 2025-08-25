@@ -2,8 +2,8 @@
 set -e
 
 # Auto-configure test environment
-source "$(dirname "$0")/../test-env-setup.sh"
-source "$(dirname "$0")/../auth-helper.sh"
+source "$(dirname "$0")/../helpers/test-env-setup.sh"
+source "$(dirname "$0")/../helpers/auth-helper.sh"
 
 if [ -z "$TEST_TENANT_NAME" ]; then
     echo "TEST_TENANT_NAME not available - run via scripts/test-one.sh"

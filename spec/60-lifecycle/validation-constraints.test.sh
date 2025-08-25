@@ -94,7 +94,7 @@ MIN_VALID_RECORD='{"name":"Min","description":"Minimum len","price":1,"category"
 MAX_VALID_RECORD='{"name":"Maximum Length Product Name That Approaches The Two Hundred Character Limit For Product Names In Our Enhanced Schema Definition Which Tests The Upper Boundaries","description":"This is a very long product description that tests the maximum length constraint of one thousand characters. It contains detailed information about the product features, specifications, benefits, and usage instructions. The description includes technical details, compatibility information, warranty terms, and other important product information that customers need to make informed purchasing decisions. This comprehensive description ensures we are testing the upper limit of the description field constraint while providing meaningful content that would be realistic in a production environment.","price":99999999,"category":"electronics","sku":"MAX-PRODUCT-SKU-001","weight_kg":999.999,"rating":5,"barcode":"12345678901234567890"}'
 
 # Load authentication helper
-source "$(dirname "$0")/../auth-helper.sh"
+source "$(dirname "$0")/../helpers/auth-helper.sh"
 
 echo "=== Validation Constraints Test ==="
 echo "Testing schema: $SCHEMA_NAME"

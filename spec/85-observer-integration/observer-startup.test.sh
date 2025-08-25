@@ -2,7 +2,7 @@
 set -e
 
 # Auto-configure test environment
-source "$(dirname "$0")/../test-env-setup.sh"
+source "$(dirname "$0")/../helpers/test-env-setup.sh"
 
 echo "=== Observer System Startup Test ==="
 echo "Testing observer system initialization and loading"

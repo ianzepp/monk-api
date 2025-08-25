@@ -154,7 +154,7 @@ INVALID_TIGHT_DATA='{"domain": "test", "username": "Invalid-User!", "score": 150
 VALID_TIGHT_DATA='{"domain": "test", "username": "validuser", "score": 75, "category": "gold"}'
 
 # Load authentication helper
-source "$(dirname "$0")/../auth-helper.sh"
+source "$(dirname "$0")/../helpers/auth-helper.sh"
 
 echo "=== Schema Validation Change Test ==="
 echo "Testing dynamic constraint modification scenarios"
