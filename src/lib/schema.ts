@@ -1,6 +1,7 @@
 import { type FilterData } from '@lib/filter.js';
 import { type TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
+import { isSystemField } from '@lib/metabase.js';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
@@ -83,6 +84,47 @@ export class Schema {
     }
 
     /**
+     * Preprocess schema definition to allow null values for non-required fields.
+     * This allows generators to return null for optional fields without validation errors.
+     */
+    private preprocessSchemaForNullability(definition: any): any {
+        // Deep clone to avoid modifying original
+        const processed = JSON.parse(JSON.stringify(definition));
+        const required = processed.required || [];
+        
+        if (processed.properties) {
+            for (const [fieldName, propertyDef] of Object.entries(processed.properties)) {
+                const property = propertyDef as any;
+                // Skip system fields (they're handled separately) and required fields
+                if (!required.includes(fieldName) && !isSystemField(fieldName)) {
+                    // For enum fields, we need to use anyOf to allow null
+                    if (property.enum) {
+                        // Convert enum to anyOf that allows null or the enum values
+                        processed.properties[fieldName] = {
+                            anyOf: [
+                                { type: 'null' },
+                                { enum: property.enum }
+                            ]
+                        };
+                        // Preserve other properties like description
+                        if (property.description) {
+                            processed.properties[fieldName].description = property.description;
+                        }
+                    } else if (typeof property.type === 'string') {
+                        // Convert "string" to ["string", "null"]
+                        property.type = [property.type, 'null'];
+                    } else if (Array.isArray(property.type) && !property.type.includes('null')) {
+                        // Add "null" to existing type array if not already present
+                        property.type.push('null');
+                    }
+                }
+            }
+        }
+        
+        return processed;
+    }
+
+    /**
      * Validate record data against this schema's JSON Schema definition
      */
     isValid(recordData: any): { valid: boolean; errors?: ErrorObject[] } {
@@ -94,8 +136,12 @@ export class Schema {
         // Get or compile validator
         if (!this.cachedValidator) {
             const ajv = Schema.getAjv();
-            this.cachedValidator = ajv.compile(this.definition);
-            console.debug(`Schema '${this.schemaName}': compiled validator`);
+            
+            // Preprocess schema to allow nulls for non-required fields
+            const processedDefinition = this.preprocessSchemaForNullability(this.definition);
+            
+            this.cachedValidator = ajv.compile(processedDefinition);
+            console.debug(`Schema '${this.schemaName}': compiled validator with nullable support for non-required fields`);
         }
 
         // Validate the data

@@ -2,6 +2,11 @@ title: Account
 description: User account schema for testing data operations and authentication scenarios
 type: object
 properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique account identifier
+    example: "550e8400-e29b-41d4-a716-446655440000"
   name:
     type: string
     minLength: 2
@@ -16,7 +21,7 @@ properties:
     example: "john.smith@example.com"
   username:
     type: string
-    pattern: "^[a-zA-Z0-9_-]{3,30}$"
+    pattern: "^[a-zA-Z0-9_-]{3,50}$"
     description: Unique username for login
     example: "jsmith"
   account_type:
@@ -27,6 +32,7 @@ properties:
   balance:
     type: number
     minimum: 0
+    maximum: 1000000
     default: 0.00
     description: Account balance in USD
     example: 150.75
@@ -42,12 +48,12 @@ properties:
     type: number
     minimum: 0
     maximum: 10000
-    description: Credit limit for business accounts
+    description: Credit limit for business accounts (null for personal/trial)
     example: 1000.00
   last_login:
     type: string
     format: date-time
-    description: Timestamp of last login
+    description: Timestamp of last login (null if never logged in)
     example: "2024-01-15T10:30:00Z"
   preferences:
     type: object
@@ -61,13 +67,20 @@ properties:
         default: "light"
       language:
         type: string
+        enum: ["en", "es"]
         default: "en"
     description: User preferences and settings
   metadata:
     type: object
     description: Additional flexible metadata
     additionalProperties: true
+  phone:
+    type: string
+    pattern: "^\\+?[1-9]\\d{1,14}$|^\\+?1 \\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$"
+    description: Phone number (optional)
+    example: "+1 (555) 123-4567"
 required:
+  - id
   - name
   - email
   - username
