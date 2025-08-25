@@ -41,7 +41,7 @@ export class ObserverRunner {
     async execute(
         system: System,
         operation: OperationType,
-        schemaName: string,
+        schema: Schema,
         data: any[],
         existing?: any[],
         depth: number = 0,
@@ -49,10 +49,10 @@ export class ObserverRunner {
     ): Promise<ObserverResult> {
         const startTime = Date.now();
         
-        // Load Schema object before creating context (moved from Database.toSchema)
-        const schemaObj = await this.loadSchemaObject(system, schemaName);
+        // Schema object already resolved by Database.runObserverPipeline()
+        const schemaName = schema.name;
         
-        const context = this._createContext(system, operation, schemaName, schemaObj, data, existing, filter);
+        const context = this._createContext(system, operation, schemaName, schema, data, existing, filter);
         const stats: ObserverStats[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
@@ -316,20 +316,4 @@ export class ObserverRunner {
         );
     }
 
-    /**
-     * Load Schema object from SchemaCache (moved from Database.toSchema)
-     */
-    private async loadSchemaObject(system: System, schemaName: string): Promise<Schema> {
-        const logger = new Logger();
-        logger.info('Loading schema for observer pipeline', { schemaName });
-        
-        const schemaCache = SchemaCache.getInstance();
-        const schemaRecord = await schemaCache.getSchema(system, schemaName);
-        
-        // Create Schema instance with validation capabilities
-        const schema = new Schema(system, schemaName, schemaRecord);
-        logger.info('Schema loaded for observer pipeline', { schemaName });
-        
-        return schema;
-    }
 }

@@ -316,7 +316,7 @@ export class Database {
      */
     private async runObserverPipeline(
         operation: OperationType,
-        schema: string,
+        schemaName: string,
         data: any[],
         depth: number = 0
     ): Promise<any[]> {
@@ -325,10 +325,13 @@ export class Database {
             throw new ObserverRecursionError(depth, Database.SQL_MAX_RECURSION);
         }
 
-        console.debug(`🔄 Starting observer pipeline: ${operation} on ${schema} (${data.length} records, depth ${depth})`);
+        console.debug(`🔄 Starting observer pipeline: ${operation} on ${schemaName} (${data.length} records, depth ${depth})`);
+        
+        // 🎯 SINGLE POINT: Convert schemaName → schema object here
+        const schema = await this.toSchema(schemaName);
         
         try {
-            // Execute observer pipeline (SQL Observer may start transaction)
+            // Execute observer pipeline with resolved schema object
             const result = await this.executeObserverPipeline(operation, schema, data, depth + 1);
             
             // Commit transaction if one was started by SQL Observer
@@ -337,7 +340,7 @@ export class Database {
                 
                 this.system.info('Transaction committed successfully', {
                     operation,
-                    schemaName: schema,
+                    schemaName: schema.name,
                     recordCount: data.length
                 });
                 
@@ -351,7 +354,7 @@ export class Database {
             return result;
             
         } catch (error) {
-            console.error(`💥 Observer pipeline failed: ${operation} on ${schema}`, error);
+            console.error(`💥 Observer pipeline failed: ${operation} on ${schema.name}`, error);
             
             // Rollback transaction if one was started
             if (this.system.tx) {
@@ -360,13 +363,13 @@ export class Database {
                     
                     this.system.warn('Transaction rolled back due to observer pipeline failure', {
                         operation,
-                        schemaName: schema,
+                        schemaName: schema.name,
                         error: error instanceof Error ? error.message : String(error)
                     });
                 } catch (rollbackError) {
                     this.system.warn('Failed to rollback transaction after observer failure', {
                         operation,
-                        schemaName: schema,
+                        schemaName: schema.name,
                         originalError: error instanceof Error ? error.message : String(error),
                         rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
                     });
@@ -388,7 +391,7 @@ export class Database {
      */
     private async executeObserverPipeline(
         operation: OperationType,
-        schema: string,
+        schema: Schema,
         data: any[],
         depth: number
     ): Promise<any[]> {
