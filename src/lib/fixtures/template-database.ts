@@ -10,12 +10,13 @@
 import { Client } from 'pg';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-export interface TenantInfo {
-  name: string;
-  host: string;
-  database: string;
-}
+import type { TenantInfo } from '../services/tenant.js';
+
+// Re-export for convenience
+export type { TenantInfo };
 
 export class TemplateDatabase {
   private static readonly TEMPLATE_PREFIX = 'monk-api$test-template-';
@@ -242,33 +243,53 @@ export class TemplateDatabase {
   }
   
   /**
-   * Build basic template with account and contact schemas
+   * Build template from fixture definition
    */
-  static async buildBasicTemplate(): Promise<void> {
-    const templateName = 'basic';
-    
-    console.log(`🔨 Building basic template...`);
+  static async buildTemplateFromFixture(fixtureName: string): Promise<void> {
+    console.log(`🔨 Building template from fixture: ${fixtureName}`);
     
     // Create template database
-    await this.createTemplateDatabase(templateName);
+    const templateDbName = await this.createTemplateDatabase(fixtureName);
     
-    // Get path to schema files (fail fast if missing)
-    const accountSchemaPath = join(process.cwd(), 'test/fixtures/schema/account.yaml');
-    const contactSchemaPath = join(process.cwd(), 'test/fixtures/schema/contact.yaml');
+    // Create tenant info for template operations
+    const templateTenant: TenantInfo = {
+      name: `template-${fixtureName}`,
+      host: 'localhost',
+      database: templateDbName
+    };
     
-    if (!existsSync(accountSchemaPath)) {
-      throw new Error(`Schema file not found: ${accountSchemaPath}`);
+    try {
+      // Import FixtureManager dynamically to avoid circular dependencies
+      const { FixtureManager } = await import('./fixture-manager.js');
+      
+      // Load fixture definition
+      const fixture = await FixtureManager.loadFixtureDefinition(fixtureName);
+      console.log(`📋 Loaded fixture definition: ${fixture.description}`);
+      
+      // Build fixture data
+      const fixtureData = await FixtureManager.buildFixtureData(fixture);
+      
+      // Build template with data
+      await FixtureManager.buildTemplateWithData(fixtureName, fixtureData, templateTenant, true);
+      
+      console.log(`✅ Template built from fixture: ${templateDbName}`);
+      console.log(`📊 Total records: ${fixtureData.metadata.total_records}`);
+      console.log(`📈 Schemas: ${Object.keys(fixtureData.schemas).join(', ')}`);
+      
+    } catch (error) {
+      // Leave template database for debugging as requested
+      console.error(`❌ Template building failed: ${fixtureName}`);
+      console.error('Template database left for debugging. Use `npm run fixtures:clean` to remove.');
+      throw error;
     }
-    
-    if (!existsSync(contactSchemaPath)) {
-      throw new Error(`Schema file not found: ${contactSchemaPath}`);
-    }
-    
-    // TODO: Add schema and data population
-    // This will be implemented when we have the test helper infrastructure
-    // For now, just create the empty template database
-    
-    console.log(`✅ Basic template built: ${this.getTemplateDbName(templateName)}`);
+  }
+  
+  /**
+   * Build basic template with account and contact schemas (legacy method)
+   */
+  static async buildBasicTemplate(): Promise<void> {
+    // Use fixture-based building for consistency
+    await this.buildTemplateFromFixture('basic');
   }
   
   // ==========================================
@@ -313,6 +334,8 @@ export class TemplateDatabase {
       await client.connect();
       
       // Load and execute init-tenant.sql
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
       const sqlPath = join(__dirname, '../../../sql/init-tenant.sql');
       
       if (!existsSync(sqlPath)) {

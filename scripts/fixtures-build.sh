@@ -9,11 +9,7 @@ echo "🔨 Building template databases..."
 echo "📦 Compiling TypeScript..."
 npm run compile
 
-# Build basic template
-echo "🏗️  Building basic template..."
-node -e "
-import { TemplateDatabase } from './dist/lib/fixtures/template-database.js';
-await TemplateDatabase.buildBasicTemplate();
-"
+# Build templates using dedicated TypeScript file
+npx tsx src/scripts/fixtures-build.ts
 
 echo "✅ Template databases built successfully"
