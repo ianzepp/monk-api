@@ -19,6 +19,7 @@ import { BaseObserver } from '@observers/base-observer.js';
 import { ObserverRing } from '@observers/types.js';
 import { SystemError } from '@observers/errors.js';
 import { FilterWhere } from '@lib/filter-where.js';
+import { logger } from '@lib/logger.js';
 import crypto from 'crypto';
 
 export class SqlObserver extends BaseObserver {
@@ -343,7 +344,10 @@ export class SqlObserver extends BaseObserver {
                             } catch (error) {
                                 // If JSON parsing fails, leave as string
                                 // This handles edge cases where JSONB might return malformed data
-                                console.warn(`Failed to parse JSONB field '${fieldName}':`, error);
+                                logger.warn('Failed to parse JSONB field', { 
+                                    fieldName, 
+                                    error: error instanceof Error ? error.message : String(error) 
+                                });
                             }
                         }
                         // If already an object/array, leave as-is (normal PostgreSQL JSONB behavior)

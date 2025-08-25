@@ -12,6 +12,7 @@ import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { DatabaseConnection } from '../database-connection.js';
+import { logger } from '@lib/logger.js';
 import pg from 'pg';
 
 import type { TenantInfo } from '../services/tenant.js';
@@ -100,11 +101,11 @@ export class TemplateDatabase {
     
     // Check if template already exists
     if (await this.databaseExists(templateDbName)) {
-      console.log(`Template database already exists: ${templateDbName}`);
+      logger.info(`Template database already exists: ${templateDbName}`);
       return templateDbName;
     }
     
-    console.log(`Creating template database: ${templateDbName}`);
+    logger.info(`Creating template database: ${templateDbName}`);
     
     // Create the PostgreSQL database
     await this.createDatabase(templateDbName);
@@ -113,13 +114,16 @@ export class TemplateDatabase {
       // Initialize template database with tenant schema and root user
       await this.initializeTemplateDatabase(templateName);
       
-      console.log(`✅ Template database created: ${templateDbName}`);
+      logger.info(`✅ Template database created: ${templateDbName}`);
       return templateDbName;
       
     } catch (error) {
       // Leave artifacts for debugging as requested
-      console.error(`❌ Template database creation failed: ${templateDbName}`);
-      console.error('Template database left for debugging. Use `npm run fixtures:clean` to remove.');
+      logger.warn('Template database creation failed', { 
+        templateDbName, 
+        error: error instanceof Error ? error.message : String(error),
+        debugNote: 'Template database left for debugging. Use `npm run fixtures:clean` to remove.'
+      });
       throw error;
     }
   }
@@ -141,12 +145,12 @@ export class TemplateDatabase {
       throw new Error(`Tenant database '${tenantDbName}' already exists`);
     }
     
-    console.log(`⚡ Cloning tenant database from template: ${tenantDbName} (template: ${templateDbName})`);
+    logger.info(`⚡ Cloning tenant database from template: ${tenantDbName} (template: ${templateDbName})`);
     
     // Fast clone using PostgreSQL template feature
     await this.cloneDatabaseFromTemplate(templateDbName, tenantDbName);
     
-    console.log(`✅ Tenant database cloned: ${tenantDbName}`);
+    logger.info(`✅ Tenant database cloned: ${tenantDbName}`);
     
     return {
       name: tenantName,
@@ -179,13 +183,13 @@ export class TemplateDatabase {
     const templateDbName = this.getTemplateDbName(templateName);
     
     if (!await this.databaseExists(templateDbName)) {
-      console.log(`Template database does not exist: ${templateDbName}`);
+      logger.info(`Template database does not exist: ${templateDbName}`);
       return;
     }
     
-    console.log(`🗑️  Dropping template database: ${templateDbName}`);
+    logger.info(`🗑️  Dropping template database: ${templateDbName}`);
     await this.dropDatabase(templateDbName);
-    console.log(`✅ Template database dropped: ${templateDbName}`);
+    logger.info(`✅ Template database dropped: ${templateDbName}`);
   }
   
   /**
@@ -199,27 +203,27 @@ export class TemplateDatabase {
       : templates;
     
     if (templatesToClean.length === 0) {
-      console.log(pattern 
+      logger.info(pattern 
         ? `No templates found matching pattern: ${pattern}`
         : 'No templates found to clean'
       );
       return;
     }
     
-    console.log(`🧹 Cleaning ${templatesToClean.length} template(s)...`);
+    logger.info(`🧹 Cleaning ${templatesToClean.length} template(s)...`);
     
     for (const templateName of templatesToClean) {
       await this.dropTemplate(templateName);
     }
     
-    console.log(`✅ Cleaned ${templatesToClean.length} template database(s)`);
+    logger.info(`✅ Cleaned ${templatesToClean.length} template database(s)`);
   }
   
   /**
    * Build template from fixture definition
    */
   static async buildTemplateFromFixture(fixtureName: string): Promise<void> {
-    console.log(`🔨 Building template from fixture: ${fixtureName}`);
+    logger.info(`🔨 Building template from fixture: ${fixtureName}`);
     
     // Create template database
     const templateDbName = await this.createTemplateDatabase(fixtureName);
@@ -237,7 +241,7 @@ export class TemplateDatabase {
       
       // Load fixture definition
       const fixture = await FixtureManager.loadFixtureDefinition(fixtureName);
-      console.log(`📋 Loaded fixture definition: ${fixture.description}`);
+      logger.info(`📋 Loaded fixture definition: ${fixture.description}`);
       
       // Build fixture data
       const fixtureData = await FixtureManager.buildFixtureData(fixture);
@@ -245,14 +249,18 @@ export class TemplateDatabase {
       // Build template with data
       await FixtureManager.buildTemplateWithData(fixtureName, fixtureData, templateTenant, true);
       
-      console.log(`✅ Template built from fixture: ${templateDbName}`);
-      console.log(`📊 Total records: ${fixtureData.metadata.total_records}`);
-      console.log(`📈 Schemas: ${Object.keys(fixtureData.schemas).join(', ')}`);
+      logger.info(`✅ Template built from fixture: ${templateDbName}`);
+      logger.info(`📊 Total records: ${fixtureData.metadata.total_records}`);
+      logger.info(`📈 Schemas: ${Object.keys(fixtureData.schemas).join(', ')}`);
       
     } catch (error) {
       // Leave template database for debugging as requested
-      console.error(`❌ Template building failed: ${fixtureName}`);
-      console.error('Template database left for debugging. Use `npm run fixtures:clean` to remove.');
+      logger.warn('Template building failed', { 
+        fixtureName, 
+        templateDbName,
+        error: error instanceof Error ? error.message : String(error),
+        debugNote: 'Template database left for debugging. Use `npm run fixtures:clean` to remove.'
+      });
       throw error;
     }
   }

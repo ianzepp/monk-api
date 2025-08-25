@@ -60,7 +60,12 @@ export class ObserverRunner {
             // Get relevant rings for this operation (selective execution)
             const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
             
-            console.debug(`🎯 Executing ${relevantRings.length} relevant rings for ${operation}: [${relevantRings.join(', ')}]`);
+            system.info('Observer rings executing', { 
+                operation, 
+                schemaName: schema.name, 
+                ringCount: relevantRings.length, 
+                rings: relevantRings 
+            });
             
             // Execute only relevant rings for this operation
             for (const ring of relevantRings) {
@@ -140,7 +145,16 @@ export class ObserverRunner {
             stats
         };
 
-        console.debug(`🏁 Observer execution complete: ${success ? 'SUCCESS' : 'FAILED'} (${totalTime}ms)`);
+        context.system.info('Observer execution completed', { 
+            success, 
+            operation: context.operation,
+            schemaName: context.schema.name,
+            totalTimeMs: totalTime,
+            ringsExecuted: ringsExecuted.length,
+            observersExecuted: stats.length,
+            errorCount: context.errors.length,
+            warningCount: context.warnings.length
+        });
 
         return {
             success,
@@ -159,7 +173,12 @@ export class ObserverRunner {
         error: unknown,
         totalTime: number
     ): ObserverResult {
-        console.error('❌ Observer execution failed:', error);
+        context.system.warn('Observer execution failed', {
+            operation: context.operation,
+            schemaName: context.schema.name,
+            totalTimeMs: totalTime,
+            error: error instanceof Error ? error.message : String(error)
+        });
         
         return {
             success: false,
@@ -180,7 +199,11 @@ export class ObserverRunner {
         context: ObserverContext, 
         stats: ObserverStats[]
     ): Promise<void> {
-        console.debug(`🎯 DATABASE RING (${DATABASE_RING}): Executing SQL operation`);
+        context.system.info('Database ring executing', { 
+            ring: DATABASE_RING, 
+            operation: context.operation,
+            schemaName: context.schema.name 
+        });
         
         const dbStats = await this._executeObserver(this.sqlObserver, context);
         if (this.collectStats) {
@@ -237,8 +260,6 @@ export class ObserverRunner {
                 observer.executeTry(context),
                 this._createTimeoutPromise(timeout, observer.name || 'unnamed')
             ]);
-
-            console.debug(`✅ Observer executed: ${observer.name} (ring ${observer.ring})`);
 
         } catch (error) {
             success = false;
