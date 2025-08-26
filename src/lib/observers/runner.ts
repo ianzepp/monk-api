@@ -5,27 +5,27 @@
  * timeout protection, and performance monitoring.
  */
 
-import type { System } from '@lib/system.js';
-import { Schema, type SchemaName } from '@lib/schema.js';
-import { SchemaCache } from '@lib/schema-cache.js';
-import { Logger } from '@lib/logger.js';
+import type { System } from '@src/lib/system.js';
+import { Schema, type SchemaName } from '@src/lib/schema.js';
+import { SchemaCache } from '@src/lib/schema-cache.js';
+import { Logger } from '@src/lib/logger.js';
 import type { 
     Observer, 
     ObserverContext, 
     ObserverStats, 
     ObserverExecutionSummary 
-} from './interfaces.js';
+} from '@src/lib/observers/interfaces.js';
 import type { 
     ObserverRing, 
     OperationType, 
     ObserverResult
-} from './types.js';
-import { RING_OPERATION_MATRIX } from './types.js';
-import { ValidationError } from './errors.js';
-import type { ValidationWarning } from './errors.js';
-import { DATABASE_RING } from './types.js';
-import { ObserverLoader } from './loader.js';
-import { SqlObserver } from './sql-observer.js';
+} from '@src/lib/observers/types.js';
+import { RING_OPERATION_MATRIX } from '@src/lib/observers/types.js';
+import { ValidationError } from '@src/lib/observers/errors.js';
+import type { ValidationWarning } from '@src/lib/observers/errors.js';
+import { DATABASE_RING } from '@src/lib/observers/types.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
+import { SqlObserver } from '@src/lib/observers/sql-observer.js';
 
 /**
  * Observer execution engine with ring-based execution
@@ -60,7 +60,7 @@ export class ObserverRunner {
             // Get relevant rings for this operation (selective execution)
             const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
             
-            system.info('Observer rings executing', { 
+            logger.info('Observer rings executing', { 
                 operation, 
                 schemaName: schema.name, 
                 ringCount: relevantRings.length, 
@@ -145,7 +145,7 @@ export class ObserverRunner {
             stats
         };
 
-        context.system.info('Observer execution completed', { 
+        logger.info('Observer execution completed', { 
             success, 
             operation: context.operation,
             schemaName: context.schema.name,
@@ -173,7 +173,7 @@ export class ObserverRunner {
         error: unknown,
         totalTime: number
     ): ObserverResult {
-        context.system.warn('Observer execution failed', {
+        logger.warn('Observer execution failed', {
             operation: context.operation,
             schemaName: context.schema.name,
             totalTimeMs: totalTime,
@@ -199,7 +199,7 @@ export class ObserverRunner {
         context: ObserverContext, 
         stats: ObserverStats[]
     ): Promise<void> {
-        context.system.info('Database ring executing', { 
+        logger.info('Database ring executing', { 
             ring: DATABASE_RING, 
             operation: context.operation,
             schemaName: context.schema.name 

@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
-import { TenantService } from '@lib/services/tenant.js';
-import { logger } from '@lib/logger.js';
+import { TenantService } from '@src/lib/services/tenant.js';
+import { logger } from '@src/lib/logger.js';
 
 /**
  * POST /api/root/tenant - Create new tenant (localhost development only)

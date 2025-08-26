@@ -7,9 +7,9 @@
  * Useful for validating that templates contain proper fixture data.
  */
 
-import { TemplateDatabase } from '../lib/fixtures/template-database.js';
-import { DatabaseConnection } from '../lib/database-connection.js';
-import { MonkEnv } from '../lib/monk-env.js';
+import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { MonkEnv } from '@src/lib/monk-env.js';
 import pg from 'pg';
 
 async function testTemplateData(templateName: string): Promise<void> {

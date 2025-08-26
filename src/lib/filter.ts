@@ -1,7 +1,7 @@
 import { db, type DbContext, type TxContext } from '@src/db/index.js';
-import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
-import { FilterWhere } from '@lib/filter-where.js';
-import { FilterOrder } from '@lib/filter-order.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
+import { FilterWhere } from '@src/lib/filter-where.js';
+import { FilterOrder } from '@src/lib/filter-order.js';
 
 /**
  * Filter - Enterprise-Grade Database Query Builder
@@ -469,7 +469,7 @@ export class Filter {
      * Use system.database.selectAny(schema, filterData) for proper architecture.
      */
     async execute(): Promise<any[]> {
-        this.system.warn('Using deprecated Filter.execute() method - use Database.selectAny() instead');
+        logger.warn('Using deprecated Filter.execute() method - use Database.selectAny() instead');
         
         try {
             // Use toSQL() pattern for consistency
@@ -690,7 +690,7 @@ export class Filter {
                 const ninValues = Array.isArray(data) ? data : [data];
                 return `${quotedColumn} NOT IN (${ninValues.map(v => this.PARAM(v)).join(', ')})`;
             default:
-                this.system.warn('Unsupported filter operator', { operator: node.operator });
+                logger.warn('Unsupported filter operator', { operator: node.operator });
                 return '';
         }
     }
@@ -719,7 +719,7 @@ export class Filter {
                     : `NOT (${childClauses.join(' AND ')})`;
                     
             default:
-                this.system.warn('Unsupported logical operator', { operator: node.logicalOp });
+                logger.warn('Unsupported logical operator', { operator: node.logicalOp });
                 return '';
         }
     }
@@ -778,7 +778,7 @@ export class Filter {
                 const ninValues = Array.isArray(data) ? data : [data];
                 return `${quotedColumn} NOT IN (${ninValues.map(v => this.PARAM(v)).join(', ')})`;
             default:
-                this.system.warn('Unsupported filter operator', { operator });
+                logger.warn('Unsupported filter operator', { operator });
                 return null;
         }
     }

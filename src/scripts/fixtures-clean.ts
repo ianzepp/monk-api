@@ -6,7 +6,7 @@
  * Removes template databases by pattern or all templates.
  */
 
-import { TemplateDatabase } from '../lib/fixtures/template-database.js';
+import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
 
 async function cleanFixtures(pattern?: string): Promise<void> {
   if (pattern) {

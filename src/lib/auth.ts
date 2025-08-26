@@ -1,7 +1,8 @@
 import type { Context } from 'hono';
 import { jwt } from 'hono/jwt';
 import { sign, verify } from 'hono/jwt';
-import { DatabaseConnection } from './database-connection.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { MonkEnv } from '@src/lib/monk-env.js';
 import pg from 'pg';
 
 export interface JWTPayload {
@@ -19,9 +20,12 @@ export interface JWTPayload {
 }
 
 export class AuthService {
-    private static jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-this';
     private static tokenExpiry = 24 * 60 * 60; // 24 hours in seconds
     private static authPool: pg.Pool | null = null;
+
+    private static getJwtSecret(): string {
+        return MonkEnv.get('JWT_SECRET', undefined, true);
+    }
 
     // Get persistent auth database connection
     private static getAuthDatabase(): pg.Pool {
@@ -44,12 +48,12 @@ export class AuthService {
             exp: Math.floor(Date.now() / 1000) + this.tokenExpiry
         };
 
-        return await sign(payload, this.jwtSecret);
+        return await sign(payload, this.getJwtSecret());
     }
 
     // Verify and decode JWT token
     static async verifyToken(token: string): Promise<JWTPayload> {
-        return await verify(token, this.jwtSecret) as JWTPayload;
+        return await verify(token, this.getJwtSecret()) as JWTPayload;
     }
 
     // Login with tenant and username authentication
@@ -143,7 +147,7 @@ export class AuthService {
 
     // Get Hono JWT middleware
     static getJWTMiddleware() {
-        return jwt({ secret: this.jwtSecret });
+        return jwt({ secret: this.getJwtSecret() });
     }
 
     // Enhanced auth middleware with user context

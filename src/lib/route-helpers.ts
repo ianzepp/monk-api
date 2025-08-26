@@ -1,10 +1,10 @@
 import type { Context } from 'hono';
-import { createSchema } from './schema.js';
+import { createSchema } from '@src/lib/schema.js';
 import {
     createSuccessResponse,
     createNotFoundError,
     createInternalError,
-} from './api/responses.js';
+} from '@src/lib/api/responses.js';
 
 /**
  * Route handler utilities to reduce boilerplate while keeping logic visible

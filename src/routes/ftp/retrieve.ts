@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 // FTP Retrieve Transport Types
 export interface FtpRetrieveRequest {
@@ -92,7 +92,7 @@ export default async function ftpRetrieveHandler(context: Context): Promise<any>
     const system = context.get('system');
     const requestBody: FtpRetrieveRequest = await context.req.json();
     
-    system.info('FTP retrieve operation', { 
+    logger.info('FTP retrieve operation', { 
         path: requestBody.path,
         options: requestBody.ftp_options 
     });
@@ -191,7 +191,7 @@ export default async function ftpRetrieveHandler(context: Context): Promise<any>
             }
         };
         
-        system.info('FTP retrieve completed', {
+        logger.info('FTP retrieve completed', {
             path: requestBody.path,
             schema,
             recordId,
@@ -204,7 +204,7 @@ export default async function ftpRetrieveHandler(context: Context): Promise<any>
         setRouteResult(context, response);
         
     } catch (error) {
-        system.warn('FTP retrieve failed', {
+        logger.warn('FTP retrieve failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error)
         });

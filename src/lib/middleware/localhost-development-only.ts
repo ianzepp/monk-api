@@ -42,7 +42,7 @@ export const localhostDevelopmentOnlyMiddleware = async (context: Context, next:
   };
   
   if (system) {
-    system.warn(logMessage, logContext);
+    logger.warn(logMessage, logContext);
   } else {
     console.warn(logMessage, logContext);
   }

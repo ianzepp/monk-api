@@ -1,7 +1,7 @@
-import { type FilterData } from '@lib/filter.js';
+import { type FilterData } from '@src/lib/filter.js';
 import { type TxContext } from '@src/db/index.js';
-import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
-import { isSystemField } from '@lib/metabase.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
+import { isSystemField } from '@src/lib/metabase.js';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
@@ -70,7 +70,7 @@ export class Schema {
             // Add standard format validations (email, date-time, etc.)
             addFormats(Schema.ajv);
             
-            console.debug('Schema: AJV initialized with formats');
+            logger.info('Schema AJV initialized with formats');
         }
         return Schema.ajv;
     }
@@ -129,7 +129,7 @@ export class Schema {
      */
     isValid(recordData: any): { valid: boolean; errors?: ErrorObject[] } {
         if (!this.definition) {
-            this.system.warn('Schema definition not available for validation', { schema: this.schemaName });
+            logger.warn('Schema definition not available for validation', { schema: this.schemaName });
             return { valid: true }; // Allow if no definition
         }
 

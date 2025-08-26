@@ -13,11 +13,11 @@
  * Ring: 2 (Security) - Schema: all - Operations: update, delete
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import { SecurityError } from '@lib/observers/errors.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
-import RecordPreloader from '../0/record-preloader.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import { SecurityError } from '@src/lib/observers/errors.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import RecordPreloader from '@src/observers/all/0/record-preloader.js';
 
 export default class SoftDeleteProtector extends BaseObserver {
     readonly ring = ObserverRing.Security;
@@ -32,7 +32,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         
         // If preloading failed, we can't validate - let other observers handle
         if (RecordPreloader.hasPreloadError(context)) {
-            system.warn('Cannot validate soft delete protection - preload failed', {
+            logger.warn('Cannot validate soft delete protection - preload failed', {
                 schemaName,
                 operation,
                 requestedRecords: preloadStats.requestedCount
@@ -50,7 +50,7 @@ export default class SoftDeleteProtector extends BaseObserver {
             const trashedIds = trashedRecords.map(record => record.id);
             
             // Log detailed information about blocked operation
-            system.warn(`Blocked ${operation} on trashed records`, {
+            logger.warn(`Blocked ${operation} on trashed records`, {
                 schemaName,
                 operation,
                 trashedRecords: trashedIds.length,
@@ -74,7 +74,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         if (deletedRecords.length > 0) {
             const deletedIds = deletedRecords.map(record => record.id);
             
-            system.warn(`Blocked ${operation} on deleted records`, {
+            logger.warn(`Blocked ${operation} on deleted records`, {
                 schemaName,
                 operation,
                 deletedRecords: deletedIds.length,
@@ -96,7 +96,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         metadata.set('trashed_record_count', 0);
         metadata.set('deleted_record_count', 0);
         
-        system.info('Soft delete protection check passed', {
+        logger.info('Soft delete protection check passed', {
             schemaName,
             operation,
             checkedRecords: existingRecords.length,

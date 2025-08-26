@@ -5,14 +5,14 @@
  * observer definitions, and execution contracts.
  */
 
-import type { System } from '@lib/system.js';
-import type { Schema } from '@lib/schema.js';
+import type { System } from '@src/lib/system.js';
+import type { Schema } from '@src/lib/schema.js';
 import type { 
     ObserverRing, 
     OperationType, 
     ObserverResult 
-} from './types.js';
-import type { ValidationError, ValidationWarning } from './errors.js';
+} from '@src/lib/observers/types.js';
+import type { ValidationError, ValidationWarning } from '@src/lib/observers/errors.js';
 
 /**
  * Shared context passed through all observer rings

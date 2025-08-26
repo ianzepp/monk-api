@@ -1,11 +1,11 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 export default async function (context: Context) {
     const system = context.get('system');
     const schemaName = context.req.param('name');
     
-    console.debug(`DELETE /api/meta/schema/${schemaName}`);
+    logger.info('Meta schema delete', { schemaName });
     
     // Delete schema via Metabase
     const result = await system.metabase.deleteOne(schemaName);

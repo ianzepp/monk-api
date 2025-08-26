@@ -5,10 +5,10 @@
  * Ring: 1 (Input Validation) - Schema: % (all schemas) - Operations: create, update
  */
 
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import { ObserverRing } from '@lib/observers/types.js';
-import { ValidationError } from '@lib/observers/errors.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import { ValidationError } from '@src/lib/observers/errors.js';
 
 export default class RequiredFieldsValidator extends BaseObserver {
     ring = ObserverRing.InputValidation;

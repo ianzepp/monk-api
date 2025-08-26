@@ -1,13 +1,13 @@
 import { db, builtins, type DbContext, type TxContext } from '@src/db/index.js';
-import { Schema, type SchemaName } from '@lib/schema.js';
-import { Filter, type FilterData } from '@lib/filter.js';
-import { DatabaseManager } from '@lib/database-manager.js';
+import { Schema, type SchemaName } from '@src/lib/schema.js';
+import { Filter, type FilterData } from '@src/lib/filter.js';
+import { DatabaseManager } from '@src/lib/database-manager.js';
 import type { Context } from 'hono';
-import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
-import { SchemaCache } from '@lib/schema-cache.js';
-import { ObserverRunner } from '@lib/observers/runner.js';
-import { ObserverRecursionError, SystemError } from '@lib/observers/errors.js';
-import type { OperationType } from '@lib/observers/types.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
+import { SchemaCache } from '@src/lib/schema-cache.js';
+import { ObserverRunner } from '@src/lib/observers/runner.js';
+import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
+import type { OperationType } from '@src/lib/observers/types.js';
 import crypto from 'crypto';
 
 /**
@@ -325,7 +325,7 @@ export class Database {
 
         const startTime = Date.now();
         
-        this.system.info('Observer pipeline started', { 
+        logger.info('Observer pipeline started', { 
             operation, 
             schemaName, 
             recordCount: data.length, 
@@ -343,7 +343,7 @@ export class Database {
             if (this.system.tx) {
                 await this.system.tx.query('COMMIT');
                 
-                this.system.info('Transaction committed successfully', {
+                logger.info('Transaction committed successfully', {
                     operation,
                     schemaName: schema.name,
                     recordCount: data.length
@@ -358,7 +358,7 @@ export class Database {
             
             // Performance timing for successful pipeline
             const duration = Date.now() - startTime;
-            this.system.info('Observer pipeline completed', {
+            logger.info('Observer pipeline completed', {
                 operation,
                 schemaName: schema.name,
                 recordCount: data.length,
@@ -369,7 +369,7 @@ export class Database {
             return result;
             
         } catch (error) {
-            this.system.warn('Observer pipeline failed', {
+            logger.warn('Observer pipeline failed', {
                 operation,
                 schemaName: schema.name,
                 recordCount: data.length,
@@ -382,13 +382,13 @@ export class Database {
                 try {
                     await this.system.tx.query('ROLLBACK');
                     
-                    this.system.warn('Transaction rolled back due to observer pipeline failure', {
+                    logger.warn('Transaction rolled back due to observer pipeline failure', {
                         operation,
                         schemaName: schema.name,
                         error: error instanceof Error ? error.message : String(error)
                     });
                 } catch (rollbackError) {
-                    this.system.warn('Failed to rollback transaction after observer failure', {
+                    logger.warn('Failed to rollback transaction after observer failure', {
                         operation,
                         schemaName: schema.name,
                         originalError: error instanceof Error ? error.message : String(error),
@@ -451,7 +451,7 @@ export class Database {
             if (allowedFields.includes(key)) {
                 filteredChanges[key] = value;
             } else {
-                this.system.warn('Ignoring non-access field in accessOne', { field: key });
+                logger.warn('Ignoring non-access field in accessOne', { field: key });
             }
         }
 

@@ -20,7 +20,7 @@
  */
 
 import { createHash } from 'crypto';
-import type { WildcardTranslation } from './wildcard-translator.js';
+import type { WildcardTranslation } from '@src/ftp/wildcard-translator.js';
 
 export interface PatternCacheEntry {
     pattern: string;                // Original FTP pattern

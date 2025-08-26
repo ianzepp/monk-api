@@ -1,30 +1,34 @@
 // Load monk configuration into process.env before other imports
-import { MonkEnv } from './lib/monk-env.js';
+import { MonkEnv } from '@src/lib/monk-env.js';
 MonkEnv.loadIntoProcessEnv();
+
+// Set up global logger instance
+import { logger } from '@src/lib/logger.js';
+global.logger = logger;
 
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { checkDatabaseConnection, closeDatabaseConnection } from './db/index.js';
-import { createSuccessResponse, createInternalError } from './lib/api/responses.js';
+import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
+import { createSuccessResponse, createInternalError } from '@src/lib/api/responses.js';
 // Data API handlers
-import DataSchemaPost from './routes/data/:schema/POST.js';           // POST /api/data/:schema
-import DataSchemaGet from './routes/data/:schema/GET.js';             // GET /api/data/:schema
-import DataSchemaPut from './routes/data/:schema/PUT.js';             // PUT /api/data/:schema
-import DataSchemaDelete from './routes/data/:schema/DELETE.js';       // DELETE /api/data/:schema
-import DataSchemaIdGet from './routes/data/:schema/:id/GET.js';       // GET /api/data/:schema/:id
-import DataSchemaIdPut from './routes/data/:schema/:id/PUT.js';       // PUT /api/data/:schema/:id
-import DataSchemaIdDelete from './routes/data/:schema/:id/DELETE.js'; // DELETE /api/data/:schema/:id
+import DataSchemaPost from '@src/routes/data/:schema/POST.js';           // POST /api/data/:schema
+import DataSchemaGet from '@src/routes/data/:schema/GET.js';             // GET /api/data/:schema
+import DataSchemaPut from '@src/routes/data/:schema/PUT.js';             // PUT /api/data/:schema
+import DataSchemaDelete from '@src/routes/data/:schema/DELETE.js';       // DELETE /api/data/:schema
+import DataSchemaIdGet from '@src/routes/data/:schema/:id/GET.js';       // GET /api/data/:schema/:id
+import DataSchemaIdPut from '@src/routes/data/:schema/:id/PUT.js';       // PUT /api/data/:schema/:id
+import DataSchemaIdDelete from '@src/routes/data/:schema/:id/DELETE.js'; // DELETE /api/data/:schema/:id
 
 // Meta API handlers  
-import MetaSchemaPost from './routes/meta/schema/POST.js';             // POST /api/meta/schema
-import MetaSchemaNameGet from './routes/meta/schema/:name/GET.js';     // GET /api/meta/schema/:name
-import MetaSchemaNamePut from './routes/meta/schema/:name/PUT.js';     // PUT /api/meta/schema/:name
-import MetaSchemaNameDelete from './routes/meta/schema/:name/DELETE.js'; // DELETE /api/meta/schema/:name
+import MetaSchemaPost from '@src/routes/meta/schema/POST.js';             // POST /api/meta/schema
+import MetaSchemaNameGet from '@src/routes/meta/schema/:name/GET.js';     // GET /api/meta/schema/:name
+import MetaSchemaNamePut from '@src/routes/meta/schema/:name/PUT.js';     // PUT /api/meta/schema/:name
+import MetaSchemaNameDelete from '@src/routes/meta/schema/:name/DELETE.js'; // DELETE /api/meta/schema/:name
 
 // Auth handlers
-import AuthLoginPost from './routes/auth/login/POST.js';               // POST /auth/login
-import AuthRefreshPost from './routes/auth/refresh/POST.js';           // POST /auth/refresh
-import AuthMeGet from './routes/auth/me/GET.js';                       // GET /auth/me
+import AuthLoginPost from '@src/routes/auth/login/POST.js';               // POST /auth/login
+import AuthRefreshPost from '@src/routes/auth/refresh/POST.js';           // POST /auth/refresh
+import AuthMeGet from '@src/routes/auth/me/GET.js';                       // GET /auth/me
 
 // FTP Middleware handlers
 import FtpListPost from '@src/routes/ftp/list.js';                        // POST /ftp/list
@@ -33,20 +37,19 @@ import FtpStorePost from '@src/routes/ftp/store.js';                      // POS
 import FtpStatPost from '@src/routes/ftp/stat.js';                        // POST /ftp/stat
 
 // Special endpoints
-import BulkPost from './routes/bulk/POST.js';                          // POST /api/bulk
-import FindSchemaPost from './routes/find/:schema/POST.js';            // POST /api/find/:schema
-import PingGet from './routes/ping/GET.js';                            // GET /ping
-import { AuthService } from './lib/auth.js';
-import { logger } from './lib/logger.js';
-import { ObserverLoader } from '@observers/loader.js';
+import BulkPost from '@src/routes/bulk/POST.js';                          // POST /api/bulk
+import FindSchemaPost from '@src/routes/find/:schema/POST.js';            // POST /api/find/:schema
+import PingGet from '@src/routes/ping/GET.js';                            // GET /ping
+import { AuthService } from '@src/lib/auth.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { 
     systemContextMiddleware, 
     responseJsonMiddleware, 
     responseYamlMiddleware,
     responseFileMiddleware 
-} from '@lib/middleware/system-context.js';
-import { localhostDevelopmentOnlyMiddleware } from '@lib/middleware/localhost-development-only.js';
-import { rootRouter } from '@routes/root/index.js';
+} from '@src/lib/middleware/system-context.js';
+import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/localhost-development-only.js';
+import { rootRouter } from '@src/routes/root/index.js';
 
 // Create Hono app
 const app = new Hono();
@@ -175,7 +178,7 @@ app.notFound((c) => {
 });
 
 // Server configuration
-const port = Number(process.env.PORT) || 9001;
+const port = Number(MonkEnv.get('PORT', '9001'));
 
 // Initialize observer system
 logger.info('Preloading observer system');

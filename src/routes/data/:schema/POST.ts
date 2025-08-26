@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 export default async function (context: Context): Promise<any> {
     const schemaName = context.req.param('schema');
@@ -11,7 +11,7 @@ export default async function (context: Context): Promise<any> {
         throw new Error('POST /api/data/:schema expects an array of records');
     }
     
-    console.debug('routes/data-record-create-all: schemaName=%j recordCount=%d', schemaName, recordList.length);
+    logger.info('Data record create all', { schemaName, recordCount: recordList.length });
 
     const result = await system.database.createAll(schemaName, recordList);
     setRouteResult(context, result);

@@ -14,12 +14,12 @@
  * This observer focuses solely on efficient SQL transport without business logic.
  */
 
-import type { ObserverContext } from '@observers/interfaces.js';
-import { BaseObserver } from '@observers/base-observer.js';
-import { ObserverRing } from '@observers/types.js';
-import { SystemError } from '@observers/errors.js';
-import { FilterWhere } from '@lib/filter-where.js';
-import { logger } from '@lib/logger.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import { SystemError } from '@src/lib/observers/errors.js';
+import { FilterWhere } from '@src/lib/filter-where.js';
+import { logger } from '@src/lib/logger.js';
 import crypto from 'crypto';
 
 export class SqlObserver extends BaseObserver {
@@ -33,7 +33,7 @@ export class SqlObserver extends BaseObserver {
         const needsTx = BaseObserver.isTransactionRequired(context);
         const reasons = BaseObserver.getTransactionReasons(context);
         
-        system.info(`SQL transport layer executing ${operation}`, {
+        logger.info(`SQL transport layer executing ${operation}`, {
             schemaName,
             operation,
             recordCount: data?.length || 0,
@@ -47,7 +47,7 @@ export class SqlObserver extends BaseObserver {
             system.tx = await system.db.connect();
             await system.tx.query('BEGIN');
             
-            system.info('Transaction started for observer pipeline', {
+            logger.info('Transaction started for observer pipeline', {
                 operation,
                 schemaName,
                 requestingObservers: reasons.length,
@@ -85,7 +85,7 @@ export class SqlObserver extends BaseObserver {
             
             context.result = result;
             
-            system.info(`SQL transport completed successfully`, {
+            logger.info(`SQL transport completed successfully`, {
                 schemaName,
                 operation,
                 inputRecords: data?.length || 0,
@@ -95,7 +95,7 @@ export class SqlObserver extends BaseObserver {
             });
             
         } catch (error) {
-            system.warn(`SQL transport layer failed`, {
+            logger.warn(`SQL transport layer failed`, {
                 schemaName,
                 operation,
                 recordCount: data?.length || 0,

@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@lib/middleware/system-context.js';
-import type { FilterData } from '@lib/filter.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import type { FilterData } from '@src/lib/filter.js';
 
 export default async function (context: Context) {
     const system = context.get('system');

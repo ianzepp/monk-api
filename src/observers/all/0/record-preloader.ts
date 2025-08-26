@@ -12,9 +12,9 @@
  * Ring: 0 (Validation) - Schema: all - Operations: update, delete, revert
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 export default class RecordPreloader extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation;
@@ -27,11 +27,11 @@ export default class RecordPreloader extends BaseObserver {
         const recordIds = this.extractRecordIds(data, operation);
         
         if (recordIds.length === 0) {
-            system.info('No record IDs found for preloading', { schemaName, operation });
+            logger.info('No record IDs found for preloading', { schemaName, operation });
             return;
         }
         
-        system.info(`Preloading ${recordIds.length} existing records for ${operation}`, {
+        logger.info(`Preloading ${recordIds.length} existing records for ${operation}`, {
             schemaName,
             operation,
             recordIds: recordIds.slice(0, 5), // First 5 for logging
@@ -62,7 +62,7 @@ export default class RecordPreloader extends BaseObserver {
             metadata.set('preloaded_record_count', existingRecords.length);
             metadata.set('requested_record_count', recordIds.length);
             
-            system.info(`Successfully preloaded ${existingRecords.length} existing records`, {
+            logger.info(`Successfully preloaded ${existingRecords.length} existing records`, {
                 schemaName,
                 operation,
                 requestedCount: recordIds.length,
@@ -71,7 +71,7 @@ export default class RecordPreloader extends BaseObserver {
             });
             
         } catch (error) {
-            system.warn('Failed to preload existing records', {
+            logger.warn('Failed to preload existing records', {
                 schemaName,
                 operation,
                 recordIds: recordIds.slice(0, 3), // First 3 for debugging

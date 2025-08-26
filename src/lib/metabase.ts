@@ -1,5 +1,5 @@
 import { builtins, type TxContext, type DbContext } from '@src/db/index.js';
-import type { System } from '@lib/system.js';
+import type { System } from '@src/lib/system.js';
 import type { Context } from 'hono';
 import * as yaml from 'js-yaml';
 import crypto from 'crypto';
@@ -84,7 +84,7 @@ export class Metabase {
             // Validate schema protection
             this.validateSchemaProtection(schemaName);
             
-            this.system.info('Creating schema', { schemaName, tableName });
+            logger.info('Creating schema', { schemaName, tableName });
             
             // Generate and execute DDL
             const ddl = this.generateCreateTableDDL(tableName, jsonSchema);
@@ -94,7 +94,7 @@ export class Metabase {
             const yamlChecksum = this.generateYamlChecksum(yamlContent);
             await this.insertSchemaRecord(tx, schemaName, tableName, jsonSchema, yamlChecksum);
             
-            this.system.info('Schema created successfully', { schemaName, tableName });
+            logger.info('Schema created successfully', { schemaName, tableName });
             
             return { name: schemaName, table: tableName, created: true };
         });

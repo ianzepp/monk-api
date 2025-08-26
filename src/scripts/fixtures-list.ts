@@ -6,7 +6,7 @@
  * Shows available template databases.
  */
 
-import { TemplateDatabase } from '../lib/fixtures/template-database.js';
+import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
 
 async function listFixtures(): Promise<void> {
   console.log('📋 Available template databases:');

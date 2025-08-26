@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 export default async function (context: Context) {
     const system = context.get('system');
@@ -9,7 +9,7 @@ export default async function (context: Context) {
     const jsonSchema = system.metabase.parseYaml(yamlContent);
     const schemaName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
     
-    system.info('Creating schema', { schemaName });
+    logger.info('Creating schema', { schemaName });
     
     // Create schema via Metabase
     await system.metabase.createOne(schemaName, yamlContent);

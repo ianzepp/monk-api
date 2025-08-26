@@ -1,7 +1,6 @@
 import type { Context } from 'hono';
-import { AuthService } from '@lib/auth.js';
-import { DatabaseManager } from '@lib/database-manager.js';
-import { logger } from '@lib/logger.js';
+import { AuthService } from '@src/lib/auth.js';
+import { DatabaseManager } from '@src/lib/database-manager.js';
 
 // GET /ping - Simple health check with optional JWT domain and database connection test
 export default async function (c: Context): Promise<any> {
@@ -23,14 +22,14 @@ export default async function (c: Context): Promise<any> {
     
     try {
         const authHeader = c.req.header('Authorization');
-        console.debug(`🔐 Auth header present: ${!!authHeader}`);
+        logger.info('Auth header validation', { hasAuth: !!authHeader });
         
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.substring(7);
-            console.debug(`🎫 JWT token extracted (${token.length} chars)`);
+            logger.info('JWT token extracted', { tokenLength: token.length });
             
             const payload = await AuthService.verifyToken(token);
-            console.debug(`✅ JWT verified, payload:`, payload);
+            logger.info('JWT verification successful', { tenant: payload.tenant, access: payload.access });
             
             domain = payload.tenant;  // JWT uses 'tenant' field, not 'domain'
             jwtUserId = payload.user_id;
@@ -45,18 +44,18 @@ export default async function (c: Context): Promise<any> {
                     await db.query('SELECT 1 as test_connection');
                     
                     databaseStatus = 'ok';
-                    console.debug(`✅ Database connection test passed for domain: ${domain}`);
+                    logger.info('Database connection test passed', { domain });
                 } catch (dbError) {
                     databaseStatus = dbError instanceof Error ? dbError.message : 'Database connection failed';
-                    console.debug(`❌ Database connection failed:`, dbError);
+                    logger.warn('Database connection failed', { domain, error: dbError });
                 }
             }
         } else {
-            console.debug(`🚫 No valid Authorization header found`);
+            logger.info('No authorization header found');
         }
     } catch (error) {
         // JWT verification failed, but ping should still work
-        console.debug(`❌ JWT verification failed:`, error);
+        logger.info('JWT verification failed', { error });
         // domain remains null
     }
     

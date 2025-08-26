@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import path from 'path';
-import { logger } from '@lib/logger.js';
+import { logger } from '@src/lib/logger.js';
 
 /**
  * Configuration file paths in order of precedence
@@ -71,14 +71,26 @@ export class MonkEnv {
     }
     
     /**
-     * Get configuration value with fallback
+     * Get configuration value with required validation
      * @param key Environment variable key
-     * @param defaultValue Default value if not found
+     * @param defaultValue Default value if not found (optional)
+     * @param required Whether the configuration value is required (default: false)
      * @returns Configuration value
+     * @throws Error if required=true and key not found
      */
-    static get(key: string, defaultValue?: string): string | undefined {
+    static get(key: string, defaultValue?: string, required: boolean = false): string {
         this.load(); // Ensure config is loaded
-        return process.env[key] || defaultValue;
+        
+        const value = process.env[key] || defaultValue;
+        
+        if (required && !value) {
+            throw new Error(
+                `${key} not found in configuration. ` +
+                `Ensure ~/.config/monk/env.json contains ${key}.`
+            );
+        }
+        
+        return value || '';
     }
     
     /**

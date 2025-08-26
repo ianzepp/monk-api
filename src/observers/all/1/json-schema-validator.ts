@@ -14,10 +14,10 @@
  * Ring: 1 (Input Validation) - Schema: all - Operations: create, update
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import { ValidationError } from '@lib/observers/errors.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import { ValidationError } from '@src/lib/observers/errors.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 export default class JsonSchemaValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
@@ -53,7 +53,7 @@ export default class JsonSchemaValidator extends BaseObserver {
         metadata.set('json_schema_validation', 'passed');
         metadata.set('validated_record_count', validatedCount);
         
-        system.info('JSON Schema validation completed', {
+        logger.info('JSON Schema validation completed', {
             schemaName,
             operation,
             recordCount: data.length,
