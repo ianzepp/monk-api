@@ -13,7 +13,8 @@
  */
 
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '../database-connection.js';
 import pg from 'pg';
@@ -22,6 +23,10 @@ export interface TenantInfo {
   name: string;
   host: string;
   database: string;
+  created_at?: string;
+  updated_at?: string;
+  trashed_at?: string;
+  deleted_at?: string;
 }
 
 export interface JWTPayload {
@@ -195,7 +200,97 @@ export class TenantService {
   }
 
   /**
-   * Delete tenant and its database
+   * Soft delete tenant (sets trashed_at timestamp)
+   * This hides the tenant from normal operations but preserves data for recovery
+   * 
+   * @param tenantName - The tenant name to soft delete
+   */
+  static async trashTenant(tenantName: string): Promise<void> {
+    if (!await this.tenantExists(tenantName)) {
+      throw new Error(`Tenant '${tenantName}' does not exist`);
+    }
+    
+    const authClient = this.createAuthClient();
+    try {
+      await authClient.connect();
+      await authClient.query(
+        'UPDATE tenants SET trashed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NULL',
+        [tenantName]
+      );
+    } finally {
+      await authClient.end();
+    }
+  }
+
+  /**
+   * Restore soft deleted tenant (clears trashed_at timestamp)
+   * 
+   * @param tenantName - The tenant name to restore
+   */
+  static async restoreTenant(tenantName: string): Promise<void> {
+    const authClient = this.createAuthClient();
+    try {
+      await authClient.connect();
+      const result = await authClient.query(
+        'UPDATE tenants SET trashed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NOT NULL',
+        [tenantName]
+      );
+      
+      if (result.rowCount === 0) {
+        throw new Error(`Tenant '${tenantName}' is not in trash or does not exist`);
+      }
+    } finally {
+      await authClient.end();
+    }
+  }
+
+  /**
+   * List tenants with soft delete awareness
+   * 
+   * @param includeTrashed - Whether to include soft deleted tenants
+   * @param includeDeleted - Whether to include hard deleted tenants
+   */
+  static async listTenantsWithStatus(includeTrashed: boolean = false, includeDeleted: boolean = false): Promise<(TenantInfo & { trashed_at?: string, deleted_at?: string })[]> {
+    const authClient = this.createAuthClient();
+    
+    try {
+      await authClient.connect();
+      
+      let whereClause = 'WHERE 1=1';
+      if (!includeTrashed) {
+        whereClause += ' AND trashed_at IS NULL';
+      }
+      if (!includeDeleted) {
+        whereClause += ' AND deleted_at IS NULL';
+      }
+      
+      const result = await authClient.query(`
+        SELECT name, database, host, created_at, updated_at, trashed_at, deleted_at
+        FROM tenants 
+        ${whereClause}
+        ORDER BY created_at DESC
+      `);
+      
+      return result.rows.map(row => ({
+        name: row.name,
+        database: row.database,
+        host: row.host,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        trashed_at: row.trashed_at,
+        deleted_at: row.deleted_at
+      }));
+    } finally {
+      await authClient.end();
+    }
+  }
+
+  /**
+   * Hard delete tenant and its database (destructive operation)
+   * This is a destructive operation and will delete the tenant and all its data
+   * 
+   * @param tenantName - The tenant name to delete
+   * @param force - Whether to force deletion even if tenant doesn't exist
    */
   static async deleteTenant(tenantName: string, force: boolean = false): Promise<void> {
     const databaseName = this.tenantNameToDatabase(tenantName);
@@ -238,13 +333,17 @@ export class TenantService {
       await client.connect();
       
       const result = await client.query(
-        'SELECT name, host, database FROM tenants ORDER BY name'
+        'SELECT name, host, database, created_at, updated_at, trashed_at, deleted_at FROM tenants WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
       );
       
       return result.rows.map(row => ({
         name: row.name,
         host: row.host,
-        database: row.database
+        database: row.database,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        trashed_at: row.trashed_at,
+        deleted_at: row.deleted_at
       }));
     } finally {
       await client.end();
@@ -429,6 +528,8 @@ export class TenantService {
       await client.connect();
       
       // Load and execute init-tenant.sql
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
       const sqlPath = join(__dirname, '../../../sql/init-tenant.sql');
       const initSql = readFileSync(sqlPath, 'utf8');
       
