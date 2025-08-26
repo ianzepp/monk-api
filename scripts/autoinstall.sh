@@ -295,102 +295,22 @@ else
     fi
 fi
 
-# Step 5: Configure Local Server
-print_header "Step 5: Configure Local Server"
-print_step "Checking server configuration..."
-
-# Check if local server is already configured
-if ./bin/monk servers list 2>/dev/null | grep -q "local"; then
-    print_success "Local server already configured"
-    
-    # Show current server info
-    server_info=$(./bin/monk servers current 2>/dev/null | grep "Endpoint:" | awk '{print $2}')
-    print_info "Server endpoint: $server_info"
-else
-    print_step "Adding local server configuration..."
-    if ./bin/monk servers add local localhost:9001 >/dev/null 2>&1; then
-        print_success "Local server configured"
-        print_info "Server: local (http://localhost:9001)"
-    else
-        handle_error "Server configuration" "Check that ./bin/monk CLI is executable"
-    fi
-fi
-
-# Step 6: Create Test Tenant
-print_header "Step 6: Create Test Tenant"
-print_step "Checking for existing test tenant..."
-
-# Check if local-test tenant already exists
-if ./bin/monk tenant list 2>/dev/null | grep -q "local-test"; then
-    print_success "Test tenant already exists"
-    
-    # Show tenant info
-    tenant_info=$(./bin/monk tenant list 2>/dev/null | grep "local-test" | awk '{print $2}')
-    print_info "Tenant database: $tenant_info"
-else
-    print_step "Creating test tenant..."
-    if ./bin/monk tenant create local-test >/dev/null 2>&1; then
-        print_success "Test tenant created"
-        print_info "Tenant: local-test"
-        print_info "Database: monk-api\$local-test"
-        print_info "Default user: root"
-    else
-        handle_error "Test tenant creation" "Check auth database is properly initialized and PostgreSQL permissions"
-    fi
-fi
-
-# Step 7: Verify Complete Setup
-print_header "Step 7: Verify Complete Setup"
-print_step "Testing server connectivity..."
-
-# Check if server needs to be started
-server_status=$(./bin/monk servers current 2>/dev/null | grep "Status:" | awk '{print $2}' || echo "unknown")
-
-if [ "$server_status" = "down" ]; then
-    print_info "Starting API server for verification..."
-    npm run api:start >/dev/null 2>&1 &
-    API_SERVER_PID=$!
-    
-    # Wait for server to start
-    sleep 3
-    
-    # Test ping
-    if ./bin/monk ping >/dev/null 2>&1; then
-        print_success "API server started and responding"
-        
-        # Stop the verification server (test:one will start its own)
-        kill $API_SERVER_PID 2>/dev/null || true
-        print_info "Stopped verification server"
-    else
-        print_error "API server not responding after startup"
-        kill $API_SERVER_PID 2>/dev/null || true
-        handle_error "Server verification" "Check dist/ directory exists and server compilation was successful"
-    fi
-else
-    # Server already running, just test ping
-    if ./bin/monk ping >/dev/null 2>&1; then
-        print_success "API server already running and responding"
-    else
-        print_warning "Server status shows running but ping failed"
-        print_info "This may indicate server issues - check manually"
-    fi
-fi
-
-# Step 8: Setup Complete
-print_header "Fresh Install Setup Complete!"
-print_success "All prerequisites configured successfully"
+# Step 5: Setup Complete
+print_header "Step 5: Setup Complete"
+print_success "Monk API setup completed successfully!"
 echo
-print_info "Environment ready for development and testing:"
+print_info "Environment ready for development:"
 print_info "• PostgreSQL: Connected and configured"
-print_info "• Auth database: Initialized with schema"  
-print_info "• Server config: Local server registered"
-print_info "• Test tenant: Created and ready"
+print_info "• Auth database: Initialized with schema"
 print_info "• TypeScript: Compiled and ready"
-print_info "• API server: Verified working"
+print_info "• Local server: http://localhost:9001"
 echo
 print_info "Next steps:"
-print_info "• Run tests: npm run test:one <test-file>"
-print_info "• Start development: npm run start:dev"
+print_info "1. Start the development server: npm run start:dev"
+print_info "2. Install monk-cli for API management:"
+print_info "   git clone https://github.com/ianzepp/monk-cli.git"
+print_info "   cd monk-cli && ./install.sh && monk init"
+print_info "3. Run tests: npm run spec:sh"
 print_info "• Check status: npm run test:info"
 echo
 print_success "Ready for development!"

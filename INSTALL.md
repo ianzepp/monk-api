@@ -106,25 +106,39 @@ createdb monk-api-auth
 psql -d monk-api-auth -f sql/init-auth.sql
 ```
 
-### 5. Configure Server
+### 5. Install Monk CLI
+```bash
+# Install the standalone CLI
+git clone https://github.com/ianzepp/monk-cli.git
+cd monk-cli && ./install.sh
+
+# Initialize CLI configuration
+monk init
+
+# Note: Add ~/.local/bin to PATH if needed
+echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### 6. Configure Server
 ```bash
 # Add local server configuration
-./bin/monk servers add local localhost:9001
+monk servers add local localhost:9001
 
 # Verify configuration
-./bin/monk servers list
+monk servers list
 ```
 
-### 6. Create Test Tenant
+### 7. Create Test Tenant
 ```bash
 # Create a test tenant
-./bin/monk tenant create local-test
+monk tenant create local-test
 
 # Verify tenant creation
-./bin/monk tenant list
+monk tenant list
 ```
 
-### 7. Start the Server
+### 8. Start the Server
 ```bash
 # Start in development mode (with auto-reload)
 npm run start:dev
@@ -133,10 +147,10 @@ npm run start:dev
 npm run start
 ```
 
-### 8. Test Connection
+### 9. Test Connection
 ```bash
 # Test server connectivity
-./bin/monk ping
+monk ping
 
 # Expected output: pong: [timestamp]
 ```
@@ -145,7 +159,7 @@ npm run start
 
 ### Issue 1: Missing Server Configuration
 - **Problem**: CLI requires server configuration before first use
-- **Solution**: Run `./bin/monk servers add local localhost:9001`
+- **Solution**: Run `monk servers add local localhost:9001`
 - **Auto-fix**: CLI guides you through this on first run
 
 ### Issue 2: PostgreSQL Dependencies
@@ -173,13 +187,13 @@ npm run start
 After PostgreSQL is installed and running:
 ```bash
 # Create tenant database
-./bin/monk tenant create local-test
+monk tenant create local-test
 
 # Login with default credentials
-./bin/monk auth login local-test root
+monk auth login local-test root
 
 # Check authentication status
-./bin/monk auth status
+monk auth status
 ```
 
 ## Testing
@@ -212,9 +226,9 @@ npm run test:unit
 npm run start:dev
 
 # In another terminal, interact with API
-./bin/monk auth login local-test root
-./bin/monk meta list schema
-./bin/monk data list some_schema
+monk auth login local-test root
+monk meta list schema
+monk data list some_schema
 ```
 
 ### Testing Changes
@@ -223,8 +237,8 @@ npm run start:dev
 npm run spec:sh spec/20-meta-api/schema-create.test.sh
 
 # Test connection and basic functionality
-./bin/monk ping
-./bin/monk auth status
+monk ping
+monk auth status
 ```
 
 ## Troubleshooting
@@ -242,20 +256,20 @@ pg_isready -h localhost -p 5432
 ### CLI Issues
 ```bash
 # Check monk CLI is working
-./bin/monk --help
+monk --help
 
 # Check server configuration
-./bin/monk servers list
+monk servers list
 
 # Re-add server if needed
-./bin/monk servers add local localhost:9001
+monk servers add local localhost:9001
 ```
 
 ### Permission Issues
 ```bash
 # Make sure monk CLI is executable
-chmod +x ./bin/monk
-chmod +x ./cli/monk
+chmod +x monk
+chmod +x monk
 ```
 
 ## Next Steps

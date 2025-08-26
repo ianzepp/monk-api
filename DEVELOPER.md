@@ -51,8 +51,8 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - **Security**: SQL injection prevention, ACL enforcement, soft deletes, observer-based validation and audit
 - **Structured Logging**: Environment-aware logging with correlation tracking and rich metadata
 
-#### **Bashly CLI** (`cli/`)
-- **Generated CLI**: Source in `cli/src/`, compiled to `cli/monk`
+#### **API Management** 
+- **CLI Tool**: Available as standalone [monk-cli](https://github.com/ianzepp/monk-cli) project
 - **Persistent Config**: Uses `~/.config/monk/` for servers, auth, and test config
 - **Multi-server**: Switch between development, staging, production environments
 - **Full CRUD**: Complete data and meta operations matching API endpoints
@@ -367,9 +367,11 @@ gem install bashly
 cd cli/src
 bashly generate
 
-# The generated CLI is: cli/monk
-# Test the CLI
-../monk --help
+# CLI is now a separate project
+# Install and test CLI
+git clone https://github.com/ianzepp/monk-cli.git
+cd monk-cli && ./install.sh
+monk --help
 ```
 
 #### **CLI Source Structure**
