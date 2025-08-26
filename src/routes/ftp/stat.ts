@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 // FTP Stat Transport Types
@@ -25,6 +26,168 @@ export interface FtpStatResponse {
     };
     children_count?: number;        // For directories
     total_size?: number;           // Recursive size calculation
+    schema_info?: {                 // NEW: Enhanced schema information
+        description?: string;
+        record_count: number;
+        recent_changes: number;
+        last_modified?: string;
+        field_definitions: Array<{
+            name: string;
+            type: string;
+            required: boolean;
+            constraints?: string;
+            description?: string;
+            usage_percentage?: number;
+            common_values?: Record<string, number>;
+        }>;
+        common_operations?: string[];
+    };
+}
+
+/**
+ * Schema Analysis Engine - Generate detailed schema introspection
+ */
+class SchemaAnalyzer {
+    /**
+     * Generate comprehensive schema information for FTP stat response
+     */
+    static async generateSchemaInfo(system: any, schemaName: string): Promise<any> {
+        try {
+            // Get schema definition
+            const schemaYaml = await system.metabase.selectOne(schemaName);
+            const schemaJson = system.metabase.parseYaml(schemaYaml);
+            
+            // Get record statistics
+            const recordCount = await system.database.count(schemaName);
+            const recentChanges = await SchemaAnalyzer.getRecentChanges(system, schemaName);
+            
+            // Analyze field definitions
+            const fieldDefinitions = await SchemaAnalyzer.analyzeFields(system, schemaName, schemaJson);
+            
+            return {
+                description: schemaJson.description || `${schemaName} schema`,
+                record_count: recordCount,
+                recent_changes: recentChanges,
+                last_modified: new Date().toISOString(),
+                field_definitions: fieldDefinitions,
+                common_operations: SchemaAnalyzer.inferCommonOperations(schemaName)
+            };
+            
+        } catch (error) {
+            // Return basic info if detailed analysis fails
+            return {
+                description: `${schemaName} schema`,
+                record_count: 0,
+                recent_changes: 0,
+                field_definitions: [],
+                common_operations: ['view', 'create', 'update']
+            };
+        }
+    }
+    
+    /**
+     * Count recent changes in the last 24 hours
+     */
+    static async getRecentChanges(system: any, schemaName: string): Promise<number> {
+        try {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            const result = await system.database.selectAny(schemaName, {
+                where: {
+                    updated_at: { $gte: yesterday.toISOString() }
+                }
+            });
+            
+            return result.length;
+        } catch (error) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Analyze field definitions from schema
+     */
+    static async analyzeFields(system: any, schemaName: string, schemaJson: any): Promise<any[]> {
+        const fields: any[] = [];
+        const properties = schemaJson.properties || {};
+        const required = schemaJson.required || [];
+        
+        for (const [fieldName, fieldDef] of Object.entries(properties)) {
+            const field: any = fieldDef as any;
+            
+            fields.push({
+                name: fieldName,
+                type: field.type || 'unknown',
+                required: required.includes(fieldName),
+                constraints: SchemaAnalyzer.buildConstraintsString(field),
+                description: field.description || `${fieldName} field`,
+                usage_percentage: await SchemaAnalyzer.calculateFieldUsage(system, schemaName, fieldName)
+            });
+        }
+        
+        return fields;
+    }
+    
+    /**
+     * Build human-readable constraints string
+     */
+    static buildConstraintsString(field: any): string {
+        const constraints: string[] = [];
+        
+        if (field.minLength) constraints.push(`min ${field.minLength} chars`);
+        if (field.maxLength) constraints.push(`max ${field.maxLength} chars`);
+        if (field.minimum) constraints.push(`min ${field.minimum}`);
+        if (field.maximum) constraints.push(`max ${field.maximum}`);
+        if (field.format) constraints.push(`${field.format} format`);
+        if (field.enum) constraints.push(field.enum.join('|'));
+        
+        return constraints.join(', ') || 'no constraints';
+    }
+    
+    /**
+     * Calculate field usage percentage across records
+     */
+    static async calculateFieldUsage(system: any, schemaName: string, fieldName: string): Promise<number> {
+        try {
+            const totalRecords = await system.database.count(schemaName);
+            
+            if (totalRecords === 0) return 0;
+            
+            const populatedRecords = await system.database.selectAny(schemaName, {
+                where: {
+                    [fieldName]: { $exists: true, $ne: null }
+                }
+            });
+            
+            return Math.round((populatedRecords.length / totalRecords) * 100);
+            
+        } catch (error) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Infer common operations based on schema name and structure
+     */
+    static inferCommonOperations(schemaName: string): string[] {
+        const baseOperations = ['view', 'create', 'update', 'delete'];
+        
+        // Schema-specific operations based on common patterns
+        if (schemaName.includes('user') || schemaName.includes('account')) {
+            return [...baseOperations, 'authentication', 'profile management'];
+        }
+        
+        if (schemaName.includes('contact') || schemaName.includes('customer')) {
+            return [...baseOperations, 'relationship management', 'communication'];
+        }
+        
+        if (schemaName.includes('order') || schemaName.includes('transaction')) {
+            return [...baseOperations, 'payment processing', 'fulfillment'];
+        }
+        
+        return baseOperations;
+    }
 }
 
 /**
@@ -114,12 +277,10 @@ class FtpStatusCalculator {
  * 
  * Provides detailed file/directory status for FTP STAT command.
  * Returns comprehensive metadata for monk-ftp operations.
+ * Enhanced with schema and field introspection for Issue #165.
  */
-export default async function ftpStatHandler(context: Context): Promise<any> {
-    const system = context.get('system');
-    const requestBody: FtpStatRequest = await context.req.json();
-    
-    logger.info('FTP stat operation', { path: requestBody.path });
+export default withParams(async (context, { system, body }) => {
+    const requestBody: FtpStatRequest = body;
     
     try {
         const cleanPath = requestBody.path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
@@ -170,9 +331,12 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
             };
             
         } else if (parts.length === 2 && parts[0] === 'data') {
-            // /data/schema directory
+            // /data/schema directory - Enhanced with schema introspection
             const schema = parts[1];
             const recordCount = await system.database.count(schema);
+            
+            // Generate comprehensive schema analysis
+            const schemaInfo = await SchemaAnalyzer.generateSchemaInfo(system, schema);
             
             response = {
                 success: true,
@@ -189,7 +353,8 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
                     access_permissions: ['read', 'edit'] // TODO: Calculate from user ACL
                 },
                 children_count: recordCount,
-                total_size: 0
+                total_size: 0,
+                schema_info: schemaInfo  // NEW: Enhanced schema information
             };
             
         } else if (parts.length === 3 && parts[0] === 'data') {
@@ -323,4 +488,4 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
         
         throw error;
     }
-}
+});
