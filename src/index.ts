@@ -38,6 +38,8 @@ import FtpListPost from '@src/routes/ftp/list.js';                        // POS
 import FtpRetrievePost from '@src/routes/ftp/retrieve.js';                // POST /ftp/retrieve  
 import FtpStorePost from '@src/routes/ftp/store.js';                      // POST /ftp/store
 import FtpStatPost from '@src/routes/ftp/stat.js';                        // POST /ftp/stat
+import FtpDeletePost from '@src/routes/ftp/delete.js';                    // POST /ftp/delete
+import FtpSizePost from '@src/routes/ftp/size.js';                        // POST /ftp/size
 
 // Special endpoints
 import HealthGet from '@src/routes/health/GET.js';                        // GET /health
@@ -152,6 +154,8 @@ app.post('/ftp/list', FtpListPost);                                 // Directory
 app.post('/ftp/retrieve', FtpRetrievePost);                         // File retrieval
 app.post('/ftp/store', FtpStorePost);                               // File storage
 app.post('/ftp/stat', FtpStatPost);                                 // File status
+app.post('/ftp/delete', FtpDeletePost);                             // File deletion
+app.post('/ftp/size', FtpSizePost);                                 // File size
 
 // Error handling
 app.onError((err, c) => {
