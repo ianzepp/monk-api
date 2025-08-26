@@ -1,16 +1,10 @@
 import type { Context } from 'hono';
+import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
-export default async function (context: Context) {
-    const system = context.get('system');
-    const schemaName = context.req.param('name');
-    const yamlContent = await context.req.text();
-    
+export default withParams(async (context, { system, schemaName, body }) => {
     logger.info('Meta schema put', { schemaName });
-    
-    // Update schema via Metabase
-    await system.metabase.updateOne(schemaName, yamlContent);
-    
-    // Set result for middleware formatting
-    setRouteResult(context, yamlContent);
-}
+    // body is automatically raw YAML string for text/yaml content-type
+    await system.metabase.updateOne(schemaName!, body);
+    setRouteResult(context, body);
+});

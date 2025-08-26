@@ -1,12 +1,9 @@
 import type { Context } from 'hono';
+import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
-export default async function (context: Context) {
-    const system = context.get('system');
-    const schemaName = context.req.param('schema');
-    
-    logger.info('Data record select any', { schemaName });
-    
-    const result = await system.database.selectAny(schemaName);
+export default withParams(async (context, { system, schema }) => {
+    logger.info('Data record select any', { schema });
+    const result = await system.database.selectAny(schema!);
     setRouteResult(context, result);
-}
+});
