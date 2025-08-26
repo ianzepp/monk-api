@@ -6,7 +6,7 @@ export default async function (context: Context) {
     const schemaName = context.req.param('name');
     const yamlContent = await context.req.text();
     
-    console.debug(`PUT /api/meta/schema/${schemaName}`);
+    system.info('Meta schema put', { schemaName });
     
     // Update schema via Metabase
     await system.metabase.updateOne(schemaName, yamlContent);

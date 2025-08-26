@@ -9,6 +9,7 @@ import { BaseAsyncObserver } from '@lib/observers/base-async-observer.js';
 import { SystemError } from '@lib/observers/errors.js';
 import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
+import { logger } from '@lib/logger.js';
 
 export default class CacheInvalidator extends BaseAsyncObserver {
     readonly ring = ObserverRing.Integration;
@@ -66,7 +67,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         ];
         
         await this.invalidateKeys(cacheKeys);
-        console.debug(`📋 Invalidated schema cache for: ${schema}`);
+        logger.info('Cache invalidated for schema', { schema });
     }
 
     private async invalidateRecordCache(schema: string, recordId: string): Promise<void> {
@@ -78,7 +79,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         ];
         
         await this.invalidateKeys(cacheKeys);
-        console.debug(`🗂️  Invalidated record cache for: ${schema}:${recordId}`);
+        logger.info('Cache invalidated for record', { schema, recordId });
     }
 
     private async invalidateRelationshipCaches(schema: string, result: any, existing: any): Promise<void> {
@@ -108,7 +109,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         
         if (cacheKeys.length > 0) {
             await this.invalidateKeys(cacheKeys);
-            console.debug(`🔗 Invalidated relationship caches for: ${schema}`);
+            logger.info('Cache invalidated for relationships', { schema });
         }
     }
 
@@ -132,7 +133,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
             ]);
         }
         
-        console.debug(`🔍 Invalidated search cache for: ${schema}`);
+        logger.info('Cache invalidated for search', { schema });
     }
 
     private async invalidateKeys(keys: string[]): Promise<void> {
@@ -142,11 +143,11 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         for (const key of keys) {
             if (key.includes('*')) {
                 // Pattern-based invalidation
-                console.debug(`🗑️  Cache pattern invalidated: ${key}`);
+                logger.info('Cache pattern invalidated', { key });
                 // await cache.deletePattern(key);
             } else {
                 // Specific key invalidation
-                console.debug(`🗑️  Cache key invalidated: ${key}`);
+                logger.info('Cache key invalidated', { key });
                 // await cache.delete(key);
             }
         }

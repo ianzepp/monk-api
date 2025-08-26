@@ -2,6 +2,7 @@ import { type FilterData } from '@lib/filter.js';
 import { type TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
 import { isSystemField } from '@lib/metabase.js';
+import { logger } from '@lib/logger.js';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
@@ -70,7 +71,7 @@ export class Schema {
             // Add standard format validations (email, date-time, etc.)
             addFormats(Schema.ajv);
             
-            console.debug('Schema: AJV initialized with formats');
+            logger.info('Schema AJV initialized with formats');
         }
         return Schema.ajv;
     }

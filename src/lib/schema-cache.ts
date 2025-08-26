@@ -124,7 +124,7 @@ export class SchemaCache {
                 if (cached && cached.yamlChecksum !== row.yaml_checksum) {
                     // Checksum mismatch - invalidate cache entry
                     dbCache.schemas.delete(row.name);
-                    console.debug(`Schema cache invalidated: ${row.name} (checksum changed)`);
+                    logger.info('Schema cache invalidated', { schemaName: row.name, reason: 'checksum changed' });
                 } else if (!cached) {
                     // New schema found - add minimal cache entry
                     dbCache.schemas.set(row.name, {
@@ -133,7 +133,7 @@ export class SchemaCache {
                         updatedAt: row.updated_at,
                         validator: undefined
                     });
-                    console.debug(`Schema cache entry created: ${row.name}`);
+                    logger.info('Schema cache entry created', { schemaName: row.name });
                 }
             }
             
@@ -176,12 +176,12 @@ export class SchemaCache {
         // 2. Check cache
         const cached = dbCache.schemas.get(schemaName);
         if (cached?.schema) {
-            console.debug(`Schema cache hit: ${schemaName}`);
+            logger.info('Schema cache hit', { schemaName });
             return cached.schema;
         }
         
         // 3. Cache miss - load full schema
-        console.debug(`Schema cache miss: ${schemaName}`);
+        logger.info('Schema cache miss', { schemaName });
         const schema = await this.loadFullSchema(system.db, schemaName);
         
         // 4. Update cache with full schema
@@ -206,7 +206,7 @@ export class SchemaCache {
     invalidateSchema(system: SystemContextWithInfrastructure, schemaName: string): void {
         const dbCache = this.getDatabaseCache(system.db);
         dbCache.schemas.delete(schemaName);
-        console.debug(`Schema cache invalidated manually: ${schemaName}`);
+        logger.info('Schema cache invalidated manually', { schemaName });
     }
     
     /**
