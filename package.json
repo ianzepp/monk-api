@@ -32,7 +32,17 @@
     "test:one": "npm run spec:sh",
     "test:info": "scripts/test-info.sh",
     "spec:all": "npm run spec:ts",
-    "spec:one": "npm run spec:ts"
+    "spec:one": "npm run spec:ts",
+    "docker:dev": "docker compose up --build",
+    "docker:dev:daemon": "docker compose up --build -d",
+    "docker:dev:with-data": "docker compose -f docker-compose.dev-with-data.yml up --build",
+    "docker:dev:with-data:daemon": "docker compose -f docker-compose.dev-with-data.yml up --build -d",
+    "docker:prod": "docker compose -f docker-compose.prod.yml up --build",
+    "docker:stop": "docker compose down",
+    "docker:stop:with-data": "docker compose -f docker-compose.dev-with-data.yml down",
+    "docker:clean": "docker compose down -v && docker system prune -f",
+    "docker:clean:with-data": "docker compose -f docker-compose.dev-with-data.yml down -v",
+    "docker:logs": "docker compose logs -f monk-api"
   },
   "keywords": [
     "hono",

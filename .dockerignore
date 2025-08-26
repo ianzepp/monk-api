@@ -1,0 +1,74 @@
+# Docker ignore file for Monk API
+# Excludes files and directories from Docker build context
+
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Build outputs (will be generated in container)
+dist
+*.tsbuildinfo
+
+# Development and testing
+.env
+.env.local
+.env.*.local
+coverage
+*.lcov
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Git
+.git
+.gitignore
+.gitmodules
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker files themselves
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation (not needed in container)
+*.md
+docs/
+README.txt
+
+# Development tools
+.eslintrc*
+.prettierrc*
+vitest.config.ts
+
+# Test files (not needed in production)
+spec/
+test/
+
+# Temporary files
+tmp/
+temp/
+
+# Local configuration (use environment variables instead)
+.monk-config.json

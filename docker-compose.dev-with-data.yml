@@ -1,0 +1,65 @@
+# Monk API Docker Compose - Development with Pre-seeded Data
+
+services:
+  # Monk API Server with template data
+  monk-api:
+    build:
+      context: .
+      target: development
+    ports:
+      - "9001:9001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://monk:monk@postgres:5432/
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=monk
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+      - PRELOAD_TEMPLATE=${PRELOAD_TEMPLATE:-basic}  # Default to basic, but allow override
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - monk-network
+    # Custom entrypoint to load template data
+    command: >
+      sh -c "
+        echo '🏗️  Setting up development environment with template data...' &&
+        npm run compile &&
+        npm run fixtures:build $${PRELOAD_TEMPLATE} &&
+        echo '🌱 Template data ($${PRELOAD_TEMPLATE}) loaded, starting API server...' &&
+        npm run start:dev
+      "
+
+  # PostgreSQL Database  
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=monk
+      - POSTGRES_PASSWORD=monk
+      - POSTGRES_DB=monk-api-auth
+    volumes:
+      - postgres_data_seeded:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monk -d monk-api-auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - monk-network
+
+volumes:
+  postgres_data_seeded:
+    driver: local
+
+networks:
+  monk-network:
+    driver: bridge
