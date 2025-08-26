@@ -8,7 +8,6 @@ export default withParams(async (context, { system, schema, body }) => {
         throw new Error('POST /api/data/:schema expects an array of records');
     }
     
-    logger.info('Data record create all', { schema, recordCount: body.length });
     const result = await system.database.createAll(schema!, body);
     setRouteResult(context, result);
 });

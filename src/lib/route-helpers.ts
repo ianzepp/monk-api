@@ -51,16 +51,41 @@ export function withParams(
         
         // Smart body handling based on content type
         if (['POST', 'PUT', 'PATCH'].includes(params.method)) {
+            // Handle JSON content
             if (params.contentType.includes('application/json')) {
                 params.body = await context.req.json();        // Parsed JSON
-            } else if (params.contentType.includes('text/yaml') || params.contentType.includes('application/yaml')) {
+            } 
+            
+            // Handle YAML content for schema definitions
+            else if (params.contentType.includes('text/yaml') || params.contentType.includes('application/yaml')) {
                 params.body = await context.req.text();        // Raw YAML string
-            } else if (params.contentType.includes('application/octet-stream')) {
+            } 
+            
+            // Handle binary content for file uploads
+            else if (params.contentType.includes('application/octet-stream')) {
                 params.body = await context.req.arrayBuffer();  // Binary for /api/file
-            } else {
+            } 
+            
+            // Default to text content
+            else {
                 params.body = await context.req.text();        // Default to text
             }
         }
+        
+        // Log route operation with complete context
+        const logData: any = {
+            method: params.method,
+            contentType: params.contentType
+        };
+        
+        // Add relevant parameters to log
+        if (params.schema) logData.schema = params.schema;
+        if (params.schemaName) logData.schemaName = params.schemaName;
+        if (params.recordId) logData.recordId = params.recordId;
+        if (params.name) logData.name = params.name;
+        if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
+        
+        logger.info('Route operation', logData);
         
         await handler(context, params);
     };

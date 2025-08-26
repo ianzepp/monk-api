@@ -10,20 +10,11 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api/responses.js';
-// Data API handlers
-import DataSchemaPost from '@src/routes/data/:schema/POST.js';           // POST /api/data/:schema
-import DataSchemaGet from '@src/routes/data/:schema/GET.js';             // GET /api/data/:schema
-import DataSchemaPut from '@src/routes/data/:schema/PUT.js';             // PUT /api/data/:schema
-import DataSchemaDelete from '@src/routes/data/:schema/DELETE.js';       // DELETE /api/data/:schema
-import DataSchemaIdGet from '@src/routes/data/:schema/:id/GET.js';       // GET /api/data/:schema/:id
-import DataSchemaIdPut from '@src/routes/data/:schema/:id/PUT.js';       // PUT /api/data/:schema/:id
-import DataSchemaIdDelete from '@src/routes/data/:schema/:id/DELETE.js'; // DELETE /api/data/:schema/:id
+// Data API handlers (clean barrel exports)
+import * as dataRoutes from '@src/routes/data/routes.js';
 
-// Meta API handlers  
-import MetaSchemaPost from '@src/routes/meta/schema/POST.js';             // POST /api/meta/schema
-import MetaSchemaNameGet from '@src/routes/meta/schema/:name/GET.js';     // GET /api/meta/schema/:name
-import MetaSchemaNamePut from '@src/routes/meta/schema/:name/PUT.js';     // PUT /api/meta/schema/:name
-import MetaSchemaNameDelete from '@src/routes/meta/schema/:name/DELETE.js'; // DELETE /api/meta/schema/:name
+// Meta API handlers (clean barrel exports)
+import * as metaRoutes from '@src/routes/meta/routes.js';
 
 // Auth handlers
 import AuthLoginPost from '@src/routes/auth/login/POST.js';               // POST /auth/login
@@ -134,20 +125,20 @@ app.use('/ftp/*', AuthService.getJWTMiddleware());
 app.use('/ftp/*', AuthService.getUserContextMiddleware());
 app.use('/ftp/*', systemContextMiddleware);
 
-// Data API routes
-app.post('/api/data/:schema', DataSchemaPost);                      // Create records
-app.get('/api/data/:schema', DataSchemaGet);                        // List records
-app.put('/api/data/:schema', DataSchemaPut);                        // Bulk update records
-app.delete('/api/data/:schema', DataSchemaDelete);                  // Bulk delete records
-app.get('/api/data/:schema/:id', DataSchemaIdGet);                  // Get single record
-app.put('/api/data/:schema/:id', DataSchemaIdPut);                  // Update single record
-app.delete('/api/data/:schema/:id', DataSchemaIdDelete);            // Delete single record
+// Data API routes (clean barrel export organization)
+app.post('/api/data/:schema', dataRoutes.SchemaPost);               // Create records
+app.get('/api/data/:schema', dataRoutes.SchemaGet);                 // List records
+app.put('/api/data/:schema', dataRoutes.SchemaPut);                 // Bulk update records
+app.delete('/api/data/:schema', dataRoutes.SchemaDelete);           // Bulk delete records
+app.get('/api/data/:schema/:id', dataRoutes.RecordGet);             // Get single record
+app.put('/api/data/:schema/:id', dataRoutes.RecordPut);             // Update single record
+app.delete('/api/data/:schema/:id', dataRoutes.RecordDelete);       // Delete single record
 
-// Meta API routes
-app.post('/api/meta/schema', MetaSchemaPost);                       // Create schema
-app.get('/api/meta/schema/:name', MetaSchemaNameGet);               // Get schema
-app.put('/api/meta/schema/:name', MetaSchemaNamePut);               // Update schema
-app.delete('/api/meta/schema/:name', MetaSchemaNameDelete);         // Delete schema
+// Meta API routes (clean barrel export organization)
+app.post('/api/meta/schema', metaRoutes.SchemaPost);                // Create schema
+app.get('/api/meta/schema/:name', metaRoutes.SchemaGet);            // Get schema
+app.put('/api/meta/schema/:name', metaRoutes.SchemaPut);            // Update schema
+app.delete('/api/meta/schema/:name', metaRoutes.SchemaDelete);      // Delete schema
 
 // FTP Middleware routes
 app.post('/ftp/list', FtpListPost);                                 // Directory listing
