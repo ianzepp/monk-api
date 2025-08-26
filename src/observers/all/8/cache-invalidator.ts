@@ -9,7 +9,6 @@ import { BaseAsyncObserver } from '@lib/observers/base-async-observer.js';
 import { SystemError } from '@lib/observers/errors.js';
 import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { ObserverRing } from '@lib/observers/types.js';
-import { logger } from '@lib/logger.js';
 
 export default class CacheInvalidator extends BaseAsyncObserver {
     readonly ring = ObserverRing.Integration;

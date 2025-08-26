@@ -2,7 +2,6 @@ import { type FilterData } from '@lib/filter.js';
 import { type TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
 import { isSystemField } from '@lib/metabase.js';
-import { logger } from '@lib/logger.js';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 

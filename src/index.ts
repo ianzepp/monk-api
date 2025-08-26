@@ -2,6 +2,10 @@
 import { MonkEnv } from './lib/monk-env.js';
 MonkEnv.loadIntoProcessEnv();
 
+// Set up global logger instance
+import { logger } from './lib/logger.js';
+global.logger = logger;
+
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from './db/index.js';
@@ -37,7 +41,6 @@ import BulkPost from './routes/bulk/POST.js';                          // POST /
 import FindSchemaPost from './routes/find/:schema/POST.js';            // POST /api/find/:schema
 import PingGet from './routes/ping/GET.js';                            // GET /ping
 import { AuthService } from './lib/auth.js';
-import { logger } from './lib/logger.js';
 import { ObserverLoader } from '@observers/loader.js';
 import { 
     systemContextMiddleware, 
