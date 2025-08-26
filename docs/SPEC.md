@@ -58,14 +58,14 @@ tests/
 
 ```bash
 # All tests
-npm run test:all
+npm run spec:sh
 
 # Pattern matching
-npm run test:all 15              # All auth tests
-npm run test:all 20-30           # Meta and data API tests
+npm run spec:sh 15              # All auth tests
+npm run spec:sh 20-30           # Meta and data API tests
 
 # Individual test
-npm run spec:sh spec/15-authentication/basic-auth-test.sh
+npm run spec:sh spec/15-authentication/basic-auth.test.sh
 
 # Verbose output
 npm run spec:sh spec/path/test.sh --verbose
@@ -73,7 +73,7 @@ npm run spec:sh spec/path/test.sh --verbose
 
 ### Test Lifecycle
 
-1. **test-all.sh** finds matching test files
+1. **spec-sh.sh** finds matching test files
 2. **test-one.sh** creates isolated tenant (`test-$(timestamp)`)
 3. Test runs with `TEST_TENANT_NAME` environment variable
 4. Automatic cleanup after test completion
@@ -99,9 +99,11 @@ if ! auth_as_user "root"; then
     exit 1
 fi
 
-# Test implementation
-monk data create account < test-data.json
-monk data list account
+# Test implementation - using curl for API testing
+curl -X POST http://localhost:9001/api/data/account \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @test-data.json
 ```
 
 ## TypeScript Testing (`spec/` directory)
@@ -128,20 +130,20 @@ spec/
 
 ```bash
 # All tests
-npm run spec:all
+npm run spec:ts
 
 # Category-specific
-npm run spec:all unit            # Unit tests only
-npm run spec:all integration     # Integration tests only
-npm run spec:all 15              # Auth tests
+npm run spec:ts unit            # Unit tests only
+npm run spec:ts integration     # Integration tests only
+npm run spec:ts 15              # Auth tests
 
 # Component-specific
-npm run spec:all unit/filter     # Filter tests (162 tests)
-npm run spec:all unit/ftp        # FTP tests (93+ tests)
-npm run spec:all unit/observers  # Observer tests
+npm run spec:ts unit/filter     # Filter tests (162 tests)
+npm run spec:ts unit/ftp        # FTP tests (93+ tests)
+npm run spec:ts unit/observers  # Observer tests
 
 # Individual file
-npm run spec:one spec/unit/filter/logical-operators.test.ts
+npm run spec:ts spec/unit/filter/logical-operators.test.ts
 ```
 
 ### Test Categories
@@ -393,12 +395,11 @@ npm run fixtures:build basic      # Build specific template
 
 # Status and maintenance
 npm run fixtures:list             # List available templates
-npm run fixtures:status           # Check compatibility
 npm run fixtures:clean            # Remove stale templates
 
 # Testing
 npm run fixtures:test             # Test template system
-npm run test:prepare             # Auto-rebuild if needed
+npm run fixtures:prepare          # Auto-rebuild if needed
 ```
 
 ### Migration Modes
@@ -733,10 +734,10 @@ Templates are built from fixture definitions containing schemas and data generat
 npm run fixtures:build basic
 
 # Build all templates
-npm run fixtures:build-all
+npm run fixtures:build
 
-# Force rebuild (ignores existing templates)
-npm run fixtures:rebuild basic
+# Force rebuild (clean and rebuild)
+npm run fixtures:clean && npm run fixtures:build basic
 ```
 
 #### Template Storage
@@ -764,14 +765,14 @@ Test DB: monk-api$test-1756132407957-abc123
 The system automatically manages template databases:
 
 ```bash
-# Daily cleanup (removes templates older than 7 days)
+# Remove stale templates
 npm run fixtures:clean
 
-# Custom cleanup period
-npm run fixtures:clean --days 3
+# View template status
+npm run fixtures:list
 
 # Emergency cleanup (removes all templates)
-npm run fixtures:clean --force
+npm run fixtures:clean
 ```
 
 #### Manual Cleanup
@@ -781,8 +782,8 @@ For troubleshooting or manual maintenance:
 # List all template databases
 npm run fixtures:list
 
-# Remove specific template
-npm run fixtures:remove basic
+# Clean all templates
+npm run fixtures:clean
 
 # PostgreSQL direct cleanup (emergency only)
 psql -c "DROP DATABASE \"monk-api\$test-template-basic\";"
@@ -802,11 +803,11 @@ afterAll(async () => {
 Monitor cleanup operations:
 
 ```bash
-# View cleanup logs
-npm run fixtures:status
+# View available templates
+npm run fixtures:list
 
-# Check template disk usage
-npm run fixtures:stats
+# Test template system
+npm run fixtures:test
 
 # Verify cleanup completed
 psql -l | grep "monk-api\$test"
@@ -908,32 +909,34 @@ Production monitoring should track:
 
 #### Shell Test Failures
 ```bash
-# Check tenant creation
-monk tenant list
+# Check database connectivity
+psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"
 
-# Verify authentication
-monk auth login test-tenant root
+# Check API server connectivity
+curl http://localhost:9001/health
 
-# Check server connectivity
-monk ping
+# Test authentication endpoint
+curl -X POST http://localhost:9001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "root", "password": "password"}'
 ```
 
 #### TypeScript Test Failures
 ```bash
 # Check database connection
-npm run spec:one spec/unit/database-connection-test.test.ts
+npm run spec:ts spec/unit/database-connection-test.test.ts
 
 # Verify observer loading
-npm run spec:one spec/unit/observers/loader.test.ts
+npm run spec:ts spec/unit/observers/
 
 # Test in isolation
-npm run spec:one failing-test.test.ts --verbose
+npm run spec:ts failing-test.test.ts --verbose
 ```
 
 #### Template Issues
 ```bash
-# Check template status
-npm run fixtures:status
+# List available templates
+npm run fixtures:list
 
 # Rebuild specific template
 npm run fixtures:build basic
@@ -952,10 +955,10 @@ npm run fixtures:clean && npm run fixtures:build
 bash -x scripts/test-one.sh spec/failing-test.test.sh
 
 # TypeScript test debugging
-npx vitest run spec/failing-test.test.ts --reporter=verbose
+npm run spec:ts spec/failing-test.test.ts --verbose
 
 # Template debugging
-npx tsx src/scripts/test-template-data.ts --debug
+npm run fixtures:test
 ```
 
 ## Future Enhancements
