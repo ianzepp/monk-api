@@ -3,24 +3,10 @@
 # Source this script at the top of test files to auto-configure environment
 
 # Load shared configuration helpers
-source "$(dirname "${BASH_SOURCE[0]}")/../scripts/config-helper.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../../scripts/config-helper.sh"
 
-# Setup local monk command to avoid requiring npm link
-# Find project root from test file location
-TEST_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$TEST_SCRIPT_DIR/.." && pwd)"
-MONK_CLI="$PROJECT_ROOT/bin/monk"
-
-# Create monk function for test files
-if [ -f "$MONK_CLI" ] && [ -x "$MONK_CLI" ]; then
-    monk() {
-        "$MONK_CLI" "$@"
-    }
-    export -f monk
-fi
-
-# Auto-configure environment from monk configuration (now using local function)
-if declare -f monk >/dev/null 2>&1; then
+# Auto-configure environment from monk configuration (using global monk command)
+if command -v monk >/dev/null 2>&1; then
     # Export environment variables from monk test env (for compatibility)
     eval "$(monk test env 2>/dev/null | grep '^[A-Z_]*=' || true)"
     
