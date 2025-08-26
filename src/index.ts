@@ -6,10 +6,22 @@ MonkEnv.loadIntoProcessEnv();
 import { logger } from '@src/lib/logger.js';
 global.logger = logger;
 
+// Imports
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api/responses.js';
+import { AuthService } from '@src/lib/auth.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
+import { 
+    systemContextMiddleware, 
+    responseJsonMiddleware, 
+    responseYamlMiddleware,
+    responseFileMiddleware 
+} from '@src/lib/middleware/system-context.js';
+import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/localhost-development-only.js';
+import { rootRouter } from '@src/routes/root/index.js';
+
 // Data API handlers (clean barrel exports)
 import * as dataRoutes from '@src/routes/data/routes.js';
 
@@ -32,22 +44,23 @@ import HealthGet from '@src/routes/health/GET.js';                        // GET
 import BulkPost from '@src/routes/bulk/POST.js';                          // POST /api/bulk
 import FindSchemaPost from '@src/routes/find/:schema/POST.js';            // POST /api/find/:schema
 import PingGet from '@src/routes/ping/GET.js';                            // GET /ping
-import { AuthService } from '@src/lib/auth.js';
-import { ObserverLoader } from '@src/lib/observers/loader.js';
-import { 
-    systemContextMiddleware, 
-    responseJsonMiddleware, 
-    responseYamlMiddleware,
-    responseFileMiddleware 
-} from '@src/lib/middleware/system-context.js';
-import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/localhost-development-only.js';
-import { rootRouter } from '@src/routes/root/index.js';
 
 // Create Hono app
 const app = new Hono();
 
-// Health check endpoint
-app.get('/health', HealthGet);
+// Request logging middleware
+app.use('*', async (c, next) => {
+    const start = Date.now();
+    const method = c.req.method;
+    const path = c.req.path;
+    
+    await next();
+    
+    const duration = Date.now() - start;
+    const status = c.res.status;
+    
+    logger.info('Request completed', { method, path, status, duration });
+});
 
 // Root endpoint
 app.get('/', (c) => {
@@ -68,47 +81,41 @@ app.get('/', (c) => {
     });
 });
 
-// Request logging middleware
-app.use('*', async (c, next) => {
-    const start = Date.now();
-    const method = c.req.method;
-    const path = c.req.path;
-    
-    await next();
-    
-    const duration = Date.now() - start;
-    const status = c.res.status;
-    
-    logger.info('Request completed', { method, path, status, duration });
-});
+// Health check endpoint
+app.get('/health', HealthGet);
+app.get('/ping', PingGet);                                          // GET /ping
 
-// Granular response formatting middleware by API path
-app.use('/api/data/*', responseJsonMiddleware);  // Data API: JSON responses
-app.use('/api/meta/*', responseYamlMiddleware);  // Meta API: YAML responses  
-app.use('/api/file/*', responseFileMiddleware);  // Future: File responses
-app.use('/ftp/*', responseJsonMiddleware);       // FTP Middleware: JSON responses
+// Auth API middleware
 app.use('/auth/*', responseJsonMiddleware);      // Auth API: JSON responses
 
-// Public routes
+// Auth API routes
 app.post('/auth/login', AuthLoginPost);                             // POST /auth/login
 app.post('/auth/refresh', AuthRefreshPost);                         // POST /auth/refresh
 app.get('/auth/me', AuthService.getJWTMiddleware(), AuthService.getUserContextMiddleware(), AuthMeGet); // GET /auth/me
-app.get('/ping', PingGet);                                          // GET /ping
 
-// Root API routes - localhost development only (no authentication)
-app.use('/api/root/*', localhostDevelopmentOnlyMiddleware);
-app.use('/api/root/*', responseJsonMiddleware);
-app.route('/api/root', rootRouter);
-
-// Protected API routes - require JWT authentication
+// Protected API routes - require JWT authentication from /auth
 app.use('/api/*', AuthService.getJWTMiddleware());
 app.use('/api/*', AuthService.getUserContextMiddleware());
 app.use('/api/*', systemContextMiddleware);
 
-// FTP Middleware routes - require JWT authentication  
-app.use('/ftp/*', AuthService.getJWTMiddleware());
-app.use('/ftp/*', AuthService.getUserContextMiddleware());
-app.use('/ftp/*', systemContextMiddleware);
+// Root API middleware
+app.use('/api/root/*', localhostDevelopmentOnlyMiddleware);
+app.use('/api/root/*', responseJsonMiddleware);
+
+// Root API routes
+app.route('/api/root', rootRouter);
+
+// Meta API middleware
+app.use('/api/meta/*', responseYamlMiddleware);  // Meta API: YAML responses  
+
+// Meta API routes (clean barrel export organization)
+app.post('/api/meta/schema', metaRoutes.SchemaPost);                // Create schema
+app.get('/api/meta/schema/:name', metaRoutes.SchemaGet);            // Get schema
+app.put('/api/meta/schema/:name', metaRoutes.SchemaPut);            // Update schema
+app.delete('/api/meta/schema/:name', metaRoutes.SchemaDelete);      // Delete schema
+
+// Data API middleware
+app.use('/api/data/*', responseJsonMiddleware);  // Data API: JSON responses
 
 // Data API routes (clean barrel export organization)
 app.post('/api/data/:schema', dataRoutes.SchemaPost);               // Create records
@@ -119,21 +126,32 @@ app.get('/api/data/:schema/:id', dataRoutes.RecordGet);             // Get singl
 app.put('/api/data/:schema/:id', dataRoutes.RecordPut);             // Update single record
 app.delete('/api/data/:schema/:id', dataRoutes.RecordDelete);       // Delete single record
 
-// Meta API routes (clean barrel export organization)
-app.post('/api/meta/schema', metaRoutes.SchemaPost);                // Create schema
-app.get('/api/meta/schema/:name', metaRoutes.SchemaGet);            // Get schema
-app.put('/api/meta/schema/:name', metaRoutes.SchemaPut);            // Update schema
-app.delete('/api/meta/schema/:name', metaRoutes.SchemaDelete);      // Delete schema
+// File API middleware (TODO)
+app.use('/api/file/*', responseFileMiddleware);  // Future: File responses
 
-// FTP Middleware routes
+// Bulk API middleware
+app.use('/api/bulk/*', responseJsonMiddleware);  // Bulk API: JSON responses
+
+// Bulk API routes
+app.post('/api/bulk', BulkPost);
+
+// Find API middleware
+app.use('/api/find/*', responseJsonMiddleware);  // Bulk API: JSON responses
+
+// Find API routes
+app.post('/api/find/:schema', FindSchemaPost);
+
+// FTP middleware
+app.use('/ftp/*', AuthService.getJWTMiddleware());
+app.use('/ftp/*', AuthService.getUserContextMiddleware());
+app.use('/ftp/*', systemContextMiddleware);
+app.use('/ftp/*', responseJsonMiddleware);
+
+// FTP routes
 app.post('/ftp/list', FtpListPost);                                 // Directory listing
 app.post('/ftp/retrieve', FtpRetrievePost);                         // File retrieval
 app.post('/ftp/store', FtpStorePost);                               // File storage
 app.post('/ftp/stat', FtpStatPost);                                 // File status
-
-// Special API routes
-app.post('/api/bulk', BulkPost);                                    // Bulk operations
-app.post('/api/find/:schema', FindSchemaPost);                     // Advanced search
 
 // Error handling
 app.onError((err, c) => {
