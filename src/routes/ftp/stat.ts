@@ -47,70 +47,47 @@ export interface FtpStatResponse {
 }
 
 /**
- * Schema Analysis Engine - Generate detailed schema introspection
+ * Schema Analysis Engine - Generate schema information from cached Schema object
  */
 class SchemaAnalyzer {
     /**
-     * Generate comprehensive schema information for FTP stat response
+     * Generate schema information from cached Schema object (no database queries)
      */
     static async generateSchemaInfo(system: any, schemaName: string): Promise<FtpStatSchemaInfo> {
         try {
-            // Get schema definition
-            const schemaYaml = await system.metabase.selectOne(schemaName);
-            const schemaJson = system.metabase.parseYaml(schemaYaml);
+            // Use cached schema object (no database query)
+            const schema = await system.database.getSchema(schemaName);
+            const schemaJson = schema.definition;
             
-            // Get record statistics
-            const recordCount = await system.database.count(schemaName);
-            const recentChanges = await SchemaAnalyzer.getRecentChanges(system, schemaName);
-            
-            // Analyze field definitions
-            const fieldDefinitions = await SchemaAnalyzer.analyzeFields(system, schemaName, schemaJson);
+            // Analyze field definitions from cached schema only
+            const fieldDefinitions = SchemaAnalyzer.analyzeFields(schemaJson);
             
             return {
-                description: schemaJson.description || `${schemaName} schema`,
-                record_count: recordCount,
-                recent_changes: recentChanges,
-                last_modified: new Date().toISOString(),
+                description: schemaJson.description || schemaJson.title || `${schemaName} schema`,
+                record_count: 0,        // TODO: Would require database query
+                recent_changes: 0,      // TODO: Would require database query  
+                last_modified: undefined, // TODO: Would require database query
                 field_definitions: fieldDefinitions,
-                common_operations: SchemaAnalyzer.inferCommonOperations(schemaName)
+                common_operations: undefined // TODO: Could infer from schema name
             };
             
         } catch (error) {
-            // Return basic info if detailed analysis fails
+            // Return minimal info if schema not found
             return {
                 description: `${schemaName} schema`,
                 record_count: 0,
                 recent_changes: 0,
+                last_modified: undefined,
                 field_definitions: [],
-                common_operations: ['view', 'create', 'update']
+                common_operations: undefined
             };
         }
     }
     
     /**
-     * Count recent changes in the last 24 hours
+     * Analyze field definitions from cached schema definition only
      */
-    static async getRecentChanges(system: any, schemaName: string): Promise<number> {
-        try {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            
-            const result = await system.database.selectAny(schemaName, {
-                where: {
-                    updated_at: { $gte: yesterday.toISOString() }
-                }
-            });
-            
-            return result.length;
-        } catch (error) {
-            return 0;
-        }
-    }
-    
-    /**
-     * Analyze field definitions from schema
-     */
-    static async analyzeFields(system: any, schemaName: string, schemaJson: any): Promise<any[]> {
+    static analyzeFields(schemaJson: any): any[] {
         const fields: any[] = [];
         const properties = schemaJson.properties || {};
         const required = schemaJson.required || [];
@@ -124,7 +101,8 @@ class SchemaAnalyzer {
                 required: required.includes(fieldName),
                 constraints: SchemaAnalyzer.buildConstraintsString(field),
                 description: field.description || `${fieldName} field`,
-                usage_percentage: await SchemaAnalyzer.calculateFieldUsage(system, schemaName, fieldName)
+                usage_percentage: undefined,  // TODO: Would require database analysis
+                common_values: undefined      // TODO: Would require database analysis
             });
         }
         
@@ -132,7 +110,7 @@ class SchemaAnalyzer {
     }
     
     /**
-     * Build human-readable constraints string
+     * Build human-readable constraints string from schema definition
      */
     static buildConstraintsString(field: any): string {
         const constraints: string[] = [];
@@ -145,50 +123,6 @@ class SchemaAnalyzer {
         if (field.enum) constraints.push(field.enum.join('|'));
         
         return constraints.join(', ') || 'no constraints';
-    }
-    
-    /**
-     * Calculate field usage percentage across records
-     */
-    static async calculateFieldUsage(system: any, schemaName: string, fieldName: string): Promise<number> {
-        try {
-            const totalRecords = await system.database.count(schemaName);
-            
-            if (totalRecords === 0) return 0;
-            
-            const populatedRecords = await system.database.selectAny(schemaName, {
-                where: {
-                    [fieldName]: { $exists: true, $ne: null }
-                }
-            });
-            
-            return Math.round((populatedRecords.length / totalRecords) * 100);
-            
-        } catch (error) {
-            return 0;
-        }
-    }
-    
-    /**
-     * Infer common operations based on schema name and structure
-     */
-    static inferCommonOperations(schemaName: string): string[] {
-        const baseOperations = ['view', 'create', 'update', 'delete'];
-        
-        // Schema-specific operations based on common patterns
-        if (schemaName.includes('user') || schemaName.includes('account')) {
-            return [...baseOperations, 'authentication', 'profile management'];
-        }
-        
-        if (schemaName.includes('contact') || schemaName.includes('customer')) {
-            return [...baseOperations, 'relationship management', 'communication'];
-        }
-        
-        if (schemaName.includes('order') || schemaName.includes('transaction')) {
-            return [...baseOperations, 'payment processing', 'fulfillment'];
-        }
-        
-        return baseOperations;
     }
 }
 
