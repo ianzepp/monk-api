@@ -9,12 +9,12 @@ The FTP Middleware provides filesystem-like access to Monk API data through HTTP
 FTP middleware provides filesystem-like access to API data with intuitive path mapping:
 
 ```
-/data/                          → List all schemas
-/data/users/                    → List all user records
-/data/users/user-123/           → List record fields + .json file
-/data/users/user-123.json       → Complete record as JSON
-/data/users/user-123/email      → Individual field access
-/meta/schema/                   → Schema definitions
+/data/                                → List all schemas
+/data/account/                       → List all account records
+/data/account/account-123/           → List record fields + .json file
+/data/account/account-123.json       → Complete record as JSON
+/data/account/account-123/email      → Individual field access
+/meta/schema/                         → Schema definitions
 ```
 
 ## Core FTP Operations
@@ -28,7 +28,7 @@ Advanced directory listing with wildcard support and performance optimization:
 curl -X POST http://localhost:9001/ftp/list \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "path": "/data/users/",
+    "path": "/data/account/",
     "ftp_options": {
       "show_hidden": false,
       "long_format": true,
@@ -40,7 +40,7 @@ curl -X POST http://localhost:9001/ftp/list \
 curl -X POST http://localhost:9001/ftp/list \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "path": "/data/users/admin*",
+    "path": "/data/account/admin*",
     "ftp_options": {
       "pattern_optimization": true,
       "use_pattern_cache": true
@@ -57,10 +57,10 @@ Atomic file storage with transaction management and schema validation:
 curl -X POST http://localhost:9001/ftp/store \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "path": "/data/users/new-user.json",
+    "path": "/data/account/new-account.json",
     "content": {
-      "name": "New User",
-      "email": "user@example.com"
+      "name": "New Account",
+      "email": "account@example.com"
     },
     "ftp_options": {
       "atomic": true,
@@ -73,7 +73,7 @@ curl -X POST http://localhost:9001/ftp/store \
 curl -X POST http://localhost:9001/ftp/store \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "path": "/data/users/user-123/email",
+    "path": "/data/account/account-123/email",
     "content": "newemail@example.com",
     "ftp_options": {
       "atomic": true,
@@ -91,7 +91,7 @@ Safe deletion with soft-delete support and comprehensive safety checks:
 curl -X POST http://localhost:9001/ftp/delete \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "path": "/data/users/user-123",
+    "path": "/data/account/account-123",
     "ftp_options": {
       "permanent": false,
       "atomic": true,
@@ -103,7 +103,7 @@ curl -X POST http://localhost:9001/ftp/delete \
 curl -X POST http://localhost:9001/ftp/delete \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "path": "/data/users/old-user",
+    "path": "/data/account/old-account",
     "ftp_options": {
       "permanent": true,
       "atomic": true,
@@ -115,7 +115,7 @@ curl -X POST http://localhost:9001/ftp/delete \
 curl -X POST http://localhost:9001/ftp/delete \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "path": "/data/users/user-123/temp_field",
+    "path": "/data/account/account-123/temp_field",
     "ftp_options": {
       "atomic": true
     }
@@ -181,7 +181,7 @@ curl -X POST http://localhost:9001/ftp/stat \
         "name": "role",
         "type": "string", 
         "required": true,
-        "constraints": "user|admin|moderator",
+        "constraints": "account|admin|moderator",
         "description": "Access level",
         "usage_percentage": null,
         "common_values": null
@@ -212,7 +212,7 @@ The enhanced response enables rich FTP STAT command output:
 213-Required Fields:
 213-  name (string, min 1 chars, max 100 chars) - Account holder display name
 213-  email (string, email format) - Login identifier
-213-  role (string, user|admin|moderator) - Access level
+213-  role (string, account|admin|moderator) - Access level
 213-
 213-Optional Fields:
 213-  department (string, min 1 chars, max 50 chars) - Organizational unit
@@ -263,7 +263,7 @@ Intelligent content type detection and processing:
 ```bash
 # JSON content (auto-detected)
 {
-  "content": {"name": "User"},
+  "content": {"name": "Account"},
   "metadata": {"content_type": "application/json"}
 }
 
@@ -276,7 +276,7 @@ Intelligent content type detection and processing:
 
 # String append mode
 {
-  "path": "/data/users/user-123/description",
+  "path": "/data/account/account-123/description",
   "content": " - Additional info",
   "ftp_options": {"append_mode": true}
 }
@@ -288,7 +288,7 @@ Complex pattern matching with performance optimization:
 
 ```bash
 # Multiple wildcards
-"/data/users/*admin*/department/eng*/"
+"/data/account/*admin*/department/eng*/"
 
 # Alternative patterns  
 "/data/orders/status/(pending|active|shipped)/"
@@ -303,7 +303,7 @@ Complex pattern matching with performance optimization:
 #### FTP Wildcard Translation
 
 ```bash
-# FTP Path: /data/users/*admin*/department/*eng*/created/2024-*
+# FTP Path: /data/account/*admin*/department/*eng*/created/2024-*
 # Translates to Filter:
 {
   "where": {
@@ -350,15 +350,15 @@ Consistent response structure across all FTP operations:
   "success": true,
   "entries": [
     {
-      "name": "user-123",
+      "name": "account-123",
       "ftp_type": "d",           // Directory, File, Link
       "ftp_size": 1024,
       "ftp_permissions": "rwx",
       "ftp_modified": "20241201120000",
-      "path": "/data/users/user-123/",
+      "path": "/data/account/account-123/",
       "api_context": {
-        "schema": "users",
-        "record_id": "user-123",
+        "schema": "accounts",
+        "record_id": "account-123",
         "access_level": "full"
       }
     }
@@ -378,7 +378,7 @@ Consistent response structure across all FTP operations:
   "success": true,
   "operation": "create",
   "result": {
-    "record_id": "user-123",
+    "record_id": "account-123",
     "size": 256,
     "created": true,
     "validation_passed": true
@@ -408,8 +408,8 @@ FTP operations integrate with the ACL system:
 - **Field operations**: access_edit or access_full
 
 ### Permission Validation
-- **Root user**: All operations allowed
-- **Regular users**: ACL-based validation  
+- **Root account**: All operations allowed
+- **Regular accounts**: ACL-based validation  
 - **Cross-tenant**: Blocked automatically
 - **Dangerous operations**: Require force=true
 
@@ -440,11 +440,11 @@ npm run spec:one spec/integration/ftp/file-operations-integration.test.ts
 ```bash
 # Store operation
 curl -X POST http://localhost:9001/ftp/store -H "Authorization: Bearer $TOKEN" \
-  -d '{"path": "/data/users/test.json", "content": {"name": "Test"}, "ftp_options": {"atomic": true}}'
+  -d '{"path": "/data/account/test.json", "content": {"name": "Test"}, "ftp_options": {"atomic": true}}'
 
 # Delete operation
 curl -X POST http://localhost:9001/ftp/delete -H "Authorization: Bearer $TOKEN" \
-  -d '{"path": "/data/users/test", "ftp_options": {"permanent": false, "atomic": true}}'
+  -d '{"path": "/data/account/test", "ftp_options": {"permanent": false, "atomic": true}}'
 ```
 
 ## Implementation Status
