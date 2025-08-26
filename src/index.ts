@@ -40,6 +40,7 @@ import FtpStorePost from '@src/routes/ftp/store.js';                      // POS
 import FtpStatPost from '@src/routes/ftp/stat.js';                        // POST /ftp/stat
 import FtpDeletePost from '@src/routes/ftp/delete.js';                    // POST /ftp/delete
 import FtpSizePost from '@src/routes/ftp/size.js';                        // POST /ftp/size
+import FtpModifyTimePost from '@src/routes/ftp/modify-time.js';           // POST /ftp/modify-time
 
 // Special endpoints
 import HealthGet from '@src/routes/health/GET.js';                        // GET /health
@@ -156,6 +157,7 @@ app.post('/ftp/store', FtpStorePost);                               // File stor
 app.post('/ftp/stat', FtpStatPost);                                 // File status
 app.post('/ftp/delete', FtpDeletePost);                             // File deletion
 app.post('/ftp/size', FtpSizePost);                                 // File size
+app.post('/ftp/modify-time', FtpModifyTimePost);                    // File modification time
 
 // Error handling
 app.onError((err, c) => {
