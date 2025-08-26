@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
-import { AuthService } from '@lib/auth.js';
-import { DatabaseManager } from '@lib/database-manager.js';
+import { AuthService } from '@src/lib/auth.js';
+import { DatabaseManager } from '@src/lib/database-manager.js';
 
 // GET /ping - Simple health check with optional JWT domain and database connection test
 export default async function (c: Context): Promise<any> {

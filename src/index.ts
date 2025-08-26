@@ -41,15 +41,15 @@ import BulkPost from './routes/bulk/POST.js';                          // POST /
 import FindSchemaPost from './routes/find/:schema/POST.js';            // POST /api/find/:schema
 import PingGet from './routes/ping/GET.js';                            // GET /ping
 import { AuthService } from './lib/auth.js';
-import { ObserverLoader } from '@observers/loader.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { 
     systemContextMiddleware, 
     responseJsonMiddleware, 
     responseYamlMiddleware,
     responseFileMiddleware 
-} from '@lib/middleware/system-context.js';
-import { localhostDevelopmentOnlyMiddleware } from '@lib/middleware/localhost-development-only.js';
-import { rootRouter } from '@routes/root/index.js';
+} from '@src/lib/middleware/system-context.js';
+import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/localhost-development-only.js';
+import { rootRouter } from '@src/routes/root/index.js';
 
 // Create Hono app
 const app = new Hono();

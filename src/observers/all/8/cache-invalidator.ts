@@ -5,10 +5,10 @@
  * Ring: 8 (Integration) - Schema: all - Operations: create, update, delete
  */
 
-import { BaseAsyncObserver } from '@lib/observers/base-async-observer.js';
-import { SystemError } from '@lib/observers/errors.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { BaseAsyncObserver } from '@src/lib/observers/base-async-observer.js';
+import { SystemError } from '@src/lib/observers/errors.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 export default class CacheInvalidator extends BaseAsyncObserver {
     readonly ring = ObserverRing.Integration;

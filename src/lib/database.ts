@@ -1,13 +1,13 @@
 import { db, builtins, type DbContext, type TxContext } from '@src/db/index.js';
-import { Schema, type SchemaName } from '@lib/schema.js';
-import { Filter, type FilterData } from '@lib/filter.js';
-import { DatabaseManager } from '@lib/database-manager.js';
+import { Schema, type SchemaName } from '@src/lib/schema.js';
+import { Filter, type FilterData } from '@src/lib/filter.js';
+import { DatabaseManager } from '@src/lib/database-manager.js';
 import type { Context } from 'hono';
-import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
-import { SchemaCache } from '@lib/schema-cache.js';
-import { ObserverRunner } from '@lib/observers/runner.js';
-import { ObserverRecursionError, SystemError } from '@lib/observers/errors.js';
-import type { OperationType } from '@lib/observers/types.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
+import { SchemaCache } from '@src/lib/schema-cache.js';
+import { ObserverRunner } from '@src/lib/observers/runner.js';
+import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
+import type { OperationType } from '@src/lib/observers/types.js';
 import crypto from 'crypto';
 
 /**

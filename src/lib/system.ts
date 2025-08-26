@@ -1,9 +1,9 @@
 import type { Context } from 'hono';
-import { Database } from '@lib/database.js';
-import { Metabase } from '@lib/metabase.js';
-import { DatabaseManager } from '@lib/database-manager.js';
+import { Database } from '@src/lib/database.js';
+import { Metabase } from '@src/lib/metabase.js';
+import { DatabaseManager } from '@src/lib/database-manager.js';
 import type { DbContext, TxContext } from '@src/db/index.js';
-import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@lib/types/system-context.js';
+import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/types/system-context.js';
 
 /**
  * System class - Per-request context management

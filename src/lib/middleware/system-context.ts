@@ -9,18 +9,18 @@
  */
 
 import type { Context, Next } from 'hono';
-import { System } from '@lib/system.js';
-import { DatabaseManager } from '@lib/database-manager.js';
+import { System } from '@src/lib/system.js';
+import { DatabaseManager } from '@src/lib/database-manager.js';
 import { 
     createSuccessResponse, 
     createValidationError, 
     createInternalError 
-} from '@lib/api/responses.js';
+} from '@src/lib/api/responses.js';
 import { 
     ValidationError, 
     BusinessLogicError, 
     SystemError 
-} from '@lib/observers/errors.js';
+} from '@src/lib/observers/errors.js';
 
 /**
  * System context middleware - sets up System instance and global error handling

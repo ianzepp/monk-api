@@ -7,10 +7,10 @@
  * TODO: Re-enable when audit_log table is added to init-tenant.sql
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import { SystemError } from '@lib/observers/errors.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import { SystemError } from '@src/lib/observers/errors.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 export default class ChangeTracker extends BaseObserver {
     readonly ring = ObserverRing.Audit;

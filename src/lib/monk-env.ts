@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import path from 'path';
-import { logger } from '@lib/logger.js';
+import { logger } from '@src/lib/logger.js';
 
 /**
  * Configuration file paths in order of precedence

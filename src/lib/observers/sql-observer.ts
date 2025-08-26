@@ -14,12 +14,12 @@
  * This observer focuses solely on efficient SQL transport without business logic.
  */
 
-import type { ObserverContext } from '@observers/interfaces.js';
-import { BaseObserver } from '@observers/base-observer.js';
-import { ObserverRing } from '@observers/types.js';
-import { SystemError } from '@observers/errors.js';
-import { FilterWhere } from '@lib/filter-where.js';
-import { logger } from '@lib/logger.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import { SystemError } from '@src/lib/observers/errors.js';
+import { FilterWhere } from '@src/lib/filter-where.js';
+import { logger } from '@src/lib/logger.js';
 import crypto from 'crypto';
 
 export class SqlObserver extends BaseObserver {

@@ -7,7 +7,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { logger } from '@lib/logger.js';
+import { logger } from '@src/lib/logger.js';
 import { MonkEnv } from '../monk-env.js';
 import type { FixtureDefinition, FixtureData, DataGeneratorConfig, GeneratorContext, IDataGenerator } from './types.js';
 import type { TenantInfo } from '../services/tenant.js';

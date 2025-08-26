@@ -1,6 +1,6 @@
 // Test setup - runs before all tests
 import { beforeAll, afterAll } from 'vitest';
-import { MonkEnv } from '@lib/monk-env.js';
+import { MonkEnv } from '@src/lib/monk-env.js';
 
 beforeAll(async () => {
     console.log('🧪 Setting up test environment...');

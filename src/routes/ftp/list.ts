@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { WildcardTranslator, type WildcardTranslation } from '@src/ftp/wildcard-translator.js';
 import { PatternCache } from '@src/ftp/pattern-cache.js';
 

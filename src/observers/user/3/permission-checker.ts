@@ -5,10 +5,10 @@
  * Ring: 3 (Business Logic) - Schema: user - Operations: create, update
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import { ValidationError, BusinessLogicError } from '@lib/observers/errors.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import { ValidationError, BusinessLogicError } from '@src/lib/observers/errors.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 export default class PermissionChecker extends BaseObserver {
     readonly ring = ObserverRing.Business;

@@ -1,4 +1,4 @@
-import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import crypto from 'crypto';
 

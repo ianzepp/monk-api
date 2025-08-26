@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
-import { TenantService } from '@lib/services/tenant.js';
-import { logger } from '@lib/logger.js';
+import { TenantService } from '@src/lib/services/tenant.js';
+import { logger } from '@src/lib/logger.js';
 
 /**
  * DELETE /api/root/tenant/:name - Delete tenant (localhost development only)

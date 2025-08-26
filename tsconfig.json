@@ -23,10 +23,8 @@
     "baseUrl": ".",
     "paths": {
       "@src/*": ["src/*"],
-      "@lib/*": ["src/lib/*"],
-      "@observers/*": ["src/lib/observers/*"],
-      "@routes/*": ["src/routes/*"],
-      "@spec/*": ["spec/*"]
+      "@spec/*": ["spec/*"],
+      "@sql/*": ["sql/*"]
     }
   },
   "include": [

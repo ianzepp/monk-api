@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
-import { System } from '@lib/system.js';
-import { setRouteResult } from '@lib/middleware/system-context.js';
-import { createSchema } from '@lib/schema.js';
+import { System } from '@src/lib/system.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { createSchema } from '@src/lib/schema.js';
 
 export enum BulkOperationType {
     // Read operations

@@ -18,8 +18,8 @@
  * - Parameter management: Efficient SQL parameterization for complex queries
  */
 
-import type { FilterData } from '@lib/filter.js';
-import { FilterOp } from '@lib/filter-where.js';
+import type { FilterData } from '@src/lib/filter.js';
+import { FilterOp } from '@src/lib/filter-where.js';
 
 export interface WildcardTranslation {
     schemas: string[];              // Affected schemas

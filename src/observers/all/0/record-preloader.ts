@@ -12,9 +12,9 @@
  * Ring: 0 (Validation) - Schema: all - Operations: update, delete, revert
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 export default class RecordPreloader extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation;

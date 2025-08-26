@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
-import { AuthService } from '@lib/auth.js';
-import { setRouteResult } from '@lib/middleware/system-context.js';
+import { AuthService } from '@src/lib/auth.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 export default async function (context: Context) {
     const { tenant, username } = await context.req.json();

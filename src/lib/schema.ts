@@ -1,7 +1,7 @@
-import { type FilterData } from '@lib/filter.js';
+import { type FilterData } from '@src/lib/filter.js';
 import { type TxContext } from '@src/db/index.js';
-import type { SystemContextWithInfrastructure } from '@lib/types/system-context.js';
-import { isSystemField } from '@lib/metabase.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
+import { isSystemField } from '@src/lib/metabase.js';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 

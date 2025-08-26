@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 // Enhanced FTP Store Transport Types (Phase 3)
 export interface FtpStoreRequest {

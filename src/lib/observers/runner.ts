@@ -5,10 +5,10 @@
  * timeout protection, and performance monitoring.
  */
 
-import type { System } from '@lib/system.js';
-import { Schema, type SchemaName } from '@lib/schema.js';
-import { SchemaCache } from '@lib/schema-cache.js';
-import { Logger } from '@lib/logger.js';
+import type { System } from '@src/lib/system.js';
+import { Schema, type SchemaName } from '@src/lib/schema.js';
+import { SchemaCache } from '@src/lib/schema-cache.js';
+import { Logger } from '@src/lib/logger.js';
 import type { 
     Observer, 
     ObserverContext, 

@@ -14,10 +14,10 @@
  * Ring: 0 (Validation) - Schema: all - Operations: update
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import { BusinessLogicError } from '@lib/observers/errors.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import { BusinessLogicError } from '@src/lib/observers/errors.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 import RecordPreloader from './record-preloader.js';
 
 export default class UpdateMerger extends BaseObserver {

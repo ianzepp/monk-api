@@ -12,7 +12,7 @@ import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { DatabaseConnection } from '../database-connection.js';
-import { logger } from '@lib/logger.js';
+import { logger } from '@src/lib/logger.js';
 import pg from 'pg';
 
 import type { TenantInfo } from '../services/tenant.js';

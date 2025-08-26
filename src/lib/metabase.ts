@@ -1,5 +1,5 @@
 import { builtins, type TxContext, type DbContext } from '@src/db/index.js';
-import type { System } from '@lib/system.js';
+import type { System } from '@src/lib/system.js';
 import type { Context } from 'hono';
 import * as yaml from 'js-yaml';
 import crypto from 'crypto';

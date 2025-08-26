@@ -5,10 +5,10 @@
  */
 
 import type { Context } from 'hono';
-import type { System } from '@lib/system.js';
-import type { OperationType, ObserverResult } from '@observers/types.js';
-import { ObserverRunner } from '@observers/runner.js';
-import { createSuccessResponse, createValidationError } from '@lib/api/responses.js';
+import type { System } from '@src/lib/system.js';
+import type { OperationType, ObserverResult } from '@src/lib/observers/types.js';
+import { ObserverRunner } from '@src/lib/observers/runner.js';
+import { createSuccessResponse, createValidationError } from '@src/lib/api/responses.js';
 
 /**
  * Execute observer pipeline for a single record operation

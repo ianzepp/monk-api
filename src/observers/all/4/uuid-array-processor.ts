@@ -11,9 +11,9 @@
  * Ring: 4 (Enrichment) - Schema: all - Operations: create, update
  */
 
-import { BaseObserver } from '@lib/observers/base-observer.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { BaseObserver } from '@src/lib/observers/base-observer.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 export default class UuidArrayProcessor extends BaseObserver {
     readonly ring = ObserverRing.Enrichment;
