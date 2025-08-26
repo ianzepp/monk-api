@@ -122,6 +122,115 @@ curl -X POST http://localhost:9001/ftp/delete \
   }'
 ```
 
+### File Status Information - POST /ftp/stat
+
+Enhanced status information with schema introspection for comprehensive FTP STAT command support:
+
+```bash
+# Basic file/directory status
+curl -X POST http://localhost:9001/ftp/stat \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "path": "/data/account/"
+  }'
+
+# Response with enhanced schema information
+{
+  "success": true,
+  "path": "/data/account/",
+  "type": "directory",
+  "permissions": "rwx",
+  "size": 0,
+  "modified_time": "20250826143022",
+  "created_time": "20250826143022", 
+  "access_time": "20250826143022",
+  "record_info": {
+    "schema": "account",
+    "soft_deleted": false,
+    "access_permissions": ["read", "edit"]
+  },
+  "children_count": 247,
+  "total_size": 0,
+  
+  // NEW: Enhanced schema introspection (Issue #165)
+  "schema_info": {
+    "description": "Account management and authentication",
+    "record_count": 0,         // TODO: Would require database query
+    "recent_changes": 0,       // TODO: Would require database query
+    "last_modified": null,     // TODO: Would require database query
+    "field_definitions": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true,
+        "constraints": "min 1 chars, max 100 chars",
+        "description": "Account holder display name",
+        "usage_percentage": null,    // TODO: Would require database analysis
+        "common_values": null        // TODO: Would require database analysis
+      },
+      {
+        "name": "email", 
+        "type": "string",
+        "required": true,
+        "constraints": "email format",
+        "description": "Login identifier",
+        "usage_percentage": null,
+        "common_values": null
+      },
+      {
+        "name": "role",
+        "type": "string", 
+        "required": true,
+        "constraints": "user|admin|moderator",
+        "description": "Access level",
+        "usage_percentage": null,
+        "common_values": null
+      }
+    ],
+    "common_operations": null    // TODO: Could infer from schema patterns
+  }
+}
+```
+
+#### Schema Introspection Features
+
+- **Field Definitions**: Complete field structure from cached JSON Schema
+- **Type Information**: Field types, required status, validation constraints
+- **Human-Readable Constraints**: Min/max length, format rules, enum values
+- **Performance Optimized**: Uses existing SchemaCache (no database queries)
+- **Future-Ready**: Interface prepared for database statistics when needed
+
+#### FTP STAT Command Integration
+
+The enhanced response enables rich FTP STAT command output:
+
+```
+213-File status: /data/account
+213-Type: directory (Account management and authentication)
+213-Schema: account
+213-
+213-Required Fields:
+213-  name (string, min 1 chars, max 100 chars) - Account holder display name
+213-  email (string, email format) - Login identifier
+213-  role (string, user|admin|moderator) - Access level
+213-
+213-Optional Fields:
+213-  department (string, min 1 chars, max 50 chars) - Organizational unit
+213-  last_login (string, date-time format) - Most recent authentication
+213-
+213-Permissions: rwx
+213-Size: 0 bytes across 247 entries
+213-Modified: Aug 26 2025 14:30:22
+213 End of status information
+```
+
+#### Benefits
+
+- **Rich Documentation**: Complete schema structure through FTP protocol
+- **Developer Experience**: Schema discovery using familiar STAT command
+- **AI Integration**: Full field context available for automated operations
+- **Performance**: Fast response using cached schema definitions
+
 ## Advanced FTP Features
 
 ### Transaction Management
