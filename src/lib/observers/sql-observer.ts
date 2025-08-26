@@ -72,7 +72,7 @@ export class SqlObserver extends BaseObserver {
                     break;
                     
                 case 'select':
-                    result = await this.bulkSelect(system, schema, data, metadata);
+                    result = await this.bulkSelect(system, schema, context.filter, metadata);
                     break;
                     
                 case 'revert':
@@ -250,19 +250,17 @@ export class SqlObserver extends BaseObserver {
     /**
      * Bulk select operation - direct SQL execution
      * 
-     * Executes SELECT queries with proper WHERE clause generation and ordering.
+     * Executes SELECT queries using Filter instance from observer pipeline.
      */
-    private async bulkSelect(system: any, schema: any, filters: any[], metadata: Map<string, any>): Promise<any[]> {
-        if (!filters || filters.length === 0) {
+    private async bulkSelect(system: any, schema: any, filter: any, metadata: Map<string, any>): Promise<any[]> {
+        if (!filter) {
             return [];
         }
         
-        // Use FilterWhere for consistent WHERE clause generation
-        const { whereClause, params } = FilterWhere.generate({});  // Default filtering for soft deletes
+        // Use the Filter instance passed from Database.selectAny() via observer pipeline
+        const { query, params } = filter.toSQL();
         
-        const query = `SELECT * FROM "${schema.table}" WHERE ${whereClause} ORDER BY "created_at" DESC`;
         const result = await this.getDbContext(system).query(query, params);
-        
         return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
     

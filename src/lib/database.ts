@@ -140,12 +140,8 @@ export class Database {
         const schema = await this.toSchema(schemaName);
         const filter = new Filter(this.system, schemaName, schema.table).assign(filterData);
         
-        // Use Filter.toSQL() pattern for proper separation of concerns
-        const { query, params } = filter.toSQL();
-        const result = await this.system.database.execute(query, params);
-        
-        // Convert PostgreSQL string types back to proper JSON types
-        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
+        // Use observer pipeline instead of direct SQL execution
+        return await this.runObserverPipeline('select', schemaName, [], filter);
     }
     
     /**
@@ -316,6 +312,7 @@ export class Database {
         operation: OperationType,
         schemaName: string,
         data: any[],
+        filter: any = {},
         depth: number = 0
     ): Promise<any[]> {
         // Recursion protection
@@ -337,7 +334,7 @@ export class Database {
         
         try {
             // Execute observer pipeline with resolved schema object
-            const result = await this.executeObserverPipeline(operation, schema, data, depth + 1);
+            const result = await this.executeObserverPipeline(operation, schema, data, filter, depth + 1);
             
             // Commit transaction if one was started by SQL Observer
             if (this.system.tx) {
@@ -414,6 +411,7 @@ export class Database {
         operation: OperationType,
         schema: Schema,
         data: any[],
+        filter: any = {},
         depth: number
     ): Promise<any[]> {
         const runner = new ObserverRunner();
@@ -424,7 +422,8 @@ export class Database {
             schema,
             data,
             undefined, // existing records (for updates)
-            depth
+            depth,
+            filter
         );
         
         if (!result.success) {
