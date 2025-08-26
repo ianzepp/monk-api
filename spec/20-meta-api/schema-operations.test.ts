@@ -35,7 +35,7 @@ describe('20-meta-api: Schema Operations', () => {
     testContext = await createTestContext(tenantManager.tenant, 'root');
 
     // Load test YAML schemas
-    const schemaDir = join(process.cwd(), 'test/schemas');
+    const schemaDir = join(process.cwd(), 'spec/fixtures/schema');
     accountYaml = readFileSync(join(schemaDir, 'account.yaml'), 'utf8');
     contactYaml = readFileSync(join(schemaDir, 'contact.yaml'), 'utf8');
   });
