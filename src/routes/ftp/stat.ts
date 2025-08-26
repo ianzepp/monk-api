@@ -7,6 +7,23 @@ export interface FtpStatRequest {
     path: string;                   // "/data/account/123/" or "/data/account/123.json"
 }
 
+export interface FtpStatSchemaInfo {
+    description?: string;
+    record_count: number;
+    recent_changes: number;
+    last_modified?: string;
+    field_definitions: Array<{
+        name: string;
+        type: string;
+        required: boolean;
+        constraints?: string;
+        description?: string;
+        usage_percentage?: number;
+        common_values?: Record<string, number>;
+    }>;
+    common_operations?: string[];
+}
+
 export interface FtpStatResponse {
     success: true;
     path: string;
@@ -26,22 +43,7 @@ export interface FtpStatResponse {
     };
     children_count?: number;        // For directories
     total_size?: number;           // Recursive size calculation
-    schema_info?: {                 // NEW: Enhanced schema information
-        description?: string;
-        record_count: number;
-        recent_changes: number;
-        last_modified?: string;
-        field_definitions: Array<{
-            name: string;
-            type: string;
-            required: boolean;
-            constraints?: string;
-            description?: string;
-            usage_percentage?: number;
-            common_values?: Record<string, number>;
-        }>;
-        common_operations?: string[];
-    };
+    schema_info?: FtpStatSchemaInfo; // NEW: Enhanced schema information
 }
 
 /**
@@ -51,7 +53,7 @@ class SchemaAnalyzer {
     /**
      * Generate comprehensive schema information for FTP stat response
      */
-    static async generateSchemaInfo(system: any, schemaName: string): Promise<any> {
+    static async generateSchemaInfo(system: any, schemaName: string): Promise<FtpStatSchemaInfo> {
         try {
             // Get schema definition
             const schemaYaml = await system.metabase.selectOne(schemaName);
