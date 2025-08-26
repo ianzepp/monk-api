@@ -7,29 +7,19 @@
   "scripts": {
     "start": "node dist/index.js",
     "start:dev": "tsx watch src/index.ts",
-    "api:start": "scripts/api-start.sh",
-    "api:dev": "scripts/api-dev.sh",
     "compile": "tsc",
     "autoinstall": "scripts/autoinstall.sh",
+    
     "spec": "scripts/spec.sh",
     "spec:ts": "scripts/spec-ts.sh",
     "spec:sh": "scripts/spec-sh.sh",
+    
     "fixtures:build": "scripts/fixtures-build.sh",
     "fixtures:clean": "scripts/fixtures-clean.sh",
     "fixtures:list": "scripts/fixtures-list.sh",
     "fixtures:test": "npx tsx src/scripts/test-template-data.ts",
-    "test:prepare": "npm run compile && npm run fixtures:build",
-    "version:patch": "npm version patch",
-    "version:minor": "npm version minor",
-    "version:major": "npm version major",
-    "preversion": "npm run compile && npm run spec",
-    "postversion": "git push && git push --tags && gh release create v$npm_package_version --generate-notes",
-    "test": "npm run spec",
-    "test:all": "npm run spec:sh",
-    "test:one": "npm run spec:sh",
-    "test:info": "scripts/test-info.sh",
-    "spec:all": "npm run spec:ts",
-    "spec:one": "npm run spec:ts",
+    "fixtures:prepare": "npm run compile && npm run fixtures:build",
+    
     "docker:dev": "docker compose up --build",
     "docker:dev:daemon": "docker compose up --build -d",
     "docker:dev:with-data": "docker compose -f docker-compose.dev-with-data.yml up --build",
@@ -39,7 +29,13 @@
     "docker:stop:with-data": "docker compose -f docker-compose.dev-with-data.yml down",
     "docker:clean": "docker compose down -v && docker system prune -f",
     "docker:clean:with-data": "docker compose -f docker-compose.dev-with-data.yml down -v",
-    "docker:logs": "docker compose logs -f monk-api"
+    "docker:logs": "docker compose logs -f monk-api",
+    
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major",
+    "preversion": "npm run compile && npm run spec",
+    "postversion": "git push && git push --tags && gh release create v$npm_package_version --generate-notes"
   },
   "keywords": [
     "hono",
