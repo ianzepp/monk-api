@@ -54,7 +54,7 @@ echo
 
 # Test 1: Create account schema
 print_step "Creating account schema"
-if ACCOUNT_RESULT=$(cat "$(dirname "$0")/../schemas/account.yaml" | monk meta create schema 2>&1); then
+if ACCOUNT_RESULT=$(cat "$(dirname "$0")/../fixtures/schema/account.yaml" | monk meta create schema 2>&1); then
     # Validate YAML response
     if echo "$ACCOUNT_RESULT" | grep -q "title: Account" && echo "$ACCOUNT_RESULT" | grep -q "type: object"; then
         print_success "Account schema created successfully (YAML response)"
@@ -76,7 +76,7 @@ echo
 
 # Test 2: Create contact schema
 print_step "Creating contact schema"
-if CONTACT_RESULT=$(cat "$(dirname "$0")/../schemas/contact.yaml" | monk meta create schema 2>&1); then
+if CONTACT_RESULT=$(cat "$(dirname "$0")/../fixtures/schema/contact.yaml" | monk meta create schema 2>&1); then
     # Validate YAML response
     if echo "$CONTACT_RESULT" | grep -q "title: Contact" && echo "$CONTACT_RESULT" | grep -q "type: object"; then
         print_success "Contact schema created successfully (YAML response)"
