@@ -28,6 +28,7 @@ import FtpStorePost from '@src/routes/ftp/store.js';                      // POS
 import FtpStatPost from '@src/routes/ftp/stat.js';                        // POST /ftp/stat
 
 // Special endpoints
+import HealthGet from '@src/routes/health/GET.js';                        // GET /health
 import BulkPost from '@src/routes/bulk/POST.js';                          // POST /api/bulk
 import FindSchemaPost from '@src/routes/find/:schema/POST.js';            // POST /api/find/:schema
 import PingGet from '@src/routes/ping/GET.js';                            // GET /ping
@@ -46,23 +47,7 @@ import { rootRouter } from '@src/routes/root/index.js';
 const app = new Hono();
 
 // Health check endpoint
-app.get('/health', async (c) => {
-    try {
-        const dbHealthy = await checkDatabaseConnection();
-
-        const health = {
-            status: 'ok',
-            timestamp: new Date().toISOString(),
-            database: dbHealthy ? 'connected' : 'disconnected',
-            version: '1.0.0',
-        };
-
-        return createSuccessResponse(c, health);
-    } catch (error) {
-        console.error('Health check failed:', error);
-        return createInternalError(c, 'Health check failed');
-    }
-});
+app.get('/health', HealthGet);
 
 // Root endpoint
 app.get('/', (c) => {
