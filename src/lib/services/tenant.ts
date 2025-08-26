@@ -17,6 +17,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '../database-connection.js';
+import { MonkEnv } from '../monk-env.js';
 import pg from 'pg';
 
 export interface TenantInfo {
@@ -55,8 +56,11 @@ export interface LoginResult {
 }
 
 export class TenantService {
-  private static jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-this';
   private static tokenExpiry = 24 * 60 * 60; // 24 hours in seconds
+
+  private static getJwtSecret(): string {
+    return MonkEnv.get('JWT_SECRET', undefined, true);
+  }
 
   // ==========================================
   // TENANT MANAGEMENT OPERATIONS
@@ -399,14 +403,14 @@ export class TenantService {
       exp: Math.floor(Date.now() / 1000) + this.tokenExpiry
     };
 
-    return await sign(payload, this.jwtSecret);
+    return await sign(payload, this.getJwtSecret());
   }
 
   /**
    * Verify and decode JWT token
    */
   static async verifyToken(token: string): Promise<JWTPayload> {
-    return await verify(token, this.jwtSecret) as JWTPayload;
+    return await verify(token, this.getJwtSecret()) as JWTPayload;
   }
 
   /**

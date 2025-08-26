@@ -175,7 +175,7 @@ app.notFound((c) => {
 });
 
 // Server configuration
-const port = Number(process.env.PORT) || 9001;
+const port = Number(MonkEnv.get('PORT', '9001'));
 
 // Initialize observer system
 logger.info('Preloading observer system');

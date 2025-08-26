@@ -8,6 +8,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { logger } from '@lib/logger.js';
+import { MonkEnv } from '../monk-env.js';
 import type { FixtureDefinition, FixtureData, DataGeneratorConfig, GeneratorContext, IDataGenerator } from './types.js';
 import type { TenantInfo } from '../services/tenant.js';
 
@@ -288,8 +289,8 @@ export class FixtureManager {
   private static createMockContext(tenantInfo: TenantInfo): any {
     return {
       env: {
-        JWT_SECRET: process.env.JWT_SECRET || 'template-secret',
-        DATABASE_URL: process.env.DATABASE_URL || 'postgresql://localhost:5432/',
+        JWT_SECRET: MonkEnv.get('JWT_SECRET', 'template-secret'),
+        DATABASE_URL: MonkEnv.get('DATABASE_URL', undefined, true),
       },
       req: {
         header: (name: string) => {

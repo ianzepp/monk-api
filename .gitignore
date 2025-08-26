@@ -55,6 +55,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Development files
+TODO.md
+
 # Monk CLI Configuration
 # Ignore runtime files but preserve directory structure
 .config/monk/run-info
