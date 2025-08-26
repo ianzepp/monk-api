@@ -6,7 +6,7 @@
  * Builds template databases from fixture definitions for fast test setup.
  */
 
-import { TemplateDatabase } from '../lib/fixtures/template-database.js';
+import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
 
 async function buildFixtures(): Promise<void> {
   console.log('🔨 Building template databases...');

@@ -11,21 +11,21 @@ export type {
     ObserverConstructor,
     ObserverStats,
     ObserverExecutionSummary 
-} from './interfaces.js';
+} from '@src/lib/observers/interfaces.js';
 
 export { 
     ObserverRing,
     DATABASE_RING,
     UNIVERSAL_SCHEMA_KEYWORD,
     RING_OPERATION_MATRIX
-} from './types.js';
+} from '@src/lib/observers/types.js';
 
 export type { 
     OperationType, 
     ObserverResult,
     UniversalSchemaKeyword,
     ObserverFilePattern 
-} from './types.js';
+} from '@src/lib/observers/types.js';
 
 // Error types and base observer
 export { 
@@ -35,10 +35,10 @@ export {
     ValidationWarning,
     ObserverTimeoutError,
     ObserverRecursionError
-} from './errors.js';
+} from '@src/lib/observers/errors.js';
 
-export { BaseObserver } from './base-observer.js';
+export { BaseObserver } from '@src/lib/observers/base-observer.js';
 
 // Core implementation classes
-export { ObserverLoader } from './loader.js';
-export { ObserverRunner } from './runner.js';
+export { ObserverLoader } from '@src/lib/observers/loader.js';
+export { ObserverRunner } from '@src/lib/observers/runner.js';

@@ -1,8 +1,8 @@
 import type { Context } from 'hono';
 import { jwt } from 'hono/jwt';
 import { sign, verify } from 'hono/jwt';
-import { DatabaseConnection } from './database-connection.js';
-import { MonkEnv } from './monk-env.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { MonkEnv } from '@src/lib/monk-env.js';
 import pg from 'pg';
 
 export interface JWTPayload {

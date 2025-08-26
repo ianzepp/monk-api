@@ -1,5 +1,5 @@
 import pg from 'pg';
-import * as schema from './schema.js';
+import * as schema from '@src/db/schema.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 // Export lazy-loaded centralized pool - ONLY source of database connections

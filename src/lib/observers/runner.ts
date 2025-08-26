@@ -14,18 +14,18 @@ import type {
     ObserverContext, 
     ObserverStats, 
     ObserverExecutionSummary 
-} from './interfaces.js';
+} from '@src/lib/observers/interfaces.js';
 import type { 
     ObserverRing, 
     OperationType, 
     ObserverResult
-} from './types.js';
-import { RING_OPERATION_MATRIX } from './types.js';
-import { ValidationError } from './errors.js';
-import type { ValidationWarning } from './errors.js';
-import { DATABASE_RING } from './types.js';
-import { ObserverLoader } from './loader.js';
-import { SqlObserver } from './sql-observer.js';
+} from '@src/lib/observers/types.js';
+import { RING_OPERATION_MATRIX } from '@src/lib/observers/types.js';
+import { ValidationError } from '@src/lib/observers/errors.js';
+import type { ValidationWarning } from '@src/lib/observers/errors.js';
+import { DATABASE_RING } from '@src/lib/observers/types.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
+import { SqlObserver } from '@src/lib/observers/sql-observer.js';
 
 /**
  * Observer execution engine with ring-based execution

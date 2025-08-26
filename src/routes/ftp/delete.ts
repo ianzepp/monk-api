@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { FtpTransactionManager, type FtpTransaction } from './store.js';
+import { FtpTransactionManager, type FtpTransaction } from '@src/routes/ftp/store.js';
 
 // Enhanced FTP Delete Transport Types (Phase 3)
 export interface FtpDeleteRequest {

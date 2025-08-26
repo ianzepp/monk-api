@@ -10,13 +10,13 @@ import { logger } from '@src/lib/logger.js';
 import { join, dirname, basename, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-import type { Observer, ObserverConstructor } from './interfaces.js';
+import type { Observer, ObserverConstructor } from '@src/lib/observers/interfaces.js';
 import type { 
     ObserverRing, 
     ObserverFilePattern,
     UniversalSchemaKeyword 
-} from './types.js';
-import { UNIVERSAL_SCHEMA_KEYWORD } from './types.js';
+} from '@src/lib/observers/types.js';
+import { UNIVERSAL_SCHEMA_KEYWORD } from '@src/lib/observers/types.js';
 
 /**
  * Observer loader with file-based discovery and caching

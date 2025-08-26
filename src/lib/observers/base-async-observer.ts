@@ -12,8 +12,8 @@
  * - Perfect for Rings 6-9 (PostDatabase, Audit, Integration, Notification)
  */
 
-import type { Observer, ObserverContext } from './interfaces.js';
-import type { ObserverRing, OperationType } from './types.js';
+import type { Observer, ObserverContext } from '@src/lib/observers/interfaces.js';
+import type { ObserverRing, OperationType } from '@src/lib/observers/types.js';
 
 /**
  * Abstract base class for async observers

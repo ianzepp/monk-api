@@ -5,15 +5,15 @@
  * logging, and timeout management across all observers.
  */
 
-import type { Observer, ObserverContext } from './interfaces.js';
-import type { ObserverRing, OperationType } from './types.js';
+import type { Observer, ObserverContext } from '@src/lib/observers/interfaces.js';
+import type { ObserverRing, OperationType } from '@src/lib/observers/types.js';
 import { 
     ValidationError, 
     BusinessLogicError, 
     SystemError, 
     ValidationWarning,
     ObserverTimeoutError
-} from './errors.js';
+} from '@src/lib/observers/errors.js';
 
 /**
  * Abstract base class for all observers

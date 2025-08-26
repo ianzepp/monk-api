@@ -16,10 +16,10 @@ import { Hono } from 'hono';
 const rootRouter = new Hono();
 
 // Tenant Management Routes
-import tenantPOST from './tenant/POST.js';
-import tenantGET from './tenant/GET.js';
-import tenantDELETE from './tenant/:name/DELETE.js';
-import tenantPUT from './tenant/:name/PUT.js';
+import tenantPOST from '@src/routes/root/tenant/POST.js';
+import tenantGET from '@src/routes/root/tenant/GET.js';
+import tenantDELETE from '@src/routes/root/tenant/:name/DELETE.js';
+import tenantPUT from '@src/routes/root/tenant/:name/PUT.js';
 
 rootRouter.post('/tenant', tenantPOST);
 rootRouter.get('/tenant', tenantGET);

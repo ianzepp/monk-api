@@ -11,8 +11,8 @@ import type {
     ObserverRing, 
     OperationType, 
     ObserverResult 
-} from './types.js';
-import type { ValidationError, ValidationWarning } from './errors.js';
+} from '@src/lib/observers/types.js';
+import type { ValidationError, ValidationWarning } from '@src/lib/observers/errors.js';
 
 /**
  * Shared context passed through all observer rings
