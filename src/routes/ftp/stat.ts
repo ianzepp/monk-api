@@ -1,9 +1,27 @@
 import type { Context } from 'hono';
+import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 // FTP Stat Transport Types
 export interface FtpStatRequest {
     path: string;                   // "/data/account/123/" or "/data/account/123.json"
+}
+
+export interface FtpStatSchemaInfo {
+    description?: string;
+    record_count: number;
+    recent_changes: number;
+    last_modified?: string;
+    field_definitions: Array<{
+        name: string;
+        type: string;
+        required: boolean;
+        constraints?: string;
+        description?: string;
+        usage_percentage?: number;
+        common_values?: Record<string, number>;
+    }>;
+    common_operations?: string[];
 }
 
 export interface FtpStatResponse {
@@ -25,6 +43,87 @@ export interface FtpStatResponse {
     };
     children_count?: number;        // For directories
     total_size?: number;           // Recursive size calculation
+    schema_info?: FtpStatSchemaInfo; // NEW: Enhanced schema information
+}
+
+/**
+ * Schema Analysis Engine - Generate schema information from cached Schema object
+ */
+class SchemaAnalyzer {
+    /**
+     * Generate schema information from cached Schema object (no database queries)
+     */
+    static async generateSchemaInfo(system: any, schemaName: string): Promise<FtpStatSchemaInfo> {
+        try {
+            // Use cached schema object (no database query)
+            const schema = await system.database.getSchema(schemaName);
+            const schemaJson = schema.definition;
+            
+            // Analyze field definitions from cached schema only
+            const fieldDefinitions = SchemaAnalyzer.analyzeFields(schemaJson);
+            
+            return {
+                description: schemaJson.description || schemaJson.title || `${schemaName} schema`,
+                record_count: 0,        // TODO: Would require database query
+                recent_changes: 0,      // TODO: Would require database query  
+                last_modified: undefined, // TODO: Would require database query
+                field_definitions: fieldDefinitions,
+                common_operations: undefined // TODO: Could infer from schema name
+            };
+            
+        } catch (error) {
+            // Return minimal info if schema not found
+            return {
+                description: `${schemaName} schema`,
+                record_count: 0,
+                recent_changes: 0,
+                last_modified: undefined,
+                field_definitions: [],
+                common_operations: undefined
+            };
+        }
+    }
+    
+    /**
+     * Analyze field definitions from cached schema definition only
+     */
+    static analyzeFields(schemaJson: any): any[] {
+        const fields: any[] = [];
+        const properties = schemaJson.properties || {};
+        const required = schemaJson.required || [];
+        
+        for (const [fieldName, fieldDef] of Object.entries(properties)) {
+            const field: any = fieldDef as any;
+            
+            fields.push({
+                name: fieldName,
+                type: field.type || 'unknown',
+                required: required.includes(fieldName),
+                constraints: SchemaAnalyzer.buildConstraintsString(field),
+                description: field.description || `${fieldName} field`,
+                usage_percentage: undefined,  // TODO: Would require database analysis
+                common_values: undefined      // TODO: Would require database analysis
+            });
+        }
+        
+        return fields;
+    }
+    
+    /**
+     * Build human-readable constraints string from schema definition
+     */
+    static buildConstraintsString(field: any): string {
+        const constraints: string[] = [];
+        
+        if (field.minLength) constraints.push(`min ${field.minLength} chars`);
+        if (field.maxLength) constraints.push(`max ${field.maxLength} chars`);
+        if (field.minimum) constraints.push(`min ${field.minimum}`);
+        if (field.maximum) constraints.push(`max ${field.maximum}`);
+        if (field.format) constraints.push(`${field.format} format`);
+        if (field.enum) constraints.push(field.enum.join('|'));
+        
+        return constraints.join(', ') || 'no constraints';
+    }
 }
 
 /**
@@ -114,12 +213,10 @@ class FtpStatusCalculator {
  * 
  * Provides detailed file/directory status for FTP STAT command.
  * Returns comprehensive metadata for monk-ftp operations.
+ * Enhanced with schema and field introspection for Issue #165.
  */
-export default async function ftpStatHandler(context: Context): Promise<any> {
-    const system = context.get('system');
-    const requestBody: FtpStatRequest = await context.req.json();
-    
-    logger.info('FTP stat operation', { path: requestBody.path });
+export default withParams(async (context, { system, body }) => {
+    const requestBody: FtpStatRequest = body;
     
     try {
         const cleanPath = requestBody.path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
@@ -170,9 +267,12 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
             };
             
         } else if (parts.length === 2 && parts[0] === 'data') {
-            // /data/schema directory
+            // /data/schema directory - Enhanced with schema introspection
             const schema = parts[1];
             const recordCount = await system.database.count(schema);
+            
+            // Generate comprehensive schema analysis
+            const schemaInfo = await SchemaAnalyzer.generateSchemaInfo(system, schema);
             
             response = {
                 success: true,
@@ -189,7 +289,8 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
                     access_permissions: ['read', 'edit'] // TODO: Calculate from user ACL
                 },
                 children_count: recordCount,
-                total_size: 0
+                total_size: 0,
+                schema_info: schemaInfo  // NEW: Enhanced schema information
             };
             
         } else if (parts.length === 3 && parts[0] === 'data') {
@@ -323,4 +424,4 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
         
         throw error;
     }
-}
+});

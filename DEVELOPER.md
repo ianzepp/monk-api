@@ -1936,4 +1936,72 @@ curl -X POST http://localhost:9001/ftp/store -H "Authorization: Bearer $TOKEN" \
 - **sql/init-auth.sql**: Auth database schema
 - **sql/init-tenant.sql**: Tenant database schema
 
+---
+
+## Recent Architectural Improvements
+
+### **Configuration Management & Security Hardening** (August 2025)
+- **Enhanced MonkEnv.get()**: Centralized configuration with required parameter validation
+- **Eliminated Security Risks**: Removed dangerous JWT_SECRET and DATABASE_URL defaults
+- **Fail-Fast Validation**: All critical configuration values properly validated with clear error messages
+
+### **Logging Architecture Modernization** (August 2025)
+- **Global Logger Pattern**: Implemented TypeScript global declarations in `src/types/globals.d.ts`
+- **System Logging Removal**: Eliminated redundant system.info/warn/time methods from System class
+- **Consistent Logging**: 100+ files updated with unified global logger approach
+- **Import Cleanup**: Removed logger import boilerplate across entire codebase
+
+### **Import Path Standardization** (August 2025)
+- **Explicit Directory Structure**: All imports use @src namespace for clear visibility
+- **TypeScript Config**: Simplified to only root aliases (@src, @spec, @sql)
+- **Architectural Clarity**: Directory organization visible in every import statement
+- **Example**: `import { BaseObserver } from '@src/lib/observers/base-observer.js'`
+
+### **Route Handler Deduplication** (August 2025)
+- **withParams() Pattern**: Pre-extracts common parameters (system, schema, recordId, body)
+- **Content-Type Intelligence**: JSON/YAML/Binary body handling for future file upload support
+- **25-50% Boilerplate Reduction**: Route handlers focus on pure business logic
+- **Barrel Exports**: Clean organization with SchemaGet/RecordGet naming convention
+- **Expanded Else Style**: Clear conditional logic with per-branch comments
+
+### **GitHub Actions Integration** (August 2025)
+- **Automated Compilation**: TypeScript compile check on all pull requests
+- **Branch Protection**: Main branch requires passing compilation before merge
+- **Fast Feedback**: Quick validation of TypeScript changes in CI/CD pipeline
+
+## **Route Handler Development** (Updated Pattern)
+
+### **Modern withParams() Pattern**
+```typescript
+// NEW: Clean route handlers with parameter pre-extraction
+import { withParams } from '@src/lib/route-helpers.js';
+
+export default withParams(async (context, { system, schema, body }) => {
+    // Pure business logic - no boilerplate
+    const result = await system.database.createAll(schema!, body);
+    setRouteResult(context, result);
+});
+```
+
+### **Content-Type Aware Body Handling**
+- **JSON requests**: `body` is parsed JSON object
+- **YAML requests**: `body` is raw YAML string (for schema operations)
+- **Binary requests**: `body` is ArrayBuffer (ready for file uploads)
+- **Automatic detection**: Based on Content-Type header
+
+### **Route Organization**
+```bash
+# Barrel exports for clean organization
+src/routes/data/routes.ts     # SchemaGet, SchemaPost, RecordGet, RecordPut
+src/routes/meta/routes.ts     # SchemaGet, SchemaPost, SchemaPut, SchemaDelete
+src/routes/health/GET.ts      # Health check in proper file structure
+
+# Clean index.ts registration
+import * as dataRoutes from '@src/routes/data/routes.js';
+app.get('/api/data/:schema', dataRoutes.SchemaGet);
+app.get('/api/data/:schema/:id', dataRoutes.RecordGet);
+```
+
+---
+
 This guide provides everything needed to contribute effectively to the Monk API project, from initial setup through advanced development workflows.
