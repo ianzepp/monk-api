@@ -269,7 +269,7 @@ export default async function ftpListHandler(context: Context): Promise<any> {
     const startTime = process.hrtime.bigint();
     const translationStartTime = process.hrtime.bigint();
     
-    system.info('FTP list operation (Phase 2)', { 
+    logger.info('FTP list operation (Phase 2)', { 
         path: requestBody.path,
         options: requestBody.ftp_options,
         performance_hints: requestBody.performance_hints 
@@ -557,7 +557,7 @@ export default async function ftpListHandler(context: Context): Promise<any> {
             }
         };
         
-        system.info('FTP list completed (Phase 2)', {
+        logger.info('FTP list completed (Phase 2)', {
             path: requestBody.path,
             entryCount: entries.length,
             pathType: ftpPath.type,
@@ -568,7 +568,7 @@ export default async function ftpListHandler(context: Context): Promise<any> {
         
         setRouteResult(context, response);
     } catch (error) {
-        system.warn('FTP list failed', {
+        logger.warn('FTP list failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error)
         });

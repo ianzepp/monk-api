@@ -59,7 +59,7 @@ export default class UuidArrayProcessor extends BaseObserver {
         metadata.set('records_with_uuid_arrays', processedRecords);
         
         if (processedFields > 0) {
-            system.info('UUID array processing completed', {
+            logger.info('UUID array processing completed', {
                 schemaName,
                 operation,
                 processedFields,

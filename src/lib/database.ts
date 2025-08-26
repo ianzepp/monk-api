@@ -325,7 +325,7 @@ export class Database {
 
         const startTime = Date.now();
         
-        this.system.info('Observer pipeline started', { 
+        logger.info('Observer pipeline started', { 
             operation, 
             schemaName, 
             recordCount: data.length, 
@@ -343,7 +343,7 @@ export class Database {
             if (this.system.tx) {
                 await this.system.tx.query('COMMIT');
                 
-                this.system.info('Transaction committed successfully', {
+                logger.info('Transaction committed successfully', {
                     operation,
                     schemaName: schema.name,
                     recordCount: data.length
@@ -358,7 +358,7 @@ export class Database {
             
             // Performance timing for successful pipeline
             const duration = Date.now() - startTime;
-            this.system.info('Observer pipeline completed', {
+            logger.info('Observer pipeline completed', {
                 operation,
                 schemaName: schema.name,
                 recordCount: data.length,
@@ -369,7 +369,7 @@ export class Database {
             return result;
             
         } catch (error) {
-            this.system.warn('Observer pipeline failed', {
+            logger.warn('Observer pipeline failed', {
                 operation,
                 schemaName: schema.name,
                 recordCount: data.length,
@@ -382,13 +382,13 @@ export class Database {
                 try {
                     await this.system.tx.query('ROLLBACK');
                     
-                    this.system.warn('Transaction rolled back due to observer pipeline failure', {
+                    logger.warn('Transaction rolled back due to observer pipeline failure', {
                         operation,
                         schemaName: schema.name,
                         error: error instanceof Error ? error.message : String(error)
                     });
                 } catch (rollbackError) {
-                    this.system.warn('Failed to rollback transaction after observer failure', {
+                    logger.warn('Failed to rollback transaction after observer failure', {
                         operation,
                         schemaName: schema.name,
                         originalError: error instanceof Error ? error.message : String(error),
@@ -451,7 +451,7 @@ export class Database {
             if (allowedFields.includes(key)) {
                 filteredChanges[key] = value;
             } else {
-                this.system.warn('Ignoring non-access field in accessOne', { field: key });
+                logger.warn('Ignoring non-access field in accessOne', { field: key });
             }
         }
 

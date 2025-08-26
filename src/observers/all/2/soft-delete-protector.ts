@@ -32,7 +32,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         
         // If preloading failed, we can't validate - let other observers handle
         if (RecordPreloader.hasPreloadError(context)) {
-            system.warn('Cannot validate soft delete protection - preload failed', {
+            logger.warn('Cannot validate soft delete protection - preload failed', {
                 schemaName,
                 operation,
                 requestedRecords: preloadStats.requestedCount
@@ -50,7 +50,7 @@ export default class SoftDeleteProtector extends BaseObserver {
             const trashedIds = trashedRecords.map(record => record.id);
             
             // Log detailed information about blocked operation
-            system.warn(`Blocked ${operation} on trashed records`, {
+            logger.warn(`Blocked ${operation} on trashed records`, {
                 schemaName,
                 operation,
                 trashedRecords: trashedIds.length,
@@ -74,7 +74,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         if (deletedRecords.length > 0) {
             const deletedIds = deletedRecords.map(record => record.id);
             
-            system.warn(`Blocked ${operation} on deleted records`, {
+            logger.warn(`Blocked ${operation} on deleted records`, {
                 schemaName,
                 operation,
                 deletedRecords: deletedIds.length,
@@ -96,7 +96,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         metadata.set('trashed_record_count', 0);
         metadata.set('deleted_record_count', 0);
         
-        system.info('Soft delete protection check passed', {
+        logger.info('Soft delete protection check passed', {
             schemaName,
             operation,
             checkedRecords: existingRecords.length,

@@ -129,7 +129,7 @@ export class Schema {
      */
     isValid(recordData: any): { valid: boolean; errors?: ErrorObject[] } {
         if (!this.definition) {
-            this.system.warn('Schema definition not available for validation', { schema: this.schemaName });
+            logger.warn('Schema definition not available for validation', { schema: this.schemaName });
             return { valid: true }; // Allow if no definition
         }
 

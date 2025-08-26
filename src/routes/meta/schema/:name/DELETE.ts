@@ -5,7 +5,7 @@ export default async function (context: Context) {
     const system = context.get('system');
     const schemaName = context.req.param('name');
     
-    system.info('Meta schema delete', { schemaName });
+    logger.info('Meta schema delete', { schemaName });
     
     // Delete schema via Metabase
     const result = await system.metabase.deleteOne(schemaName);

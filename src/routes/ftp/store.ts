@@ -74,7 +74,7 @@ export class FtpTransactionManager {
             timeout_ms: timeoutMs,
             timeout_handle: setTimeout(() => {
                 this.rollbackTransaction(transactionId).catch(err => {
-                    system.warn('Failed to rollback timed out transaction', {
+                    logger.warn('Failed to rollback timed out transaction', {
                         transactionId,
                         error: err.message
                     });
@@ -84,7 +84,7 @@ export class FtpTransactionManager {
         
         this.transactions.set(transactionId, transaction);
         
-        system.info('FTP transaction started', {
+        logger.info('FTP transaction started', {
             transactionId,
             operation,
             path,
@@ -436,7 +436,7 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
     // Start timing for performance metrics
     const startTime = process.hrtime.bigint();
     
-    system.info('FTP store operation (Phase 3)', {
+    logger.info('FTP store operation (Phase 3)', {
         path: requestBody.path,
         options: requestBody.ftp_options,
         hasContent: !!requestBody.content,
@@ -556,7 +556,7 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
             } : undefined
         };
         
-        system.info('FTP store completed (Phase 3)', {
+        logger.info('FTP store completed (Phase 3)', {
             path: requestBody.path,
             operation,
             recordId: ftpPath.record_id,
@@ -573,14 +573,14 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
             try {
                 await FtpTransactionManager.rollbackTransaction(transactionId);
             } catch (rollbackError) {
-                system.warn('Failed to rollback transaction', {
+                logger.warn('Failed to rollback transaction', {
                     transactionId,
                     rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
                 });
             }
         }
         
-        system.warn('FTP store failed', {
+        logger.warn('FTP store failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error),
             transactionId

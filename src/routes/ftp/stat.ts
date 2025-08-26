@@ -119,7 +119,7 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
     const system = context.get('system');
     const requestBody: FtpStatRequest = await context.req.json();
     
-    system.info('FTP stat operation', { path: requestBody.path });
+    logger.info('FTP stat operation', { path: requestBody.path });
     
     try {
         const cleanPath = requestBody.path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
@@ -306,7 +306,7 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
             throw new Error(`Unsupported path format for stat: ${requestBody.path}`);
         }
         
-        system.info('FTP stat completed', {
+        logger.info('FTP stat completed', {
             path: requestBody.path,
             type: response.type,
             size: response.size,
@@ -316,7 +316,7 @@ export default async function ftpStatHandler(context: Context): Promise<any> {
         setRouteResult(context, response);
         
     } catch (error) {
-        system.warn('FTP stat failed', {
+        logger.warn('FTP stat failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error)
         });

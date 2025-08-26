@@ -50,7 +50,7 @@ export abstract class BaseObserver implements Observer {
             ]);
             
             // Log successful execution with precise timing
-            system.time(`Observer: ${observerName}`, startTime, {
+            logger.time(`Observer: ${observerName}`, startTime, {
                 ring: this.ring,
                 operation,
                 schemaName,
@@ -59,7 +59,7 @@ export abstract class BaseObserver implements Observer {
             
         } catch (error) {
             // Log failed execution with precise timing
-            system.time(`Observer: ${observerName}`, startTime, {
+            logger.time(`Observer: ${observerName}`, startTime, {
                 ring: this.ring,
                 operation,
                 schemaName,
@@ -135,7 +135,7 @@ export abstract class BaseObserver implements Observer {
             
         } else if (error instanceof SystemError || error instanceof ObserverTimeoutError) {
             // Unrecoverable system errors - should rollback entire transaction
-            context.system.warn('Observer system error', {
+            logger.warn('Observer system error', {
                 observerName,
                 operation: context.operation,
                 schemaName: context.schema.name,
@@ -152,7 +152,7 @@ export abstract class BaseObserver implements Observer {
                 'UNKNOWN_ERROR'
             );
             context.warnings.push(warning);
-            context.system.warn('Observer unknown error', {
+            logger.warn('Observer unknown error', {
                 observerName,
                 operation: context.operation,
                 schemaName: context.schema.name,
@@ -168,7 +168,7 @@ export abstract class BaseObserver implements Observer {
                 'UNKNOWN_ERROR'
             );
             context.warnings.push(warning);
-            context.system.warn('Observer unknown error (non-Error object)', {
+            logger.warn('Observer unknown error (non-Error object)', {
                 observerName,
                 operation: context.operation,
                 schemaName: context.schema.name,

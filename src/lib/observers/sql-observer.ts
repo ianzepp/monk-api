@@ -33,7 +33,7 @@ export class SqlObserver extends BaseObserver {
         const needsTx = BaseObserver.isTransactionRequired(context);
         const reasons = BaseObserver.getTransactionReasons(context);
         
-        system.info(`SQL transport layer executing ${operation}`, {
+        logger.info(`SQL transport layer executing ${operation}`, {
             schemaName,
             operation,
             recordCount: data?.length || 0,
@@ -47,7 +47,7 @@ export class SqlObserver extends BaseObserver {
             system.tx = await system.db.connect();
             await system.tx.query('BEGIN');
             
-            system.info('Transaction started for observer pipeline', {
+            logger.info('Transaction started for observer pipeline', {
                 operation,
                 schemaName,
                 requestingObservers: reasons.length,
@@ -85,7 +85,7 @@ export class SqlObserver extends BaseObserver {
             
             context.result = result;
             
-            system.info(`SQL transport completed successfully`, {
+            logger.info(`SQL transport completed successfully`, {
                 schemaName,
                 operation,
                 inputRecords: data?.length || 0,
@@ -95,7 +95,7 @@ export class SqlObserver extends BaseObserver {
             });
             
         } catch (error) {
-            system.warn(`SQL transport layer failed`, {
+            logger.warn(`SQL transport layer failed`, {
                 schemaName,
                 operation,
                 recordCount: data?.length || 0,

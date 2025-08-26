@@ -8,7 +8,7 @@
  * Async observers:
  * - Execute via setImmediate() - don't block pipeline response
  * - Run outside transaction context - errors don't trigger rollback
- * - Failed executions logged via system.warn() - no pipeline impact
+ * - Failed executions logged via logger.warn() - no pipeline impact
  * - Perfect for Rings 6-9 (PostDatabase, Audit, Integration, Notification)
  */
 
@@ -51,7 +51,7 @@ export abstract class BaseAsyncObserver implements Observer {
                 ]);
                 
                 // Log successful async execution timing
-                system.time(`AsyncObserver: ${observerName}`, startTime, {
+                logger.time(`AsyncObserver: ${observerName}`, startTime, {
                     ring: this.ring,
                     operation,
                     schemaName,
@@ -60,7 +60,7 @@ export abstract class BaseAsyncObserver implements Observer {
                 
             } catch (error) {
                 // Log failed async execution timing
-                system.time(`AsyncObserver: ${observerName}`, startTime, {
+                logger.time(`AsyncObserver: ${observerName}`, startTime, {
                     ring: this.ring,
                     operation,
                     schemaName,
@@ -69,7 +69,7 @@ export abstract class BaseAsyncObserver implements Observer {
                 });
                 
                 // Async errors are logged but don't affect transaction or response
-                system.warn(`Async observer failed: ${observerName}`, {
+                logger.warn(`Async observer failed: ${observerName}`, {
                     ring: this.ring,
                     operation,
                     schemaName,

@@ -6,7 +6,7 @@ export default async function (context: Context) {
     const schemaName = context.req.param('schema');
     const recordId = context.req.param('id');
     
-    system.info('Data record select one', { schemaName, recordId });
+    logger.info('Data record select one', { schemaName, recordId });
     
     const result = await system.database.select404(schemaName, { where: { id: recordId }});
     setRouteResult(context, result);

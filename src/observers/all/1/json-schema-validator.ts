@@ -53,7 +53,7 @@ export default class JsonSchemaValidator extends BaseObserver {
         metadata.set('json_schema_validation', 'passed');
         metadata.set('validated_record_count', validatedCount);
         
-        system.info('JSON Schema validation completed', {
+        logger.info('JSON Schema validation completed', {
             schemaName,
             operation,
             recordCount: data.length,

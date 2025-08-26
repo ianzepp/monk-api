@@ -60,7 +60,7 @@ export class ObserverRunner {
             // Get relevant rings for this operation (selective execution)
             const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
             
-            system.info('Observer rings executing', { 
+            logger.info('Observer rings executing', { 
                 operation, 
                 schemaName: schema.name, 
                 ringCount: relevantRings.length, 
@@ -145,7 +145,7 @@ export class ObserverRunner {
             stats
         };
 
-        context.system.info('Observer execution completed', { 
+        logger.info('Observer execution completed', { 
             success, 
             operation: context.operation,
             schemaName: context.schema.name,
@@ -173,7 +173,7 @@ export class ObserverRunner {
         error: unknown,
         totalTime: number
     ): ObserverResult {
-        context.system.warn('Observer execution failed', {
+        logger.warn('Observer execution failed', {
             operation: context.operation,
             schemaName: context.schema.name,
             totalTimeMs: totalTime,
@@ -199,7 +199,7 @@ export class ObserverRunner {
         context: ObserverContext, 
         stats: ObserverStats[]
     ): Promise<void> {
-        context.system.info('Database ring executing', { 
+        logger.info('Database ring executing', { 
             ring: DATABASE_RING, 
             operation: context.operation,
             schemaName: context.schema.name 

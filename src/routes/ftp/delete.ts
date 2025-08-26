@@ -381,7 +381,7 @@ export default async function ftpDeleteHandler(context: Context): Promise<any> {
     // Start timing for performance metrics
     const startTime = process.hrtime.bigint();
     
-    system.info('FTP delete operation (Phase 3)', {
+    logger.info('FTP delete operation (Phase 3)', {
         path: requestBody.path,
         options: requestBody.ftp_options,
         safetyChecks: requestBody.safety_checks
@@ -491,7 +491,7 @@ export default async function ftpDeleteHandler(context: Context): Promise<any> {
             } : undefined
         };
         
-        system.info('FTP delete completed (Phase 3)', {
+        logger.info('FTP delete completed (Phase 3)', {
             path: requestBody.path,
             operation: operationResult.operation,
             deletedCount: operationResult.deleted_count,
@@ -508,14 +508,14 @@ export default async function ftpDeleteHandler(context: Context): Promise<any> {
             try {
                 await FtpTransactionManager.rollbackTransaction(transactionId);
             } catch (rollbackError) {
-                system.warn('Failed to rollback delete transaction', {
+                logger.warn('Failed to rollback delete transaction', {
                     transactionId,
                     rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
                 });
             }
         }
         
-        system.warn('FTP delete failed', {
+        logger.warn('FTP delete failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error),
             transactionId

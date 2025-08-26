@@ -1,7 +1,6 @@
 import type { Context } from 'hono';
 import { Database } from '@lib/database.js';
 import { Metabase } from '@lib/metabase.js';
-import { Logger } from '@lib/logger.js';
 import { DatabaseManager } from '@lib/database-manager.js';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@lib/types/system-context.js';
@@ -21,7 +20,6 @@ export class System implements SystemContextWithInfrastructure {
     public readonly userId: string;
     public readonly options: Readonly<SystemOptions>;
     public readonly correlationId: string;
-    private readonly logger: Logger;
 
     // Database context - always available for database operations
     public readonly db: DbContext;
@@ -60,13 +58,6 @@ export class System implements SystemContextWithInfrastructure {
         // Generate correlation ID once per request
         this.correlationId = c.req.header('x-request-id') || this.generateCorrelationId();
         
-        // Create contextual logger once per request
-        this.logger = new Logger({
-            correlationId: this.correlationId,
-            tenant: this.getTenant(),
-            operation: `${this.context.req.method} ${this.context.req.path}`,
-            userId: this.userId
-        });
     }
 
     /**
@@ -94,26 +85,6 @@ export class System implements SystemContextWithInfrastructure {
         return payload?.access === 'root';
     }
 
-    /**
-     * Log info message with request context (delegates to Logger)
-     */
-    info(message: string, meta?: any) {
-        this.logger.info(message, meta);
-    }
-    
-    /**
-     * Log warning message with request context (delegates to Logger)
-     */
-    warn(message: string, meta?: any) {
-        this.logger.warn(message, meta);
-    }
-    
-    /**
-     * Log timing data with precise hrtime measurement (delegates to Logger)
-     */
-    time(label: string, startTime: bigint, meta?: any): void {
-        this.logger.time(label, startTime, meta);
-    }
 
     /**
      * Get actual tenant name from JWT payload
@@ -127,6 +98,6 @@ export class System implements SystemContextWithInfrastructure {
      * Generate correlation ID for request tracking
      */
     private generateCorrelationId(): string {
-        return Logger.generateCorrelationId();
+        return 'req-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     }
 }

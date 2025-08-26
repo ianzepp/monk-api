@@ -37,7 +37,7 @@ export default class SystemSchemaProtector extends BaseObserver {
         metadata.set('system_schema_check', 'passed');
         metadata.set('schema_type', 'user_schema');
         
-        system.info('System schema protection check passed', { 
+        logger.info('System schema protection check passed', { 
             schemaName, 
             operation, 
             schemaType: 'user_schema' 

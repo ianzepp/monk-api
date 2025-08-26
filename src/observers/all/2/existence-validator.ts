@@ -28,7 +28,7 @@ export default class ExistenceValidator extends BaseObserver {
         const requestedIds = this.extractRecordIds(data, operation);
         
         if (requestedIds.length === 0) {
-            system.info('No record IDs found for existence validation', { schemaName, operation });
+            logger.info('No record IDs found for existence validation', { schemaName, operation });
             metadata.set('existence_validation', 'skipped_no_ids');
             return;
         }
@@ -39,7 +39,7 @@ export default class ExistenceValidator extends BaseObserver {
         
         // If preloading failed, we can't validate existence
         if (RecordPreloader.hasPreloadError(context)) {
-            system.warn('Cannot validate record existence - preload failed', {
+            logger.warn('Cannot validate record existence - preload failed', {
                 schemaName,
                 operation,
                 requestedIds: requestedIds.length,
@@ -59,7 +59,7 @@ export default class ExistenceValidator extends BaseObserver {
         
         if (missingIds.length > 0) {
             // Some records are missing - this is an error
-            system.warn(`${operation} operation failed - records not found`, {
+            logger.warn(`${operation} operation failed - records not found`, {
                 schemaName,
                 operation,
                 requestedCount: requestedIds.length,
@@ -89,7 +89,7 @@ export default class ExistenceValidator extends BaseObserver {
             if (nonTrashedRecords.length > 0) {
                 const nonTrashedIds = nonTrashedRecords.map(record => record.id);
                 
-                system.warn('Revert operation failed - records are not trashed', {
+                logger.warn('Revert operation failed - records are not trashed', {
                     schemaName,
                     operation,
                     nonTrashedCount: nonTrashedIds.length,
@@ -112,7 +112,7 @@ export default class ExistenceValidator extends BaseObserver {
         metadata.set('requested_record_count', requestedIds.length);
         metadata.set('missing_record_count', 0);
         
-        system.info('Record existence validation passed', {
+        logger.info('Record existence validation passed', {
             schemaName,
             operation,
             requestedCount: requestedIds.length,

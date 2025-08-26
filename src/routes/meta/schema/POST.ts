@@ -9,7 +9,7 @@ export default async function (context: Context) {
     const jsonSchema = system.metabase.parseYaml(yamlContent);
     const schemaName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
     
-    system.info('Creating schema', { schemaName });
+    logger.info('Creating schema', { schemaName });
     
     // Create schema via Metabase
     await system.metabase.createOne(schemaName, yamlContent);

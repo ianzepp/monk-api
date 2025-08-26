@@ -11,7 +11,7 @@ export default async function (context: Context): Promise<any> {
         throw new Error('POST /api/data/:schema expects an array of records');
     }
     
-    system.info('Data record create all', { schemaName, recordCount: recordList.length });
+    logger.info('Data record create all', { schemaName, recordCount: recordList.length });
 
     const result = await system.database.createAll(schemaName, recordList);
     setRouteResult(context, result);

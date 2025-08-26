@@ -28,7 +28,7 @@ export default class UpdateMerger extends BaseObserver {
         const { system, schemaName, operation, data, metadata } = context;
         
         if (!Array.isArray(data) || data.length === 0) {
-            system.info('No update data found for merging', { schemaName, operation });
+            logger.info('No update data found for merging', { schemaName, operation });
             metadata.set('update_merge', 'skipped_no_data');
             return;
         }
@@ -39,7 +39,7 @@ export default class UpdateMerger extends BaseObserver {
         
         // If preloading failed, we can't merge
         if (RecordPreloader.hasPreloadError(context)) {
-            system.warn('Cannot merge update data - preload failed', {
+            logger.warn('Cannot merge update data - preload failed', {
                 schemaName,
                 operation,
                 updateRecords: data.length,
@@ -63,7 +63,7 @@ export default class UpdateMerger extends BaseObserver {
             const updateData = data[i];
             
             if (!updateData || !updateData.id) {
-                system.warn('Skipping update record without ID', {
+                logger.warn('Skipping update record without ID', {
                     schemaName,
                     operation,
                     recordIndex: i,
@@ -76,7 +76,7 @@ export default class UpdateMerger extends BaseObserver {
             const existingRecord = existingRecordsById[updateData.id];
             
             if (!existingRecord) {
-                system.warn('Skipping update - existing record not found', {
+                logger.warn('Skipping update - existing record not found', {
                     schemaName,
                     operation,
                     recordId: updateData.id,
@@ -123,7 +123,7 @@ export default class UpdateMerger extends BaseObserver {
         metadata.set('merge_timestamp', currentTimestamp);
         metadata.set('merge_details', mergedRecords);
         
-        system.info('Update merge completed successfully', {
+        logger.info('Update merge completed successfully', {
             schemaName,
             operation,
             totalRecords: data.length,

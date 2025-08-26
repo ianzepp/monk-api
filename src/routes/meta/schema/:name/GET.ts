@@ -5,7 +5,7 @@ export default async function (context: Context) {
     const system = context.get('system');
     const schemaName = context.req.param('name');
     
-    system.info('Meta schema get', { schemaName });
+    logger.info('Meta schema get', { schemaName });
     
     // Get schema YAML via Metabase
     const yamlContent = await system.metabase.selectOne(schemaName);
