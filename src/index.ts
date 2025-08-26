@@ -45,6 +45,8 @@ import {
     responseYamlMiddleware,
     responseFileMiddleware 
 } from '@lib/middleware/system-context.js';
+import { localhostDevelopmentOnlyMiddleware } from '@lib/middleware/localhost-development-only.js';
+import { rootRouter } from '@routes/root/index.js';
 
 // Create Hono app
 const app = new Hono();
@@ -82,7 +84,7 @@ app.get('/', (c) => {
             meta: '/api/meta/* (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
-            root: '/api/root/* (protected, admin only)',
+            root: '/api/root/* (localhost development only)',
         },
     });
 });
@@ -113,6 +115,11 @@ app.post('/auth/login', AuthLoginPost);                             // POST /aut
 app.post('/auth/refresh', AuthRefreshPost);                         // POST /auth/refresh
 app.get('/auth/me', AuthService.getJWTMiddleware(), AuthService.getUserContextMiddleware(), AuthMeGet); // GET /auth/me
 app.get('/ping', PingGet);                                          // GET /ping
+
+// Root API routes - localhost development only (no authentication)
+app.use('/api/root/*', localhostDevelopmentOnlyMiddleware);
+app.use('/api/root/*', responseJsonMiddleware);
+app.route('/api/root', rootRouter);
 
 // Protected API routes - require JWT authentication
 app.use('/api/*', AuthService.getJWTMiddleware());

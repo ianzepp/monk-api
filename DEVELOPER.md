@@ -641,6 +641,120 @@ monk data get account <id>      # Calls object endpoint
 monk data update account <id>   # Calls object endpoint
 ```
 
+### **Root API - Localhost Development Only**
+
+Authentication-free tenant management for UIX development, available only on localhost with `NODE_ENV=development`.
+
+#### **Security Restrictions**
+- **Environment**: Only available when `NODE_ENV=development`
+- **Network**: Only accessible from `localhost` or `127.0.0.1`
+- **Audit**: All operations logged with warnings for security awareness
+
+#### **Tenant Management Endpoints**
+
+**Create Tenant:**
+```bash
+POST /api/root/tenant
+Content-Type: application/json
+
+{
+  "name": "my-ui-tenant",
+  "host": "localhost"  # Optional, defaults to localhost
+}
+
+# Response
+{
+  "success": true,
+  "tenant": "my-ui-tenant",
+  "database": "monk-api$my-ui-tenant",
+  "host": "localhost",
+  "created_at": "2025-08-26T04:42:15.288Z"
+}
+```
+
+**List Tenants:**
+```bash
+GET /api/root/tenant                    # Active tenants only
+GET /api/root/tenant?include_trashed=true   # Include soft deleted
+GET /api/root/tenant?include_deleted=true   # Include hard deleted
+
+# Response
+{
+  "success": true,
+  "tenants": [
+    {
+      "name": "my-tenant",
+      "database": "monk-api$my-tenant", 
+      "host": "localhost",
+      "created_at": "2025-08-26T04:42:15.283Z",
+      "updated_at": "2025-08-26T04:42:15.283Z",
+      "trashed_at": null,
+      "deleted_at": null,
+      "status": "active"
+    }
+  ],
+  "count": 1
+}
+```
+
+**Soft Delete Tenant (Trash):**
+```bash
+DELETE /api/root/tenant/my-tenant
+
+# Response  
+{
+  "success": true,
+  "tenant": "my-tenant",
+  "trashed": true,
+  "trashed_at": "2025-08-26T04:42:26.515Z"
+}
+```
+
+**Restore Tenant:**
+```bash
+PUT /api/root/tenant/my-tenant
+
+# Response
+{
+  "success": true, 
+  "tenant": "my-tenant",
+  "restored": true,
+  "restored_at": "2025-08-26T04:42:44.372Z"
+}
+```
+
+#### **UIX Development Workflow**
+```javascript
+// No authentication required on localhost:
+
+// Create tenant for UI development
+const tenant = await fetch('http://localhost:9001/api/root/tenant', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'ui-demo' })
+}).then(r => r.json());
+
+// List active tenants
+const tenants = await fetch('http://localhost:9001/api/root/tenant')
+  .then(r => r.json());
+
+// Soft delete when done (preserves data)
+await fetch('http://localhost:9001/api/root/tenant/ui-demo', { 
+  method: 'DELETE' 
+});
+
+// Restore if needed
+await fetch('http://localhost:9001/api/root/tenant/ui-demo', { 
+  method: 'PUT' 
+});
+```
+
+#### **Tenant Lifecycle Management**
+- **Create**: Instant tenant creation with database initialization
+- **Soft Delete**: Tenant hidden but database and data preserved
+- **Restore**: Trashed tenants can be restored without data loss
+- **Hard Delete**: Available via CLI for permanent removal when needed
+
 ### **Soft Delete System**
 Three-tier access pattern:
 - **📋 List Operations**: Hide trashed records (`monk data list`)
