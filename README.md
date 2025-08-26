@@ -8,7 +8,7 @@ A high-performance backend API that provides:
 - **Schema-first development** - Define your data models in YAML
 - **Multi-tenant architecture** - Each tenant gets isolated databases
 - **Observer pattern** - Event-driven business logic hooks
-- **CLI integration** - Full command-line management interface
+- **REST API** - Full programmatic management interface
 
 Perfect for building SaaS applications that need flexible data modeling and tenant isolation.
 
@@ -19,7 +19,7 @@ Perfect for building SaaS applications that need flexible data modeling and tena
 git clone https://github.com/ianzepp/monk-api.git
 cd monk-api
 
-# Automated setup (handles database, CLI, and test tenant)
+# Automated setup (handles database and test tenant)
 npm run autoinstall
 
 # Start development server
@@ -66,11 +66,18 @@ GET  /api/data/users/123  # Get specific user
 PUT  /api/data/users/123  # Update specific user
 ```
 
-## Built-in CLI
+## API Management
 
-The included CLI provides full API management:
+Manage your API using the [monk-cli](https://github.com/ianzepp/monk-cli) tool:
 
 ```bash
+# Install the CLI
+git clone https://github.com/ianzepp/monk-cli.git
+cd monk-cli && ./install.sh
+
+# Initialize configuration
+monk init
+
 # Tenant management
 monk tenant create my-app
 monk auth login my-app root
@@ -133,7 +140,7 @@ npm run spec:sh spec/15-authentication/basic-auth.test.sh
 - **TypeScript** - Type-safe development
 - **PostgreSQL** - Multi-tenant database architecture
 - **AJV** - High-performance JSON Schema validation
-- **Bashly** - Generated CLI interface
+- **JSON Schema** - Validation and documentation
 
 > 📖 For detailed architecture, development workflows, and implementation guides, see **[DEVELOPER.md](DEVELOPER.md)**
 
