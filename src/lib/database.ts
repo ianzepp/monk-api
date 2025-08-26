@@ -140,7 +140,7 @@ export class Database {
         const schema = await this.toSchema(schemaName);
         const filter = new Filter(this.system, schemaName, schema.table).assign(filterData);
         
-        // Issue #102: Use toSQL() pattern instead of direct filter.execute()
+        // Use Filter.toSQL() pattern for proper separation of concerns
         const { query, params } = filter.toSQL();
         const result = await this.system.database.execute(query, params);
         

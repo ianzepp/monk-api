@@ -18,6 +18,8 @@ The Filter system provides enterprise-grade database query building with compreh
 ### Filter Class (`src/lib/filter.ts`)
 Main query builder with schema integration and observer pipeline support.
 
+**Important**: Filter class is responsible for **SQL generation only**. All database execution should use `Database.selectAny()` to ensure proper observer pipeline execution, validation, security, and audit logging.
+
 ### FilterWhere Class (`src/lib/filter-where.ts`) 
 Schema-independent WHERE clause generation for reusable filtering logic.
 
@@ -373,8 +375,8 @@ The Filter class builds a tree structure for complex logical operations:
 
 ### Basic User Search
 ```typescript
-const filter = new Filter(system, "users", "users_table");
-filter.assign({
+// Use Database.selectAny() with filter data for proper architecture
+const users = await system.database.selectAny("users", {
   where: {
     name: { $ilike: "john%" },
     status: "active",
@@ -383,13 +385,12 @@ filter.assign({
   order: "created_at desc",
   limit: 10
 });
-const users = await filter.execute();
 ```
 
 ### Advanced Product Search
 ```typescript
-const filter = new Filter(system, "products", "products_table");
-filter.assign({
+// Use Database.selectAny() with filter data for proper architecture
+const products = await system.database.selectAny("products", {
   where: {
     $and: [
       {
@@ -411,13 +412,12 @@ filter.assign({
   limit: 50,
   offset: 0
 });
-const products = await filter.execute();
 ```
 
 ### ACL Filtering Example
 ```typescript
-const filter = new Filter(system, "documents", "documents_table");
-filter.assign({
+// Use Database.selectAny() with filter data for proper architecture
+const documents = await system.database.selectAny("documents", {
   where: {
     $and: [
       {
@@ -433,7 +433,6 @@ filter.assign({
     ]
   }
 });
-const documents = await filter.execute();
 ```
 
 ### FTP Wildcard Translation
