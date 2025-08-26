@@ -245,7 +245,7 @@ export default class PasswordValidator implements Observer {
     ring = ObserverRing.Validation;
     operations = ['create', 'update'];  // Only run on create/update
     
-    // Will not execute on 'delete' or 'select' operations
+    // Will not execute on 'delete', 'select', or 'revert' operations
 }
 ```
 

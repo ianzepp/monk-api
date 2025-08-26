@@ -68,6 +68,20 @@ Ring 9: Notification    // User notifications, email alerts, real-time updates (
 - **Ring 8 (Integration)**: External APIs, webhooks, cache clearing, search indexing
 - **Ring 9 (Notification)**: Email, push notifications, real-time updates
 
+### Ring Operation Matrix
+
+Different operations execute different subsets of rings for optimal performance:
+
+```typescript
+'select': [0, 1, 5, 8, 9]           // Validation, Security, Database, Integration, Notification
+'create': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  // ALL rings
+'update': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  // ALL rings  
+'delete': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  // ALL rings
+'revert': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  // ALL rings
+```
+
+**Select operations** skip business logic rings (2-4, 6-7) since they don't modify data, but still run validation, security, database execution, integration, and notification rings.
+
 ## Creating Observers
 
 ### File Organization
