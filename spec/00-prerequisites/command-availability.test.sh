@@ -148,8 +148,8 @@ test_command "tsx" "TypeScript execution utility (required for fixtures)" "false
 echo "🏗️ Testing Monk CLI Availability..."
 echo
 
-# Monk CLI (external tool, may not be installed)
-test_command "monk" "Monk CLI tool (external dependency)" "false"
+# Monk CLI (required for shell tests - provides authentication, tenant management, etc.)
+test_command "monk" "Monk CLI tool (required for shell tests)"
 
 echo "🧪 Testing Functional Command Operation..."
 echo
@@ -161,10 +161,8 @@ test_command_works "psql" "--version" "PostgreSQL client version check"
 test_command_works "node" "--version" "Node.js runtime version check"
 test_command_works "npm" "--version" "NPM package manager version check"
 
-# If monk is available, test it
-if command -v monk >/dev/null 2>&1; then
-    test_command_works "monk" "--version" "Monk CLI version check"
-fi
+# Test monk functionality (required for shell tests)
+test_command_works "monk" "--version" "Monk CLI version check"
 
 echo "📊 Test Results Summary"
 echo "====================="
@@ -219,9 +217,10 @@ if [[ " ${missing_commands[*]} " =~ " curl " ]]; then
 fi
 
 if [[ " ${missing_commands[*]} " =~ " monk " ]]; then
-    echo "📦 To install Monk CLI:"
+    echo "📦 To install Monk CLI (REQUIRED for shell tests):"
     echo "   Clone: git clone https://github.com/ianzepp/monk-cli.git"
     echo "   Install: cd monk-cli && ./install.sh"
+    echo "   Note: Shell tests extensively use monk for authentication, tenant management, and API operations"
 fi
 
 echo
