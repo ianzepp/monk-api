@@ -23,9 +23,7 @@ import type {
 import { RING_OPERATION_MATRIX } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import type { ValidationWarning } from '@src/lib/observers/errors.js';
-import { DATABASE_RING } from '@src/lib/observers/types.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
-import { SqlObserver } from '@src/lib/observers/sql-observer.js';
 
 /**
  * Observer execution engine with ring-based execution
@@ -33,7 +31,6 @@ import { SqlObserver } from '@src/lib/observers/sql-observer.js';
 export class ObserverRunner {
     private readonly defaultTimeout = 5000; // 5 seconds
     private readonly collectStats = true;
-    private readonly sqlObserver = new SqlObserver();
 
     /**
      * Execute observers for a schema operation with selective ring execution
@@ -72,13 +69,9 @@ export class ObserverRunner {
                 context.currentRing = ring as ObserverRing;
                 ringsExecuted.push(ring as ObserverRing);
 
-                if (ring === DATABASE_RING) {
-                    await this._executeDatabaseRing(context, stats);
-                } else {
-                    const shouldContinue = await this._executeObserverRing(ring as ObserverRing, context, stats);
-                    if (!shouldContinue) {
-                        break; // Stop execution due to errors
-                    }
+                const shouldContinue = await this._executeObserverRing(ring as ObserverRing, context, stats);
+                if (!shouldContinue) {
+                    break; // Stop execution due to errors
                 }
             }
 
@@ -192,24 +185,6 @@ export class ObserverRunner {
         };
     }
 
-    /**
-     * Execute database ring (Ring 5) - handles actual SQL execution
-     */
-    private async _executeDatabaseRing(
-        context: ObserverContext, 
-        stats: ObserverStats[]
-    ): Promise<void> {
-        logger.info('Database ring executing', { 
-            ring: DATABASE_RING, 
-            operation: context.operation,
-            schemaName: context.schema.name 
-        });
-        
-        const dbStats = await this._executeObserver(this.sqlObserver, context);
-        if (this.collectStats) {
-            stats.push(dbStats);
-        }
-    }
 
     /**
      * Execute observers for a specific ring
@@ -231,7 +206,7 @@ export class ObserverRunner {
         }
 
         // Check for errors after each pre-database ring
-        if (context.errors.length > 0 && ring < DATABASE_RING) {
+        if (context.errors.length > 0 && ring < 5) {
             // Keep as debug - detailed execution flow for development
             return false; // Stop execution
         }
