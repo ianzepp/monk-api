@@ -85,7 +85,7 @@ additionalProperties: true
             await testContext.metabase.createOne('sectest', securityTestSchema.trim());
             logger.info('✅ Comprehensive security test schema created');
         } catch (error) {
-            console.warn('⚠️  Security test schema creation failed, may already exist:', error);
+            logger.warn('⚠️  Security test schema creation failed, may already exist:', error);
         }
     });
 

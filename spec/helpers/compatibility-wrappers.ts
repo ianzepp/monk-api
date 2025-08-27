@@ -182,7 +182,7 @@ export async function compareTestSetupPerformance(
   try {
     await traditionalSetup();
   } catch (error) {
-    console.warn(`Traditional setup failed: ${error.message}`);
+    logger.warn(`Traditional setup failed: ${error.message}`);
   }
   const traditionalTime = Date.now() - traditionalStart;
   

@@ -361,7 +361,7 @@ export class FilterWhere {
                 return `${quotedColumn} ILIKE ${this.PARAM(`%${data}%`)}`;
 
             default:
-                console.warn('Unsupported filter operator', { operator });
+                logger.warn('Unsupported filter operator', { operator });
                 return null;
         }
     }

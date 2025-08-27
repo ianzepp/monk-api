@@ -285,7 +285,7 @@ export class Metabase {
         for (const [fieldName, property] of Object.entries(properties)) {
             // Skip system fields that are already defined
             if (isSystemField(fieldName)) {
-                console.warn(`Schema defines system field '${fieldName}' which is automatically managed by the platform. Ignoring user-defined version.`);
+                logger.warn(`Schema defines system field '${fieldName}' which is automatically managed by the platform. Ignoring user-defined version.`);
                 continue;
             }
             

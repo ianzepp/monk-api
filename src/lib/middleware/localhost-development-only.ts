@@ -44,7 +44,7 @@ export const localhostDevelopmentOnlyMiddleware = async (context: Context, next:
   if (system) {
     logger.warn(logMessage, logContext);
   } else {
-    console.warn(logMessage, logContext);
+    logger.warn(logMessage, logContext);
   }
   
   await next();

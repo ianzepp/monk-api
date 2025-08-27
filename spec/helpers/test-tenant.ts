@@ -186,7 +186,7 @@ async function cleanupTestTenant(tenant: TenantInfo): Promise<void> {
 
     logger.info(`✅ Test tenant cleaned up: ${tenant.name}`);
   } catch (error) {
-    console.warn(`⚠️  Failed to cleanup test tenant ${tenant.name}:`, error);
+    logger.warn(`⚠️  Failed to cleanup test tenant ${tenant.name}:`, error);
     // Don't throw error in cleanup - just warn
   }
 }
@@ -364,7 +364,7 @@ export async function createTestContextWithFixture(
       logger.info(`✅ Template cloned successfully: ${testDatabase}`);
       
     } catch (error) {
-      console.warn(`⚠️  Template cloning failed, falling back to manual setup: ${error.message}`);
+      logger.warn(`⚠️  Template cloning failed, falling back to manual setup: ${error.message}`);
       
       // Fallback to manual data creation
       testDatabase = baseContext.tenant.database;
@@ -476,7 +476,7 @@ async function loadFixtureDefinition(fixtureName: string): Promise<any> {
       relationships: fixtureModule.fixture?.relationships || []
     };
   } catch (error) {
-    console.warn(`⚠️  Could not load fixture definition for ${fixtureName}, using defaults`);
+    logger.warn(`⚠️  Could not load fixture definition for ${fixtureName}, using defaults`);
     return {
       name: fixtureName,
       version: '1.0.0',
@@ -513,7 +513,7 @@ async function createMockData(
         
         logger.info(`✅ Created ${records.length} ${schemaName} records`);
       } catch (error) {
-        console.warn(`⚠️  Failed to create ${schemaName} records:`, error.message);
+        logger.warn(`⚠️  Failed to create ${schemaName} records:`, error.message);
         recordCounts[schemaName] = 0;
       }
     }
@@ -563,7 +563,7 @@ async function ensureSchemaExists(context: TestContext, schemaName: string): Pro
       // TODO: Load and create schema
       logger.info(`📋 Would load schema from: ${schemaPath}`);
     } catch (schemaError) {
-      console.warn(`⚠️  Could not create schema ${schemaName}:`, schemaError.message);
+      logger.warn(`⚠️  Could not create schema ${schemaName}:`, schemaError.message);
     }
   }
 }
@@ -626,7 +626,7 @@ async function mergeFixtures(fixtures: any[]): Promise<MergedFixture> {
         schema: schemaName,
         fixtures: providers
       });
-      console.warn(`⚠️  Schema conflict detected: '${schemaName}' provided by ${providers.join(', ')}`);
+      logger.warn(`⚠️  Schema conflict detected: '${schemaName}' provided by ${providers.join(', ')}`);
     }
   });
 
@@ -834,7 +834,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.count(schemaName);
       } catch (error) {
-        console.warn(`⚠️  Could not count records in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not count records in ${schemaName}:`, error.message);
         return 0;
       }
     },
@@ -847,7 +847,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         const randomIndex = Math.floor(Math.random() * records.length);
         return records[randomIndex];
       } catch (error) {
-        console.warn(`⚠️  Could not get random record from ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not get random record from ${schemaName}:`, error.message);
         return null;
       }
     },
@@ -856,7 +856,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.selectOne(schemaName, criteria);
       } catch (error) {
-        console.warn(`⚠️  Could not find record in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not find record in ${schemaName}:`, error.message);
         return null;
       }
     },
@@ -898,7 +898,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         
         return await context.database.createOne(schemaName, mergedRecord);
       } catch (error) {
-        console.warn(`⚠️  Could not create test record in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not create test record in ${schemaName}:`, error.message);
         throw error;
       }
     },
@@ -916,7 +916,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
           });
           records.push(record);
         } catch (error) {
-          console.warn(`⚠️  Failed to create record ${i} for ${schemaName}:`, error.message);
+          logger.warn(`⚠️  Failed to create record ${i} for ${schemaName}:`, error.message);
         }
       }
       
@@ -940,7 +940,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         logger.info(`🗑️  Cleaned up ${records.length} records from ${schemaName}`);
         return records.length;
       } catch (error) {
-        console.warn(`⚠️  Could not cleanup records in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not cleanup records in ${schemaName}:`, error.message);
         return 0;
       }
     },
@@ -949,7 +949,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.selectAny(schemaName, { ...criteria, limit });
       } catch (error) {
-        console.warn(`⚠️  Could not find records in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not find records in ${schemaName}:`, error.message);
         return [];
       }
     },
@@ -974,7 +974,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
     endTimer(label: string): number {
       const startTime = performanceTimers[label];
       if (!startTime) {
-        console.warn(`⚠️  Timer '${label}' was not started`);
+        logger.warn(`⚠️  Timer '${label}' was not started`);
         return 0;
       }
       
@@ -1036,7 +1036,7 @@ async function createCustomFixtureData(
       }
       
     } catch (error) {
-      console.warn(`⚠️  Failed to create ${schemaName} records:`, error.message);
+      logger.warn(`⚠️  Failed to create ${schemaName} records:`, error.message);
       recordCounts[schemaName] = 0;
     }
   }

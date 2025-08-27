@@ -49,7 +49,7 @@ additionalProperties: true
             await testContext.metabase.createOne('apitest', endpointTestSchema.trim());
             logger.info('✅ API endpoint test schema created');
         } catch (error) {
-            console.warn('⚠️  API test schema may already exist');
+            logger.warn('⚠️  API test schema may already exist');
         }
     });
 

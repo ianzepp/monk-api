@@ -169,7 +169,7 @@ export class TenantService {
         await this.deleteTenant(tenantName, true);
       } catch (error) {
         // Ignore errors during cleanup - database might not exist
-        console.warn(`Warning during cleanup: ${error}`);
+        logger.warn(`Warning during cleanup: ${error}`);
       }
     }
     
@@ -197,7 +197,7 @@ export class TenantService {
       try {
         await this.dropDatabase(databaseName);
       } catch (cleanupError) {
-        console.warn(`Failed to cleanup database after error: ${cleanupError}`);
+        logger.warn(`Failed to cleanup database after error: ${cleanupError}`);
       }
       throw error;
     }
@@ -313,7 +313,7 @@ export class TenantService {
       );
     } catch (error) {
       if (!force) throw error;
-      console.warn(`Warning removing tenant record: ${error}`);
+      logger.warn(`Warning removing tenant record: ${error}`);
     } finally {
       await authClient.end();
     }
@@ -323,7 +323,7 @@ export class TenantService {
       await this.dropDatabase(databaseName);
     } catch (error) {
       if (!force) throw error;
-      console.warn(`Warning dropping database: ${error}`);
+      logger.warn(`Warning dropping database: ${error}`);
     }
   }
 

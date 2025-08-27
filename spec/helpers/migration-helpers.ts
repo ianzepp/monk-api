@@ -74,7 +74,7 @@ export async function migrateTestToFixture(
     return newContext;
     
   } catch (error) {
-    console.warn(`⚠️  Fixture migration failed, falling back to old setup:`, error.message);
+    logger.warn(`⚠️  Fixture migration failed, falling back to old setup:`, error.message);
     
     // Fallback to old approach but wrap it in new interface
     const oldContext = await oldTestSetup();

@@ -733,7 +733,7 @@ describe('Unit: SQL Observer', () => {
                     tags: '[unclosed array'
                 };
 
-                // Mock console.warn to verify warning is logged
+                // Mock logger.warn to verify warning is logged
                 const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
                 const result = (observer as any).convertPostgreSQLTypes(mockRecord, mockSchemaWithJsonb);

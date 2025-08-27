@@ -54,7 +54,7 @@ function findFiles(dir: string, filePattern: string, ignore: string[]): string[]
             }
         } catch (error) {
             // Skip directories that can't be read
-            console.warn(`Warning: Cannot read directory ${currentDir}:`, error);
+            logger.warn(`Warning: Cannot read directory ${currentDir}:`, error);
         }
     }
     
