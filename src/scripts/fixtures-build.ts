@@ -9,14 +9,14 @@
 import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
 
 async function buildFixtures(): Promise<void> {
-  console.log('🔨 Building template databases...');
+  logger.info('🔨 Building template databases...');
   
   try {
     // Build basic template
-    console.log('🏗️  Building basic template...');
+    logger.info('🏗️  Building basic template...');
     await TemplateDatabase.buildTemplateFromFixture('basic');
     
-    console.log('✅ Template databases built successfully');
+    logger.info('✅ Template databases built successfully');
     
   } catch (error) {
     console.error('❌ Failed to build template databases:', error);

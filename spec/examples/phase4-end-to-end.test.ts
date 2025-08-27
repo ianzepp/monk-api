@@ -35,7 +35,7 @@ describe('Phase 4 End-to-End System Test', () => {
 
     test('should provide fast template cloning setup', () => {
       const setupTime = Date.now() - setupStartTime;
-      console.log(`⚡ Template setup completed in ${setupTime}ms`);
+      logger.info(`⚡ Template setup completed in ${setupTime}ms`);
       
       // Should be dramatically faster than traditional setup
       expect(setupTime).toBeLessThan(5000); // Less than 5 seconds
@@ -51,7 +51,7 @@ describe('Phase 4 End-to-End System Test', () => {
       expect(accountCount).toBeGreaterThan(5); // At least 5 accounts
       expect(contactCount).toBeGreaterThan(10); // At least 10 contacts
       
-      console.log(`📊 Fixture data loaded: ${accountCount} accounts, ${contactCount} contacts`);
+      logger.info(`📊 Fixture data loaded: ${accountCount} accounts, ${contactCount} contacts`);
     });
 
     test('should have realistic data with relationships', async () => {
@@ -59,7 +59,7 @@ describe('Phase 4 End-to-End System Test', () => {
       const contacts = await context.helpers.findRecordsWhere('contact', {}, 5);
       const contactsWithAccounts = contacts.filter(c => c.account_id);
       
-      console.log(`🔗 ${contactsWithAccounts.length}/${contacts.length} contacts have account relationships`);
+      logger.info(`🔗 ${contactsWithAccounts.length}/${contacts.length} contacts have account relationships`);
       expect(contactsWithAccounts.length).toBeGreaterThan(0);
     });
   });
@@ -100,7 +100,7 @@ describe('Phase 4 End-to-End System Test', () => {
       expect(seededContacts).toHaveLength(5);
       expect(seededContacts[0].company).toBe('Test Company');
       expect(seededContacts[0].contact_type).toBe('prospect');
-      console.log(`⚡ Seeded 5 contacts in ${seedTime}ms`);
+      logger.info(`⚡ Seeded 5 contacts in ${seedTime}ms`);
     });
 
     test('should support data cleanup', async () => {
@@ -191,7 +191,7 @@ describe('Phase 4 End-to-End System Test', () => {
         .reduce((sum, count) => sum + count, 0);
       
       expect(totalRecords).toBeGreaterThan(20); // Should have substantial data
-      console.log(`🔗 Multi-fixture context has ${totalRecords} total records`);
+      logger.info(`🔗 Multi-fixture context has ${totalRecords} total records`);
     });
   });
 
@@ -246,9 +246,9 @@ describe('Phase 4 End-to-End System Test', () => {
       const context = await createTestContextWithFixture('basic', { mockTemplate: false });
       const fixtureTime = Date.now() - fixtureStart;
 
-      console.log(`⚡ Performance comparison:`);
-      console.log(`   Traditional (simulated): ${traditionalTime}ms`);
-      console.log(`   Fixture approach: ${fixtureTime}ms`);
+      logger.info(`⚡ Performance comparison:`);
+      logger.info(`   Traditional (simulated): ${traditionalTime}ms`);
+      logger.info(`   Fixture approach: ${fixtureTime}ms`);
 
       // Fixture approach should be competitive even with simulated traditional
       expect(fixtureTime).toBeLessThan(traditionalTime * 10); // Should be much faster
@@ -295,7 +295,7 @@ describe('Phase 4 End-to-End System Test', () => {
       expect(businessAccounts.some(a => a.id === newAccount.id)).toBe(true);
       
       const workflowTime = context.helpers.endTimer('complex_workflow');
-      console.log(`🔄 Complex workflow completed in ${workflowTime}ms`);
+      logger.info(`🔄 Complex workflow completed in ${workflowTime}ms`);
       
       // Get final performance metrics
       const metrics = context.helpers.getPerformanceMetrics();

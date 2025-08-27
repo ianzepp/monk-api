@@ -24,7 +24,7 @@ describe('30-data-api: Data Operations', () => {
   beforeAll(async () => {
     // Load observers first (required for Database operations)
     await ObserverLoader.preloadObservers();
-    console.log('✅ Observers loaded for data operations');
+    logger.info('✅ Observers loaded for data operations');
 
     // Create fresh tenant for this test suite
     tenantManager = await createTestTenant();
@@ -66,11 +66,11 @@ required:
 additionalProperties: true
 `;
 
-    console.log('🔧 Creating test schema for data operations');
+    logger.info('🔧 Creating test schema for data operations');
     
     try {
       await testContext.metabase.createOne('testdata', testSchemaYaml.trim());
-      console.log('✅ Test schema created for data operations');
+      logger.info('✅ Test schema created for data operations');
     } catch (error) {
       console.warn('⚠️  Schema creation failed, may already exist:', error);
     }
@@ -100,7 +100,7 @@ additionalProperties: true
         }
       ];
 
-      console.log('🔧 Creating multiple records with createAll()');
+      logger.info('🔧 Creating multiple records with createAll()');
       
       const results = await testContext.database.createAll('testdata', testRecords);
       
@@ -116,11 +116,11 @@ additionalProperties: true
         expect(record.status).toBeDefined();
       });
       
-      console.log('✅ Multiple records created successfully');
+      logger.info('✅ Multiple records created successfully');
     }, 10000);
 
     test('should select all records using selectAny()', async () => {
-      console.log('🔍 Selecting all records with selectAny()');
+      logger.info('🔍 Selecting all records with selectAny()');
       
       const allRecords = await testContext.database.selectAny('testdata');
       
@@ -136,7 +136,7 @@ additionalProperties: true
         expect(record.status).toBeDefined();
       });
       
-      console.log(`✅ Retrieved ${allRecords.length} records successfully`);
+      logger.info(`✅ Retrieved ${allRecords.length} records successfully`);
     }, 5000);
 
     test('should update multiple records using updateAll()', async () => {
@@ -153,7 +153,7 @@ additionalProperties: true
         count: Number(record.count) + 100  // Updated field (ensure number type)
       }));
 
-      console.log('🔧 Updating multiple records with updateAll()');
+      logger.info('🔧 Updating multiple records with updateAll()');
       
       const results = await testContext.database.updateAll('testdata', updates);
       
@@ -167,7 +167,7 @@ additionalProperties: true
         expect(record.count).toBeGreaterThanOrEqual(100);
       });
       
-      console.log('✅ Multiple records updated successfully');
+      logger.info('✅ Multiple records updated successfully');
     }, 10000);
   });
 
@@ -182,7 +182,7 @@ additionalProperties: true
         count: 42
       };
 
-      console.log('🔧 Creating single record with createOne()');
+      logger.info('🔧 Creating single record with createOne()');
       
       const result = await testContext.database.createOne('testdata', testRecord);
       
@@ -196,13 +196,13 @@ additionalProperties: true
       // Save ID for subsequent tests
       testRecordId = result.id;
       
-      console.log(`✅ Single record created with ID: ${testRecordId}`);
+      logger.info(`✅ Single record created with ID: ${testRecordId}`);
     }, 10000);
 
     test('should select single record using selectOne()', async () => {
       expect(testRecordId).toBeDefined();
       
-      console.log(`🔍 Selecting single record with ID: ${testRecordId}`);
+      logger.info(`🔍 Selecting single record with ID: ${testRecordId}`);
       
       const result = await testContext.database.selectOne('testdata', { where: { id: testRecordId } });
       
@@ -213,7 +213,7 @@ additionalProperties: true
       expect(result.status).toBe('active');
       expect(Number(result.count)).toBe(42); // TODO: Fix select type conversion
       
-      console.log('✅ Single record retrieved successfully');
+      logger.info('✅ Single record retrieved successfully');
     }, 5000);
 
     test('should update single record using updateOne()', async () => {
@@ -224,7 +224,7 @@ additionalProperties: true
         count: 999
       };
 
-      console.log(`🔧 Updating single record with ID: ${testRecordId}`);
+      logger.info(`🔧 Updating single record with ID: ${testRecordId}`);
       
       const result = await testContext.database.updateOne('testdata', testRecordId, updateData);
       
@@ -234,20 +234,20 @@ additionalProperties: true
       expect(result.count).toBe(999);
       expect(result.name).toBe('Single Test User'); // Should preserve unchanged fields
       
-      console.log('✅ Single record updated successfully');
+      logger.info('✅ Single record updated successfully');
     }, 10000);
 
     test('should delete single record using deleteOne()', async () => {
       expect(testRecordId).toBeDefined();
       
-      console.log(`🗑️  Deleting single record with ID: ${testRecordId}`);
+      logger.info(`🗑️  Deleting single record with ID: ${testRecordId}`);
       
       const result = await testContext.database.deleteOne('testdata', testRecordId);
       
       expect(result).toBeDefined();
       expect(result.id).toBe(testRecordId);
       
-      console.log('✅ Single record deleted successfully');
+      logger.info('✅ Single record deleted successfully');
     }, 10000);
   });
 
@@ -259,14 +259,14 @@ additionalProperties: true
         status: 'active'
       };
 
-      console.log('🔧 Testing required field validation');
+      logger.info('🔧 Testing required field validation');
       
       // Should fail due to missing required email field
       await expect(
         testContext.database.createOne('testdata', invalidRecord)
       ).rejects.toThrow();
       
-      console.log('✅ Required field validation working');
+      logger.info('✅ Required field validation working');
     }, 5000);
 
     test('should enforce field constraints', async () => {
@@ -277,14 +277,14 @@ additionalProperties: true
         count: -5 // Violates minimum: 0
       };
 
-      console.log('🔧 Testing field constraint validation');
+      logger.info('🔧 Testing field constraint validation');
       
       // Should fail due to multiple constraint violations
       await expect(
         testContext.database.createOne('testdata', invalidRecord)
       ).rejects.toThrow();
       
-      console.log('✅ Field constraint validation working');
+      logger.info('✅ Field constraint validation working');
     }, 5000);
 
     test('should apply default values', async () => {
@@ -295,7 +295,7 @@ additionalProperties: true
         // count should be optional
       };
 
-      console.log('🔧 Testing default value application');
+      logger.info('🔧 Testing default value application');
       
       const result = await testContext.database.createOne('testdata', recordWithDefaults);
       
@@ -304,7 +304,7 @@ additionalProperties: true
       expect(result.email).toBe('defaults@example.com');
       expect(result.status).toBe('pending'); // Should have default value
       
-      console.log('✅ Default values applied correctly');
+      logger.info('✅ Default values applied correctly');
     }, 10000);
   });
 
@@ -317,7 +317,7 @@ additionalProperties: true
         count: 1
       }];
 
-      console.log('🔧 Testing single record via array endpoint');
+      logger.info('🔧 Testing single record via array endpoint');
       
       const results = await testContext.database.createAll('testdata', singleRecordArray);
       
@@ -326,11 +326,11 @@ additionalProperties: true
       expect(results.length).toBe(1);
       expect(results[0].name).toBe('Array Single User');
       
-      console.log('✅ Single record via array endpoint working');
+      logger.info('✅ Single record via array endpoint working');
     }, 10000);
 
     test('should filter records with selectAny() conditions', async () => {
-      console.log('🔍 Testing filtered selection with conditions');
+      logger.info('🔍 Testing filtered selection with conditions');
       
       const activeRecords = await testContext.database.selectAny('testdata', { 
         where: { status: 'active' } 
@@ -343,7 +343,7 @@ additionalProperties: true
         expect(record.status).toBe('active');
       });
       
-      console.log(`✅ Filtered selection working (found ${activeRecords.length} active records)`);
+      logger.info(`✅ Filtered selection working (found ${activeRecords.length} active records)`);
     }, 5000);
   });
 });

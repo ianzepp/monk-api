@@ -10,14 +10,14 @@ import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
 
 async function cleanFixtures(pattern?: string): Promise<void> {
   if (pattern) {
-    console.log(`🧹 Cleaning template databases matching pattern: ${pattern}`);
+    logger.info(`🧹 Cleaning template databases matching pattern: ${pattern}`);
   } else {
-    console.log('🧹 Cleaning all template databases...');
+    logger.info('🧹 Cleaning all template databases...');
   }
   
   try {
     await TemplateDatabase.cleanTemplates(pattern);
-    console.log('✅ Template cleanup completed');
+    logger.info('✅ Template cleanup completed');
     
   } catch (error) {
     console.error('❌ Failed to clean template databases:', error);

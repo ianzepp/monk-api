@@ -31,7 +31,7 @@ describe('15-authentication: Basic Auth Flow', () => {
     if (tenantName) {
       try {
         await TenantService.deleteTenant(tenantName, true);
-        console.log(`✅ Cleaned up test tenant: ${tenantName}`);
+        logger.info(`✅ Cleaned up test tenant: ${tenantName}`);
       } catch (error) {
         console.warn(`⚠️  Failed to cleanup tenant ${tenantName}:`, error);
       }
@@ -40,7 +40,7 @@ describe('15-authentication: Basic Auth Flow', () => {
 
   describe('Step 1: Tenant Creation', () => {
     test('should create new tenant successfully', async () => {
-      console.log(`🔧 Creating tenant: ${tenantName}`);
+      logger.info(`🔧 Creating tenant: ${tenantName}`);
       
       tenantInfo = await TenantService.createTenant(tenantName, 'localhost');
       
@@ -49,7 +49,7 @@ describe('15-authentication: Basic Auth Flow', () => {
       expect(tenantInfo.host).toBe('localhost');
       expect(tenantInfo.database).toMatch(/^monk-api\$/);
       
-      console.log(`✅ Tenant created: ${tenantInfo.database}`);
+      logger.info(`✅ Tenant created: ${tenantInfo.database}`);
     }, 15000);
 
     test('should have tenant in tenant list', async () => {
@@ -73,7 +73,7 @@ describe('15-authentication: Basic Auth Flow', () => {
 
   describe('Step 2: Authentication', () => {
     test('should authenticate root user successfully', async () => {
-      console.log(`🔐 Authenticating as root in tenant: ${tenantName}`);
+      logger.info(`🔐 Authenticating as root in tenant: ${tenantName}`);
       
       const loginResult = await TenantService.login(tenantName, 'root');
       
@@ -86,7 +86,7 @@ describe('15-authentication: Basic Auth Flow', () => {
       expect(loginResult?.user.access).toBe('root');
       expect(loginResult?.user.database).toBe(tenantInfo.database);
       
-      console.log(`✅ Authentication successful`);
+      logger.info(`✅ Authentication successful`);
     }, 10000);
 
     test('should generate valid JWT token', async () => {

@@ -192,7 +192,7 @@ try {
 
 // Check for --no-startup flag
 if (process.argv.includes('--no-startup')) {
-    console.log('✅ Startup test successful - all modules loaded without errors');
+    logger.info('✅ Startup test successful - all modules loaded without errors');
     process.exit(0);
 }
 

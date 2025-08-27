@@ -16,7 +16,7 @@ describe('WildcardTranslator - Advanced Pattern Translation', () => {
         test('should handle basic wildcard in record ID', () => {
             const translation = WildcardTranslator.translatePath('/data/users/john*');
             
-            console.log('Translation result:', JSON.stringify(translation, null, 2));
+            logger.info('Translation result:', JSON.stringify(translation, null, 2));
             
             expect(translation.schemas).toEqual(['users']);
             expect(translation.complexity).toBe('complex');

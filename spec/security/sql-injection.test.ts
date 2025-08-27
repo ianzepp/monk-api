@@ -49,7 +49,7 @@ additionalProperties: false
 
     try {
       await testContext.metabase.createOne('sectest', securityTestSchema.trim());
-      console.log('✅ Security test schema created');
+      logger.info('✅ Security test schema created');
     } catch (error) {
       console.warn('⚠️  Security test schema creation failed:', error);
     }
@@ -68,7 +68,7 @@ additionalProperties: false
         value: "'; INSERT INTO admin (user) VALUES ('hacker'); --"
       };
 
-      console.log('🔒 Testing CREATE injection protection');
+      logger.info('🔒 Testing CREATE injection protection');
 
       // Should not cause SQL syntax errors - should be safely parameterized
       try {
@@ -79,7 +79,7 @@ additionalProperties: false
         expect(result.name).toBe("'; DROP TABLE users; --");
         expect(result.value).toBe("'; INSERT INTO admin (user) VALUES ('hacker'); --");
         
-        console.log('✅ Malicious data safely stored as strings');
+        logger.info('✅ Malicious data safely stored as strings');
       } catch (error: any) {
         // Should not fail with SQL syntax errors
         expect(error.message.toLowerCase()).not.toContain('syntax error');
@@ -94,7 +94,7 @@ additionalProperties: false
         value: "Special chars: \\n\\t\\r\\0 and $1 $2 $3"
       };
 
-      console.log('🔒 Testing special character handling');
+      logger.info('🔒 Testing special character handling');
 
       const result = await testContext.database.createOne('sectest', specialCharsData);
       
@@ -102,7 +102,7 @@ additionalProperties: false
       expect(result.name).toBe("Test with 'quotes' and \"double quotes\"");
       expect(result.value).toBe("Special chars: \\n\\t\\r\\0 and $1 $2 $3");
       
-      console.log('✅ Special characters safely handled');
+      logger.info('✅ Special characters safely handled');
     }, 10000);
   });
 
@@ -124,7 +124,7 @@ additionalProperties: false
         value: "'; DELETE FROM important_table; --"
       };
 
-      console.log('🔒 Testing UPDATE injection protection');
+      logger.info('🔒 Testing UPDATE injection protection');
 
       try {
         const result = await testContext.database.updateOne('sectest', testRecordId, maliciousUpdate);
@@ -134,7 +134,7 @@ additionalProperties: false
         expect(result.name).toBe("'; UPDATE users SET admin = true WHERE id = '1'; --");
         expect(result.value).toBe("'; DELETE FROM important_table; --");
         
-        console.log('✅ Malicious update data safely stored');
+        logger.info('✅ Malicious update data safely stored');
       } catch (error: any) {
         // Should not fail with SQL injection errors
         expect(error.message.toLowerCase()).not.toContain('syntax error');
@@ -163,7 +163,7 @@ additionalProperties: false
         return;
       }
 
-      console.log('🔒 Testing DELETE injection protection');
+      logger.info('🔒 Testing DELETE injection protection');
 
       // Try to delete with valid IDs (injection would be in WHERE clause)
       try {
@@ -173,7 +173,7 @@ additionalProperties: false
         expect(deleteResults).toBeDefined();
         expect(Array.isArray(deleteResults)).toBe(true);
         
-        console.log('✅ DELETE operations properly parameterized');
+        logger.info('✅ DELETE operations properly parameterized');
       } catch (error: any) {
         // Should not fail with SQL syntax errors from WHERE clause
         expect(error.message.toLowerCase()).not.toContain('syntax error');
@@ -196,7 +196,7 @@ additionalProperties: false
         value: 'Updated Value'
       };
 
-      console.log('🔒 Testing parameter numbering in UPDATE');
+      logger.info('🔒 Testing parameter numbering in UPDATE');
 
       // This will test the fix: SET name = $1, value = $2 WHERE id = $3
       const result = await testContext.database.updateOne('sectest', record.id, complexUpdate);
@@ -206,7 +206,7 @@ additionalProperties: false
       expect(result.value).toBe('Updated Value');
       expect(result.id).toBe(record.id);
       
-      console.log('✅ Parameter numbering working correctly');
+      logger.info('✅ Parameter numbering working correctly');
     }, 10000);
   });
 });

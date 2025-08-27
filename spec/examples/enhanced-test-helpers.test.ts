@@ -247,7 +247,7 @@ describe('Migration Examples - Before and After', () => {
         account_type: 'personal'
       });
 
-      console.log(`✅ Test setup complete: ${accountCount} accounts, ${contactCount} contacts`);
+      logger.info(`✅ Test setup complete: ${accountCount} accounts, ${contactCount} contacts`);
       expect(testContext.availableSchemas.length).toBeGreaterThan(0);
     });
   });

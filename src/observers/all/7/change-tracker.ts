@@ -20,7 +20,7 @@ export default class ChangeTracker extends BaseObserver {
         const { system, operation, schema, result, existing, data, metadata } = context;
         
         // TODO: Temporarily disabled for testing - re-enable when audit_log table is created
-        console.log(`📝 Change tracker triggered for ${schema} ${operation} (disabled for testing)`);
+        logger.info(`📝 Change tracker triggered for ${schema} ${operation} (disabled for testing)`);
         metadata.set('audit_logged', true);
         metadata.set('audit_timestamp', new Date().toISOString());
         

@@ -83,7 +83,7 @@ additionalProperties: true
 
         try {
             await testContext.metabase.createOne('sectest', securityTestSchema.trim());
-            console.log('✅ Comprehensive security test schema created');
+            logger.info('✅ Comprehensive security test schema created');
         } catch (error) {
             console.warn('⚠️  Security test schema creation failed, may already exist:', error);
         }
@@ -97,7 +97,7 @@ additionalProperties: true
 
     describe('Classic SQL Injection Vector Testing', () => {
         test('should defend against all classic injection vectors in CREATE operations', async () => {
-            console.log(`🔒 Testing ${CLASSIC_INJECTION_VECTORS.length} classic injection vectors in CREATE`);
+            logger.info(`🔒 Testing ${CLASSIC_INJECTION_VECTORS.length} classic injection vectors in CREATE`);
 
             const results = await InjectionTester.testMultipleVectors(
                 testContext,
@@ -117,7 +117,7 @@ additionalProperties: true
                 email: 'update@example.com'
             });
 
-            console.log(`🔒 Testing ${CLASSIC_INJECTION_VECTORS.length} classic injection vectors in UPDATE`);
+            logger.info(`🔒 Testing ${CLASSIC_INJECTION_VECTORS.length} classic injection vectors in UPDATE`);
 
             const results = await InjectionTester.testMultipleVectors(
                 testContext,
@@ -136,7 +136,7 @@ additionalProperties: true
 
     describe('PostgreSQL-Specific Injection Testing', () => {
         test('should defend against PostgreSQL-specific attack vectors', async () => {
-            console.log(`🔒 Testing ${POSTGRESQL_INJECTION_VECTORS.length} PostgreSQL-specific injection vectors`);
+            logger.info(`🔒 Testing ${POSTGRESQL_INJECTION_VECTORS.length} PostgreSQL-specific injection vectors`);
 
             const results = await InjectionTester.testMultipleVectors(
                 testContext,
@@ -157,7 +157,7 @@ additionalProperties: true
 
     describe('Advanced Injection Technique Testing', () => {
         test('should defend against advanced blind and time-based injection', async () => {
-            console.log(`🔒 Testing ${ADVANCED_INJECTION_VECTORS.length} advanced injection techniques`);
+            logger.info(`🔒 Testing ${ADVANCED_INJECTION_VECTORS.length} advanced injection techniques`);
 
             const results = await InjectionTester.testMultipleVectors(
                 testContext,
@@ -178,7 +178,7 @@ additionalProperties: true
 
     describe('Encoding Bypass Testing', () => {
         test('should defend against encoding-based injection bypasses', async () => {
-            console.log(`🔒 Testing ${ENCODING_INJECTION_VECTORS.length} encoding bypass vectors`);
+            logger.info(`🔒 Testing ${ENCODING_INJECTION_VECTORS.length} encoding bypass vectors`);
 
             const results = await InjectionTester.testMultipleVectors(
                 testContext,
@@ -194,7 +194,7 @@ additionalProperties: true
 
     describe('Evasion Technique Testing', () => {
         test('should defend against case sensitivity and whitespace evasion', async () => {
-            console.log(`🔒 Testing ${EVASION_INJECTION_VECTORS.length} evasion technique vectors`);
+            logger.info(`🔒 Testing ${EVASION_INJECTION_VECTORS.length} evasion technique vectors`);
 
             const results = await InjectionTester.testMultipleVectors(
                 testContext,
@@ -210,7 +210,7 @@ additionalProperties: true
 
     describe('Edge Case and Boundary Testing', () => {
         test('should handle edge case payloads safely', async () => {
-            console.log(`🔒 Testing ${EDGE_CASE_PAYLOADS.length} edge case payloads`);
+            logger.info(`🔒 Testing ${EDGE_CASE_PAYLOADS.length} edge case payloads`);
 
             for (const payload of EDGE_CASE_PAYLOADS) {
                 try {
@@ -236,11 +236,11 @@ additionalProperties: true
                 }
             }
 
-            console.log('✅ Edge case payloads handled safely');
+            logger.info('✅ Edge case payloads handled safely');
         }, 20000);
 
         test('should handle malicious field payloads across all fields', async () => {
-            console.log(`🔒 Testing ${MALICIOUS_FIELD_PAYLOADS.length} malicious payloads across fields`);
+            logger.info(`🔒 Testing ${MALICIOUS_FIELD_PAYLOADS.length} malicious payloads across fields`);
 
             for (const payload of MALICIOUS_FIELD_PAYLOADS) {
                 try {
@@ -270,16 +270,16 @@ additionalProperties: true
                 }
             }
 
-            console.log('✅ Malicious field payloads handled safely');
+            logger.info('✅ Malicious field payloads handled safely');
         }, 30000);
     });
 
     describe('Comprehensive Security Validation', () => {
         test('should pass complete security validation across all attack vectors', async () => {
-            console.log('🔒 Running comprehensive security validation');
+            logger.info('🔒 Running comprehensive security validation');
 
             const allVectors = getAllInjectionVectors();
-            console.log(`📊 Testing ${allVectors.length} total injection vectors`);
+            logger.info(`📊 Testing ${allVectors.length} total injection vectors`);
 
             // Test all vectors in CREATE operations
             const createResults = await InjectionTester.testMultipleVectors(
@@ -296,7 +296,7 @@ additionalProperties: true
             // Generate and log security report
             const report = InjectionTester.generateSecurityReport(createResults);
             
-            console.log(`📊 Security Test Report:
+            logger.info(`📊 Security Test Report:
   Total Vectors: ${report.totalVectors}
   Successful Defenses: ${report.successfulDefenses}
   Failed Defenses: ${report.failedDefenses}
@@ -309,13 +309,13 @@ additionalProperties: true
             expect(report.sqlErrors).toBe(0);
             expect(report.informationDisclosure).toBe(0);
 
-            console.log('✅ Comprehensive security validation passed');
+            logger.info('✅ Comprehensive security validation passed');
         }, 60000);
     });
 
     describe('Observer Pipeline Security Integration', () => {
         test('should validate that observer pipeline provides injection protection', async () => {
-            console.log('🔒 Testing observer pipeline injection protection');
+            logger.info('🔒 Testing observer pipeline injection protection');
 
             // Test that JsonSchemaValidator doesn't introduce vulnerabilities
             const schemaInjectionData = {
@@ -340,11 +340,11 @@ additionalProperties: true
                 SecurityAssertions.expectNoSqlErrors(null, error);
             }
 
-            console.log('✅ Observer pipeline provides proper injection protection');
+            logger.info('✅ Observer pipeline provides proper injection protection');
         }, 15000);
 
         test('should validate that transaction management maintains security', async () => {
-            console.log('🔒 Testing transaction security with malicious data');
+            logger.info('🔒 Testing transaction security with malicious data');
 
             // Multi-record operation that should trigger transaction
             const maliciousRecords = [
@@ -364,7 +364,7 @@ additionalProperties: true
                 expect(result.email).toBe(maliciousRecords[index].email);
             });
 
-            console.log('✅ Transaction management maintains injection protection');
+            logger.info('✅ Transaction management maintains injection protection');
         }, 15000);
     });
 });

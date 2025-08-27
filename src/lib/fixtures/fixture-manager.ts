@@ -46,14 +46,14 @@ export class FixtureManager {
    * Build fixture data by coordinating data generators
    */
   static async buildFixtureData(fixture: FixtureDefinition): Promise<FixtureData> {
-    console.log(`🏗️  Building fixture data: ${fixture.name}`);
+    logger.info(`🏗️  Building fixture data: ${fixture.name}`);
     
     // Load and validate all schemas
     const schemas = await this.loadSchemas(fixture.schemas);
     
     // Build generator dependency graph
     const generationOrder = await this.buildGenerationOrder(fixture.data_generators);
-    console.log(`📋 Generation order: ${generationOrder.join(' → ')}`);
+    logger.info(`📋 Generation order: ${generationOrder.join(' → ')}`);
     
     // Generate data in dependency order
     const data: Record<string, any[]> = {};
@@ -65,7 +65,7 @@ export class FixtureManager {
         throw new Error(`No generator configuration found for schema: ${schemaName}`);
       }
       
-      console.log(`🎲 Generating ${generatorConfig.count} records for ${schemaName}...`);
+      logger.info(`🎲 Generating ${generatorConfig.count} records for ${schemaName}...`);
       
       // Build generator context
       const context: GeneratorContext = {
@@ -96,7 +96,7 @@ export class FixtureManager {
       }
       
       data[schemaName] = records;
-      console.log(`✅ Generated ${records.length} ${schemaName} records`);
+      logger.info(`✅ Generated ${records.length} ${schemaName} records`);
     }
     
     // Calculate actual record counts
@@ -107,7 +107,7 @@ export class FixtureManager {
     
     const totalRecords = Object.values(recordCounts).reduce((sum, count) => sum + count, 0);
     
-    console.log(`✅ Fixture data built: ${totalRecords} total records across ${Object.keys(data).length} schemas`);
+    logger.info(`✅ Fixture data built: ${totalRecords} total records across ${Object.keys(data).length} schemas`);
     
     return {
       schemas,
@@ -130,12 +130,12 @@ export class FixtureManager {
     tenantInfo: TenantInfo,
     useSafeMigration: boolean = true
   ): Promise<void> {
-    console.log(`🔨 Building template with data: ${templateName}`);
+    logger.info(`🔨 Building template with data: ${templateName}`);
     
     // Use statically imported classes
     
     // Preload observers for database operations
-    console.log('🔧 Preloading observers for template building...');
+    logger.info('🔧 Preloading observers for template building...');
     await ObserverLoader.preloadObservers();
     
     // Create mock context for template operations
@@ -149,32 +149,32 @@ export class FixtureManager {
     const metabase = system.metabase;
     
     // Load schemas into metabase
-    console.log(`📋 Loading ${Object.keys(fixtureData.schemas).length} schemas...`);
+    logger.info(`📋 Loading ${Object.keys(fixtureData.schemas).length} schemas...`);
     for (const [schemaName, schemaContent] of Object.entries(fixtureData.schemas)) {
       await metabase.createOne(schemaName, schemaContent);
-      console.log(`✅ Schema loaded: ${schemaName}`);
+      logger.info(`✅ Schema loaded: ${schemaName}`);
     }
     
     // Load data into database
-    console.log(`💾 Loading data into template database...`);
+    logger.info(`💾 Loading data into template database...`);
     
     if (useSafeMigration) {
       // Use safe migration (observer pipeline) for validation
       for (const [schemaName, records] of Object.entries(fixtureData.data)) {
         if (records.length > 0) {
-          console.log(`📝 Loading ${records.length} ${schemaName} records (with observer pipeline)...`);
+          logger.info(`📝 Loading ${records.length} ${schemaName} records (with observer pipeline)...`);
           await database.createAll(schemaName, records);
-          console.log(`✅ ${schemaName} data loaded`);
+          logger.info(`✅ ${schemaName} data loaded`);
         }
       }
     } else {
       // Unsafe migration - direct SQL for speed (future enhancement)
-      console.log(`⚡ Using direct SQL loading (unsafe mode)`);
+      logger.info(`⚡ Using direct SQL loading (unsafe mode)`);
       // TODO: Implement direct SQL loading for large datasets
       throw new Error('Unsafe migration mode not yet implemented');
     }
     
-    console.log(`✅ Template database built with ${fixtureData.metadata.total_records} records`);
+    logger.info(`✅ Template database built with ${fixtureData.metadata.total_records} records`);
   }
   
   /**

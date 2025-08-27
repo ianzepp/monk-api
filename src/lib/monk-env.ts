@@ -48,7 +48,10 @@ export class MonkEnv {
                 
                 // Set environment variables from config
                 let loadedCount = 0;
+
                 for (const [key, value] of Object.entries(configData)) {
+                    logger.info('Reading environment variable %s', key);
+
                     if (!process.env[key]) {  // Don't override existing env vars
                         process.env[key] = String(value);
                         loadedCount++;

@@ -61,7 +61,7 @@ export async function migrateTestToFixture(
   options: TemplateLoadOptions = {}
 ): Promise<TestContextWithData> {
   
-  console.log(`🔄 Migrating test setup to fixture: ${fixtureName}`);
+  logger.info(`🔄 Migrating test setup to fixture: ${fixtureName}`);
   
   try {
     // Try the new fixture-based approach
@@ -70,7 +70,7 @@ export async function migrateTestToFixture(
       ...options
     });
     
-    console.log(`✅ Migration successful - using fixture approach`);
+    logger.info(`✅ Migration successful - using fixture approach`);
     return newContext;
     
   } catch (error) {
@@ -372,7 +372,7 @@ function determineComplexity(patterns: DetectedPattern[], analysis: TestAnalysis
  * Wrap legacy test context in new interface
  */
 async function wrapLegacyContext(oldContext: TestContext, fixtureName: string): Promise<TestContextWithData> {
-  console.log(`🔧 Wrapping legacy context for fixture: ${fixtureName}`);
+  logger.info(`🔧 Wrapping legacy context for fixture: ${fixtureName}`);
   
   // Create basic helpers for legacy context
   const helpers = {

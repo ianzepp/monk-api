@@ -273,7 +273,7 @@ export class InjectionTester {
         expect(report.averageExecutionTime).toBeLessThan(1000);
 
         // Log security test summary
-        console.log(`🔒 Security Test Summary: ${report.successfulDefenses}/${report.totalVectors} vectors defended`);
+        logger.info(`🔒 Security Test Summary: ${report.successfulDefenses}/${report.totalVectors} vectors defended`);
         
         if (report.failedVectors.length > 0) {
             console.error('❌ Failed injection vectors:', report.failedVectors.map(v => v.name));

@@ -9,15 +9,15 @@
 import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
 
 async function listFixtures(): Promise<void> {
-  console.log('📋 Available template databases:');
+  logger.info('📋 Available template databases:');
   
   try {
     const templates = await TemplateDatabase.listTemplates();
     
     if (templates.length === 0) {
-      console.log('  (No templates found - run `npm run fixtures:build` to create them)');
+      logger.info('  (No templates found - run `npm run fixtures:build` to create them)');
     } else {
-      templates.forEach(template => console.log(`  • ${template}`));
+      templates.forEach(template => logger.info(`  • ${template}`));
     }
     
   } catch (error) {

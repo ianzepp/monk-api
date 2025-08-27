@@ -13,7 +13,7 @@ import { MonkEnv } from '@src/lib/monk-env.js';
 import pg from 'pg';
 
 async function testTemplateData(templateName: string): Promise<void> {
-  console.log(`🔍 Testing data in template: ${templateName}`);
+  logger.info(`🔍 Testing data in template: ${templateName}`);
   
   try {
     // Load configuration
@@ -22,18 +22,18 @@ async function testTemplateData(templateName: string): Promise<void> {
     // Create test tenant from template
     const testTenantName = `test-demo-${Date.now()}`;
     const tenant = await TemplateDatabase.createTenantFromTemplate(testTenantName, templateName);
-    console.log(`✅ Created test tenant from template: ${tenant.name}`);
+    logger.info(`✅ Created test tenant from template: ${tenant.name}`);
     
     // Connect to the cloned database using centralized connection
     const client = DatabaseConnection.createClient(tenant.database);
     await client.connect();
     
-    console.log('📋 Template database content:');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    logger.info('📋 Template database content:');
+    logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
     // Check what schemas exist
     const schemas = await client.query('SELECT name FROM schema ORDER BY name');
-    console.log(`🏗️  Schemas (${schemas.rows.length}):`, schemas.rows.map(r => r.name).join(', '));
+    logger.info(`🏗️  Schemas (${schemas.rows.length}):`, schemas.rows.map(r => r.name).join(', '));
     
     // Show data from each schema
     for (const schemaRow of schemas.rows) {
@@ -47,14 +47,14 @@ async function testTemplateData(templateName: string): Promise<void> {
         const totalRecords = parseInt(countResult.rows[0].count);
         
         if (totalRecords === 0) {
-          console.log(`📄 ${schemaName}: (empty)`);
+          logger.info(`📄 ${schemaName}: (empty)`);
           continue;
         }
         
-        console.log(`📄 ${schemaName} (${totalRecords} records):`);
-        console.log('   ┌─────────┬──────────────────────────────────────────────────────────────────────────────────┐');
-        console.log('   │   #     │ Data Preview                                                                         │');
-        console.log('   ├─────────┼──────────────────────────────────────────────────────────────────────────────────┤');
+        logger.info(`📄 ${schemaName} (${totalRecords} records):`);
+        logger.info('   ┌─────────┬──────────────────────────────────────────────────────────────────────────────────┐');
+        logger.info('   │   #     │ Data Preview                                                                         │');
+        logger.info('   ├─────────┼──────────────────────────────────────────────────────────────────────────────────┤');
         
         // Get column information
         const columns = await client.query(`
@@ -83,37 +83,37 @@ async function testTemplateData(templateName: string): Promise<void> {
           
           const previewStr = preview.join(', ').substring(0, 75);
           const paddedPreview = previewStr.padEnd(75);
-          console.log(`   │   ${(i + 1).toString().padStart(2)}    │ ${paddedPreview}    │`);
+          logger.info(`   │   ${(i + 1).toString().padStart(2)}    │ ${paddedPreview}    │`);
         });
         
         if (totalRecords > 5) {
           const remaining = totalRecords - 5;
-          console.log(`   │         │ ... and ${remaining} more records                                                            │`);
+          logger.info(`   │         │ ... and ${remaining} more records                                                            │`);
         }
         
-        console.log('   └─────────┴──────────────────────────────────────────────────────────────────────────────────┘');
+        logger.info('   └─────────┴──────────────────────────────────────────────────────────────────────────────────┘');
         
         // Show relationship info if applicable
         if (schemaName === 'contact') {
           const linkedCount = await client.query('SELECT COUNT(*) as count FROM contact WHERE account_id IS NOT NULL');
           const linkedPercent = Math.round((parseInt(linkedCount.rows[0].count) / totalRecords) * 100);
-          console.log(`   📊 Relationships: ${linkedCount.rows[0].count}/${totalRecords} contacts linked to accounts (${linkedPercent}%)`);
+          logger.info(`   📊 Relationships: ${linkedCount.rows[0].count}/${totalRecords} contacts linked to accounts (${linkedPercent}%)`);
         }
         
       } catch (schemaError) {
         const errorMessage = schemaError instanceof Error ? schemaError.message : String(schemaError);
-        console.log(`📄 ${schemaName}: (error reading data - ${errorMessage})`);
+        logger.info(`📄 ${schemaName}: (error reading data - ${errorMessage})`);
       }
     }
     
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
     await client.end();
     
     // Clean up test tenant
-    console.log('🧹 Cleaning up test tenant...');
+    logger.info('🧹 Cleaning up test tenant...');
     await TemplateDatabase.dropDatabase(tenant.database);
-    console.log('✅ Template data test completed successfully');
+    logger.info('✅ Template data test completed successfully');
     
   } catch (error) {
     console.error('❌ Template data test failed:', error);
