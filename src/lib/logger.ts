@@ -22,6 +22,13 @@ export class Logger {
     }
 
     /**
+     * Log failure message with context
+     */
+    fail(message: string, meta?: any) {
+        console.error(this.formatLog('FAIL', message, meta));
+    }
+
+    /**
      * Log timing data with calculated elapsed time using hrtime precision
      * Takes start time from process.hrtime.bigint() and calculates duration
      */
