@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { MonkEnv } from '@lib/monk-env.js';
-import { DatabaseManager } from '@lib/database-manager.js';
+import { DatabaseConnection } from '@lib/database-connection.js';
 import pg from 'pg';
 
 describe('Direct Database Connection Test', () => {
@@ -11,20 +11,10 @@ describe('Direct Database Connection Test', () => {
     
     console.log(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
     
-    // Test direct connection using same approach as main API
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    // Test direct connection using DatabaseConnection
+    const testPool = DatabaseConnection.getTenantPool('monk-api$local-test');
     
-    // Connect to existing local-test database (should already exist)
-    const testConnectionString = baseUrl.replace(/\/[^\/]*$/, '/monk-api$local-test');
-    
-    console.log(`🔍 Test Connection String: ${testConnectionString}`);
-    
-    const testPool = new pg.Pool({
-      connectionString: testConnectionString,
-      max: 1,
-      idleTimeoutMillis: 5000,
-      connectionTimeoutMillis: 2000,
-    });
+    console.log(`🔍 Testing tenant pool for: monk-api$local-test`);
     
     try {
       // Test the connection
@@ -45,7 +35,7 @@ describe('Direct Database Connection Test', () => {
       console.error(`❌ Direct database connection failed:`, error);
       throw error;
     } finally {
-      await testPool.end();
+      // Note: Don't end shared pool - it's managed by DatabaseConnection
     }
   });
 
@@ -53,19 +43,10 @@ describe('Direct Database Connection Test', () => {
     // Load monk configuration
     MonkEnv.load();
     
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    // Connect to auth database using DatabaseConnection
+    const authPool = DatabaseConnection.getBasePool();
     
-    // Connect to auth database
-    const authConnectionString = baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
-    
-    console.log(`🔍 Auth Connection String: ${authConnectionString}`);
-    
-    const authPool = new pg.Pool({
-      connectionString: authConnectionString,
-      max: 1,
-      idleTimeoutMillis: 5000,
-      connectionTimeoutMillis: 2000,
-    });
+    console.log(`🔍 Testing base pool for auth database`);
     
     try {
       // Test the auth database connection
@@ -86,27 +67,27 @@ describe('Direct Database Connection Test', () => {
       console.error(`❌ Auth database connection failed:`, error);
       throw error;
     } finally {
-      await authPool.end();
+      // Note: Don't end shared pool - it's managed by DatabaseConnection
     }
   });
 
-  test('should test DatabaseManager.getDatabaseForDomain method', async () => {
+  test('should test DatabaseConnection.getTenantPool method', async () => {
     // Test the actual method the main API uses
     try {
-      const pool = await DatabaseManager.getDatabaseForDomain('local-test');
+      const pool = DatabaseConnection.getTenantPool('monk-api$local-test');
       
       // Test query
       const client = await pool.connect();
       const result = await client.query('SELECT COUNT(*) as count FROM schema');
       client.release();
       
-      console.log(`✅ DatabaseManager connection works, schema count: ${result.rows[0].count}`);
+      console.log(`✅ DatabaseConnection connection works, schema count: ${result.rows[0].count}`);
       
       expect(result.rows[0].count).toBeDefined();
       expect(parseInt(result.rows[0].count)).toBeGreaterThanOrEqual(0);
       
     } catch (error) {
-      console.error(`❌ DatabaseManager connection failed:`, error);
+      console.error(`❌ DatabaseConnection connection failed:`, error);
       throw error;
     }
   });
@@ -115,8 +96,8 @@ describe('Direct Database Connection Test', () => {
     // Load monk configuration
     MonkEnv.load();
     
-    // Use EXACT same logic as TenantService.getAuthDatabase()
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    // Use mock database URL for auth testing
+    const baseUrl = `postgresql://testuser@localhost:5432/`;
     
     try {
       const url = new URL(baseUrl);

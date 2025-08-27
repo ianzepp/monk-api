@@ -12,6 +12,8 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { TenantService } from '@lib/services/tenant.js';
 import { randomBytes } from 'crypto';
+import { DatabaseConnection } from '@lib/database-connection.js';
+import { System } from '@lib/system.js';
 
 describe('15-authentication: Basic Auth Flow', () => {
   let tenantName: string;
@@ -148,14 +150,12 @@ describe('15-authentication: Basic Auth Flow', () => {
 
     test('should be able to create authenticated system context', async () => {
       // This tests the equivalent of "monk ping" - authenticated connectivity
-      const { DatabaseManager } = await import('@lib/database-manager.js');
-      const { System } = await import('@lib/system.js');
       
       // Create mock context similar to test-tenant.ts helper
       const mockContext = {
         env: {
-          JWT_SECRET: process.env.JWT_SECRET || 'test-secret',
-          DATABASE_URL: process.env.DATABASE_URL || 'postgresql://localhost:5432/',
+          JWT_SECRET: 'test-jwt-secret-for-auth-tests',
+          DATABASE_URL: 'postgresql://testuser@localhost:5432/test-db',
         },
         req: {
           header: (name: string) => `test-${Date.now()}`,
@@ -175,7 +175,7 @@ describe('15-authentication: Basic Auth Flow', () => {
       };
 
       // Set up database context (simulates JWT middleware)
-      await DatabaseManager.setDatabaseForRequest(mockContext as any, jwtPayload.database);
+      DatabaseConnection.setDatabaseForRequest(mockContext as any, jwtPayload.database);
       
       // Create System instance (simulates authenticated request)
       const system = new System(mockContext as any);

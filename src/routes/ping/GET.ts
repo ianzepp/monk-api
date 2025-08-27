@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { AuthService } from '@src/lib/auth.js';
-import { DatabaseManager } from '@src/lib/database-manager.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 // GET /ping - Simple health check with optional JWT domain and database connection test
 export default async function (c: Context): Promise<any> {
@@ -38,7 +38,7 @@ export default async function (c: Context): Promise<any> {
             // Test database connection using full database name from JWT
             if (payload.database) {
                 try {
-                    db = await DatabaseManager.getDatabaseForDomain(payload.database);
+                    db = DatabaseConnection.getTenantPool(payload.database);
                     
                     // Execute a fast connection test query
                     await db.query('SELECT 1 as test_connection');

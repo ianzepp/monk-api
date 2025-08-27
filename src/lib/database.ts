@@ -1,7 +1,6 @@
 import { db, builtins, type DbContext, type TxContext } from '@src/db/index.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
 import { Filter, type FilterData } from '@src/lib/filter.js';
-import { DatabaseManager } from '@src/lib/database-manager.js';
 import type { Context } from 'hono';
 import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';

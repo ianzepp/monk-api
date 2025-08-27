@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { logger } from '@src/lib/logger.js';
+import { FixtureManager } from './fixture-manager.js';
 import pg from 'pg';
 
 import type { TenantInfo } from '@src/lib/services/tenant.js';
@@ -236,8 +237,7 @@ export class TemplateDatabase {
     };
     
     try {
-      // Import FixtureManager dynamically to avoid circular dependencies
-      const { FixtureManager } = await import('./fixture-manager.js');
+      // Use statically imported FixtureManager
       
       // Load fixture definition
       const fixture = await FixtureManager.loadFixtureDefinition(fixtureName);

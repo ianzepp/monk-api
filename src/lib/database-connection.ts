@@ -50,14 +50,7 @@ export class DatabaseConnection {
         if (!this.basePool) {
             const databaseUrl = this.getDatabaseURL();
             
-            this.basePool = new Pool({
-                connectionString: databaseUrl,
-                max: 10,                    // Production pool size
-                idleTimeoutMillis: 30000,
-                connectionTimeoutMillis: 5000,
-                // Ensure consistent configuration
-                ssl: databaseUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false
-            });
+            this.basePool = new Pool(this.getPoolConfig(databaseUrl, 10));
 
             logger.info('Base database pool created', { 
                 database: this.extractDatabaseName(databaseUrl) 
@@ -74,15 +67,11 @@ export class DatabaseConnection {
     static getTenantPool(tenantName: string): pg.Pool {
         if (!this.tenantPools.has(tenantName)) {
             const baseDatabaseUrl = this.getDatabaseURL();
-            const tenantDatabaseUrl = this.buildTenantDatabaseUrl(baseDatabaseUrl, tenantName);
+            const url = new URL(baseDatabaseUrl);
+            url.pathname = `/${tenantName}`;
+            const tenantDatabaseUrl = url.toString();
             
-            const pool = new Pool({
-                connectionString: tenantDatabaseUrl,
-                max: 5,                     // Smaller pools for tenant DBs
-                idleTimeoutMillis: 30000,
-                connectionTimeoutMillis: 5000,
-                ssl: baseDatabaseUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false
-            });
+            const pool = new Pool(this.getPoolConfig(tenantDatabaseUrl, 5));
 
             this.tenantPools.set(tenantName, pool);
             
@@ -101,32 +90,46 @@ export class DatabaseConnection {
      */
     static createClient(databaseName?: string): pg.Client {
         const baseDatabaseUrl = this.getDatabaseURL();
-        const connectionString = databaseName 
-            ? this.buildDatabaseUrl(baseDatabaseUrl, databaseName)
-            : baseDatabaseUrl;
+        let connectionString: string;
+        
+        if (databaseName) {
+            const url = new URL(baseDatabaseUrl);
+            url.pathname = `/${databaseName}`;
+            connectionString = url.toString();
+        } 
+        
+        else {
+            connectionString = baseDatabaseUrl;
+        }
 
         return new Client({
             connectionString,
             connectionTimeoutMillis: 5000,
-            ssl: baseDatabaseUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false
+            ssl: this.getSslConfig(baseDatabaseUrl)
         });
     }
 
     /**
-     * Build connection string for specific database name
+     * Get SSL configuration based on database URL
      */
-    private static buildDatabaseUrl(baseDatabaseUrl: string, databaseName: string): string {
-        const url = new URL(baseDatabaseUrl);
-        url.pathname = `/${databaseName}`;
-        return url.toString();
+    private static getSslConfig(databaseUrl: string) {
+        return databaseUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false;
     }
 
     /**
-     * Build connection string for tenant database
+     * Get standard pool configuration
      */
-    private static buildTenantDatabaseUrl(baseDatabaseUrl: string, tenantName: string): string {
-        return this.buildDatabaseUrl(baseDatabaseUrl, tenantName);
+    private static getPoolConfig(connectionString: string, maxConnections: number) {
+        return {
+            connectionString,
+            max: maxConnections,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+            ssl: this.getSslConfig(connectionString)
+        };
     }
+
+
 
     /**
      * Extract database name from connection URL for logging
@@ -188,8 +191,3 @@ export class DatabaseConnection {
     }
 }
 
-/**
- * Legacy compatibility - export pool for existing code
- * TODO: Remove once all code migrated to DatabaseConnection
- */
-export const getPool = () => DatabaseConnection.getBasePool();

@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { System } from '@src/lib/system.js';
 import type { SystemOptions } from '@src/lib/types/system-context.js';
-import { DatabaseManager } from '@src/lib/database-manager.js'; 
+ 
 import { type TxContext } from '@src/db/index.js';
 export interface ApiSuccessResponse<T = any> {
   success: true;
@@ -45,7 +45,10 @@ function extractOptionsFromContext(context: Context): SystemOptions {
  */
 export async function handleContextDb<T>(context: Context, fn: (system: System) => Promise<T>) {
     try {
-        const contextDb = DatabaseManager.getDatabaseFromContext(context);
+        const contextDb = context.get('database');
+        if (!contextDb) {
+            throw new Error('Database context not set - ensure JWT middleware is applied');
+        }
         const options = extractOptionsFromContext(context);
         const result = await fn(new System(context, options));
 
@@ -63,7 +66,10 @@ export async function handleContextDb<T>(context: Context, fn: (system: System) 
  */
 export async function handleContextTx<T>(context: Context, fn: (system: System) => Promise<T>) {
     try {
-        const contextDb = DatabaseManager.getDatabaseFromContext(context);
+        const contextDb = context.get('database');
+        if (!contextDb) {
+            throw new Error('Database context not set - ensure JWT middleware is applied');
+        }
         
         // Start PostgreSQL transaction using pool client
         const client = await contextDb.connect();

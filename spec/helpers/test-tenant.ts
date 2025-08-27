@@ -12,7 +12,7 @@ import { TemplateDatabase } from '../../src/lib/fixtures/template-database.js';
 import { System } from '../../src/lib/system.js';
 import { Database } from '../../src/lib/database.js';
 import { Metabase } from '../../src/lib/metabase.js';
-import { DatabaseManager } from '../../src/lib/database-manager.js';
+import { DatabaseConnection } from '../../src/lib/database-connection.js';
 import { Client } from 'pg';
 
 export interface TestTenantManager {
@@ -210,8 +210,8 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
   // Create mock Hono context with proper database setup
   const mockContext = {
     env: {
-      JWT_SECRET: process.env.JWT_SECRET || 'test-secret',
-      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://localhost:5432/',
+      JWT_SECRET: 'test-jwt-secret-for-tenant-tests',
+      DATABASE_URL: 'postgresql://testuser@localhost:5432/test-db',
     },
     req: {
       header: (name: string) => {
@@ -233,8 +233,8 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
     }
   };
 
-  // Set up database context using DatabaseManager (simulates JWT middleware)
-  await DatabaseManager.setDatabaseForRequest(mockContext as any, jwtPayload.database);
+  // Set up database context using DatabaseConnection (simulates JWT middleware)
+  DatabaseConnection.setDatabaseForRequest(mockContext as any, jwtPayload.database);
 
   const system = new System(mockContext as any);
   const database = system.database;
@@ -257,12 +257,8 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
 export async function createTestUser(tenant: TenantInfo, username: string, access: string = 'read'): Promise<void> {
   console.log(`👤 Creating test user: ${username} (access: ${access})`);
   
-  const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-  const dbHost = process.env.DB_HOST || 'localhost';
-  const dbPort = process.env.DB_PORT || '5432';
-  const tenantConnection = `postgresql://${dbUser}@${dbHost}:${dbPort}/${tenant.database}`;
-  
-  const client = new Client({ connectionString: tenantConnection });
+  // Use DatabaseConnection for consistent connection management
+  const client = DatabaseConnection.createClient(tenant.database);
   
   try {
     await client.connect();

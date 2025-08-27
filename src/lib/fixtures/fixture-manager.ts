@@ -9,6 +9,9 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { logger } from '@src/lib/logger.js';
 import { MonkEnv } from '@src/lib/monk-env.js';
+import { System } from '@src/lib/system.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
 import type { FixtureDefinition, FixtureData, DataGeneratorConfig, GeneratorContext, IDataGenerator } from '@src/lib/fixtures/types.js';
 import type { TenantInfo } from '@src/lib/services/tenant.js';
 
@@ -129,10 +132,7 @@ export class FixtureManager {
   ): Promise<void> {
     console.log(`🔨 Building template with data: ${templateName}`);
     
-    // Import System/Database classes and ObserverLoader dynamically to avoid circular dependencies
-    const { System } = await import('../system.js');
-    const { DatabaseManager } = await import('../database-manager.js');
-    const { ObserverLoader } = await import('../observers/loader.js');
+    // Use statically imported classes
     
     // Preload observers for database operations
     console.log('🔧 Preloading observers for template building...');
@@ -142,7 +142,7 @@ export class FixtureManager {
     const mockContext = this.createMockContext(tenantInfo);
     
     // Set up database context
-    await DatabaseManager.setDatabaseForRequest(mockContext as any, tenantInfo.database);
+    DatabaseConnection.setDatabaseForRequest(mockContext as any, tenantInfo.database);
     
     const system = new System(mockContext as any);
     const database = system.database;

@@ -1,7 +1,6 @@
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
 import { Metabase } from '@src/lib/metabase.js';
-import { DatabaseManager } from '@src/lib/database-manager.js';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/types/system-context.js';
 
@@ -35,7 +34,10 @@ export class System implements SystemContextWithInfrastructure {
         this.context = c;
         
         // Get database connection from Hono context (always required)
-        const db = DatabaseManager.getDatabaseFromContext(c);
+        const db = c.get('database');
+        if (!db) {
+            throw new Error('Database context not set - ensure JWT middleware is applied');
+        }
         
         if (!db) {
             throw new Error('Unable to initialize database connection - ensure database middleware is applied');

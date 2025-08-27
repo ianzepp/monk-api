@@ -10,7 +10,6 @@
 
 import type { Context, Next } from 'hono';
 import { System } from '@src/lib/system.js';
-import { DatabaseManager } from '@src/lib/database-manager.js';
 import { 
     createSuccessResponse, 
     createValidationError, 
@@ -34,10 +33,9 @@ import {
 export async function systemContextMiddleware(context: Context, next: Next) {
     try {
         // Initialize database context from JWT/auth
-        const dtx = DatabaseManager.getDatabaseFromContext(context);
-        
+        const dtx = context.get('database');
         if (!dtx) {
-            return createInternalError(context, 'Unable to initialize database context');
+            return createInternalError(context, 'Database context not set - ensure JWT middleware is applied');
         }
         
         // Extract system options from query parameters
