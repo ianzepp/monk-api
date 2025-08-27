@@ -257,12 +257,8 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
 export async function createTestUser(tenant: TenantInfo, username: string, access: string = 'read'): Promise<void> {
   console.log(`👤 Creating test user: ${username} (access: ${access})`);
   
-  const dbUser = process.env.DB_USER || process.env.USER || 'postgres';
-  const dbHost = process.env.DB_HOST || 'localhost';
-  const dbPort = process.env.DB_PORT || '5432';
-  const tenantConnection = `postgresql://${dbUser}@${dbHost}:${dbPort}/${tenant.database}`;
-  
-  const client = new Client({ connectionString: tenantConnection });
+  // Use DatabaseConnection for consistent connection management
+  const client = DatabaseConnection.createClient(tenant.database);
   
   try {
     await client.connect();
