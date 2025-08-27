@@ -1,285 +1,160 @@
-# Monk API Installation Guide
+# Monk API
 
-## Prerequisites
+Lightweight PaaS backend API built with **Hono** and **TypeScript**, featuring observer-driven architecture and multi-tenant database routing.
 
-### System Requirements
-- **Node.js**: Version 18.0.0 or higher
-- **npm**: Comes with Node.js
-- **Git**: For repository management
-- **PostgreSQL**: Database server and client tools
-- **jq**: JSON processor for CLI configuration management
-- **Bash**: Version 4.2 or higher (usually available on Linux/macOS)
+## What is Monk API?
 
-### Install PostgreSQL
+A high-performance backend API that provides:
+- **Schema-first development** - Define your data models in YAML
+- **Multi-tenant architecture** - Each tenant gets isolated databases
+- **Observer pattern** - Event-driven business logic hooks
+- **REST API** - Full programmatic management interface
 
-#### Ubuntu/Debian:
+Perfect for building SaaS applications that need flexible data modeling and tenant isolation.
+
+## Quick Start
+
 ```bash
-# Using official PostgreSQL repository (recommended)
-wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /usr/share/keyrings/postgresql-archive-keyring.asc > /dev/null
-echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/postgresql-archive-keyring.asc] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-sudo apt update
-sudo apt install postgresql postgresql-client postgresql-contrib
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Create PostgreSQL user
-sudo -u postgres psql -c "CREATE USER $(whoami) WITH SUPERUSER;"
-```
-
-#### macOS (Homebrew):
-```bash
-brew install postgresql
-brew services start postgresql
-```
-
-#### Other Systems:
-Visit [PostgreSQL Downloads](https://www.postgresql.org/download/) for your platform.
-
-### Install jq
-
-#### Ubuntu/Debian:
-```bash
-sudo apt install jq
-```
-
-#### macOS (Homebrew):
-```bash
-brew install jq
-```
-
-#### Other Systems:
-Visit [jq Downloads](https://jqlang.github.io/jq/download/) for your platform.
-
-## Installation Steps
-
-**Quick Setup:** For automated installation, run `npm run autoinstall` after cloning and installing PostgreSQL. This script automates all the steps below with comprehensive logging and error checking.
-
-**Clean Options:** The autoinstall script supports clean rebuild options:
-- `npm run autoinstall -- --clean-node` - Remove and reinstall dependencies
-- `npm run autoinstall -- --clean-dist` - Remove and recompile TypeScript  
-- `npm run autoinstall -- --clean-auth` - Remove and recreate auth database
-
-**Manual Setup:** Follow the steps below for manual installation or if you prefer to understand each step:
-
-### 1. Clone and Setup Repository
-```bash
-# Clone the repository
-git clone git@github.com:ianzepp/monk-api.git
+# Clone and setup
+git clone https://github.com/ianzepp/monk-api.git
 cd monk-api
 
-# Install dependencies
-npm install
+# Automated setup (handles database and test tenant)
+npm run autoinstall
 
-# Compile TypeScript
-npm run compile
+# Start development server
+npm run start:dev
+
+# Test connectivity
+npm run spec:sh spec/10-connection/basic-ping.test.sh
 ```
 
-### 2. Verify PostgreSQL Connection
-Before proceeding, ensure PostgreSQL is properly configured:
-```bash
-# Test basic connection (this must work first)
-psql -d postgres -c "SELECT version();"
+## Core Features
 
-# Should show PostgreSQL version info
-# If this fails, configure your PostgreSQL authentication first
+### 🎯 Schema Management
+Define data models using YAML with JSON Schema validation:
+
+```yaml
+# user.yaml
+name: user
+properties:
+  name: {type: string, minLength: 1}
+  email: {type: string, format: email}
+  role: {type: string, enum: [admin, user]}
+required: [name, email]
 ```
 
-### 3. Configure Database Connection
-Create `.env` file with your PostgreSQL connection details:
-```bash
-# Copy example configuration
-cp .env.example .env
+### 🔒 Multi-Tenant Architecture
+- JWT-based tenant routing
+- Isolated databases per tenant (`monk-api$tenant-name`)
+- Dynamic database connections
 
-# Edit .env file with your PostgreSQL credentials
-# DATABASE_URL=postgresql://your_username:your_password@localhost:5432/
+### 🎭 Observer System
+Ring-based business logic execution (0-9 rings):
+- **Ring 0**: Validation
+- **Ring 2**: Business logic  
+- **Ring 5**: Database execution
+- **Ring 7**: Audit logging
+- **Ring 8**: Webhooks/integrations
+
+### 📡 RESTful API
+Consistent array/object patterns:
+```bash
+GET  /api/data/users      # List all users
+POST /api/data/users      # Create users (bulk)
+GET  /api/data/users/123  # Get specific user
+PUT  /api/data/users/123  # Update specific user
 ```
 
-**Example for local development:**
-```bash
-echo "DATABASE_URL=postgresql://$(whoami):$(whoami)@localhost:5432/" > .env
-```
+## API Management
 
-### 4. Initialize Auth Database
-```bash
-# Create and initialize auth database
-createdb monk-api-auth
-psql -d monk-api-auth -f sql/init-auth.sql
-```
+Manage your API using the [monk-cli](https://github.com/ianzepp/monk-cli) tool:
 
-### 5. Install Monk CLI
 ```bash
-# Install the standalone CLI
+# Install the CLI
 git clone https://github.com/ianzepp/monk-cli.git
 cd monk-cli && ./install.sh
 
-# Initialize CLI configuration
+# Initialize configuration
 monk init
 
-# Note: Add ~/.local/bin to PATH if needed
-echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.bashrc
-source ~/.bashrc
+# Tenant management
+monk tenant create my-app
+monk auth login my-app root
+
+# Schema management  
+cat user.yaml | monk meta create schema
+monk meta list schema
+
+# Data operations
+echo '{"name":"John","email":"john@example.com"}' | monk data create user
+monk data list user
 ```
 
-### 6. Configure Server
-```bash
-# Add local server configuration
-monk servers add local localhost:9001
+## Observer Development
 
-# Verify configuration
-monk servers list
-```
+Add business logic without touching core code:
 
-### 7. Create Test Tenant
-```bash
-# Create a test tenant
-monk tenant create local-test
-
-# Verify tenant creation
-monk tenant list
-```
-
-### 8. Start the Server
-```bash
-# Start in development mode (with auto-reload)
-npm run start:dev
-
-# Or start in production mode
-npm run start
-```
-
-### 9. Test Connection
-```bash
-# Test server connectivity
-monk ping
-
-# Expected output: pong: [timestamp]
-```
-
-## Fresh Install Issues & Solutions
-
-### Issue 1: Missing Server Configuration
-- **Problem**: CLI requires server configuration before first use
-- **Solution**: Run `monk servers add local localhost:9001`
-- **Auto-fix**: CLI guides you through this on first run
-
-### Issue 2: PostgreSQL Dependencies
-- **Problem**: Missing PostgreSQL server and client tools
-- **Symptoms**: 
-  - `monk tenant create` fails with "psql: command not found"
-  - Unit tests fail with "connect ECONNREFUSED 127.0.0.1:5432"
-  - Authentication errors (system-dependent):
-    - `SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string` (Official PostgreSQL repo)
-    - `fe_sendauth: no password supplied` (Password required)
-    - `FATAL: Ident authentication failed for user "username"` (Ubuntu peer auth)
-    - `FATAL: password authentication failed for user "username"` (Wrong password)
-    - `FATAL: role "username" does not exist` (User doesn't exist)
-- **Solution**: Install PostgreSQL and ensure you can connect with `psql -d postgres -c "SELECT version();"`
-
-### Issue 3: Missing Auth Database
-- **Problem**: Fresh install doesn't have auth database initialized
-- **Solution**: Create and initialize with provided SQL script:
-  ```bash
-  createdb monk-api-auth
-  psql -d monk-api-auth -f sql/init-auth.sql
-  ```
-
-### Issue 4: Authentication Setup
-After PostgreSQL is installed and running:
-```bash
-# Create tenant database
-monk tenant create local-test
-
-# Login with default credentials
-monk auth login local-test root
-
-# Check authentication status
-monk auth status
+```typescript
+// src/observers/user/0/email-validator.ts
+export default class EmailValidator extends BaseObserver {
+    ring = ObserverRing.Validation;
+    operations = ['create', 'update'] as const;
+    
+    async execute(context: ObserverContext): Promise<void> {
+        for (const record of context.data) {
+            if (!record.email.endsWith('@company.com')) {
+                throw new ValidationError('Only company emails allowed', 'email');
+            }
+        }
+    }
+}
 ```
 
 ## Testing
 
-### Shell Tests (Primary)
-The shell-based test suite covers groups 00-30:
+Comprehensive test suite with isolated environments:
 
 ```bash
-# Test specific groups (recommended for fresh install verification)
-npm run spec:sh spec/05-infrastructure/servers-config.test.sh
-npm run spec:sh spec/10-connection/basic-ping.test.sh
-npm run spec:sh spec/20-meta-api/schema-create.test.sh
+# Run all tests
+npm run test:all
+
+# Run specific test categories
+npm run test:all 15        # Authentication tests
+npm run test:all 20-30     # Meta and data API tests
+
+# Individual test
+npm run spec:sh spec/15-authentication/basic-auth.test.sh
 ```
 
-Expected to pass: All tests in groups 00-30 (setup, infrastructure, connection, meta API, data API)
+## Performance
 
-### Unit Tests (Secondary)
-```bash
-# Run TypeScript unit tests (requires PostgreSQL)
-npm run test:unit
-```
+- **15x faster schema access** with SHA256 caching
+- **Ultra-lightweight** (~50KB Hono framework)
+- **Raw SQL performance** without ORM overhead
+- **Multi-runtime support** (Node.js, Bun, Deno, Cloudflare Workers)
 
-**Note**: `npm run test` (full test suite) is currently broken and will be fixed in a separate branch.
+## Tech Stack
 
-## Development Workflow
+- **[Hono](https://hono.dev/)** - Ultra-fast web framework
+- **TypeScript** - Type-safe development
+- **PostgreSQL** - Multi-tenant database architecture
+- **AJV** - High-performance JSON Schema validation
+- **JSON Schema** - Validation and documentation
 
-### Local Development
-```bash
-# Start server with auto-reload
-npm run start:dev
+> 📖 For detailed architecture, development workflows, and implementation guides, see **[DEVELOPER.md](DEVELOPER.md)**
 
-# In another terminal, interact with API
-monk auth login local-test root
-monk meta list schema
-monk data list some_schema
-```
+## Documentation
 
-### Testing Changes
-```bash
-# Test specific functionality
-npm run spec:sh spec/20-meta-api/schema-create.test.sh
+- **[DEVELOPER.md](DEVELOPER.md)** - Comprehensive development guide
+- **[INSTALL.md](INSTALL.md)** - Installation instructions
+- **Observer System** - Event-driven architecture patterns
 
-# Test connection and basic functionality
-monk ping
-monk auth status
-```
+## Related Projects
 
-## Troubleshooting
+- **[monk-cli](https://github.com/ianzepp/monk-cli)** - Standalone CLI for remote API management
+- **[monk-api-test](https://github.com/ianzepp/monk-api-test)** - Git-aware testing framework
 
-### PostgreSQL Connection Issues
-```bash
-# Check if PostgreSQL is running
-pg_isready -h localhost -p 5432
+## License
 
-# If not running, start it:
-# Ubuntu/Debian: sudo systemctl start postgresql
-# macOS: brew services start postgresql
-```
-
-### CLI Issues
-```bash
-# Check monk CLI is working
-monk --help
-
-# Check server configuration
-monk servers list
-
-# Re-add server if needed
-monk servers add local localhost:9001
-```
-
-### Permission Issues
-```bash
-# Make sure monk CLI is executable
-chmod +x monk
-chmod +x monk
-```
-
-## Next Steps
-
-After successful installation:
-1. ✅ Server running and responding to ping
-2. ✅ PostgreSQL installed and running  
-3. ✅ Auth database initialized
-4. ✅ Tenant created and authenticated
-5. ✅ Shell tests 00-30 passing
-6. → Ready for development and feature work
-
-For development patterns and API usage, see `CLAUDE.md` and `README.md`.
+MIT License - see [LICENSE](LICENSE) for details.
