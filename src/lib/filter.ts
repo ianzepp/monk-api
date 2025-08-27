@@ -462,28 +462,6 @@ export class Filter {
         return { query, params };
     }
 
-    /**
-     * @deprecated Use Database.selectAny() instead (Issue #102)
-     * 
-     * This method bypasses the observer pipeline and violates separation of concerns.
-     * Use system.database.selectAny(schema, filterData) for proper architecture.
-     */
-    async execute(): Promise<any[]> {
-        logger.warn('Using deprecated Filter.execute() method - use Database.selectAny() instead');
-        
-        try {
-            // Use toSQL() pattern for consistency
-            const { query, params } = this.toSQL();
-            
-            // Execute using System's database context (bypasses observers!)
-            const result = await this.system.database.execute(query);
-            return result.rows;
-        } catch (error) {
-            console.error('Filter execution error:', error);
-            throw error;
-        }
-    }
-
     // Get just the WHERE clause conditions for use in other queries
     getWhereClause(): string {
         const baseConditions = [];
