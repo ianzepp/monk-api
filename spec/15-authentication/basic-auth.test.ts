@@ -12,6 +12,8 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { TenantService } from '@lib/services/tenant.js';
 import { randomBytes } from 'crypto';
+import { DatabaseConnection } from '@lib/database-connection.js';
+import { System } from '@lib/system.js';
 
 describe('15-authentication: Basic Auth Flow', () => {
   let tenantName: string;
@@ -148,8 +150,6 @@ describe('15-authentication: Basic Auth Flow', () => {
 
     test('should be able to create authenticated system context', async () => {
       // This tests the equivalent of "monk ping" - authenticated connectivity
-      const { DatabaseConnection } = await import('@lib/database-connection.js');
-      const { System } = await import('@lib/system.js');
       
       // Create mock context similar to test-tenant.ts helper
       const mockContext = {

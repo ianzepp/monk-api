@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { MonkEnv } from '@lib/monk-env.js';
-import { DatabaseManager } from '@lib/database-manager.js';
+import { DatabaseConnection } from '@lib/database-connection.js';
 import pg from 'pg';
 
 describe('Direct Database Connection Test', () => {
@@ -90,23 +90,23 @@ describe('Direct Database Connection Test', () => {
     }
   });
 
-  test('should test DatabaseManager.getDatabaseForDomain method', async () => {
+  test('should test DatabaseConnection.getTenantPool method', async () => {
     // Test the actual method the main API uses
     try {
-      const pool = await DatabaseManager.getDatabaseForDomain('local-test');
+      const pool = DatabaseConnection.getTenantPool('monk-api$local-test');
       
       // Test query
       const client = await pool.connect();
       const result = await client.query('SELECT COUNT(*) as count FROM schema');
       client.release();
       
-      console.log(`✅ DatabaseManager connection works, schema count: ${result.rows[0].count}`);
+      console.log(`✅ DatabaseConnection connection works, schema count: ${result.rows[0].count}`);
       
       expect(result.rows[0].count).toBeDefined();
       expect(parseInt(result.rows[0].count)).toBeGreaterThanOrEqual(0);
       
     } catch (error) {
-      console.error(`❌ DatabaseManager connection failed:`, error);
+      console.error(`❌ DatabaseConnection connection failed:`, error);
       throw error;
     }
   });

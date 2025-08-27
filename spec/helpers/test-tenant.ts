@@ -12,7 +12,7 @@ import { TemplateDatabase } from '../../src/lib/fixtures/template-database.js';
 import { System } from '../../src/lib/system.js';
 import { Database } from '../../src/lib/database.js';
 import { Metabase } from '../../src/lib/metabase.js';
-import { DatabaseManager } from '../../src/lib/database-manager.js';
+import { DatabaseConnection } from '../../src/lib/database-connection.js';
 import { Client } from 'pg';
 
 export interface TestTenantManager {
@@ -233,8 +233,8 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
     }
   };
 
-  // Set up database context using DatabaseManager (simulates JWT middleware)
-  await DatabaseManager.setDatabaseForRequest(mockContext as any, jwtPayload.database);
+  // Set up database context using DatabaseConnection (simulates JWT middleware)
+  DatabaseConnection.setDatabaseForRequest(mockContext as any, jwtPayload.database);
 
   const system = new System(mockContext as any);
   const database = system.database;
