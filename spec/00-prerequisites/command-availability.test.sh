@@ -4,6 +4,12 @@ set -e
 # Command Availability Test
 # Verifies that all required shell commands are installed and executable
 # This test should run first to catch missing dependencies early
+#
+# NOTE: This is a standalone prerequisites test that does not require:
+# - API server to be running
+# - Database connections
+# - TEST_TENANT_NAME environment variable
+# - Authentication setup
 
 echo "=== Command Availability Test ==="
 echo "Verifying all required shell commands are available and executable"
