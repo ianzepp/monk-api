@@ -62,6 +62,7 @@ TODO.md
 spec/**/*.js
 spec/**/*.d.ts
 spec/**/*.js.map
+spec/**/*.d.ts.map
 
 # Monk CLI Configuration
 # Ignore runtime files but preserve directory structure
