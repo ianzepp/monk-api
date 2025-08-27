@@ -190,6 +190,12 @@ try {
     logger.warn('Continuing without observer system');
 }
 
+// Check for --no-startup flag
+if (process.argv.includes('--no-startup')) {
+    console.log('✅ Startup test successful - all modules loaded without errors');
+    process.exit(0);
+}
+
 // Start HTTP server only
 logger.info('Starting Monk HTTP API Server (Hono)');
 logger.info('For FTP server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');

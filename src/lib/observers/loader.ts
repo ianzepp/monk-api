@@ -141,8 +141,14 @@ export class ObserverLoader {
      */
     private static async _loadObserverFile(filePattern: ObserverFilePattern): Promise<void> {
         try {
-            // Dynamic import of the observer module using path mapping
-            const importPath = filePattern.filepath.replace('src/', '@src/');
+            // Dynamic import of the observer module from compiled dist directory
+            // Convert relative path from TypeScript source to compiled JavaScript
+            const currentFileUrl = import.meta.url;
+            const currentFilePath = fileURLToPath(currentFileUrl);
+            const projectRoot = resolve(dirname(currentFilePath), '../../../');
+            const distPath = filePattern.filepath.replace('src/', 'dist/').replace('.ts', '.js');
+            const importPath = resolve(projectRoot, distPath);
+            
             const observerModule = await import(importPath);
             
             // Get the default export (should be observer class constructor)
