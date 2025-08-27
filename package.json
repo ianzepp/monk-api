@@ -13,6 +13,7 @@
     "spec": "scripts/spec.sh",
     "spec:ts": "scripts/spec-ts.sh",
     "spec:sh": "scripts/spec-sh.sh",
+    "test": "scripts/spec.sh",
     
     "fixtures:build": "scripts/fixtures-build.sh",
     "fixtures:clean": "scripts/fixtures-clean.sh",
