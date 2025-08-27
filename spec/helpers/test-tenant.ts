@@ -210,8 +210,8 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
   // Create mock Hono context with proper database setup
   const mockContext = {
     env: {
-      JWT_SECRET: process.env.JWT_SECRET || 'test-secret',
-      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://localhost:5432/',
+      JWT_SECRET: 'test-jwt-secret-for-tenant-tests',
+      DATABASE_URL: 'postgresql://testuser@localhost:5432/test-db',
     },
     req: {
       header: (name: string) => {

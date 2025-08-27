@@ -154,8 +154,8 @@ describe('15-authentication: Basic Auth Flow', () => {
       // Create mock context similar to test-tenant.ts helper
       const mockContext = {
         env: {
-          JWT_SECRET: process.env.JWT_SECRET || 'test-secret',
-          DATABASE_URL: process.env.DATABASE_URL || 'postgresql://localhost:5432/',
+          JWT_SECRET: 'test-jwt-secret-for-auth-tests',
+          DATABASE_URL: 'postgresql://testuser@localhost:5432/test-db',
         },
         req: {
           header: (name: string) => `test-${Date.now()}`,

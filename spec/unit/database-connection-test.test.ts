@@ -11,8 +11,8 @@ describe('Direct Database Connection Test', () => {
     
     console.log(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
     
-    // Test direct connection using same approach as main API
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    // Test direct connection using mock database URL
+    const baseUrl = `postgresql://testuser@localhost:5432/`;
     
     // Connect to existing local-test database (should already exist)
     const testConnectionString = baseUrl.replace(/\/[^\/]*$/, '/monk-api$local-test');
@@ -53,7 +53,7 @@ describe('Direct Database Connection Test', () => {
     // Load monk configuration
     MonkEnv.load();
     
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    const baseUrl = `postgresql://testuser@localhost:5432/`;
     
     // Connect to auth database
     const authConnectionString = baseUrl.replace(/\/[^\/]*$/, '/monk-api-auth');
@@ -115,8 +115,8 @@ describe('Direct Database Connection Test', () => {
     // Load monk configuration
     MonkEnv.load();
     
-    // Use EXACT same logic as TenantService.getAuthDatabase()
-    const baseUrl = process.env.DATABASE_URL || `postgresql://${process.env.USER || 'postgres'}@localhost:5432/`;
+    // Use mock database URL for auth testing
+    const baseUrl = `postgresql://testuser@localhost:5432/`;
     
     try {
       const url = new URL(baseUrl);
