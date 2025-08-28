@@ -84,7 +84,30 @@ test_dir=$(dirname "$test_file")
 print_info "Running single test: $test_name"
 echo
 
-# Create fresh tenant for this test run
+# Check if this is a prerequisites test that doesn't need tenant setup
+if [[ "$test_file" == *"/00-prerequisites/"* ]]; then
+    print_info "Prerequisites test detected - running without tenant setup"
+    echo
+    
+    # Run test directly without tenant lifecycle management
+    start_time=$(date +%s)
+    
+    if (cd "$test_dir" && "./$(basename "$test_file")"); then
+        end_time=$(date +%s)
+        duration=$((end_time - start_time))
+        echo
+        print_success "Test passed: $test_name (${duration}s)"
+        exit 0
+    else
+        end_time=$(date +%s)
+        duration=$((end_time - start_time))
+        echo
+        print_error "Test failed: $test_name (${duration}s)"
+        exit 1
+    fi
+fi
+
+# Create fresh tenant for integration tests
 echo "=== Test Environment Setup ==="
 
 TEST_TENANT_NAME="test-$(date +%s)"
