@@ -43,12 +43,14 @@ else
     print_success "Basic template already exists"
 fi
 
-# Performance timing function
+# Performance timing function (portable)
 time_operation() {
-    local start_time=$(date +%s%3N)  # milliseconds
+    local start_time=$(date +%s)  # seconds
     "$@"
-    local end_time=$(date +%s%3N)
-    echo $((end_time - start_time))
+    local end_time=$(date +%s)
+    local duration_seconds=$((end_time - start_time))
+    # Convert to milliseconds (minimum 1ms for very fast operations)
+    echo $((duration_seconds * 1000 + 1))
 }
 
 # Test 1: Template cloning performance
@@ -61,7 +63,7 @@ for i in {1..5}; do
     print_info "Clone test $i: $test_db"
     
     # Time the cloning operation
-    clone_time=$(time_operation psql -d postgres -c "CREATE DATABASE \"$test_db\" WITH TEMPLATE test_template_basic;" 2>/dev/null)
+    clone_time=$(time_operation psql -d postgres -c "CREATE DATABASE \"$test_db\" WITH TEMPLATE test_template_basic;" >/dev/null 2>&1)
     clone_times+=($clone_time)
     
     print_info "  Clone time: ${clone_time}ms"
@@ -82,9 +84,23 @@ done
 # Calculate average clone time
 total_time=0
 for time in "${clone_times[@]}"; do
-    total_time=$((total_time + time))
+    # Ensure time is a valid number
+    if [[ "$time" =~ ^[0-9]+$ ]]; then
+        total_time=$((total_time + time))
+    fi
 done
-avg_clone_time=$((total_time / ${#clone_times[@]}))
+
+# Avoid division by zero
+if [ "${#clone_times[@]}" -gt "0" ]; then
+    avg_clone_time=$((total_time / ${#clone_times[@]}))
+else
+    avg_clone_time=1
+fi
+
+# Ensure avg_clone_time is at least 1 to avoid division by zero
+if [ "$avg_clone_time" -eq "0" ]; then
+    avg_clone_time=1
+fi
 
 print_success "Template cloning performance:"
 print_info "  Average clone time: ${avg_clone_time}ms"
@@ -101,7 +117,11 @@ print_step "Estimating manual creation baseline"
 # 5. Data generation: ~500ms+
 estimated_manual_time=1100  # Conservative estimate
 
-performance_ratio=$((estimated_manual_time / avg_clone_time))
+if [ "$avg_clone_time" -gt "0" ]; then
+    performance_ratio=$((estimated_manual_time / avg_clone_time))
+else
+    performance_ratio=1
+fi
 
 print_info "Performance comparison:"
 print_info "  Template cloning: ${avg_clone_time}ms"

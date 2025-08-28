@@ -96,8 +96,8 @@ else
     exit 1
 fi
 
-# Check for required fields in contacts
-contacts_with_name=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contact WHERE name IS NOT NULL AND name != '';" 2>/dev/null | xargs)
+# Check for required fields in contacts (first_name or last_name)
+contacts_with_name=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contact WHERE (first_name IS NOT NULL AND first_name != '') OR (last_name IS NOT NULL AND last_name != '');" 2>/dev/null | xargs)
 if [ "$contacts_with_name" -gt "0" ]; then
     print_success "Contact name data present: $contacts_with_name/$contact_count contacts"
 else
