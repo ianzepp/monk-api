@@ -29,8 +29,8 @@ export class AuthService {
 
     // Get persistent auth database connection
     private static getAuthDatabase(): pg.Pool {
-        // Use centralized database connection
-        return DatabaseConnection.getBasePool();
+        // Use centralized database connection to monk database
+        return DatabaseConnection.getTenantPool('monk');
     }
 
     // Generate JWT token for user
@@ -65,7 +65,7 @@ export class AuthService {
         // Look up tenant record to get database name
         const authDb = this.getAuthDatabase();
         const tenantResult = await authDb.query(
-            'SELECT name, database FROM tenants WHERE name = $1 AND is_active = true', 
+            'SELECT name, database FROM tenant WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', 
             [tenant]
         );
 

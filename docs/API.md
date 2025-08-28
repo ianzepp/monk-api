@@ -301,7 +301,7 @@ Authentication-free tenant management for UIX development, available only on loc
 - **Network**: Only accessible from `localhost` or `127.0.0.1`
 - **Audit**: All operations logged with warnings for security awareness
 
-#### Tenant Management Endpoints
+#### Tenant Management Endpoints (Phase 1 Complete)
 
 **Create Tenant:**
 ```bash
@@ -309,17 +309,121 @@ POST /api/root/tenant
 Content-Type: application/json
 
 {
-  "name": "my-ui-tenant",
+  "name": "my_ui_tenant",
   "host": "localhost"  # Optional, defaults to localhost
 }
 
 # Response
 {
   "success": true,
-  "tenant": "my-ui-tenant",
-  "database": "monk-api$my-ui-tenant",
+  "tenant": "my_ui_tenant",
+  "database": "my_ui_tenant",  # Direct tenant name (updated architecture)
   "host": "localhost",
-  "created_at": "2025-08-26T04:42:15.288Z"
+  "created_at": "2025-08-28T20:03:03.033Z"
+}
+```
+
+**List All Tenants:**
+```bash
+GET /api/root/tenant?include_trashed=true&include_deleted=false
+
+# Response
+{
+  "success": true,
+  "tenants": [
+    {
+      "name": "my_ui_tenant",
+      "database": "my_ui_tenant",
+      "host": "localhost",
+      "status": "active",
+      "created_at": "2025-08-28T20:03:03.033Z",
+      "updated_at": "2025-08-28T20:03:03.033Z",
+      "trashed_at": null,
+      "deleted_at": null
+    }
+  ],
+  "count": 1
+}
+```
+
+**Show Individual Tenant:**
+```bash
+GET /api/root/tenant/my_ui_tenant
+
+# Response
+{
+  "success": true,
+  "tenant": {
+    "name": "my_ui_tenant",
+    "database": "my_ui_tenant",
+    "host": "localhost",
+    "status": "active",
+    "created_at": "2025-08-28T20:03:03.033Z",
+    "updated_at": "2025-08-28T20:03:03.033Z"
+  }
+}
+```
+
+**Health Check:**
+```bash
+GET /api/root/tenant/my_ui_tenant/health
+
+# Response
+{
+  "success": true,
+  "health": {
+    "tenant": "my_ui_tenant",
+    "timestamp": "2025-08-28T20:40:40.409Z",
+    "checks": {
+      "tenant_exists": true,
+      "database_exists": true,
+      "database_connection": true,
+      "schema_table_exists": true,
+      "users_table_exists": true,
+      "root_user_exists": true
+    },
+    "status": "healthy",
+    "errors": []
+  }
+}
+```
+
+**Soft Delete Tenant:**
+```bash
+DELETE /api/root/tenant/my_ui_tenant
+
+# Response
+{
+  "success": true,
+  "tenant": "my_ui_tenant",
+  "trashed": true,
+  "trashed_at": "2025-08-28T20:41:56.893Z"
+}
+```
+
+**Restore Tenant:**
+```bash
+PUT /api/root/tenant/my_ui_tenant
+
+# Response
+{
+  "success": true,
+  "tenant": "my_ui_tenant",
+  "restored": true,
+  "restored_at": "2025-08-28T20:42:03.733Z"
+}
+```
+
+**Hard Delete Tenant:**
+```bash
+DELETE /api/root/tenant/my_ui_tenant?force=true
+
+# Response
+{
+  "success": true,
+  "tenant": "my_ui_tenant",
+  "deleted": true,
+  "deleted_at": "2025-08-28T20:42:10.538Z"
 }
 ```
 
@@ -401,10 +505,13 @@ await fetch('http://localhost:9001/api/root/tenant/ui-demo', {
 ```
 
 #### Tenant Lifecycle Management
-- **Create**: Instant tenant creation with database initialization
-- **Soft Delete**: Tenant hidden but database and data preserved
-- **Restore**: Trashed tenants can be restored without data loss
-- **Hard Delete**: Available via CLI for permanent removal when needed
+- **Create**: Instant tenant creation with database initialization and root user
+- **Show**: Individual tenant details with status information
+- **Health Check**: Comprehensive database connectivity and integrity checks
+- **Soft Delete**: Tenant hidden but database and data preserved (`trashed_at`)
+- **Restore**: Trashed tenants can be restored without data loss (clear `trashed_at`)
+- **Hard Delete**: Permanent removal with `?force=true` parameter (removes database and record)
+- **Update**: Endpoint exists but requires `TenantService.updateTenant()` implementation
 
 ## Common Development Tasks
 

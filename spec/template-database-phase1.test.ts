@@ -30,7 +30,7 @@ describe('Template Database Phase 1', () => {
   test('should create template database', async () => {
     const templateDbName = await TemplateDatabase.createTemplateDatabase('basic');
     
-    expect(templateDbName).toBe('monk-api$test-template-basic');
+    expect(templateDbName).toBe('test_template_basic');
     expect(await TemplateDatabase.databaseExists(templateDbName)).toBe(true);
   });
   
@@ -51,7 +51,7 @@ describe('Template Database Phase 1', () => {
     const tenant = await TemplateDatabase.createTenantFromTemplate('test-clone-123', 'basic');
     
     expect(tenant.name).toBe('test-clone-123');
-    expect(tenant.database).toContain('monk-api$test-clone-123');
+    expect(tenant.database).toContain('test_clone_123');
     expect(tenant.host).toBe('localhost');
     
     // Verify the cloned database exists

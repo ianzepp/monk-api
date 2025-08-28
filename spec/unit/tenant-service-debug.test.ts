@@ -14,7 +14,7 @@ describe('TenantService Debug - Isolate SCRAM Issue', () => {
       logger.info(`✅ tenantExists() works: ${exists}`);
       
       logger.info(`🔍 Step 2: Testing databaseExists()`);
-      const dbExists = await TenantService.databaseExists('monk-api$debug-test-001');
+      const dbExists = await TenantService.databaseExists('debug_test_001');
       logger.info(`✅ databaseExists() works: ${dbExists}`);
       
       logger.info(`🔍 Step 3: Testing TenantService.createTenant()`);

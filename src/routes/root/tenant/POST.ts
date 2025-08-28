@@ -23,11 +23,19 @@ export default async function (context: Context): Promise<any> {
       }, 400);
     }
     
-    // Validate tenant name format
-    if (!/^[a-z0-9-]+$/.test(name)) {
+    // Validate tenant name format (updated for new underscore naming)
+    if (!/^[a-z0-9_-]+$/.test(name)) {
       return context.json({
         success: false,
-        error: 'Tenant name must contain only lowercase letters, numbers, and hyphens'
+        error: 'Tenant name must contain only lowercase letters, numbers, underscores, and hyphens'
+      }, 400);
+    }
+    
+    // Check for reserved patterns
+    if (name.startsWith('test_') || name.startsWith('monk_')) {
+      return context.json({
+        success: false,
+        error: 'Tenant name cannot start with reserved prefixes: test_ or monk_'
       }, 400);
     }
     

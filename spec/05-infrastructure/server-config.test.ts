@@ -106,9 +106,9 @@ describe('05-infrastructure: TypeScript Configuration', () => {
       ];
       
       testNames.forEach(name => {
-        // Test the expected naming convention pattern
-        const expectedPattern = /^monk-api\$[a-z0-9-]+$/;
-        const database = `monk-api$${name.replace(/[^a-zA-Z0-9]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '').toLowerCase()}`;
+        // Test the expected naming convention pattern (direct tenant names)
+        const expectedPattern = /^[a-z0-9_]+$/;
+        const database = name.replace(/[^a-zA-Z0-9]/g, '_').replace(/__+/g, '_').replace(/^_|_$/g, '').toLowerCase();
         expect(database).toMatch(expectedPattern);
       });
     });

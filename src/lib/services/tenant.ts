@@ -2,7 +2,7 @@
  * TenantService - Consolidated tenant and authentication operations
  * 
  * Handles all operations related to tenant management and authentication
- * against the monk-api-auth database (tenant registry database).
+ * against the monk database (tenant registry database).
  * 
  * WARNING: This service makes direct database calls and should NEVER be used
  * by the API server. It's intended for CLI operations and testing only.
@@ -21,6 +21,7 @@ import { MonkEnv } from '@src/lib/monk-env.js';
 import pg from 'pg';
 
 export interface TenantInfo {
+  id?: string;
   name: string;
   host: string;
   database: string;
@@ -67,17 +68,17 @@ export class TenantService {
   // ==========================================
 
   /**
-   * Get auth database pool (master database)
+   * Get auth database pool (monk database)
    */
   private static getAuthPool(): pg.Pool {
-    return DatabaseConnection.getBasePool();
+    return DatabaseConnection.getTenantPool('monk');
   }
 
   /**
    * Create one-time client for auth database operations
    */
   private static createAuthClient(): pg.Client {
-    return DatabaseConnection.createClient('monk-api-auth');
+    return DatabaseConnection.createClient('monk');
   }
 
   /**
@@ -99,12 +100,17 @@ export class TenantService {
    */
   private static tenantNameToDatabase(tenantName: string): string {
     const snakeCase = tenantName
-      .replace(/[^a-zA-Z0-9]/g, '-')  // Replace non-alphanumeric with dashes
-      .replace(/--+/g, '-')          // Collapse multiple dashes
-      .replace(/^-|-$/g, '')         // Remove leading/trailing dashes
+      .replace(/[^a-zA-Z0-9]/g, '_')  // Replace non-alphanumeric with underscores
+      .replace(/__+/g, '_')          // Collapse multiple underscores
+      .replace(/^_|_$/g, '')         // Remove leading/trailing underscores
       .toLowerCase();                // Convert to lowercase
     
-    return `monk-api$${snakeCase}`;
+    // Validate against reserved patterns
+    if (snakeCase.startsWith('test_') || snakeCase.startsWith('monk_')) {
+      throw new Error(`Tenant name '${tenantName}' uses reserved prefix (test_ or monk_)`);
+    }
+    
+    return snakeCase;
   }
 
   /**
@@ -117,7 +123,7 @@ export class TenantService {
       await client.connect();
       
       const result = await client.query(
-        'SELECT COUNT(*) as count FROM tenants WHERE name = $1',
+        'SELECT COUNT(*) as count FROM tenant WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
         [tenantName]
       );
       
@@ -218,7 +224,7 @@ export class TenantService {
     try {
       await authClient.connect();
       await authClient.query(
-        'UPDATE tenants SET trashed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NULL',
+        'UPDATE tenant SET trashed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NULL',
         [tenantName]
       );
     } finally {
@@ -236,7 +242,7 @@ export class TenantService {
     try {
       await authClient.connect();
       const result = await authClient.query(
-        'UPDATE tenants SET trashed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NOT NULL',
+        'UPDATE tenant SET trashed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NOT NULL',
         [tenantName]
       );
       
@@ -270,7 +276,7 @@ export class TenantService {
       
       const result = await authClient.query(`
         SELECT name, database, host, created_at, updated_at, trashed_at, deleted_at
-        FROM tenants 
+        FROM tenant 
         ${whereClause}
         ORDER BY created_at DESC
       `);
@@ -308,7 +314,7 @@ export class TenantService {
     try {
       await authClient.connect();
       await authClient.query(
-        'DELETE FROM tenants WHERE name = $1',
+        'DELETE FROM tenant WHERE name = $1',
         [tenantName]
       );
     } catch (error) {
@@ -337,7 +343,7 @@ export class TenantService {
       await client.connect();
       
       const result = await client.query(
-        'SELECT name, host, database, created_at, updated_at, trashed_at, deleted_at FROM tenants WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
+        'SELECT id, name, host, database, created_at, updated_at, trashed_at, deleted_at FROM tenant WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
       );
       
       return result.rows.map(row => ({
@@ -364,7 +370,7 @@ export class TenantService {
       await client.connect();
       
       const result = await client.query(
-        'SELECT name, host, database FROM tenants WHERE name = $1',
+        'SELECT id, name, host, database FROM tenant WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
         [tenantName]
       );
       
@@ -424,7 +430,7 @@ export class TenantService {
     // Look up tenant record to get database name
     const authDb = this.getAuthPool();
     const tenantResult = await authDb.query(
-      'SELECT name, database FROM tenants WHERE name = $1',
+      'SELECT name, database FROM tenant WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
       [tenant]
     );
 
@@ -571,7 +577,7 @@ export class TenantService {
       await client.connect();
       
       await client.query(
-        'INSERT INTO tenants (name, host, database) VALUES ($1, $2, $3)',
+        'INSERT INTO tenant (name, host, database) VALUES ($1, $2, $3)',
         [tenantName, host, databaseName]
       );
     } finally {

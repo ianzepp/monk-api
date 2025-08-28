@@ -12,9 +12,9 @@ describe('Direct Database Connection Test', () => {
     logger.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
     
     // Test direct connection using DatabaseConnection
-    const testPool = DatabaseConnection.getTenantPool('monk-api$local-test');
+    const testPool = DatabaseConnection.getTenantPool('local_test');
     
-    logger.info(`🔍 Testing tenant pool for: monk-api$local-test`);
+    logger.info(`🔍 Testing tenant pool for: local_test`);
     
     try {
       // Test the connection
@@ -52,8 +52,8 @@ describe('Direct Database Connection Test', () => {
       // Test the auth database connection
       const client = await authPool.connect();
       
-      // Try to query tenants table
-      const result = await client.query('SELECT name, host FROM tenants LIMIT 5');
+      // Try to query tenant table
+      const result = await client.query('SELECT name, host FROM tenant LIMIT 5');
       
       logger.info(`✅ Auth database connected successfully, found ${result.rows.length} tenants`);
       logger.info(`🏢 Tenants:`, result.rows.map(r => r.name));
@@ -74,7 +74,7 @@ describe('Direct Database Connection Test', () => {
   test('should test DatabaseConnection.getTenantPool method', async () => {
     // Test the actual method the main API uses
     try {
-      const pool = DatabaseConnection.getTenantPool('monk-api$local-test');
+      const pool = DatabaseConnection.getTenantPool('local_test');
       
       // Test query
       const client = await pool.connect();
@@ -111,7 +111,7 @@ describe('Direct Database Connection Test', () => {
       const testPool = new pg.Pool({
         host: url.hostname,
         port: parseInt(url.port) || 5432,
-        database: 'monk-api-auth',
+        database: 'monk',
         user: url.username || process.env.USER || 'postgres',
         password: String(url.password || ''), // Ensure password is string
         max: 1,

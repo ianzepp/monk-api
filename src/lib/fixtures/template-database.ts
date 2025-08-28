@@ -22,7 +22,7 @@ import type { TenantInfo } from '@src/lib/services/tenant.js';
 export type { TenantInfo };
 
 export class TemplateDatabase {
-  private static readonly TEMPLATE_PREFIX = 'monk-api$test-template-';
+  private static readonly TEMPLATE_PREFIX = 'test_template_';
   
   /**
    * Create postgres client for admin operations
@@ -287,7 +287,7 @@ export class TemplateDatabase {
       .replace(/^-|-$/g, '')         // Remove leading/trailing dashes
       .toLowerCase();                // Convert to lowercase
     
-    return `monk-api$${snakeCase}`;
+    return snakeCase;
   }
   
   /**

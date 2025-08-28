@@ -96,17 +96,17 @@ app.post('/auth/login', AuthLoginPost);                             // POST /aut
 app.post('/auth/refresh', AuthRefreshPost);                         // POST /auth/refresh
 app.get('/auth/me', AuthService.getJWTMiddleware(), AuthService.getUserContextMiddleware(), AuthMeGet); // GET /auth/me
 
-// Protected API routes - require JWT authentication from /auth
-app.use('/api/*', AuthService.getJWTMiddleware());
-app.use('/api/*', AuthService.getUserContextMiddleware());
-app.use('/api/*', systemContextMiddleware);
-
-// Root API middleware
+// Root API middleware (must come before protected routes)
 app.use('/api/root/*', localhostDevelopmentOnlyMiddleware);
 app.use('/api/root/*', responseJsonMiddleware);
 
 // Root API routes
 app.route('/api/root', rootRouter);
+
+// Protected API routes - require JWT authentication from /auth
+app.use('/api/*', AuthService.getJWTMiddleware());
+app.use('/api/*', AuthService.getUserContextMiddleware());
+app.use('/api/*', systemContextMiddleware);
 
 // Meta API middleware
 app.use('/api/meta/*', responseYamlMiddleware);  // Meta API: YAML responses  

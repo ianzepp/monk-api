@@ -259,19 +259,19 @@ fi
 print_step "Checking if auth database exists..."
 
 # Check if auth database already exists
-if psql -lqt | cut -d'|' -f1 | grep -qw "monk-api-auth" 2>/dev/null; then
+if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
     print_info "Auth database already exists"
     
     # Check if it has the required tables
-    if psql -d monk-api-auth -c "SELECT 1 FROM tenants LIMIT 1;" >/dev/null 2>&1; then
+    if psql -d monk -c "SELECT 1 FROM tenant LIMIT 1;" >/dev/null 2>&1; then
         print_success "Auth database properly initialized"
         # Show tenant count
-        tenant_count=$(psql -d monk-api-auth -t -c "SELECT COUNT(*) FROM tenants;" 2>/dev/null | xargs)
+        tenant_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenant;" 2>/dev/null | xargs)
         print_info "Existing tenants: $tenant_count"
     else
         print_warning "Auth database exists but may need initialization"
         print_step "Re-initializing auth database schema..."
-        if psql -d monk-api-auth -f sql/init-auth.sql >/dev/null 2>&1; then
+        if psql -d monk -f sql/init-auth.sql >/dev/null 2>&1; then
             print_success "Auth database schema updated"
         else
             handle_error "Auth database schema initialization" "Check sql/init-auth.sql file exists and PostgreSQL permissions"
@@ -279,16 +279,16 @@ if psql -lqt | cut -d'|' -f1 | grep -qw "monk-api-auth" 2>/dev/null; then
     fi
 else
     print_step "Creating auth database..."
-    if createdb monk-api-auth 2>/dev/null; then
+    if createdb monk 2>/dev/null; then
         print_success "Auth database created"
     else
         handle_error "Auth database creation" "Check PostgreSQL permissions and that createdb command is available"
     fi
     
     print_step "Initializing auth database schema..."
-    if psql -d monk-api-auth -f sql/init-auth.sql >/dev/null 2>&1; then
+    if psql -d monk -f sql/init-auth.sql >/dev/null 2>&1; then
         print_success "Auth database schema initialized"
-        print_info "Created tenants table with indexes and triggers"
+        print_info "Created tenant table with indexes and triggers"
         print_info "Added default system tenant"
     else
         handle_error "Auth database schema initialization" "Check sql/init-auth.sql file exists and PostgreSQL permissions"
