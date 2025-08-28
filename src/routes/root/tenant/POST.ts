@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { TenantService } from '@src/lib/services/tenant.js';
+import { TenantValidation } from '@src/lib/tenant-validation.js';
 import { logger } from '@src/lib/logger.js';
 
 /**
@@ -16,26 +17,12 @@ export default async function (context: Context): Promise<any> {
     const body = await context.req.json();
     const { name, host = 'localhost' } = body;
     
-    if (!name || typeof name !== 'string') {
+    // Validate tenant name using shared validation
+    const validation = TenantValidation.validateTenantName(name);
+    if (!validation.isValid) {
       return context.json({
         success: false,
-        error: 'Tenant name is required and must be a string'
-      }, 400);
-    }
-    
-    // Validate tenant name format (updated for new underscore naming)
-    if (!/^[a-z0-9_-]+$/.test(name)) {
-      return context.json({
-        success: false,
-        error: 'Tenant name must contain only lowercase letters, numbers, underscores, and hyphens'
-      }, 400);
-    }
-    
-    // Check for reserved patterns
-    if (name.startsWith('test_') || name.startsWith('monk_')) {
-      return context.json({
-        success: false,
-        error: 'Tenant name cannot start with reserved prefixes: test_ or monk_'
+        error: validation.error
       }, 400);
     }
     

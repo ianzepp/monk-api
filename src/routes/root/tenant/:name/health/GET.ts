@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { TenantService } from '@src/lib/services/tenant.js';
+import { TenantValidation } from '@src/lib/tenant-validation.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { logger } from '@src/lib/logger.js';
 
@@ -16,18 +17,12 @@ export default async function (context: Context): Promise<any> {
   try {
     const tenantName = context.req.param('name');
     
-    if (!tenantName) {
+    // Validate tenant name using shared validation
+    const validation = TenantValidation.validateTenantName(tenantName);
+    if (!validation.isValid) {
       return context.json({
         success: false,
-        error: 'Tenant name parameter is required'
-      }, 400);
-    }
-    
-    // Validate tenant name format (updated for new underscore naming)
-    if (!/^[a-z0-9_-]+$/.test(tenantName)) {
-      return context.json({
-        success: false,
-        error: 'Invalid tenant name format'
+        error: validation.error
       }, 400);
     }
     
