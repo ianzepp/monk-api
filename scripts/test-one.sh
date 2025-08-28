@@ -33,6 +33,29 @@ print_error() { echo -e "${RED}✗ $1${NC}" >&2; }
 print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 
+# Cleanup function for test environment
+cleanup_test_environment() {
+    # Cleanup test tenant
+    if [ -n "$TEST_TENANT_NAME" ]; then
+        print_info "Cleaning up test tenant: $TEST_TENANT_NAME"
+        monk auth logout >/dev/null 2>&1 || true
+        monk root tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
+    fi
+    
+    # Kill API server if we started it
+    if [ -n "$API_SERVER_PID" ]; then
+        print_info "Stopping test API server (PID: $API_SERVER_PID)"
+        kill $API_SERVER_PID 2>/dev/null || true
+        wait $API_SERVER_PID 2>/dev/null || true
+    fi
+    
+    # Clean up temporary CLI config directory
+    if [ -n "$TEST_CLI_CONFIG" ] && [ -d "$TEST_CLI_CONFIG" ]; then
+        print_info "Cleaning up test CLI config: $TEST_CLI_CONFIG"
+        rm -rf "$TEST_CLI_CONFIG" 2>/dev/null || true
+    fi
+}
+
 # Parse command line arguments
 test_file=""
 
@@ -84,9 +107,9 @@ test_dir=$(dirname "$test_file")
 print_info "Running single test: $test_name"
 echo
 
-# Check if this is a prerequisites test that doesn't need tenant setup
-if [[ "$test_file" == *"/00-prerequisites/"* ]]; then
-    print_info "Prerequisites test detected - running without tenant setup"
+# Check if this is an infrastructure test that doesn't need tenant setup
+if [[ "$test_file" == */0[0-9]-* ]]; then
+    print_info "Infrastructure test detected - running without tenant setup"
     echo
     
     # Run test directly without tenant lifecycle management
@@ -114,54 +137,126 @@ TEST_TENANT_NAME="test-$(date +%s)"
 
 print_info "Creating test tenant: $TEST_TENANT_NAME"
 
+# Set up isolated test environment
+print_info "Setting up isolated test environment..."
+
+# Create temporary CLI config directory
+TEST_CLI_CONFIG="/tmp/monk-test-$$"
+export MONK_CLI_CONFIG_DIR="$TEST_CLI_CONFIG"
+print_info "Using isolated CLI config: $TEST_CLI_CONFIG"
+
 # Verify global monk command is available
 if ! command -v monk >/dev/null 2>&1; then
     print_error "Global monk command not found. Please run: npm link"
     exit 1
 fi
 
-# Check if API server is running and start if needed
-print_info "Checking API server status..."
-if server_status=$(monk servers current 2>/dev/null | grep "Status:" | awk '{print $2}'); then
-    if [ "$server_status" = "down" ]; then
-        print_info "API server is stopped, starting it..."
-        
-        # Compile TypeScript
-        print_info "Compiling TypeScript..."
-        if npm run compile >/dev/null 2>&1; then
-            print_success "Compilation successful"
-        else
-            print_error "Compilation failed"
-            exit 1
+# Find available port for test server
+find_available_port() {
+    local start_port=$1
+    local end_port=${2:-$((start_port + 99))}
+    
+    for port in $(seq $start_port $end_port); do
+        if ! lsof -i :$port >/dev/null 2>&1; then
+            echo $port
+            return 0
         fi
-        
-        # Start API server in background
-        print_info "Starting API server in background..."
-        npm run api:start >/dev/null 2>&1 &
-        API_SERVER_PID=$!
-        
-        # Wait a moment for server to start
-        sleep 2
-        
-        # Verify server is responding
-        print_info "Verifying server startup..."
-        if monk ping >/dev/null 2>&1; then
-            print_success "API server is running and responding"
-        else
-            print_error "API server failed to start or not responding"
-            # Clean up background process
-            kill $API_SERVER_PID 2>/dev/null || true
-            exit 1
-        fi
-    else
-        print_success "API server is already running"
-    fi
+    done
+    
+    print_error "No available ports in range $start_port-$end_port"
+    exit 1
+}
+
+TEST_PORT=$(find_available_port 9101)
+print_info "Using test port: $TEST_PORT"
+
+# Initialize isolated CLI configuration
+print_info "Initializing isolated CLI configuration..."
+if monk init >/dev/null 2>&1; then
+    print_success "CLI configuration initialized"
 else
-    print_warning "Could not check server status, assuming server is available"
+    print_error "Failed to initialize CLI configuration"
+    exit 1
+fi
+
+# Create test environment configuration
+cat > "$TEST_CLI_CONFIG/env.json" << EOF
+{
+  "DATABASE_URL": "postgresql://ianzepp:ianzepp@localhost:5432/",
+  "NODE_ENV": "test",
+  "PORT": "$TEST_PORT",
+  "JWT_SECRET": "test-jwt-secret-$(date +%s)"
+}
+EOF
+
+# Check if API server is running and start if needed
+print_info "Starting API server on test port $TEST_PORT..."
+# Compile TypeScript
+print_info "Compiling TypeScript..."
+if npm run compile >/dev/null 2>&1; then
+    print_success "Compilation successful"
+else
+    print_error "Compilation failed"
+    exit 1
+fi
+
+# Start API server in background on test port
+print_info "Starting API server on port $TEST_PORT..."
+PORT=$TEST_PORT npm run start >/dev/null 2>&1 &
+API_SERVER_PID=$!
+
+# Wait for server to start and check if process is still running
+sleep 5
+
+# Verify the API server process is still running
+if ! kill -0 $API_SERVER_PID 2>/dev/null; then
+    print_error "API server process died during startup"
+    exit 1
+fi
+
+print_info "API server process running (PID: $API_SERVER_PID)"
+
+# Test direct connectivity before CLI ping
+print_info "Testing direct HTTP connectivity..."
+if curl -s "http://localhost:$TEST_PORT/health" >/dev/null 2>&1; then
+    print_success "Direct HTTP connectivity works"
+else
+    print_error "Direct HTTP connectivity failed"
+    kill $API_SERVER_PID 2>/dev/null || true
+    exit 1
+fi
+
+# Add test server to CLI configuration
+print_info "Configuring CLI for test server..."
+if monk server add test-local "localhost:$TEST_PORT" --description "Test server" >/dev/null 2>&1; then
+    print_success "Test server added to CLI config"
+else
+    print_error "Failed to add test server to CLI config"
+    kill $API_SERVER_PID 2>/dev/null || true
+    exit 1
+fi
+
+# Use the test server
+if monk server use test-local >/dev/null 2>&1; then
+    print_success "Switched to test server"
+else
+    print_error "Failed to switch to test server"
+    kill $API_SERVER_PID 2>/dev/null || true
+    exit 1
+fi
+
+# Verify server is responding
+print_info "Verifying server connectivity..."
+if monk server ping >/dev/null 2>&1; then
+    print_success "API server is running and responding on port $TEST_PORT"
+else
+    print_error "API server failed to start or not responding"
+    kill $API_SERVER_PID 2>/dev/null || true
+    exit 1
 fi
 
 # Create tenant with root user (but don't authenticate - let test file handle auth)
-if output=$(monk tenant create "$TEST_TENANT_NAME" 2>&1); then
+if output=$(monk root tenant create "$TEST_TENANT_NAME" 2>&1); then
     print_success "Test tenant created: $TEST_TENANT_NAME"
 else
     print_error "Failed to create test tenant"
@@ -185,16 +280,9 @@ if (cd "$test_dir" && "./$(basename "$test_file")"); then
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     
-    # Always cleanup the test tenant we created
-    if [ -n "$TEST_TENANT_NAME" ]; then
-        echo
-        print_info "Cleaning up test tenant: $TEST_TENANT_NAME"
-        if monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1; then
-            print_success "Test tenant cleaned up"
-        else
-            print_info "Test tenant cleanup failed (non-fatal)"
-        fi
-    fi
+    # Cleanup test environment
+    echo
+    cleanup_test_environment
     
     echo
     print_success "Test passed: $test_name (${duration}s)"
@@ -203,13 +291,9 @@ else
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     
-    # Always cleanup the test tenant we created
-    if [ -n "$TEST_TENANT_NAME" ]; then
-        echo
-        print_info "Cleaning up test tenant: $TEST_TENANT_NAME"
-        monk auth logout >/dev/null 2>&1 || true
-        monk tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
-    fi
+    # Cleanup test environment
+    echo
+    cleanup_test_environment
     
     echo
     print_error "Test failed: $test_name (${duration}s)"
