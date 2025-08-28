@@ -36,12 +36,20 @@ export default async function (context: Context): Promise<any> {
       database: tenantInfo.database 
     });
     
+    // Return consistent object format matching GET endpoint
     return context.json({
       success: true,
-      tenant: tenantInfo.name,
-      database: tenantInfo.database,
-      host: tenantInfo.host,
-      created_at: new Date().toISOString()
+      tenant: {
+        id: tenantInfo.id,
+        name: tenantInfo.name,
+        database: tenantInfo.database,
+        host: tenantInfo.host,
+        created_at: tenantInfo.created_at || new Date().toISOString(),
+        updated_at: tenantInfo.updated_at || new Date().toISOString(),
+        trashed_at: null,
+        deleted_at: null,
+        status: 'active'
+      }
     });
     
   } catch (error) {

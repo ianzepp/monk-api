@@ -34,9 +34,11 @@ export default async function (context: Context): Promise<any> {
     
     return context.json({
       success: true,
-      tenant: tenantName,
-      restored: true,
-      restored_at: new Date().toISOString()
+      tenant: {
+        name: tenantName,
+        restored: true,
+        restored_at: new Date().toISOString()
+      }
     });
     
   } catch (error) {

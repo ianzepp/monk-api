@@ -39,9 +39,11 @@ export default async function (context: Context): Promise<any> {
       
       return context.json({
         success: true,
-        tenant: tenantName,
-        deleted: true,
-        deleted_at: new Date().toISOString()
+        tenant: {
+          name: tenantName,
+          deleted: true,
+          deleted_at: new Date().toISOString()
+        }
       });
     } else {
       logger.info('Soft deleting tenant via root API', { tenantName });
@@ -53,9 +55,11 @@ export default async function (context: Context): Promise<any> {
       
       return context.json({
         success: true,
-        tenant: tenantName,
-        trashed: true,
-        trashed_at: new Date().toISOString()
+        tenant: {
+          name: tenantName,
+          trashed: true,
+          trashed_at: new Date().toISOString()
+        }
       });
     }
     
