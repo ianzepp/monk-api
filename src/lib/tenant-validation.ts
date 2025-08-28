@@ -12,13 +12,12 @@ export interface TenantValidationResult {
 export class TenantValidation {
   
   /**
-   * Validate tenant name with all business rules
+   * Validate tenant name with simplified rules for hashed database architecture
    * 
-   * Rules:
+   * Simplified Rules (with Unicode support):
    * 1. Must be at least 2 characters long
-   * 2. Must contain only lowercase letters, numbers, underscores, and hyphens
-   * 3. Cannot start with reserved prefixes: test_ or monk_
-   * 4. Cannot be exact reserved names: test or monk
+   * 2. Cannot be exact reserved names: monk or test (case-insensitive)
+   * 3. Any Unicode characters allowed (database uses hash)
    */
   static validateTenantName(name: string): TenantValidationResult {
     // Check if name is provided and is string
@@ -29,38 +28,27 @@ export class TenantValidation {
       };
     }
     
-    // Check minimum length (at least 2 characters)
-    if (name.length < 2) {
+    // Normalize whitespace for validation
+    const normalizedName = name.trim();
+    
+    // Check minimum length (at least 2 characters after trim)
+    if (normalizedName.length < 2) {
       return {
         isValid: false,
         error: 'Tenant name must be at least 2 characters long'
       };
     }
     
-    // Check format (lowercase letters, numbers, underscores, hyphens only)
-    if (!/^[a-z0-9_-]+$/.test(name)) {
+    // Check for exact reserved names (case-insensitive for safety)
+    const lowercaseName = normalizedName.toLowerCase();
+    if (lowercaseName === 'monk' || lowercaseName === 'test') {
       return {
         isValid: false,
-        error: 'Tenant name must contain only lowercase letters, numbers, underscores, and hyphens'
+        error: 'Reserved name: monk or test'
       };
     }
     
-    // Check for exact reserved names
-    if (name === 'monk' || name === 'test') {
-      return {
-        isValid: false,
-        error: 'Tenant name cannot be exact reserved names: monk or test'
-      };
-    }
-    
-    // Check for reserved prefixes
-    if (name.startsWith('test_') || name.startsWith('monk_')) {
-      return {
-        isValid: false,
-        error: 'Tenant name cannot start with reserved prefixes: test_ or monk_'
-      };
-    }
-    
+    // Everything else is allowed (Unicode, spaces, emoji, etc.)
     return {
       isValid: true
     };

@@ -15,6 +15,7 @@
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createHash } from 'crypto';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { MonkEnv } from '@src/lib/monk-env.js';
@@ -96,21 +97,28 @@ export class TenantService {
   }
 
   /**
-   * Convert tenant name to snake_case database naming convention
+   * Convert tenant name to hashed database identifier
+   * 
+   * Uses SHA256 hash to create safe PostgreSQL database names from any Unicode input.
+   * This enables full international character support while guaranteeing valid DB identifiers.
+   * 
+   * Examples:
+   *   "My Cool App" → "tenant_a1b2c3d4e5f6789a" (16-char hash with prefix)
+   *   "测试应用" → "tenant_f9e8d7c6b5a49382" (16-char hash with prefix)
+   *   "🚀 Rocket" → "tenant_d4c9b8a7f6e51203" (16-char hash with prefix)
    */
   private static tenantNameToDatabase(tenantName: string): string {
-    const snakeCase = tenantName
-      .replace(/[^a-zA-Z0-9]/g, '_')  // Replace non-alphanumeric with underscores
-      .replace(/__+/g, '_')          // Collapse multiple underscores
-      .replace(/^_|_$/g, '')         // Remove leading/trailing underscores
-      .toLowerCase();                // Convert to lowercase
+    // Normalize Unicode for consistent hashing
+    const normalizedName = tenantName.trim().normalize('NFC');
     
-    // Validate against reserved patterns
-    if (snakeCase.startsWith('test_') || snakeCase.startsWith('monk_')) {
-      throw new Error(`Tenant name '${tenantName}' uses reserved prefix (test_ or monk_)`);
-    }
+    // Generate SHA256 hash and take first 16 characters
+    const hash = createHash('sha256')
+      .update(normalizedName, 'utf8')
+      .digest('hex')
+      .substring(0, 16);
     
-    return snakeCase;
+    // Add prefix to distinguish from test databases (which use test_*)
+    return `tenant_${hash}`;
   }
 
   /**

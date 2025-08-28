@@ -309,15 +309,15 @@ POST /api/root/tenant
 Content-Type: application/json
 
 {
-  "name": "my_ui_tenant",
-  "host": "localhost"  # Optional, defaults to localhost
+  "name": "My Amazing App! 🚀",  # Unicode fully supported
+  "host": "localhost"        # Optional, defaults to localhost
 }
 
 # Response
 {
   "success": true,
-  "tenant": "my_ui_tenant",
-  "database": "my_ui_tenant",  # Direct tenant name (updated architecture)
+  "tenant": "My Amazing App! 🚀",      # Original display name preserved
+  "database": "tenant_a1b2c3d4e5f6789a",    # SHA256 hash for safe DB identifier
   "host": "localhost",
   "created_at": "2025-08-28T20:03:03.033Z"
 }
@@ -332,8 +332,8 @@ GET /api/root/tenant?include_trashed=true&include_deleted=false
   "success": true,
   "tenants": [
     {
-      "name": "my_ui_tenant",
-      "database": "my_ui_tenant",
+      "name": "My Amazing App! 🚀",      # Unicode display name
+      "database": "tenant_a1b2c3d4e5f6789a",  # Hashed database identifier
       "host": "localhost",
       "status": "active",
       "created_at": "2025-08-28T20:03:03.033Z",
