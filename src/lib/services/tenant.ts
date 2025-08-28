@@ -107,7 +107,7 @@ export class TenantService {
    *   "测试应用" → "tenant_f9e8d7c6b5a49382" (16-char hash with prefix)
    *   "🚀 Rocket" → "tenant_d4c9b8a7f6e51203" (16-char hash with prefix)
    */
-  private static tenantNameToDatabase(tenantName: string): string {
+  static tenantNameToDatabase(tenantName: string): string {
     // Normalize Unicode for consistent hashing
     const normalizedName = tenantName.trim().normalize('NFC');
     

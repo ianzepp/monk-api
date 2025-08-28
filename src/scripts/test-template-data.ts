@@ -7,10 +7,14 @@
  * Useful for validating that templates contain proper fixture data.
  */
 
+import { logger } from '@src/lib/logger.js';
 import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { MonkEnv } from '@src/lib/monk-env.js';
 import pg from 'pg';
+
+// Set up global logger for scripts
+global.logger = logger;
 
 async function testTemplateData(templateName: string): Promise<void> {
   logger.info(`🔍 Testing data in template: ${templateName}`);

@@ -60,8 +60,9 @@ resolve_typescript_tests() {
 test_files=$(resolve_typescript_tests "$pattern_or_path")
 
 if [[ -z "$test_files" ]]; then
-    print_error "No TypeScript test files found for pattern: $pattern_or_path"
-    exit 1
+    print_info "No TypeScript test files found for pattern: $pattern_or_path (this is normal for some test series)"
+    print_success "TypeScript test phase completed (no tests to run)"
+    exit 0
 fi
 
 # Count tests

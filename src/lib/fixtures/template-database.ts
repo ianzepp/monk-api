@@ -14,6 +14,7 @@ import { dirname } from 'path';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { logger } from '@src/lib/logger.js';
 import { FixtureManager } from './fixture-manager.js';
+import { TenantService } from '@src/lib/services/tenant.js';
 import pg from 'pg';
 
 import type { TenantInfo } from '@src/lib/services/tenant.js';
@@ -278,16 +279,15 @@ export class TemplateDatabase {
   // ==========================================
   
   /**
-   * Convert tenant name to database name (copied pattern from TenantService)
+   * Convert tenant name to hashed database name using centralized TenantService
+   * 
+   * This ensures consistency with the main API tenant creation process
+   * and supports Unicode tenant names through SHA256 hashing.
    */
   private static tenantNameToDatabase(tenantName: string): string {
-    const snakeCase = tenantName
-      .replace(/[^a-zA-Z0-9]/g, '-')  // Replace non-alphanumeric with dashes
-      .replace(/--+/g, '-')          // Collapse multiple dashes
-      .replace(/^-|-$/g, '')         // Remove leading/trailing dashes
-      .toLowerCase();                // Convert to lowercase
-    
-    return snakeCase;
+    // Use the same hashing logic as TenantService for consistency
+    // This will generate tenant_XXXXXXXXXXXXXXXX format names
+    return TenantService.tenantNameToDatabase(tenantName);
   }
   
   /**
