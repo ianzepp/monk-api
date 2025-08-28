@@ -12,7 +12,7 @@ import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
 
-export class SqlDeleteObserver extends BaseObserver {
+export default class SqlDeleteObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['delete'] as const;
 

@@ -11,7 +11,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
 
-export class SqlSelectObserver extends BaseObserver {
+export default class SqlSelectObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['select'] as const;
 

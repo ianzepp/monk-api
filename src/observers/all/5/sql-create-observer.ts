@@ -11,7 +11,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 
-export class SqlCreateObserver extends BaseObserver {
+export default class SqlCreateObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['create'] as const;
 

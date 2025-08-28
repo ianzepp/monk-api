@@ -12,7 +12,7 @@ import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
 
-export class SqlRevertObserver extends BaseObserver {
+export default class SqlRevertObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['revert'] as const;
 
