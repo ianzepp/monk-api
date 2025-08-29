@@ -26,11 +26,11 @@ export interface TestContext {
   database: Database;
   metabase: Metabase;
   tenantService: typeof TenantService;
+  jwtToken: string;
 }
 
 export interface TestContextWithTemplate extends TestContext {
   templateName: string;
-  jwtToken: string;
 }
 
 /**
@@ -247,7 +247,8 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
     system,
     database,
     metabase,
-    tenantService: TenantService
+    tenantService: TenantService,
+    jwtToken: loginResult.token
   };
 }
 
