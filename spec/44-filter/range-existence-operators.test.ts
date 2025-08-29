@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { FilterWhere } from '@lib/filter-where.js';
+import { FilterWhere } from '@src/lib/filter-where.js';
 
 describe('Range and Existence Operators - Comprehensive Testing', () => {
   

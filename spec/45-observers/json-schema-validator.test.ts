@@ -7,8 +7,8 @@
 
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import JsonSchemaValidator from '@src/observers/all/1/json-schema-validator.js';
-import { ValidationError } from '@lib/observers/errors.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { ValidationError } from '@src/lib/observers/errors.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 describe('JsonSchemaValidator', () => {
   let validator: JsonSchemaValidator;

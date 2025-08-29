@@ -3,8 +3,8 @@
  */
 
 import { describe, test, beforeEach, expect, vi } from 'vitest';
-import { DatabaseObserver } from '@lib/observers/database-observer.js';
-import { ObserverRing } from '@observers/types.js';
+import { DatabaseObserver } from '@src/lib/observers/database-observer.js';
+import { ObserverRing } from '@src/observers/types.js';
 import { createMockContext } from '@spec/helpers/observer-helpers.js';
 
 describe('DatabaseObserver', () => {

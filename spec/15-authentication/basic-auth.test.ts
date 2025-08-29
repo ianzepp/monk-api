@@ -10,10 +10,10 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { TenantService } from '@lib/services/tenant.js';
+import { TenantService } from '@src/lib/services/tenant.js';
 import { randomBytes } from 'crypto';
-import { DatabaseConnection } from '@lib/database-connection.js';
-import { System } from '@lib/system.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { System } from '@src/lib/system.js';
 
 describe('15-authentication: Basic Auth Flow', () => {
   let tenantName: string;

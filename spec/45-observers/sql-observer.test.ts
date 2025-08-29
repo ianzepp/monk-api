@@ -6,10 +6,10 @@
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { SqlObserver } from '@lib/observers/sql-observer.js';
-import { SystemError } from '@lib/observers/errors.js';
-import { ObserverRing } from '@lib/observers/types.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
+import { SqlObserver } from '@src/lib/observers/sql-observer.js';
+import { SystemError } from '@src/lib/observers/errors.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 
 describe('Unit: SQL Observer', () => {
     let observer: SqlObserver;

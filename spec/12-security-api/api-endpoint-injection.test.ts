@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { createTestTenant, createTestContext, type TestTenantManager, type TestContext } from '@spec/helpers/test-tenant.js';
-import { ObserverLoader } from '@lib/observers/loader.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { 
     CLASSIC_INJECTION_VECTORS,
     MALICIOUS_FIELD_PAYLOADS

@@ -7,9 +7,9 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import ExistenceValidator from '@src/observers/all/2/existence-validator.js';
-import { BusinessLogicError } from '@lib/observers/errors.js';
-import { ObserverRing } from '@lib/observers/types.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
+import { BusinessLogicError } from '@src/lib/observers/errors.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 
 describe('Unit: ExistenceValidator Observer', () => {
     let observer: ExistenceValidator;

@@ -7,8 +7,8 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import RecordPreloader from '@src/observers/all/0/record-preloader.js';
-import { ObserverRing } from '@lib/observers/types.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 
 describe('Unit: RecordPreloader Observer', () => {
     let observer: RecordPreloader;

@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import UuidArrayProcessor from '@src/observers/all/4/uuid-array-processor.js';
-import { ObserverRing } from '@lib/observers/types.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 
 describe('UuidArrayProcessor', () => {
   let processor: UuidArrayProcessor;

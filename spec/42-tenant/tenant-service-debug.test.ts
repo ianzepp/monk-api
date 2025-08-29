@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { MonkEnv } from '@lib/monk-env.js';
-import { TenantService } from '@lib/services/tenant.js';
+import { MonkEnv } from '@src/lib/monk-env.js';
+import { TenantService } from '@src/lib/services/tenant.js';
 
 describe('TenantService Debug - Isolate SCRAM Issue', () => {
   

@@ -15,7 +15,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { createTestTenant, createTestContext, type TestTenantManager, type TestContext } from '@spec/helpers/test-tenant.js';
-import { ObserverLoader } from '@lib/observers/loader.js';
+import { ObserverLoader } from '@src/lib/observers/loader.js';
 
 describe('30-data-api: Data Operations', () => {
   let tenantManager: TestTenantManager;

@@ -5,8 +5,8 @@
  */
 
 import { describe, test, beforeAll, beforeEach, expect, vi } from 'vitest';
-import { ObserverLoader } from '@observers/loader.js';
-import { executeObserverPipeline } from '@lib/observers/route-integration.js';
+import { ObserverLoader } from '@src/observers/loader.js';
+import { executeObserverPipeline } from '@src/lib/observers/route-integration.js';
 import { createMockSystem } from '@spec/helpers/observer-helpers.js';
 
 describe('Complete Observer Pipeline Integration', () => {

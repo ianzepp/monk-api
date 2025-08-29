@@ -8,7 +8,7 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import { WildcardTranslator, WildcardTranslation, PatternComponent } from '@src/ftp/wildcard-translator.js';
-import { FilterOp } from '@lib/filter-where.js';
+import { FilterOp } from '@src/lib/filter-where.js';
 
 describe('WildcardTranslator - Advanced Pattern Translation', () => {
     

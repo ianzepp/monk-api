@@ -6,7 +6,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { FilterOrder } from '@lib/filter-order.js';
+import { FilterOrder } from '@src/lib/filter-order.js';
 
 describe('FilterOrder', () => {
   describe('String format parsing', () => {

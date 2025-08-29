@@ -7,9 +7,9 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import SoftDeleteProtector from '@src/observers/all/1/soft-delete-protector.js';
-import { SecurityError } from '@lib/observers/errors.js';
-import { ObserverRing } from '@lib/observers/types.js';
-import type { ObserverContext } from '@lib/observers/interfaces.js';
+import { SecurityError } from '@src/lib/observers/errors.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 
 describe('Unit: SoftDeleteProtector Observer', () => {
     let observer: SoftDeleteProtector;
