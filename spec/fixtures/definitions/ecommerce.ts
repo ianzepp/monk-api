@@ -8,7 +8,7 @@
  * It serves as an example of how complex fixtures would be structured in future phases.
  */
 
-import { FixtureDefinition } from '@src/lib/fixtures/types.js';
+import { type FixtureDefinition } from '@src/lib/fixtures/types.js';
 
 export const ecommerceFixture: FixtureDefinition = {
   name: 'ecommerce',

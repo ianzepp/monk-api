@@ -12,7 +12,7 @@ import {
   createMultiFixtureContext,
   resolveFixtureDependencies,
   validateFixtureComposition,
-  TestContextWithData 
+  type TestContextWithData 
 } from '../helpers/test-tenant.js';
 import { 
   generateMigrationPlan,

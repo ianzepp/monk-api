@@ -6,7 +6,7 @@
  */
 
 import { BaseGenerator } from './base-generator.js';
-import { GeneratedRecord, DataGeneratorOptions, GeneratorContext } from '@src/lib/fixtures/types.js';
+import { type GeneratedRecord, type DataGeneratorOptions, type GeneratorContext } from '@src/lib/fixtures/types.js';
 
 export class ExampleGenerator extends BaseGenerator {
   

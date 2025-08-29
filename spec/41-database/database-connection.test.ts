@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { MonkEnv } from '@lib/monk-env.js';
-import { DatabaseConnection } from '@lib/database-connection.js';
+import { MonkEnv } from '@src/lib/monk-env.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 import pg from 'pg';
 
 describe('Direct Database Connection Test', () => {

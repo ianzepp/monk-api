@@ -19,6 +19,15 @@
  */
 
 import type { FilterData } from '@src/lib/filter.js';
+
+// WHERE clause condition interface (what translateComplexPattern actually returns)
+export interface WhereCondition {
+    $or?: WhereCondition[];
+    $and?: WhereCondition[];
+    $not?: WhereCondition;
+    $nor?: WhereCondition[];
+    [field: string]: any; // For field conditions like { role: { $like: '%admin%' } }
+}
 import { FilterOp } from '@src/lib/filter-where.js';
 
 export interface WildcardTranslation {
@@ -202,7 +211,7 @@ export class WildcardTranslator {
     /**
      * Handle complex nested patterns with multiple wildcards and alternatives
      */
-    static translateComplexPattern(pattern: string, fieldName: string = 'id'): FilterData {
+    static translateComplexPattern(pattern: string, fieldName: string = 'id'): WhereCondition {
         const components = this.parsePatternComponents(pattern);
         const conditions: any[] = [];
         

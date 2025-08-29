@@ -8,8 +8,8 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { FixtureManager } from '@src/lib/fixtures/fixture-manager.js';
 import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
-import { AccountGenerator } from './fixtures/generators/account-generator.js';
-import { ContactGenerator } from './fixtures/generators/contact-generator.js';
+import { AccountGenerator } from '../fixtures/generators/account-generator.js';
+import { ContactGenerator } from '../fixtures/generators/contact-generator.js';
 import { createTestContextWithTemplate } from '@spec/helpers/test-tenant.js';
 
 describe('Fixture System Phase 2', () => {
@@ -207,7 +207,7 @@ describe('Fixture System Phase 2', () => {
       expect(testContext.jwtToken).toBeDefined();
       
       // Verify schemas exist
-      const schemas = await testContext.metabase.selectAny('schema');
+      const schemas = await testContext.database.selectAny('schema');
       const schemaNames = schemas.map((s: any) => s.name);
       expect(schemaNames).toContain('account');
       expect(schemaNames).toContain('contact');

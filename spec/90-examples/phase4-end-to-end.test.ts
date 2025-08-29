@@ -15,8 +15,8 @@ import {
   createTestContextWithFixture, 
   createTestContextWithCustomFixture,
   createMultiFixtureContext,
-  TestContextWithData,
-  CustomFixtureDefinition 
+  type TestContextWithData,
+  type CustomFixtureDefinition 
 } from '../helpers/test-tenant.js';
 import { generateMigrationPlan, detectRequiredFixture } from '../helpers/migration-helpers.js';
 
