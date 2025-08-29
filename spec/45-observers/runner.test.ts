@@ -37,13 +37,13 @@ describe('ObserverRunner', () => {
             const executionOrder: number[] = [];
             
             // Mock observers for different rings
-            const validationObserver = createMockObserver(ObserverRing.Validation, undefined, 'validator');
+            const validationObserver = createMockObserver(ObserverRing.InputValidation, undefined, 'validator');
             const businessObserver = createMockObserver(ObserverRing.Business, undefined, 'business');
             const auditObserver = createMockObserver(ObserverRing.Audit, undefined, 'audit');
             
             // Track execution order
             validationObserver.execute = vi.fn(async (context) => {
-                executionOrder.push(ObserverRing.Validation);
+                executionOrder.push(ObserverRing.InputValidation);
                 context.metadata.set('validator_executed', true);
             });
             
@@ -60,7 +60,7 @@ describe('ObserverRunner', () => {
             // Mock getObservers to return appropriate observers for each ring
             mockObserverLoader.getObservers.mockImplementation((schema, ring) => {
                 switch (ring) {
-                    case ObserverRing.Validation: return [validationObserver];
+                    case ObserverRing.InputValidation: return [validationObserver];
                     case ObserverRing.Business: return [businessObserver];
                     case ObserverRing.Audit: return [auditObserver];
                     default: return [];
@@ -76,7 +76,7 @@ describe('ObserverRunner', () => {
 
             expect(result.success).toBe(true);
             expect(executionOrder).toEqual([
-                ObserverRing.Validation,
+                ObserverRing.InputValidation,
                 ObserverRing.Business,
                 ObserverRing.Audit
             ]);
@@ -102,7 +102,7 @@ describe('ObserverRunner', () => {
 
         test('should stop execution on validation errors before database ring', async () => {
             const validationObserver = createValidationObserver(
-                ObserverRing.Validation, 
+                ObserverRing.InputValidation, 
                 true, // add error
                 false, // no warning
                 'ErrorValidator'
@@ -112,7 +112,7 @@ describe('ObserverRunner', () => {
 
             mockObserverLoader.getObservers.mockImplementation((schema, ring) => {
                 switch (ring) {
-                    case ObserverRing.Validation: return [validationObserver];
+                    case ObserverRing.InputValidation: return [validationObserver];
                     case ObserverRing.Audit: return [auditObserver];
                     default: return [];
                 }
@@ -135,7 +135,7 @@ describe('ObserverRunner', () => {
 
         test('should continue execution on warnings', async () => {
             const validationObserver = createValidationObserver(
-                ObserverRing.Validation,
+                ObserverRing.InputValidation,
                 false, // no error
                 true,  // add warning
                 'WarningValidator'
@@ -145,7 +145,7 @@ describe('ObserverRunner', () => {
 
             mockObserverLoader.getObservers.mockImplementation((schema, ring) => {
                 switch (ring) {
-                    case ObserverRing.Validation: return [validationObserver];
+                    case ObserverRing.InputValidation: return [validationObserver];
                     case ObserverRing.Audit: return [auditObserver];
                     default: return [];
                 }
@@ -168,14 +168,14 @@ describe('ObserverRunner', () => {
 
         test('should handle observer execution failures gracefully', async () => {
             const throwingObserver = createMockObserver(
-                ObserverRing.Validation,
+                ObserverRing.InputValidation,
                 undefined,
                 'ThrowingObserver',
                 true // should throw
             );
 
             mockObserverLoader.getObservers.mockImplementation((schema, ring) => {
-                if (ring === ObserverRing.Validation) return [throwingObserver];
+                if (ring === ObserverRing.InputValidation) return [throwingObserver];
                 return [];
             });
 
@@ -194,14 +194,14 @@ describe('ObserverRunner', () => {
 
         test('should respect operation filtering', async () => {
             const createOnlyObserver = createMockObserver(
-                ObserverRing.Validation,
+                ObserverRing.InputValidation,
                 ['create'], // only for create operations
                 'CreateOnlyObserver'
             );
 
             // Mock to return observer only for validation ring
             mockObserverLoader.getObservers.mockImplementation((schema, ring) => {
-                return ring === ObserverRing.Validation ? [createOnlyObserver] : [];
+                return ring === ObserverRing.InputValidation ? [createOnlyObserver] : [];
             });
 
             // Test with create operation - should execute
@@ -218,7 +218,7 @@ describe('ObserverRunner', () => {
             // Reset mock
             vi.clearAllMocks();
             mockObserverLoader.getObservers.mockImplementation((schema, ring) => {
-                return ring === ObserverRing.Validation ? [createOnlyObserver] : [];
+                return ring === ObserverRing.InputValidation ? [createOnlyObserver] : [];
             });
 
             // Test with update operation - should not execute
@@ -236,7 +236,7 @@ describe('ObserverRunner', () => {
 
         test('should provide complete context to observers', async () => {
             const contextCheckObserver = createMockObserver(
-                ObserverRing.Validation,
+                ObserverRing.InputValidation,
                 undefined,
                 'ContextChecker'
             );
