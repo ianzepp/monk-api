@@ -20,12 +20,12 @@ import {
     EVASION_INJECTION_VECTORS,
     MALICIOUS_FIELD_PAYLOADS,
     EDGE_CASE_PAYLOADS
-} from './injection-vectors.js';
+} from '../12-security-api/injection-vectors.js';
 import { 
     SecurityAssertions,
     InjectionTester,
     type SecurityTestResult
-} from './security-helpers.js';
+} from '../12-security-api/security-helpers.js';
 
 describe('Comprehensive SQL Injection Security Suite', () => {
     let tenantManager: TestTenantManager;

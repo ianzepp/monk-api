@@ -13,7 +13,7 @@ import {
     assertObserverExecuted,
     assertErrorAdded,
     assertWarningAdded
-} from '../../helpers/observer-helpers.js';
+} from '@spec/helpers/observer-helpers.js';
 
 // Mock the ObserverLoader
 vi.mock('@src/lib/observers/loader.js');
