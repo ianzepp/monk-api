@@ -67,7 +67,7 @@ fi
 
 # Test 3: Verify schema is no longer accessible
 print_step "Verifying schema deletion"
-if monk meta get schema account >/dev/null 2>&1; then
+if monk meta select schema account >/dev/null 2>&1; then
     print_error "Account schema still accessible after deletion"
     exit 1
 else

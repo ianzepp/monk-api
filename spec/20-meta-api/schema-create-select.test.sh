@@ -76,7 +76,7 @@ echo
 
 # Test 2: Retrieve account schema back from API
 print_step "Retrieving account schema from API"
-if RETRIEVED_RESULT=$(monk meta get schema account 2>&1); then
+if RETRIEVED_RESULT=$(monk meta select schema account 2>&1); then
     # Check if result is valid YAML
     if echo "$RETRIEVED_RESULT" | grep -q "title: Account" && echo "$RETRIEVED_RESULT" | grep -q "type: object"; then
         print_success "Account schema retrieved successfully (YAML response)"
