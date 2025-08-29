@@ -13,17 +13,23 @@ import {
   type TestTenantManager 
 } from '../helpers/test-tenant.js';
 
+// Set up global logger instance
+import { logger } from '../../src/lib/logger.js';
+global.logger = logger;
+
 describe('Enhanced Test Helpers - Phase 4 Examples', () => {
 
   describe('Single Fixture Testing', () => {
     let testContext: TestContextWithData;
-    let tenantManager: TestTenantManager;
+    let tenantManager: TestTenantManager | undefined;
 
     beforeAll(async () => {
       // NEW: One-line test setup with realistic data
       testContext = await createTestContextWithFixture('basic', {
         mockTemplate: false // JSON issue resolved - use real templates!
       });
+      // Note: TestContextWithData doesn't expose tenant manager for cleanup
+      // This would need to be refactored if cleanup is required
     });
 
     afterAll(async () => {

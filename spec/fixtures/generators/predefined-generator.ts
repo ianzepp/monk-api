@@ -6,9 +6,10 @@
  */
 
 import type { IDataGenerator, GeneratorOptions } from './base-generator.js';
+import type { GeneratorContext, GeneratedRecord, DataGeneratorOptions } from '@src/lib/fixtures/types.js';
 
 export class predefined implements IDataGenerator {
-  async generate(count: number, options: GeneratorOptions = {}): Promise<Record<string, any>[]> {
+  generate(count: number, options: DataGeneratorOptions, context?: GeneratorContext): GeneratedRecord[] {
     // Get predefined data from options
     const predefinedData = options.data as Record<string, any>[];
     

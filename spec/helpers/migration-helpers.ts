@@ -5,7 +5,11 @@
  * to the new enhanced test helpers with fixture support.
  */
 
-import { TestContext, type TestContextWithData, createTestContextWithFixture, type TemplateLoadOptions } from './test-tenant.js';
+import { type TestContext, type TestContextWithData, createTestContextWithFixture, type TemplateLoadOptions } from './test-tenant.js';
+
+// Set up global logger instance
+import { logger } from '../../src/lib/logger.js';
+global.logger = logger;
 
 /**
  * Migration plan for upgrading a test file
@@ -74,7 +78,7 @@ export async function migrateTestToFixture(
     return newContext;
     
   } catch (error) {
-    logger.warn(`⚠️  Fixture migration failed, falling back to old setup:`, error.message);
+    logger.warn(`⚠️  Fixture migration failed, falling back to old setup:`, (error as Error).message);
     
     // Fallback to old approach but wrap it in new interface
     const oldContext = await oldTestSetup();
@@ -436,7 +440,7 @@ async function wrapLegacyContext(oldContext: TestContext, fixtureName: string): 
     recordCounts: {},
     testDatabase: oldContext.tenant.database,
     templateSource: 'manual',
-    helpers
+    helpers: helpers as any
   };
 }
 

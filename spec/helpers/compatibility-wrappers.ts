@@ -6,13 +6,17 @@
  */
 
 import { 
-  TestContext, 
-  TestContextWithData, 
+  type TestContext, 
+  type TestContextWithData, 
   createTestContextWithFixture,
   createTestTenant,
   createTestContext,
-  TestTenantManager 
+  type TestTenantManager 
 } from './test-tenant.js';
+
+// Set up global logger instance
+import { logger } from '../../src/lib/logger.js';
+global.logger = logger;
 
 /**
  * Enhanced createTestTenant that can optionally use fixtures
@@ -182,7 +186,7 @@ export async function compareTestSetupPerformance(
   try {
     await traditionalSetup();
   } catch (error) {
-    logger.warn(`Traditional setup failed: ${error.message}`);
+    logger.warn(`Traditional setup failed: ${(error as Error).message}`);
   }
   const traditionalTime = Date.now() - traditionalStart;
   

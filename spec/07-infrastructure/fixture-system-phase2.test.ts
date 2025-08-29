@@ -207,7 +207,7 @@ describe('Fixture System Phase 2', () => {
       expect(testContext.jwtToken).toBeDefined();
       
       // Verify schemas exist
-      const schemas = await testContext.metabase.selectAny('schema');
+      const schemas = await testContext.database.selectAny('schema');
       const schemaNames = schemas.map((s: any) => s.name);
       expect(schemaNames).toContain('account');
       expect(schemaNames).toContain('contact');

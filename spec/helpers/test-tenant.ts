@@ -355,7 +355,8 @@ export async function createTestContextWithFixture(
       logger.info(`⚡ Attempting to clone template: ${fixtureName}`);
       
       const templateDb = new TemplateDatabase();
-      testDatabase = await templateDb.createTestDatabaseFromTemplate(fixtureName);
+      const tenantInfo = await TemplateDatabase.createTenantFromTemplate(`test-${Date.now()}`, fixtureName);
+      testDatabase = tenantInfo.database;
       templateSource = 'cloned';
       
       // Load fixture metadata
@@ -640,7 +641,7 @@ async function mergeFixtures(fixtures: any[]): Promise<MergedFixture> {
 
     // Merge record counts (sum for same schemas)
     Object.entries(fixture.recordCounts || {}).forEach(([schemaName, count]) => {
-      totalRecordCounts[schemaName] = (totalRecordCounts[schemaName] || 0) + count;
+      totalRecordCounts[schemaName] = (totalRecordCounts[schemaName] || 0) + (count as number);
     });
 
     // Collect relationships
