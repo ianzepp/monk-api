@@ -9,8 +9,8 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { 
   createTestContextWithFixture, 
   createMultiFixtureContext, 
-  TestContextWithData,
-  TestTenantManager 
+  type TestContextWithData,
+  type TestTenantManager 
 } from '../helpers/test-tenant.js';
 
 describe('Enhanced Test Helpers - Phase 4 Examples', () => {

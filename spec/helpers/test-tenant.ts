@@ -7,7 +7,7 @@
 
 import { randomBytes } from 'crypto';
 import { MonkEnv } from '../../src/lib/monk-env.js';
-import { TenantService, TenantInfo } from '../../src/lib/services/tenant.js';
+import { TenantService, type TenantInfo } from '../../src/lib/services/tenant.js';
 import { TemplateDatabase } from '../../src/lib/fixtures/template-database.js';
 import { System } from '../../src/lib/system.js';
 import { Database } from '../../src/lib/database.js';
@@ -365,7 +365,7 @@ export async function createTestContextWithFixture(
       logger.info(`✅ Template cloned successfully: ${testDatabase}`);
       
     } catch (error) {
-      logger.warn(`⚠️  Template cloning failed, falling back to manual setup: ${error.message}`);
+      logger.warn(`⚠️  Template cloning failed, falling back to manual setup: ${(error as Error).message}`);
       
       // Fallback to manual data creation
       testDatabase = baseContext.tenant.database;
@@ -514,7 +514,7 @@ async function createMockData(
         
         logger.info(`✅ Created ${records.length} ${schemaName} records`);
       } catch (error) {
-        logger.warn(`⚠️  Failed to create ${schemaName} records:`, error.message);
+        logger.warn(`⚠️  Failed to create ${schemaName} records:`, (error as Error).message);
         recordCounts[schemaName] = 0;
       }
     }
@@ -564,7 +564,7 @@ async function ensureSchemaExists(context: TestContext, schemaName: string): Pro
       // TODO: Load and create schema
       logger.info(`📋 Would load schema from: ${schemaPath}`);
     } catch (schemaError) {
-      logger.warn(`⚠️  Could not create schema ${schemaName}:`, schemaError.message);
+      logger.warn(`⚠️  Could not create schema ${schemaName}:`, (schemaError as Error).message);
     }
   }
 }
@@ -835,7 +835,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.count(schemaName);
       } catch (error) {
-        logger.warn(`⚠️  Could not count records in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not count records in ${schemaName}:`, (error as Error).message);
         return 0;
       }
     },
@@ -848,7 +848,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         const randomIndex = Math.floor(Math.random() * records.length);
         return records[randomIndex];
       } catch (error) {
-        logger.warn(`⚠️  Could not get random record from ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not get random record from ${schemaName}:`, (error as Error).message);
         return null;
       }
     },
@@ -857,7 +857,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.selectOne(schemaName, criteria);
       } catch (error) {
-        logger.warn(`⚠️  Could not find record in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not find record in ${schemaName}:`, (error as Error).message);
         return null;
       }
     },
@@ -899,7 +899,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         
         return await context.database.createOne(schemaName, mergedRecord);
       } catch (error) {
-        logger.warn(`⚠️  Could not create test record in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not create test record in ${schemaName}:`, (error as Error).message);
         throw error;
       }
     },
@@ -917,7 +917,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
           });
           records.push(record);
         } catch (error) {
-          logger.warn(`⚠️  Failed to create record ${i} for ${schemaName}:`, error.message);
+          logger.warn(`⚠️  Failed to create record ${i} for ${schemaName}:`, (error as Error).message);
         }
       }
       
@@ -941,7 +941,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         logger.info(`🗑️  Cleaned up ${records.length} records from ${schemaName}`);
         return records.length;
       } catch (error) {
-        logger.warn(`⚠️  Could not cleanup records in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not cleanup records in ${schemaName}:`, (error as Error).message);
         return 0;
       }
     },
@@ -950,7 +950,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.selectAny(schemaName, { ...criteria, limit });
       } catch (error) {
-        logger.warn(`⚠️  Could not find records in ${schemaName}:`, error.message);
+        logger.warn(`⚠️  Could not find records in ${schemaName}:`, (error as Error).message);
         return [];
       }
     },
@@ -1037,7 +1037,7 @@ async function createCustomFixtureData(
       }
       
     } catch (error) {
-      logger.warn(`⚠️  Failed to create ${schemaName} records:`, error.message);
+      logger.warn(`⚠️  Failed to create ${schemaName} records:`, (error as Error).message);
       recordCounts[schemaName] = 0;
     }
   }

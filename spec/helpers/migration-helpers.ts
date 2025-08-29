@@ -5,7 +5,7 @@
  * to the new enhanced test helpers with fixture support.
  */
 
-import { TestContext, TestContextWithData, createTestContextWithFixture, TemplateLoadOptions } from './test-tenant.js';
+import { TestContext, type TestContextWithData, createTestContextWithFixture, type TemplateLoadOptions } from './test-tenant.js';
 
 /**
  * Migration plan for upgrading a test file
@@ -264,7 +264,7 @@ function generateMigrationSteps(patterns: DetectedPattern[], fixtures: string[])
     order: order++,
     action: 'Add import',
     description: 'Import the new test helpers',
-    newCode: `import { createTestContextWithFixture, TestContextWithData } from '../helpers/test-tenant.js';`,
+    newCode: `import { createTestContextWithFixture, type TestContextWithData } from '../helpers/test-tenant.js';`,
     automated: true
   });
   

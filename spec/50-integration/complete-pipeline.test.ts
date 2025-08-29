@@ -7,7 +7,52 @@
 import { describe, test, beforeAll, beforeEach, expect, vi } from 'vitest';
 import { ObserverLoader } from '@src/observers/loader.js';
 import { executeObserverPipeline } from '@src/lib/observers/route-integration.js';
-import { createMockSystem } from '@spec/helpers/observer-helpers.js';
+import type { System } from '@src/lib/system.js';
+
+// Mock system for observer testing
+function createMockSystem(): System {
+    return {
+        db: {
+            query: vi.fn().mockImplementation(async (query: string, params?: any[]) => {
+                // Mock schema table queries for schema loading
+                if (query.includes('FROM schema')) {
+                    return {
+                        rows: [{
+                            name: params?.[0] || 'mock-schema',
+                            table_name: params?.[0] || 'mock-schema',
+                            status: 'active',
+                            definition: {
+                                type: 'object',
+                                properties: {
+                                    name: { type: 'string' },
+                                    email: { type: 'string', format: 'email' }
+                                },
+                                required: ['name', 'email']
+                            },
+                            yaml_checksum: 'mock-checksum'
+                        }]
+                    };
+                }
+                return { rows: [] };
+            }),
+            connect: vi.fn().mockResolvedValue({
+                query: vi.fn().mockResolvedValue({ rows: [] }),
+                release: vi.fn()
+            })
+        },
+        tx: undefined,
+        database: {
+            createOne: vi.fn(),
+            updateOne: vi.fn(),
+            deleteOne: vi.fn(),
+            selectOne: vi.fn(),
+            selectAll: vi.fn()
+        },
+        getUserId: vi.fn(() => 'test-user-id'),
+        info: vi.fn(),
+        warn: vi.fn()
+    } as any;
+}
 
 describe('Complete Observer Pipeline Integration', () => {
     let mockSystem: any;

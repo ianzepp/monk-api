@@ -6,7 +6,7 @@
  */
 
 import { createHash } from 'crypto';
-import { IDataGenerator, GeneratedRecord, DataGeneratorOptions, GeneratorContext, ValidationResult } from '@src/lib/fixtures/types.js';
+import { type IDataGenerator, type GeneratedRecord, type DataGeneratorOptions, type GeneratorContext, type ValidationResult } from '@src/lib/fixtures/types.js';
 
 export abstract class BaseGenerator implements IDataGenerator {
   

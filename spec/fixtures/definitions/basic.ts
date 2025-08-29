@@ -5,7 +5,7 @@
  * Includes realistic data with proper relationships and edge cases.
  */
 
-import { FixtureDefinition } from '@src/lib/fixtures/types.js';
+import { type FixtureDefinition } from '@src/lib/fixtures/types.js';
 
 export const basicFixture: FixtureDefinition = {
   name: 'basic',
