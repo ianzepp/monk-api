@@ -1,42 +1,23 @@
-title: User
-description: System user account for authentication and authorization
-type: object
+name: user
+description: User management schema for tenant authentication and access control
 properties:
-  username:
+  name:
     type: string
-    minLength: 3
-    maxLength: 50
-    pattern: "^[a-zA-Z0-9_-]+$"
-    description: Unique username for login
-  email:
+    minLength: 1
+    maxLength: 100
+    description: Human-readable display name
+    example: "Jane Smith"
+  auth:
     type: string
-    format: email
-    maxLength: 255
-    description: User's email address
-  password_hash:
-    type: string
-    maxLength: 255
-    description: Hashed password (never store plain text)
+    minLength: 2
+    maxLength: 100
+    pattern: "^[a-zA-Z0-9@._-]+$"
+    description: Authentication identifier (username, email, etc.)
+    example: "jane@company.com"
   access:
     type: string
-    enum: ["deny", "read", "edit", "full", "root"]
-    default: "read"
-    description: API access level for operations
-  is_active:
-    type: boolean
-    default: true
-    description: Whether the user account is active
-  domain_id:
-    type: string
-    format: uuid
-    description: Associated domain ID
-    x-paas:
-      foreign_key:
-        table: domains
-        column: id
-        on_delete: restrict
-required:
-  - username
-  - email
-  - access
-  - domain_id
+    enum: [root, full, edit, read, deny]
+    default: read
+    description: User access level within tenant
+required: [name, auth, access]
+additionalProperties: false

@@ -13,7 +13,8 @@ export const basicFixture: FixtureDefinition = {
   
   schemas: {
     'account': 'spec/fixtures/schema/account.yaml',
-    'contact': 'spec/fixtures/schema/contact.yaml'
+    'contact': 'spec/fixtures/schema/contact.yaml',
+    'user': 'src/metadata/user.yaml'
   },
   
   data_generators: {
@@ -33,6 +34,26 @@ export const basicFixture: FixtureDefinition = {
         realistic_names: true,
         link_to_accounts: true
       }
+    },
+    'user': {
+      generator: 'predefined',
+      data: [
+        {
+          "name": "Root User",
+          "auth": "root", 
+          "access": "root"
+        },
+        {
+          "name": "Jane Smith",
+          "auth": "jane",
+          "access": "full"
+        },
+        {
+          "name": "John Doe", 
+          "auth": "john@company.com",
+          "access": "edit"
+        }
+      ]
     }
   },
   
@@ -47,7 +68,7 @@ export const basicFixture: FixtureDefinition = {
   ],
   
   metadata: {
-    total_records: 30, // Will be updated with actual counts during generation
+    total_records: 33, // Will be updated with actual counts during generation
     complexity: 'simple',
     use_cases: [
       'basic_testing', 
@@ -59,7 +80,8 @@ export const basicFixture: FixtureDefinition = {
     estimated_build_time_seconds: 5,
     record_counts: {
       'account': 10,
-      'contact': 20
+      'contact': 20,
+      'user': 3
     }
   }
 };

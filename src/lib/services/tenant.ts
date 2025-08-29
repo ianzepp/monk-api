@@ -19,6 +19,7 @@ import { createHash } from 'crypto';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { MonkEnv } from '@src/lib/monk-env.js';
+import { Metabase } from '@src/lib/metabase.js';
 import pg from 'pg';
 
 export interface TenantInfo {
@@ -194,7 +195,10 @@ export class TenantService {
       // Initialize tenant database schema
       await this.initializeTenantSchema(databaseName);
       
-      // Create root user in tenant database
+      // Create user schema via metabase (API-managed user table)
+      await this.createUserSchema(databaseName);
+      
+      // Create root user via API (goes through observer pipeline)
       await this.createRootUser(databaseName, tenantName);
       
       // Insert tenant record in auth database
@@ -448,11 +452,11 @@ export class TenantService {
 
     const { name, database } = tenantResult.rows[0];
 
-    // Look up user in the tenant's database
+    // Look up user in the tenant's database (using new auth field)
     const tenantDb = DatabaseConnection.getTenantPool(database);
     const userResult = await tenantDb.query(
-      'SELECT id, tenant_name, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE tenant_name = $1 AND name = $2 AND trashed_at IS NULL AND deleted_at IS NULL',
-      [tenant, username]
+      'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+      [username]
     );
 
     if (!userResult.rows || userResult.rows.length === 0) {
@@ -467,7 +471,7 @@ export class TenantService {
       user_id: user.id,
       tenant: name,
       database: database,
-      username: user.name,
+      username: user.auth,
       access: user.access,
       access_read: user.access_read || [],
       access_edit: user.access_edit || [],
@@ -558,6 +562,39 @@ export class TenantService {
   }
 
   /**
+   * Create user schema via metabase for API-managed user table
+   */
+  private static async createUserSchema(databaseName: string): Promise<void> {
+    // Create a system context for metabase operations
+    const mockContext = {
+      env: { JWT_SECRET: MonkEnv.get('JWT_SECRET') },
+      get: () => undefined,
+      set: () => undefined
+    };
+    
+    // Set up database context for the tenant
+    DatabaseConnection.setDatabaseForRequest(mockContext as any, databaseName);
+    
+    const metabase = new Metabase(mockContext as any);
+    
+    try {
+      // Load user schema YAML from source directory
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      const userSchemaPath = join(__dirname, '../../metadata/user.yaml');
+      const userSchemaYaml = readFileSync(userSchemaPath, 'utf8');
+      
+      // Create user schema via metabase (proper DDL generation + schema registration)
+      await metabase.createOne('schema', userSchemaYaml);
+      
+      logger.info('User schema created via metabase', { databaseName });
+    } catch (error) {
+      logger.warn('Failed to create user schema via metabase', { databaseName, error });
+      throw new Error(`Failed to create user schema: ${error}`);
+    }
+  }
+  
+  /**
    * Create root user in tenant database
    */
   private static async createRootUser(databaseName: string, tenantName: string): Promise<void> {
@@ -566,9 +603,10 @@ export class TenantService {
     try {
       await client.connect();
       
+      // Create root user using new user table format (no tenant_name column)
       await client.query(
-        'INSERT INTO users (tenant_name, name, access) VALUES ($1, $2, $3)',
-        [tenantName, 'root', 'root']
+        'INSERT INTO users (name, auth, access) VALUES ($1, $2, $3)',
+        ['Root User', 'root', 'root']
       );
     } finally {
       await client.end();
