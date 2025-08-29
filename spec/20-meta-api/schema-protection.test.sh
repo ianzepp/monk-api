@@ -54,7 +54,7 @@ echo
 
 # Test 1: Verify recursive discovery works (baseline)
 print_step "Verifying recursive schema discovery works"
-if SCHEMA_LIST=$(monk data list schema 2>&1); then
+if SCHEMA_LIST=$(monk data select schema 2>&1); then
     SCHEMA_COUNT=$(echo "$SCHEMA_LIST" | jq 'length')
     print_success "Schema discovery working ($SCHEMA_COUNT schemas found)"
 else
@@ -144,7 +144,7 @@ fi
 
 # Test 4c: Verify schemas are discoverable
 print_step "  Verifying updated schema discovery"
-if UPDATED_LIST=$(monk data list schema 2>&1); then
+if UPDATED_LIST=$(monk data select schema 2>&1); then
     UPDATED_COUNT=$(echo "$UPDATED_LIST" | jq 'length')
     ACCOUNT_EXISTS=$(echo "$UPDATED_LIST" | jq '[.[] | select(.name == "account")] | length')
     

@@ -29,6 +29,14 @@ print_error() { echo -e "${RED}✗ $1${NC}" >&2; }
 print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 
+# Compilation must pass before running tests
+print_info "Running TypeScript compilation before tests..."
+if ! npm run compile; then
+    print_error "TypeScript compilation failed - cannot run tests"
+    exit 1
+fi
+print_success "TypeScript compilation successful"
+
 # Parse arguments
 pattern_or_path="$1"
 verbose_flag=""

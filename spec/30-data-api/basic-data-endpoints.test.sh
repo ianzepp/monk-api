@@ -47,7 +47,7 @@ fi
 
 # Test 1: List data from non-existent schema (should fail gracefully)
 print_step "Testing data list on non-existent schema"
-if monk data list nonexistent_schema_12345 > /dev/null 2>&1; then
+if monk data select nonexistent_schema_12345 > /dev/null 2>&1; then
     print_error "Non-existent schema data list returned success (should fail)"
     exit 1
 else
@@ -56,7 +56,7 @@ fi
 
 # Test 2: Get specific record from non-existent schema
 print_step "Testing data get on non-existent schema"
-if monk data get nonexistent_schema_12345 fake-uuid > /dev/null 2>&1; then
+if monk data select nonexistent_schema_12345 fake-uuid > /dev/null 2>&1; then
     print_error "Non-existent schema data get returned success (should fail)"
     exit 1
 else

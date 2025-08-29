@@ -96,13 +96,13 @@ fi
 
 print_step "Test Case 2: Meta API Operations"
 # Example: List schemas (should return empty array for new tenant)
-if schema_result=$(monk meta list 2>/dev/null); then
-    print_success "Meta list schemas successful"
+if schema_result=$(monk meta select users2>/dev/null); then
+    print_success "Meta select schema "users" successful"
     if [ "$CLI_VERBOSE" = "true" ]; then
         print_info "Schema result: $schema_result"
     fi
 else
-    print_error "Meta list schemas failed"
+    print_error "Meta select schema "users" failed"
     cleanup_auth
     exit 1
 fi
@@ -139,7 +139,7 @@ if create_test_user "alice" "read"; then
         print_success "Switched to alice user"
         
         # Alice can read but not create (this should work)
-        if monk meta list >/dev/null 2>&1; then
+        if monk data select schema>/dev/null 2>&1; then
             print_success "Alice can read schemas"
         else
             print_error "Alice cannot read schemas"
@@ -165,7 +165,7 @@ print_step "Test Case 6: Custom Test Logic"
 # Add your specific test cases here
 # Examples:
 # - monk data create user_schema < test-data.json
-# - monk data list user_schema
+# - monk data select user_schema
 # - monk meta create schema < schema.yaml
 # - etc.
 
@@ -225,11 +225,11 @@ NEW TEST FILE PATTERN:
 
 3. Authenticate and run tests:
    auth_as_user "root"              # Authenticate as root
-   monk meta list                   # Test as root
+   monk data select users                # Test as root
    
    create_test_user "alice" "read"  # Create limited user
    auth_as_user "alice"             # Switch to alice
-   monk meta list                   # Test as alice
+   monk data select users             # Test as alice
    
    auth_as_user "root"              # Switch back to root
 

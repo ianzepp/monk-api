@@ -54,7 +54,7 @@ echo
 
 # Test 1: Check initial schema state (should only have system schema)
 print_step "Checking initial schema state"
-if INITIAL_SCHEMAS=$(monk data list schema 2>&1); then
+if INITIAL_SCHEMAS=$(monk data select schema); then
     INITIAL_COUNT=$(echo "$INITIAL_SCHEMAS" | jq 'length')
     SYSTEM_SCHEMA_EXISTS=$(echo "$INITIAL_SCHEMAS" | jq '[.[] | select(.name == "schema")] | length')
     
@@ -87,7 +87,7 @@ echo
 
 # Test 3: Verify account schema appears in data API
 print_step "Verifying account schema appears in data API"
-if UPDATED_SCHEMAS=$(monk data list schema 2>&1); then
+if UPDATED_SCHEMAS=$(monk data select schema); then
     UPDATED_COUNT=$(echo "$UPDATED_SCHEMAS" | jq 'length')
     ACCOUNT_SCHEMA_EXISTS=$(echo "$UPDATED_SCHEMAS" | jq '[.[] | select(.name == "account")] | length')
     
@@ -132,7 +132,7 @@ echo
 
 # Test 5: Verify account schema disappears from data API
 print_step "Verifying account schema disappears from data API"
-if FINAL_SCHEMAS=$(monk data list schema 2>&1); then
+if FINAL_SCHEMAS=$(monk data select schema); then
     FINAL_COUNT=$(echo "$FINAL_SCHEMAS" | jq 'length')
     ACCOUNT_SCHEMA_GONE=$(echo "$FINAL_SCHEMAS" | jq '[.[] | select(.name == "account")] | length')
     
