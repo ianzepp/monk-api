@@ -76,8 +76,8 @@ DELETE /api/data/:schema/:id    → Returns: {}
 ```bash
 # CLI automatically handles array/object conversion
 monk data create account        # Wraps {} in [] for API
-monk data list account          # Calls array endpoint  
-monk data get account <id>      # Calls object endpoint
+monk data select account          # Calls array endpoint  
+monk data select account <id>      # Calls object endpoint
 monk data update account <id>   # Calls object endpoint
 ```
 
@@ -112,7 +112,7 @@ monk tenant use my-tenant
 monk auth login my-tenant root
 
 # 4. Use authenticated endpoints
-monk data list schema
+monk data select schema
 ```
 
 ## Data API
@@ -545,7 +545,7 @@ cat tests/schemas/new-schema.yaml | monk meta create schema
 
 # 3. Test CRUD operations
 echo '{"field": "value"}' | monk data create new-schema
-monk data list new-schema
+monk data select new-schema
 ```
 
 ### Testing API Endpoints

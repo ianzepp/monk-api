@@ -221,7 +221,7 @@ fi
 echo
 
 # Step 6: Verify record count
-FINAL_COUNT1_RESULT=$(monk data list "$SCHEMA1")
+FINAL_COUNT1_RESULT=$(monk data select "$SCHEMA1")
 FINAL_COUNT1=$(echo "$FINAL_COUNT1_RESULT" | jq 'length')
 print_info "Records in relaxed schema: $FINAL_COUNT1"
 echo
@@ -242,7 +242,7 @@ echo
 # Step 8: Add data that would violate future strict constraints
 print_step "Adding data that would violate future strict constraints"
 if RECORD3_ID=$(echo "$LOOSE_DATA1" | monk data create "$SCHEMA2"); then
-    RECORD3_NAME=$(monk data get "$SCHEMA2" "$RECORD3_ID")
+    RECORD3_NAME=$(monk data select "$SCHEMA2" "$RECORD3_ID")
     print_success "Loose data created: $RECORD3_NAME (ID: $RECORD3_ID)"
 else
     print_error "Failed to create loose data"
@@ -252,7 +252,7 @@ echo
 # Step 9: Add data that meets future strict constraints
 print_step "Adding data that will meet future strict constraints"
 if RECORD4_ID=$(echo "$LOOSE_DATA2" | monk data create "$SCHEMA2"); then
-    RECORD4_NAME=$(monk data get "$SCHEMA2" "$RECORD4_ID")
+    RECORD4_NAME=$(monk data select "$SCHEMA2" "$RECORD4_ID")
     print_success "Future-compliant data created: $RECORD4_NAME (ID: $RECORD4_ID)"
 else
     print_error "Failed to create future-compliant data"
@@ -280,7 +280,7 @@ echo
 # Step 12: Test that valid data still works
 print_step "Testing that valid data still works under strict constraints"
 if RECORD5_ID=$(echo "$VALID_TIGHT_DATA" | monk data create "$SCHEMA2"); then
-    RECORD5_NAME=$(monk data get "$SCHEMA2" "$RECORD5_ID")
+    RECORD5_NAME=$(monk data select "$SCHEMA2" "$RECORD5_ID")
     print_success "Valid data accepted under strict constraints: $RECORD5_NAME"
 else
     print_error "Valid data rejected under strict constraints"
@@ -288,7 +288,7 @@ fi
 echo
 
 # Step 13: Verify final record counts
-FINAL_COUNT2=$(monk data list "$SCHEMA2")
+FINAL_COUNT2=$(monk data select "$SCHEMA2")
 print_info "Records in strict schema: $FINAL_COUNT2"
 echo
 

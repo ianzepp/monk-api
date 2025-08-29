@@ -287,7 +287,7 @@ monk server list                       # Server configuration
 monk auth token                         # Authentication
 
 # Enable verbose CLI output
-CLI_VERBOSE=true monk data list schema
+CLI_VERBOSE=true monk data select schema
 
 # Check monk configuration
 cat ~/.config/monk/server.json

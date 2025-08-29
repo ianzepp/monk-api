@@ -83,12 +83,12 @@ monk tenant create my-app
 monk auth login my-app root
 
 # Schema management  
-cat user.yaml | monk meta create schema
-monk meta list schema
+cat contacts.yaml | monk meta create schema
+monk meta select schema contacts
 
 # Data operations
-echo '{"name":"John","email":"john@example.com"}' | monk data create user
-monk data list user
+echo '{"name":"John","email":"john@example.com"}' | monk data create contacts
+monk data select contacts
 ```
 
 ## Observer Development

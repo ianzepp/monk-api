@@ -108,7 +108,7 @@ echo
 
 # Step 1: Check initial state
 print_step "Checking initial schema count"
-INITIAL_SCHEMAS_RESULT=$(monk meta list schema)
+INITIAL_SCHEMAS_RESULT=$(monk data select schema)
 INITIAL_SCHEMAS=$(echo "$INITIAL_SCHEMAS_RESULT" | jq -r '.[].name' | xargs)
 INITIAL_COUNT=$(echo "$INITIAL_SCHEMAS_RESULT" | jq 'length')
 print_info "Initial schemas ($INITIAL_COUNT): $INITIAL_SCHEMAS"
@@ -144,7 +144,7 @@ echo
 
 # Step 4: Verify both schemas exist
 print_step "Verifying both schemas are registered"
-UPDATED_SCHEMAS_RESULT=$(monk meta list schema)
+UPDATED_SCHEMAS_RESULT=$(monk data select schema)
 UPDATED_SCHEMAS=$(echo "$UPDATED_SCHEMAS_RESULT" | jq -r '.[].name' | xargs)
 UPDATED_COUNT=$(echo "$UPDATED_SCHEMAS_RESULT" | jq 'length')
 print_info "Updated schemas ($UPDATED_COUNT): $UPDATED_SCHEMAS"
@@ -203,7 +203,7 @@ echo
 
 # Step 8: Verify complete cleanup
 print_step "Verifying complete cleanup"
-FINAL_SCHEMAS_RESULT=$(monk meta list schema)
+FINAL_SCHEMAS_RESULT=$(monk data select schema)
 FINAL_SCHEMAS=$(echo "$FINAL_SCHEMAS_RESULT" | jq -r '.[].name' | xargs)
 FINAL_COUNT=$(echo "$FINAL_SCHEMAS_RESULT" | jq 'length')
 print_info "Final schemas ($FINAL_COUNT): $FINAL_SCHEMAS"

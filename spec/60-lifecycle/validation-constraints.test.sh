@@ -188,7 +188,7 @@ echo
 
 # Step 4: Verify final record count
 print_step "Verifying final record count"
-FINAL_LIST_RESULT=$(monk data list "$SCHEMA_NAME")
+FINAL_LIST_RESULT=$(monk data select "$SCHEMA_NAME")
 FINAL_COUNT=$(echo "$FINAL_LIST_RESULT" | jq 'length')
 if [ "$FINAL_COUNT" -eq 2 ]; then
     print_success "Correct record count: $FINAL_COUNT valid records created"

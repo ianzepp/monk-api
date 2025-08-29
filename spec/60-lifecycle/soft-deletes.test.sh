@@ -132,7 +132,7 @@ echo
 
 # Step 3: Verify records are visible normally
 print_step "Verifying records are visible in normal listing"
-NORMAL_LIST=$(monk data list account 2>&1)
+NORMAL_LIST=$(monk data select account 2>&1)
 NORMAL_COUNT=$(echo "$NORMAL_LIST" | jq 'length')
 if [ "$NORMAL_COUNT" -eq 2 ]; then
     print_success "Normal listing shows $NORMAL_COUNT accounts (expected 2)"
@@ -158,7 +158,7 @@ echo
 
 # Step 5: Verify trashed record is hidden from normal listing
 print_step "Verifying trashed record is hidden from normal listing"
-AFTER_TRASH_LIST=$(monk data list account 2>&1)
+AFTER_TRASH_LIST=$(monk data select account 2>&1)
 AFTER_TRASH_COUNT=$(echo "$AFTER_TRASH_LIST" | jq 'length')
 if [ "$AFTER_TRASH_COUNT" -eq 1 ]; then
     print_success "Normal listing shows $AFTER_TRASH_COUNT account (expected 1, trashed record hidden)"

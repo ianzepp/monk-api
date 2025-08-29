@@ -75,12 +75,12 @@ npm run spec:ts unit                   # Unit tests only
 npm run spec:sh 15                     # Authentication tests
 
 # Schema management
-cat schema.yaml | monk meta create schema
-monk meta list schema
+cat contacts.yaml | monk meta create schema
+monk meta select schema contacts
 
 # Data operations (automatic observer pipeline)
 echo '{"name":"test"}' | monk data create users
-monk data list users
+monk data select users
 ```
 
 > **📖 For detailed testing strategies, see [docs/TESTING.md](docs/TESTING.md)**
@@ -205,13 +205,13 @@ monk ping
 #### **Schema Development**
 ```bash
 # Create schema from YAML
-cat schema.yaml | monk meta create schema
+cat contacts.yaml | monk meta create schema
 
-# List schemas
-monk meta list schema
+# Read new schema YAML
+monk meta select schema contacts
 
 # Delete schema
-monk meta delete schema schema-name
+monk meta delete schema contacts
 ```
 
 ### Observer Development
@@ -334,7 +334,7 @@ monk server current
 
 # All subsequent monk commands use selected server
 monk ping                         # Pings staging server
-monk data list account            # Lists from staging database
+monk data select account            # Lists from staging database
 ```
 
 ### **Multi-tenant Architecture**
@@ -487,13 +487,13 @@ npm run spec:sh 15                     # Auth tests
 npm run spec:one spec/path/test.test.ts # Single test
 
 # Schema management
-cat schema.yaml | monk meta create schema
-monk meta list schema
+cat contacts.yaml | monk meta create schema
+monk meta select schema contacts
 
 # Data operations (automatic observer pipeline)
-echo '{"field":"value"}' | monk data create schema
-monk data list schema
-monk data get schema <id>
+echo '{"field":"value"}' | monk data create contacts
+monk data select contacts
+monk data select contacts <id>
 
 # Observer development
 # Create: src/observers/schema/ring/observer.ts
