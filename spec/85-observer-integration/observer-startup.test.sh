@@ -18,7 +18,7 @@ echo
 
 # Test 1: Verify server is running with observer system
 echo "→ Test 1: Server startup with observer system"
-response=$(monk ping 2>&1)
+response=$(monk server ping 2>&1)
 if [[ $response == *"pong:"* ]]; then
     echo "✓ Server running and responding"
 else

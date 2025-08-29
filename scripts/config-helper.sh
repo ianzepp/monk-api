@@ -5,10 +5,10 @@
 # Get configuration file path (local project override takes precedence)
 get_servers_config() {
     # Check for project-local config first (git environments)
-    if [ -f ".config/monk/servers.json" ]; then
-        echo ".config/monk/servers.json"
+    if [ -f ".config/monk/server.json" ]; then
+        echo ".config/monk/server.json"
     else
-        echo "${HOME}/.config/monk/servers.json"
+        echo "${HOME}/.config/monk/server.json"
     fi
 }
 

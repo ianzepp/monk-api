@@ -6,7 +6,13 @@
  * Builds template databases from fixture definitions for fast test setup.
  */
 
+import { logger } from '@src/lib/logger.js';
+import { MonkEnv } from '@src/lib/monk-env.js';
 import { TemplateDatabase } from '@src/lib/fixtures/template-database.js';
+
+// Set up global logger and environment for scripts
+global.logger = logger;
+MonkEnv.loadIntoProcessEnv();
 
 async function buildFixtures(): Promise<void> {
   logger.info('🔨 Building template databases...');

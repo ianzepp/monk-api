@@ -14,6 +14,8 @@ export const basicFixture: FixtureDefinition = {
   schemas: {
     'account': 'spec/fixtures/schema/account.yaml',
     'contact': 'spec/fixtures/schema/contact.yaml'
+    // Note: user schema is managed by tenant initialization, not fixtures
+    // Test fixture schemas are located in spec/fixtures/schema/
   },
   
   data_generators: {
@@ -33,7 +35,9 @@ export const basicFixture: FixtureDefinition = {
         realistic_names: true,
         link_to_accounts: true
       }
-    }
+    },
+    // Note: user data is managed by tenant initialization (creates root user)
+    // All tests use the built-in root user for now
   },
   
   relationships: [
@@ -60,6 +64,7 @@ export const basicFixture: FixtureDefinition = {
     record_counts: {
       'account': 10,
       'contact': 20
+      // Note: user records (1 root user) created by tenant initialization, not fixtures
     }
   }
 };

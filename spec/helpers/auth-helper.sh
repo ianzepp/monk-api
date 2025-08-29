@@ -61,7 +61,7 @@ auth_as_user() {
     fi
 }
 
-# Create additional user in the test tenant
+# Create additional user via API (replaces old direct SQL approach)
 create_test_user() {
     local username="$1"
     local access="${2:-read}"
@@ -71,15 +71,16 @@ create_test_user() {
         return 1
     fi
     
-    print_step "Creating test user: $username (access: $access)"
+    print_step "Creating test user via API: $username (access: $access)"
     
-    # Insert user into the tenant's users table
-    local user_sql="INSERT INTO users (tenant_name, name, access) VALUES ('$TEST_TENANT_NAME', '$username', '$access');"
-    if psql -U "$(whoami)" -d "monk-api\$$TEST_TENANT_NAME" -c "$user_sql" >/dev/null 2>&1; then
-        print_success "User $username created"
+    # Use API to create user (goes through proper observer pipeline)
+    local user_data="{\"tenant_name\": \"$TEST_TENANT_NAME\", \"name\": \"$username\", \"access\": \"$access\"}"
+    
+    if monk data create users <<< "$user_data" >/dev/null 2>&1; then
+        print_success "User $username created via API"
         return 0
     else
-        print_error "Failed to create user $username"
+        print_error "Failed to create user $username via API"
         return 1
     fi
 }
@@ -88,7 +89,7 @@ create_test_user() {
 test_connectivity() {
     print_step "Testing database connectivity"
     local ping_output
-    if ping_output=$(monk ping 2>&1); then
+    if ping_output=$(monk server ping 2>&1); then
         print_success "Database connectivity verified"
         
         # Show ping details in verbose mode

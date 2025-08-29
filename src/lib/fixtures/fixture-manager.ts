@@ -257,11 +257,19 @@ export class FixtureManager {
   private static async loadGenerator(generatorName: string): Promise<IDataGenerator> {
     try {
       // Convert generator name to file path (e.g., 'AccountGenerator' → 'account-generator')
-      const fileName = generatorName
-        .replace(/Generator$/, '')
-        .replace(/([A-Z])/g, '-$1')
-        .toLowerCase()
-        .substring(1) + '-generator';
+      let fileName = generatorName.replace(/Generator$/, '');
+      
+      // Handle different name formats
+      if (fileName.charAt(0) === fileName.charAt(0).toUpperCase()) {
+        // PascalCase: 'AccountGenerator' → 'account-generator'
+        fileName = fileName
+          .replace(/([A-Z])/g, '-$1')
+          .toLowerCase()
+          .substring(1) + '-generator';
+      } else {
+        // lowercase: 'predefined' → 'predefined-generator'
+        fileName = fileName.toLowerCase() + '-generator';
+      }
       
       const generatorPath = join(process.cwd(), `spec/fixtures/generators/${fileName}.ts`);
       

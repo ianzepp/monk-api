@@ -283,14 +283,14 @@ cd cli/src && bashly generate
 
 # Test CLI commands individually
 monk --help                             # Basic CLI functionality
-monk servers list                       # Server configuration
+monk server list                       # Server configuration
 monk auth token                         # Authentication
 
 # Enable verbose CLI output
 CLI_VERBOSE=true monk data list schema
 
 # Check monk configuration
-cat ~/.config/monk/servers.json
+cat ~/.config/monk/server.json
 cat ~/.config/monk/env.json
 ```
 
@@ -325,7 +325,7 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 - Always regenerate CLI after bashly.yml changes: `bashly generate`
 - Use `CLI_VERBOSE=true` for detailed command output
 - Test commands individually before batch testing
-- Check `~/.config/monk/servers.json` for server configuration
+- Check `~/.config/monk/server.json` for server configuration
 
 ### Observer Development
 - **All Database operations** automatically run observer pipeline with 10-ring execution
@@ -377,7 +377,7 @@ npm run spec:one spec/integration/performance.test.ts
 # Verify all configuration files
 ls -la ~/.config/monk/
 cat ~/.config/monk/env.json | jq .
-cat ~/.config/monk/servers.json | jq .
+cat ~/.config/monk/server.json | jq .
 
 # Test configuration loading
 node -e "

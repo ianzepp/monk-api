@@ -78,8 +78,8 @@ export class AuthService {
         // Look up user in the tenant's database
         const tenantDb = DatabaseConnection.getTenantPool(database);
         const userResult = await tenantDb.query(
-            'SELECT id, tenant_name, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE tenant_name = $1 AND name = $2 AND trashed_at IS NULL AND deleted_at IS NULL',
-            [tenant, username]
+            'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+            [username]
         );
 
         if (!userResult.rows || userResult.rows.length === 0) {

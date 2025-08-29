@@ -47,7 +47,7 @@ describe('15-authentication: Basic Auth Flow', () => {
       expect(tenantInfo).toBeDefined();
       expect(tenantInfo.name).toBe(tenantName);
       expect(tenantInfo.host).toBe('localhost');
-      expect(tenantInfo.database).toMatch(/^monk-api\$/);
+      expect(tenantInfo.database).toMatch(/^tenant_[a-f0-9]{16}$/);
       
       logger.info(`✅ Tenant created: ${tenantInfo.database}`);
     }, 15000);
@@ -149,7 +149,7 @@ describe('15-authentication: Basic Auth Flow', () => {
     }, 5000);
 
     test('should be able to create authenticated system context', async () => {
-      // This tests the equivalent of "monk ping" - authenticated connectivity
+      // This tests the equivalent of "monk server ping" - authenticated connectivity
       
       // Create mock context similar to test-tenant.ts helper
       const mockContext = {

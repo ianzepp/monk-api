@@ -67,7 +67,7 @@ fi
 
 # Test 3: Test Authenticated Ping
 print_step "Test 3: Test authenticated ping"
-if monk ping >/dev/null 2>&1; then
+if monk server ping >/dev/null 2>&1; then
     print_success "Authenticated ping successful"
 else
     print_error "Authenticated ping failed"

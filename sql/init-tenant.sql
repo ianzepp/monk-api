@@ -4,7 +4,6 @@
 -- Schema registry table to store JSON Schema definitions
 CREATE TABLE "schema" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"tenant" text,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
 	"access_edit" uuid[] DEFAULT '{}'::uuid[],
 	"access_full" uuid[] DEFAULT '{}'::uuid[],
@@ -26,7 +25,6 @@ CREATE TABLE "schema" (
 -- Column registry table to store individual field metadata  
 CREATE TABLE "columns" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"tenant" text,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
 	"access_edit" uuid[] DEFAULT '{}'::uuid[],
 	"access_full" uuid[] DEFAULT '{}'::uuid[],
@@ -50,11 +48,11 @@ ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schema_name_fk"
     FOREIGN KEY ("schema_name") REFERENCES "public"."schema"("name") 
     ON DELETE no action ON UPDATE no action;
 
--- Users table to store tenant users and their access levels
+-- Users table to store tenant users and their access levels (1-db-per-tenant)
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"tenant_name" text NOT NULL,
 	"name" text NOT NULL,
+	"auth" text NOT NULL,
 	"access" text CHECK ("access" IN ('root', 'full', 'edit', 'read', 'deny')) NOT NULL,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
 	"access_edit" uuid[] DEFAULT '{}'::uuid[],
@@ -64,7 +62,7 @@ CREATE TABLE "users" (
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"trashed_at" timestamp,
 	"deleted_at" timestamp,
-	CONSTRAINT "users_tenant_name_name_unique" UNIQUE("tenant_name", "name")
+	CONSTRAINT "users_auth_unique" UNIQUE("auth")
 );
 
 -- Ping logging table to record all ping requests
@@ -141,5 +139,87 @@ VALUES (
         "additionalProperties": false
     }',
     '7',
+    null
+);
+
+-- Insert user schema registration to enable user API access
+-- This allows GET /api/data/user and GET /api/meta/schema/user to work
+INSERT INTO "schema" (name, table_name, status, definition, field_count, yaml_checksum)
+VALUES (
+    'user',
+    'users',
+    'system',
+    '{
+        "type": "object",
+        "title": "User",
+        "description": "User management schema for tenant databases",
+        "properties": {
+            "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Unique user identifier",
+                "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 100,
+                "description": "Human-readable display name for the user",
+                "example": "Jane Smith"
+            },
+            "auth": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 255,
+                "description": "Authentication identifier (username, email, etc.)",
+                "example": "jane@company.com"
+            },
+            "access": {
+                "type": "string",
+                "enum": ["root", "full", "edit", "read", "deny"],
+                "description": "Access level for the user",
+                "example": "full"
+            },
+            "access_read": {
+                "type": "array",
+                "description": "UUIDs of records the user can read",
+                "items": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "default": []
+            },
+            "access_edit": {
+                "type": "array",
+                "description": "UUIDs of records the user can edit",
+                "items": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "default": []
+            },
+            "access_full": {
+                "type": "array",
+                "description": "UUIDs of records the user has full access to",
+                "items": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "default": []
+            },
+            "access_deny": {
+                "type": "array",
+                "description": "UUIDs of records the user is denied access to",
+                "items": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "default": []
+            }
+        },
+        "required": ["id", "name", "auth", "access"],
+        "additionalProperties": false
+    }',
+    '8',
     null
 );

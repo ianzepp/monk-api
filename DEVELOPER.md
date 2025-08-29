@@ -57,7 +57,7 @@ npm run fixtures:build basic
 The `npm run autoinstall` script handles all setup steps automatically:
 - Verifies PostgreSQL connectivity
 - Creates auth database (`monk-api-auth`) with tenant table
-- Configures local server in `~/.config/monk/servers.json`
+- Configures local server in `~/.config/monk/server.json`
 - Creates test tenant (`local-test`) for development
 - Compiles TypeScript and verifies complete setup
 
@@ -66,7 +66,7 @@ The `npm run autoinstall` script handles all setup steps automatically:
 ```bash
 # Development
 npm run start:dev                       # API server with auto-reload
-monk servers use local                  # Switch to local server
+monk server use local                  # Switch to local server
 monk auth login local-test root         # Authenticate
 
 # Testing
@@ -318,19 +318,19 @@ beforeAll(async () => {
 ## 4. Configuration Management
 
 ### **User Configuration** (`~/.config/monk/`)
-- **servers.json**: Server registry with current server selection
+- **server.json**: Server registry with current server selection
 - **env.json**: Environment variables (DATABASE_URL, NODE_ENV, PORT)  
 - **test.json**: Test run history and configuration
 
 ### **Server Management**
 ```bash
 # Add servers
-monk servers add local localhost:9001
-monk servers add staging api-staging.example.com:443
+monk server add local localhost:9001
+monk server add staging api-staging.example.com:443
 
 # Switch servers (persistent)
-monk servers use staging
-monk servers current
+monk server use staging
+monk server current
 
 # All subsequent monk commands use selected server
 monk ping                         # Pings staging server
@@ -352,7 +352,7 @@ monk data list account            # Lists from staging database
   "PORT": "9001"
 }
 
-# ~/.config/monk/servers.json  
+# ~/.config/monk/server.json  
 {
   "servers": {
     "local": {
@@ -477,7 +477,7 @@ npm run autoinstall
 
 # Development  
 npm run start:dev
-monk servers use local
+monk server use local
 monk auth login local-test root
 
 # Testing
@@ -510,7 +510,7 @@ cd cli/src && bashly generate
 ```
 
 ### **Key Configuration Files**
-- **~/.config/monk/servers.json**: Server registry and selection
+- **~/.config/monk/server.json**: Server registry and selection
 - **~/.config/monk/env.json**: Environment variables  
 - **~/.config/monk/test.json**: Test run history and configuration
 - **cli/src/bashly.yml**: CLI command definitions
