@@ -2,6 +2,15 @@
 import { MonkEnv } from '@src/lib/monk-env.js';
 MonkEnv.loadIntoProcessEnv();
 
+// Import package.json for version info
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+
 // Set up global logger instance
 import { logger } from '@src/lib/logger.js';
 global.logger = logger;
@@ -43,10 +52,8 @@ import FtpSizePost from '@src/routes/ftp/size.js';                        // POS
 import FtpModifyTimePost from '@src/routes/ftp/modify-time.js';           // POST /ftp/modify-time
 
 // Special endpoints
-import HealthGet from '@src/routes/health/GET.js';                        // GET /health
 import BulkPost from '@src/routes/bulk/POST.js';                          // POST /api/bulk
 import FindSchemaPost from '@src/routes/find/:schema/POST.js';            // POST /api/find/:schema
-import PingGet from '@src/routes/ping/GET.js';                            // GET /ping
 
 // Create Hono app
 const app = new Hono();
@@ -69,12 +76,10 @@ app.use('*', async (c, next) => {
 app.get('/', (c) => {
     return createSuccessResponse(c, {
         name: 'Monk API (Hono)',
-        version: '1.0.0',
+        version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
-            health: '/health',
             auth: '/auth/*',
-            ping: '/ping',
             data: '/api/data/:schema[/:id] (protected)',
             meta: '/api/meta/* (protected)',
             find: '/api/find/:schema (protected)',
@@ -84,9 +89,7 @@ app.get('/', (c) => {
     });
 });
 
-// Health check endpoint
-app.get('/health', HealthGet);
-app.get('/ping', PingGet);                                          // GET /ping
+// Root endpoint provides API info (no database access required)
 
 // Auth API middleware
 app.use('/auth/*', responseJsonMiddleware);      // Auth API: JSON responses

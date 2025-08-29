@@ -223,9 +223,9 @@ fi
 
 print_info "API server process running (PID: $API_SERVER_PID)"
 
-# Test direct connectivity before CLI ping
+# Test direct connectivity before CLI configuration
 print_info "Testing direct HTTP connectivity..."
-if curl -s "http://localhost:$TEST_PORT/health" >/dev/null 2>&1; then
+if curl -s "http://localhost:$TEST_PORT/" >/dev/null 2>&1; then
     print_success "Direct HTTP connectivity works"
 else
     print_error "Direct HTTP connectivity failed"
