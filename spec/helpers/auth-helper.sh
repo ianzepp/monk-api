@@ -88,7 +88,7 @@ create_test_user() {
 test_connectivity() {
     print_step "Testing database connectivity"
     local ping_output
-    if ping_output=$(monk ping 2>&1); then
+    if ping_output=$(monk server ping 2>&1); then
         print_success "Database connectivity verified"
         
         # Show ping details in verbose mode

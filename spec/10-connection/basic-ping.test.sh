@@ -45,9 +45,11 @@ print_info "Using test tenant: $TEST_TENANT_NAME"
 print_info "No authentication required for ping endpoint"
 echo
 
+print_info "Ping result: $(monk server ping)"
+
 # Test 1: Basic Ping (no auth)
 print_step "Test 1: Basic server ping"
-if monk ping >/dev/null 2>&1; then
+if monk server ping >/dev/null 2>&1; then
     print_success "Server ping successful"
 else
     print_error "Server ping failed"
@@ -56,7 +58,7 @@ fi
 
 # Test 2: Verbose Ping with Output
 print_step "Test 2: Verbose ping with response details"
-ping_output=$(monk ping 2>/dev/null || echo "ping failed")
+ping_output=$(monk server ping 2>/dev/null || echo "ping failed")
 if echo "$ping_output" | grep -q "pong:"; then
     print_success "Ping response received"
     print_info "Response: $ping_output"

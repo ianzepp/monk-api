@@ -86,7 +86,7 @@ echo
 
 print_step "Test Case 1: Basic API Operations"
 # Example: Test ping (already authenticated)
-if monk ping >/dev/null 2>&1; then
+if monk server ping >/dev/null 2>&1; then
     print_success "Ping test passed"
 else
     print_error "Ping test failed"

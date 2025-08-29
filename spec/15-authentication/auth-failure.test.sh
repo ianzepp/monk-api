@@ -124,7 +124,7 @@ echo
 print_info "Testing that unauthenticated operations are properly blocked"
 
 # Test ping without auth
-if ! test_unauthenticated_operation "ping" "monk ping"; then
+if ! test_unauthenticated_operation "ping" "monk server ping"; then
     exit 1
 fi
 

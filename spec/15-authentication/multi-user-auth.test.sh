@@ -77,7 +77,7 @@ if auth_as_user "test-read-user"; then
     print_success "Read user authentication successful"
     
     # Verify read access works
-    if monk ping >/dev/null 2>&1; then
+    if monk server ping >/dev/null 2>&1; then
         print_success "Read user can access system (ping successful)"
     else
         print_error "Read user cannot access system"
@@ -103,7 +103,7 @@ if auth_as_user "test-edit-user"; then
     print_success "Edit user authentication successful"
     
     # Verify edit access works
-    if monk ping >/dev/null 2>&1; then
+    if monk server ping >/dev/null 2>&1; then
         print_success "Edit user can access system (ping successful)"
     else
         print_error "Edit user cannot access system"
@@ -129,7 +129,7 @@ if auth_as_user "test-full-user"; then
     print_success "Full user authentication successful"
     
     # Verify full access works
-    if monk ping >/dev/null 2>&1; then
+    if monk server ping >/dev/null 2>&1; then
         print_success "Full user can access system (ping successful)"
     else
         print_error "Full user cannot access system"

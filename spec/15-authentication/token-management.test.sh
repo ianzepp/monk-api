@@ -115,7 +115,7 @@ fi
 print_step "Test 3: Verify token persists across multiple commands"
 
 # Execute multiple commands to ensure token persistence
-commands=("monk ping" "monk auth status" "monk auth info")
+commands=("monk server ping" "monk auth status" "monk auth info")
 for cmd in "${commands[@]}"; do
     if eval "$cmd" >/dev/null 2>&1; then
         print_success "Token persisted for: $cmd"
@@ -231,7 +231,7 @@ if auth_as_user "root"; then
         print_success "New token created after re-authentication"
         
         # Verify it works for operations
-        if monk ping >/dev/null 2>&1; then
+        if monk server ping >/dev/null 2>&1; then
             print_success "Recreated token works for authenticated operations"
         else
             print_error "Recreated token doesn't work for operations"
