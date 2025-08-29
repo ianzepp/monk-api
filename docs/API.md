@@ -225,12 +225,14 @@ Three-tier access pattern:
 The Meta API handles YAML schema definitions and DDL generation:
 
 #### Create Schema
+
+**Preferred: URL Name Pattern**
 ```bash
-POST /api/meta/schema
+POST /api/meta/schema/:name[?force=true]
 Content-Type: application/yaml
 Authorization: Bearer <jwt>
 
-name: users
+# Schema name comes from URL, YAML can be template
 title: User Management
 description: User account information
 type: object
@@ -248,6 +250,25 @@ required:
   - name
   - email
 ```
+
+**Legacy: YAML Name Pattern**
+```bash
+POST /api/meta/schema
+Content-Type: application/yaml
+Authorization: Bearer <jwt>
+
+# Schema name comes from YAML title field
+name: users
+title: User Management  
+description: User account information
+type: object
+# ... rest of schema
+```
+
+**Conflict Resolution:**
+- URL name takes precedence when both patterns are used
+- Add `?force=true` to override YAML title conflicts
+- Without force, conflicts return 409 error
 
 #### List Schemas
 ```bash
@@ -564,11 +585,21 @@ curl -X POST http://localhost:9001/api/data/users \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{"name": "Test User", "email": "test@example.com"}'
 
-# Schema operations
+# Schema operations (preferred URL pattern)
+curl -X POST http://localhost:9001/api/meta/schema/test-schema \
+  -H "Content-Type: application/yaml" \
+  -H "Authorization: Bearer $(monk auth token)" \
+  -d 'title: Test Schema
+type: object
+properties:
+  name: {type: string}'
+
+# Schema operations (legacy pattern)
 curl -X POST http://localhost:9001/api/meta/schema \
   -H "Content-Type: application/yaml" \
   -H "Authorization: Bearer $(monk auth token)" \
-  -d 'name: test-schema...'
+  -d 'name: test-schema
+title: Test Schema...'
 ```
 
 ### Error Handling

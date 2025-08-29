@@ -115,7 +115,8 @@ app.use('/api/*', systemContextMiddleware);
 app.use('/api/meta/*', responseYamlMiddleware);  // Meta API: YAML responses  
 
 // Meta API routes (clean barrel export organization)
-app.post('/api/meta/schema', metaRoutes.SchemaPost);                // Create schema
+app.post('/api/meta/schema/:name', metaRoutes.SchemaPost);          // Create schema (with URL name)
+app.post('/api/meta/schema', metaRoutes.SchemaPost);                // Create schema (legacy, YAML name only)
 app.get('/api/meta/schema/:name', metaRoutes.SchemaGet);            // Get schema
 app.put('/api/meta/schema/:name', metaRoutes.SchemaPut);            // Update schema
 app.delete('/api/meta/schema/:name', metaRoutes.SchemaDelete);      // Delete schema
