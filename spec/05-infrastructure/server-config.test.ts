@@ -53,7 +53,7 @@ describe('05-infrastructure: TypeScript Configuration', () => {
     });
 
     test('should have servers configuration file', () => {
-      const configPath = path.join(os.homedir(), '.config/monk/servers.json');
+      const configPath = path.join(os.homedir(), '.config/monk/server.json');
       
       if (existsSync(configPath)) {
         // Should be valid JSON

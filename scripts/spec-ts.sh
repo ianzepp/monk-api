@@ -40,7 +40,7 @@ if [[ "$2" == "--verbose" ]] || [[ "$1" == "--verbose" && -z "$pattern_or_path" 
     fi
 fi
 
-# Smart resolution function
+# Smart resolution function with enhanced range pattern support
 resolve_typescript_tests() {
     local pattern_or_path="$1"
     
@@ -50,8 +50,31 @@ resolve_typescript_tests() {
     elif [[ -f "$pattern_or_path" && "$pattern_or_path" == *.test.ts ]]; then
         # Exact file match: single test
         echo "$pattern_or_path"
+    elif [[ "$pattern_or_path" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+        # Range pattern detected (e.g., 00-09, 15-75, 00-50)
+        local start_num="${BASH_REMATCH[1]}"
+        local end_num="${BASH_REMATCH[2]}"
+        
+        # Find all test files and filter by numeric range
+        find spec/ -name "*.test.ts" | while read -r file; do
+            # Extract series number from path (e.g., spec/05-infrastructure/test.ts -> 05)
+            if [[ "$file" =~ /([0-9]+)- ]]; then
+                series_num="${BASH_REMATCH[1]}"
+                # Remove leading zeros for numeric comparison
+                series_num=$((10#$series_num))
+                start_num=$((10#$start_num))
+                end_num=$((10#$end_num))
+                
+                if [[ $series_num -ge $start_num && $series_num -le $end_num ]]; then
+                    echo "$file"
+                fi
+            fi
+        done | sort
+    elif [[ "$pattern_or_path" =~ ^[0-9]+$ ]]; then
+        # Single number - match series (e.g., 05 matches 05-infrastructure)
+        find spec/ -name "*.test.ts" | grep -E "/${pattern_or_path}[0-9]*-" | sort
     else
-        # Pattern: find matching files
+        # Original string pattern matching
         find spec/ -name "*.test.ts" | grep "$pattern_or_path" | sort
     fi
 }
@@ -73,6 +96,10 @@ if [[ -z "$pattern_or_path" ]]; then
     print_info "Running all TypeScript tests ($test_count files)"
 elif [[ -f "$pattern_or_path" ]]; then
     print_info "Running single TypeScript test: $pattern_or_path"
+elif [[ "$pattern_or_path" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+    start_num="${BASH_REMATCH[1]}"
+    end_num="${BASH_REMATCH[2]}"
+    print_info "Running TypeScript tests in range ${start_num}-${end_num} ($test_count files)"
 else
     print_info "Running TypeScript tests matching '$pattern_or_path' ($test_count files)"
 fi

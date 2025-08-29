@@ -68,8 +68,8 @@ fi
 
 # Test 3: Server Availability Check
 print_step "Test 3: Verify server endpoint accessibility"
-if monk servers current >/dev/null 2>&1; then
-    current_server=$(monk servers current 2>/dev/null | grep "Endpoint:" | awk '{print $2}')
+if monk server current >/dev/null 2>&1; then
+    current_server=$(monk server current 2>/dev/null | grep "Endpoint:" | awk '{print $2}')
     print_success "Server endpoint accessible"
     print_info "Endpoint: $current_server"
 else

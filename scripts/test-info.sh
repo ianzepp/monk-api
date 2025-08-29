@@ -89,7 +89,7 @@ if command -v jq >/dev/null 2>&1 && [ -f "$servers_config" ]; then
 else
     echo "Current Server: not configured"
     echo "Server URL: not configured"  
-    echo "Server Status: servers.json not found"
+    echo "Server Status: server.json not found"
 fi
 
 echo

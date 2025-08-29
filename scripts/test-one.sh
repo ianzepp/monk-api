@@ -107,6 +107,11 @@ test_dir=$(dirname "$test_file")
 print_info "Running single test: $test_name"
 echo
 
+# Create temporary CLI config directory
+TEST_CLI_CONFIG="/tmp/monk-test-$$"
+export MONK_CLI_CONFIG_DIR="$TEST_CLI_CONFIG"
+print_info "Using isolated CLI config: $TEST_CLI_CONFIG"
+
 # Check if this is an infrastructure test that doesn't need tenant setup
 if [[ "$test_file" == */0[0-9]-* ]]; then
     print_info "Infrastructure test detected - running without tenant setup"
@@ -134,16 +139,10 @@ fi
 echo "=== Test Environment Setup ==="
 
 TEST_TENANT_NAME="test-$(date +%s)"
-
 print_info "Creating test tenant: $TEST_TENANT_NAME"
 
 # Set up isolated test environment
 print_info "Setting up isolated test environment..."
-
-# Create temporary CLI config directory
-TEST_CLI_CONFIG="/tmp/monk-test-$$"
-export MONK_CLI_CONFIG_DIR="$TEST_CLI_CONFIG"
-print_info "Using isolated CLI config: $TEST_CLI_CONFIG"
 
 # Verify global monk command is available
 if ! command -v monk >/dev/null 2>&1; then

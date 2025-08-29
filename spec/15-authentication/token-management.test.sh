@@ -298,57 +298,57 @@ for access_type in "${user_types[@]}"; do
     fi
 done
 
-# Test 10: Verify Token Storage in servers.json
-print_step "Test 10: Verify token storage in ~/.config/monk/servers.json"
+# Test 10: Verify Token Storage in server.json
+print_step "Test 10: Verify token storage in ~/.config/monk/server.json"
 
-# Check if servers.json exists
-servers_file="$HOME/.config/monk/servers.json"
+# Check if server.json exists
+servers_file="$HOME/.config/monk/server.json"
 if [ -f "$servers_file" ]; then
-    print_success "Found servers.json file: $servers_file"
+    print_success "Found server.json file: $servers_file"
     
     # Check if file contains token-related data
     if grep -q "token\|jwt\|auth" "$servers_file" 2>/dev/null; then
-        print_success "servers.json contains authentication data"
+        print_success "server.json contains authentication data"
     else
-        print_info "servers.json exists but may not contain token data"
+        print_info "server.json exists but may not contain token data"
     fi
     
     # Verify file is readable
     if [ -r "$servers_file" ]; then
-        print_success "servers.json file is readable"
+        print_success "server.json file is readable"
     else
-        print_error "servers.json file is not readable"
+        print_error "server.json file is not readable"
         exit 1
     fi
 else
-    print_info "servers.json not found - may be created after first authentication"
+    print_info "server.json not found - may be created after first authentication"
 fi
 
-# Test token persistence after logout and check servers.json
+# Test token persistence after logout and check server.json
 logout_user
 if [ -f "$servers_file" ]; then
-    print_success "servers.json persists after logout (token may be cleared)"
+    print_success "server.json persists after logout (token may be cleared)"
 else
-    print_info "servers.json not present after logout"
+    print_info "server.json not present after logout"
 fi
 
-# Re-authenticate and verify servers.json is updated
+# Re-authenticate and verify server.json is updated
 if auth_as_user "root"; then
     if [ -f "$servers_file" ]; then
-        print_success "servers.json present after re-authentication"
+        print_success "server.json present after re-authentication"
         
         # Check if file was recently modified (within last minute)
         if [ "$(find "$servers_file" -mmin -1 2>/dev/null)" ]; then
-            print_success "servers.json was recently updated with new authentication"
+            print_success "server.json was recently updated with new authentication"
         else
-            print_info "servers.json exists but modification time unclear"
+            print_info "server.json exists but modification time unclear"
         fi
     else
-        print_error "servers.json not created after authentication"
+        print_error "server.json not created after authentication"
         exit 1
     fi
 else
-    print_error "Re-authentication failed for servers.json test"
+    print_error "Re-authentication failed for server.json test"
     exit 1
 fi
 
@@ -366,5 +366,5 @@ fi
 echo
 print_success "All token management tests passed!"
 print_info "JWT token lifecycle management working correctly"
-print_info "Token storage in ~/.config/monk/servers.json verified"
+print_info "Token storage in ~/.config/monk/server.json verified"
 print_info "Test tenant $TEST_TENANT_NAME cleanup handled by test-one.sh"
