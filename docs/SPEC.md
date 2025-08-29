@@ -113,17 +113,30 @@ curl -X POST http://localhost:9001/api/data/account \
 ```
 spec/
 ├── 05-infrastructure/        # Core connectivity tests
+├── 10-19-security/          # Security testing series
+│   ├── 11-security-sql/     # SQL injection protection
+│   ├── 12-security-api/     # API endpoint security
+│   ├── 13-security-comprehensive/ # Multi-vector security testing
+│   ├── 14-18/               # Reserved for future security categories
+│   └── 19-security-integration/ # Security integration testing
 ├── 15-authentication/        # Auth workflow tests
 ├── 20-meta-api/              # Schema management tests
 ├── 30-data-api/              # Data operation tests
-├── unit/                     # Unit tests (no database)
-│   ├── filter/              # Filter operator tests
-│   ├── ftp/                 # FTP middleware tests
-│   └── observers/           # Observer system tests
-├── integration/              # Integration tests (database required)
-├── security/                 # SQL injection tests
-├── fixtures/                 # NEW: Template system tests
-└── helpers/                  # Test utilities
+├── 40-49-unit/              # Unit testing series
+│   ├── 41-database/         # Database connection tests
+│   ├── 42-tenant/           # Tenant service tests
+│   ├── 43-schema/           # Reserved for schema/metabase unit tests
+│   ├── 44-filter/           # Filter system tests
+│   ├── 45-observers/        # Observer system tests
+│   ├── 46-ftp/              # FTP middleware tests
+│   └── 47-49/               # Reserved for future unit test categories
+├── 50-59-integration/       # Integration testing series
+│   ├── 50-integration/      # Core integration tests
+│   ├── 51-integration-observers/ # Observer pipeline integration
+│   ├── 52-integration-ftp/  # FTP middleware integration
+│   └── 53-59/               # Reserved for future integration categories
+├── fixtures/                # Template system tests
+└── helpers/                 # Test utilities
 ```
 
 ### Running TypeScript Tests
@@ -132,33 +145,53 @@ spec/
 # All tests
 npm run spec:ts
 
-# Category-specific
-npm run spec:ts unit            # Unit tests only
-npm run spec:ts integration     # Integration tests only
-npm run spec:ts 15              # Auth tests
+# Series-specific  
+npm run spec:ts 11              # SQL injection security tests
+npm run spec:ts 12              # API endpoint security tests
+npm run spec:ts 15              # Authentication workflow tests
+npm run spec:ts 41              # Database unit tests
+npm run spec:ts 44              # Filter system tests
+npm run spec:ts 45              # Observer system tests
+npm run spec:ts 46              # FTP middleware tests
 
-# Component-specific
-npm run spec:ts unit/filter     # Filter tests (162 tests)
-npm run spec:ts unit/ftp        # FTP tests (93+ tests)
-npm run spec:ts unit/observers  # Observer tests
+# Range patterns
+npm run spec:ts 10-19           # All security tests
+npm run spec:ts 40-49           # All unit tests
+npm run spec:ts 20-30           # All API tests
 
 # Individual file
-npm run spec:ts spec/unit/filter/logical-operators.test.ts
+npm run spec:ts spec/44-filter/logical-operators.test.ts
 ```
 
 ### Test Categories
 
-#### Unit Tests (No Database)
-- **Purpose**: Test pure logic, utilities, parsing
+#### Security Tests (10-19 Series)
+- **Purpose**: Security validation and injection protection
+- **Coverage**: SQL injection, API security, comprehensive attack testing
+- **Series**: 
+  - **11-security-sql**: SQL injection protection
+  - **12-security-api**: API endpoint security
+  - **13-security-comprehensive**: Multi-vector security testing
+
+#### Unit Tests (40-49 Series) 
+- **Purpose**: Test pure logic, utilities, parsing (no database)
 - **Count**: 210+ tests
 - **Speed**: Fast (no external dependencies)
-- **Coverage**: Filter operators, FTP utilities, observer logic
+- **Series**:
+  - **41-database**: Database connection and pool management
+  - **42-tenant**: Tenant service and multi-tenant routing
+  - **44-filter**: Filter operators and query building
+  - **45-observers**: Observer system and pipeline logic
+  - **46-ftp**: FTP middleware and file operations
 
-#### Integration Tests (Database Required)
-- **Purpose**: Test database operations, API endpoints
+#### Integration Tests (50-59 Series)
+- **Purpose**: Test database operations, API endpoints, multi-component workflows
 - **Count**: 100+ tests
 - **Speed**: Slower (database setup/teardown)
-- **Coverage**: Complete workflows, observer pipeline, FTP endpoints
+- **Series**:
+  - **50-integration**: Core integration workflows
+  - **51-integration-observers**: Observer pipeline integration
+  - **52-integration-ftp**: FTP middleware integration
 
 ### Writing TypeScript Tests
 
