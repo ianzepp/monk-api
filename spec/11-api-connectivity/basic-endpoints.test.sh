@@ -1,11 +1,11 @@
 #!/bin/bash
-# API Connectivity Test - 01 Series
+# API Connectivity Test - 11 Series
 #
 # Tests basic API server connectivity using no-auth endpoints.
-# Validates that the API server is reachable and responding correctly
-# without requiring authentication or tenant setup.
+# Validates that the API server is reachable and responding correctly.
+# Server startup and tenant setup handled by test framework.
 #
-# NOTE: This is an infrastructure test - runs without tenant setup
+# NOTE: This is a 1x series test - requires API server and tenant setup
 
 set -e
 
