@@ -66,15 +66,12 @@ main() {
         exit 1
     fi
     
-    # Step 3: Copy non-TypeScript assets
-    log_info "Copying metadata files..."
-    if [[ -d "src/metadata" ]]; then
-        mkdir -p "dist/metadata"
-        cp -r src/metadata/* dist/metadata/
-        log_info "Copied $(find src/metadata -name '*.yaml' | wc -l | tr -d ' ') YAML files"
-    else
-        log_warn "No src/metadata directory found - skipping metadata copy"
-    fi
+    # Step 3: Copy non-TypeScript assets  
+    # Note: src/metadata was removed - test fixture schemas are in spec/fixtures/schema/
+    log_info "Checking for additional assets to copy..."
+    
+    # Future: Add other asset copying here if needed
+    log_info "No additional assets to copy"
     
     # Step 4: Copy SQL files if they exist
     if [[ -d "sql" ]]; then

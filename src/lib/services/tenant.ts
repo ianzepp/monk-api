@@ -580,14 +580,12 @@ export class TenantService {
     const metabase = new Metabase(mockContext as any);
     
     try {
-      // Load user schema YAML from source directory
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = dirname(__filename);
-      const userSchemaPath = join(__dirname, '../../metadata/user.yaml');
-      const userSchemaYaml = readFileSync(userSchemaPath, 'utf8');
+      // Note: This method is disabled because user schema is now SQL-managed via init-tenant.sql
+      // Test fixture schemas are located in spec/fixtures/schema/ (not src/metadata)
+      // const userSchemaYaml = '...';
       
       // Create user schema via metabase (proper DDL generation + schema registration)
-      await metabase.createOne('schema', userSchemaYaml);
+      // await metabase.createOne('schema', userSchemaYaml);
       
       logger.info('User schema created via metabase', { databaseName });
     } catch (error) {
