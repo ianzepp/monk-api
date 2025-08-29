@@ -141,3 +141,85 @@ VALUES (
     '7',
     null
 );
+
+-- Insert user schema registration to enable user API access
+-- This allows GET /api/data/user and GET /api/meta/schema/user to work
+INSERT INTO "schema" (name, table_name, status, definition, field_count, yaml_checksum)
+VALUES (
+    'user',
+    'users',
+    'system',
+    '{
+        "type": "object",
+        "title": "User",
+        "description": "User management schema for tenant databases",
+        "properties": {
+            "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Unique user identifier",
+                "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 100,
+                "description": "Human-readable display name for the user",
+                "example": "Jane Smith"
+            },
+            "auth": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 255,
+                "description": "Authentication identifier (username, email, etc.)",
+                "example": "jane@company.com"
+            },
+            "access": {
+                "type": "string",
+                "enum": ["root", "full", "edit", "read", "deny"],
+                "description": "Access level for the user",
+                "example": "full"
+            },
+            "access_read": {
+                "type": "array",
+                "description": "UUIDs of records the user can read",
+                "items": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "default": []
+            },
+            "access_edit": {
+                "type": "array",
+                "description": "UUIDs of records the user can edit",
+                "items": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "default": []
+            },
+            "access_full": {
+                "type": "array",
+                "description": "UUIDs of records the user has full access to",
+                "items": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "default": []
+            },
+            "access_deny": {
+                "type": "array",
+                "description": "UUIDs of records the user is denied access to",
+                "items": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "default": []
+            }
+        },
+        "required": ["id", "name", "auth", "access"],
+        "additionalProperties": false
+    }',
+    '8',
+    null
+);

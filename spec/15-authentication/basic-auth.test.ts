@@ -47,7 +47,7 @@ describe('15-authentication: Basic Auth Flow', () => {
       expect(tenantInfo).toBeDefined();
       expect(tenantInfo.name).toBe(tenantName);
       expect(tenantInfo.host).toBe('localhost');
-      expect(tenantInfo.database).toMatch(/^monk-api\$/);
+      expect(tenantInfo.database).toMatch(/^tenant_[a-f0-9]{16}$/);
       
       logger.info(`✅ Tenant created: ${tenantInfo.database}`);
     }, 15000);

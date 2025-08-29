@@ -375,8 +375,8 @@ export class Metabase {
         
         const insertQuery = `
             INSERT INTO ${builtins.TABLE_NAMES.schema} 
-            (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, tenant, access_read, access_edit, access_full, access_deny)
-            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), NULL, '{}', '{}', '{}', '{}')
+            (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
+            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), '{}', '{}', '{}', '{}')
             RETURNING *
         `;
         

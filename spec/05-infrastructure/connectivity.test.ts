@@ -46,7 +46,7 @@ describe('05-infrastructure: Basic Connectivity', () => {
 
     test('should have correct tenant context', async () => {
       // Verify tenant database follows naming convention
-      expect(testContext.tenant.database).toMatch(/^monk-api\$test-\d+-[a-f0-9]+$/);
+      expect(testContext.tenant.database).toMatch(/^tenant_[a-f0-9]{16}$/);
       expect(testContext.tenant.name).toMatch(/^test-\d+-[a-f0-9]+$/);
       expect(testContext.tenant.host).toBe('localhost');
       

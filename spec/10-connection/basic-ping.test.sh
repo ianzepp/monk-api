@@ -79,7 +79,7 @@ fi
 
 # Test 3: JSON server ping with detailed metadata
 print_step "Test 3: JSON server ping with connectivity metadata"
-ping_json=$(monk server ping --json 2>/dev/null || echo '{"error": "ping failed"}')
+ping_json=$(monk --json server ping 2>/dev/null || echo '{"error": "ping failed"}')
 if echo "$ping_json" | jq -e '.success' >/dev/null 2>&1; then
     print_success "Server ping JSON response received"
     
