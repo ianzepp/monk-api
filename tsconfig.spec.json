@@ -1,12 +1,29 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "noEmit": true,
     "rootDir": ".",
+    "baseUrl": ".",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowJs": true,
     "types": ["node", "vitest"],
-    "declaration": false,
-    "declarationMap": false,
-    "sourceMap": false
+    "paths": {
+      "@src/*": ["src/*"],
+      "@lib/*": ["src/lib/*"],
+      "@observers/*": ["src/observers/*"],
+      "@spec/*": ["spec/*"],
+      "@sql/*": ["sql/*"]
+    }
   },
   "include": [
     "src/**/*",
