@@ -196,7 +196,9 @@ export class TenantService {
       await this.initializeTenantSchema(databaseName);
       
       // Create user schema via metabase (API-managed user table)
-      await this.createUserSchema(databaseName);
+      // DISABLED: User table is already created by init-tenant.sql during initializeTenantSchema()
+      // This was redundant schema creation that caused mockContext architectural issues
+      // await this.createUserSchema(databaseName);
       
       // Create root user via API (goes through observer pipeline)
       await this.createRootUser(databaseName, tenantName);

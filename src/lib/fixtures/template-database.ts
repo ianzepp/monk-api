@@ -326,10 +326,10 @@ export class TemplateDatabase {
       const initSql = readFileSync(sqlPath, 'utf8');
       await client.query(initSql);
       
-      // Create root user in template database (using 'template' as tenant name)
+      // Create root user in template database (new user table format)
       await client.query(
-        'INSERT INTO users (tenant_name, name, access) VALUES ($1, $2, $3)',
-        ['template', 'root', 'root']
+        'INSERT INTO users (name, auth, access) VALUES ($1, $2, $3)',
+        ['Root User', 'root', 'root']
       );
       
     } finally {
