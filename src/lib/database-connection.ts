@@ -39,7 +39,7 @@ export class DatabaseConnection {
     }
 
     /**
-     * Get the base database pool (for master/auth database)
+     * Get the base database pool (for master/registry database)
      * Creates exactly ONE pool for the entire application
      */
     static getBasePool(): pg.Pool {

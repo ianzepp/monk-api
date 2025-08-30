@@ -40,7 +40,7 @@ node --version && npm --version        # Check runtime versions
 ```bash
 # Test database layers systematically
 psql -d postgres -c "SELECT version();"                    # PostgreSQL server
-psql -d monk -c "SELECT COUNT(*) FROM tenants;"   # Auth database
+psql -d monk -c "SELECT COUNT(*) FROM tenants;"   # Registry database
 psql -d tenant_1234 -c "SELECT COUNT(*) FROM schema;" # Tenant database
 
 # Test Node.js database connections

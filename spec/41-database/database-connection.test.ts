@@ -35,20 +35,20 @@ describe('Direct Database Connection Test', () => {
     }
   });
 
-  test('should connect to auth database directly', async () => {
-    // Connect to auth database using DatabaseConnection
+  test('should connect to registry database directly', async () => {
+    // Connect to registry database using DatabaseConnection
     const authPool = DatabaseConnection.getBasePool();
     
-    console.info(`🔍 Testing base pool for auth database`);
+    console.info(`🔍 Testing base pool for registry database`);
     
     try {
-      // Test the auth database connection
+      // Test the registry database connection
       const client = await authPool.connect();
       
       // Try to query tenant table
       const result = await client.query('SELECT name, host FROM tenant LIMIT 5');
       
-      console.info(`✅ Auth database connected successfully, found ${result.rows.length} tenants`);
+      console.info(`✅ Registry database connected successfully, found ${result.rows.length} tenants`);
       console.info(`🏢 Tenants:`, result.rows.map(r => r.name));
       
       client.release();
@@ -57,7 +57,7 @@ describe('Direct Database Connection Test', () => {
       expect(Array.isArray(result.rows)).toBe(true);
       
     } catch (error) {
-      console.error(`❌ Auth database connection failed:`, error);
+      console.error(`❌ Registry database connection failed:`, error);
       throw error;
     } finally {
       // Note: Don't end shared pool - it's managed by DatabaseConnection

@@ -25,7 +25,7 @@ describe('05-infrastructure: TypeScript Configuration', () => {
     });
 
     test('should have valid database connection configuration', () => {
-      // Test that TenantService can access auth database configuration
+      // Test that TenantService can access registry database configuration
       expect(TenantService).toBeDefined();
       
       // This implicitly tests that database configuration is accessible
@@ -83,7 +83,7 @@ describe('05-infrastructure: TypeScript Configuration', () => {
   });
 
   describe('Database Configuration', () => {
-    test('should be able to connect to auth database', async () => {
+    test('should be able to connect to registry database', async () => {
       // Test that we can check for existing tenants (tests auth DB connection)
       try {
         const tenants = await TenantService.listTenants();

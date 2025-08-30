@@ -69,14 +69,14 @@ export class TenantService {
   // ==========================================
 
   /**
-   * Get auth database pool (monk database)
+   * Get registry database pool (monk database)
    */
   private static getAuthPool(): pg.Pool {
     return DatabaseConnection.getTenantPool('monk');
   }
 
   /**
-   * Create one-time client for auth database operations
+   * Create one-time client for registry database operations
    */
   private static createAuthClient(): pg.Client {
     return DatabaseConnection.createClient('monk');
@@ -202,7 +202,7 @@ export class TenantService {
       // Create root user via API (goes through observer pipeline)
       await this.createRootUser(databaseName, tenantName);
       
-      // Insert tenant record in auth database
+      // Insert tenant record in registry database
       await this.insertTenantRecord(tenantName, host, databaseName);
       
       return {
@@ -322,7 +322,7 @@ export class TenantService {
       throw new Error(`Tenant '${tenantName}' does not exist`);
     }
     
-    // Remove tenant record from auth database
+    // Remove tenant record from registry database
     const authClient = this.createAuthClient();
     try {
       await authClient.connect();
@@ -613,7 +613,7 @@ export class TenantService {
   }
 
   /**
-   * Insert tenant record in auth database
+   * Insert tenant record in registry database
    */
   private static async insertTenantRecord(tenantName: string, host: string, databaseName: string): Promise<void> {
     const client = this.createAuthClient();

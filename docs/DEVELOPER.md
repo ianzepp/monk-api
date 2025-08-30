@@ -53,7 +53,7 @@ npm run spec:sh spec/10-connection/basic-ping.test.sh
 
 The `npm run autoinstall` script handles all setup steps automatically:
 - Verifies PostgreSQL connectivity
-- Creates auth database (`monk`) with tenant table
+- Creates registry database (`monk`) with tenant table
 - Configures local server in `~/.config/monk/server.json`
 - Creates test tenant (`local-test`) for development
 - Compiles TypeScript and verifies complete setup
@@ -96,7 +96,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Observer-Driven Architecture**: Universal business logic execution through ring-based observer pipeline
 - **Path-Based Route Structure**: Intuitive file organization where file path = URL path
 - **Middleware Pattern**: System context and response formatting through clean middleware chain
-- **Multi-tenant**: JWT-based database routing with auth database validation
+- **Multi-tenant**: JWT-based database routing with registry database validation
 - **High Performance**: Schema caching, bulk operations, selective ring execution, parameterized SQL
 - **Security**: SQL injection prevention, ACL enforcement, soft deletes, observer-based validation and audit
 
@@ -502,12 +502,9 @@ cd cli/src && bashly generate
 ```
 
 ### **Key Configuration Files**
-- **~/.config/monk/server.json**: Server registry and selection
-- **~/.config/monk/env.json**: Environment variables  
-- **~/.config/monk/test.json**: Test run history and configuration
 - **cli/src/bashly.yml**: CLI command definitions
-- **sql/init-auth.sql**: Auth database schema
-- **sql/init-tenant.sql**: Tenant database schema
+- **sql/init-monk-registry.sql**: Monk registry database
+- **sql/init-tenant.sql**: Tenant database setup
 
 ### **Common Development Tasks**
 

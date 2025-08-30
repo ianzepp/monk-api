@@ -17,7 +17,7 @@ set -e
 # What this script does:
 # 1. Verify PostgreSQL connection (prerequisite check)
 # 2. Compile TypeScript code
-# 3. Initialize auth database with proper schema
+# 3. Initialize registry database with proper schema
 # 4. Configure local server settings
 # 5. Create and configure test tenant
 # 6. Verify complete setup by testing connectivity
@@ -244,54 +244,54 @@ print_header "Step 4: Initialize Auth Database"
 
 # Handle --clean-auth option
 if [ "$CLEAN_AUTH" = true ]; then
-    print_step "Clean auth requested - removing existing auth database..."
+    print_step "Clean auth requested - removing existing registry database..."
     if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
         if dropdb monk 2>/dev/null; then
-            print_success "Existing auth database removed"
+            print_success "Existing registry database removed"
         else
-            handle_error "Auth database removal" "Check PostgreSQL permissions for dropping databases"
+            handle_error "Registry database removal" "Check PostgreSQL permissions for dropping databases"
         fi
     else
-        print_info "Auth database did not exist"
+        print_info "Registry database did not exist"
     fi
 fi
 
-print_step "Checking if auth database exists..."
+print_step "Checking if registry database exists..."
 
-# Check if auth database already exists
+# Check if registry database already exists
 if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
-    print_info "Auth database already exists"
+    print_info "Registry database already exists"
     
     # Check if it has the required tables
     if psql -d monk -c "SELECT 1 FROM tenant LIMIT 1;" >/dev/null 2>&1; then
-        print_success "Auth database properly initialized"
+        print_success "Registry database properly initialized"
         # Show tenant count
         tenant_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenant;" 2>/dev/null | xargs)
         print_info "Existing tenants: $tenant_count"
     else
-        print_warning "Auth database exists but may need initialization"
-        print_step "Re-initializing auth database schema..."
-        if psql -d monk -f sql/init-auth.sql >/dev/null 2>&1; then
-            print_success "Auth database schema updated"
+        print_warning "Registry database exists but may need initialization"
+        print_step "Re-initializing registry database schema..."
+        if psql -d monk -f sql/init-monk-registry.sql >/dev/null 2>&1; then
+            print_success "Registry database schema updated"
         else
-            handle_error "Auth database schema initialization" "Check sql/init-auth.sql file exists and PostgreSQL permissions"
+            handle_error "Registry database schema initialization" "Check sql/init-monk-registry.sql file exists and PostgreSQL permissions"
         fi
     fi
 else
-    print_step "Creating auth database..."
+    print_step "Creating registry database..."
     if createdb monk 2>/dev/null; then
-        print_success "Auth database created"
+        print_success "Registry database created"
     else
-        handle_error "Auth database creation" "Check PostgreSQL permissions and that createdb command is available"
+        handle_error "Registry database creation" "Check PostgreSQL permissions and that createdb command is available"
     fi
     
-    print_step "Initializing auth database schema..."
-    if psql -d monk -f sql/init-auth.sql >/dev/null 2>&1; then
-        print_success "Auth database schema initialized"
+    print_step "Initializing registry database schema..."
+    if psql -d monk -f sql/init-monk-registry.sql >/dev/null 2>&1; then
+        print_success "Registry database schema initialized"
         print_info "Created tenant table with indexes and triggers"
         print_info "Added default system tenant"
     else
-        handle_error "Auth database schema initialization" "Check sql/init-auth.sql file exists and PostgreSQL permissions"
+        handle_error "Registry database schema initialization" "Check sql/init-monk-registry.sql file exists and PostgreSQL permissions"
     fi
 fi
 
@@ -301,7 +301,7 @@ print_success "Monk API setup completed successfully!"
 echo
 print_info "Environment ready for development:"
 print_info "• PostgreSQL: Connected and configured"
-print_info "• Auth database: Initialized with schema"
+print_info "• Registry database: Initialized with schema"
 print_info "• TypeScript: Compiled and ready"
 print_info "• Local server: http://localhost:9001"
 echo

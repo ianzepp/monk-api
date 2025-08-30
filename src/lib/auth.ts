@@ -26,7 +26,7 @@ export class AuthService {
         return process.env['JWT_SECRET'] || 'developer-jwt';
     }
 
-    // Get persistent auth database connection
+    // Get persistent registry database connection
     private static getAuthDatabase(): pg.Pool {
         // Use centralized database connection to monk database
         return DatabaseConnection.getTenantPool('monk');
