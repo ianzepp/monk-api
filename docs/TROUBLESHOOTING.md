@@ -363,9 +363,8 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 # Monitor observer execution times
 npm run start:dev                       # Watch for timing logs
 
-# Test with large datasets
-npm run fixtures:build performance      # Build performance fixtures
-npm run spec:one spec/integration/performance.test.ts
+# Test with integration tests
+npm run spec:ts integration             # Run integration test suite
 
 # Database query analysis
 # Enable PostgreSQL query logging if needed
