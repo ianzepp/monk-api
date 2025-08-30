@@ -316,7 +316,7 @@ await testContext.metabase.createOne('account', accountJson);
 
 // Manual data creation
 for (let i = 0; i < 10; i++) {
-  await testContext.database.createOne('account', {...});
+  await testContext.database.createOne('accounts', {...});
 }`,
       newCode: `// Data automatically available via fixture
 // Use testContext.helpers.getRecordCount('account') to verify`,

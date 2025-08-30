@@ -50,12 +50,12 @@ describe('20-meta-api: Schema Operations', () => {
     test('should create account schema from JSON successfully', async () => {
       logger.info('🔧 Creating account schema from JSON');
       
-      const result = await testContext.metabase.createOne('account', accountJson);
+      const result = await testContext.metabase.createOne('accounts', accountJson);
       
       expect(result).toBeDefined();
       
       // Should return the created schema information
-      expect(result.name).toBe('account');
+      expect(result.name).toBe('accounts');
       expect(result.created).toBe(true);
       
       logger.info('✅ Account schema created successfully');
@@ -64,10 +64,10 @@ describe('20-meta-api: Schema Operations', () => {
     test('should create contact schema from JSON successfully', async () => {
       logger.info('🔧 Creating contact schema from JSON');
       
-      const result = await testContext.metabase.createOne('contact', contactJson);
+      const result = await testContext.metabase.createOne('contacts', contactJson);
       
       expect(result).toBeDefined();
-      expect(result.name).toBe('contact');
+      expect(result.name).toBe('contacts');
       expect(result.created).toBe(true);
       
       logger.info('✅ Contact schema created successfully');
@@ -78,7 +78,7 @@ describe('20-meta-api: Schema Operations', () => {
     test('should retrieve account schema as JSON', async () => {
       logger.info('🔍 Retrieving account schema as JSON');
       
-      const retrievedJson = await testContext.metabase.selectOne('account');
+      const retrievedJson = await testContext.metabase.selectOne('accounts');
       
       expect(retrievedJson).toBeDefined();
       expect(typeof retrievedJson).toBe('string');
@@ -108,7 +108,7 @@ describe('20-meta-api: Schema Operations', () => {
     test('should retrieve contact schema as JSON', async () => {
       logger.info('🔍 Retrieving contact schema as JSON');
       
-      const retrievedJson = await testContext.metabase.selectOne('contact');
+      const retrievedJson = await testContext.metabase.selectOne('contacts');
       
       expect(retrievedJson).toBeDefined();
       expect(typeof retrievedJson).toBe('string');

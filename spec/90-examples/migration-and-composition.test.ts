@@ -31,10 +31,10 @@ describe('Migration Utilities Examples', () => {
         
         // Manual schema loading
         const accountJson = await readFile('account.json', 'utf-8');
-        await testContext.metabase.createOne('account', accountJson);
+        await testContext.metabase.createOne('accounts', accountJson);
         
         // Manual data creation
-        await testContext.database.createOne('account', {
+        await testContext.database.createOne('accounts', {
           name: 'Test User',
           email: 'test@example.com'
         });
@@ -62,11 +62,11 @@ describe('Migration Utilities Examples', () => {
           
           // Load schemas manually
           const accountJson = await readFile('schema/account.json', 'utf-8');
-          await testContext.metabase.createOne('account', accountJson);
+          await testContext.metabase.createOne('accounts', accountJson);
           
           // Create test data manually
           for (let i = 0; i < 10; i++) {
-            await testContext.database.createOne('account', {
+            await testContext.database.createOne('accounts', {
               name: \`User \${i}\`,
               email: \`user\${i}@example.com\`
             });
@@ -74,7 +74,7 @@ describe('Migration Utilities Examples', () => {
         });
         
         test('should work with accounts', async () => {
-          const accounts = await testContext.database.selectAny('account');
+          const accounts = await testContext.database.selectAny('accounts');
           expect(accounts.length).toBeGreaterThan(0);
         });
       });
@@ -159,8 +159,8 @@ describe('Multi-Fixture Composition Examples', () => {
     });
 
     expect(context.fixtureName).toBe('basic+user-management');
-    expect(context.availableSchemas).toContain('account');
-    expect(context.availableSchemas).toContain('contact');
+    expect(context.availableSchemas).toContain('accounts');
+    expect(context.availableSchemas).toContain('contacts');
     expect(context.availableSchemas).toContain('user');
     expect(context.availableSchemas).toContain('role');
     
@@ -174,8 +174,8 @@ describe('Multi-Fixture Composition Examples', () => {
     });
 
     expect(context.fixtureName).toBe('basic');
-    expect(context.availableSchemas).toContain('account');
-    expect(context.availableSchemas).toContain('contact');
+    expect(context.availableSchemas).toContain('accounts');
+    expect(context.availableSchemas).toContain('contacts');
   });
 
   test('should throw error for empty fixture list', async () => {
@@ -198,8 +198,8 @@ describe('Complex Composition Scenarios', () => {
     const schemas = context.availableSchemas;
     
     // From basic
-    expect(schemas).toContain('account');
-    expect(schemas).toContain('contact');
+    expect(schemas).toContain('accounts');
+    expect(schemas).toContain('contacts');
     
     // From ecommerce  
     expect(schemas).toContain('product');
@@ -218,7 +218,7 @@ describe('Complex Composition Scenarios', () => {
 
   test('should support helper methods across all schemas', async () => {
     // Test helpers work with schemas from different fixtures
-    expect(context.helpers.hasSchema('account')).toBe(true); // basic
+    expect(context.helpers.hasSchema('accounts')).toBe(true); // basic
     expect(context.helpers.hasSchema('product')).toBe(true); // ecommerce  
     expect(context.helpers.hasSchema('user')).toBe(true);    // user-management
     
@@ -237,10 +237,10 @@ describe('Migration Workflow Examples', () => {
         testContext = await createTestContext(tenantManager.tenant!, 'root');
         
         const accountJson = await readFile('account.json', 'utf-8');
-        await testContext.metabase.createOne('account', accountJson);
+        await testContext.metabase.createOne('accounts', accountJson);
         
         for (let i = 0; i < 5; i++) {
-          await testContext.database.createOne('account', { name: 'User' + i });
+          await testContext.database.createOne('accounts', { name: 'User' + i });
         }
       });
     `;
@@ -272,7 +272,7 @@ describe('Migration Workflow Examples', () => {
         
         // Load multiple schemas
         const accountJson = await readFile('account.json', 'utf-8');
-        await testContext.metabase.createOne('account', accountJson);
+        await testContext.metabase.createOne('accounts', accountJson);
         
         const productJson = await readFile('product.json', 'utf-8');
         await testContext.metabase.createOne('product', productJson);
@@ -282,7 +282,7 @@ describe('Migration Workflow Examples', () => {
         
         // Create lots of test data
         for (let i = 0; i < 50; i++) {
-          await testContext.database.createOne('account', {...});
+          await testContext.database.createOne('accounts', {...});
           await testContext.database.createOne('product', {...});
           await testContext.database.createOne('user', {...});
         }

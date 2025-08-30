@@ -132,7 +132,7 @@ export class TenantService {
       await client.connect();
       
       const result = await client.query(
-        'SELECT COUNT(*) as count FROM tenant WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+        'SELECT COUNT(*) as count FROM tenants WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
         [tenantName]
       );
       
@@ -238,7 +238,7 @@ export class TenantService {
     try {
       await authClient.connect();
       await authClient.query(
-        'UPDATE tenant SET trashed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NULL',
+        'UPDATE tenants SET trashed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NULL',
         [tenantName]
       );
     } finally {
@@ -256,7 +256,7 @@ export class TenantService {
     try {
       await authClient.connect();
       const result = await authClient.query(
-        'UPDATE tenant SET trashed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NOT NULL',
+        'UPDATE tenants SET trashed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NOT NULL',
         [tenantName]
       );
       
@@ -290,7 +290,7 @@ export class TenantService {
       
       const result = await authClient.query(`
         SELECT name, database, host, created_at, updated_at, trashed_at, deleted_at
-        FROM tenant 
+        FROM tenants 
         ${whereClause}
         ORDER BY created_at DESC
       `);
@@ -328,7 +328,7 @@ export class TenantService {
     try {
       await authClient.connect();
       await authClient.query(
-        'DELETE FROM tenant WHERE name = $1',
+        'DELETE FROM tenants WHERE name = $1',
         [tenantName]
       );
     } catch (error) {
@@ -357,7 +357,7 @@ export class TenantService {
       await client.connect();
       
       const result = await client.query(
-        'SELECT id, name, host, database, created_at, updated_at, trashed_at, deleted_at FROM tenant WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
+        'SELECT id, name, host, database, created_at, updated_at, trashed_at, deleted_at FROM tenants WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
       );
       
       return result.rows.map(row => ({
@@ -384,7 +384,7 @@ export class TenantService {
       await client.connect();
       
       const result = await client.query(
-        'SELECT id, name, host, database FROM tenant WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+        'SELECT id, name, host, database FROM tenants WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
         [tenantName]
       );
       
@@ -444,7 +444,7 @@ export class TenantService {
     // Look up tenant record to get database name
     const authDb = this.getAuthPool();
     const tenantResult = await authDb.query(
-      'SELECT name, database FROM tenant WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
+      'SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
       [tenant]
     );
 
@@ -623,7 +623,7 @@ export class TenantService {
       await client.connect();
       
       await client.query(
-        'INSERT INTO tenant (name, host, database) VALUES ($1, $2, $3)',
+        'INSERT INTO tenants (name, host, database) VALUES ($1, $2, $3)',
         [tenantName, host, databaseName]
       );
     } finally {

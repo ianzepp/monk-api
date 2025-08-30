@@ -136,7 +136,7 @@ export class Metabase {
             // Update schema metadata record
             const updateQuery = `
                 UPDATE ${builtins.TABLE_NAMES.schema} 
-                SET definition = $1, field_count = $2, yaml_checksum = $3, updated_at = NOW()
+                SET definition = $1, field_count = $2, json_checksum = $3, updated_at = NOW()
                 WHERE name = $4
                 RETURNING *
             `;
@@ -367,7 +367,7 @@ export class Metabase {
         
         const insertQuery = `
             INSERT INTO ${builtins.TABLE_NAMES.schema} 
-            (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
+            (id, name, table_name, status, definition, field_count, json_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), '{}', '{}', '{}', '{}')
             RETURNING *
         `;

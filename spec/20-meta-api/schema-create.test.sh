@@ -100,7 +100,7 @@ echo
 print_step "Verifying individual schema retrieval"
 
 # Test account schema retrieval
-if ACCOUNT_GET=$(monk meta select schema account 2>&1); then
+if ACCOUNT_GET=$(monk meta select schema accounts 2>&1); then
     if echo "$ACCOUNT_GET" | grep -q "title: Account"; then
         print_success "Account schema retrievable via meta API"
     else

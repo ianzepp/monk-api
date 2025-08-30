@@ -75,10 +75,10 @@ DELETE /api/data/:schema/:id    → Returns: {}
 
 ```bash
 # CLI automatically handles array/object conversion
-monk data create account        # Wraps {} in [] for API
-monk data select account          # Calls array endpoint  
-monk data select account <id>      # Calls object endpoint
-monk data update account <id>   # Calls object endpoint
+monk data create accounts        # Wraps {} in [] for API
+monk data select accounts          # Calls array endpoint  
+monk data select accounts <id>      # Calls object endpoint
+monk data update accounts <id>   # Calls object endpoint
 ```
 
 ## Authentication
@@ -112,7 +112,7 @@ monk tenant use my-tenant
 monk auth login my-tenant root
 
 # 4. Use authenticated endpoints
-monk data select schema
+monk data select schemas
 ```
 
 ## Data API

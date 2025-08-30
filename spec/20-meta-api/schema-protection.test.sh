@@ -135,7 +135,7 @@ fi
 
 # Test 4b: Create data in user schema (should work)
 print_step "  Creating account record via data API"
-if echo '{"name":"John Doe","email":"john@test.com","username":"jdoe","account_type":"personal"}' | monk data create account >/dev/null 2>&1; then
+if echo '{"name":"John Doe","email":"john@test.com","username":"jdoe","account_type":"personal"}' | monk data create accounts >/dev/null 2>&1; then
     print_success "User schema data operations work normally"
 else
     print_error "User schema data operations failed (should work)"

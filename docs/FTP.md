@@ -57,7 +57,7 @@ Atomic file storage with transaction management and schema validation:
 curl -X POST http://localhost:9001/ftp/store \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "path": "/data/account/new-account.json",
+    "path": "/data/account/new-accounts.json",
     "content": {
       "name": "New Account",
       "email": "account@example.com"

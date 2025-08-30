@@ -11,7 +11,7 @@
 -- Tenant registry table to store multi-tenant database routing information
 -- This table maps tenant names to their respective databases and hosts
 -- Structure matches metabase YAML schema format for consistency
-CREATE TABLE "tenant" (
+CREATE TABLE "tenants" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "name" VARCHAR(255) NOT NULL UNIQUE,          -- Unique tenant identifier
     "database" VARCHAR(255) NOT NULL,             -- Target database name (direct tenant name)

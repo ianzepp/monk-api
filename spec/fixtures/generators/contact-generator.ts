@@ -52,7 +52,7 @@ export class ContactGenerator extends BaseGenerator {
       const lastName = this.getRandomItem(this.lastNames);
       
       // Generate deterministic data for reproducible tests
-      const contactId = this.generateDeterministicUuid('contact', `contact-${i}`);
+      const contactId = this.generateDeterministicUuid('contacts', `contact-${i}`);
       const email = this.generateRealisticEmail(firstName, lastName);
       
       const contact: GeneratedRecord = {
@@ -264,7 +264,7 @@ export class ContactGenerator extends BaseGenerator {
       return null;
     }
     
-    return this.generateForeignKey(context, 'account', 'id');
+    return this.generateForeignKey(context, 'accounts', 'id');
   }
   
   /**

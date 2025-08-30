@@ -197,10 +197,10 @@ describe('Integration Test Suite', () => {
     testContext = await createTestContext(tenantManager.tenant!, 'root');
 
     // Create test schemas and data
-    const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
-    await testContext.metabase.createOne('account', schemaJson);
+    const schemaJson = JSON.parse(await readFile('test/schemas/accounts.json', 'utf-8'));
+    await testContext.metabase.createOne('accounts', schemaJson);
     
-    await testContext.database.createOne('account', {
+    await testContext.database.createOne('accounts', {
       id: 'test-account',
       name: 'Test User',
       email: 'test@example.com',
@@ -216,7 +216,7 @@ describe('Integration Test Suite', () => {
   });
 
   test('should test database operations', async () => {
-    const result = await testContext.database.selectOne('account', {
+    const result = await testContext.database.selectOne('accounts', {
       where: { id: 'test-account' }
     });
     
@@ -474,12 +474,12 @@ const response = await fetch('http://localhost:9001/ftp/list', {
 });
 
 // Test database operations  
-const record = await testContext.database.createOne('account', testData);
+const record = await testContext.database.createOne('accounts', testData);
 expect(record.id).toBeDefined();
 ```
 
 ### Test Data Strategy
-- **Use existing schemas**: `test/schemas/account.json`, `contact.json` for realistic testing
+- **Use existing schemas**: `test/schemas/accounts.json`, `contacts.json` for realistic testing
 - **Predictable IDs**: Use descriptive test record IDs like `account-test-001`
 - **Edge cases**: Test null values, empty arrays, boundary conditions
 - **Performance data**: Large objects, many records for stress testing

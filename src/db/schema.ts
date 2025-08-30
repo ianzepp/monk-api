@@ -19,7 +19,7 @@ export interface Schema extends BaseFields {
     status: 'pending' | 'active' | 'disabled'; // Schema status
     definition: any; // JSON Schema object
     field_count: string; // Number of fields
-    yaml_checksum: string | null; // SHA256 checksum for cache validation
+    json_checksum: string | null; // SHA256 checksum for cache validation
 }
 
 // Column registry table interface  
@@ -49,6 +49,6 @@ export type NewColumn = Omit<Column, 'id' | 'created_at' | 'updated_at'> & {
 
 // Table names as constants
 export const TABLE_NAMES = {
-    schema: 'schema',
+    schema: 'schemas',
     columns: 'columns'
 } as const;

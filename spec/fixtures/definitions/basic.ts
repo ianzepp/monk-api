@@ -12,14 +12,14 @@ export const basicFixture: FixtureDefinition = {
   description: 'Basic fixture with account and contact schemas for standard testing',
   
   schemas: {
-    'account': 'spec/fixtures/schema/account.json',
-    'contact': 'spec/fixtures/schema/contact.json'
-    // Note: user schema is managed by tenant initialization, not fixtures
+    'accounts': 'spec/fixtures/schema/accounts.json',
+    'contacts': 'spec/fixtures/schema/contacts.json'
+    // Note: users schema is managed by tenant initialization, not fixtures
     // Test fixture schemas are located in spec/fixtures/schema/
   },
   
   data_generators: {
-    'account': {
+    'accounts': {
       generator: 'AccountGenerator',
       count: 10,
       options: {
@@ -27,7 +27,7 @@ export const basicFixture: FixtureDefinition = {
         realistic_names: true
       }
     },
-    'contact': {
+    'contacts': {
       generator: 'ContactGenerator', 
       count: 20,
       options: {
@@ -36,15 +36,15 @@ export const basicFixture: FixtureDefinition = {
         link_to_accounts: true
       }
     },
-    // Note: user data is managed by tenant initialization (creates root user)
+    // Note: users data is managed by tenant initialization (creates root user)
     // All tests use the built-in root user for now
   },
   
   relationships: [
     {
-      from_schema: 'contact',
+      from_schema: 'contacts',
       from_field: 'account_id',
-      to_schema: 'account', 
+      to_schema: 'accounts', 
       to_field: 'id',
       relationship_type: 'many_to_one'
     }
@@ -62,9 +62,9 @@ export const basicFixture: FixtureDefinition = {
     ],
     estimated_build_time_seconds: 5,
     record_counts: {
-      'account': 10,
-      'contact': 20
-      // Note: user records (1 root user) created by tenant initialization, not fixtures
+      'accounts': 10,
+      'contacts': 20
+      // Note: users records (1 root user) created by tenant initialization, not fixtures
     }
   }
 };

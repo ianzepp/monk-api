@@ -1,6 +1,6 @@
 {
-  "title": "Account",
-  "description": "User account schema for testing data operations and authentication scenarios",
+  "title": "Accounts",
+  "description": "User accounts schema for testing data operations and authentication scenarios",
   "type": "object",
   "properties": {
     "id": {

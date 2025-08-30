@@ -38,7 +38,7 @@ export class AccountGenerator extends BaseGenerator {
       const domain = options.realistic_names ? this.getRandomItem(this.domains) : 'example.com';
       
       // Generate deterministic data for reproducible tests
-      const accountId = this.generateDeterministicUuid('account', `account-${i}`);
+      const accountId = this.generateDeterministicUuid('accounts', `account-${i}`);
       const username = this.generateUsername(firstName, lastName, i);
       const email = this.generateRealisticEmail(firstName, lastName, domain);
       const createdAt = this.generateCreatedDate(i);
@@ -259,7 +259,7 @@ export class AccountGenerator extends BaseGenerator {
     return [
       {
         // Minimal data - only required fields
-        id: this.generateDeterministicUuid('account', 'edge-minimal'),
+        id: this.generateDeterministicUuid('accounts', 'edge-minimal'),
         name: 'Mi',  // Minimum 2 characters
         email: 'a@b.co',  // Valid minimal email
         username: 'min',  // Minimum 3 characters
@@ -279,7 +279,7 @@ export class AccountGenerator extends BaseGenerator {
       },
       {
         // Maximum values
-        id: this.generateDeterministicUuid('account', 'edge-maximum'),
+        id: this.generateDeterministicUuid('accounts', 'edge-maximum'),
         name: 'A'.repeat(100), // Maximum 100 characters
         email: `${'x'.repeat(240)}@example.com`, // Max 255 chars but valid format
         username: 'a'.repeat(50), // Maximum 50 characters
@@ -311,7 +311,7 @@ export class AccountGenerator extends BaseGenerator {
       },
       {
         // Special characters in text fields
-        id: this.generateDeterministicUuid('account', 'edge-special-chars'),
+        id: this.generateDeterministicUuid('accounts', 'edge-special-chars'),
         name: "O'Reilly-Smith, Jr.",
         email: 'test.user+special@example.com',
         username: 'user_with-dashes',
@@ -337,7 +337,7 @@ export class AccountGenerator extends BaseGenerator {
       },
       {
         // Null/empty optional fields
-        id: this.generateDeterministicUuid('account', 'edge-null-values'),
+        id: this.generateDeterministicUuid('accounts', 'edge-null-values'),
         name: 'Null Test User',
         email: 'null.test@example.com',
         username: 'null_tester',
@@ -360,7 +360,7 @@ export class AccountGenerator extends BaseGenerator {
       },
       {
         // Business account with all features
-        id: this.generateDeterministicUuid('account', 'edge-business-full'),
+        id: this.generateDeterministicUuid('accounts', 'edge-business-full'),
         name: 'Enterprise Business Account',
         email: 'enterprise@business.com',
         username: 'enterprise_account',

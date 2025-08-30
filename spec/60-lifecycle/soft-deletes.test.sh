@@ -100,7 +100,7 @@ ACCOUNT2_DATA='{
     "is_verified": false
 }'
 
-if ACCOUNT1_RESULT=$(echo "$ACCOUNT1_DATA" | monk data create account 2>&1); then
+if ACCOUNT1_RESULT=$(echo "$ACCOUNT1_DATA" | monk data create accounts 2>&1); then
     ACCOUNT1_ID=$(echo "$ACCOUNT1_RESULT" | jq -r '.data.id // .id // empty')
     if [ -z "$ACCOUNT1_ID" ] || [ "$ACCOUNT1_ID" = "null" ]; then
         print_error "Account 1 created but ID extraction failed"
@@ -114,7 +114,7 @@ else
     exit 1
 fi
 
-if ACCOUNT2_RESULT=$(echo "$ACCOUNT2_DATA" | monk data create account 2>&1); then
+if ACCOUNT2_RESULT=$(echo "$ACCOUNT2_DATA" | monk data create accounts 2>&1); then
     ACCOUNT2_ID=$(echo "$ACCOUNT2_RESULT" | jq -r '.data.id // .id // empty')
     if [ -z "$ACCOUNT2_ID" ] || [ "$ACCOUNT2_ID" = "null" ]; then
         print_error "Account 2 created but ID extraction failed"
@@ -132,7 +132,7 @@ echo
 
 # Step 3: Verify records are visible normally
 print_step "Verifying records are visible in normal listing"
-NORMAL_LIST=$(monk data select account 2>&1)
+NORMAL_LIST=$(monk data select accounts 2>&1)
 NORMAL_COUNT=$(echo "$NORMAL_LIST" | jq 'length')
 if [ "$NORMAL_COUNT" -eq 2 ]; then
     print_success "Normal listing shows $NORMAL_COUNT accounts (expected 2)"
@@ -145,7 +145,7 @@ echo
 
 # Step 4: Soft delete (trash) one record
 print_step "Soft deleting (trashing) Account 1: $ACCOUNT1_ID"
-if TRASH_RESULT=$(monk data delete account "$ACCOUNT1_ID" 2>&1); then
+if TRASH_RESULT=$(monk data delete accounts "$ACCOUNT1_ID" 2>&1); then
     print_success "Account 1 soft deleted (trashed)"
     print_info "  Response: $(echo "$TRASH_RESULT" | jq -r '.data.name // "N/A"') trashed"
 else
@@ -158,7 +158,7 @@ echo
 
 # Step 5: Verify trashed record is hidden from normal listing
 print_step "Verifying trashed record is hidden from normal listing"
-AFTER_TRASH_LIST=$(monk data select account 2>&1)
+AFTER_TRASH_LIST=$(monk data select accounts 2>&1)
 AFTER_TRASH_COUNT=$(echo "$AFTER_TRASH_LIST" | jq 'length')
 if [ "$AFTER_TRASH_COUNT" -eq 1 ]; then
     print_success "Normal listing shows $AFTER_TRASH_COUNT account (expected 1, trashed record hidden)"
@@ -185,7 +185,7 @@ print_info "This should FAIL but currently succeeds (Issue #30 vulnerability)"
 UPDATE_DATA='{"balance": 999.99, "name": "HACKED John Smith"}'
 
 # Try to update the trashed record - this should be blocked but currently isn't
-if UPDATE_RESULT=$(echo "$UPDATE_DATA" | monk data update account "$ACCOUNT1_ID" 2>&1); then
+if UPDATE_RESULT=$(echo "$UPDATE_DATA" | monk data update accounts "$ACCOUNT1_ID" 2>&1); then
     print_vulnerability "CRITICAL: Trashed record was successfully updated!"
     print_vulnerability "  Record ID: $ACCOUNT1_ID"  
     print_vulnerability "  Update succeeded: $(echo "$UPDATE_RESULT" | jq -r '.data.name // "N/A"')"
@@ -201,7 +201,7 @@ echo
 
 # Step 8: Hard delete (permanent delete) the second record  
 print_step "Hard deleting (permanent delete) Account 2: $ACCOUNT2_ID"
-if DELETE_RESULT=$(monk data delete account "$ACCOUNT2_ID" --permanent 2>&1); then
+if DELETE_RESULT=$(monk data delete accounts "$ACCOUNT2_ID" --permanent 2>&1); then
     print_success "Account 2 permanently deleted"
 else
     # Try alternative approach if --permanent flag doesn't exist
@@ -216,7 +216,7 @@ echo
 print_step "🔒 TESTING VULNERABILITY: Attempting to update permanently deleted record"
 print_info "This should FAIL but may currently succeed (Issue #30 vulnerability)"
 
-if UPDATE_DELETED_RESULT=$(echo "$UPDATE_DATA" | monk data update account "$ACCOUNT2_ID" 2>&1); then
+if UPDATE_DELETED_RESULT=$(echo "$UPDATE_DATA" | monk data update accounts "$ACCOUNT2_ID" 2>&1); then
     print_vulnerability "CRITICAL: Permanently deleted record was successfully updated!"
     print_vulnerability "  Record ID: $ACCOUNT2_ID"
     print_vulnerability "  Update succeeded: $(echo "$UPDATE_DELETED_RESULT" | jq -r '.data.name // "N/A"')"

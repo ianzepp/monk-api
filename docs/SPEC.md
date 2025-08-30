@@ -235,8 +235,8 @@ describe('Database Operations', () => {
     await ObserverLoader.preloadObservers();
     
     // Create schema
-    const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
-    await testContext.metabase.createOne('account', schemaJson);
+    const schemaJson = JSON.parse(await readFile('test/schemas/accounts.json', 'utf-8'));
+    await testContext.metabase.createOne('accounts', schemaJson);
   });
 
   afterAll(async () => {
@@ -244,7 +244,7 @@ describe('Database Operations', () => {
   });
 
   test('should create record', async () => {
-    const record = await testContext.database.createOne('account', {
+    const record = await testContext.database.createOne('accounts', {
       name: 'Test User',
       email: 'test@example.com'
     });
@@ -379,8 +379,8 @@ spec/fixtures/
 │   ├── contact-generator.ts
 │   └── example-generator.ts
 └── schema/              # Schema definitions
-    ├── account.json
-    ├── contact.json
+    ├── accounts.json
+    ├── contacts.json
     └── example.json
 ```
 
@@ -394,12 +394,12 @@ beforeAll(async () => {
   testContext = await createTestContext(tenantManager.tenant!, 'root');
   
   // Manual schema loading
-  const accountJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
-  await testContext.metabase.createOne('account', accountJson);
+  const accountJson = JSON.parse(await readFile('test/schemas/accounts.json', 'utf-8'));
+  await testContext.metabase.createOne('accounts', accountJson);
   
   // Manual data creation
   for (let i = 0; i < 100; i++) {
-    await testContext.database.createOne('account', generateAccount(i));
+    await testContext.database.createOne('accounts', generateAccount(i));
   }
 });
 ```
@@ -459,8 +459,8 @@ await templateDatabase.buildTemplate('performance', 'unsafe'); // Direct SQL
 
 ### Schema Files
 Located in `spec/fixtures/schema/`:
-- **account.json**: User account schema
-- **contact.json**: Contact/customer schema
+- **accounts.json**: User account schema
+- **contacts.json**: Contact/customer schema
 - **example.json**: Demonstration schema
 
 ### Data Generators
@@ -617,7 +617,7 @@ private generateEdgeCases(): GeneratedRecord[] {
 
 #### Account Schema → Generator
 
-The **account.json** schema defines:
+The **accounts.json** schema defines:
 - Required fields: id, name, email, username, account_type
 - Constraints: username pattern `^[a-zA-Z0-9_-]{3,50}$`, balance 0-1,000,000
 - Nullable fields: credit_limit (only for business accounts), phone, last_login
@@ -630,7 +630,7 @@ The **AccountGenerator** implements:
 
 #### Contact Schema → Generator
 
-The **contact.json** schema defines:
+The **contacts.json** schema defines:
 - Required fields: id, first_name, last_name, email, contact_type
 - Complex object: address with street, city, state, postal_code, country
 - Array field: tags (max 10 items, each max 50 chars)

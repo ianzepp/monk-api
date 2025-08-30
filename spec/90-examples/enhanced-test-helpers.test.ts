@@ -38,31 +38,31 @@ describe('Enhanced Test Helpers - Phase 4 Examples', () => {
 
     test('should provide fixture metadata', () => {
       expect(testContext.fixtureName).toBe('basic');
-      expect(testContext.availableSchemas).toContain('account');
-      expect(testContext.availableSchemas).toContain('contact');
+      expect(testContext.availableSchemas).toContain('accounts');
+      expect(testContext.availableSchemas).toContain('contacts');
       expect(testContext.templateSource).toBe('mock');
     });
 
     test('should provide helper methods', async () => {
       expect(testContext.helpers).toBeDefined();
-      expect(testContext.helpers.hasSchema('account')).toBe(true);
+      expect(testContext.helpers.hasSchema('accounts')).toBe(true);
       expect(testContext.helpers.hasSchema('nonexistent')).toBe(false);
       
       const schemaNames = testContext.helpers.getSchemaNames();
-      expect(schemaNames).toEqual(['account', 'contact']);
+      expect(schemaNames).toEqual(['accounts', 'contacts']);
     });
 
     test('should provide data access helpers', async () => {
       // Test record counting
-      const accountCount = await testContext.helpers.getRecordCount('account');
+      const accountCount = await testContext.helpers.getRecordCount('accounts');
       expect(typeof accountCount).toBe('number');
       
       // Test random record access
-      const randomAccount = await testContext.helpers.getRandomRecord('account');
+      const randomAccount = await testContext.helpers.getRandomRecord('accounts');
       // May be null if no data exists in mock mode
       
       // Test record search
-      const foundAccount = await testContext.helpers.findRecordWhere('account', { 
+      const foundAccount = await testContext.helpers.findRecordWhere('accounts', { 
         account_type: 'personal' 
       });
       // May be null if no matching records exist
@@ -148,22 +148,22 @@ describe('Enhanced Test Helpers - Phase 4 Examples', () => {
 
     test('should support assertion helpers', async () => {
       // Test record existence assertion
-      await testContext.helpers.assertRecordExists('account', { 
+      await testContext.helpers.assertRecordExists('accounts', { 
         email: 'assert@test.com' 
       });
 
       // Test record count assertion
-      await testContext.helpers.assertRecordCount('account', 1);
+      await testContext.helpers.assertRecordCount('accounts', 1);
 
       // Test failed assertions
       await expect(
-        testContext.helpers.assertRecordExists('account', { 
+        testContext.helpers.assertRecordExists('accounts', { 
           email: 'nonexistent@test.com' 
         })
       ).rejects.toThrow('Expected record not found');
 
       await expect(
-        testContext.helpers.assertRecordCount('account', 999)
+        testContext.helpers.assertRecordCount('accounts', 999)
       ).rejects.toThrow('Expected 999 records');
     });
   });
@@ -209,10 +209,10 @@ describe('Migration Examples - Before and After', () => {
       // 
       // // Manual schema loading
       // const accountYaml = await readFile('spec/fixtures/schema/account.yaml', 'utf-8');
-      // await testContext.metabase.createOne('account', accountYaml);
+      // await testContext.metabase.createOne('accounts', accountYaml);
       // 
       // // Manual data creation
-      // const account1 = await testContext.database.createOne('account', {
+      // const account1 = await testContext.database.createOne('accounts', {
       //   name: 'John Doe',
       //   email: 'john@example.com',
       //   username: 'johndoe',
@@ -242,14 +242,14 @@ describe('Migration Examples - Before and After', () => {
 
     test('enhanced setup example', async () => {
       // Rich test data immediately available
-      const accountCount = await testContext.helpers.getRecordCount('account');
-      const contactCount = await testContext.helpers.getRecordCount('contact');
+      const accountCount = await testContext.helpers.getRecordCount('accounts');
+      const contactCount = await testContext.helpers.getRecordCount('contacts');
       
       // Test with realistic data
-      const randomAccount = await testContext.helpers.getRandomRecord('account');
+      const randomAccount = await testContext.helpers.getRandomRecord('accounts');
       
       // Rich assertions
-      await testContext.helpers.assertRecordExists('account', {
+      await testContext.helpers.assertRecordExists('accounts', {
         account_type: 'personal'
       });
 

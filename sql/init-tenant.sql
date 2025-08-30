@@ -2,7 +2,7 @@
 -- These tables are required for the Hono API to function correctly
 
 -- Schema registry table to store JSON Schema definitions
-CREATE TABLE "schema" (
+CREATE TABLE "schemas" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
 	"access_edit" uuid[] DEFAULT '{}'::uuid[],
@@ -17,7 +17,7 @@ CREATE TABLE "schema" (
 	"status" text DEFAULT 'pending' NOT NULL,
 	"definition" jsonb NOT NULL,
 	"field_count" text NOT NULL,
-	"yaml_checksum" text,
+	"json_checksum" text,
 	CONSTRAINT "schema_name_unique" UNIQUE("name"),
 	CONSTRAINT "schema_table_name_unique" UNIQUE("table_name")
 );
@@ -83,7 +83,7 @@ CREATE TABLE "pings" (
 
 -- Insert self-reference row to enable recursive schema discovery via data API
 -- This allows GET /api/data/schema to work by querying the schema table itself
-INSERT INTO "schema" (name, table_name, status, definition, field_count, yaml_checksum)
+INSERT INTO "schemas" (name, table_name, status, definition, field_count, json_checksum)
 VALUES (
     'schema',
     'schema', 
@@ -124,7 +124,7 @@ VALUES (
                 "description": "Number of fields in schema",
                 "example": "5"
             },
-            "yaml_checksum": {
+            "json_checksum": {
                 "type": "string",
                 "pattern": "^[a-f0-9]{64}$",
                 "description": "SHA256 checksum of original YAML",
@@ -144,7 +144,7 @@ VALUES (
 
 -- Insert user schema registration to enable user API access
 -- This allows GET /api/data/user and GET /api/meta/schema/user to work
-INSERT INTO "schema" (name, table_name, status, definition, field_count, yaml_checksum)
+INSERT INTO "schemas" (name, table_name, status, definition, field_count, json_checksum)
 VALUES (
     'user',
     'users',

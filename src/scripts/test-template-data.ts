@@ -36,7 +36,7 @@ async function testTemplateData(templateName: string): Promise<void> {
     logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
     // Check what schemas exist
-    const schemas = await client.query('SELECT name FROM schema ORDER BY name');
+    const schemas = await client.query('SELECT name FROM schemas ORDER BY name');
     logger.info(`🏗️  Schemas (${schemas.rows.length}):`, schemas.rows.map(r => r.name).join(', '));
     
     // Show data from each schema

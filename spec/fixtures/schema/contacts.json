@@ -1,6 +1,6 @@
 {
-  "title": "Contact",
-  "description": "Contact information schema for testing relationships and data operations",
+  "title": "Contacts",
+  "description": "Contacts information schema for testing relationships and data operations",
   "type": "object",
   "properties": {
     "id": {

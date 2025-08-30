@@ -334,7 +334,7 @@ monk server current
 
 # All subsequent monk commands use selected server
 monk ping                         # Pings staging server
-monk data select account            # Lists from staging database
+monk data select accounts            # Lists from staging database
 ```
 
 ### **Multi-tenant Architecture**

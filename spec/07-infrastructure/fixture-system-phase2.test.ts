@@ -87,7 +87,7 @@ describe('Fixture System Phase 2', () => {
       const accounts = accountGenerator.generate(3, { realistic_names: true });
       
       const context = {
-        schemaName: 'contact',
+        schemaName: 'contacts',
         allSchemas: {},
         existingData: { account: accounts },
         relationships: [],
@@ -127,7 +127,7 @@ describe('Fixture System Phase 2', () => {
       const contactGenerator = new ContactGenerator();
       const dependencies = contactGenerator.getDependencies();
       
-      expect(dependencies).toEqual(['account']);
+      expect(dependencies).toEqual(['accounts']);
     });
     
   });
@@ -139,10 +139,10 @@ describe('Fixture System Phase 2', () => {
       
       expect(fixture.name).toBe('basic');
       expect(fixture.description).toContain('Basic fixture');
-      expect(fixture.schemas).toHaveProperty('account');
-      expect(fixture.schemas).toHaveProperty('contact');
-      expect(fixture.data_generators).toHaveProperty('account');
-      expect(fixture.data_generators).toHaveProperty('contact');
+      expect(fixture.schemas).toHaveProperty('accounts');
+      expect(fixture.schemas).toHaveProperty('contacts');
+      expect(fixture.data_generators).toHaveProperty('accounts');
+      expect(fixture.data_generators).toHaveProperty('contacts');
       expect(fixture.relationships).toHaveLength(1);
     });
     
@@ -151,10 +151,10 @@ describe('Fixture System Phase 2', () => {
       const fixtureData = await FixtureManager.buildFixtureData(fixture);
       
       // Validate structure
-      expect(fixtureData.schemas).toHaveProperty('account');
-      expect(fixtureData.schemas).toHaveProperty('contact');
-      expect(fixtureData.data).toHaveProperty('account');
-      expect(fixtureData.data).toHaveProperty('contact');
+      expect(fixtureData.schemas).toHaveProperty('accounts');
+      expect(fixtureData.schemas).toHaveProperty('contacts');
+      expect(fixtureData.data).toHaveProperty('accounts');
+      expect(fixtureData.data).toHaveProperty('contacts');
       
       // Validate data counts
       const accounts = fixtureData.data.account;
@@ -209,12 +209,12 @@ describe('Fixture System Phase 2', () => {
       // Verify schemas exist
       const schemas = await testContext.database.selectAny('schema');
       const schemaNames = schemas.map((s: any) => s.name);
-      expect(schemaNames).toContain('account');
-      expect(schemaNames).toContain('contact');
+      expect(schemaNames).toContain('accounts');
+      expect(schemaNames).toContain('contacts');
       
       // Verify data exists with relationships
-      const accounts = await testContext.database.selectAny('account');
-      const contacts = await testContext.database.selectAny('contact');
+      const accounts = await testContext.database.selectAny('accounts');
+      const contacts = await testContext.database.selectAny('contacts');
       
       expect(accounts.length).toBeGreaterThan(0);
       expect(contacts.length).toBeGreaterThan(0);
@@ -225,7 +225,7 @@ describe('Fixture System Phase 2', () => {
       
       // Test a specific relationship
       const firstLinkedContact = linkedContacts[0];
-      const referencedAccount = await testContext.database.selectOne('account', {
+      const referencedAccount = await testContext.database.selectOne('accounts', {
         where: { id: firstLinkedContact.account_id }
       });
       expect(referencedAccount).toBeDefined();

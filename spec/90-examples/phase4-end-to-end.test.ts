@@ -45,8 +45,8 @@ describe('Phase 4 End-to-End System Test', () => {
 
     test('should provide realistic fixture data', async () => {
       // Should have substantial data from fixture
-      const accountCount = await context.helpers.getRecordCount('account');
-      const contactCount = await context.helpers.getRecordCount('contact');
+      const accountCount = await context.helpers.getRecordCount('accounts');
+      const contactCount = await context.helpers.getRecordCount('contacts');
       
       expect(accountCount).toBeGreaterThan(5); // At least 5 accounts
       expect(contactCount).toBeGreaterThan(10); // At least 10 contacts
@@ -56,7 +56,7 @@ describe('Phase 4 End-to-End System Test', () => {
 
     test('should have realistic data with relationships', async () => {
       // Test that contacts have realistic account relationships
-      const contacts = await context.helpers.findRecordsWhere('contact', {}, 5);
+      const contacts = await context.helpers.findRecordsWhere('contacts', {}, 5);
       const contactsWithAccounts = contacts.filter(c => c.account_id);
       
       logger.info(`🔗 ${contactsWithAccounts.length}/${contacts.length} contacts have account relationships`);
@@ -73,7 +73,7 @@ describe('Phase 4 End-to-End System Test', () => {
 
     test('should support record creation helpers', async () => {
       // Test createTestRecord with custom data
-      const testAccount = await context.helpers.createTestRecord('account', {
+      const testAccount = await context.helpers.createTestRecord('accounts', {
         name: 'Test Helper Account',
         email: 'helper@test.com',
         account_type: 'business',
@@ -89,7 +89,7 @@ describe('Phase 4 End-to-End System Test', () => {
     test('should support bulk data seeding', async () => {
       context.helpers.startTimer('bulk_seed');
       
-      const seededContacts = await context.helpers.seedCustomData('contact', 5, {
+      const seededContacts = await context.helpers.seedCustomData('contacts', 5, {
         company: 'Test Company',
         contact_type: 'prospect',
         priority: 'high'
@@ -105,12 +105,12 @@ describe('Phase 4 End-to-End System Test', () => {
 
     test('should support data cleanup', async () => {
       // Create some test data to clean up
-      await context.helpers.seedCustomData('account', 3, {
+      await context.helpers.seedCustomData('accounts', 3, {
         name: 'Cleanup Test Account'
       });
 
       // Clean up the test data
-      const cleanedCount = await context.helpers.cleanupTestData('account', {
+      const cleanedCount = await context.helpers.cleanupTestData('accounts', {
         name: { $like: 'Cleanup Test%' }
       });
 
@@ -132,7 +132,7 @@ describe('Phase 4 End-to-End System Test', () => {
       const customFixture: CustomFixtureDefinition = {
         name: 'E2E Test Fixture',
         description: 'Custom fixture for end-to-end testing',
-        schemas: ['account', 'contact'],
+        schemas: ['accounts', 'contacts'],
         data: {
           account: [
             {
@@ -254,7 +254,7 @@ describe('Phase 4 End-to-End System Test', () => {
       expect(fixtureTime).toBeLessThan(traditionalTime * 10); // Should be much faster
 
       // Verify we got actual data
-      const accountCount = await context.helpers.getRecordCount('account');
+      const accountCount = await context.helpers.getRecordCount('accounts');
       expect(accountCount).toBeGreaterThan(0);
     });
   });
@@ -267,17 +267,17 @@ describe('Phase 4 End-to-End System Test', () => {
       context.helpers.startTimer('complex_workflow');
       
       // 1. Verify fixture data is available
-      await context.helpers.assertRecordExists('account', { account_type: 'personal' });
-      await context.helpers.assertRecordExists('contact', { contact_type: 'customer' });
+      await context.helpers.assertRecordExists('accounts', { account_type: 'personal' });
+      await context.helpers.assertRecordExists('contacts', { contact_type: 'customer' });
       
       // 2. Create additional test data
-      const newAccount = await context.helpers.createTestRecord('account', {
+      const newAccount = await context.helpers.createTestRecord('accounts', {
         name: 'Workflow Test Account',
         account_type: 'business'
       });
       
       // 3. Create related contact
-      const newContact = await context.helpers.createTestRecord('contact', {
+      const newContact = await context.helpers.createTestRecord('contacts', {
         first_name: 'Workflow',
         last_name: 'Contact',
         account_id: newAccount.id,
@@ -288,7 +288,7 @@ describe('Phase 4 End-to-End System Test', () => {
       expect(newContact.account_id).toBe(newAccount.id);
       
       // 5. Test data operations
-      const businessAccounts = await context.helpers.findRecordsWhere('account', {
+      const businessAccounts = await context.helpers.findRecordsWhere('accounts', {
         account_type: 'business'
       });
       expect(businessAccounts.length).toBeGreaterThan(0);
