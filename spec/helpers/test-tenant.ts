@@ -65,8 +65,8 @@ export async function createTestTenant(): Promise<TestTenantManager> {
     };
 
   } catch (error) {
-    logger.fail(`❌ Failed to create test tenant: ${tenantName}`);
-    logger.fail(String(error));
+    console.error(`❌ Failed to create test tenant: ${tenantName}`);
+    console.error(String(error));
     throw new Error(`Test tenant creation failed: ${error}`);
   }
 }
@@ -169,7 +169,7 @@ export async function createTestUser(tenant: TenantInfo, username: string, acces
     
     console.info(`✅ Test user created: ${username}`);
   } catch (error) {
-    logger.fail(`❌ Failed to create test user: ${username}`);
+    console.error(`❌ Failed to create test user: ${username}`);
     throw error;
   } finally {
     await client.end();
@@ -188,7 +188,7 @@ export async function testDatabaseConnectivity(database: Database): Promise<bool
     console.info(`✅ Database connectivity test passed`);
     return true;
   } catch (error) {
-    logger.fail(`❌ Database connectivity test failed:`, error);
+    console.error(`❌ Database connectivity test failed:`, error);
     return false;
   }
 }
@@ -205,7 +205,7 @@ export async function testMetabaseConnectivity(metabase: Metabase): Promise<bool
     console.info(`✅ Metabase connectivity test passed (found schema definition)`);
     return true;
   } catch (error) {
-    logger.fail(`❌ Metabase connectivity test failed:`, error);
+    console.error(`❌ Metabase connectivity test failed:`, error);
     return false;
   }
 }
