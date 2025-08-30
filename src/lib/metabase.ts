@@ -2,6 +2,7 @@ import { builtins, type TxContext, type DbContext } from '@src/db/index.js';
 import type { System } from '@src/lib/system.js';
 import type { Context } from 'hono';
 import crypto from 'crypto';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 export interface JsonSchemaProperty {
     type: string;
@@ -110,7 +111,7 @@ export class Metabase {
         const schemaResult = await db.query(selectQuery, [schemaName]);
 
         if (schemaResult.rows.length === 0) {
-            throw new Error(`Schema '${schemaName}' not found`);
+            throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
         }
 
         const schemaRecord = schemaResult.rows[0];
@@ -149,7 +150,7 @@ export class Metabase {
             ]);
             
             if (result.rows.length === 0) {
-                throw new Error(`Schema '${schemaName}' not found`);
+                throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
             }
             
             return { name: schemaName, updated: true };
@@ -174,7 +175,7 @@ export class Metabase {
             const result = await tx.query(deleteQuery, [schemaName]);
             
             if (result.rows.length === 0) {
-                throw new Error(`Schema '${schemaName}' not found or already deleted`);
+                throw HttpErrors.notFound(`Schema '${schemaName}' not found or already deleted`, 'SCHEMA_NOT_FOUND');
             }
             
             return { name: schemaName, deleted: true };
@@ -187,7 +188,7 @@ export class Metabase {
     async revertOne(schemaName: string): Promise<any> {
         return await this.run('revert', schemaName, async (tx: TxContext) => {
             // TODO: Implementation - restore soft-deleted schema
-            throw new Error('Metabase.revertOne() not yet implemented');
+            throw HttpErrors.internal('Metabase.revertOne() not yet implemented', 'NOT_IMPLEMENTED');
         });
     }
     
@@ -207,7 +208,7 @@ export class Metabase {
         const client = await db.connect();
         
         if (!client) {
-            throw new Error('Unable to get database client');
+            throw HttpErrors.internal('Unable to get database client', 'DATABASE_CONNECTION_ERROR');
         }
         
         try {
@@ -242,11 +243,11 @@ export class Metabase {
      */
     private parseJsonSchema(jsonContent: any): JsonSchema {
         if (!jsonContent || typeof jsonContent !== 'object') {
-            throw new Error('Invalid schema definition format');
+            throw HttpErrors.badRequest('Invalid schema definition format', 'SCHEMA_INVALID_FORMAT');
         }
 
         if (!jsonContent.title || !jsonContent.properties) {
-            throw new Error('Schema must have title and properties');
+            throw HttpErrors.badRequest('Schema must have title and properties', 'SCHEMA_MISSING_FIELDS');
         }
 
         return jsonContent as JsonSchema;
@@ -342,7 +343,7 @@ export class Metabase {
     private validateSchemaProtection(schemaName: string): void {
         const protectedSchemas = ['schema', 'users', 'columns'];
         if (protectedSchemas.includes(schemaName)) {
-            throw new Error(`Schema '${schemaName}' is protected and cannot be modified`);
+            throw HttpErrors.forbidden(`Schema '${schemaName}' is protected and cannot be modified`, 'SCHEMA_PROTECTED');
         }
     }
     

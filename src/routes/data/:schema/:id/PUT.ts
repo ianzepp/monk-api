@@ -2,6 +2,10 @@ import type { Context } from 'hono';
 import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
+/**
+ * PUT /api/data/:schema/:id - Update single record by ID
+ * @see docs/routes/DATA_API.md
+ */
 export default withParams(async (context, { system, schema, recordId, body, method }) => {
     let result;
     

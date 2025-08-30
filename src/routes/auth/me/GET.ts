@@ -1,6 +1,10 @@
 import type { Context } from 'hono';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
+/**
+ * GET /auth/me - Get current authenticated user information
+ * @see docs/routes/AUTH_API.md
+ */
 export default async function (context: Context) {
     const user = context.get('user');
     

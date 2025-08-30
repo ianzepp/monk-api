@@ -8,6 +8,7 @@ import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
 import crypto from 'crypto';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
  * Database service wrapper providing high-level operations
@@ -112,7 +113,7 @@ export class Database {
         const record = await this.selectOne(schemaName, filter);
 
         if (!record) {
-            throw new Error(message || `Record not found in schema '${schemaName}'`);
+            throw HttpErrors.notFound(message || 'Record not found', 'RECORD_NOT_FOUND');
         }
 
         return record;
@@ -229,7 +230,7 @@ export class Database {
         const results = await this.updateAll(schemaName, [{ id: recordId, ...updates }]);
         
         if (results.length === 0) {
-            throw new Error(`Record '${recordId}' not found in schema '${schemaName}'`);
+            throw HttpErrors.notFound('Record not found', 'RECORD_NOT_FOUND');
         }
         
         return results[0];
@@ -251,7 +252,7 @@ export class Database {
         const results = await this.deleteAll(schemaName, [{ id: recordId }]);
         
         if (results.length === 0) {
-            throw new Error(`Record '${recordId}' not found or already trashed`);
+            throw HttpErrors.notFound('Record not found or already trashed', 'RECORD_NOT_FOUND');
         }
         
         return results[0];
@@ -276,7 +277,7 @@ export class Database {
         const results = await this.revertAll(schemaName, [{ id: recordId, trashed_at: null }]);
         
         if (results.length === 0) {
-            throw new Error(`Record '${recordId}' not found or not trashed`);
+            throw HttpErrors.notFound('Record not found or not trashed', 'RECORD_NOT_FOUND');
         }
         
         return results[0];
@@ -290,7 +291,7 @@ export class Database {
         // First find all trashed records matching the filter
         // Note: This requires include_trashed=true to find trashed records
         if (!this.system.options.trashed) {
-            throw new Error('revertAny() requires include_trashed=true option to find trashed records');
+            throw HttpErrors.badRequest('revertAny() requires include_trashed=true option to find trashed records', 'REQUEST_INVALID_OPTIONS');
         }
         
         const trashedRecords = await this.selectAny(schemaName, filterData);
@@ -455,7 +456,7 @@ export class Database {
         }
 
         if (Object.keys(filteredChanges).length === 0) {
-            throw new Error('No valid access fields provided for accessOne operation');
+            throw HttpErrors.badRequest('No valid access fields provided for accessOne operation', 'REQUEST_MISSING_FIELDS');
         }
 
         // Add updated_at for audit trail

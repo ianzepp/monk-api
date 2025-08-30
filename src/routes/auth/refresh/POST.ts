@@ -1,13 +1,18 @@
 import type { Context } from 'hono';
 import { AuthService } from '@src/lib/auth.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 
+/**
+ * POST /auth/refresh - Refresh JWT token using refresh token
+ * @see docs/routes/AUTH_API.md
+ */
 export default async function (context: Context) {
     const { token } = await context.req.json();
 
     // Input validation
     if (!token) {
-        throw new Error('Token is required for refresh');
+        throw HttpErrors.badRequest('Token is required for refresh', 'TOKEN_MISSING');
     }
 
     const newToken = await AuthService.refreshToken(token);
