@@ -45,7 +45,7 @@ CREATE TABLE "columns" (
 
 -- Add foreign key constraint
 ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schema_name_fk" 
-    FOREIGN KEY ("schema_name") REFERENCES "public"."schema"("name") 
+    FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("name") 
     ON DELETE no action ON UPDATE no action;
 
 -- Users table to store tenant users and their access levels (1-db-per-tenant)
