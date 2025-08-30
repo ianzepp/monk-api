@@ -47,7 +47,7 @@ additionalProperties: true
 
         try {
             await testContext.metabase.createOne('apitest', endpointTestSchema.trim());
-            logger.info('✅ API endpoint test schema created');
+            console.info('✅ API endpoint test schema created');
         } catch (error) {
             logger.warn('⚠️  API test schema may already exist');
         }
@@ -61,7 +61,7 @@ additionalProperties: true
 
     describe('Data API Endpoint Security', () => {
         test('should protect CREATE endpoint against injection in request body', async () => {
-            logger.info('🔒 Testing POST /api/data/:schema injection protection');
+            console.info('🔒 Testing POST /api/data/:schema injection protection');
 
             // Test injection in various fields of request body
             const injectionTests = CLASSIC_INJECTION_VECTORS.slice(0, 5).map(vector => ({
@@ -85,11 +85,11 @@ additionalProperties: true
                 }
             }
 
-            logger.info('✅ CREATE endpoint injection protection validated');
+            console.info('✅ CREATE endpoint injection protection validated');
         }, 20000);
 
         test('should protect UPDATE endpoint against injection in request body', async () => {
-            logger.info('🔒 Testing PUT /api/data/:schema/:id injection protection');
+            console.info('🔒 Testing PUT /api/data/:schema/:id injection protection');
 
             // Create test record
             const record = await testContext.database.createOne('apitest', {
@@ -111,11 +111,11 @@ additionalProperties: true
             SecurityAssertions.expectNoSqlErrors(result);
             SecurityAssertions.expectNoDatabaseDisclosure(result);
 
-            logger.info('✅ UPDATE endpoint injection protection validated');
+            console.info('✅ UPDATE endpoint injection protection validated');
         }, 15000);
 
         test('should protect DELETE endpoint against injection in ID parameters', async () => {
-            logger.info('🔒 Testing DELETE /api/data/:schema/:id injection protection');
+            console.info('🔒 Testing DELETE /api/data/:schema/:id injection protection');
 
             // Create records to delete
             const records = await testContext.database.createAll('apitest', [
@@ -137,13 +137,13 @@ additionalProperties: true
                 SecurityAssertions.expectNoSqlErrors(result);
             });
 
-            logger.info('✅ DELETE endpoint injection protection validated');
+            console.info('✅ DELETE endpoint injection protection validated');
         }, 15000);
     });
 
     describe('Meta API Endpoint Security', () => {
         test('should protect schema creation against injection in YAML content', async () => {
-            logger.info('🔒 Testing POST /api/meta/schema injection protection');
+            console.info('🔒 Testing POST /api/meta/schema injection protection');
 
             // Test malicious YAML content
             const maliciousSchemaYaml = `
@@ -166,13 +166,13 @@ required:
                 expect(retrievedSchema).toContain("'; DROP TABLE schema; --");
                 expect(retrievedSchema).toContain("'; INSERT INTO admin VALUES ('hacker'); --");
 
-                logger.info('✅ Meta API safely stored malicious YAML content');
+                console.info('✅ Meta API safely stored malicious YAML content');
 
             } catch (error: any) {
                 // Should fail with validation errors, not SQL errors
                 SecurityAssertions.expectNoSqlErrors(null, error);
                 SecurityAssertions.expectNoDatabaseDisclosure(null, error);
-                logger.info('✅ Meta API properly rejected malicious schema');
+                console.info('✅ Meta API properly rejected malicious schema');
             }
 
             // Clean up
@@ -186,7 +186,7 @@ required:
 
     describe('Bulk Operation Security', () => {
         test('should protect bulk operations against injection across multiple records', async () => {
-            logger.info('🔒 Testing bulk operation injection protection');
+            console.info('🔒 Testing bulk operation injection protection');
 
             // Create multiple records with different injection vectors
             const bulkInjectionData = CLASSIC_INJECTION_VECTORS.slice(0, 3).map((vector, index) => ({
@@ -207,16 +207,16 @@ required:
                 SecurityAssertions.expectNoDatabaseDisclosure(result);
             });
 
-            logger.info('✅ Bulk operation injection protection validated');
+            console.info('✅ Bulk operation injection protection validated');
         }, 20000);
 
         test('should protect bulk updates against injection', async () => {
-            logger.info('🔒 Testing bulk update injection protection');
+            console.info('🔒 Testing bulk update injection protection');
 
             // Get existing records to update
             const existingRecords = await testContext.database.selectAny('apitest');
             if (existingRecords.length < 2) {
-                logger.info('⚠️  Not enough records for bulk update test');
+                console.info('⚠️  Not enough records for bulk update test');
                 return;
             }
 
@@ -239,13 +239,13 @@ required:
                 SecurityAssertions.expectNoSqlErrors(result);
             });
 
-            logger.info('✅ Bulk update injection protection validated');
+            console.info('✅ Bulk update injection protection validated');
         }, 20000);
     });
 
     describe('Observer Security Integration', () => {
         test('should validate that Phase 1+2 observers maintain injection protection', async () => {
-            logger.info('🔒 Testing observer ring security with injection data');
+            console.info('🔒 Testing observer ring security with injection data');
 
             // Test that our new ring structure (DataPreparation → InputValidation → Security)
             // maintains injection protection throughout the pipeline
@@ -272,7 +272,7 @@ required:
             SecurityAssertions.expectNoDatabaseDisclosure(result);
             SecurityAssertions.expectNoPrivilegeEscalation(result);
 
-            logger.info('✅ Observer pipeline maintains comprehensive injection protection');
+            console.info('✅ Observer pipeline maintains comprehensive injection protection');
         }, 15000);
     });
 });

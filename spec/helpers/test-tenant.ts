@@ -39,23 +39,23 @@ export async function createTestTenant(): Promise<TestTenantManager> {
   MonkEnv.load();
   
   // Debug database configuration
-  logger.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
-  logger.info(`🔍 DB_USER: ${process.env.DB_USER}`);
-  logger.info(`🔍 DB_HOST: ${process.env.DB_HOST}`);
+  console.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
+  console.info(`🔍 DB_USER: ${process.env.DB_USER}`);
+  console.info(`🔍 DB_HOST: ${process.env.DB_HOST}`);
   
   // Generate unique tenant name with timestamp
   const timestamp = Date.now();
   const randomId = randomBytes(4).toString('hex');
   const tenantName = `test-${timestamp}-${randomId}`;
 
-  logger.info(`🔧 Creating test tenant: ${tenantName}`);
+  console.info(`🔧 Creating test tenant: ${tenantName}`);
 
   try {
     // Create tenant using TenantService
     const tenant = await TenantService.createTenant(tenantName, 'localhost', false);
 
-    logger.info(`✅ Test tenant created: ${tenantName}`);
-    logger.info(`📊 Database: ${tenant.database}`);
+    console.info(`✅ Test tenant created: ${tenantName}`);
+    console.info(`📊 Database: ${tenant.database}`);
 
     return {
       tenant,
@@ -77,13 +77,13 @@ export async function createTestTenant(): Promise<TestTenantManager> {
 async function cleanupTestTenant(tenant: TenantInfo): Promise<void> {
   if (!tenant) return;
 
-  logger.info(`🧹 Cleaning up test tenant: ${tenant.name}`);
+  console.info(`🧹 Cleaning up test tenant: ${tenant.name}`);
 
   try {
     // Delete tenant using TenantService
     await TenantService.deleteTenant(tenant.name, true);
 
-    logger.info(`✅ Test tenant cleaned up: ${tenant.name}`);
+    console.info(`✅ Test tenant cleaned up: ${tenant.name}`);
   } catch (error) {
     logger.warn(`⚠️  Failed to cleanup test tenant ${tenant.name}:`, error);
     // Don't throw error in cleanup - just warn
@@ -94,7 +94,7 @@ async function cleanupTestTenant(tenant: TenantInfo): Promise<void> {
  * Create a test context for the tenant
  */
 export async function createTestContext(tenant: TenantInfo, username: string = 'root'): Promise<TestContext> {
-  logger.info(`🔧 Creating test context for ${tenant.name}`);
+  console.info(`🔧 Creating test context for ${tenant.name}`);
 
   // Use TenantService to generate JWT token for the user
   const loginResult = await TenantService.login(tenant.name, username);
@@ -139,7 +139,7 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
   const database = system.database;
   const metabase = system.metabase;
 
-  logger.info(`✅ Test context created for ${tenant.name}`);
+  console.info(`✅ Test context created for ${tenant.name}`);
 
   return {
     tenant,
@@ -154,7 +154,7 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
  * Create additional user in test tenant using direct database connection
  */
 export async function createTestUser(tenant: TenantInfo, username: string, access: string = 'read'): Promise<void> {
-  logger.info(`👤 Creating test user: ${username} (access: ${access})`);
+  console.info(`👤 Creating test user: ${username} (access: ${access})`);
   
   // Use DatabaseConnection for consistent connection management
   const client = DatabaseConnection.createClient(tenant.database);
@@ -167,7 +167,7 @@ export async function createTestUser(tenant: TenantInfo, username: string, acces
       [tenant.name, username, access]
     );
     
-    logger.info(`✅ Test user created: ${username}`);
+    console.info(`✅ Test user created: ${username}`);
   } catch (error) {
     logger.fail(`❌ Failed to create test user: ${username}`);
     throw error;
@@ -180,12 +180,12 @@ export async function createTestUser(tenant: TenantInfo, username: string, acces
  * Test database connectivity using TypeScript Database class
  */
 export async function testDatabaseConnectivity(database: Database): Promise<boolean> {
-  logger.info(`🔍 Testing database connectivity`);
+  console.info(`🔍 Testing database connectivity`);
   
   try {
     // Try to query the schema table (should always exist)
     const result = await database.selectAny('schema');
-    logger.info(`✅ Database connectivity test passed`);
+    console.info(`✅ Database connectivity test passed`);
     return true;
   } catch (error) {
     logger.fail(`❌ Database connectivity test failed:`, error);
@@ -197,12 +197,12 @@ export async function testDatabaseConnectivity(database: Database): Promise<bool
  * Test metabase connectivity using TypeScript Metabase class
  */
 export async function testMetabaseConnectivity(metabase: Metabase): Promise<boolean> {
-  logger.info(`🔍 Testing metabase connectivity`);
+  console.info(`🔍 Testing metabase connectivity`);
   
   try {
     // Try to get the self-reference schema (should always exist)
     const schemaYaml = await metabase.selectOne('schema');
-    logger.info(`✅ Metabase connectivity test passed (found schema definition)`);
+    console.info(`✅ Metabase connectivity test passed (found schema definition)`);
     return true;
   } catch (error) {
     logger.fail(`❌ Metabase connectivity test failed:`, error);

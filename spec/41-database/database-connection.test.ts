@@ -9,12 +9,12 @@ describe('Direct Database Connection Test', () => {
     // Load monk configuration
     MonkEnv.load();
     
-    logger.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
+    console.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
     
     // Test direct connection using DatabaseConnection
     const testPool = DatabaseConnection.getTenantPool('local_test');
     
-    logger.info(`🔍 Testing tenant pool for: local_test`);
+    console.info(`🔍 Testing tenant pool for: local_test`);
     
     try {
       // Test the connection
@@ -23,8 +23,8 @@ describe('Direct Database Connection Test', () => {
       // Try to query schema table
       const result = await client.query('SELECT name, status FROM schema LIMIT 5');
       
-      logger.info(`✅ Connected successfully, found ${result.rows.length} schemas`);
-      logger.info(`📄 Schemas:`, result.rows.map(r => r.name));
+      console.info(`✅ Connected successfully, found ${result.rows.length} schemas`);
+      console.info(`📄 Schemas:`, result.rows.map(r => r.name));
       
       client.release();
       
@@ -46,7 +46,7 @@ describe('Direct Database Connection Test', () => {
     // Connect to auth database using DatabaseConnection
     const authPool = DatabaseConnection.getBasePool();
     
-    logger.info(`🔍 Testing base pool for auth database`);
+    console.info(`🔍 Testing base pool for auth database`);
     
     try {
       // Test the auth database connection
@@ -55,8 +55,8 @@ describe('Direct Database Connection Test', () => {
       // Try to query tenant table
       const result = await client.query('SELECT name, host FROM tenant LIMIT 5');
       
-      logger.info(`✅ Auth database connected successfully, found ${result.rows.length} tenants`);
-      logger.info(`🏢 Tenants:`, result.rows.map(r => r.name));
+      console.info(`✅ Auth database connected successfully, found ${result.rows.length} tenants`);
+      console.info(`🏢 Tenants:`, result.rows.map(r => r.name));
       
       client.release();
       
@@ -81,7 +81,7 @@ describe('Direct Database Connection Test', () => {
       const result = await client.query('SELECT COUNT(*) as count FROM schema');
       client.release();
       
-      logger.info(`✅ DatabaseConnection connection works, schema count: ${result.rows[0].count}`);
+      console.info(`✅ DatabaseConnection connection works, schema count: ${result.rows[0].count}`);
       
       expect(result.rows[0].count).toBeDefined();
       expect(parseInt(result.rows[0].count)).toBeGreaterThanOrEqual(0);
@@ -102,11 +102,11 @@ describe('Direct Database Connection Test', () => {
     try {
       const url = new URL(baseUrl);
       
-      logger.info(`🔍 Parsed URL components:`);
-      logger.info(`   hostname: ${url.hostname}`);
-      logger.info(`   port: ${url.port}`);
-      logger.info(`   username: ${url.username}`);
-      logger.info(`   password: ${url.password ? '[PRESENT]' : '[MISSING]'}`);
+      console.info(`🔍 Parsed URL components:`);
+      console.info(`   hostname: ${url.hostname}`);
+      console.info(`   port: ${url.port}`);
+      console.info(`   username: ${url.username}`);
+      console.info(`   password: ${url.password ? '[PRESENT]' : '[MISSING]'}`);
       
       const testPool = new pg.Pool({
         host: url.hostname,
@@ -124,7 +124,7 @@ describe('Direct Database Connection Test', () => {
       const result = await client.query('SELECT current_user');
       client.release();
       
-      logger.info(`✅ TenantService-style connection works: ${result.rows[0].current_user}`);
+      console.info(`✅ TenantService-style connection works: ${result.rows[0].current_user}`);
       
       expect(result.rows[0].current_user).toBeDefined();
       

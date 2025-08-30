@@ -28,7 +28,7 @@ export async function createTestTenantWithFixture(
   
   if (fixtureName) {
     // Use new fixture approach
-    logger.info(`🚀 Creating tenant with fixture: ${fixtureName}`);
+    console.info(`🚀 Creating tenant with fixture: ${fixtureName}`);
     
     const context = await createTestContextWithFixture(fixtureName, {
       user,
@@ -41,7 +41,7 @@ export async function createTestTenantWithFixture(
       context: context,
       cleanup: async () => {
         // Cleanup would be handled by the fixture system
-        logger.info(`🧹 Cleaning up tenant: ${context.tenant.name}`);
+        console.info(`🧹 Cleaning up tenant: ${context.tenant.name}`);
       }
     };
   } else {
@@ -146,7 +146,7 @@ export async function setupTestWithFixture(
   cleanup: () => Promise<void>;
 }> {
   
-  logger.info(`🎯 Setting up test with fixture: ${fixtureName}`);
+  console.info(`🎯 Setting up test with fixture: ${fixtureName}`);
   
   const context = await createTestContextWithFixture(fixtureName, {
     user,
@@ -160,7 +160,7 @@ export async function setupTestWithFixture(
     wrapper,
     cleanup: async () => {
       // Fixture cleanup would be automatic
-      logger.info(`✅ Test cleanup complete for fixture: ${fixtureName}`);
+      console.info(`✅ Test cleanup complete for fixture: ${fixtureName}`);
     }
   };
 }
@@ -179,7 +179,7 @@ export async function compareTestSetupPerformance(
   recommendation: string;
 }> {
   
-  logger.info(`📊 Comparing test setup performance: ${testName}`);
+  console.info(`📊 Comparing test setup performance: ${testName}`);
   
   // Measure traditional approach
   const traditionalStart = Date.now();
@@ -210,11 +210,11 @@ export async function compareTestSetupPerformance(
     recommendation = 'NOT RECOMMENDED - Little performance benefit';
   }
   
-  logger.info(`⚡ Performance comparison results:`);
-  logger.info(`   Traditional: ${traditionalTime}ms`);
-  logger.info(`   Fixture: ${fixtureTime}ms`);
-  logger.info(`   Improvement: ${improvement}% (${speedup}x faster)`);
-  logger.info(`   Recommendation: ${recommendation}`);
+  console.info(`⚡ Performance comparison results:`);
+  console.info(`   Traditional: ${traditionalTime}ms`);
+  console.info(`   Fixture: ${fixtureTime}ms`);
+  console.info(`   Improvement: ${improvement}% (${speedup}x faster)`);
+  console.info(`   Recommendation: ${recommendation}`);
   
   return {
     traditional: traditionalTime,

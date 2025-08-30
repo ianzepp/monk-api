@@ -140,23 +140,23 @@ export async function createTestTenant(): Promise<TestTenantManager> {
   MonkEnv.load();
   
   // Debug database configuration
-  logger.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
-  logger.info(`🔍 DB_USER: ${process.env.DB_USER}`);
-  logger.info(`🔍 DB_HOST: ${process.env.DB_HOST}`);
+  console.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
+  console.info(`🔍 DB_USER: ${process.env.DB_USER}`);
+  console.info(`🔍 DB_HOST: ${process.env.DB_HOST}`);
   
   // Generate unique tenant name with timestamp
   const timestamp = Date.now();
   const randomId = randomBytes(4).toString('hex');
   const tenantName = `test-${timestamp}-${randomId}`;
 
-  logger.info(`🔧 Creating test tenant: ${tenantName}`);
+  console.info(`🔧 Creating test tenant: ${tenantName}`);
 
   try {
     // Create tenant using TenantService
     const tenant = await TenantService.createTenant(tenantName, 'localhost', false);
 
-    logger.info(`✅ Test tenant created: ${tenantName}`);
-    logger.info(`📊 Database: ${tenant.database}`);
+    console.info(`✅ Test tenant created: ${tenantName}`);
+    console.info(`📊 Database: ${tenant.database}`);
 
     return {
       tenant,
@@ -178,13 +178,13 @@ export async function createTestTenant(): Promise<TestTenantManager> {
 async function cleanupTestTenant(tenant: TenantInfo): Promise<void> {
   if (!tenant) return;
 
-  logger.info(`🧹 Cleaning up test tenant: ${tenant.name}`);
+  console.info(`🧹 Cleaning up test tenant: ${tenant.name}`);
 
   try {
     // Delete tenant using TenantService
     await TenantService.deleteTenant(tenant.name, true);
 
-    logger.info(`✅ Test tenant cleaned up: ${tenant.name}`);
+    console.info(`✅ Test tenant cleaned up: ${tenant.name}`);
   } catch (error) {
     logger.warn(`⚠️  Failed to cleanup test tenant ${tenant.name}:`, error);
     // Don't throw error in cleanup - just warn
@@ -195,7 +195,7 @@ async function cleanupTestTenant(tenant: TenantInfo): Promise<void> {
  * Create a test context for the tenant
  */
 export async function createTestContext(tenant: TenantInfo, username: string = 'root'): Promise<TestContext> {
-  logger.info(`🔧 Creating test context for ${tenant.name}`);
+  console.info(`🔧 Creating test context for ${tenant.name}`);
 
   // Use TenantService to generate JWT token for the user
   const loginResult = await TenantService.login(tenant.name, username);
@@ -240,7 +240,7 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
   const database = system.database;
   const metabase = system.metabase;
 
-  logger.info(`✅ Test context created for ${tenant.name}`);
+  console.info(`✅ Test context created for ${tenant.name}`);
 
   return {
     tenant,
@@ -256,7 +256,7 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
  * Create additional user in test tenant using direct database connection
  */
 export async function createTestUser(tenant: TenantInfo, username: string, access: string = 'read'): Promise<void> {
-  logger.info(`👤 Creating test user: ${username} (access: ${access})`);
+  console.info(`👤 Creating test user: ${username} (access: ${access})`);
   
   // Use DatabaseConnection for consistent connection management
   const client = DatabaseConnection.createClient(tenant.database);
@@ -269,7 +269,7 @@ export async function createTestUser(tenant: TenantInfo, username: string, acces
       [tenant.name, username, access]
     );
     
-    logger.info(`✅ Test user created: ${username}`);
+    console.info(`✅ Test user created: ${username}`);
   } catch (error) {
     console.error(`❌ Failed to create test user: ${username}`);
     throw error;
@@ -282,12 +282,12 @@ export async function createTestUser(tenant: TenantInfo, username: string, acces
  * Test database connectivity using TypeScript Database class
  */
 export async function testDatabaseConnectivity(database: Database): Promise<boolean> {
-  logger.info(`🔍 Testing database connectivity`);
+  console.info(`🔍 Testing database connectivity`);
   
   try {
     // Try to query the schema table (should always exist)
     const result = await database.selectAny('schema');
-    logger.info(`✅ Database connectivity test passed`);
+    console.info(`✅ Database connectivity test passed`);
     return true;
   } catch (error) {
     console.error(`❌ Database connectivity test failed:`, error);
@@ -305,7 +305,7 @@ export async function createTestContextWithFixture(
 ): Promise<TestContextWithData> {
   const { user = 'root', mockTemplate = false, customData, skipValidation = false, customFixture } = options;
 
-  logger.info(`🎯 Creating test context with fixture: ${fixtureName}`);
+  console.info(`🎯 Creating test context with fixture: ${fixtureName}`);
 
   // Create base test context
   const tenantManager = await createTestTenant();
@@ -318,7 +318,7 @@ export async function createTestContextWithFixture(
 
   if (customFixture) {
     // Handle custom inline fixtures
-    logger.info(`🎨 Using custom fixture: ${customFixture.name}`);
+    console.info(`🎨 Using custom fixture: ${customFixture.name}`);
     
     testDatabase = baseContext.tenant.database;
     templateSource = 'mock';
@@ -340,7 +340,7 @@ export async function createTestContextWithFixture(
     
   } else if (mockTemplate) {
     // Mock mode for development/testing when template system isn't working
-    logger.info(`🎭 Using mock template for ${fixtureName}`);
+    console.info(`🎭 Using mock template for ${fixtureName}`);
     
     testDatabase = baseContext.tenant.database;
     templateSource = 'mock';
@@ -352,7 +352,7 @@ export async function createTestContextWithFixture(
   } else {
     try {
       // Try to use real template cloning (blocked by JSON issue currently)
-      logger.info(`⚡ Attempting to clone template: ${fixtureName}`);
+      console.info(`⚡ Attempting to clone template: ${fixtureName}`);
       
       const templateDb = new TemplateDatabase();
       const tenantInfo = await TemplateDatabase.createTenantFromTemplate(`test-${Date.now()}`, fixtureName);
@@ -363,7 +363,7 @@ export async function createTestContextWithFixture(
       fixture = await loadFixtureDefinition(fixtureName);
       recordCounts = fixture.metadata?.recordCounts || {};
       
-      logger.info(`✅ Template cloned successfully: ${testDatabase}`);
+      console.info(`✅ Template cloned successfully: ${testDatabase}`);
       
     } catch (error) {
       logger.warn(`⚠️  Template cloning failed, falling back to manual setup: ${(error as Error).message}`);
@@ -392,7 +392,7 @@ export async function createTestContextWithFixture(
     helpers
   };
 
-  logger.info(`✅ Enhanced test context ready:`, {
+  console.info(`✅ Enhanced test context ready:`, {
     fixtureName,
     templateSource,
     schemaCount: enhancedContext.availableSchemas.length,
@@ -409,7 +409,7 @@ export async function createMultiFixtureContext(
   fixtureNames: string[],
   options: TemplateLoadOptions = {}
 ): Promise<TestContextWithData> {
-  logger.info(`🔗 Creating multi-fixture context:`, fixtureNames);
+  console.info(`🔗 Creating multi-fixture context:`, fixtureNames);
 
   if (fixtureNames.length === 0) {
     throw new Error('At least one fixture name is required');
@@ -450,7 +450,7 @@ export async function createMultiFixtureContext(
     }
   };
 
-  logger.info(`✅ Multi-fixture context created:`, {
+  console.info(`✅ Multi-fixture context created:`, {
     fixtures: fixtureNames,
     totalSchemas: mergedFixture.allSchemas.length,
     totalRecords: Object.values(mergedFixture.totalRecordCounts).reduce((sum, count) => sum + count, 0),
@@ -498,7 +498,7 @@ async function createMockData(
   fixture: any, 
   customData?: Record<string, any[]>
 ): Promise<Record<string, number>> {
-  logger.info(`🎭 Creating mock data for fixture: ${fixture.name}`);
+  console.info(`🎭 Creating mock data for fixture: ${fixture.name}`);
   
   const recordCounts: Record<string, number> = {};
 
@@ -513,7 +513,7 @@ async function createMockData(
         await context.database.createAll(schemaName, records);
         recordCounts[schemaName] = records.length;
         
-        logger.info(`✅ Created ${records.length} ${schemaName} records`);
+        console.info(`✅ Created ${records.length} ${schemaName} records`);
       } catch (error) {
         logger.warn(`⚠️  Failed to create ${schemaName} records:`, (error as Error).message);
         recordCounts[schemaName] = 0;
@@ -525,7 +525,7 @@ async function createMockData(
     for (const schemaName of mockSchemas) {
       const count = fixture.recordCounts?.[schemaName] || 5;
       recordCounts[schemaName] = count;
-      logger.info(`📝 Mock: would create ${count} ${schemaName} records`);
+      console.info(`📝 Mock: would create ${count} ${schemaName} records`);
     }
   }
 
@@ -540,7 +540,7 @@ async function createManualData(
   fixture: any,
   customData?: Record<string, any[]>
 ): Promise<Record<string, number>> {
-  logger.info(`🔨 Creating manual data for fixture: ${fixture.name}`);
+  console.info(`🔨 Creating manual data for fixture: ${fixture.name}`);
   
   // TODO: Implement manual data creation using generators
   // This would use the AccountGenerator, ContactGenerator, etc.
@@ -557,13 +557,13 @@ async function ensureSchemaExists(context: TestContext, schemaName: string): Pro
     await context.database.selectAny(schemaName, { limit: 1 });
   } catch (error) {
     // Schema doesn't exist, try to create it
-    logger.info(`📋 Creating schema: ${schemaName}`);
+    console.info(`📋 Creating schema: ${schemaName}`);
     
     try {
       // Try to load schema definition
       const schemaPath = `../../spec/fixtures/schema/${schemaName}.json`;
       // TODO: Load and create schema
-      logger.info(`📋 Would load schema from: ${schemaPath}`);
+      console.info(`📋 Would load schema from: ${schemaPath}`);
     } catch (schemaError) {
       logger.warn(`⚠️  Could not create schema ${schemaName}:`, (schemaError as Error).message);
     }
@@ -595,7 +595,7 @@ interface FixtureDependency {
  * Merge multiple fixtures into a single composite fixture
  */
 async function mergeFixtures(fixtures: any[]): Promise<MergedFixture> {
-  logger.info(`🔀 Merging ${fixtures.length} fixtures`);
+  console.info(`🔀 Merging ${fixtures.length} fixtures`);
   
   const allSchemas: string[] = [];
   const schemas: Record<string, any> = {};
@@ -664,7 +664,7 @@ async function mergeFixtures(fixtures: any[]): Promise<MergedFixture> {
     conflicts
   };
 
-  logger.info(`✅ Fixture merge complete:`, {
+  console.info(`✅ Fixture merge complete:`, {
     schemas: result.allSchemas.length,
     relationships: result.relationships.length,
     conflicts: result.conflicts.length
@@ -692,7 +692,7 @@ function deduplicateRelationships(relationships: Array<{from: string, to: string
  * Resolve fixture dependencies and return ordered list
  */
 export function resolveFixtureDependencies(fixtureNames: string[]): string[] {
-  logger.info(`🔍 Resolving dependencies for:`, fixtureNames);
+  console.info(`🔍 Resolving dependencies for:`, fixtureNames);
   
   // Define known fixture dependencies
   const fixtureDependencies: Record<string, FixtureDependency> = {
@@ -761,7 +761,7 @@ export function resolveFixtureDependencies(fixtureNames: string[]): string[] {
   // Visit all requested fixtures
   fixtureNames.forEach(visit);
 
-  logger.info(`✅ Dependency resolution complete:`, resolved);
+  console.info(`✅ Dependency resolution complete:`, resolved);
   return resolved;
 }
 
@@ -873,7 +873,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
 
     async getRelatedRecords(schemaName: string, recordId: string): Promise<Record<string, any[]>> {
       // TODO: Implement relationship following using fixture.relationships
-      logger.info(`🔗 Would find related records for ${schemaName}:${recordId}`);
+      console.info(`🔗 Would find related records for ${schemaName}:${recordId}`);
       return {};
     },
 
@@ -922,7 +922,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         }
       }
       
-      logger.info(`✅ Seeded ${records.length}/${count} records in ${schemaName}`);
+      console.info(`✅ Seeded ${records.length}/${count} records in ${schemaName}`);
       return records;
     },
 
@@ -939,7 +939,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         const ids = records.map(r => r.id);
         await context.database.deleteIds(schemaName, ids);
         
-        logger.info(`🗑️  Cleaned up ${records.length} records from ${schemaName}`);
+        console.info(`🗑️  Cleaned up ${records.length} records from ${schemaName}`);
         return records.length;
       } catch (error) {
         logger.warn(`⚠️  Could not cleanup records in ${schemaName}:`, (error as Error).message);
@@ -996,7 +996,7 @@ async function createCustomFixtureData(
   context: TestContext,
   customFixture: CustomFixtureDefinition
 ): Promise<Record<string, number>> {
-  logger.info(`🎨 Creating custom fixture data: ${customFixture.name}`);
+  console.info(`🎨 Creating custom fixture data: ${customFixture.name}`);
   
   const recordCounts: Record<string, number> = {};
 
@@ -1008,7 +1008,7 @@ async function createCustomFixtureData(
   // Create data for each schema
   for (const [schemaName, records] of Object.entries(customFixture.data)) {
     try {
-      logger.info(`📝 Creating ${records.length} ${schemaName} records`);
+      console.info(`📝 Creating ${records.length} ${schemaName} records`);
       
       // Apply options if specified
       let finalRecords = [...records];
@@ -1027,14 +1027,14 @@ async function createCustomFixtureData(
           finalRecords.push(...variations);
         }
         
-        logger.info(`🔢 Multiplied ${originalCount} records by ${multiplier} = ${finalRecords.length} total`);
+        console.info(`🔢 Multiplied ${originalCount} records by ${multiplier} = ${finalRecords.length} total`);
       }
       
       // Insert all records
       if (finalRecords.length > 0) {
         await context.database.createAll(schemaName, finalRecords);
         recordCounts[schemaName] = finalRecords.length;
-        logger.info(`✅ Created ${finalRecords.length} ${schemaName} records`);
+        console.info(`✅ Created ${finalRecords.length} ${schemaName} records`);
       }
       
     } catch (error) {
@@ -1101,12 +1101,12 @@ async function generateBasicRecord(schemaName: string, overrides: any = {}): Pro
  * Test metabase connectivity using TypeScript Metabase class
  */
 export async function testMetabaseConnectivity(metabase: Metabase): Promise<boolean> {
-  logger.info(`🔍 Testing metabase connectivity`);
+  console.info(`🔍 Testing metabase connectivity`);
   
   try {
     // Try to get the self-reference schema (should always exist)
     const schemaYaml = await metabase.selectOne('schema');
-    logger.info(`✅ Metabase connectivity test passed (found schema definition)`);
+    console.info(`✅ Metabase connectivity test passed (found schema definition)`);
     return true;
   } catch (error) {
     console.error(`❌ Metabase connectivity test failed:`, error);
@@ -1130,13 +1130,13 @@ export async function createTestTenantFromTemplate(templateName: string): Promis
   const randomId = randomBytes(4).toString('hex');
   const tenantName = `test-${timestamp}-${randomId}`;
   
-  logger.info(`⚡ Creating test tenant from template: ${tenantName} (template: ${templateName})`);
+  console.info(`⚡ Creating test tenant from template: ${tenantName} (template: ${templateName})`);
   
   try {
     // Fast clone from template instead of slow tenant creation
     const tenant = await TemplateDatabase.createTenantFromTemplate(tenantName, templateName);
     
-    logger.info(`✅ Test tenant cloned from template: ${tenantName}`);
+    console.info(`✅ Test tenant cloned from template: ${tenantName}`);
     
     return {
       tenant,

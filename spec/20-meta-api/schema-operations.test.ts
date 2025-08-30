@@ -48,7 +48,7 @@ describe('20-meta-api: Schema Operations', () => {
 
   describe('Schema Creation', () => {
     test('should create account schema from JSON successfully', async () => {
-      logger.info('🔧 Creating account schema from JSON');
+      console.info('🔧 Creating account schema from JSON');
       
       const result = await testContext.metabase.createOne('account', accountJson);
       
@@ -58,11 +58,11 @@ describe('20-meta-api: Schema Operations', () => {
       expect(result.name).toBe('account');
       expect(result.created).toBe(true);
       
-      logger.info('✅ Account schema created successfully');
+      console.info('✅ Account schema created successfully');
     }, 15000);
 
     test('should create contact schema from JSON successfully', async () => {
-      logger.info('🔧 Creating contact schema from JSON');
+      console.info('🔧 Creating contact schema from JSON');
       
       const result = await testContext.metabase.createOne('contact', contactJson);
       
@@ -70,13 +70,13 @@ describe('20-meta-api: Schema Operations', () => {
       expect(result.name).toBe('contact');
       expect(result.created).toBe(true);
       
-      logger.info('✅ Contact schema created successfully');
+      console.info('✅ Contact schema created successfully');
     }, 15000);
   });
 
   describe('Schema Retrieval', () => {
     test('should retrieve account schema as JSON', async () => {
-      logger.info('🔍 Retrieving account schema as JSON');
+      console.info('🔍 Retrieving account schema as JSON');
       
       const retrievedJson = await testContext.metabase.selectOne('account');
       
@@ -102,11 +102,11 @@ describe('20-meta-api: Schema Operations', () => {
       expect(retrievedSchema.properties.email).toBeDefined();
       expect(retrievedSchema.properties.username).toBeDefined();
       
-      logger.info('✅ Account schema retrieved and validated');
+      console.info('✅ Account schema retrieved and validated');
     }, 10000);
 
     test('should retrieve contact schema as JSON', async () => {
-      logger.info('🔍 Retrieving contact schema as JSON');
+      console.info('🔍 Retrieving contact schema as JSON');
       
       const retrievedJson = await testContext.metabase.selectOne('contact');
       
@@ -119,7 +119,7 @@ describe('20-meta-api: Schema Operations', () => {
       expect(retrievedSchema.type).toBe('object');
       expect(retrievedSchema.properties).toBeDefined();
       
-      logger.info('✅ Contact schema retrieved and validated');
+      console.info('✅ Contact schema retrieved and validated');
     }, 10000);
   });
 
@@ -153,7 +153,7 @@ describe('20-meta-api: Schema Operations', () => {
         additionalProperties: false
       };
 
-      logger.info('🔧 Testing create + select workflow');
+      console.info('🔧 Testing create + select workflow');
       
       // Create the schema
       const createResult = await testContext.metabase.createOne(customSchemaName, customJson);
@@ -175,7 +175,7 @@ describe('20-meta-api: Schema Operations', () => {
       expect(retrievedSchema.properties.active).toBeDefined();
       expect(retrievedSchema.properties.category).toBeDefined();
       
-      logger.info('✅ Create + select workflow validated');
+      console.info('✅ Create + select workflow validated');
     }, 15000);
   });
 
@@ -183,26 +183,26 @@ describe('20-meta-api: Schema Operations', () => {
     test('should delete schema successfully', async () => {
       const schemaToDelete = 'test-workflow';
       
-      logger.info(`🗑️  Deleting schema: ${schemaToDelete}`);
+      console.info(`🗑️  Deleting schema: ${schemaToDelete}`);
       
       const deleteResult = await testContext.metabase.deleteOne(schemaToDelete);
       
       expect(deleteResult).toBeDefined();
       
-      logger.info('✅ Schema deleted successfully');
+      console.info('✅ Schema deleted successfully');
     }, 10000);
 
     test('should not be able to select deleted schema', async () => {
       const deletedSchema = 'test-workflow';
       
-      logger.info(`🔍 Verifying deleted schema cannot be selected: ${deletedSchema}`);
+      console.info(`🔍 Verifying deleted schema cannot be selected: ${deletedSchema}`);
       
       // Attempting to select deleted schema should fail
       await expect(
         testContext.metabase.selectOne(deletedSchema)
       ).rejects.toThrow();
       
-      logger.info('✅ Deleted schema correctly inaccessible');
+      console.info('✅ Deleted schema correctly inaccessible');
     }, 5000);
   });
 
@@ -227,7 +227,7 @@ required:
 additionalProperties: false
 `;
 
-      logger.info('🔧 Testing create + delete workflow');
+      console.info('🔧 Testing create + delete workflow');
       
       // Create the temporary schema
       const createResult = await testContext.metabase.createOne(tempSchemaName, tempYaml.trim());
@@ -243,7 +243,7 @@ additionalProperties: false
         testContext.metabase.selectOne(tempSchemaName)
       ).rejects.toThrow();
       
-      logger.info('✅ Create + delete workflow validated');
+      console.info('✅ Create + delete workflow validated');
     }, 15000);
   });
 });
