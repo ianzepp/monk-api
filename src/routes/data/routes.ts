@@ -1,9 +1,10 @@
 /**
  * Data API Route Barrel Export
- * 
+ *
  * Clean route organization using your preferred naming convention:
  * - Schema operations: SchemaGet, SchemaPost, SchemaPut, SchemaDelete
  * - Record operations: RecordGet, RecordPut, RecordDelete (with ID parameter)
+ * @see docs/routes/DATA_API.md
  */
 
 // Schema operations (no ID parameter)

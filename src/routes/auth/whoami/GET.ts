@@ -2,12 +2,12 @@ import type { Context } from 'hono';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
- * GET /auth/me - Get current authenticated user information
+ * GET /auth/whoami - Get current authenticated user information
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
     const user = context.get('user');
-    
+
     setRouteResult(context, {
         id: user.id,
         username: user.username,
@@ -16,6 +16,6 @@ export default async function (context: Context) {
         database: user.database,
         role: user.role,
         is_active: user.is_active,
-        last_login: user.last_login
+        last_login: user.last_login,
     });
 }

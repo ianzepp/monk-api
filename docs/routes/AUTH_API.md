@@ -10,7 +10,7 @@ All Auth API routes are prefixed with `/auth`
 - **Response**: `application/json`
 
 ## Authentication
-Auth API routes do not require authentication, except for `GET /auth/me` which requires a valid JWT token.
+Auth API routes do not require authentication, except for `GET /auth/whoami` which requires a valid JWT token.
 
 ---
 
@@ -85,7 +85,7 @@ Refresh an expired JWT token using a valid refresh token.
 
 ---
 
-## GET /auth/me
+## GET /auth/whoami
 
 Get current authenticated user information.
 
@@ -137,7 +137,7 @@ All error responses follow the standardized format documented in [ERRORS.md](./E
 2. **Store tokens**: Save both access token and refresh token
 3. **API calls**: Use access token in Authorization header
 4. **Token refresh**: When access token expires, use refresh token
-5. **User info**: GET `/auth/me` to verify current user state
+5. **User info**: GET `/auth/whoami` to verify current user state
 
 ### Error Handling
 
@@ -148,9 +148,9 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tenant: 'acme', username: 'john.doe' })
   });
-  
+
   const result = await response.json();
-  
+
   if (!result.success) {
     switch (result.error_code) {
       case 'TENANT_MISSING':
