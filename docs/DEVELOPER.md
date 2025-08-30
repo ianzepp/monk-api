@@ -49,9 +49,6 @@ npm run start:dev
 
 # 4. Verify installation
 npm run spec:sh spec/10-connection/basic-ping.test.sh
-
-# 5. (Optional) Build test fixtures for enhanced testing
-npm run fixtures:build basic
 ```
 
 The `npm run autoinstall` script handles all setup steps automatically:
@@ -121,7 +118,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Side-by-side Organization**: TypeScript (.test.ts) and Shell (.test.sh) tests co-located by functionality
 - **Three-tier Commands**: `npm run spec` (both), `npm run spec:ts` (TypeScript), `npm run spec:sh` (Shell)
 - **Tenant Isolation**: Each test gets fresh tenant database  
-- **Template Database System**: Advanced fixture-based testing with 25-130x performance improvement
+- **Comprehensive Testing**: Isolated test environments with shell script and TypeScript integration
 
 > **📖 For comprehensive testing guide, see [docs/TESTING.md](docs/TESTING.md)**
 
@@ -296,19 +293,14 @@ npm run spec:ts unit/filter         # Filter unit tests
 npm run spec:sh observer-startup    # Observer integration test
 ```
 
-#### **Template-Based Testing (Performance Boost)**
+#### **Testing Development**
 
-Enhanced testing infrastructure providing 25-130x faster test setup:
+Run tests for validation and development:
 
 ```bash
-# Build fixture templates
-npm run fixtures:build basic
-
-# Use in tests for instant realistic data
-beforeAll(async () => {
-  testContext = await createTestContextWithFixture('basic');
-  // Instantly have 15+ accounts, 25+ contacts with relationships
-});
+# Quick validation
+npm run spec:ts unit                   # Fast unit tests
+npm run spec:sh basic-ping             # Basic connectivity test
 ```
 
 > **📖 For comprehensive testing guide, see [docs/TESTING.md](docs/TESTING.md)**
@@ -552,7 +544,6 @@ curl http://localhost:9001/health  # API server
 
 # Common fixes
 npm run autoinstall               # Reset configuration
-npm run fixtures:clean            # Clear test templates
 rm -rf ~/.config/monk/ && npm run autoinstall # Nuclear reset
 ```
 
