@@ -105,7 +105,7 @@ Each test gets an isolated tenant database:
 ```bash
 # Check system health
 npm run compile                    # TypeScript compilation
-psql -d monk-api-auth -c "SELECT 1;" # Database connectivity
+psql -d monk -c "SELECT 1;" # Database connectivity
 curl http://localhost:9001/health  # API server
 
 # Common fixes

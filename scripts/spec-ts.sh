@@ -37,6 +37,14 @@ if ! npm run compile; then
 fi
 print_success "TypeScript compilation successful"
 
+# Compilation must pass before running tests
+print_info "Running test file compilation before tests..."
+if ! npm run compile:spec; then
+    print_error "Test file compilation failed - cannot run tests"
+    exit 1
+fi
+print_success "Test file compilation successful"
+
 # Parse arguments
 pattern_or_path="$1"
 verbose_flag=""

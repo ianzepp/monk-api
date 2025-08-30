@@ -19,7 +19,7 @@ npm run compile                         # Verify TypeScript compilation
 npm run spec:all unit                   # Test unit tests (no external dependencies)
 
 # Check basic connectivity
-psql -d monk-api-auth -c "SELECT current_user;"   # Test direct PostgreSQL
+psql -d monk -c "SELECT current_user;"   # Test direct PostgreSQL
 curl http://localhost:9001/health               # Test HTTP API if running
 ```
 
@@ -40,8 +40,8 @@ node --version && npm --version        # Check runtime versions
 ```bash
 # Test database layers systematically
 psql -d postgres -c "SELECT version();"                    # PostgreSQL server
-psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"   # Auth database
-psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schema;" # Tenant database
+psql -d monk -c "SELECT COUNT(*) FROM tenants;"   # Auth database
+psql -d tenant_1234 -c "SELECT COUNT(*) FROM schema;" # Tenant database
 
 # Test Node.js database connections
 npm run spec:one spec/unit/database-connection-test.test.ts  # Direct connections
@@ -61,7 +61,7 @@ npm run spec:one spec/05-infrastructure/connectivity.test.ts # Integration tests
 # PostgreSQL 17.6+ defaults to SCRAM-SHA-256 which requires explicit passwords
 
 # Diagnostic Steps:
-psql -U $USER -d monk-api-auth -c "SELECT current_user;"    # Should work
+psql -U $USER -d monk -c "SELECT current_user;"    # Should work
 npm run spec:one spec/unit/tenant-service-debug.test.ts     # May fail
 
 # Verify DATABASE_URL configuration
@@ -121,7 +121,7 @@ lsof -i :9001
 netstat -tlnp | grep 9001
 
 # Check database connectivity before server start
-psql -d monk-api-auth -c "SELECT 1;"
+psql -d monk -c "SELECT 1;"
 
 # Check observer system
 npm run compile                         # Ensure TypeScript compiled
@@ -297,8 +297,8 @@ cat ~/.config/monk/env.json
 ### Database Operations Debugging
 ```bash
 # Check database connections
-psql -d monk-api-auth -c "SELECT current_user;"
-psql -d "monk-api\$local-test" -c "SELECT name FROM schema;"
+psql -d monk -c "SELECT current_user;"
+psql -d tenant_1234 -c "SELECT name FROM schema;"
 
 # Test database operations manually
 npm run compile                         # Ensure compiled
@@ -401,7 +401,7 @@ npm run autoinstall
 
 # Use appropriate debugging approach for each category
 npm run compile                         # For compilation errors
-psql -d monk-api-auth -c "SELECT 1;"   # For connection errors
+psql -d monk -c "SELECT 1;"   # For connection errors
 monk auth token                         # For authentication errors
 npm run spec:all unit/filter            # For validation errors
 npm run spec:all unit/observers         # For observer errors

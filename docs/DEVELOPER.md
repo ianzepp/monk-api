@@ -53,7 +53,7 @@ npm run spec:sh spec/10-connection/basic-ping.test.sh
 
 The `npm run autoinstall` script handles all setup steps automatically:
 - Verifies PostgreSQL connectivity
-- Creates auth database (`monk-api-auth`) with tenant table
+- Creates auth database (`monk`) with tenant table
 - Configures local server in `~/.config/monk/server.json`
 - Creates test tenant (`local-test`) for development
 - Compiles TypeScript and verifies complete setup
@@ -330,8 +330,8 @@ monk data select account            # Lists from staging database
 ```
 
 ### **Multi-tenant Architecture**
-- **Auth Database**: `monk-api-auth` contains tenant registry
-- **Tenant Databases**: `monk-api$tenant-name` for each tenant
+- **Auth Database**: `monk` contains tenant registry
+- **Tenant Databases**: `tenant_<hashed-name>` for each tenant
 - **JWT Routing**: Tokens contain tenant and database routing information
 - **Isolation**: Each tenant gets separate database and user management
 
@@ -539,7 +539,7 @@ export default class UserValidator extends BaseObserver {
 ```bash
 # Check system health
 npm run compile                    # TypeScript compilation
-psql -d monk-api-auth -c "SELECT 1;" # Database connectivity
+psql -d monk -c "SELECT 1;" # Database connectivity
 curl http://localhost:9001/health  # API server
 
 # Common fixes

@@ -84,8 +84,8 @@ monk data update account <id>   # Calls object endpoint
 ## Authentication
 
 ### Multi-tenant Authentication
-- **Auth Database**: `monk-api-auth` contains tenant registry
-- **Tenant Databases**: `monk-api$tenant-name` for each tenant
+- **Auth Database**: `monk` contains tenant registry
+- **Tenant Databases**: `tenant_<hashed-name>` for each tenant
 - **JWT Routing**: Tokens contain tenant and database routing information
 - **Isolation**: Each tenant gets separate database and user management
 
@@ -93,7 +93,7 @@ monk data update account <id>   # Calls object endpoint
 ```typescript
 interface JWTPayload {
     tenant: string;        // Tenant name
-    database: string;      // Full database name (monk-api$tenant)
+    database: string;      // Full database name (tenant_<hashed-name>)
     access: string;        // User access level
     user: string;          // Username
     exp: number;           // Expiration timestamp
@@ -466,7 +466,7 @@ GET /api/root/tenant?include_deleted=true   # Include hard deleted
   "tenants": [
     {
       "name": "my-tenant",
-      "database": "monk-api$my-tenant", 
+      "database": "tenant_<hashed-name>", 
       "host": "localhost",
       "created_at": "2025-08-26T04:42:15.283Z",
       "updated_at": "2025-08-26T04:42:15.283Z",

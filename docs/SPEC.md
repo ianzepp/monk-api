@@ -332,7 +332,7 @@ describe.concurrent('Parallel Suite', () => {
 #### Shell Test Failures
 ```bash
 # Check database connectivity
-psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"
+psql -d monk -c "SELECT COUNT(*) FROM tenants;"
 
 # Check API server connectivity
 curl http://localhost:9001/health

@@ -33,7 +33,7 @@ services:
     environment:
       - POSTGRES_USER=monk
       - POSTGRES_PASSWORD=monk
-      - POSTGRES_DB=monk-api-auth
+      - POSTGRES_DB=monk
     volumes:
       # Persistent database storage
       - postgres_data:/var/lib/postgresql/data
@@ -43,7 +43,7 @@ services:
       # Expose PostgreSQL port for external access (optional) - using different port to avoid conflicts
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U monk -d monk-api-auth"]
+      test: ["CMD-SHELL", "pg_isready -U monk -d monk"]
       interval: 10s
       timeout: 5s
       retries: 5

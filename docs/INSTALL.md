@@ -49,7 +49,7 @@ Define data models using JSON with JSON Schema validation:
 
 ### 🔒 Multi-Tenant Architecture
 - JWT-based tenant routing
-- Isolated databases per tenant (`monk-api$tenant-name`)
+- Isolated databases per tenant (`tenant_<hashed-name>`)
 - Dynamic database connections
 
 ### 🎭 Observer System

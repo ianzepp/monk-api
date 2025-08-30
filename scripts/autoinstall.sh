@@ -11,7 +11,7 @@ set -e
 # Options:
 #   --clean-node    Delete node_modules and reinstall dependencies
 #   --clean-dist    Delete dist/ directory and recompile TypeScript
-#   --clean-auth    Delete and recreate monk-api-auth database
+#   --clean-auth    Delete and recreate monk database
 #   --help          Show this help message
 #
 # What this script does:
@@ -117,7 +117,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo "Options:"
     echo "  --clean-node    Delete node_modules and reinstall dependencies"
     echo "  --clean-dist    Delete dist/ directory and recompile TypeScript"
-    echo "  --clean-auth    Delete and recreate monk-api-auth database"
+    echo "  --clean-auth    Delete and recreate monk database"
     echo "  --help, -h      Show this help message"
     echo
     echo "This script automates all setup steps from INSTALL.md for a complete"
@@ -245,8 +245,8 @@ print_header "Step 4: Initialize Auth Database"
 # Handle --clean-auth option
 if [ "$CLEAN_AUTH" = true ]; then
     print_step "Clean auth requested - removing existing auth database..."
-    if psql -lqt | cut -d'|' -f1 | grep -qw "monk-api-auth" 2>/dev/null; then
-        if dropdb monk-api-auth 2>/dev/null; then
+    if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
+        if dropdb monk 2>/dev/null; then
             print_success "Existing auth database removed"
         else
             handle_error "Auth database removal" "Check PostgreSQL permissions for dropping databases"

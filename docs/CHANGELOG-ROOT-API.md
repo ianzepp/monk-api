@@ -50,9 +50,9 @@ The new health endpoint performs comprehensive checks:
 
 These endpoints work with the new database architecture:
 
-- **Auth Database**: `monk-api-auth` → `monk`
+- **Auth Database**: `monk` → `monk`
 - **Auth Table**: `tenants` → `tenant` (singular, with UUID and ACL structure)
-- **Tenant Databases**: `monk-api$tenant-name` → direct tenant names (e.g., `my_app`)
+- **Tenant Databases**: `tenant_<hashed-name>` → direct tenant names (e.g., `my_app`)
 - **Reserved Patterns**: Blocks `test_*` and `monk_*` prefixes
 
 ### 📖 **CLI Support**

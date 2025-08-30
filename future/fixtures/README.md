@@ -64,8 +64,8 @@ The following npm scripts were removed from package.json:
 ### Template Database Cloning
 The system used PostgreSQL's `CREATE DATABASE WITH TEMPLATE` feature:
 ```sql
-CREATE DATABASE "monk-api$test-123456789"
-WITH TEMPLATE "monk-api$test-template-basic"
+CREATE DATABASE "tenant_893127"
+WITH TEMPLATE "test_template_basic"
 ```
 
 ### Fixture Definitions
