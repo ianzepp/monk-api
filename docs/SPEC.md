@@ -235,8 +235,8 @@ describe('Database Operations', () => {
     await ObserverLoader.preloadObservers();
     
     // Create schema
-    const schemaYaml = await readFile('test/schemas/account.yaml', 'utf-8');
-    await testContext.metabase.createOne('account', schemaYaml);
+    const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
+    await testContext.metabase.createOne('account', schemaJson);
   });
 
   afterAll(async () => {
@@ -379,9 +379,9 @@ spec/fixtures/
 │   ├── contact-generator.ts
 │   └── example-generator.ts
 └── schema/              # Schema definitions
-    ├── account.yaml
-    ├── contact.yaml
-    └── example.yaml
+    ├── account.json
+    ├── contact.json
+    └── example.json
 ```
 
 ### Using Templates in Tests
@@ -394,8 +394,8 @@ beforeAll(async () => {
   testContext = await createTestContext(tenantManager.tenant!, 'root');
   
   // Manual schema loading
-  const accountYaml = await readFile('test/schemas/account.yaml', 'utf-8');
-  await testContext.metabase.createOne('account', accountYaml);
+  const accountJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
+  await testContext.metabase.createOne('account', accountJson);
   
   // Manual data creation
   for (let i = 0; i < 100; i++) {
@@ -459,9 +459,9 @@ await templateDatabase.buildTemplate('performance', 'unsafe'); // Direct SQL
 
 ### Schema Files
 Located in `spec/fixtures/schema/`:
-- **account.yaml**: User account schema
-- **contact.yaml**: Contact/customer schema
-- **example.yaml**: Demonstration schema
+- **account.json**: User account schema
+- **contact.json**: Contact/customer schema
+- **example.json**: Demonstration schema
 
 ### Data Generators
 Located in `spec/fixtures/generators/`:
@@ -485,21 +485,23 @@ The fixture system uses a two-part approach: YAML schemas define the data struct
 
 ### Step-by-Step Process
 
-#### 1. Define the Schema (YAML)
+#### 1. Define the Schema (JSON)
 
-Start by creating a YAML schema file that defines all fields, types, and validation constraints:
+Start by creating a JSON schema file that defines all fields, types, and validation constraints:
 
-```yaml
-# spec/fixtures/schema/example.yaml
-title: Example
-type: object
-properties:
-  id:
-    type: string
-    format: uuid
-    description: Unique identifier
-  title:
-    type: string
+```json
+# spec/fixtures/schema/example.json
+{
+  "title": "Example",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier"
+    },
+    "title": {
+      "type": "string"
     minLength: 1
     maxLength: 200
   status:
@@ -615,7 +617,7 @@ private generateEdgeCases(): GeneratedRecord[] {
 
 #### Account Schema → Generator
 
-The **account.yaml** schema defines:
+The **account.json** schema defines:
 - Required fields: id, name, email, username, account_type
 - Constraints: username pattern `^[a-zA-Z0-9_-]{3,50}$`, balance 0-1,000,000
 - Nullable fields: credit_limit (only for business accounts), phone, last_login
@@ -628,7 +630,7 @@ The **AccountGenerator** implements:
 
 #### Contact Schema → Generator
 
-The **contact.yaml** schema defines:
+The **contact.json** schema defines:
 - Required fields: id, first_name, last_name, email, contact_type
 - Complex object: address with street, city, state, postal_code, country
 - Array field: tags (max 10 items, each max 50 chars)

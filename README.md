@@ -44,14 +44,17 @@
 - **Resource Efficiency**: Ultra-lightweight framework minimizes resource overhead per tenant
 
 ### Schema-First Development
-```yaml
-# Example: user.yaml schema definition
-name: user
-properties:
-  name: {type: string, minLength: 1}
-  email: {type: string, format: email}
-  role: {type: string, enum: [admin, user]}
-required: [name, email]
+```json
+# Example: user.json schema definition
+{
+  "name": "user",
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "email": {"type": "string", "format": "email"},
+    "role": {"type": "string", "enum": ["admin", "user"]}
+  },
+  "required": ["name", "email"]
+}
 ```
 
 ### API Design Patterns

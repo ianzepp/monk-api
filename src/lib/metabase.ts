@@ -1,7 +1,6 @@
 import { builtins, type TxContext, type DbContext } from '@src/db/index.js';
 import type { System } from '@src/lib/system.js';
 import type { Context } from 'hono';
-import * as yaml from 'js-yaml';
 import crypto from 'crypto';
 
 export interface JsonSchemaProperty {
@@ -76,9 +75,9 @@ export class Metabase {
     /**
      * Create new schema from YAML content
      */
-    async createOne(schemaName: string, yamlContent: string): Promise<any> {
+    async createOne(schemaName: string, jsonContent: any): Promise<any> {
         return await this.run('create', schemaName, async (tx: TxContext) => {
-            const jsonSchema = this.parseYamlSchema(yamlContent);
+            const jsonSchema = this.parseJsonSchema(jsonContent);
             const tableName = jsonSchema.table || schemaName;
             
             // Validate schema protection
@@ -91,8 +90,8 @@ export class Metabase {
             await tx.query(ddl);
             
             // Insert schema metadata
-            const yamlChecksum = this.generateYamlChecksum(yamlContent);
-            await this.insertSchemaRecord(tx, schemaName, tableName, jsonSchema, yamlChecksum);
+            const jsonChecksum = this.generateJsonChecksum(JSON.stringify(jsonContent));
+            await this.insertSchemaRecord(tx, schemaName, tableName, jsonSchema, jsonChecksum);
             
             logger.info('Schema created successfully', { schemaName, tableName });
             
@@ -117,26 +116,21 @@ export class Metabase {
         const schemaRecord = schemaResult.rows[0];
         const jsonDefinition = schemaRecord.definition;
 
-        // Convert JSON definition back to YAML
-        const yamlOutput = yaml.dump(jsonDefinition, {
-            indent: 2,
-            lineWidth: 120,
-            noRefs: true,
-            sortKeys: false
-        });
+        // Return JSON definition as compressed JSON string
+        const jsonOutput = JSON.stringify(jsonDefinition);
 
-        return yamlOutput;
+        return jsonOutput;
     }
     
     /**
      * Update existing schema from YAML content
      */
-    async updateOne(schemaName: string, yamlContent: string): Promise<any> {
+    async updateOne(schemaName: string, jsonContent: any): Promise<any> {
         return await this.run('update', schemaName, async (tx: TxContext) => {
             this.validateSchemaProtection(schemaName);
             
-            const newJsonSchema = this.parseYamlSchema(yamlContent);
-            const yamlChecksum = this.generateYamlChecksum(yamlContent);
+            const newJsonSchema = this.parseJsonSchema(jsonContent);
+            const jsonChecksum = this.generateJsonChecksum(JSON.stringify(jsonContent));
             const fieldCount = Object.keys(newJsonSchema.properties).length;
             
             // Update schema metadata record
@@ -150,7 +144,7 @@ export class Metabase {
             const result = await tx.query(updateQuery, [
                 JSON.stringify(newJsonSchema),
                 fieldCount.toString(),
-                yamlChecksum,
+                jsonChecksum,
                 schemaName
             ]);
             
@@ -239,25 +233,23 @@ export class Metabase {
     /**
      * Parse YAML content to JSON Schema (public method for route handlers)
      */
-    parseYaml(yamlContent: string): JsonSchema {
-        return this.parseYamlSchema(yamlContent);
+    parseSchema(jsonContent: any): JsonSchema {
+        return this.parseJsonSchema(jsonContent);
     }
     
     /**
      * Parse YAML content to JSON Schema (internal implementation)
      */
-    private parseYamlSchema(yamlContent: string): JsonSchema {
-        const jsonSchema = yaml.load(yamlContent) as JsonSchema;
-        
-        if (!jsonSchema || typeof jsonSchema !== 'object') {
+    private parseJsonSchema(jsonContent: any): JsonSchema {
+        if (!jsonContent || typeof jsonContent !== 'object') {
             throw new Error('Invalid schema definition format');
         }
 
-        if (!jsonSchema.title || !jsonSchema.properties) {
+        if (!jsonContent.title || !jsonContent.properties) {
             throw new Error('Schema must have title and properties');
         }
 
-        return jsonSchema;
+        return jsonContent as JsonSchema;
     }
     
     /**
@@ -355,10 +347,10 @@ export class Metabase {
     }
     
     /**
-     * Generate YAML content checksum for cache invalidation
+     * Generate JSON content checksum for cache invalidation
      */
-    private generateYamlChecksum(yamlContent: string): string {
-        return crypto.createHash('sha256').update(yamlContent).digest('hex');
+    private generateJsonChecksum(jsonContent: string): string {
+        return crypto.createHash('sha256').update(jsonContent).digest('hex');
     }
     
     /**
@@ -369,7 +361,7 @@ export class Metabase {
         schemaName: string,
         tableName: string,
         jsonSchema: JsonSchema,
-        yamlChecksum: string
+        jsonChecksum: string
     ): Promise<void> {
         const fieldCount = Object.keys(jsonSchema.properties).length;
         
@@ -386,7 +378,7 @@ export class Metabase {
             'active',
             JSON.stringify(jsonSchema),
             fieldCount.toString(),
-            yamlChecksum
+            jsonChecksum
         ]);
     }
 }

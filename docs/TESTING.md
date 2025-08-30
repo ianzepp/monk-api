@@ -197,8 +197,8 @@ describe('Integration Test Suite', () => {
     testContext = await createTestContext(tenantManager.tenant!, 'root');
 
     // Create test schemas and data
-    const schemaYaml = await readFile('test/schemas/account.yaml', 'utf-8');
-    await testContext.metabase.createOne('account', schemaYaml);
+    const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
+    await testContext.metabase.createOne('account', schemaJson);
     
     await testContext.database.createOne('account', {
       id: 'test-account',
@@ -479,7 +479,7 @@ expect(record.id).toBeDefined();
 ```
 
 ### Test Data Strategy
-- **Use existing schemas**: `test/schemas/account.yaml`, `contact.yaml` for realistic testing
+- **Use existing schemas**: `test/schemas/account.json`, `contact.json` for realistic testing
 - **Predictable IDs**: Use descriptive test record IDs like `account-test-001`
 - **Edge cases**: Test null values, empty arrays, boundary conditions
 - **Performance data**: Large objects, many records for stress testing

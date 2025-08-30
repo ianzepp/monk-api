@@ -29,7 +29,7 @@ interface RouteParams {
  * 
  * Handles content-type aware body parsing:
  * - application/json → parsed JSON object
- * - text/yaml → raw YAML string  
+ * - application/json → parsed JSON object  
  * - application/octet-stream → ArrayBuffer for binary data
  * - default → raw text string
  */
@@ -56,9 +56,9 @@ export function withParams(
                 params.body = await context.req.json();        // Parsed JSON
             } 
             
-            // Handle YAML content for schema definitions
+            // All schema definitions now use JSON
             else if (params.contentType.includes('text/yaml') || params.contentType.includes('application/yaml')) {
-                params.body = await context.req.text();        // Raw YAML string
+                throw new Error('YAML content-type no longer supported. Use application/json instead.');
             } 
             
             // Handle binary content for file uploads

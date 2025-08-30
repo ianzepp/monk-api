@@ -229,45 +229,51 @@ The Meta API handles YAML schema definitions and DDL generation:
 **Preferred: URL Name Pattern**
 ```bash
 POST /api/meta/schema/:name[?force=true]
-Content-Type: application/yaml
+Content-Type: application/json
 Authorization: Bearer <jwt>
 
-# Schema name comes from URL, YAML can be template
-title: User Management
-description: User account information
-type: object
-properties:
-  id:
-    type: string
-    format: uuid
-  name:
-    type: string
-    minLength: 1
-  email:
-    type: string
-    format: email
-required:
-  - name
-  - email
+# Schema name comes from URL, JSON can be template
+{
+  "title": "User Management",
+  "description": "User account information",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    }
+  },
+  "required": ["name", "email"]
+}
 ```
 
-**Legacy: YAML Name Pattern**
+**Legacy: JSON Name Pattern**
 ```bash
 POST /api/meta/schema
-Content-Type: application/yaml
+Content-Type: application/json
 Authorization: Bearer <jwt>
 
-# Schema name comes from YAML title field
-name: users
-title: User Management  
-description: User account information
-type: object
-# ... rest of schema
+# Schema name comes from JSON title field
+{
+  "name": "users",
+  "title": "User Management",
+  "description": "User account information",
+  "type": "object"
+  // ... rest of schema
+}
 ```
 
 **Conflict Resolution:**
 - URL name takes precedence when both patterns are used
-- Add `?force=true` to override YAML title conflicts
+- Add `?force=true` to override JSON title conflicts
 - Without force, conflicts return 409 error
 
 #### List Schemas
@@ -284,16 +290,16 @@ Authorization: Bearer <jwt>
 GET /api/meta/schema/:name
 Authorization: Bearer <jwt>
 
-# Response: Complete YAML schema definition
+# Response: Complete JSON schema definition
 ```
 
 #### Update Schema
 ```bash
 PUT /api/meta/schema/:name
-Content-Type: application/yaml
+Content-Type: application/json
 Authorization: Bearer <jwt>
 
-# Updated YAML schema definition
+# Updated JSON schema definition
 # Automatically updates database DDL
 ```
 
@@ -558,11 +564,11 @@ app.route('/api/new', newRouter);
 ### Schema Development
 
 ```bash
-# 1. Create YAML schema
-tests/schemas/new-schema.yaml
+# 1. Create JSON schema
+tests/schemas/new-schema.json
 
 # 2. Deploy for testing
-cat tests/schemas/new-schema.yaml | monk meta create schema
+cat tests/schemas/new-schema.json | monk meta create schema
 
 # 3. Test CRUD operations
 echo '{"field": "value"}' | monk data create new-schema
@@ -587,19 +593,15 @@ curl -X POST http://localhost:9001/api/data/users \
 
 # Schema operations (preferred URL pattern)
 curl -X POST http://localhost:9001/api/meta/schema/test-schema \
-  -H "Content-Type: application/yaml" \
+  -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
-  -d 'title: Test Schema
-type: object
-properties:
-  name: {type: string}'
+  -d '{"title": "Test Schema", "type": "object", "properties": {"name": {"type": "string"}}}'
 
 # Schema operations (legacy pattern)
 curl -X POST http://localhost:9001/api/meta/schema \
-  -H "Content-Type: application/yaml" \
+  -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
-  -d 'name: test-schema
-title: Test Schema...'
+  -d '{"name": "test-schema", "title": "Test Schema"}}'
 ```
 
 ### Error Handling

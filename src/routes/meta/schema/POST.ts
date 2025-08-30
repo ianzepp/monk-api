@@ -3,19 +3,19 @@ import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 export default withParams(async (context, { system, schemaName, body }) => {
-    // Parse YAML to get schema name from content
-    const jsonSchema = system.metabase.parseYaml(body);
-    const yamlName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
+    // Parse JSON to get schema name from content
+    const jsonSchema = system.metabase.parseSchema(body);
+    const jsonName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
     
-    // Use URL name if provided, otherwise fall back to YAML name
-    const urlName = schemaName || yamlName;
+    // Use URL name if provided, otherwise fall back to JSON name
+    const urlName = schemaName || jsonName;
     
     // Only check conflicts if BOTH are present
-    if (schemaName && urlName !== yamlName) {
+    if (schemaName && urlName !== jsonName) {
         const forceOverride = context.req.query('force') === 'true';
         
         if (!forceOverride) {
-            throw new Error(`URL name '${urlName}' conflicts with YAML title '${yamlName}'. Use ?force=true to override.`);
+            throw new Error(`URL name '${urlName}' conflicts with JSON title '${jsonName}'. Use ?force=true to override.`);
         }
     }
     

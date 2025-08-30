@@ -75,7 +75,7 @@ npm run spec:ts unit                   # Unit tests only
 npm run spec:sh 15                     # Authentication tests
 
 # Schema management
-cat contacts.yaml | monk meta create schema
+cat contacts.json | monk meta create schema
 monk meta select schema contacts
 
 # Data operations (automatic observer pipeline)
@@ -141,7 +141,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Parameterized SQL**: Secure queries using Filter.toSQL() pattern with PostgreSQL placeholders
 
 #### **Metabase Class** (`src/lib/metabase.ts`)
-- **Schema Definition Management**: Clean CRUD operations for schema YAML definitions
+- **Schema Definition Management**: Clean CRUD operations for schema JSON definitions
 - **Consistent Patterns**: Follows Database class architecture (createOne, selectOne, updateOne, deleteOne)
 - **Transaction Management**: Clean begin/commit/rollback pattern with run() method
 - **DDL Generation**: Automatic PostgreSQL table creation from JSON Schema
@@ -149,7 +149,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 #### **Middleware Architecture** (`src/lib/middleware/`)
 - **systemContextMiddleware**: Universal System setup and global error handling
 - **responseJsonMiddleware**: Automatic JSON formatting for `/api/data/*` routes  
-- **responseYamlMiddleware**: Enhanced YAML formatting with automatic error handling for `/api/meta/*` routes
+- **responseJsonMiddleware**: Enhanced JSON formatting with automatic error handling for `/api/meta/*` routes
 
 > **📖 For complete API documentation, see [docs/API.md](docs/API.md)**
 
@@ -204,10 +204,10 @@ monk ping
 
 #### **Schema Development**
 ```bash
-# Create schema from YAML
-cat contacts.yaml | monk meta create schema
+# Create schema from JSON
+cat contacts.json | monk meta create schema
 
-# Read new schema YAML
+# Read new schema JSON
 monk meta select schema contacts
 
 # Delete schema
@@ -487,7 +487,7 @@ npm run spec:sh 15                     # Auth tests
 npm run spec:one spec/path/test.test.ts # Single test
 
 # Schema management
-cat contacts.yaml | monk meta create schema
+cat contacts.json | monk meta create schema
 monk meta select schema contacts
 
 # Data operations (automatic observer pipeline)

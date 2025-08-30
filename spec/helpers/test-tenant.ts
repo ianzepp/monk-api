@@ -561,7 +561,7 @@ async function ensureSchemaExists(context: TestContext, schemaName: string): Pro
     
     try {
       // Try to load schema definition
-      const schemaPath = `../../spec/fixtures/schema/${schemaName}.yaml`;
+      const schemaPath = `../../spec/fixtures/schema/${schemaName}.json`;
       // TODO: Load and create schema
       logger.info(`📋 Would load schema from: ${schemaPath}`);
     } catch (schemaError) {

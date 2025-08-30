@@ -1,9 +1,9 @@
 /**
  * Meta API Tests - Schema Operations
  * 
- * Tests the Meta API YAML workflow using Metabase class:
- * 1. Create schema from YAML (metabase.createOne)
- * 2. Select schema as YAML (metabase.selectOne) 
+ * Tests the Meta API JSON workflow using Metabase class:
+ * 1. Create schema from JSON (metabase.createOne)
+ * 2. Select schema as JSON (metabase.selectOne) 
  * 3. Delete schema (metabase.deleteOne)
  * 
  * Equivalent to test/20-meta-api/ bash tests
@@ -13,15 +13,14 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { createTestTenant, createTestContext, type TestTenantManager, type TestContext } from '@spec/helpers/test-tenant.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import yaml from 'js-yaml';
 
 describe('20-meta-api: Schema Operations', () => {
   let tenantManager: TestTenantManager;
   let testContext: TestContext;
 
   // Test data - load from existing test schemas
-  let accountYaml: string;
-  let contactYaml: string;
+  let accountJson: any;
+  let contactJson: any;
 
   beforeAll(async () => {
     // Create fresh tenant for this test suite
@@ -34,10 +33,10 @@ describe('20-meta-api: Schema Operations', () => {
     // Create test context with authentication
     testContext = await createTestContext(tenantManager.tenant, 'root');
 
-    // Load test YAML schemas
+    // Load test JSON schemas
     const schemaDir = join(process.cwd(), 'spec/fixtures/schema');
-    accountYaml = readFileSync(join(schemaDir, 'account.yaml'), 'utf8');
-    contactYaml = readFileSync(join(schemaDir, 'contact.yaml'), 'utf8');
+    accountJson = JSON.parse(readFileSync(join(schemaDir, 'account.json'), 'utf8'));
+    contactJson = JSON.parse(readFileSync(join(schemaDir, 'contact.json'), 'utf8'));
   });
 
   afterAll(async () => {
@@ -48,10 +47,10 @@ describe('20-meta-api: Schema Operations', () => {
   });
 
   describe('Schema Creation', () => {
-    test('should create account schema from YAML successfully', async () => {
-      logger.info('🔧 Creating account schema from YAML');
+    test('should create account schema from JSON successfully', async () => {
+      logger.info('🔧 Creating account schema from JSON');
       
-      const result = await testContext.metabase.createOne('account', accountYaml);
+      const result = await testContext.metabase.createOne('account', accountJson);
       
       expect(result).toBeDefined();
       
@@ -62,10 +61,10 @@ describe('20-meta-api: Schema Operations', () => {
       logger.info('✅ Account schema created successfully');
     }, 15000);
 
-    test('should create contact schema from YAML successfully', async () => {
-      logger.info('🔧 Creating contact schema from YAML');
+    test('should create contact schema from JSON successfully', async () => {
+      logger.info('🔧 Creating contact schema from JSON');
       
-      const result = await testContext.metabase.createOne('contact', contactYaml);
+      const result = await testContext.metabase.createOne('contact', contactJson);
       
       expect(result).toBeDefined();
       expect(result.name).toBe('contact');
@@ -76,18 +75,18 @@ describe('20-meta-api: Schema Operations', () => {
   });
 
   describe('Schema Retrieval', () => {
-    test('should retrieve account schema as YAML', async () => {
-      logger.info('🔍 Retrieving account schema as YAML');
+    test('should retrieve account schema as JSON', async () => {
+      logger.info('🔍 Retrieving account schema as JSON');
       
-      const retrievedYaml = await testContext.metabase.selectOne('account');
+      const retrievedJson = await testContext.metabase.selectOne('account');
       
-      expect(retrievedYaml).toBeDefined();
-      expect(typeof retrievedYaml).toBe('string');
-      expect(retrievedYaml.length).toBeGreaterThan(0);
+      expect(retrievedJson).toBeDefined();
+      expect(typeof retrievedJson).toBe('string');
+      expect(retrievedJson.length).toBeGreaterThan(0);
       
-      // Parse both YAML documents to compare functionally
-      const originalSchema = yaml.load(accountYaml) as any;
-      const retrievedSchema = yaml.load(retrievedYaml) as any;
+      // Parse JSON documents to compare functionally
+      const originalSchema = accountJson;
+      const retrievedSchema = JSON.parse(retrievedJson);
       
       // Verify functional equivalence (key properties should match)
       expect(retrievedSchema.title).toBe(originalSchema.title);
@@ -106,16 +105,16 @@ describe('20-meta-api: Schema Operations', () => {
       logger.info('✅ Account schema retrieved and validated');
     }, 10000);
 
-    test('should retrieve contact schema as YAML', async () => {
-      logger.info('🔍 Retrieving contact schema as YAML');
+    test('should retrieve contact schema as JSON', async () => {
+      logger.info('🔍 Retrieving contact schema as JSON');
       
-      const retrievedYaml = await testContext.metabase.selectOne('contact');
+      const retrievedJson = await testContext.metabase.selectOne('contact');
       
-      expect(retrievedYaml).toBeDefined();
-      expect(typeof retrievedYaml).toBe('string');
+      expect(retrievedJson).toBeDefined();
+      expect(typeof retrievedJson).toBe('string');
       
       // Parse and validate structure
-      const retrievedSchema = yaml.load(retrievedYaml) as any;
+      const retrievedSchema = JSON.parse(retrievedJson);
       expect(retrievedSchema.title).toBeDefined();
       expect(retrievedSchema.type).toBe('object');
       expect(retrievedSchema.properties).toBeDefined();
@@ -127,44 +126,47 @@ describe('20-meta-api: Schema Operations', () => {
   describe('Schema Create + Select Workflow', () => {
     test('should create and immediately select custom schema', async () => {
       const customSchemaName = 'test-workflow';
-      const customYaml = `
-title: Test Workflow Schema
-description: Custom schema for testing create-select workflow
-type: object
-properties:
-  name:
-    type: string
-    minLength: 1
-    maxLength: 100
-    description: Test item name
-  active:
-    type: boolean
-    default: true
-    description: Whether item is active
-  category:
-    type: string
-    enum: ["test", "demo", "production"]
-    default: "test"
-    description: Item category
-required:
-  - name
-additionalProperties: false
-`;
+      const customJson = {
+        title: "Test Workflow Schema",
+        description: "Custom schema for testing create-select workflow",
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            minLength: 1,
+            maxLength: 100,
+            description: "Test item name"
+          },
+          active: {
+            type: "boolean",
+            default: true,
+            description: "Whether item is active"
+          },
+          category: {
+            type: "string",
+            enum: ["test", "demo", "production"],
+            default: "test",
+            description: "Item category"
+          }
+        },
+        required: ["name"],
+        additionalProperties: false
+      };
 
       logger.info('🔧 Testing create + select workflow');
       
       // Create the schema
-      const createResult = await testContext.metabase.createOne(customSchemaName, customYaml.trim());
+      const createResult = await testContext.metabase.createOne(customSchemaName, customJson);
       expect(createResult).toBeDefined();
       expect(createResult.name).toBe(customSchemaName);
       
       // Immediately select it back
-      const retrievedYaml = await testContext.metabase.selectOne(customSchemaName);
-      expect(retrievedYaml).toBeDefined();
+      const retrievedJson = await testContext.metabase.selectOne(customSchemaName);
+      expect(retrievedJson).toBeDefined();
       
       // Parse and verify functional equivalence
-      const originalSchema = yaml.load(customYaml.trim()) as any;
-      const retrievedSchema = yaml.load(retrievedYaml) as any;
+      const originalSchema = customJson;
+      const retrievedSchema = JSON.parse(retrievedJson);
       
       expect(retrievedSchema.title).toBe(originalSchema.title);
       expect(retrievedSchema.type).toBe(originalSchema.type);

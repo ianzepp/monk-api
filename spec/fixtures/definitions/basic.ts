@@ -12,8 +12,8 @@ export const basicFixture: FixtureDefinition = {
   description: 'Basic fixture with account and contact schemas for standard testing',
   
   schemas: {
-    'account': 'spec/fixtures/schema/account.yaml',
-    'contact': 'spec/fixtures/schema/contact.yaml'
+    'account': 'spec/fixtures/schema/account.json',
+    'contact': 'spec/fixtures/schema/contact.json'
     // Note: user schema is managed by tenant initialization, not fixtures
     // Test fixture schemas are located in spec/fixtures/schema/
   },

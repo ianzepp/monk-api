@@ -32,16 +32,19 @@ npm run spec:sh spec/10-connection/basic-ping.test.sh
 ## Core Features
 
 ### 🎯 Schema Management
-Define data models using YAML with JSON Schema validation:
+Define data models using JSON with JSON Schema validation:
 
-```yaml
-# user.yaml
-name: user
-properties:
-  name: {type: string, minLength: 1}
-  email: {type: string, format: email}
-  role: {type: string, enum: [admin, user]}
-required: [name, email]
+```json
+# user.json
+{
+  "name": "user",
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "email": {"type": "string", "format": "email"},
+    "role": {"type": "string", "enum": ["admin", "user"]}
+  },
+  "required": ["name", "email"]
+}
 ```
 
 ### 🔒 Multi-Tenant Architecture
@@ -83,7 +86,7 @@ monk tenant create my-app
 monk auth login my-app root
 
 # Schema management  
-cat contacts.yaml | monk meta create schema
+cat contacts.json | monk meta create schema
 monk meta select schema contacts
 
 # Data operations
