@@ -20,7 +20,6 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api/responses.js';
-import { isHttpError } from '@src/lib/errors/http-error.js';
 import { AuthService } from '@src/lib/auth.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { 
@@ -166,18 +165,6 @@ app.post('/ftp/modify-time', FtpModifyTimePost);                    // File modi
 // Error handling
 app.onError((err, c) => {
     console.error('Unhandled error:', err);
-    
-    // Handle HttpError instances with proper status codes
-    if (isHttpError(err)) {
-        return c.json({
-            success: false,
-            error: err.message,
-            error_code: err.errorCode,
-            ...(err.details && { data: err.details })
-        }, err.statusCode as any);
-    }
-    
-    // Handle generic Error instances
     return createInternalError(c, err);
 });
 

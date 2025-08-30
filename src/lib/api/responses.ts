@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { System } from '@src/lib/system.js';
 import type { SystemOptions } from '@src/lib/types/system-context.js';
+import { isHttpError } from '@src/lib/errors/http-error.js';
  
 import { type TxContext } from '@src/db/index.js';
 export interface ApiSuccessResponse<T = any> {
@@ -141,6 +142,29 @@ export function createDatabaseError(c: Context, error: string = 'Database operat
 export function createInternalError(c: Context, error: string | Error = 'Internal server error') {
   const isDevelopment = process.env.NODE_ENV === 'development';
   
+  // Handle HttpError instances with proper status codes
+  if (isHttpError(error)) {
+    let responseData = error.details;
+    
+    // Add stack trace in development mode
+    if (isDevelopment) {
+      responseData = {
+        ...responseData,
+        name: error.name,
+        stack: error.stack,
+        cause: error.cause
+      };
+    }
+    
+    return c.json({
+      success: false,
+      error: error.message,
+      error_code: error.errorCode,
+      ...(responseData && { data: responseData })
+    }, error.statusCode as any);
+  }
+  
+  // Handle generic Error instances
   let errorMessage: string;
   let errorData: any = undefined;
   
