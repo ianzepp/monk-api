@@ -51,7 +51,7 @@ additionalProperties: false
       await testContext.metabase.createOne('sectest', securityTestSchema.trim());
       console.info('✅ Security test schema created');
     } catch (error) {
-      logger.warn('⚠️  Security test schema creation failed:', error);
+      console.warn('⚠️  Security test schema creation failed:', error);
     }
   });
 
@@ -159,7 +159,7 @@ additionalProperties: false
         });
         records.push(record1, record2);
       } catch (error) {
-        logger.warn('Could not create test records for delete test');
+        console.warn('Could not create test records for delete test');
         return;
       }
 

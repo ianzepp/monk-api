@@ -72,7 +72,7 @@ additionalProperties: true
       await testContext.metabase.createOne('testdata', testSchemaYaml.trim());
       console.info('✅ Test schema created for data operations');
     } catch (error) {
-      logger.warn('⚠️  Schema creation failed, may already exist:', error);
+      console.warn('⚠️  Schema creation failed, may already exist:', error);
     }
   });
 

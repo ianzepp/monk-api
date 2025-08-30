@@ -85,7 +85,7 @@ async function cleanupTestTenant(tenant: TenantInfo): Promise<void> {
 
     console.info(`✅ Test tenant cleaned up: ${tenant.name}`);
   } catch (error) {
-    logger.warn(`⚠️  Failed to cleanup test tenant ${tenant.name}:`, error);
+    console.warn(`⚠️  Failed to cleanup test tenant ${tenant.name}:`, error);
     // Don't throw error in cleanup - just warn
   }
 }

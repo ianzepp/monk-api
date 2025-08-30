@@ -33,7 +33,7 @@ describe('15-authentication: Basic Auth Flow', () => {
         await TenantService.deleteTenant(tenantName, true);
         console.info(`✅ Cleaned up test tenant: ${tenantName}`);
       } catch (error) {
-        logger.warn(`⚠️  Failed to cleanup tenant ${tenantName}:`, error);
+        console.warn(`⚠️  Failed to cleanup tenant ${tenantName}:`, error);
       }
     }
   });

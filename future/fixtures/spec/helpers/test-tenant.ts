@@ -186,7 +186,7 @@ async function cleanupTestTenant(tenant: TenantInfo): Promise<void> {
 
     console.info(`✅ Test tenant cleaned up: ${tenant.name}`);
   } catch (error) {
-    logger.warn(`⚠️  Failed to cleanup test tenant ${tenant.name}:`, error);
+    console.warn(`⚠️  Failed to cleanup test tenant ${tenant.name}:`, error);
     // Don't throw error in cleanup - just warn
   }
 }
@@ -366,7 +366,7 @@ export async function createTestContextWithFixture(
       console.info(`✅ Template cloned successfully: ${testDatabase}`);
       
     } catch (error) {
-      logger.warn(`⚠️  Template cloning failed, falling back to manual setup: ${(error as Error).message}`);
+      console.warn(`⚠️  Template cloning failed, falling back to manual setup: ${(error as Error).message}`);
       
       // Fallback to manual data creation
       testDatabase = baseContext.tenant.database;
@@ -478,7 +478,7 @@ async function loadFixtureDefinition(fixtureName: string): Promise<any> {
       relationships: fixtureModule.fixture?.relationships || []
     };
   } catch (error) {
-    logger.warn(`⚠️  Could not load fixture definition for ${fixtureName}, using defaults`);
+    console.warn(`⚠️  Could not load fixture definition for ${fixtureName}, using defaults`);
     return {
       name: fixtureName,
       version: '1.0.0',
@@ -515,7 +515,7 @@ async function createMockData(
         
         console.info(`✅ Created ${records.length} ${schemaName} records`);
       } catch (error) {
-        logger.warn(`⚠️  Failed to create ${schemaName} records:`, (error as Error).message);
+        console.warn(`⚠️  Failed to create ${schemaName} records:`, (error as Error).message);
         recordCounts[schemaName] = 0;
       }
     }
@@ -565,7 +565,7 @@ async function ensureSchemaExists(context: TestContext, schemaName: string): Pro
       // TODO: Load and create schema
       console.info(`📋 Would load schema from: ${schemaPath}`);
     } catch (schemaError) {
-      logger.warn(`⚠️  Could not create schema ${schemaName}:`, (schemaError as Error).message);
+      console.warn(`⚠️  Could not create schema ${schemaName}:`, (schemaError as Error).message);
     }
   }
 }
@@ -628,7 +628,7 @@ async function mergeFixtures(fixtures: any[]): Promise<MergedFixture> {
         schema: schemaName,
         fixtures: providers
       });
-      logger.warn(`⚠️  Schema conflict detected: '${schemaName}' provided by ${providers.join(', ')}`);
+      console.warn(`⚠️  Schema conflict detected: '${schemaName}' provided by ${providers.join(', ')}`);
     }
   });
 
@@ -836,7 +836,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.count(schemaName);
       } catch (error) {
-        logger.warn(`⚠️  Could not count records in ${schemaName}:`, (error as Error).message);
+        console.warn(`⚠️  Could not count records in ${schemaName}:`, (error as Error).message);
         return 0;
       }
     },
@@ -849,7 +849,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         const randomIndex = Math.floor(Math.random() * records.length);
         return records[randomIndex];
       } catch (error) {
-        logger.warn(`⚠️  Could not get random record from ${schemaName}:`, (error as Error).message);
+        console.warn(`⚠️  Could not get random record from ${schemaName}:`, (error as Error).message);
         return null;
       }
     },
@@ -858,7 +858,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.selectOne(schemaName, criteria);
       } catch (error) {
-        logger.warn(`⚠️  Could not find record in ${schemaName}:`, (error as Error).message);
+        console.warn(`⚠️  Could not find record in ${schemaName}:`, (error as Error).message);
         return null;
       }
     },
@@ -900,7 +900,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         
         return await context.database.createOne(schemaName, mergedRecord);
       } catch (error) {
-        logger.warn(`⚠️  Could not create test record in ${schemaName}:`, (error as Error).message);
+        console.warn(`⚠️  Could not create test record in ${schemaName}:`, (error as Error).message);
         throw error;
       }
     },
@@ -918,7 +918,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
           });
           records.push(record);
         } catch (error) {
-          logger.warn(`⚠️  Failed to create record ${i} for ${schemaName}:`, (error as Error).message);
+          console.warn(`⚠️  Failed to create record ${i} for ${schemaName}:`, (error as Error).message);
         }
       }
       
@@ -942,7 +942,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
         console.info(`🗑️  Cleaned up ${records.length} records from ${schemaName}`);
         return records.length;
       } catch (error) {
-        logger.warn(`⚠️  Could not cleanup records in ${schemaName}:`, (error as Error).message);
+        console.warn(`⚠️  Could not cleanup records in ${schemaName}:`, (error as Error).message);
         return 0;
       }
     },
@@ -951,7 +951,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
       try {
         return await context.database.selectAny(schemaName, { ...criteria, limit });
       } catch (error) {
-        logger.warn(`⚠️  Could not find records in ${schemaName}:`, (error as Error).message);
+        console.warn(`⚠️  Could not find records in ${schemaName}:`, (error as Error).message);
         return [];
       }
     },
@@ -976,7 +976,7 @@ function createTestDataHelpers(context: TestContext, fixture: any): TestDataHelp
     endTimer(label: string): number {
       const startTime = performanceTimers[label];
       if (!startTime) {
-        logger.warn(`⚠️  Timer '${label}' was not started`);
+        console.warn(`⚠️  Timer '${label}' was not started`);
         return 0;
       }
       
@@ -1038,7 +1038,7 @@ async function createCustomFixtureData(
       }
       
     } catch (error) {
-      logger.warn(`⚠️  Failed to create ${schemaName} records:`, (error as Error).message);
+      console.warn(`⚠️  Failed to create ${schemaName} records:`, (error as Error).message);
       recordCounts[schemaName] = 0;
     }
   }
