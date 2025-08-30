@@ -1,4 +1,4 @@
--- Monk API Auth Database Initialization Script  
+-- Monk API Auth Database Initialization Script
 -- This script creates the required tables for the monk database
 --
 -- Usage:
@@ -18,7 +18,7 @@ CREATE TABLE "tenant" (
     "host" VARCHAR(255) DEFAULT 'localhost',      -- Database host (future multi-host support)
     "is_active" BOOLEAN DEFAULT true,             -- Enable/disable tenant access
     "access_read" uuid[] DEFAULT '{}'::uuid[],    -- ACL read access
-    "access_edit" uuid[] DEFAULT '{}'::uuid[],    -- ACL edit access  
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],    -- ACL edit access
     "access_full" uuid[] DEFAULT '{}'::uuid[],    -- ACL full access
     "access_deny" uuid[] DEFAULT '{}'::uuid[],    -- ACL deny access
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -36,7 +36,7 @@ CREATE INDEX "idx_tenant_deleted" ON "tenant" ("deleted_at") WHERE "deleted_at" 
 -- Add comments to document the table structure
 COMMENT ON TABLE "tenant" IS 'Registry of multi-tenant databases for domain-based routing';
 COMMENT ON COLUMN "tenant"."id" IS 'UUID primary key for tenant record';
-COMMENT ON COLUMN "tenant"."name" IS 'Unique tenant identifier used in authentication';  
+COMMENT ON COLUMN "tenant"."name" IS 'Unique tenant identifier used in authentication';
 COMMENT ON COLUMN "tenant"."database" IS 'PostgreSQL database name containing tenant data (direct tenant name)';
 COMMENT ON COLUMN "tenant"."host" IS 'Database host for future distributed deployment support';
 COMMENT ON COLUMN "tenant"."is_active" IS 'Whether tenant is enabled for authentication';
@@ -58,13 +58,13 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_tenant_updated_at 
-    BEFORE UPDATE ON "tenant" 
-    FOR EACH ROW 
+CREATE TRIGGER update_tenant_updated_at
+    BEFORE UPDATE ON "tenant"
+    FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default system tenant for development and testing
 -- This provides a standard tenant for local development work
-INSERT INTO "tenant" (name, database, host, is_active) 
+INSERT INTO "tenant" (name, database, host, is_active)
 VALUES ('system', 'system', 'localhost', true)
 ON CONFLICT (name) DO NOTHING;

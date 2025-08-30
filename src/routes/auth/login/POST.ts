@@ -27,7 +27,7 @@ export default async function (context: Context) {
         return context.json({
             success: false,
             error: 'Authentication failed',
-            error_code: 'AUTH_FAILED'
+            error_code: 'AUTH_FAILED',
         });
     }
 
