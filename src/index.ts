@@ -25,7 +25,6 @@ import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { 
     systemContextMiddleware, 
     responseJsonMiddleware, 
-    responseYamlMiddleware,
     responseFileMiddleware 
 } from '@src/lib/middleware/system-context.js';
 import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/localhost-development-only.js';
@@ -112,11 +111,11 @@ app.use('/api/*', AuthService.getUserContextMiddleware());
 app.use('/api/*', systemContextMiddleware);
 
 // Meta API middleware
-app.use('/api/meta/*', responseYamlMiddleware);  // Meta API: YAML responses  
+app.use('/api/meta/*', responseJsonMiddleware);  // Meta API: JSON responses  
 
 // Meta API routes (clean barrel export organization)
 app.post('/api/meta/schema/:name', metaRoutes.SchemaPost);          // Create schema (with URL name)
-app.post('/api/meta/schema', metaRoutes.SchemaPost);                // Create schema (legacy, YAML name only)
+app.post('/api/meta/schema', metaRoutes.SchemaPost);                // Create schema (legacy, JSON name only)
 app.get('/api/meta/schema/:name', metaRoutes.SchemaGet);            // Get schema
 app.put('/api/meta/schema/:name', metaRoutes.SchemaPut);            // Update schema
 app.delete('/api/meta/schema/:name', metaRoutes.SchemaDelete);      // Delete schema
