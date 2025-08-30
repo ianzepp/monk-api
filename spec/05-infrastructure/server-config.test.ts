@@ -37,48 +37,12 @@ describe('05-infrastructure: TypeScript Configuration', () => {
   describe('Environment Configuration', () => {
     test('should have required environment variables available', () => {
       // Test database environment variables
-      const dbUser = process.env.DB_USER || process.env.USER;
-      const dbHost = process.env.DB_HOST || 'localhost';
-      const dbPort = process.env.DB_PORT || '5432';
+      const databaseUrl = process.env.DATABASE_URL;
+      const port = process.env.PORT;
       
-      expect(dbUser).toBeDefined();
-      expect(dbHost).toBeDefined();
-      expect(dbPort).toBeDefined();
-      expect(dbPort).toMatch(/^\d+$/);
-    });
-
-    test('should have monk configuration directory', () => {
-      const configDir = path.join(os.homedir(), '.config/monk');
-      expect(existsSync(configDir)).toBe(true);
-    });
-
-    test('should have servers configuration file', () => {
-      const configPath = path.join(os.homedir(), '.config/monk/server.json');
-      
-      if (existsSync(configPath)) {
-        // Should be valid JSON
-        const configContent = readFileSync(configPath, 'utf8');
-        const config = JSON.parse(configContent);
-        
-        expect(config).toHaveProperty('servers');
-        expect(config).toHaveProperty('current');
-        expect(typeof config.servers).toBe('object');
-        expect(typeof config.current).toBe('string');
-      }
-    });
-
-    test('should have environment configuration file if it exists', () => {
-      const configPath = path.join(os.homedir(), '.config/monk/env.json');
-      
-      if (existsSync(configPath)) {
-        const envContent = readFileSync(configPath, 'utf8');
-        const envConfig = JSON.parse(envContent);
-        
-        // Should have database configuration
-        expect(envConfig).toHaveProperty('DATABASE_URL');
-        expect(typeof envConfig.DATABASE_URL).toBe('string');
-        expect(envConfig.DATABASE_URL).toContain('postgresql://');
-      }
+      expect(databaseUrl).toBeDefined();
+      expect(port).toBeDefined();
+      expect(port).toMatch(/^\d+$/);
     });
   });
 

@@ -174,15 +174,10 @@ TEST_PORT=$(find_available_port 9101)
 print_info "Using test port: $TEST_PORT"
 
 # Create test environment configuration using existing DATABASE_URL
-if [ -f "$HOME/.config/monk/env.json" ]; then
-    # Extract DATABASE_URL from existing config
-    EXISTING_DATABASE_URL=$(jq -r '.DATABASE_URL // empty' "$HOME/.config/monk/env.json")
-else
-    EXISTING_DATABASE_URL="${DATABASE_URL:-}"
-fi
+EXISTING_DATABASE_URL="${DATABASE_URL:-}"
 
 if [ -z "$EXISTING_DATABASE_URL" ]; then
-    print_error "No DATABASE_URL found in ~/.config/monk/env.json or environment"
+    print_error "No DATABASE_URL found in .env or environment"
     print_info "Run 'npm run autoinstall' to set up configuration"
     exit 1
 fi

@@ -53,8 +53,7 @@ npm run spec:sh spec/10-connection/basic-ping.test.sh
 
 The `npm run autoinstall` script handles all setup steps automatically:
 - Verifies PostgreSQL connectivity
-- Creates registry database (`monk`) with tenant table
-- Configures local server in `~/.config/monk/server.json`
+- Creates registry database (`monk`) with tenant table for authentication
 - Creates test tenant (`local-test`) for development
 - Compiles TypeScript and verifies complete setup
 
@@ -102,7 +101,6 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 
 #### **API Management**
 - **CLI Tool**: Available as standalone [monk-cli](https://github.com/ianzepp/monk-cli) project
-- **Persistent Config**: Uses `~/.config/monk/` for servers, auth, and test config
 - **Multi-server**: Switch between development, staging, production environments
 - **Full CRUD**: Complete data and meta operations matching API endpoints
 
@@ -309,10 +307,8 @@ npm run spec:sh basic-ping             # Basic connectivity test
 
 ## 4. Configuration Management
 
-### **User Configuration** (`~/.config/monk/`)
-- **server.json**: Server registry with current server selection
-- **env.json**: Environment variables (DATABASE_URL, NODE_ENV, PORT)  
-- **test.json**: Test run history and configuration
+### **In Configuration** (`.env`)
+- Environment variables (DATABASE_URL, NODE_ENV, PORT)  
 
 ### **Server Management**
 ```bash
@@ -337,23 +333,11 @@ monk data select account            # Lists from staging database
 
 ### **Environment Configuration**
 ```bash
-# ~/.config/monk/env.json
+# .env
 {
   "DATABASE_URL": "postgresql://user:pass@localhost:5432/",
   "NODE_ENV": "development", 
   "PORT": "9001"
-}
-
-# ~/.config/monk/server.json  
-{
-  "servers": {
-    "local": {
-      "hostname": "localhost",
-      "port": 9001,
-      "protocol": "http"
-    }
-  },
-  "current": "local"
 }
 ```
 
@@ -541,7 +525,6 @@ curl http://localhost:9001/health  # API server
 
 # Common fixes
 npm run autoinstall               # Reset configuration
-rm -rf ~/.config/monk/ && npm run autoinstall # Nuclear reset
 ```
 
 > **📖 For systematic troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**

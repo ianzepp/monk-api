@@ -31,8 +31,8 @@ curl http://localhost:9001/health               # Test HTTP API if running
 # If compilation fails → Code issue
 
 # Check environment configuration
-cat ~/.config/monk/env.json
-echo $DATABASE_URL                     # Should match env.json
+cat .env
+echo $DATABASE_URL                     # Should match .env
 node --version && npm --version        # Check runtime versions
 ```
 
@@ -65,7 +65,7 @@ psql -U $USER -d monk -c "SELECT current_user;"    # Should work
 npm run spec:one spec/unit/tenant-service-debug.test.ts     # May fail
 
 # Verify DATABASE_URL configuration
-cat ~/.config/monk/env.json | grep DATABASE_URL
+cat .env | grep DATABASE_URL
 # Must include password: "postgresql://user:password@localhost:5432/"
 
 # Fix: Update TenantService to use DATABASE_URL consistently
@@ -146,8 +146,7 @@ curl -X POST http://localhost:9001/ftp/list \
 ### Configuration Issues
 ```bash
 # Verify monk configuration exists and is valid
-ls -la ~/.config/monk/
-cat ~/.config/monk/env.json | jq .      # Validate JSON syntax
+cat .env
 
 # Check required environment variables
 echo $DATABASE_URL                      # Must include password
@@ -276,24 +275,6 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 # "[TIME] Observer: ObserverName 1.234ms { ring: N, operation: 'create' }"
 ```
 
-### CLI Development Debugging
-```bash
-# Check CLI regeneration
-cd cli/src && bashly generate
-
-# Test CLI commands individually
-monk --help                             # Basic CLI functionality
-monk server list                       # Server configuration
-monk auth token                         # Authentication
-
-# Enable verbose CLI output
-CLI_VERBOSE=true monk data select schema
-
-# Check monk configuration
-cat ~/.config/monk/server.json
-cat ~/.config/monk/env.json
-```
-
 ### Database Operations Debugging
 ```bash
 # Check database connections
@@ -320,12 +301,6 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 - **Environment first**: Rule out external dependencies before code debugging
 - **Use manual testing**: curl commands to verify endpoint functionality
 - **Check logs**: `npm run start:dev` provides detailed operation logging
-
-### CLI Development
-- Always regenerate CLI after bashly.yml changes: `bashly generate`
-- Use `CLI_VERBOSE=true` for detailed command output
-- Test commands individually before batch testing
-- Check `~/.config/monk/server.json` for server configuration
 
 ### Observer Development
 - **All Database operations** automatically run observer pipeline with 10-ring execution
@@ -374,9 +349,7 @@ npm run spec:ts integration             # Run integration test suite
 ### Configuration Debugging
 ```bash
 # Verify all configuration files
-ls -la ~/.config/monk/
-cat ~/.config/monk/env.json | jq .
-cat ~/.config/monk/server.json | jq .
+ls -la .env && cat .env
 
 # Test configuration loading
 node -e "
@@ -385,7 +358,6 @@ node -e "
 "
 
 # Reset configuration if needed
-rm -rf ~/.config/monk/
 npm run autoinstall
 ```
 

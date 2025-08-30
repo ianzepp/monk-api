@@ -151,33 +151,33 @@ else
     handle_error "PostgreSQL connection test" "Ensure PostgreSQL is running and you can connect. See INSTALL.md prerequisites."
 fi
 
-print_step "Checking DATABASE_URL configuration..."
-config_file="$HOME/.config/monk/env.json"
-if [ -f "$config_file" ] && grep -q "DATABASE_URL" "$config_file"; then
-    print_success "DATABASE_URL configured in monk config"
-    print_info "Config file: $config_file"
-else
-    print_warning "No DATABASE_URL found in monk configuration"
-    print_step "Creating monk environment configuration..."
+# print_step "Checking DATABASE_URL configuration..."
+# config_file="$HOME/.config/monk/env.json"
+# if [ -f "$config_file" ] && grep -q "DATABASE_URL" "$config_file"; then
+#     print_success "DATABASE_URL configured in monk config"
+#     print_info "Config file: $config_file"
+# else
+#     print_warning "No DATABASE_URL found in monk configuration"
+#     print_step "Creating monk environment configuration..."
     
-    # Ensure config directory exists
-    mkdir -p "$HOME/.config/monk"
+#     # Ensure config directory exists
+#     mkdir -p "$HOME/.config/monk"
     
-    # Create env.json with DATABASE_URL using current user
-    cat > "$config_file" << EOF
-{
-  "DATABASE_URL": "postgresql://$(whoami):$(whoami)@localhost:5432/",
-  "NODE_ENV": "development",
-  "PORT": "9001"
-}
-EOF
+#     # Create env.json with DATABASE_URL using current user
+#     cat > "$config_file" << EOF
+# {
+#   "DATABASE_URL": "postgresql://$(whoami):$(whoami)@localhost:5432/",
+#   "NODE_ENV": "development",
+#   "PORT": "9001"
+# }
+# EOF
     
-    print_success "Monk environment configuration created"
-    print_info "Config file: $config_file"
-    print_info "Using DATABASE_URL: postgresql://$(whoami):$(whoami)@localhost:5432/"
-    print_warning "Assuming PostgreSQL user password matches username"
-    print_info "If authentication fails, edit $config_file with correct password"
-fi
+#     print_success "Monk environment configuration created"
+#     print_info "Config file: $config_file"
+#     print_info "Using DATABASE_URL: postgresql://$(whoami):$(whoami)@localhost:5432/"
+#     print_warning "Assuming PostgreSQL user password matches username"
+#     print_info "If authentication fails, edit $config_file with correct password"
+# fi
 
 # Step 2: Install Dependencies
 print_header "Step 2: Install Dependencies"
