@@ -14,10 +14,6 @@ import {
   type TestTenantManager 
 } from './test-tenant.js';
 
-// Set up global logger instance
-import { logger } from '../../src/lib/logger.js';
-global.logger = logger;
-
 /**
  * Enhanced createTestTenant that can optionally use fixtures
  */

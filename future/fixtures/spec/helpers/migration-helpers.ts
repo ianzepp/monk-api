@@ -7,10 +7,6 @@
 
 import { type TestContext, type TestContextWithData, createTestContextWithFixture, type TemplateLoadOptions } from './test-tenant.js';
 
-// Set up global logger instance
-import { logger } from '../../src/lib/logger.js';
-global.logger = logger;
-
 /**
  * Migration plan for upgrading a test file
  */
