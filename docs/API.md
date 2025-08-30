@@ -84,7 +84,7 @@ monk data update accounts <id>   # Calls object endpoint
 ## Authentication
 
 ### Multi-tenant Authentication
-- **Auth Database**: `monk-api-auth` contains tenant registry
+- **Auth Database**: `monk` contains tenant registry
 - **Tenant Databases**: `monk-api$tenant-name` for each tenant
 - **JWT Routing**: Tokens contain tenant and database routing information
 - **Isolation**: Each tenant gets separate database and user management

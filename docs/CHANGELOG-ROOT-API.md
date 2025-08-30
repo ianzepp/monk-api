@@ -39,7 +39,7 @@ All new and updated endpoints have been tested with:
 
 The new health endpoint performs comprehensive checks:
 
-1. **Tenant Registry**: Verifies tenant exists in `monk.tenant` table
+1. **Tenant Registry**: Verifies tenant exists in `monk.tenants` table
 2. **Database Existence**: Confirms tenant database exists in PostgreSQL
 3. **Connectivity**: Tests database connection
 4. **Schema Validation**: Verifies `schema` table exists
@@ -50,7 +50,7 @@ The new health endpoint performs comprehensive checks:
 
 These endpoints work with the new database architecture:
 
-- **Auth Database**: `monk-api-auth` → `monk`
+- **Auth Database**: `monk` → `monk`
 - **Auth Table**: `tenants` → `tenant` (singular, with UUID and ACL structure)
 - **Tenant Databases**: `monk-api$tenant-name` → direct tenant names (e.g., `my_app`)
 - **Reserved Patterns**: Blocks `test_*` and `monk_*` prefixes
