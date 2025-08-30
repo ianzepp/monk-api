@@ -37,7 +37,7 @@ export default withParams(async (context, { system, schema, body }) => {
 
 ### Content-Type Aware Body Handling
 - **JSON requests**: `body` is parsed JSON object
-- **YAML requests**: `body` is raw YAML string (for schema operations)
+- **JSON requests**: `body` is parsed JSON object (for schema operations)
 - **Binary requests**: `body` is ArrayBuffer (ready for file uploads)
 - **Automatic detection**: Based on Content-Type header
 
@@ -222,7 +222,7 @@ Three-tier access pattern:
 
 ### Schema Management
 
-The Meta API handles YAML schema definitions and DDL generation:
+The Meta API handles JSON schema definitions and DDL generation:
 
 #### Create Schema
 
