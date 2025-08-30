@@ -12,7 +12,7 @@
 - **Performance**: 15x faster schema access, ultra-lightweight framework (~50KB)
 
 ### Key Features
-- **Schema-First Development**: YAML-based data model definitions with JSON Schema validation
+- **Schema-First Development**: JSON-based data model definitions with JSON Schema validation
 - **Multi-Tenant Architecture**: Automatic tenant isolation with dedicated database instances
 - **Ring-Based Observer System**: Sophisticated event-driven business logic (0-9 execution rings)
 - **Ultra-Fast Performance**: Hono framework with multi-runtime support (Node.js, Bun, Deno, Cloudflare Workers)
@@ -92,7 +92,7 @@ Complete API management via **monk-cli**:
 ```bash
 monk tenant create my-app     # Create new tenant
 monk auth login my-app root   # Authenticate with tenant
-monk meta create schema       # Create schema from YAML
+monk meta create schema       # Create schema from JSON
 monk data create user         # Create user records
 ```
 
@@ -114,7 +114,7 @@ monk data create user         # Create user records
 Excellent reference for:
 - **Modern TypeScript API Development**: Current best practices with ultra-fast frameworks
 - **Multi-Tenant Architecture**: Advanced tenant isolation and database routing patterns
-- **Schema-First Development**: YAML-driven development with automatic API generation
+- **Schema-First Development**: JSON-driven development with automatic API generation
 - **Observer Pattern**: Ring-based event-driven architecture in TypeScript
 - **High-Performance API Design**: Ultra-lightweight framework patterns and optimization techniques
 

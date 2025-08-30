@@ -481,7 +481,7 @@ Located in `spec/fixtures/generators/`:
 
 ### Overview
 
-The fixture system uses a two-part approach: YAML schemas define the data structure and validation rules, while TypeScript generators create realistic test data that conforms to those schemas. This separation allows for clear data contracts while maintaining flexibility in test data generation.
+The fixture system uses a two-part approach: JSON schemas define the data structure and validation rules, while TypeScript generators create realistic test data that conforms to those schemas. This separation allows for clear data contracts while maintaining flexibility in test data generation.
 
 ### Step-by-Step Process
 
@@ -657,7 +657,7 @@ When creating or updating generators:
 
 ### Benefits of This Approach
 
-1. **Contract Clarity**: YAML schemas serve as clear data contracts
+1. **Contract Clarity**: JSON schemas serve as clear data contracts
 2. **Validation Ready**: Schemas can be used for runtime validation
 3. **Realistic Data**: Generators create believable test scenarios
 4. **Maintainability**: Changes to schemas guide generator updates

@@ -40,7 +40,7 @@ Monk API employs a comprehensive three-tier testing strategy:
 spec/
 ├── 05-infrastructure/     # Core connectivity and configuration
 ├── 15-authentication/     # Authentication workflow
-├── 20-meta-api/          # Schema management (YAML)
+├── 20-meta-api/          # Schema management (JSON)
 ├── 30-data-api/          # Data operations (JSON)
 ├── unit/                 # Unit tests (no database dependencies)
 │   ├── filter/           # Enhanced Filter system tests
@@ -270,7 +270,7 @@ describe('HTTP Endpoint Tests', () => {
 - **Complex Filter Testing**: 6+ level nesting, 500+ parameters, PostgreSQL array operations
 - **HTTP Endpoint Testing**: Real API requests with authentication and validation
 - **Mock System Support**: Observer testing with controlled environments
-- **Schema Integration**: Real YAML schemas from test/schemas/ directory
+- **Schema Integration**: Real JSON schemas from test/schemas/ directory
 - **Performance Testing**: Large datasets, complex queries, stress scenarios
 - **Error Boundary Testing**: Comprehensive error handling validation
 

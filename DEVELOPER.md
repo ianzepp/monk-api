@@ -579,7 +579,7 @@ rm -rf ~/.config/monk/ && npm run autoinstall # Nuclear reset
 
 ### **Route Handler Deduplication** (August 2025)
 - **withParams() Pattern**: Pre-extracts common parameters (system, schema, recordId, body)
-- **Content-Type Intelligence**: JSON/YAML/Binary body handling for future file upload support
+- **Content-Type Intelligence**: JSON/Binary body handling for future file upload support
 - **25-50% Boilerplate Reduction**: Route handlers focus on pure business logic
 - **Barrel Exports**: Clean organization with SchemaGet/RecordGet naming convention
 
