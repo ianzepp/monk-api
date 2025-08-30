@@ -122,5 +122,21 @@ Essential example of modern, high-performance backend development combining cutt
 
 ---
 
-**For installation, quick start, and detailed examples, see [INSTALL.md](INSTALL.md)**  
-**For comprehensive developer documentation and architecture details, see [DEVELOPER.md](DEVELOPER.md)**
+## Documentation
+
+### Quick Start
+- **[docs/INSTALL.md](docs/INSTALL.md)** - Installation, setup, and quick start guide
+- **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and common commands
+
+### Development
+- **[docs/DEVELOPER.md](docs/DEVELOPER.md)** - Comprehensive developer guide and architecture
+- **[docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
+
+### API Reference
+- **[docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
+- **[docs/FILTER.md](docs/FILTER.md)** - Advanced filter system with 25+ operators
+- **[docs/FTP.md](docs/FTP.md)** - FTP middleware filesystem-like interface
+
+### Technical Specifications
+- **[docs/SPEC.md](docs/SPEC.md)** - Complete test specification and architecture
