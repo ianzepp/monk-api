@@ -19,6 +19,11 @@ print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_info "Starting spec TypeScript compilation..."
 print_info "Using tsconfig.spec.json (includes src/ + spec/ directories)"
 
+# Clean up any existing compiled spec artifacts to catch missing source files
+print_info "Cleaning up compiled spec artifacts..."
+find spec/ -name "*.js" -o -name "*.d.ts" -o -name "*.js.map" -o -name "*.d.ts.map" | xargs rm -f
+print_info "Cleaned up compiled spec files to ensure clean environment"
+
 # Check if tsconfig.spec.json exists
 if [ ! -f "tsconfig.spec.json" ]; then
     print_error "tsconfig.spec.json not found"
