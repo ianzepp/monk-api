@@ -1,7 +1,12 @@
 import type { Context } from 'hono';
 import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 
+/**
+ * DELETE /api/data/:schema/:id - Delete single record by ID
+ * @see docs/routes/DATA_API.md
+ */
 export default withParams(async (context, { system, schema, recordId }) => {
     const isPermanent = context.req.query('permanent') === 'true';
     
@@ -11,7 +16,7 @@ export default withParams(async (context, { system, schema, recordId }) => {
     if (isPermanent) {
         // Check root access for permanent deletes
         if (!system.isRoot()) {
-            throw new Error('Access denied: only root access level can perform permanent deletes');
+            throw HttpErrors.forbidden('Insufficient permissions for permanent delete', 'ACCESS_DENIED');
         }
         
         result = await system.database.updateOne(schema!, recordId!, { deleted_at: new Date().toISOString() });

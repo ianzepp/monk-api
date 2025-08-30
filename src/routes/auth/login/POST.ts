@@ -1,17 +1,22 @@
 import type { Context } from 'hono';
 import { AuthService } from '@src/lib/auth.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 
+/**
+ * POST /auth/login - Authenticate user with tenant and username
+ * @see docs/routes/AUTH_API.md
+ */
 export default async function (context: Context) {
     const { tenant, username } = await context.req.json();
 
     // Input validation
     if (!tenant) {
-        throw new Error('Tenant is required');
+        throw HttpErrors.badRequest('Tenant is required', 'TENANT_MISSING');
     }
 
     if (!username) {
-        throw new Error('Username is required');
+        throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
     }
 
     const result = await AuthService.login(tenant, username);

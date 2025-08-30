@@ -2,6 +2,7 @@ import type { Context } from 'hono';
 import { System } from '@src/lib/system.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { createSchema } from '@src/lib/schema.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 export enum BulkOperationType {
     // Read operations
@@ -54,7 +55,7 @@ export default async function (c: Context): Promise<any> {
 
     // Validate input
     if (!Array.isArray(operations)) {
-        throw new Error('Request body must be an array of operations');
+        throw HttpErrors.badRequest('Request body must be an array of operations', 'REQUEST_INVALID_FORMAT');
     }
 
     if (operations.length === 0) {
@@ -66,7 +67,7 @@ export default async function (c: Context): Promise<any> {
     for (let i = 0; i < operations.length; i++) {
         const op = operations[i];
         if (!op.operation || !op.schema) {
-            throw new Error(`Operation at index ${i} missing required fields: operation and schema are required`);
+            throw HttpErrors.badRequest(`Operation at index ${i} missing required fields: operation and schema are required`, 'OPERATION_MISSING_FIELDS');
         }
     }
 
@@ -114,7 +115,7 @@ async function executeOperation(op: BulkOperation, system: System): Promise<any>
             
         case BulkOperationType.Update:
         case BulkOperationType.UpdateOne:
-            if (!recordId) throw new Error('ID required for updateOne operation');
+            if (!recordId) throw HttpErrors.badRequest('ID required for updateOne operation', 'OPERATION_MISSING_ID');
             return await system.database.updateOne(schemaName, recordId, recordData);
             
         case BulkOperationType.UpdateAll:
@@ -128,7 +129,7 @@ async function executeOperation(op: BulkOperation, system: System): Promise<any>
             
         case BulkOperationType.Delete:
         case BulkOperationType.DeleteOne:
-            if (!recordId) throw new Error('ID required for deleteOne operation');
+            if (!recordId) throw HttpErrors.badRequest('ID required for deleteOne operation', 'OPERATION_MISSING_ID');
             return await system.database.deleteOne(schemaName, recordId);
             
         case BulkOperationType.DeleteAll:
@@ -143,16 +144,16 @@ async function executeOperation(op: BulkOperation, system: System): Promise<any>
         case BulkOperationType.Upsert:
         case BulkOperationType.UpsertOne:
             // TODO return await database.upsertOne(schemaName, recordData);
-            throw new Error('Unsupported');
+            throw HttpErrors.unprocessableEntity('Unsupported operation', 'OPERATION_UNSUPPORTED');
             
         case BulkOperationType.UpsertAll:
             // TODO return await database.upsertAll(schemaName, recordData);
-            throw new Error('Unsupported');
+            throw HttpErrors.unprocessableEntity('Unsupported operation', 'OPERATION_UNSUPPORTED');
 
         // Access control operations
         case BulkOperationType.Access:
         case BulkOperationType.AccessOne:
-            if (!recordId) throw new Error('ID required for accessOne operation');
+            if (!recordId) throw HttpErrors.badRequest('ID required for accessOne operation', 'OPERATION_MISSING_ID');
             return await system.database.accessOne(schemaName, recordId, op.data);
             
         case BulkOperationType.AccessAll:
@@ -165,6 +166,6 @@ async function executeOperation(op: BulkOperation, system: System): Promise<any>
             return await system.database.access404(schemaName, filterData || filterById, recordData, op.message);
 
         default:
-            throw new Error(`Unsupported operation: ${op.operation}`);
+            throw HttpErrors.unprocessableEntity(`Unsupported operation: ${op.operation}`, 'OPERATION_UNSUPPORTED');
     }
 }
