@@ -1,6 +1,5 @@
-// Load monk configuration into process.env before other imports
-import { MonkEnv } from '@src/lib/monk-env.js';
-MonkEnv.loadIntoProcessEnv();
+// Load dotenv first
+import 'dotenv/config'
 
 // Import package.json for version info
 import { readFileSync } from 'fs';
@@ -181,14 +180,17 @@ app.notFound((c) => {
 });
 
 // Server configuration
-const port = Number(MonkEnv.get('PORT', '9001'));
+const port = Number(process.env['PORT'] || '9001');
 
 // Initialize observer system
 logger.info('Preloading observer system');
+
 try {
     await ObserverLoader.preloadObservers();
     logger.info('Observer system ready');
-} catch (error) {
+} 
+
+catch (error) {
     console.error(`❌ Observer system initialization failed:`, error);
     logger.warn('Continuing without observer system');
 }

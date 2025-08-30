@@ -18,7 +18,6 @@ import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { MonkEnv } from '@src/lib/monk-env.js';
 import { Metabase } from '@src/lib/metabase.js';
 import pg from 'pg';
 
@@ -62,7 +61,7 @@ export class TenantService {
   private static tokenExpiry = 24 * 60 * 60; // 24 hours in seconds
 
   private static getJwtSecret(): string {
-    return MonkEnv.get('JWT_SECRET', undefined, true);
+      return process.env['JWT_SECRET'] || 'developer-jwt';
   }
 
   // ==========================================
@@ -569,7 +568,7 @@ export class TenantService {
   private static async createUserSchema(databaseName: string): Promise<void> {
     // Create a system context for metabase operations
     const mockContext = {
-      env: { JWT_SECRET: MonkEnv.get('JWT_SECRET') },
+      env: { JWT_SECRET: this.getJwtSecret() },
       get: () => undefined,
       set: () => undefined
     };

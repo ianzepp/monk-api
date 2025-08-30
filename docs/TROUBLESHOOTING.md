@@ -380,9 +380,8 @@ cat ~/.config/monk/server.json | jq .
 
 # Test configuration loading
 node -e "
-  import { MonkEnv } from './dist/lib/monk-env.js';
-  console.log('DATABASE_URL:', MonkEnv.get('DATABASE_URL'));
-  console.log('JWT_SECRET:', MonkEnv.get('JWT_SECRET') ? '[SET]' : '[NOT SET]');
+  console.log('DATABASE_URL:', process.env['DATABASE_URL'] ? '[SET]' : '[NOT SET]');
+  console.log('JWT_SECRET:', process.env['JWT_SECRET'] ? '[SET]' : '[NOT SET]');
 "
 
 # Reset configuration if needed

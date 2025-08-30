@@ -2,7 +2,6 @@ import type { Context } from 'hono';
 import { jwt } from 'hono/jwt';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { MonkEnv } from '@src/lib/monk-env.js';
 import pg from 'pg';
 
 export interface JWTPayload {
@@ -24,7 +23,7 @@ export class AuthService {
     private static authPool: pg.Pool | null = null;
 
     private static getJwtSecret(): string {
-        return MonkEnv.get('JWT_SECRET', undefined, true);
+        return process.env['JWT_SECRET'] || 'developer-jwt';
     }
 
     // Get persistent auth database connection

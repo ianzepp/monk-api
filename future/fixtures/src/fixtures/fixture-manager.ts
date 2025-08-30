@@ -8,7 +8,6 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { logger } from '@src/lib/logger.js';
-import { MonkEnv } from '@src/lib/monk-env.js';
 import { System } from '@src/lib/system.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
@@ -297,8 +296,8 @@ export class FixtureManager {
   private static createMockContext(tenantInfo: TenantInfo): any {
     return {
       env: {
-        JWT_SECRET: MonkEnv.get('JWT_SECRET', 'template-secret'),
-        DATABASE_URL: MonkEnv.get('DATABASE_URL', undefined, true),
+        JWT_SECRET: process.env['JWT_SECRET'] || 'template-secret',
+        DATABASE_URL: process.env['DATABASE_URL'],
       },
       req: {
         header: (name: string) => {

@@ -1,14 +1,10 @@
 import { describe, test, expect } from 'vitest';
-import { MonkEnv } from '@src/lib/monk-env.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import pg from 'pg';
 
 describe('Direct Database Connection Test', () => {
   
   test('should connect to database directly without TenantService', async () => {
-    // Load monk configuration
-    MonkEnv.load();
-    
     console.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
     
     // Test direct connection using DatabaseConnection
@@ -40,9 +36,6 @@ describe('Direct Database Connection Test', () => {
   });
 
   test('should connect to auth database directly', async () => {
-    // Load monk configuration
-    MonkEnv.load();
-    
     // Connect to auth database using DatabaseConnection
     const authPool = DatabaseConnection.getBasePool();
     
@@ -93,9 +86,6 @@ describe('Direct Database Connection Test', () => {
   });
 
   test('should test exact same connection approach as TenantService', async () => {
-    // Load monk configuration
-    MonkEnv.load();
-    
     // Use mock database URL for auth testing
     const baseUrl = `postgresql://testuser@localhost:5432/`;
     

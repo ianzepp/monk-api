@@ -25,11 +25,7 @@ export class DatabaseConnection {
         const databaseUrl = process.env.DATABASE_URL;
         
         if (!databaseUrl) {
-            throw new Error(
-                'DATABASE_URL not configured. ' +
-                'Ensure MonkEnv.loadIntoProcessEnv() was called on server startup and ' +
-                '~/.config/monk/env.json contains DATABASE_URL.'
-            );
+            throw new Error('DATABASE_URL not configured');
         }
 
         if (!databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('postgres://')) {

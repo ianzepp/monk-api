@@ -6,7 +6,6 @@
  */
 
 import { randomBytes } from 'crypto';
-import { MonkEnv } from '../../src/lib/monk-env.js';
 import { TenantService, type TenantInfo } from '../../src/lib/services/tenant.js';
 import { TemplateDatabase } from '../../src/lib/fixtures/template-database.js';
 import { System } from '../../src/lib/system.js';
@@ -136,9 +135,6 @@ export interface TestPerformanceMetrics {
  * Create a fresh test tenant with unique name
  */
 export async function createTestTenant(): Promise<TestTenantManager> {
-  // Load monk configuration before any database operations
-  MonkEnv.load();
-  
   // Debug database configuration
   console.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
   console.info(`🔍 DB_USER: ${process.env.DB_USER}`);
@@ -1122,9 +1118,6 @@ export async function testMetabaseConnectivity(metabase: Metabase): Promise<bool
  * Create test tenant from template database (fast cloning)
  */
 export async function createTestTenantFromTemplate(templateName: string): Promise<TestTenantManager> {
-  // Load monk configuration
-  MonkEnv.load();
-  
   // Generate unique tenant name
   const timestamp = Date.now();
   const randomId = randomBytes(4).toString('hex');
