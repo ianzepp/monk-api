@@ -165,7 +165,7 @@ app.post('/ftp/modify-time', FtpModifyTimePost);                    // File modi
 // Error handling
 app.onError((err, c) => {
     console.error('Unhandled error:', err);
-    return createInternalError(c, 'An unexpected error occurred');
+    return createInternalError(c, err);
 });
 
 // 404 handler

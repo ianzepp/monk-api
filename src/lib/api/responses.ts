@@ -138,6 +138,25 @@ export function createDatabaseError(c: Context, error: string = 'Database operat
   return createErrorResponse(c, error, ApiErrorCode.DATABASE_ERROR, 500);
 }
 
-export function createInternalError(c: Context, error: string = 'Internal server error') {
-  return createErrorResponse(c, error, ApiErrorCode.INTERNAL_ERROR, 500);
+export function createInternalError(c: Context, error: string | Error = 'Internal server error') {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  let errorMessage: string;
+  let errorData: any = undefined;
+  
+  if (error instanceof Error) {
+    errorMessage = error.message;
+    if (isDevelopment) {
+      errorData = {
+        name: error.name,
+        stack: error.stack,
+        cause: error.cause
+      };
+    }
+  }
+  else {
+    errorMessage = error;
+  }
+  
+  return createErrorResponse(c, errorMessage, ApiErrorCode.INTERNAL_ERROR, 500, errorData);
 }
