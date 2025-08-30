@@ -126,7 +126,7 @@ print_step "Testing that normal schema operations still work"
 
 # Test 4a: Create user schema (should work)
 print_step "  Creating account schema via meta API"
-if cat "$(dirname "$0")/../fixtures/schema/account.yaml" | monk meta create schema >/dev/null 2>&1; then
+if cat "$(dirname "$0")/../fixtures/schema/account.json" | monk meta create schema >/dev/null 2>&1; then
     print_success "User schema creation works normally"
 else
     print_error "User schema creation failed (should work)"

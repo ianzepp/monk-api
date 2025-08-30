@@ -98,13 +98,13 @@ export async function responseYamlMiddleware(context: Context, next: Next) {
     try {
         await next();
         
-        // Check if route handler set a result for YAML formatting
+        // Check if route handler set a result for JSON formatting
         const routeResult = context.get('routeResult');
         
         if (routeResult !== undefined && !context.res.body) {
-            // Auto-format as YAML response
+            // Auto-format as JSON response
             return new Response(routeResult, {
-                headers: { 'Content-Type': 'text/yaml' }
+                headers: { 'Content-Type': 'application/json' }
             });
         }
     } catch (error) {

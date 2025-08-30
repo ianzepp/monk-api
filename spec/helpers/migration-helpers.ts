@@ -148,7 +148,7 @@ function detectOldPatterns(testCode: string): DetectedPattern[] {
   
   lines.forEach((line, index) => {
     // Manual schema loading
-    if (line.includes('readFile') && line.includes('.yaml')) {
+    if (line.includes('readFile') && line.includes('.json')) {
       patterns.push({
         type: 'manual_schema_loading',
         line: index + 1,
@@ -212,7 +212,7 @@ function analyzeTestComplexity(testCode: string): TestAnalysis {
   const setupOperations = [
     /createTestTenant/g,
     /createTestContext/g,
-    /readFile.*\.yaml/g,
+    /readFile.*\.json/g,
     /metabase\.createOne/g,
     /database\.createOne/g
   ];
@@ -311,8 +311,8 @@ function generateMigrationSteps(patterns: DetectedPattern[], fixtures: string[])
       action: 'Remove manual setup',
       description: 'Remove manual schema and data creation - now handled by fixture',
       oldCode: `// Manual schema loading
-const accountYaml = await readFile('schema/account.yaml', 'utf-8');
-await testContext.metabase.createOne('account', accountYaml);
+const accountJson = JSON.parse(await readFile('schema/account.json', 'utf-8'));
+await testContext.metabase.createOne('account', accountJson);
 
 // Manual data creation
 for (let i = 0; i < 10; i++) {

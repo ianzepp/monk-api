@@ -30,8 +30,8 @@ describe('Migration Utilities Examples', () => {
         const testContext = await createTestContext(tenantManager.tenant!, 'root');
         
         // Manual schema loading
-        const accountYaml = await readFile('account.yaml', 'utf-8');
-        await testContext.metabase.createOne('account', accountYaml);
+        const accountJson = await readFile('account.json', 'utf-8');
+        await testContext.metabase.createOne('account', accountJson);
         
         // Manual data creation
         await testContext.database.createOne('account', {
@@ -61,8 +61,8 @@ describe('Migration Utilities Examples', () => {
           testContext = await createTestContext(tenantManager.tenant!, 'root');
           
           // Load schemas manually
-          const accountYaml = await readFile('schema/account.yaml', 'utf-8');
-          await testContext.metabase.createOne('account', accountYaml);
+          const accountJson = await readFile('schema/account.json', 'utf-8');
+          await testContext.metabase.createOne('account', accountJson);
           
           // Create test data manually
           for (let i = 0; i < 10; i++) {
@@ -236,8 +236,8 @@ describe('Migration Workflow Examples', () => {
         tenantManager = await createTestTenant();
         testContext = await createTestContext(tenantManager.tenant!, 'root');
         
-        const accountYaml = await readFile('account.yaml', 'utf-8');
-        await testContext.metabase.createOne('account', accountYaml);
+        const accountJson = await readFile('account.json', 'utf-8');
+        await testContext.metabase.createOne('account', accountJson);
         
         for (let i = 0; i < 5; i++) {
           await testContext.database.createOne('account', { name: 'User' + i });
@@ -271,14 +271,14 @@ describe('Migration Workflow Examples', () => {
         testContext = await createTestContext(tenantManager.tenant!, 'root');
         
         // Load multiple schemas
-        const accountYaml = await readFile('account.yaml', 'utf-8');
-        await testContext.metabase.createOne('account', accountYaml);
+        const accountJson = await readFile('account.json', 'utf-8');
+        await testContext.metabase.createOne('account', accountJson);
         
-        const productYaml = await readFile('product.yaml', 'utf-8');
-        await testContext.metabase.createOne('product', productYaml);
+        const productJson = await readFile('product.json', 'utf-8');
+        await testContext.metabase.createOne('product', productJson);
         
-        const userYaml = await readFile('user.yaml', 'utf-8');
-        await testContext.metabase.createOne('user', userYaml);
+        const userJson = await readFile('user.json', 'utf-8');
+        await testContext.metabase.createOne('user', userJson);
         
         // Create lots of test data
         for (let i = 0; i < 50; i++) {

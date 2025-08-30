@@ -16,11 +16,11 @@ export const ecommerceFixture: FixtureDefinition = {
   
   schemas: {
     // These schema files would need to be created in a future phase
-    'categories': 'spec/fixtures/schema/ecommerce/categories.yaml',
-    'products': 'spec/fixtures/schema/ecommerce/products.yaml', 
-    'customers': 'spec/fixtures/schema/ecommerce/customers.yaml',
-    'orders': 'spec/fixtures/schema/ecommerce/orders.yaml',
-    'order_items': 'spec/fixtures/schema/ecommerce/order_items.yaml'
+    'categories': 'spec/fixtures/schema/ecommerce/categories.json',
+    'products': 'spec/fixtures/schema/ecommerce/products.json', 
+    'customers': 'spec/fixtures/schema/ecommerce/customers.json',
+    'orders': 'spec/fixtures/schema/ecommerce/orders.json',
+    'order_items': 'spec/fixtures/schema/ecommerce/order_items.json'
   },
   
   data_generators: {

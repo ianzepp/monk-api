@@ -51,7 +51,7 @@ class FtpContentFormatter {
             case 'json':
                 return 'application/json';
             case 'yaml':
-                return 'application/yaml';
+                return 'application/json';
             case 'raw':
                 // Guess content type based on field name
                 if (fieldName?.includes('email')) return 'text/plain';

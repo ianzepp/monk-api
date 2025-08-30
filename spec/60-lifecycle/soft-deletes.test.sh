@@ -58,9 +58,9 @@ fi
 echo
 
 # Step 1: Create account schema for testing
-print_step "Creating account schema from account.yaml"
-if ACCOUNT_RESULT=$(cat "$(dirname "$0")/../fixtures/schema/account.yaml" | monk meta create schema 2>&1); then
-    if echo "$ACCOUNT_RESULT" | grep -q "title: Account" && echo "$ACCOUNT_RESULT" | grep -q "type: object"; then
+print_step "Creating account schema from account.json"
+if ACCOUNT_RESULT=$(cat "$(dirname "$0")/../fixtures/schema/account.json" | monk meta create schema 2>&1); then
+    if echo "$ACCOUNT_RESULT" | grep -q '"title":"Account"' && echo "$ACCOUNT_RESULT" | grep -q '"type":"object"'; then
         print_success "Account schema created successfully"
         ACCOUNT_TITLE=$(echo "$ACCOUNT_RESULT" | grep "^title:" | cut -d' ' -f2-)
         print_info "  Schema Title: $ACCOUNT_TITLE"

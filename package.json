@@ -51,12 +51,10 @@
     "ajv-formats": "^3.0.1",
     "bcrypt": "^6.0.0",
     "hono": "^4.6.5",
-    "js-yaml": "^4.1.0",
     "pg": "^8.16.3",
     "zod": "^4.0.17"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22",
     "@types/pg": "^8.15.5",
     "tsc-alias": "^1.8.16",

@@ -54,7 +54,7 @@ echo
 
 # Test 1: Create account schema
 print_step "Creating account schema"
-if ACCOUNT_RESULT=$(cat "$(dirname "$0")/../fixtures/schema/account.yaml" | monk meta create schema 2>&1); then
+if ACCOUNT_RESULT=$(cat "$(dirname "$0")/../fixtures/schema/account.json" | monk meta create schema 2>&1); then
     # Validate YAML response
     if echo "$ACCOUNT_RESULT" | grep -q "title: Account" && echo "$ACCOUNT_RESULT" | grep -q "type: object"; then
         print_success "Account schema created successfully (YAML response)"
@@ -148,26 +148,26 @@ echo
 # Test 3: Verify YAML round-trip consistency
 print_step "Testing YAML round-trip consistency"
 
-# Save both YAML files for comparison
-echo "$ACCOUNT_RESULT" > "/tmp/created-schema.yaml"
-echo "$RETRIEVED_RESULT" > "/tmp/retrieved-schema.yaml"
+# Save both JSON files for comparison
+echo "$ACCOUNT_RESULT" > "/tmp/created-schema.json"
+echo "$RETRIEVED_RESULT" > "/tmp/retrieved-schema.json"
 
 # Basic validation that both contain the same key properties
-if grep -q "title: Account" "/tmp/created-schema.yaml" && grep -q "title: Account" "/tmp/retrieved-schema.yaml"; then
-    if grep -q "username:" "/tmp/created-schema.yaml" && grep -q "username:" "/tmp/retrieved-schema.yaml"; then
-        print_success "YAML round-trip preserves key schema properties"
+if grep -q '"title":"Account"' "/tmp/created-schema.json" && grep -q '"title":"Account"' "/tmp/retrieved-schema.json"; then
+    if grep -q '"username"' "/tmp/created-schema.json" && grep -q '"username"' "/tmp/retrieved-schema.json"; then
+        print_success "JSON round-trip preserves key schema properties"
         print_info "  Both schemas contain: title, username, required fields"
     else
-        print_error "YAML round-trip missing expected properties"
+        print_error "JSON round-trip missing expected properties"
         exit 1
     fi
 else
-    print_error "YAML round-trip title mismatch"
+    print_error "JSON round-trip title mismatch"
     exit 1
 fi
 
 # Clean up temp files
-rm -f "/tmp/created-schema.yaml" "/tmp/retrieved-schema.yaml"
+rm -f "/tmp/created-schema.json" "/tmp/retrieved-schema.json"
 
 echo
 print_success "🎉 Schema create and select test completed successfully!"
