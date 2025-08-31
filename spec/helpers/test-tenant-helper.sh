@@ -85,7 +85,7 @@ create_test_tenant_from_template() {
     fi
     
     # 2. Add tenant to main database registry
-    if psql -d monk_main -c "INSERT INTO tenants (name, database, host, is_active, template_type) VALUES ('$tenant_name', '$db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
+    if psql -d monk_main -c "INSERT INTO tenants (name, database, host, is_active, tenant_type) VALUES ('$tenant_name', '$db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
         print_success "Registered tenant in monk_main"
     else
         print_error "Failed to register tenant"
@@ -137,7 +137,7 @@ create_isolated_test_tenant() {
     fi
     
     # 3. Add tenant to main database registry
-    if psql -d monk_main -c "INSERT INTO tenants (name, database, host, is_active, template_type) VALUES ('$tenant_name', '$db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
+    if psql -d monk_main -c "INSERT INTO tenants (name, database, host, is_active, tenant_type) VALUES ('$tenant_name', '$db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
         print_success "Registered tenant in monk_main"
     else
         print_error "Failed to register tenant"

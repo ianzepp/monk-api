@@ -12,24 +12,22 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const requestBody = await context.req.json();
+    const { template_name, username } = await context.req.json();
 
     // Input validation
-    if (!requestBody.template_name) {
+    if (!template_name) {
         throw HttpErrors.badRequest('Missing required value for "template_name"', 'TEMPLATE_NAME_MISSING');
     }
 
-    if (!requestBody.username) {
+    if (!username) {
         throw HttpErrors.badRequest('Missing required value for "username"', 'USERNAME_MISSING');
     }
 
     // Clone template and create demo tenant
     const cloneResult = await DatabaseTemplate.cloneTemplate({
-        template_name: requestBody.template_name,
-        // tenant_name: undefined (will be auto-generated as demo_*)
-        username: requestBody.username,
+        template_name: template_name,
+        username: username,
         user_access: 'full',
-        ...requestBody  // Future fields automatically included
     });
 
     // Generate JWT token for the new user
@@ -57,7 +55,7 @@ export default async function (context: Context) {
             token: token,
             expires_in: 24 * 60 * 60,
             template_used: cloneResult.template_used,
-            demo_note: "This is a temporary demo environment with sample data"
-        }
+            demo_note: 'This is a temporary demo environment with sample data',
+        },
     });
 }

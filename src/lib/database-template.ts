@@ -1,7 +1,10 @@
 import crypto from 'crypto';
-import pg from 'pg';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from './database-connection.js';
+
+const execAsync = promisify(exec);
 
 /**
  * Options for cloning a template database
@@ -53,16 +56,20 @@ export class DatabaseTemplate {
     static async cloneTemplate(options: TemplateCloneOptions): Promise<TemplateCloneResult> {
         const { template_name, username, user_access = 'full' } = options;
 
-        // Get database connections
+        // Get main database connection for tenant registry operations
         const mainPool = DatabaseConnection.getMainPool();
-        const postgresClient = DatabaseConnection.getPostgresClient();
 
         try {
             // 1. Validate template exists
             const templateQuery = `
-                SELECT database FROM tenants
-                WHERE name = $1 AND template_type = 'template' AND trashed_at IS NULL
+                SELECT database
+                  FROM tenants
+                 WHERE name = $1
+                   AND tenant_type = 'template'
+                   AND trashed_at IS NULL
             `;
+
+            // Find the template by name, if it exists
             const templateResult = await mainPool.query(templateQuery, [`monk_${template_name}`]);
 
             if (templateResult.rows.length === 0) {
@@ -73,6 +80,7 @@ export class DatabaseTemplate {
 
             // 2. Generate tenant name if not provided
             let tenantName = options.tenant_name;
+
             if (!tenantName) {
                 const timestamp = Date.now();
                 const random = crypto.randomBytes(4).toString('hex');
@@ -89,13 +97,17 @@ export class DatabaseTemplate {
                 throw HttpErrors.conflict(`Tenant '${tenantName}' already exists`, 'TENANT_EXISTS');
             }
 
-            // 5. Clone template database (requires postgres administrative connection)
-            await postgresClient.query(`CREATE DATABASE "${databaseName}" WITH TEMPLATE "${templateDatabase}"`);
+            // 5. Clone template database using createdb command (same as test helpers)
+            try {
+                await execAsync(`createdb "${databaseName}" -T "${templateDatabase}"`);
+            } catch (error) {
+                throw HttpErrors.internal(`Failed to clone template database: ${error}`, 'TEMPLATE_CLONE_FAILED');
+            }
 
             // 6. Register tenant in main database
             await mainPool.query(
                 `
-                INSERT INTO tenants (name, database, host, is_active, template_type)
+                INSERT INTO tenants (name, database, host, is_active, tenant_type)
                 VALUES ($1, $2, $3, $4, $5)
             `,
                 [tenantName, databaseName, 'localhost', true, 'normal']

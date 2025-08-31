@@ -184,7 +184,7 @@ print_step "Registering template in tenants registry"
 template_update_sql="
     UPDATE tenants 
     SET database = '$template_db_final', 
-        template_type = 'template',
+        tenant_type = 'template',
         name = 'monk_$TEMPLATE_NAME'
     WHERE name = '$tenant_name'
 "
@@ -203,7 +203,7 @@ print_success "Template ready for test cloning via PostgreSQL CREATE DATABASE WI
 
 # Verify template exists
 print_step "Verifying template registration"
-template_check=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenants WHERE name = 'monk_$TEMPLATE_NAME' AND template_type = 'template'" | xargs)
+template_check=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenants WHERE name = 'monk_$TEMPLATE_NAME' AND tenant_type = 'template'" | xargs)
 
 if [[ "$template_check" == "1" ]]; then
     print_success "Template successfully registered and ready for use"
