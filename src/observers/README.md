@@ -9,9 +9,9 @@ Observers follow a strict directory pattern:
 src/observers/:schema/:ring_number/observer-name.ts
 
 Examples:
-src/observers/user/0/email-validation.ts       # User schema, validation ring
-src/observers/user/2/password-policy.ts        # User schema, business logic ring  
-src/observers/account/1/balance-check.ts       # Account schema, security ring
+src/observers/users/0/email-validation.ts       # User schema, validation ring
+src/observers/users/2/password-policy.ts        # User schema, business logic ring
+src/observers/accounts/1/balance-check.ts       # Account schema, security ring
 src/observers/all/7/audit-logger.ts            # All schemas, audit ring
 src/observers/all/8/webhook-sender.ts          # All schemas, integration ring
 ```
@@ -47,7 +47,7 @@ Target a specific schema by using the schema name in the directory path:
 Target ALL schemas using the `all` keyword:
 ```typescript
 // src/observers/all/7/audit-logger.ts
-// src/observers/all/8/cache-invalidator.ts  
+// src/observers/all/8/cache-invalidator.ts
 // src/observers/all/9/notifier.ts
 // All execute for ANY schema operation
 ```
@@ -58,7 +58,7 @@ Target ALL schemas using the `all` keyword:
 For simple per-record validation and transformation, use the `executeOne()` pattern:
 
 ```typescript
-// src/observers/user/0/email-validator.ts
+// src/observers/users/0/email-validator.ts
 import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { BaseObserver } from '@lib/observers/base-observer.js';
 import { ObserverRing } from '@lib/observers/types.js';
@@ -97,7 +97,7 @@ export default class EmailValidator extends BaseObserver {
 For complex observers that need cross-record analysis or custom array processing, override the `execute()` method:
 
 ```typescript
-// src/observers/account/2/balance-validator.ts
+// src/observers/accounts/2/balance-validator.ts
 import type { ObserverContext } from '@lib/observers/interfaces.js';
 import { BaseObserver } from '@lib/observers/base-observer.js';
 import { ObserverRing } from '@lib/observers/types.js';
@@ -109,12 +109,12 @@ export default class BalanceValidator extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { data } = context;
-        
+
         // Complex logic requiring cross-record analysis
         const totalDeposits = data
             .filter(record => record.type === 'deposit')
             .reduce((sum, record) => sum + record.amount, 0);
-            
+
         const totalWithdrawals = data
             .filter(record => record.type === 'withdrawal')
             .reduce((sum, record) => sum + record.amount, 0);
@@ -147,7 +147,7 @@ export default class BalanceValidator extends BaseObserver {
 
 ### Universal Observer Template
 ```typescript
-// src/observers/all/7/audit-logger.ts  
+// src/observers/all/7/audit-logger.ts
 import type { Observer, ObserverContext } from '@observers/interfaces.js';
 import { ObserverRing } from '@observers/types.js';
 
@@ -157,7 +157,7 @@ export default class AuditLogger implements Observer {
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, operation, schema, result, existing } = context;
-        
+
         // Log all database changes for audit trail
         await system.database.createOne('audit_log', {
             operation,
@@ -206,7 +206,7 @@ Use the `metadata` Map for sharing computed values between observers:
 // Ring 2 observer computes and stores value
 context.metadata.set('balance_change', balanceChange);
 
-// Ring 7 observer retrieves and uses the value  
+// Ring 7 observer retrieves and uses the value
 const balanceChange = context.metadata.get('balance_change');
 ```
 
@@ -244,7 +244,7 @@ Limit observers to specific operations:
 export default class PasswordValidator implements Observer {
     ring = ObserverRing.Validation;
     operations = ['create', 'update'];  // Only run on create/update
-    
+
     // Will not execute on 'delete' or 'select' operations
 }
 ```
@@ -298,7 +298,7 @@ Observers are automatically discovered and loaded at server startup. No manual r
 
 The framework:
 1. **Discovers** observers using file path patterns
-2. **Loads** and validates observer classes  
+2. **Loads** and validates observer classes
 3. **Caches** observers in memory for performance
 4. **Executes** observers in ring order for each operation
 5. **Aggregates** errors and warnings across all rings

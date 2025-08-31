@@ -11,22 +11,20 @@ describe('Template Database Phase 1', () => {
     beforeAll(async () => {
         try {
             await TemplateDatabase.dropTemplate('basic');
-        }
-        catch (error) {
+        } catch (error) {
             // Template might not exist - that's fine
         }
     });
     afterAll(async () => {
         try {
             await TemplateDatabase.dropTemplate('basic');
-        }
-        catch (error) {
+        } catch (error) {
             // Ignore cleanup errors
         }
     });
     test('should create template database', async () => {
         const templateDbName = await TemplateDatabase.createTemplateDatabase('basic');
-        expect(templateDbName).toBe('monk-api$test-template-basic');
+        expect(templateDbName).toBe('tenant_12345678');
         expect(await TemplateDatabase.databaseExists(templateDbName)).toBe(true);
     });
     test('should list available templates', async () => {
@@ -41,7 +39,7 @@ describe('Template Database Phase 1', () => {
         await TemplateDatabase.createTemplateDatabase('basic');
         const tenant = await TemplateDatabase.createTenantFromTemplate('test-clone-123', 'basic');
         expect(tenant.name).toBe('test-clone-123');
-        expect(tenant.database).toContain('monk-api$test-clone-123');
+        expect(tenant.database).toContain('tenant_12345678123');
         expect(tenant.host).toBe('localhost');
         // Verify the cloned database exists
         expect(await TemplateDatabase.databaseExists(tenant.database)).toBe(true);
@@ -65,7 +63,7 @@ describe('Template Database Phase 1', () => {
         expect(typeof testContext.jwtToken).toBe('string');
         expect(testContext.jwtToken.length).toBeGreaterThan(0);
         // Verify we can query the database
-        const schemas = await testContext.database.selectAny('schema');
+        const schemas = await testContext.database.selectAny('schemas');
         expect(Array.isArray(schemas)).toBe(true);
     });
     test('should handle template that does not exist', async () => {

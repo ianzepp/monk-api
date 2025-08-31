@@ -1,62 +1,62 @@
 # Monk API Docker Compose - Development Environment
 
 services:
-  # Monk API Server
-  monk-api:
-    build:
-      context: .
-      target: development
-    ports:
-      - "9001:9001"
-    volumes:
-      # Mount source code for hot reload
-      - .:/app
-      # Prevent node_modules from being overridden
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://monk:monk@postgres:5432/
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=monk
-      - JWT_SECRET=dev-jwt-secret-change-in-production
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - monk-network
+    # Monk API Server
+    monk-api:
+        build:
+            context: .
+            target: development
+        ports:
+            - '9001:9001'
+        volumes:
+            # Mount source code for hot reload
+            - .:/app
+            # Prevent node_modules from being overridden
+            - /app/node_modules
+        environment:
+            - NODE_ENV=development
+            - DATABASE_URL=postgresql://monk:monk@postgres:5432/
+            - DB_HOST=postgres
+            - DB_PORT=5432
+            - DB_USER=monk
+            - JWT_SECRET=dev-jwt-secret-change-in-production
+        depends_on:
+            postgres:
+                condition: service_healthy
+        restart: unless-stopped
+        networks:
+            - monk-network
 
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=monk
-      - POSTGRES_PASSWORD=monk
-      - POSTGRES_DB=monk-api-auth
-    volumes:
-      # Persistent database storage
-      - postgres_data:/var/lib/postgresql/data
-      # Initialize with SQL scripts
-      - ./sql:/docker-entrypoint-initdb.d:ro
-    ports:
-      # Expose PostgreSQL port for external access (optional) - using different port to avoid conflicts
-      - "5433:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U monk -d monk-api-auth"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - monk-network
+    # PostgreSQL Database
+    postgres:
+        image: postgres:16-alpine
+        environment:
+            - POSTGRES_USER=monk
+            - POSTGRES_PASSWORD=monk
+            - POSTGRES_DB=monk_main
+        volumes:
+            # Persistent database storage
+            - postgres_data:/var/lib/postgresql/data
+            # Initialize with SQL scripts
+            - ./sql:/docker-entrypoint-initdb.d:ro
+        ports:
+            # Expose PostgreSQL port for external access (optional) - using different port to avoid conflicts
+            - '5433:5432'
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U monk -d monk_main']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
+        networks:
+            - monk-network
 
 # Named volumes for persistent data
 volumes:
-  postgres_data:
-    driver: local
+    postgres_data:
+        driver: local
 
 # Custom network for service communication
 networks:
-  monk-network:
-    driver: bridge
+    monk-network:
+        driver: bridge

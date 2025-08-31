@@ -11,7 +11,7 @@ set -e
 # Options:
 #   --clean-node    Delete node_modules and reinstall dependencies
 #   --clean-dist    Delete dist/ directory and recompile TypeScript
-#   --clean-auth    Delete and recreate monk-api-auth database
+#   --clean-auth    Delete and recreate monk_main database
 #   --help          Show this help message
 #
 # What this script does:
@@ -66,7 +66,7 @@ print_warning() {
 handle_error() {
     local step="$1"
     local suggestion="$2"
-    
+
     print_error "Failed during: $step"
     if [ -n "$suggestion" ]; then
         print_info "Suggestion: $suggestion"
@@ -77,7 +77,7 @@ handle_error() {
 
 # Parse command line arguments
 CLEAN_NODE=false
-CLEAN_DIST=false  
+CLEAN_DIST=false
 CLEAN_AUTH=false
 SHOW_HELP=false
 
@@ -117,7 +117,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo "Options:"
     echo "  --clean-node    Delete node_modules and reinstall dependencies"
     echo "  --clean-dist    Delete dist/ directory and recompile TypeScript"
-    echo "  --clean-auth    Delete and recreate monk-api-auth database"
+    echo "  --clean-auth    Delete and recreate monk_main database"
     echo "  --help, -h      Show this help message"
     echo
     echo "This script automates all setup steps from INSTALL.md for a complete"
@@ -159,10 +159,10 @@ if [ -f "$config_file" ] && grep -q "DATABASE_URL" "$config_file"; then
 else
     print_warning "No DATABASE_URL found in monk configuration"
     print_step "Creating monk environment configuration..."
-    
+
     # Ensure config directory exists
     mkdir -p "$HOME/.config/monk"
-    
+
     # Create env.json with DATABASE_URL using current user
     cat > "$config_file" << EOF
 {
@@ -171,7 +171,7 @@ else
   "PORT": "9001"
 }
 EOF
-    
+
     print_success "Monk environment configuration created"
     print_info "Config file: $config_file"
     print_info "Using DATABASE_URL: postgresql://$(whoami):$(whoami)@localhost:5432/"
@@ -229,7 +229,7 @@ print_step "Compiling project..."
 if npm run compile >/dev/null 2>&1; then
     print_success "TypeScript compilation successful"
     print_info "Generated files in dist/ directory"
-    
+
     # Show compilation stats
     if [ -d "dist" ]; then
         file_count=$(find dist -name "*.js" | wc -l 2>/dev/null || echo "unknown")
@@ -239,14 +239,14 @@ else
     handle_error "TypeScript compilation" "Check for syntax errors or missing dependencies"
 fi
 
-# Step 4: Initialize Auth Database
-print_header "Step 4: Initialize Auth Database"
+# Step 4: Initialize Main Database
+print_header "Step 4: Initialize Main Database"
 
 # Handle --clean-auth option
 if [ "$CLEAN_AUTH" = true ]; then
     print_step "Clean auth requested - removing existing auth database..."
-    if psql -lqt | cut -d'|' -f1 | grep -qw "monk-api-auth" 2>/dev/null; then
-        if dropdb monk-api-auth 2>/dev/null; then
+    if psql -lqt | cut -d'|' -f1 | grep -qw "monk_main" 2>/dev/null; then
+        if dropdb monk_main 2>/dev/null; then
             print_success "Existing auth database removed"
         else
             handle_error "Auth database removal" "Check PostgreSQL permissions for dropping databases"
@@ -261,7 +261,7 @@ print_step "Checking if auth database exists..."
 # Check if auth database already exists
 if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
     print_info "Auth database already exists"
-    
+
     # Check if it has the required tables
     if psql -d monk -c "SELECT 1 FROM tenant LIMIT 1;" >/dev/null 2>&1; then
         print_success "Auth database properly initialized"
@@ -284,7 +284,7 @@ else
     else
         handle_error "Auth database creation" "Check PostgreSQL permissions and that createdb command is available"
     fi
-    
+
     print_step "Initializing auth database schema..."
     if psql -d monk -f sql/init-auth.sql >/dev/null 2>&1; then
         print_success "Auth database schema initialized"
