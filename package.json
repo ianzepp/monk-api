@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "start:bg": "node dist/index.js > /dev/null 2>&1 &",
+    "start:bg": "scripts/start-bg.sh",
     "start:dev": "npm run build && concurrently \"npm run build:watch\" \"node --watch dist/index.js\"",
     "stop": "pkill -f 'node.*dist/index.js' || pkill -f 'nodemon.*build' || true",
     "build": "scripts/build.sh",
