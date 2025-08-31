@@ -31,22 +31,19 @@ import * as middleware from '@src/lib/middleware/index.js';
 // Root API
 import { rootRouter } from '@src/routes/root/index.js';
 
-// Auth API handlers (clean barrel exports)
+// Public route handlers (no authentication required)
+import * as publicAuthRoutes from '@src/public/auth/routes.js';
+import DocsGet from '@src/public/docs/:api/GET.js'; // GET /docs/:api
+
+// Protected API handlers (JWT + user validation required)
 import * as authRoutes from '@src/routes/auth/routes.js';
-
-// Data API handlers (clean barrel exports)
 import * as dataRoutes from '@src/routes/data/routes.js';
-
-// Meta API handlers (clean barrel exports)
 import * as metaRoutes from '@src/routes/meta/routes.js';
-
-// File API handlers (clean barrel exports)
 import * as fileRoutes from '@src/routes/file/routes.js';
 
-// Special endpoints
+// Special protected endpoints
 import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
 import FindSchemaPost from '@src/routes/find/:schema/POST.js'; // POST /api/find/:schema
-import DocsGet from '@src/routes/docs/:api/GET.js'; // GET /docs/:api.id
 
 // Check database connection before doing anything else
 logger.info('Checking database connection:');
@@ -81,9 +78,10 @@ app.get('/', c => {
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
-            auth: '/auth/*',
-            docs: '/docs[/:api]',
+            public_auth: '/auth/* (public - token acquisition)',
+            docs: '/docs[/:api] (public)',
             root: undefined as string | undefined,
+            auth: '/api/auth/* (protected - user management)',
             data: '/api/data/:schema[/:record] (protected)',
             meta: '/api/meta/:schema (protected)',
             find: '/api/find/:schema (protected)',
@@ -98,7 +96,7 @@ app.get('/', c => {
     };
 
     if (process.env.NODE_ENV === 'development') {
-        response.endpoints.root = '/root/* (localhost development only)';
+        response.endpoints.root = '/api/root/* (protected - requires root JWT)';
     }
 
     return createSuccessResponse(c, response);
@@ -109,29 +107,27 @@ app.get('/', c => {
 // exist at any given moment.
 app.use('/*', middleware.systemContextMiddleware);
 
-// Docs require no authentication and return plain text
-app.get('/docs/:api', DocsGet);
+// Public routes (no authentication required)
+app.use('/auth/*', middleware.responseJsonMiddleware); // Public auth: JSON responses
+app.use('/docs/*', /* no auth middleware */); // Docs: plain text responses
 
-// Auth API middleware
-app.use('/auth/*', middleware.responseJsonMiddleware); // Auth API: JSON responses
+// Public auth routes (token acquisition)
+app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
+app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
+app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
 
-// Auth API routes
-app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
-app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
-app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
-app.get('/auth/whoami', middleware.jwtValidationMiddleware, middleware.userValidationMiddleware, authRoutes.WhoamiGet); // GET /auth/whoami
+// Public docs routes
+app.get('/docs/:api', DocsGet); // GET /docs/:api
 
-// Root API middleware (must come before protected routes)
-app.use('/root/*', middleware.localhostDevelopmentOnlyMiddleware);
-app.use('/root/*', middleware.responseJsonMiddleware);
-
-// Root API routes - Must be before JWT middleware
-app.route('/root', rootRouter);
 
 // Protected API routes - require JWT authentication from /auth
 app.use('/api/*', middleware.jwtValidationMiddleware);
 app.use('/api/*', middleware.userValidationMiddleware);
 app.use('/api/*', middleware.responseJsonMiddleware);
+
+// Auth API routes (protected - user account management)
+app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
+app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
 
 // Meta API routes
 app.post('/api/meta/:schema', metaRoutes.SchemaPost); // Create schema (with URL name)
@@ -162,6 +158,13 @@ app.post('/api/file/modify-time', fileRoutes.ModifyTimePost); // File modificati
 
 // Bulk API routes
 app.post('/api/bulk', BulkPost);
+
+// Find API routes
+app.post('/api/find/:schema', FindSchemaPost);
+
+// Root API routes (require elevated root access)
+app.use('/api/root/*', middleware.rootAccessMiddleware);
+app.route('/api/root', rootRouter);
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

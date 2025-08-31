@@ -24,6 +24,28 @@ export class AuthService {
         return await sign(payload, process.env['JWT_SECRET']!);
     }
 
+    // Generate elevated JWT token with custom expiration
+    static async generateElevatedToken(user: any, expirationSeconds: number): Promise<string> {
+        const payload: JWTPayload = {
+            sub: user.id,
+            user_id: user.user_id || user.id,
+            tenant: user.tenant,
+            database: user.database,
+            access: user.access, // Should be 'root' for elevated tokens
+            access_read: user.access_read || [],
+            access_edit: user.access_edit || [],
+            access_full: user.access_full || [],
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + expirationSeconds,
+            // Elevation metadata
+            elevated_from: user.elevated_from,
+            elevated_at: user.elevated_at,
+            elevation_reason: user.elevation_reason
+        };
+
+        return await sign(payload, process.env['JWT_SECRET']!);
+    }
+
     // Verify and decode JWT token
     static async verifyToken(token: string): Promise<JWTPayload> {
         return (await verify(token, process.env['JWT_SECRET']!)) as JWTPayload;

@@ -1,12 +1,11 @@
 /**
- * Auth API Route Barrel Export
+ * Protected Auth API Route Barrel Export
  *
- * Clean route organization using your preferred naming convention:
- * @see docs/routes/AUTH_API.md
+ * Protected authentication routes for user account management (JWT required):
+ * - User info: Get current authenticated user details
+ * - Profile management: Update user settings
+ * - Session management: Logout, session control
  */
 
-// Auth operations
-export { default as LoginPost } from '@src/routes/auth/login/POST.js';
-export { default as RegisterPost } from '@src/routes/auth/register/POST.js';
-export { default as RefreshPost } from '@src/routes/auth/refresh/POST.js';
-export { default as WhoamiGet } from '@src/routes/auth/whoami/GET.js';
+export { default as WhoamiGet } from './whoami/GET.js';
+export { default as SudoPost } from './sudo/POST.js';

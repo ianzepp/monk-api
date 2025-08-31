@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { AuthService } from '@src/lib/auth.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**

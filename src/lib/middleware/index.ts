@@ -13,4 +13,5 @@ export { responseYamlMiddleware } from './response-yaml.js';
 export { requestTrackingMiddleware } from './request-tracking.js';
 export { jwtValidationMiddleware } from './jwt-validation.js';
 export { userValidationMiddleware } from './user-validation.js';
+export { rootAccessMiddleware } from './root-access.js';
 export { localhostDevelopmentOnlyMiddleware } from './localhost-development-only.js';

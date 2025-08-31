@@ -20,6 +20,10 @@ export interface JWTPayload {
     access_full: string[];
     iat: number;
     exp: number;
+    // Privilege elevation metadata (optional)
+    elevated_from?: string;
+    elevated_at?: string;
+    elevation_reason?: string;
     [key: string]: any;
 }
 
