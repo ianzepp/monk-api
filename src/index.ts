@@ -89,9 +89,11 @@ app.get('/', c => {
             file: '/api/file/* (protected)',
         },
         documentation: {
-            auth: '/docs/auth (markdown format)',
-            data: '/docs/data (markdown format)',
-            meta: '/docs/meta (markdown format)',
+            auth: ['/docs/auth', '/docs/public-auth'],
+            data: ['/docs/data'],
+            meta: ['/docs/meta'],
+            file: ['/docs/file'],
+            root: ['/docs/root']
         },
     };
 

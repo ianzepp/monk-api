@@ -15,13 +15,22 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('API parameter is required', 'API_MISSING');
     }
     
-    if (!/^[a-zA-Z]+$/.test(api)) {
-        throw HttpErrors.badRequest('API parameter must contain only letters', 'API_INVALID_FORMAT');
+    if (!/^[a-zA-Z-]+$/.test(api)) {
+        throw HttpErrors.badRequest('API parameter must contain only letters and hyphens', 'API_INVALID_FORMAT');
     }
     
-    // Build path to public documentation
+    // Determine documentation path based on API name
     const apiLowercase = api.toLowerCase();
-    const publicDocsPath = join(process.cwd(), 'src', 'routes', apiLowercase, 'PUBLIC.md');
+    let publicDocsPath: string;
+    
+    // Handle public API variants (public-auth, public-user, etc.)
+    if (apiLowercase.startsWith('public-')) {
+        const apiName = apiLowercase.substring(7); // Remove 'public-' prefix
+        publicDocsPath = join(process.cwd(), 'src', 'public', apiName, 'PUBLIC.md');
+    } else {
+        // Standard protected API documentation
+        publicDocsPath = join(process.cwd(), 'src', 'routes', apiLowercase, 'PUBLIC.md');
+    }
     
     // Check if documentation exists
     if (!existsSync(publicDocsPath)) {
