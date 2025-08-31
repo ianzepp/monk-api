@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "start:dev": "tsx watch src/index.ts",
+    "start:dev": "npm run compile && concurrently \"npm run compile:watch\" \"node --watch dist/index.js\"",
+    "compile:watch": "nodemon --watch src --ext ts --exec 'npm run compile'",
     "compile": "scripts/compile.sh",
     "compile:spec": "scripts/compile-spec.sh",
     "autoinstall": "scripts/autoinstall.sh",
@@ -42,6 +43,8 @@
   "devDependencies": {
     "@types/node": "^22",
     "@types/pg": "^8.15.5",
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.10",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
