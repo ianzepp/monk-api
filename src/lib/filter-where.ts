@@ -1,30 +1,30 @@
 /**
  * FilterWhere - Schema-independent WHERE clause generation
- * 
+ *
  * Generates parameterized WHERE clauses without requiring schema setup.
  * Extracted from Filter class to enable reusable filtering logic in SqlObserver
  * and other contexts.
- * 
+ *
  * Features: Parameter offsetting, SQL injection protection, soft delete handling
- * 
+ *
  * Quick Examples:
  * - Simple: `FilterWhere.generate({ name: 'John', age: 25 })`
  * - Offset: `FilterWhere.generate({ id: 'record-123' }, 2)` → uses $3, $4, etc.
  * - Options: `FilterWhere.generate(filter, 0, { includeTrashed: true })`
- * 
+ *
  * See docs/FILTER.md for complete operator reference and examples.
  */
 
 export enum FilterOp {
     // Comparison operators
     EQ = '$eq',
-    NE = '$ne', 
+    NE = '$ne',
     NEQ = '$neq',
     GT = '$gt',
     GTE = '$gte',
     LT = '$lt',
     LTE = '$lte',
-    
+
     // Pattern matching operators
     LIKE = '$like',
     NLIKE = '$nlike',
@@ -32,35 +32,35 @@ export enum FilterOp {
     NILIKE = '$nilike',
     REGEX = '$regex',
     NREGEX = '$nregex',
-    
+
     // Array membership operators
     IN = '$in',
     NIN = '$nin',
-    
+
     // PostgreSQL array operations (CRITICAL for ACL)
-    ANY = '$any',       // Array overlap: access_read && ARRAY[user_id, group_id]
-    ALL = '$all',       // Array contains: tags @> ARRAY['feature', 'backend']
-    NANY = '$nany',     // NOT array overlap: NOT (access_deny && ARRAY[user_id])
-    NALL = '$nall',     // NOT array contains: NOT (permissions @> ARRAY['admin'])
-    SIZE = '$size',     // Array size: array_length(tags, 1) = 3
-    
-    // Logical operators (CRITICAL for FTP wildcards)
-    AND = '$and',       // Explicit AND: { $and: [condition1, condition2] }
-    OR = '$or',         // OR conditions: { $or: [{ role: 'admin' }, { role: 'mod' }] }
-    NOT = '$not',       // NOT condition: { $not: { status: 'banned' } }
-    NAND = '$nand',     // NAND operations
-    NOR = '$nor',       // NOR operations
-    
+    ANY = '$any', // Array overlap: access_read && ARRAY[user_id, group_id]
+    ALL = '$all', // Array contains: tags @> ARRAY['feature', 'backend']
+    NANY = '$nany', // NOT array overlap: NOT (access_deny && ARRAY[user_id])
+    NALL = '$nall', // NOT array contains: NOT (permissions @> ARRAY['admin'])
+    SIZE = '$size', // Array size: array_length(tags, 1) = 3
+
+    // Logical operators (CRITICAL for FS wildcards)
+    AND = '$and', // Explicit AND: { $and: [condition1, condition2] }
+    OR = '$or', // OR conditions: { $or: [{ role: 'admin' }, { role: 'mod' }] }
+    NOT = '$not', // NOT condition: { $not: { status: 'banned' } }
+    NAND = '$nand', // NAND operations
+    NOR = '$nor', // NOR operations
+
     // Range operations
     BETWEEN = '$between', // Range: { age: { $between: [18, 65] } } → age BETWEEN 18 AND 65
-    
+
     // Search operations
-    FIND = '$find',     // Full-text search: { content: { $find: 'search terms' } }
-    TEXT = '$text',     // Text search: { description: { $text: 'keyword' } }
-    
+    FIND = '$find', // Full-text search: { content: { $find: 'search terms' } }
+    TEXT = '$text', // Text search: { description: { $text: 'keyword' } }
+
     // Existence operators
     EXISTS = '$exists', // Field exists: { field: { $exists: true } } → field IS NOT NULL
-    NULL = '$null'      // Field is null: { field: { $null: true } } → field IS NULL
+    NULL = '$null', // Field is null: { field: { $null: true } } → field IS NULL
 }
 
 export interface FilterWhereInfo {
@@ -95,11 +95,7 @@ export class FilterWhere {
     /**
      * Static method for quick WHERE clause generation
      */
-    static generate(
-        whereData: any, 
-        startingParamIndex: number = 0,
-        options: FilterWhereOptions = {}
-    ): { whereClause: string; params: any[] } {
+    static generate(whereData: any, startingParamIndex: number = 0, options: FilterWhereOptions = {}): { whereClause: string; params: any[] } {
         const filterWhere = new FilterWhere(startingParamIndex);
         return filterWhere.build(whereData, options);
     }
@@ -118,7 +114,7 @@ export class FilterWhere {
 
         // Build WHERE clause
         const whereClause = this.buildWhereClause(options);
-        
+
         return { whereClause, params: this._paramValues };
     }
 
@@ -139,14 +135,14 @@ export class FilterWhere {
                 this._conditions.push({
                     column: key,
                     operator: FilterOp.EQ,
-                    data: null
+                    data: null,
                 });
             } else if (Array.isArray(value)) {
                 // Handle arrays as IN operations
                 this._conditions.push({
                     column: key,
                     operator: FilterOp.IN,
-                    data: value
+                    data: value,
                 });
             } else if (typeof value === 'object' && value !== null) {
                 // Handle operator objects: { $gt: 10, $lt: 100 }
@@ -155,7 +151,7 @@ export class FilterWhere {
                         this._conditions.push({
                             column: key,
                             operator: op as FilterOp,
-                            data
+                            data,
                         });
                     }
                 }
@@ -164,7 +160,7 @@ export class FilterWhere {
                 this._conditions.push({
                     column: key,
                     operator: FilterOp.EQ,
-                    data: value
+                    data: value,
                 });
             }
         }
@@ -189,7 +185,7 @@ export class FilterWhere {
         this._conditions.push({
             column: '', // No specific column for logical operators
             operator,
-            data: data // Array of nested conditions
+            data: data, // Array of nested conditions
         });
     }
 
@@ -204,15 +200,13 @@ export class FilterWhere {
             conditions.push('"trashed_at" IS NULL');
         }
 
-        // Add permanent delete filtering unless explicitly included  
+        // Add permanent delete filtering unless explicitly included
         if (!options.includeDeleted) {
             conditions.push('"deleted_at" IS NULL');
         }
 
         // Add parsed conditions
-        const parsedConditions = this._conditions
-            .map(condition => this.buildSQLCondition(condition))
-            .filter(Boolean);
+        const parsedConditions = this._conditions.map(condition => this.buildSQLCondition(condition)).filter(Boolean);
 
         if (parsedConditions.length > 0) {
             conditions.push(`(${parsedConditions.join(' AND ')})`);
@@ -226,12 +220,12 @@ export class FilterWhere {
      */
     private buildSQLCondition(whereInfo: FilterWhereInfo): string | null {
         const { column, operator, data } = whereInfo;
-        
+
         // Handle logical operators (no specific column)
         if (!column && this.isLogicalOperator(operator)) {
             return this.buildLogicalOperatorSQL(operator, data);
         }
-        
+
         if (!column) return null;
         const quotedColumn = `"${column}"`;
 
@@ -464,11 +458,9 @@ export class FilterWhere {
         // Create a temporary FilterWhere instance for the nested condition
         const nestedFilter = new FilterWhere(this._paramIndex);
         nestedFilter.parseWhereData(condition);
-        
+
         // Build the nested conditions
-        const nestedConditions = nestedFilter._conditions
-            .map(cond => nestedFilter.buildSQLCondition(cond))
-            .filter(Boolean);
+        const nestedConditions = nestedFilter._conditions.map(cond => nestedFilter.buildSQLCondition(cond)).filter(Boolean);
 
         // Update our parameter index to account for nested parameters
         this._paramIndex = nestedFilter._paramIndex;
