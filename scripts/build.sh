@@ -70,8 +70,21 @@ main() {
     # Note: src/metadata was removed - test fixture schemas are in spec/fixtures/schema/
     log_info "Checking for additional assets to copy..."
     
-    # Future: Add other asset copying here if needed
-    log_info "No additional assets to copy"
+    # Copy markdown documentation files
+    if [[ -n "$(find src -name 'PUBLIC.md' 2>/dev/null)" ]]; then
+        log_info "Copying documentation files..."
+        # Preserve directory structure for documentation
+        find src -name 'PUBLIC.md' -type f | while read -r file; do
+            # Get relative path from src/
+            rel_path="${file#src/}"
+            dest_dir="dist/$(dirname "$rel_path")"
+            mkdir -p "$dest_dir"
+            cp "$file" "$dest_dir/"
+        done
+        log_info "Copied $(find src -name 'PUBLIC.md' | wc -l | tr -d ' ') documentation files"
+    else
+        log_info "No documentation files to copy"
+    fi
     
     # Step 4: Copy SQL files if they exist
     if [[ -d "sql" ]]; then
@@ -96,6 +109,7 @@ main() {
     log_info "  TypeScript files: $ts_files"
     log_info "  JavaScript files: $js_files"
     log_info "  Metadata files: $(find dist/metadata -name '*.yaml' 2>/dev/null | wc -l | tr -d ' ')"
+    log_info "  Documentation files: $(find dist -name 'PUBLIC.md' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  SQL files: $(find dist/sql -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')"
     
     log_info "Compilation completed successfully!"

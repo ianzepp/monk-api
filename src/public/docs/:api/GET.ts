@@ -19,17 +19,19 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('API parameter must contain only letters and hyphens', 'API_INVALID_FORMAT');
     }
     
-    // Determine documentation path based on API name
+    // Determine documentation path based on API name and environment
     const apiLowercase = api.toLowerCase();
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const baseDir = isDevelopment ? 'src' : 'dist';
     let publicDocsPath: string;
     
     // Handle public API variants (public-auth, public-user, etc.)
     if (apiLowercase.startsWith('public-')) {
         const apiName = apiLowercase.substring(7); // Remove 'public-' prefix
-        publicDocsPath = join(process.cwd(), 'src', 'public', apiName, 'PUBLIC.md');
+        publicDocsPath = join(process.cwd(), baseDir, 'public', apiName, 'PUBLIC.md');
     } else {
         // Standard protected API documentation
-        publicDocsPath = join(process.cwd(), 'src', 'routes', apiLowercase, 'PUBLIC.md');
+        publicDocsPath = join(process.cwd(), baseDir, 'routes', apiLowercase, 'PUBLIC.md');
     }
     
     // Check if documentation exists
