@@ -3,9 +3,6 @@ import { TenantService } from '@src/lib/services/tenant.js';
 
 describe('TenantService Debug - Isolate SCRAM Issue', () => {
     test('should isolate which TenantService method fails', async () => {
-        // Load monk configuration
-        MonkEnv.load();
-
         try {
             logger.info(`🔍 Step 1: Testing tenantExists()`);
             const exists = await TenantService.tenantExists('debug-test-001');

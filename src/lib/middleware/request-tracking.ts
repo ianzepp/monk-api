@@ -24,12 +24,12 @@ export async function requestTrackingMiddleware(context: Context, next: Next) {
     const path = context.req.path;
     const api = extractApiFromPath(path);
 
-    // Extract client information from headers
+    // Extract client information from headers (PostgreSQL INET type requires valid IP)
     const ipAddress =
         context.req.header('x-forwarded-for') ||
         context.req.header('x-real-ip') ||
         context.req.header('cf-connecting-ip') || // Cloudflare
-        'unknown';
+        '127.0.0.1'; // Default to localhost for INET compatibility
     const userAgent = context.req.header('user-agent') || '';
 
     try {
