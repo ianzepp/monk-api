@@ -34,6 +34,15 @@ print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}" >&2
 }
 
+# Load test environment from temp file (solves subshell variable scoping issues)
+load_test_env() {
+    if [[ -f /tmp/monk_test_env ]]; then
+        source /tmp/monk_test_env
+        export TEST_TENANT_NAME
+        export TEST_DATABASE_NAME
+    fi
+}
+
 # Generate tenant database name using production hashing logic
 hash_tenant_name() {
     local tenant_name="$1"
@@ -87,6 +96,10 @@ create_test_tenant_from_template() {
     # 3. Export tenant info for test use
     export TEST_TENANT_NAME="$tenant_name"
     export TEST_DATABASE_NAME="$db_name"
+    
+    # 4. Save to temp file for reliable access across subshells
+    echo "TEST_TENANT_NAME=$tenant_name" > /tmp/monk_test_env
+    echo "TEST_DATABASE_NAME=$db_name" >> /tmp/monk_test_env
     
     print_success "Test tenant ready (cloned from $template_name): $tenant_name → $db_name"
     
@@ -152,6 +165,10 @@ create_isolated_test_tenant() {
     # 5. Export tenant info for test use
     export TEST_TENANT_NAME="$tenant_name"
     export TEST_DATABASE_NAME="$db_name"
+    
+    # 6. Save to temp file for reliable access across subshells
+    echo "TEST_TENANT_NAME=$tenant_name" > /tmp/monk_test_env
+    echo "TEST_DATABASE_NAME=$db_name" >> /tmp/monk_test_env
     
     print_success "Test tenant ready: $tenant_name → $db_name"
     

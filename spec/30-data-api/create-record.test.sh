@@ -13,9 +13,22 @@ print_step "Testing Data API record creation"
 # Wait for server to be ready
 wait_for_server
 
-# Setup isolated test environment
-print_step "Creating isolated test tenant"
-setup_isolated_test
+# Setup test environment using fixtures template (much faster than manual setup)
+print_step "Creating test tenant from fixtures template"
+tenant_name=$(create_test_tenant_from_template "create-record" "basic")
+load_test_env  # Load environment variables from temp file
+
+if [[ -z "$tenant_name" ]]; then
+    print_warning "Template not available, falling back to manual setup"
+    setup_isolated_test
+    # Create account schema manually as fallback
+    account_schema=$(cat spec/account.json)
+    schema_response=$(auth_post "api/meta/account" "$account_schema")
+    assert_success "$schema_response"
+    print_success "Account schema created manually"
+else
+    print_success "Test tenant cloned from template (includes account + contact schemas with sample data)"
+fi
 
 # Authenticate with admin user (has record creation privileges)
 print_step "Setting up authentication for admin user"
@@ -28,15 +41,7 @@ else
     test_fail "Failed to authenticate admin user"
 fi
 
-# Test 1: First create the account schema (since users is a system schema)
-print_step "Creating account schema for testing"
-
-account_schema=$(cat spec/account.json)
-schema_response=$(auth_post "api/meta/account" "$account_schema")
-assert_success "$schema_response"
-print_success "Account schema created for testing"
-
-# Test 2: Create a new account record
+# Test 1: Create a new account record (schema already exists from template)
 print_step "Testing POST /api/data/account"
 
 # Create test account data as an array (Data API expects bulk operations)
