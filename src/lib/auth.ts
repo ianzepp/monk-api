@@ -1,8 +1,9 @@
-import type { Context } from 'hono';
+import type { Context, Next } from 'hono';
 import { jwt } from 'hono/jwt';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { MonkEnv } from '@src/lib/monk-env.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 import pg from 'pg';
 
 export interface JWTPayload {
@@ -145,14 +146,32 @@ export class AuthService {
         }
     }
 
-    // Get Hono JWT middleware
+    // Get Hono JWT middleware with proper error handling
     static getJWTMiddleware() {
-        return jwt({ secret: this.getJwtSecret() });
+        return async (c: Context, next: Next) => {
+            try {
+                // Use Hono's built-in JWT middleware
+                await jwt({ secret: this.getJwtSecret() })(c, next);
+            } catch (error: any) {
+                // Convert JWT middleware errors to proper HttpErrors
+                if (error instanceof Error) {
+                    if (error.message === 'Unauthorized' || 
+                        (error.cause && typeof error.cause === 'object' && 'name' in error.cause &&
+                         (error.cause.name === 'JwtTokenExpired' || error.cause.name === 'JwtTokenInvalid')) ||
+                        error.message.includes('jwt')) {
+                        throw HttpErrors.unauthorized('Authentication required', 'TOKEN_INVALID');
+                    }
+                }
+                
+                // Re-throw other errors
+                throw error;
+            }
+        };
     }
 
     // Enhanced auth middleware with user context
     static getUserContextMiddleware() {
-        return async (c: Context, next: Function) => {
+        return async (c: Context, next: Next) => {
             const payload = c.get('jwtPayload') as JWTPayload;
             
             try {
@@ -196,7 +215,7 @@ export class AuthService {
 
     // Role-based middleware
     static requireRole(requiredRole: string) {
-        return async (c: Context, next: Function) => {
+        return async (c: Context, next: Next) => {
             const userRole = c.get('userRole');
             
             if (userRole !== requiredRole) {
