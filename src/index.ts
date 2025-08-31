@@ -1,3 +1,7 @@
+// Import process environment as early as possible
+import dotenv from 'dotenv';
+dotenv.config();
+
 // Import package.json for version info
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -17,11 +21,17 @@ import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api/responses.js';
 import { AuthService } from '@src/lib/auth.js';
+
+// Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
+
+// Middleware
 import { systemContextMiddleware } from '@src/lib/middleware/index.js';
 import { responseJsonMiddleware } from '@src/lib/middleware/index.js';
 import { responseFileMiddleware } from '@src/lib/middleware/index.js';
 import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/index.js';
+
+// Root API
 import { rootRouter } from '@src/routes/root/index.js';
 
 // Auth API handlers (clean barrel exports)
@@ -33,14 +43,8 @@ import * as dataRoutes from '@src/routes/data/routes.js';
 // Meta API handlers (clean barrel exports)
 import * as metaRoutes from '@src/routes/meta/routes.js';
 
-// FTP Middleware handlers
-import FtpListPost from '@src/routes/ftp/list.js'; // POST /ftp/list
-import FtpRetrievePost from '@src/routes/ftp/retrieve.js'; // POST /ftp/retrieve
-import FtpStorePost from '@src/routes/ftp/store.js'; // POST /ftp/store
-import FtpStatPost from '@src/routes/ftp/stat.js'; // POST /ftp/stat
-import FtpDeletePost from '@src/routes/ftp/delete.js'; // POST /ftp/delete
-import FtpSizePost from '@src/routes/ftp/size.js'; // POST /ftp/size
-import FtpModifyTimePost from '@src/routes/ftp/modify-time.js'; // POST /ftp/modify-time
+// FTP API handlers (clean barrel exports)
+import * as ftpRoutes from '@src/routes/ftp/routes.js';
 
 // Special endpoints
 import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
@@ -161,13 +165,13 @@ app.use('/ftp/*', systemContextMiddleware);
 app.use('/ftp/*', responseJsonMiddleware);
 
 // FTP routes
-app.post('/ftp/list', FtpListPost); // Directory listing
-app.post('/ftp/retrieve', FtpRetrievePost); // File retrieval
-app.post('/ftp/store', FtpStorePost); // File storage
-app.post('/ftp/stat', FtpStatPost); // File status
-app.post('/ftp/delete', FtpDeletePost); // File deletion
-app.post('/ftp/size', FtpSizePost); // File size
-app.post('/ftp/modify-time', FtpModifyTimePost); // File modification time
+app.post('/ftp/list', ftpRoutes.ListPost); // Directory listing
+app.post('/ftp/retrieve', ftpRoutes.RetrievePost); // File retrieval
+app.post('/ftp/store', ftpRoutes.StorePost); // File storage
+app.post('/ftp/stat', ftpRoutes.StatPost); // File status
+app.post('/ftp/delete', ftpRoutes.DeletePost); // File deletion
+app.post('/ftp/size', ftpRoutes.SizePost); // File size
+app.post('/ftp/modify-time', ftpRoutes.ModifyTimePost); // File modification time
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));
