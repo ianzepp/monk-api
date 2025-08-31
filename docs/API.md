@@ -640,7 +640,7 @@ The API uses consistent error response format:
 ---
 
 This API documentation provides comprehensive coverage of all endpoints and patterns. For detailed examples of specific features, see:
-- [FTP.md](FTP.md) - FTP Middleware filesystem-like interface
+- [FILE.md](FILE.md) - FS middleware filesystem-like interface
 - [FILTER.md](FILTER.md) - Advanced filtering and query capabilities
 - [OBSERVERS.md](OBSERVERS.md) - Observer system integration
 - [TESTING.md](TESTING.md) - API endpoint testing strategies

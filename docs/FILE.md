@@ -1,12 +1,12 @@
-# FTP Middleware Documentation
+# File Middleware Documentation
 
 ## Overview
 
-The FTP Middleware provides filesystem-like access to Monk API data through HTTP endpoints that simulate FTP operations. This enables developers to interact with API data using familiar file/directory patterns while leveraging the full power of the observer pipeline and database backend.
+The File Middleware provides filesystem-like access to Monk API data through HTTP endpoints that simulate File operations. This enables developers to interact with API data using familiar file/directory patterns while leveraging the full power of the observer pipeline and database backend.
 
-## FTP Path Structure
+## File Path Structure
 
-FTP middleware provides filesystem-like access to API data with intuitive path mapping:
+File middleware provides filesystem-like access to API data with intuitive path mapping:
 
 ```
 /data/                                → List all schemas
@@ -17,19 +17,19 @@ FTP middleware provides filesystem-like access to API data with intuitive path m
 /meta/accounts                        → Schema definitions
 ```
 
-## Core FTP Operations
+## Core File Operations
 
-### Directory Listing - POST /ftp/list
+### Directory Listing - POST /api/file/list
 
 Advanced directory listing with wildcard support and performance optimization:
 
 ```bash
 # Basic listing
-curl -X POST http://localhost:9001/ftp/list \
+curl -X POST http://localhost:9001/api/file/list \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "path": "/data/accounts/",
-    "ftp_options": {
+    "file_options": {
       "show_hidden": false,
       "long_format": true,
       "recursive": false
@@ -37,24 +37,24 @@ curl -X POST http://localhost:9001/ftp/list \
   }'
 
 # Wildcard patterns (Phase 2)
-curl -X POST http://localhost:9001/ftp/list \
+curl -X POST http://localhost:9001/api/file/list \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "path": "/data/accounts/admin*",
-    "ftp_options": {
+    "file_options": {
       "pattern_optimization": true,
       "use_pattern_cache": true
     }
   }'
 ```
 
-### File Storage - POST /ftp/store
+### File Storage - POST /api/file/store
 
 Atomic file storage with transaction management and schema validation:
 
 ```bash
 # Create new record
-curl -X POST http://localhost:9001/ftp/store \
+curl -X POST http://localhost:9001/api/file/store \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "path": "/data/accounts/new-account.json",
@@ -62,7 +62,7 @@ curl -X POST http://localhost:9001/ftp/store \
       "name": "New Account",
       "email": "account@example.com"
     },
-    "ftp_options": {
+    "file_options": {
       "atomic": true,
       "overwrite": true,
       "validate_schema": true
@@ -70,29 +70,29 @@ curl -X POST http://localhost:9001/ftp/store \
   }'
 
 # Update specific field
-curl -X POST http://localhost:9001/ftp/store \
+curl -X POST http://localhost:9001/api/file/store \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "path": "/data/accounts/account-123/email",
     "content": "newemail@example.com",
-    "ftp_options": {
+    "file_options": {
       "atomic": true,
       "append_mode": false
     }
   }'
 ```
 
-### File Deletion - POST /ftp/delete
+### File Deletion - POST /api/file/delete
 
 Safe deletion with soft-delete support and comprehensive safety checks:
 
 ```bash
 # Soft delete (recoverable)
-curl -X POST http://localhost:9001/ftp/delete \
+curl -X POST http://localhost:9001/api/file/delete \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "path": "/data/accounts/account-123",
-    "ftp_options": {
+    "file_options": {
       "permanent": false,
       "atomic": true,
       "force": false
@@ -100,11 +100,11 @@ curl -X POST http://localhost:9001/ftp/delete \
   }'
 
 # Permanent deletion
-curl -X POST http://localhost:9001/ftp/delete \
+curl -X POST http://localhost:9001/api/file/delete \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "path": "/data/accounts/old-account",
-    "ftp_options": {
+    "file_options": {
       "permanent": true,
       "atomic": true,
       "force": true
@@ -112,23 +112,23 @@ curl -X POST http://localhost:9001/ftp/delete \
   }'
 
 # Field clearing
-curl -X POST http://localhost:9001/ftp/delete \
+curl -X POST http://localhost:9001/api/file/delete \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "path": "/data/accounts/account-123/temp_field",
-    "ftp_options": {
+    "file_options": {
       "atomic": true
     }
   }'
 ```
 
-### File Status Information - POST /ftp/stat
+### File Status Information - POST /api/file/stat
 
-Enhanced status information with schema introspection for comprehensive FTP STAT command support:
+Enhanced status information with schema introspection for comprehensive File STAT command support:
 
 ```bash
 # Basic file/directory status
-curl -X POST http://localhost:9001/ftp/stat \
+curl -X POST http://localhost:9001/api/file/stat \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
     "path": "/data/accounts/"
@@ -200,9 +200,9 @@ curl -X POST http://localhost:9001/ftp/stat \
 - **Performance Optimized**: Uses existing SchemaCache (no database queries)
 - **Future-Ready**: Interface prepared for database statistics when needed
 
-#### FTP STAT Command Integration
+#### File STAT Command Integration
 
-The enhanced response enables rich FTP STAT command output:
+The enhanced response enables rich File STAT command output:
 
 ```
 213-File status: /data/account
@@ -226,21 +226,21 @@ The enhanced response enables rich FTP STAT command output:
 
 #### Benefits
 
-- **Rich Documentation**: Complete schema structure through FTP protocol
+- **Rich Documentation**: Complete schema structure through File protocol
 - **Developer Experience**: Schema discovery using familiar STAT command
 - **AI Integration**: Full field context available for automated operations
 - **Performance**: Fast response using cached schema definitions
 
-## Advanced FTP Features
+## Advanced File Features
 
 ### Transaction Management
 
-All FTP operations support atomic transactions with automatic rollback:
+All File operations support atomic transactions with automatic rollback:
 
 ```typescript
 // Automatic transaction (default)
 {
-  "ftp_options": {
+  "file_options": {
     "atomic": true  // Creates transaction automatically
   }
 }
@@ -248,9 +248,9 @@ All FTP operations support atomic transactions with automatic rollback:
 // Join existing transaction
 {
   "metadata": {
-    "transaction_id": "ftp-store-1703123456789-abc123"
+    "transaction_id": "file-store-1703123456789-abc123"
   },
-  "ftp_options": {
+  "file_options": {
     "atomic": true
   }
 }
@@ -270,7 +270,7 @@ Intelligent content type detection and processing:
 # Binary content
 {
   "content": "base64-encoded-data",
-  "ftp_options": {"binary_mode": true},
+  "file_options": {"binary_mode": true},
   "metadata": {"content_type": "application/octet-stream"}
 }
 
@@ -278,7 +278,7 @@ Intelligent content type detection and processing:
 {
   "path": "/data/accounts/account-123/description",
   "content": " - Additional info",
-  "ftp_options": {"append_mode": true}
+  "file_options": {"append_mode": true}
 }
 ```
 
@@ -300,10 +300,10 @@ Complex pattern matching with performance optimization:
 "/data/*/recent_activity/"
 ```
 
-#### FTP Wildcard Translation
+#### File Wildcard Translation
 
 ```bash
-# FTP Path: /data/accounts/*admin*/department/*eng*/created/2024-*
+# File Path: /data/accounts/*admin*/department/*eng*/created/2024-*
 # Translates to Filter:
 {
   "where": {
@@ -323,7 +323,7 @@ Built-in optimization and caching systems:
 ```bash
 # Pattern caching (automatic)
 {
-  "ftp_options": {
+  "file_options": {
     "use_pattern_cache": true,
     "pattern_optimization": true
   }
@@ -339,9 +339,9 @@ Built-in optimization and caching systems:
 }
 ```
 
-## FTP Response Format
+## File Response Format
 
-Consistent response structure across all FTP operations:
+Consistent response structure across all File operations:
 
 ### LIST Response
 
@@ -351,10 +351,10 @@ Consistent response structure across all FTP operations:
   "entries": [
     {
       "name": "account-123",
-      "ftp_type": "d",           // Directory, File, Link
-      "ftp_size": 1024,
-      "ftp_permissions": "rwx",
-      "ftp_modified": "20241201120000",
+      "file_type": "d",           // Directory, File, Link
+      "file_size": 1024,
+      "file_permissions": "rwx",
+      "file_modified": "20241201120000",
       "path": "/data/accounts/account-123/",
       "api_context": {
         "schema": "accounts",
@@ -383,14 +383,14 @@ Consistent response structure across all FTP operations:
     "created": true,
     "validation_passed": true
   },
-  "ftp_metadata": {
+  "file_metadata": {
     "modified_time": "20241201120000",
     "permissions": "rwx",
     "etag": "abc123def456",
     "content_type": "application/json"
   },
   "transaction_info": {
-    "transaction_id": "ftp-store-...",
+    "transaction_id": "file-store-...",
     "can_rollback": false,
     "timeout_ms": 30000
   }
@@ -399,7 +399,7 @@ Consistent response structure across all FTP operations:
 
 ## Security & Permissions
 
-FTP operations integrate with the ACL system:
+File operations integrate with the ACL system:
 
 ### Permission Requirements
 - **Record creation**: Any schema access
@@ -417,41 +417,32 @@ FTP operations integrate with the ACL system:
 
 ### Unit Testing
 ```bash
-# FTP middleware unit tests
-npm run spec:all unit/ftp
+# File middleware unit tests
+npm run spec:all unit/file
 
 # File operations unit tests
-npm run spec:one spec/unit/ftp/file-operations.test.ts
+npm run spec:one spec/unit/file/file-operations.test.ts
 
 # Path parsing validation
-npm run spec:one spec/unit/ftp/ftp-path-parsing.test.ts
+npm run spec:one spec/unit/file/file-path-parsing.test.ts
 ```
 
 ### Integration Testing
 ```bash
-# FTP endpoint integration tests (database required)
-npm run spec:all integration/ftp
+# File endpoint integration tests (database required)
+npm run spec:all integration/file
 
 # HTTP integration testing
-npm run spec:one spec/integration/ftp/file-operations-integration.test.ts
+npm run spec:one spec/integration/file/file-operations-integration.test.ts
 ```
 
 ### Manual Testing Examples
 ```bash
 # Store operation
-curl -X POST http://localhost:9001/ftp/store -H "Authorization: Bearer $TOKEN" \
-  -d '{"path": "/data/accounts/test.json", "content": {"name": "Test"}, "ftp_options": {"atomic": true}}'
+curl -X POST http://localhost:9001/api/file/store -H "Authorization: Bearer $TOKEN" \
+  -d '{"path": "/data/accounts/test.json", "content": {"name": "Test"}, "file_options": {"atomic": true}}'
 
 # Delete operation
-curl -X POST http://localhost:9001/ftp/delete -H "Authorization: Bearer $TOKEN" \
-  -d '{"path": "/data/accounts/test", "ftp_options": {"permanent": false, "atomic": true}}'
+curl -X POST http://localhost:9001/api/file/delete -H "Authorization: Bearer $TOKEN" \
+  -d '{"path": "/data/accounts/test", "file_options": {"permanent": false, "atomic": true}}'
 ```
-
-## Implementation Status
-
-- ✅ **Phase 1**: Basic FTP endpoints (Issue #123)
-- ✅ **Phase 2**: Advanced wildcard translation (Issue #124)
-- ✅ **Phase 3**: File Operations and Storage (Issue #125)
-- 🔄 **Future**: Real FTP server integration with monk-ftp project
-
-For the actual FTP server implementation, see: https://github.com/ianzepp/monk-ftp

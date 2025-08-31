@@ -122,12 +122,12 @@ spec/
 │   ├── 43-schema/           # Reserved for schema/metabase unit tests
 │   ├── 44-filter/           # Filter system tests
 │   ├── 45-observers/        # Observer system tests
-│   ├── 46-ftp/              # FTP middleware tests
+│   ├── 46-file/             # FS middleware tests
 │   └── 47-49/               # Reserved for future unit test categories
 ├── 50-59-integration/       # Integration testing series
 │   ├── 50-integration/      # Core integration tests
 │   ├── 51-integration-observers/ # Observer pipeline integration
-│   ├── 52-integration-ftp/  # FTP middleware integration
+│   ├── 52-integration-file/ # FS middleware integration
 │   └── 53-59/               # Reserved for future integration categories
 └── helpers/                 # Test utilities
 ```
@@ -145,7 +145,7 @@ npm run spec:ts 15              # Authentication workflow tests
 npm run spec:ts 41              # Database unit tests
 npm run spec:ts 44              # Filter system tests
 npm run spec:ts 45              # Observer system tests
-npm run spec:ts 46              # FTP middleware tests
+npm run spec:ts 46              # FS middleware tests
 
 # Range patterns
 npm run spec:ts 10-19           # All security tests
@@ -175,7 +175,7 @@ npm run spec:ts spec/44-filter/logical-operators.test.ts
   - **42-tenant**: Tenant service and multi-tenant routing
   - **44-filter**: Filter operators and query building
   - **45-observers**: Observer system and pipeline logic
-  - **46-ftp**: FTP middleware and file operations
+  - **46-file**: FS middleware and file operations
 
 #### Integration Tests (50-59 Series)
 - **Purpose**: Test database operations, API endpoints, multi-component workflows
@@ -184,7 +184,7 @@ npm run spec:ts spec/44-filter/logical-operators.test.ts
 - **Series**:
   - **50-integration**: Core integration workflows
   - **51-integration-observers**: Observer pipeline integration
-  - **52-integration-ftp**: FTP middleware integration
+  - **52-integration-file**: FS middleware integration
 
 ### Writing TypeScript Tests
 

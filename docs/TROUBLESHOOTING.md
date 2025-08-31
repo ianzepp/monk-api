@@ -137,10 +137,10 @@ curl http://localhost:9001/health
 curl -H "Authorization: Bearer $(monk auth token)" http://localhost:9001/ping
 
 # Test database-dependent endpoints
-curl -X POST http://localhost:9001/ftp/list \
+curl -X POST http://localhost:9001/api/file/list \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
-  -d '{"path": "/", "ftp_options": {"show_hidden": false, "long_format": true, "recursive": false}}'
+  -d '{"path": "/", "file_options": {"show_hidden": false, "long_format": true, "recursive": false}}'
 ```
 
 ### Configuration Issues
@@ -242,20 +242,20 @@ console.log('Params:', params);
 npm run spec:one spec/unit/filter/logical-operators.test.ts
 ```
 
-### FTP Middleware Debugging
+### FS middleware Debugging
 ```bash
-# Test FTP endpoints systematically
+# Test FS endpoints systematically
 # 1. Unit tests (path parsing, utilities)
-npm run spec:all unit/ftp
+npm run spec:all unit/file
 
 # 2. Direct HTTP endpoint testing
 TOKEN=$(monk auth token)
-curl -X POST http://localhost:9001/ftp/list \
+curl -X POST http://localhost:9001/api/file/list \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"path": "/", "ftp_options": {}}'
+  -d '{"path": "/", "file_options": {}}'
 
 # 3. Integration tests (requires database)
-npm run spec:all integration/ftp
+npm run spec:all integration/file
 ```
 
 ### Observer System Debugging

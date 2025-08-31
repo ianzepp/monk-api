@@ -19,7 +19,7 @@
 - **👁️ [docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
 - **🧪 [docs/TESTING.md](docs/TESTING.md)** - Comprehensive testing strategies and patterns
 - **🔧 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
-- **📁 [docs/FTP.md](docs/FTP.md)** - FTP middleware filesystem-like interface
+- **📁 [docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
 - **🔎 [docs/FILTER.md](docs/FILTER.md)** - Enterprise filter system with 25+ operators
 - **📊 [docs/SPEC.md](docs/SPEC.md)** - Complete test specification and template system
 
@@ -158,12 +158,12 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 
 > **📖 For complete filter documentation, see [docs/FILTER.md](docs/FILTER.md)**
 
-#### **FTP Middleware** - Filesystem-like API Access
+#### **FS Middleware** - Filesystem-like API Access
 - **Path Structure**: `/data/users/user-123.json` → Complete record access
-- **Core Operations**: `POST /ftp/list`, `POST /ftp/store`, `POST /ftp/delete`
+- **Core Operations**: `POST /api/file/list`, `POST /api/file/store`, `POST /api/file/delete`
 - **Advanced Features**: Wildcard patterns, atomic transactions, caching
 
-> **📖 For complete FTP documentation, see [docs/FTP.md](docs/FTP.md)**
+> **📖 For complete FS documentation, see [docs/FILE.md](docs/FILE.md)**
 
 ---
 
@@ -558,6 +558,6 @@ This guide provides everything needed to contribute effectively to the Monk API 
 - **👁️ Observer Development**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for complete observer guide
 - **🧪 Testing Strategy**: Review [docs/TESTING.md](docs/TESTING.md) for comprehensive testing approaches
 - **🔧 Issues & Debugging**: Consult [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for systematic problem-solving
-- **📁 Advanced Features**: Explore [docs/FTP.md](docs/FTP.md) and [docs/FILTER.md](docs/FILTER.md) for specialized systems
+- **📁 Advanced Features**: Explore [docs/FILE.md](docs/FILE.md) and [docs/FILTER.md](docs/FILTER.md) for specialized systems
 
 Happy coding! 🚀
