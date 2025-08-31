@@ -225,8 +225,8 @@ else
     fi
 fi
 
-# Step 3: Compile TypeScript
-print_header "Step 3: Compile TypeScript"
+# Step 3: Build TypeScript
+print_header "Step 3: Build TypeScript"
 
 # Handle --clean-dist option
 if [ "$CLEAN_DIST" = true ]; then
@@ -239,19 +239,19 @@ if [ "$CLEAN_DIST" = true ]; then
     fi
 fi
 
-print_step "Compiling project..."
+print_step "Building project..."
 
-if npm run compile >/dev/null 2>&1; then
-    print_success "TypeScript compilation successful"
+if npm run build >/dev/null 2>&1; then
+    print_success "TypeScript build successful"
     print_info "Generated files in dist/ directory"
 
     # Show compilation stats
     if [ -d "dist" ]; then
         file_count=$(find dist -name "*.js" | wc -l 2>/dev/null || echo "unknown")
-        print_info "Compiled JavaScript files: $file_count"
+        print_info "Built JavaScript files: $file_count"
     fi
 else
-    handle_error "TypeScript compilation" "Check for syntax errors or missing dependencies"
+    handle_error "TypeScript build" "Check for syntax errors or missing dependencies"
 fi
 
 # Step 4: Initialize Main Database
@@ -317,7 +317,7 @@ echo
 print_info "Environment ready for development:"
 print_info "• PostgreSQL: Connected and configured"
 print_info "• Main database (monk_main): Initialized with schema"
-print_info "• TypeScript: Compiled and ready"
+print_info "• TypeScript: Built and ready"
 print_info "• Local server: http://localhost:9001"
 echo
 print_info "Next steps:"
