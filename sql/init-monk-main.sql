@@ -68,3 +68,29 @@ CREATE TRIGGER update_tenants_updated_at
 INSERT INTO "tenants" (name, database, host, is_active)
 VALUES ('system', 'system', 'localhost', true)
 ON CONFLICT (name) DO NOTHING;
+
+-- Request Tracking Table
+-- Records all API requests for analytics, monitoring, and connection health checking
+CREATE TABLE "requests" (
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "timestamp" TIMESTAMP DEFAULT NOW() NOT NULL,
+    "method" VARCHAR(10) NOT NULL,                    -- GET, POST, PUT, DELETE
+    "url" TEXT NOT NULL,                              -- Full request URL
+    "path" TEXT NOT NULL,                             -- URL path (/api/data/users)
+    "api" VARCHAR(20),                                -- Extracted API (auth, data, meta, file)
+    "ip_address" INET,                                -- Client IP
+    "user_agent" TEXT,                                -- Client info
+    
+    -- Standard system fields for consistency
+    "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+    "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+-- Index for performance
+CREATE INDEX "idx_requests_timestamp" ON "requests" ("timestamp");
+
+-- Add comments
+COMMENT ON TABLE "requests" IS 'API request tracking for analytics, monitoring, and connection health verification';
+COMMENT ON COLUMN "requests"."api" IS 'Extracted API category from path (auth, data, meta, file, bulk, find, docs, root)';
+COMMENT ON COLUMN "requests"."ip_address" IS 'Client IP address from headers or connection';
+COMMENT ON COLUMN "requests"."user_agent" IS 'HTTP User-Agent header for client identification';

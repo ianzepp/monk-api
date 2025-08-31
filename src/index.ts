@@ -29,6 +29,7 @@ import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { systemContextMiddleware } from '@src/lib/middleware/index.js';
 import { responseJsonMiddleware } from '@src/lib/middleware/index.js';
 import { responseFileMiddleware } from '@src/lib/middleware/index.js';
+import { requestTrackingMiddleware } from '@src/lib/middleware/index.js';
 import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/index.js';
 
 // Root API
@@ -59,6 +60,9 @@ checkDatabaseConnection();
 
 // Create Hono app
 const app = new Hono();
+
+// Request tracking middleware (first - database health check + analytics)
+app.use('*', requestTrackingMiddleware);
 
 // Request logging middleware
 app.use('*', async (c, next) => {
