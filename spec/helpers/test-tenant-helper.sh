@@ -65,14 +65,14 @@ create_test_tenant_from_template() {
     local db_name=$(hash_tenant_name "$tenant_name")
     
     # Get template database name
-    local template_db_name="test_template_$template_name"
+    local template_db_name="monk_template_$template_name"
     
     print_step "Creating tenant from template: $template_name"
     
     # Check if template exists
     if ! psql -l | grep -q "$template_db_name"; then
         print_error "Template database '$template_db_name' not found"
-        print_warning "Run 'npm run fixtures:build $template_name' to create template"
+        print_warning "Run 'npm run fixtures:build $template_name' to create monk_template"
         return 1
     fi
     

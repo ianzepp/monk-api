@@ -153,7 +153,7 @@ print_success "Loaded data for $data_count schemas: $total_records total records
 print_step "Converting to template database"
 
 # Generate template database name
-template_db_final="test_template_$TEMPLATE_NAME"
+template_db_final="monk_template_$TEMPLATE_NAME"
 
 # Stop server to close database connections before rename
 print_step "Stopping server to close database connections"
@@ -185,16 +185,16 @@ template_update_sql="
     UPDATE tenants 
     SET database = '$template_db_final', 
         template_type = 'template',
-        name = 'template_$TEMPLATE_NAME'
+        name = 'monk_$TEMPLATE_NAME'
     WHERE name = '$tenant_name'
 "
 
 psql -d monk_main -c "$template_update_sql"
-print_success "Template registered: template_$TEMPLATE_NAME → $template_db_final"
+print_success "Template registered: monk_$TEMPLATE_NAME → $template_db_final"
 
 # Step 7: Summary
 print_header "Fixture Template Build Complete"
-echo "Template Name: template_$TEMPLATE_NAME"
+echo "Template Name: monk_$TEMPLATE_NAME"
 echo "Database Name: $template_db_final"  
 echo "Schemas: $schema_count"
 echo "Records: $total_records"
@@ -203,7 +203,7 @@ print_success "Template ready for test cloning via PostgreSQL CREATE DATABASE WI
 
 # Verify template exists
 print_step "Verifying template registration"
-template_check=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenants WHERE name = 'template_$TEMPLATE_NAME' AND template_type = 'template'" | xargs)
+template_check=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenants WHERE name = 'monk_$TEMPLATE_NAME' AND template_type = 'template'" | xargs)
 
 if [[ "$template_check" == "1" ]]; then
     print_success "Template successfully registered and ready for use"
