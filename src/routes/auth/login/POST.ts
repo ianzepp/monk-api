@@ -2,8 +2,8 @@ import type { Context } from 'hono';
 import { AuthService } from '@src/lib/auth.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { DatabaseConnection } from '@src/lib/database-connection';
-import { Filter } from '@src/lib/filter';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { Filter } from '@src/lib/filter.js';
 
 /**
  * POST /auth/login - Authenticate user with tenant and username

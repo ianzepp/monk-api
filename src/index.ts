@@ -47,6 +47,7 @@ import FtpModifyTimePost from '@src/routes/ftp/modify-time.js'; // POST /ftp/mod
 // Special endpoints
 import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
 import FindSchemaPost from '@src/routes/find/:schema/POST.js'; // POST /api/find/:schema
+import DocsGet from '@src/routes/docs/:api/GET.js'; // GET /docs/:api.id
 
 // Create Hono app
 const app = new Hono();
@@ -67,22 +68,36 @@ app.use('*', async (c, next) => {
 
 // Root endpoint
 app.get('/', c => {
-    return createSuccessResponse(c, {
+    const response = {
         name: 'Monk API (Hono)',
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
             auth: '/auth/*',
-            data: '/api/data/:schema[/:id] (protected)',
+            docs: '/docs[/:api]',
+            root: undefined as string | undefined,
+            data: '/api/data/:schema[/:record] (protected)',
             meta: '/api/meta/:schema (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
-            root: '/api/root/* (localhost development only)',
         },
-    });
+        documentation: {
+            auth: '/docs/auth (markdown format)',
+            data: '/docs/data (markdown format)',
+            meta: '/docs/meta (markdown format)',
+        },
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+        response.endpoints.root = '/root/* (localhost development only)';
+    }
+
+    return createSuccessResponse(c, response);
 });
 
-// Root endpoint provides API info (no database access required)
+// Docs are up front, since they require no auth
+// app.get('/README.md', c => {});
+app.get('/docs/:api', DocsGet);
 
 // Auth API middleware
 app.use('/auth/*', responseJsonMiddleware); // Auth API: JSON responses
@@ -94,11 +109,11 @@ app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
 app.get('/auth/whoami', AuthService.getJWTMiddleware(), AuthService.getUserContextMiddleware(), authRoutes.WhoamiGet); // GET /auth/me
 
 // Root API middleware (must come before protected routes)
-app.use('/api/root/*', localhostDevelopmentOnlyMiddleware);
-app.use('/api/root/*', responseJsonMiddleware);
+app.use('/root/*', localhostDevelopmentOnlyMiddleware);
+app.use('/root/*', responseJsonMiddleware);
 
 // Root API routes - Must be before JWT middleware
-app.route('/api/root', rootRouter);
+app.route('/root', rootRouter);
 
 // Protected API routes - require JWT authentication from /auth
 app.use('/api/*', AuthService.getJWTMiddleware());
