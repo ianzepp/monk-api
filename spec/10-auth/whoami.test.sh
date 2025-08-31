@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# Protected Auth API Test  
+# Protected Auth API Test
 # Tests protected auth endpoints that require JWT authentication
 
 # Source curl helper

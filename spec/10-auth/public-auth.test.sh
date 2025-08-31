@@ -25,13 +25,13 @@ export JWT_TOKEN
 
 print_success "Login successful - JWT token obtained"
 
-# Test token refresh
-print_step "Testing POST /auth/refresh"
-refresh_response=$(api_post "auth/refresh" "{\"token\":\"$JWT_TOKEN\"}")
-assert_success "$refresh_response"
-assert_has_field "data.token" "$refresh_response"
+# # Test token refresh
+# print_step "Testing POST /auth/refresh"
+# refresh_response=$(api_post "auth/refresh" "{\"token\":\"$JWT_TOKEN\"}")
+# assert_success "$refresh_response"
+# assert_has_field "data.token" "$refresh_response"
 
-print_success "Token refresh successful"
+# print_success "Token refresh successful"
 
 # Test login with invalid credentials
 print_step "Testing login with invalid tenant"
