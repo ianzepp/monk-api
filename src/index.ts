@@ -33,7 +33,9 @@ import { rootRouter } from '@src/routes/root/index.js';
 
 // Public route handlers (no authentication required)
 import * as publicAuthRoutes from '@src/public/auth/routes.js';
-import DocsGet from '@src/public/docs/:api/GET.js'; // GET /docs/:api
+
+// Public docs  (no authentication required)
+import * as publicDocsRoutes from '@src/public/docs/routes.js';
 
 // Protected API handlers (JWT + user validation required)
 import * as authRoutes from '@src/routes/auth/routes.js';
@@ -95,7 +97,7 @@ app.get('/', c => {
             file: ['/docs/file'],
             bulk: ['/docs/bulk'],
             find: ['/docs/find'],
-            root: ['/docs/root']
+            root: ['/docs/root'],
         },
     };
 
@@ -113,7 +115,7 @@ app.use('/*', middleware.systemContextMiddleware);
 
 // Public routes (no authentication required)
 app.use('/auth/*', middleware.responseJsonMiddleware); // Public auth: JSON responses
-app.use('/docs/*', /* no auth middleware */); // Docs: plain text responses
+app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
 // Public auth routes (token acquisition)
 app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
@@ -121,8 +123,8 @@ app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/registe
 app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
 
 // Public docs routes
-app.get('/docs/:api', DocsGet); // GET /docs/:api
-
+app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
+app.get('/docs/:api', publicDocsRoutes.ApiGet); // GET /docs/:api
 
 // Protected API routes - require JWT authentication from /auth
 app.use('/api/*', middleware.jwtValidationMiddleware);
