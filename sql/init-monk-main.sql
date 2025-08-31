@@ -17,6 +17,7 @@ CREATE TABLE "tenants" (
     "database" VARCHAR(255) NOT NULL,             -- Target database name (direct tenant name)
     "host" VARCHAR(255) DEFAULT 'localhost',      -- Database host (future multi-host support)
     "is_active" BOOLEAN DEFAULT true,             -- Enable/disable tenants access
+    "template_type" VARCHAR(20) DEFAULT 'normal', -- Tenant type: 'normal' or 'template'
     "access_read" uuid[] DEFAULT '{}'::uuid[],    -- ACL read access
     "access_edit" uuid[] DEFAULT '{}'::uuid[],    -- ACL edit access
     "access_full" uuid[] DEFAULT '{}'::uuid[],    -- ACL full access
@@ -30,6 +31,7 @@ CREATE TABLE "tenants" (
 -- Create index for faster tenant lookups during authentication
 CREATE INDEX "idx_tenants_name_active" ON "tenants" ("name", "is_active");
 CREATE INDEX "idx_tenants_database" ON "tenants" ("database");
+CREATE INDEX "idx_tenants_template_type" ON "tenants" ("template_type");
 CREATE INDEX "idx_tenants_trashed" ON "tenants" ("trashed_at") WHERE "trashed_at" IS NOT NULL;
 CREATE INDEX "idx_tenants_deleted" ON "tenants" ("deleted_at") WHERE "deleted_at" IS NOT NULL;
 
@@ -40,6 +42,7 @@ COMMENT ON COLUMN "tenants"."name" IS 'Unique tenant identifier used in authenti
 COMMENT ON COLUMN "tenants"."database" IS 'PostgreSQL database name containing tenant data (direct tenants name)';
 COMMENT ON COLUMN "tenants"."host" IS 'Database host for future distributed deployment support';
 COMMENT ON COLUMN "tenants"."is_active" IS 'Whether tenant is enabled for authentication';
+COMMENT ON COLUMN "tenants"."template_type" IS 'Tenant type: normal (regular tenant) or template (fixture template for cloning)';
 COMMENT ON COLUMN "tenants"."access_read" IS 'UUID array for read access control';
 COMMENT ON COLUMN "tenants"."access_edit" IS 'UUID array for edit access control';
 COMMENT ON COLUMN "tenants"."access_full" IS 'UUID array for full access control';

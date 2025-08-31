@@ -44,6 +44,56 @@ hash_tenant_name() {
     echo "tenant_${hash}"
 }
 
+# Create isolated test tenant from template database (fast cloning)
+create_test_tenant_from_template() {
+    local test_name="$1"
+    local template_name="${2:-basic}"
+    local timestamp=$(date +%s)
+    local random=$(openssl rand -hex 4)
+    local tenant_name="test_${test_name}_${timestamp}_${random}"
+    
+    # Generate hashed database name (matching TenantService logic)
+    local db_name=$(hash_tenant_name "$tenant_name")
+    
+    # Get template database name
+    local template_db_name="test_template_$template_name"
+    
+    print_step "Creating tenant from template: $template_name"
+    
+    # Check if template exists
+    if ! psql -l | grep -q "$template_db_name"; then
+        print_error "Template database '$template_db_name' not found"
+        print_warning "Run 'npm run fixtures:build $template_name' to create template"
+        return 1
+    fi
+    
+    # 1. Clone database from template (fast!)
+    if createdb "$db_name" -T "$template_db_name" 2>/dev/null; then
+        print_success "Cloned tenant database from template: $db_name"
+    else
+        print_error "Failed to clone from template database: $template_db_name"
+        return 1
+    fi
+    
+    # 2. Add tenant to main database registry
+    if psql -d monk_main -c "INSERT INTO tenants (name, database, host, is_active, template_type) VALUES ('$tenant_name', '$db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
+        print_success "Registered tenant in monk_main"
+    else
+        print_error "Failed to register tenant"
+        dropdb "$db_name" 2>/dev/null || true
+        return 1
+    fi
+    
+    # 3. Export tenant info for test use
+    export TEST_TENANT_NAME="$tenant_name"
+    export TEST_DATABASE_NAME="$db_name"
+    
+    print_success "Test tenant ready (cloned from $template_name): $tenant_name → $db_name"
+    
+    # Return only the tenant name (stdout)
+    echo "$tenant_name"
+}
+
 # Create isolated test tenant with fresh database
 create_isolated_test_tenant() {
     local test_name="$1"
@@ -74,7 +124,7 @@ create_isolated_test_tenant() {
     fi
     
     # 3. Add tenant to main database registry
-    if psql -d monk_main -c "INSERT INTO tenants (name, database, host, is_active) VALUES ('$tenant_name', '$db_name', 'localhost', true)" >/dev/null 2>&1; then
+    if psql -d monk_main -c "INSERT INTO tenants (name, database, host, is_active, template_type) VALUES ('$tenant_name', '$db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
         print_success "Registered tenant in monk_main"
     else
         print_error "Failed to register tenant"
