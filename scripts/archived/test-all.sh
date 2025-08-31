@@ -5,7 +5,7 @@ set -e
 # Finds tests by pattern and delegates execution to test-one.sh
 #
 # Usage: scripts/test-all.sh [pattern] [--verbose]
-# 
+#
 # Architecture: Three-Layer Design
 # Layer 1 (this script): Pattern matching and orchestration
 # Layer 2 (test-one.sh): Tenant lifecycle management per test file
@@ -74,7 +74,7 @@ echo
 # Function to find tests by pattern
 find_tests_by_pattern() {
     local pattern="$1"
-    
+
     if [ -z "$pattern" ]; then
         # No pattern - find all tests
         find "$TEST_BASE_DIR" -name "*.sh" -type f | while read -r file; do
@@ -84,7 +84,7 @@ find_tests_by_pattern() {
         done | sort
         return
     fi
-    
+
     # Check if pattern is a number range (e.g., "00", "00-49")
     if echo "$pattern" | grep -E '^[0-9]{2}(-[0-9]{2})?$' >/dev/null 2>&1; then
         # Extract start and end numbers
@@ -95,13 +95,13 @@ find_tests_by_pattern() {
             start_num="$pattern"
             end_num="$pattern"
         fi
-        
+
         # Find tests in numeric range
         for dir in "$TEST_BASE_DIR"/*; do
             if [ -d "$dir" ]; then
                 dir_name=$(basename "$dir")
                 dir_num=$(echo "$dir_name" | grep -o '^[0-9][0-9]' | head -1)
-                
+
                 if [ -n "$dir_num" ] && [ "$dir_num" -ge "$start_num" ] && [ "$dir_num" -le "$end_num" ]; then
                     find "$dir" -name "*.sh" -type f | while read -r file; do
                         if [ -x "$file" ]; then
@@ -125,17 +125,17 @@ find_tests_by_pattern() {
 run_single_test() {
     local test_path="$1"
     local test_name=$(basename "$test_path" .sh)
-    
+
     print_info "Running: $test_name"
-    
+
     if [ ! -x "$test_path" ]; then
         print_error "$test_name (not executable)"
         return 1
     fi
-    
+
     # Delegate to test-one.sh for tenant management and execution
     start_time=$(date +%s)
-    
+
     if [ "$verbose" = "true" ]; then
         # Show output in verbose mode
         ./scripts/test-one.sh "$test_path" --verbose
@@ -148,10 +148,10 @@ run_single_test() {
             test_result=$?
         fi
     fi
-    
+
     end_time=$(date +%s)
     duration=$((end_time - start_time))
-    
+
     if [ $test_result -eq 0 ]; then
         print_success "$test_name (${duration}s)"
         return 0
@@ -197,7 +197,7 @@ while IFS= read -r test_path; do
     if [ -n "$test_path" ]; then
         run_single_test "$test_path"
         test_result=$?
-        
+
         tests_run=$((tests_run + 1))
         if [ $test_result -eq 0 ]; then
             tests_passed=$((tests_passed + 1))
