@@ -31,7 +31,6 @@
 
 - **Node.js 18+** and npm
 - **PostgreSQL 12+** server running and accessible
-- **Ruby 3.0+** (for bashly CLI development)
 - **jq** (for JSON processing in CLI and tests)
 
 ### Fresh Environment Setup
@@ -88,7 +87,7 @@ monk data select users
 
 ### Overview
 
-Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, featuring a **System pattern architecture** for clean per-request database context management. The project includes both a **Hono-based API server** and a **bashly-generated CLI** for comprehensive data management.
+Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, featuring a **System pattern architecture** for clean per-request database context management.
 
 ### Core Components
 
@@ -258,26 +257,6 @@ npm run start:dev  # Observer system loads new observer automatically
 
 > **📖 For complete observer development guide, see [docs/OBSERVERS.md](docs/OBSERVERS.md)**
 
-### CLI Development
-
-#### **Bashly Workflow**
-The CLI is generated from source files using **bashly**:
-
-```bash
-# Install bashly
-gem install bashly
-
-# Regenerate CLI from sources (after changes)
-cd cli/src
-bashly generate
-
-# CLI is now a separate project
-# Install and test CLI
-git clone https://github.com/ianzepp/monk-cli.git
-cd monk-cli && ./install.sh
-monk --help
-```
-
 ### Testing Development
 
 #### **Unified Test Commands**
@@ -366,9 +345,6 @@ monk data select account            # Lists from staging database
 # TypeScript compilation
 npm run compile                   # Compiles src/ to dist/
 
-# CLI regeneration (after bashly.yml changes)
-cd cli/src && bashly generate
-
 # Complete build
 npm run autoinstall              # Full environment setup
 ```
@@ -450,11 +426,9 @@ git checkout main && git pull
 - **New features**: Must include comprehensive test coverage
 - **Bug fixes**: Must include regression test
 - **API changes**: Update integration tests
-- **CLI changes**: Test with bashly regeneration
 
 ### **Documentation Updates**
 - **API changes**: Update route documentation
-- **CLI changes**: Update command help text in bashly.yml
 - **Architecture changes**: Update specialized documentation files
 - **Breaking changes**: Update migration notes
 
@@ -496,16 +470,12 @@ monk data select contacts <id>
 npm run version:patch
 npm run version:minor
 npm run version:major
-
-# CLI regeneration
-cd cli/src && bashly generate
 ```
 
 ### **Key Configuration Files**
 - **~/.config/monk/server.json**: Server registry and selection
 - **~/.config/monk/env.json**: Environment variables
 - **~/.config/monk/test.json**: Test run history and configuration
-- **cli/src/bashly.yml**: CLI command definitions
 - **sql/init-auth.sql**: Auth database schema
 - **sql/init-tenant.sql**: Tenant database schema
 

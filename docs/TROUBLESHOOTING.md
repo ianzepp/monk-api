@@ -276,24 +276,6 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 # "[TIME] Observer: ObserverName 1.234ms { ring: N, operation: 'create' }"
 ```
 
-### CLI Development Debugging
-```bash
-# Check CLI regeneration
-cd cli/src && bashly generate
-
-# Test CLI commands individually
-monk --help                             # Basic CLI functionality
-monk server list                       # Server configuration
-monk auth token                         # Authentication
-
-# Enable verbose CLI output
-CLI_VERBOSE=true monk data select schema
-
-# Check monk configuration
-cat ~/.config/monk/server.json
-cat ~/.config/monk/env.json
-```
-
 ### Database Operations Debugging
 ```bash
 # Check database connections
@@ -320,12 +302,6 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 - **Environment first**: Rule out external dependencies before code debugging
 - **Use manual testing**: curl commands to verify endpoint functionality
 - **Check logs**: `npm run start:dev` provides detailed operation logging
-
-### CLI Development
-- Always regenerate CLI after bashly.yml changes: `bashly generate`
-- Use `CLI_VERBOSE=true` for detailed command output
-- Test commands individually before batch testing
-- Check `~/.config/monk/server.json` for server configuration
 
 ### Observer Development
 - **All Database operations** automatically run observer pipeline with 10-ring execution

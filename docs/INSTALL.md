@@ -156,7 +156,6 @@ npm run spec:sh spec/15-authentication/basic-auth.test.sh
 ## Related Projects
 
 - **[monk-cli](https://github.com/ianzepp/monk-cli)** - Standalone CLI for remote API management
-- **[monk-api-test](https://github.com/ianzepp/monk-api-test)** - Git-aware testing framework
 
 ## License
 
