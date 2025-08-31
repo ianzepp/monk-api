@@ -37,19 +37,19 @@ export interface JsonSchema {
  * These fields should not be included in user-defined schemas as they are managed by the system.
  */
 export const SYSTEM_FIELDS = [
-    'id',           // UUID primary key
-    'tenant',       // Tenant identifier
-    'access_read',  // Read access control list
-    'access_edit',  // Edit access control list
-    'access_full',  // Full access control list
-    'access_deny',  // Deny access control list
-    'created_at',   // Record creation timestamp
-    'updated_at',   // Last update timestamp
-    'trashed_at',   // Soft delete timestamp
-    'deleted_at'    // Hard delete timestamp
+    'id', // UUID primary key
+    'tenant', // Tenant identifier
+    'access_read', // Read access control list
+    'access_edit', // Edit access control list
+    'access_full', // Full access control list
+    'access_deny', // Deny access control list
+    'created_at', // Record creation timestamp
+    'updated_at', // Last update timestamp
+    'trashed_at', // Soft delete timestamp
+    'deleted_at', // Hard delete timestamp
 ] as const;
 
-export type SystemField = typeof SYSTEM_FIELDS[number];
+export type SystemField = (typeof SYSTEM_FIELDS)[number];
 
 /**
  * Helper function to check if a field name is a system field
@@ -60,19 +60,19 @@ export function isSystemField(fieldName: string): boolean {
 
 /**
  * Metabase Class - Schema Definition Management
- * 
+ *
  * Handles schema YAML operations following the same patterns as Database class.
  * Focused purely on schema definition management (no list operations - use Data API).
- * 
+ *
  * Architecture:
  * - Consistent with system.database.* pattern
- * - Clean transaction management with run() pattern  
+ * - Clean transaction management with run() pattern
  * - Schema-specific utilities and DDL generation
  * - Observer access for future deployment scenarios
  */
 export class Metabase {
     constructor(private system: System) {}
-    
+
     /**
      * Create new schema from YAML content
      */
@@ -80,34 +80,34 @@ export class Metabase {
         return await this.run('create', schemaName, async (tx: TxContext) => {
             const jsonSchema = this.parseJsonSchema(jsonContent);
             const tableName = jsonSchema.table || schemaName;
-            
+
             // Validate schema protection
             this.validateSchemaProtection(schemaName);
-            
+
             logger.info('Creating schema', { schemaName, tableName });
-            
+
             // Generate and execute DDL
             const ddl = this.generateCreateTableDDL(tableName, jsonSchema);
             await tx.query(ddl);
-            
+
             // Insert schema metadata
             const jsonChecksum = this.generateJsonChecksum(JSON.stringify(jsonContent));
             await this.insertSchemaRecord(tx, schemaName, tableName, jsonSchema, jsonChecksum);
-            
+
             logger.info('Schema created successfully', { schemaName, tableName });
-            
+
             return { name: schemaName, table: tableName, created: true };
         });
     }
-    
+
     /**
      * Get schema as YAML content
      */
     async selectOne(schemaName: string): Promise<string> {
         const db = this.system.db;
-        
+
         // Get schema record from database (exclude soft-deleted schemas)
-        const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schema} WHERE name = $1 AND trashed_at IS NULL LIMIT 1`;
+        const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 AND trashed_at IS NULL LIMIT 1`;
         const schemaResult = await db.query(selectQuery, [schemaName]);
 
         if (schemaResult.rows.length === 0) {
@@ -122,66 +122,61 @@ export class Metabase {
 
         return jsonOutput;
     }
-    
+
     /**
      * Update existing schema from YAML content
      */
     async updateOne(schemaName: string, jsonContent: any): Promise<any> {
         return await this.run('update', schemaName, async (tx: TxContext) => {
             this.validateSchemaProtection(schemaName);
-            
+
             const newJsonSchema = this.parseJsonSchema(jsonContent);
             const jsonChecksum = this.generateJsonChecksum(JSON.stringify(jsonContent));
             const fieldCount = Object.keys(newJsonSchema.properties).length;
-            
+
             // Update schema metadata record
             const updateQuery = `
-                UPDATE ${builtins.TABLE_NAMES.schema} 
+                UPDATE ${builtins.TABLE_NAMES.schemas}
                 SET definition = $1, field_count = $2, yaml_checksum = $3, updated_at = NOW()
                 WHERE name = $4
                 RETURNING *
             `;
-            
-            const result = await tx.query(updateQuery, [
-                JSON.stringify(newJsonSchema),
-                fieldCount.toString(),
-                jsonChecksum,
-                schemaName
-            ]);
-            
+
+            const result = await tx.query(updateQuery, [JSON.stringify(newJsonSchema), fieldCount.toString(), jsonChecksum, schemaName]);
+
             if (result.rows.length === 0) {
                 throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
             }
-            
+
             return { name: schemaName, updated: true };
         });
     }
-    
+
     /**
      * Delete schema (soft delete)
      */
     async deleteOne(schemaName: string): Promise<any> {
         return await this.run('delete', schemaName, async (tx: TxContext) => {
             this.validateSchemaProtection(schemaName);
-            
+
             // Soft delete schema record
             const deleteQuery = `
-                UPDATE ${builtins.TABLE_NAMES.schema} 
+                UPDATE ${builtins.TABLE_NAMES.schemas}
                 SET trashed_at = NOW(), updated_at = NOW()
                 WHERE name = $1 AND trashed_at IS NULL
                 RETURNING *
             `;
-            
+
             const result = await tx.query(deleteQuery, [schemaName]);
-            
+
             if (result.rows.length === 0) {
                 throw HttpErrors.notFound(`Schema '${schemaName}' not found or already deleted`, 'SCHEMA_NOT_FOUND');
             }
-            
+
             return { name: schemaName, deleted: true };
         });
     }
-    
+
     /**
      * Restore soft-deleted schema
      */
@@ -191,53 +186,47 @@ export class Metabase {
             throw HttpErrors.internal('Metabase.revertOne() not yet implemented', 'NOT_IMPLEMENTED');
         });
     }
-    
+
     /**
      * Transaction management pattern (consistent with Database class)
      */
-    private async run(
-        operation: string,
-        schemaName: string,
-        fn: (tx: TxContext) => Promise<any>
-    ): Promise<any> {
+    private async run(operation: string, schemaName: string, fn: (tx: TxContext) => Promise<any>): Promise<any> {
         const db = this.system.db;
-        
+
         console.debug(`🔄 Starting metabase operation: ${operation} on schema ${schemaName}`);
-        
-        // Start transaction  
+
+        // Start transaction
         const client = await db.connect();
-        
+
         if (!client) {
             throw HttpErrors.internal('Unable to get database client', 'DATABASE_CONNECTION_ERROR');
         }
-        
+
         try {
             await client.query('BEGIN');
-            
+
             const result = await fn(client);
-            
+
             await client.query('COMMIT');
             console.debug(`✅ Metabase operation completed: ${operation} on ${schemaName}`);
-            
+
             return result;
-            
         } catch (error) {
             await client.query('ROLLBACK');
             console.error(`💥 Metabase operation failed: ${operation} on ${schemaName}`, error);
             throw error;
-            
         } finally {
             client.release();
         }
     }
-    
+
     /**
      * Parse YAML content to JSON Schema (public method for route handlers)
      */
     parseSchema(jsonContent: any): JsonSchema {
         return this.parseJsonSchema(jsonContent);
     }
-    
+
     /**
      * Parse YAML content to JSON Schema (internal implementation)
      */
@@ -252,7 +241,7 @@ export class Metabase {
 
         return jsonContent as JsonSchema;
     }
-    
+
     /**
      * Generate CREATE TABLE DDL from JSON Schema
      */
@@ -261,7 +250,7 @@ export class Metabase {
         const required = jsonSchema.required || [];
 
         let ddl = `CREATE TABLE "${tableName}" (\n`;
-        
+
         // Standard PaaS fields
         ddl += `    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n`;
         ddl += `    "tenant" TEXT,\n`;
@@ -281,11 +270,11 @@ export class Metabase {
                 logger.warn(`Schema defines system field '${fieldName}' which is automatically managed by the platform. Ignoring user-defined version.`);
                 continue;
             }
-            
+
             const pgType = this.jsonSchemaTypeToPostgres(property);
             const isRequired = required.includes(fieldName);
             const nullable = isRequired ? ' NOT NULL' : '';
-            
+
             let defaultValue = '';
             if (property.default !== undefined) {
                 if (typeof property.default === 'string') {
@@ -304,7 +293,7 @@ export class Metabase {
         ddl += `\n);`;
         return ddl;
     }
-    
+
     /**
      * Convert JSON Schema property to PostgreSQL type
      */
@@ -336,50 +325,37 @@ export class Metabase {
                 return 'TEXT';
         }
     }
-    
+
     /**
      * Validate that schema is not protected (system schema)
      */
     private validateSchemaProtection(schemaName: string): void {
-        const protectedSchemas = ['schema', 'users', 'columns'];
+        const protectedSchemas = ['schemas', 'users', 'columns'];
         if (protectedSchemas.includes(schemaName)) {
             throw HttpErrors.forbidden(`Schema '${schemaName}' is protected and cannot be modified`, 'SCHEMA_PROTECTED');
         }
     }
-    
+
     /**
      * Generate JSON content checksum for cache invalidation
      */
     private generateJsonChecksum(jsonContent: string): string {
         return crypto.createHash('sha256').update(jsonContent).digest('hex');
     }
-    
+
     /**
      * Insert schema metadata record
      */
-    private async insertSchemaRecord(
-        tx: TxContext,
-        schemaName: string,
-        tableName: string,
-        jsonSchema: JsonSchema,
-        jsonChecksum: string
-    ): Promise<void> {
+    private async insertSchemaRecord(tx: TxContext, schemaName: string, tableName: string, jsonSchema: JsonSchema, jsonChecksum: string): Promise<void> {
         const fieldCount = Object.keys(jsonSchema.properties).length;
-        
+
         const insertQuery = `
-            INSERT INTO ${builtins.TABLE_NAMES.schema} 
+            INSERT INTO ${builtins.TABLE_NAMES.schemas}
             (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), '{}', '{}', '{}', '{}')
             RETURNING *
         `;
-        
-        await tx.query(insertQuery, [
-            schemaName,
-            tableName, 
-            'active',
-            JSON.stringify(jsonSchema),
-            fieldCount.toString(),
-            jsonChecksum
-        ]);
+
+        await tx.query(insertQuery, [schemaName, tableName, 'active', JSON.stringify(jsonSchema), fieldCount.toString(), jsonChecksum]);
     }
 }

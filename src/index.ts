@@ -109,11 +109,10 @@ app.use('/api/*', systemContextMiddleware);
 app.use('/api/meta/*', responseJsonMiddleware); // Meta API: JSON responses
 
 // Meta API routes (clean barrel export organization)
-app.post('/api/meta/schema/:name', metaRoutes.SchemaPost); // Create schema (with URL name)
-app.post('/api/meta/schema', metaRoutes.SchemaPost); // Create schema (legacy, JSON name only)
-app.get('/api/meta/schema/:name', metaRoutes.SchemaGet); // Get schema
-app.put('/api/meta/schema/:name', metaRoutes.SchemaPut); // Update schema
-app.delete('/api/meta/schema/:name', metaRoutes.SchemaDelete); // Delete schema
+app.post('/api/meta/:schema', metaRoutes.SchemaPost); // Create schema (with URL name)
+app.get('/api/meta/:schema', metaRoutes.SchemaGet); // Get schema
+app.put('/api/meta/:schema', metaRoutes.SchemaPut); // Update schema
+app.delete('/api/meta/:schema', metaRoutes.SchemaDelete); // Delete schema
 
 // Data API middleware
 app.use('/api/data/*', responseJsonMiddleware); // Data API: JSON responses
@@ -123,9 +122,9 @@ app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records
 app.get('/api/data/:schema', dataRoutes.SchemaGet); // List records
 app.put('/api/data/:schema', dataRoutes.SchemaPut); // Bulk update records
 app.delete('/api/data/:schema', dataRoutes.SchemaDelete); // Bulk delete records
-app.get('/api/data/:schema/:id', dataRoutes.RecordGet); // Get single record
-app.put('/api/data/:schema/:id', dataRoutes.RecordPut); // Update single record
-app.delete('/api/data/:schema/:id', dataRoutes.RecordDelete); // Delete single record
+app.get('/api/data/:schema/:record', dataRoutes.RecordGet); // Get single record
+app.put('/api/data/:schema/:record', dataRoutes.RecordPut); // Update single record
+app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete single record
 
 // File API middleware (TODO)
 app.use('/api/file/*', responseFileMiddleware); // Future: File responses

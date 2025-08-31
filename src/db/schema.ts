@@ -7,7 +7,7 @@ export interface BaseFields {
     access_full: string[];
     access_deny: string[];
     created_at: string; // ISO timestamp
-    updated_at: string; // ISO timestamp  
+    updated_at: string; // ISO timestamp
     trashed_at: string | null; // ISO timestamp for soft deletes
     deleted_at: string | null; // ISO timestamp for permanent deletes
 }
@@ -15,14 +15,14 @@ export interface BaseFields {
 // Schema registry table interface
 export interface Schema extends BaseFields {
     name: string; // Unique schema name
-    table_name: string; // Unique table name  
+    table_name: string; // Unique table name
     status: 'pending' | 'active' | 'disabled'; // Schema status
     definition: any; // JSON Schema object
     field_count: string; // Number of fields
     yaml_checksum: string | null; // SHA256 checksum for cache validation
 }
 
-// Column registry table interface  
+// Column registry table interface
 export interface Column extends BaseFields {
     schema_name: string; // References schema.name
     column_name: string; // Column name
@@ -49,6 +49,6 @@ export type NewColumn = Omit<Column, 'id' | 'created_at' | 'updated_at'> & {
 
 // Table names as constants
 export const TABLE_NAMES = {
-    schema: 'schema',
-    columns: 'columns'
+    schemas: 'schemas',
+    columns: 'columns',
 } as const;

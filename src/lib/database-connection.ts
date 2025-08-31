@@ -5,17 +5,20 @@ const { Pool, Client } = pg;
 
 /**
  * Centralized Database Connection Manager
- * 
+ *
  * CRITICAL: This is the ONLY file in the entire codebase that should:
  * 1. Call new pg.Pool() or new pg.Client()
  * 2. Read process.env.DATABASE_URL
  * 3. Handle database connection configuration
- * 
+ *
  * All other files must use these methods for database connections.
  */
 export class DatabaseConnection {
-    private static basePool: pg.Pool | null = null;
-    private static tenantPools = new Map<string, pg.Pool>();
+    // Pool to the "main_main" database
+    private static mainPool: pg.Pool | null = null;
+
+    // Pool to the "tenant_*" databases
+    private static tenantPool = new Map<string, pg.Pool>();
 
     /**
      * Get DATABASE_URL from process.env with strict validation
@@ -23,20 +26,13 @@ export class DatabaseConnection {
      */
     private static getDatabaseURL(): string {
         const databaseUrl = process.env.DATABASE_URL;
-        
+
         if (!databaseUrl) {
-            throw new Error(
-                'DATABASE_URL not configured. ' +
-                'Ensure MonkEnv.loadIntoProcessEnv() was called on server startup and ' +
-                '~/.config/monk/env.json contains DATABASE_URL.'
-            );
+            throw new Error('DATABASE_URL not configured. ' + 'Ensure MonkEnv.loadIntoProcessEnv() was called on server startup and ' + '~/.config/monk/env.json contains DATABASE_URL.');
         }
 
         if (!databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('postgres://')) {
-            throw new Error(
-                `Invalid DATABASE_URL format: ${databaseUrl}. ` +
-                'Must start with postgresql:// or postgres://'
-            );
+            throw new Error(`Invalid DATABASE_URL format: ${databaseUrl}. ` + 'Must start with postgresql:// or postgres://');
         }
 
         return databaseUrl;
@@ -46,18 +42,18 @@ export class DatabaseConnection {
      * Get the base database pool (for master/auth database)
      * Creates exactly ONE pool for the entire application
      */
-    static getBasePool(): pg.Pool {
-        if (!this.basePool) {
+    static getMainPool(): pg.Pool {
+        if (!this.mainPool) {
             const databaseUrl = this.getDatabaseURL();
-            
-            this.basePool = new Pool(this.getPoolConfig(databaseUrl, 10));
 
-            logger.info('Base database pool created', { 
-                database: this.extractDatabaseName(databaseUrl) 
+            this.mainPool = new Pool(this.getPoolConfig(databaseUrl, 10));
+
+            logger.info('Main database pool created', {
+                database: this.extractDatabaseName(databaseUrl),
             });
         }
 
-        return this.basePool;
+        return this.mainPool;
     }
 
     /**
@@ -65,23 +61,23 @@ export class DatabaseConnection {
      * Creates one pool per tenant database for efficiency
      */
     static getTenantPool(tenantName: string): pg.Pool {
-        if (!this.tenantPools.has(tenantName)) {
+        if (!this.tenantPool.has(tenantName)) {
             const baseDatabaseUrl = this.getDatabaseURL();
             const url = new URL(baseDatabaseUrl);
             url.pathname = `/${tenantName}`;
             const tenantDatabaseUrl = url.toString();
-            
+
             const pool = new Pool(this.getPoolConfig(tenantDatabaseUrl, 5));
 
-            this.tenantPools.set(tenantName, pool);
-            
-            logger.info('Tenant database pool created', { 
+            this.tenantPool.set(tenantName, pool);
+
+            logger.info('Tenant database pool created', {
                 tenant: tenantName,
-                database: this.extractDatabaseName(tenantDatabaseUrl)
+                database: this.extractDatabaseName(tenantDatabaseUrl),
             });
         }
 
-        return this.tenantPools.get(tenantName)!;
+        return this.tenantPool.get(tenantName)!;
     }
 
     /**
@@ -91,21 +87,19 @@ export class DatabaseConnection {
     static createClient(databaseName?: string): pg.Client {
         const baseDatabaseUrl = this.getDatabaseURL();
         let connectionString: string;
-        
+
         if (databaseName) {
             const url = new URL(baseDatabaseUrl);
             url.pathname = `/${databaseName}`;
             connectionString = url.toString();
-        } 
-        
-        else {
+        } else {
             connectionString = baseDatabaseUrl;
         }
 
         return new Client({
             connectionString,
             connectionTimeoutMillis: 5000,
-            ssl: this.getSslConfig(baseDatabaseUrl)
+            ssl: this.getSslConfig(baseDatabaseUrl),
         });
     }
 
@@ -125,11 +119,9 @@ export class DatabaseConnection {
             max: maxConnections,
             idleTimeoutMillis: 30000,
             connectionTimeoutMillis: 5000,
-            ssl: this.getSslConfig(connectionString)
+            ssl: this.getSslConfig(connectionString),
         };
     }
-
-
 
     /**
      * Extract database name from connection URL for logging
@@ -149,15 +141,15 @@ export class DatabaseConnection {
     static async closeAllConnections(): Promise<void> {
         const closePromises: Promise<void>[] = [];
 
-        if (this.basePool) {
-            closePromises.push(this.basePool.end());
-            this.basePool = null;
+        if (this.mainPool) {
+            closePromises.push(this.mainPool.end());
+            this.mainPool = null;
         }
 
-        for (const [tenantName, pool] of this.tenantPools.entries()) {
+        for (const [tenantName, pool] of this.tenantPool.entries()) {
             closePromises.push(pool.end());
         }
-        this.tenantPools.clear();
+        this.tenantPool.clear();
 
         await Promise.all(closePromises);
         logger.info('All database connections closed');
@@ -177,17 +169,16 @@ export class DatabaseConnection {
      */
     static async healthCheck(): Promise<{ success: boolean; error?: string }> {
         try {
-            const pool = this.getBasePool();
+            const pool = this.getMainPool();
             const client = await pool.connect();
             await client.query('SELECT 1');
             client.release();
             return { success: true };
         } catch (error) {
-            return { 
-                success: false, 
-                error: error instanceof Error ? error.message : 'Unknown database error' 
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown database error',
             };
         }
     }
 }
-

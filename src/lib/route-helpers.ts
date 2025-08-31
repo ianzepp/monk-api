@@ -1,11 +1,7 @@
 import type { Context } from 'hono';
 import { createSchema } from '@src/lib/schema.js';
 import type { System } from '@src/lib/system.js';
-import {
-    createSuccessResponse,
-    createNotFoundError,
-    createInternalError,
-} from '@src/lib/api/responses.js';
+import { createSuccessResponse, createNotFoundError, createInternalError } from '@src/lib/api/responses.js';
 
 /**
  * Route handler utilities to reduce boilerplate while keeping logic visible
@@ -15,10 +11,8 @@ import {
 interface RouteParams {
     system: System;
     schema?: string;
-    schemaName?: string; 
-    recordId?: string;
-    name?: string;
-    body?: any;          // Content-type aware body
+    record?: string;
+    body?: any; // Content-type aware body
     method: string;
     contentType: string;
 }
@@ -26,79 +20,69 @@ interface RouteParams {
 /**
  * Higher-order function that pre-extracts common route parameters
  * Eliminates boilerplate while keeping business logic visible in route handlers
- * 
+ *
  * Handles content-type aware body parsing:
  * - application/json → parsed JSON object
- * - application/json → parsed JSON object  
+ * - application/json → parsed JSON object
  * - application/octet-stream → ArrayBuffer for binary data
  * - default → raw text string
  */
-export function withParams(
-    handler: (context: Context, params: RouteParams) => Promise<void>
-) {
+export function withParams(handler: (context: Context, params: RouteParams) => Promise<void>) {
     return async (context: Context) => {
         // Extract all common parameters
         const params: RouteParams = {
             system: context.get('system'),
             schema: context.req.param('schema'),
-            schemaName: context.req.param('name') || context.req.param('schema'),
-            recordId: context.req.param('id'), 
-            name: context.req.param('name'),
+            record: context.req.param('record'),
             method: context.req.method,
             contentType: context.req.header('content-type') || 'application/json',
-            body: undefined
+            body: undefined,
         };
-        
+
         // Smart body handling based on content type
         if (['POST', 'PUT', 'PATCH'].includes(params.method)) {
             // Handle JSON content
             if (params.contentType.includes('application/json')) {
-                params.body = await context.req.json();        // Parsed JSON
-            } 
-            
+                params.body = await context.req.json(); // Parsed JSON
+            }
+
             // All schema definitions now use JSON
             else if (params.contentType.includes('text/yaml') || params.contentType.includes('application/yaml')) {
                 throw new Error('YAML content-type no longer supported. Use application/json instead.');
-            } 
-            
+            }
+
             // Handle binary content for file uploads
             else if (params.contentType.includes('application/octet-stream')) {
-                params.body = await context.req.arrayBuffer();  // Binary for /api/file
-            } 
-            
+                params.body = await context.req.arrayBuffer(); // Binary for /api/file
+            }
+
             // Default to text content
             else {
-                params.body = await context.req.text();        // Default to text
+                params.body = await context.req.text(); // Default to text
             }
         }
-        
+
         // Log route operation with complete context
         const logData: any = {
             method: params.method,
-            contentType: params.contentType
+            contentType: params.contentType,
         };
-        
+
         // Add relevant parameters to log
         if (params.schema) logData.schema = params.schema;
-        if (params.schemaName) logData.schemaName = params.schemaName;
-        if (params.recordId) logData.recordId = params.recordId;
-        if (params.name) logData.name = params.name;
+        if (params.record) logData.record = params.record;
         if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
-        
+
         logger.info('Route operation', logData);
-        
+
         await handler(context, params);
     };
 }
 
 // Error handling wrapper - keeps business logic in handlers
-export async function withErrorHandling<T>(
-    c: Context,
-    handler: () => Promise<T>,
-    successStatus: number = 200
-): Promise<any> {
-    const schemaName = c.req.param('schema');
-    const recordId = c.req.param('id');
+export async function withErrorHandling<T>(c: Context, handler: () => Promise<T>, successStatus: number = 200): Promise<any> {
+    const schema = c.req.param('schema');
+    const record = c.req.param('record');
 
     try {
         const result = await handler();
@@ -107,10 +91,10 @@ export async function withErrorHandling<T>(
         console.error('Route handler error:', error);
         if (error instanceof Error) {
             if (error.message.includes('Schema') && error.message.includes('not found')) {
-                return createNotFoundError(c, 'Schema', schemaName);
+                return createNotFoundError(c, 'Schema', schema);
             }
             if (error.message.includes('Record') && error.message.includes('not found')) {
-                return createNotFoundError(c, 'Record', recordId);
+                return createNotFoundError(c, 'Record', record);
             }
         }
         return createInternalError(c, 'Route operation failed');
