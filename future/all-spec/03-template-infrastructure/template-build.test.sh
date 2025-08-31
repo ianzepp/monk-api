@@ -59,7 +59,7 @@ fi
 print_step "Validating template database structure"
 
 # Check for required system tables
-if psql -d test_template_basic -c "SELECT 1 FROM schema LIMIT 1;" >/dev/null 2>&1; then
+if psql -d test_template_basic -c "SELECT 1 FROM schemas LIMIT 1;" >/dev/null 2>&1; then
     print_success "Schema table exists and accessible"
 else
     print_error "Schema table missing or inaccessible"
@@ -77,7 +77,7 @@ fi
 print_step "Validating fixture data content"
 
 # Check account records
-account_count=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM account;" 2>/dev/null | xargs || echo "0")
+account_count=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM accounts;" 2>/dev/null | xargs || echo "0")
 if [ "$account_count" -gt "0" ]; then
     print_success "Account data loaded: $account_count records"
 else
@@ -85,8 +85,8 @@ else
     exit 1
 fi
 
-# Check contact records  
-contact_count=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contact;" 2>/dev/null | xargs || echo "0")
+# Check contact records
+contact_count=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contacts;" 2>/dev/null | xargs || echo "0")
 if [ "$contact_count" -gt "0" ]; then
     print_success "Contact data loaded: $contact_count records"
 else
@@ -96,7 +96,7 @@ fi
 
 # Step 6: Validate schema definitions
 print_step "Validating schema definitions in template"
-schema_count=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM schema WHERE name IN ('account', 'contact');" 2>/dev/null | xargs || echo "0")
+schema_count=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM schemas WHERE name IN ('account', 'contact');" 2>/dev/null | xargs || echo "0")
 if [ "$schema_count" -eq "2" ]; then
     print_success "Schema definitions present: account and contact"
 else

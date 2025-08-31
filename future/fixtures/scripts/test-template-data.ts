@@ -32,7 +32,7 @@ async function testTemplateData(templateName: string): Promise<void> {
         logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         // Check what schemas exist
-        const schemas = await client.query('SELECT name FROM schema ORDER BY name');
+        const schemas = await client.query('SELECT name FROM schemas ORDER BY name');
         logger.info(`🏗️  Schemas (${schemas.rows.length}):`, schemas.rows.map(r => r.name).join(', '));
 
         // Show data from each schema
@@ -98,7 +98,7 @@ async function testTemplateData(templateName: string): Promise<void> {
 
                 // Show relationship info if applicable
                 if (schemaName === 'contact') {
-                    const linkedCount = await client.query('SELECT COUNT(*) as count FROM contact WHERE account_id IS NOT NULL');
+                    const linkedCount = await client.query('SELECT COUNT(*) as count FROM contacts WHERE account_id IS NOT NULL');
                     const linkedPercent = Math.round((parseInt(linkedCount.rows[0].count) / totalRecords) * 100);
                     logger.info(`   📊 Relationships: ${linkedCount.rows[0].count}/${totalRecords} contacts linked to accounts (${linkedPercent}%)`);
                 }

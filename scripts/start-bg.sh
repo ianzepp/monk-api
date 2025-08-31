@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Background Server Starter for Monk API
-# 
+#
 # Starts the API server in background with comprehensive logging to file.
 # Creates logs directory and captures all output for debugging.
 #
@@ -27,6 +27,10 @@ print_success() {
 
 # Ensure logs directory exists
 mkdir -p "$PROJECT_ROOT/logs"
+
+# Remove any existing server logs and PID
+rm -f "$PROJECT_ROOT/logs/server.log"
+rm -f "$PROJECT_ROOT/logs/server.pid"
 
 # Log file with timestamp
 readonly LOG_FILE="$PROJECT_ROOT/logs/server.log"

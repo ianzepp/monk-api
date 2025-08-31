@@ -41,7 +41,7 @@ node --version && npm --version        # Check runtime versions
 # Test database layers systematically
 psql -d postgres -c "SELECT version();"                    # PostgreSQL server
 psql -d monk_main -c "SELECT COUNT(*) FROM tenants;"   # Auth database
-psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schema;" # Tenant database
+psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schemas;" # Tenant database
 
 # Test Node.js database connections
 npm run spec:one spec/unit/database-connection-test.test.ts  # Direct connections
@@ -280,7 +280,7 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 ```bash
 # Check database connections
 psql -d monk_main -c "SELECT current_user;"
-psql -d "monk-api\$local-test" -c "SELECT name FROM schema;"
+psql -d "monk-api\$local-test" -c "SELECT name FROM schemas;"
 
 # Test database operations manually
 npm run compile                         # Ensure compiled

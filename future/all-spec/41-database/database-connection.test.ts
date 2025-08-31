@@ -16,7 +16,7 @@ describe('Direct Database Connection Test', () => {
             const client = await testPool.connect();
 
             // Try to query schema table
-            const result = await client.query('SELECT name, status FROM schema LIMIT 5');
+            const result = await client.query('SELECT name, status FROM schemas LIMIT 5');
 
             logger.info(`✅ Connected successfully, found ${result.rows.length} schemas`);
             logger.info(

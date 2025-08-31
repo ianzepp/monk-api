@@ -150,7 +150,7 @@ export class SchemaCache {
     private async loadFullSchema(dtx: pg.Pool | pg.PoolClient, schemaName: string): Promise<any> {
         const result = await dtx.query(
             `
-            SELECT * FROM schema
+            SELECT * FROM schemas
             WHERE name = $1 AND status IN ('active', 'system')
         `,
             [schemaName]

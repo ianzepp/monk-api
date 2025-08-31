@@ -1,10 +1,10 @@
 #!/bin/bash
-# Template Data Integrity Test - 03 Series  
+# Template Data Integrity Test - 03 Series
 #
 # Validates the integrity and consistency of fixture data in templates.
 # Tests data relationships, schema compliance, and fixture completeness.
 #
-# NOTE: This test operates independently on template databases and does NOT 
+# NOTE: This test operates independently on template databases and does NOT
 # require tenant setup since it examines existing template data directly.
 
 set -e
@@ -40,7 +40,7 @@ print_success "Template test_template_basic found"
 print_step "Validating schema definitions"
 
 # Check account schema
-account_schema=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM schema WHERE name = 'account';" 2>/dev/null | xargs)
+account_schema=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM schemas WHERE name = 'account';" 2>/dev/null | xargs)
 if [ "$account_schema" -eq "1" ]; then
     print_success "Account schema definition exists"
 else
@@ -49,11 +49,11 @@ else
 fi
 
 # Check contact schema
-contact_schema=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM schema WHERE name = 'contact';" 2>/dev/null | xargs)
+contact_schema=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM schemas WHERE name = 'contact';" 2>/dev/null | xargs)
 if [ "$contact_schema" -eq "1" ]; then
     print_success "Contact schema definition exists"
 else
-    print_error "Contact schema definition missing" 
+    print_error "Contact schema definition missing"
     exit 1
 fi
 
@@ -88,7 +88,7 @@ fi
 print_step "Validating data quality and relationships"
 
 # Check for required fields in accounts
-accounts_with_email=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM account WHERE email IS NOT NULL AND email != '';" 2>/dev/null | xargs)
+accounts_with_email=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM accounts WHERE email IS NOT NULL AND email != '';" 2>/dev/null | xargs)
 if [ "$accounts_with_email" -gt "0" ]; then
     print_success "Account email data present: $accounts_with_email/$account_count accounts"
 else
@@ -97,7 +97,7 @@ else
 fi
 
 # Check for required fields in contacts (first_name or last_name)
-contacts_with_name=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contact WHERE (first_name IS NOT NULL AND first_name != '') OR (last_name IS NOT NULL AND last_name != '');" 2>/dev/null | xargs)
+contacts_with_name=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contacts WHERE (first_name IS NOT NULL AND first_name != '') OR (last_name IS NOT NULL AND last_name != '');" 2>/dev/null | xargs)
 if [ "$contacts_with_name" -gt "0" ]; then
     print_success "Contact name data present: $contacts_with_name/$contact_count contacts"
 else
@@ -106,7 +106,7 @@ else
 fi
 
 # Check for relationships (contacts linked to accounts)
-linked_contacts=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contact WHERE account_id IS NOT NULL;" 2>/dev/null | xargs || echo "0")
+linked_contacts=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contacts WHERE account_id IS NOT NULL;" 2>/dev/null | xargs || echo "0")
 if [ "$linked_contacts" -gt "0" ]; then
     link_percentage=$(( (linked_contacts * 100) / contact_count ))
     print_success "Contact-account relationships: $linked_contacts/$contact_count ($link_percentage%)"
@@ -118,7 +118,7 @@ fi
 print_step "Validating data consistency"
 
 # Check for duplicate emails in accounts
-duplicate_accounts=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM (SELECT email, COUNT(*) FROM account WHERE email IS NOT NULL GROUP BY email HAVING COUNT(*) > 1) AS dupes;" 2>/dev/null | xargs)
+duplicate_accounts=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM (SELECT email, COUNT(*) FROM accounts WHERE email IS NOT NULL GROUP BY email HAVING COUNT(*) > 1) AS dupes;" 2>/dev/null | xargs)
 if [ "$duplicate_accounts" -eq "0" ]; then
     print_success "No duplicate account emails"
 else
@@ -128,7 +128,7 @@ fi
 
 # Check for orphaned relationships
 if [ "$linked_contacts" -gt "0" ]; then
-    orphaned_contacts=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contact c WHERE c.account_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM account a WHERE a.id = c.account_id);" 2>/dev/null | xargs)
+    orphaned_contacts=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM contacts c WHERE c.account_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM accounts a WHERE a.id = c.account_id);" 2>/dev/null | xargs)
     if [ "$orphaned_contacts" -eq "0" ]; then
         print_success "No orphaned contact relationships"
     else

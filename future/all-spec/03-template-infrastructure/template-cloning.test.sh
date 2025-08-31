@@ -31,7 +31,7 @@ echo
 test_tenants=(
     "simple-test"
     "unicode-测试"
-    "emoji-🚀-test" 
+    "emoji-🚀-test"
     "spaces and symbols!"
     "café-française"
 )
@@ -70,16 +70,16 @@ print_step "Testing template cloning with various tenant name types"
 cloned_databases=()
 for tenant_name in "${test_tenants[@]}"; do
     print_info "Testing clone: \"$tenant_name\""
-    
+
     # Calculate expected database name
     expected_db=$(hash_tenant_name "$tenant_name")
     print_info "  Expected DB: $expected_db"
-    
+
     # Test cloning using direct PostgreSQL (simulating TemplateDatabase.createTenantFromTemplate)
     if psql -d postgres -c "CREATE DATABASE \"$expected_db\" WITH TEMPLATE test_template_basic;" >/dev/null 2>&1; then
         print_success "  Clone created: $expected_db"
         cloned_databases+=("$expected_db")
-        
+
         # Verify clone has proper data
         clone_account_count=$(psql -d "$expected_db" -t -c "SELECT COUNT(*) FROM account;" 2>/dev/null | xargs)
         if [ "$clone_account_count" -gt "0" ]; then
@@ -88,7 +88,7 @@ for tenant_name in "${test_tenants[@]}"; do
             print_error "  Clone data verification failed"
             exit 1
         fi
-        
+
     else
         print_error "  Clone creation failed for: $tenant_name"
         exit 1
@@ -112,8 +112,8 @@ else
 fi
 
 # Verify schema preservation
-template_schemas=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM schema;" 2>/dev/null | xargs)
-clone_schemas=$(psql -d "${cloned_databases[0]}" -t -c "SELECT COUNT(*) FROM schema;" 2>/dev/null | xargs)
+template_schemas=$(psql -d test_template_basic -t -c "SELECT COUNT(*) FROM schemas;" 2>/dev/null | xargs)
+clone_schemas=$(psql -d "${cloned_databases[0]}" -t -c "SELECT COUNT(*) FROM schemas;" 2>/dev/null | xargs)
 
 if [ "$template_schemas" -eq "$clone_schemas" ]; then
     print_success "Schema preservation verified: $clone_schemas schemas in clone"

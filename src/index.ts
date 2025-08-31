@@ -6,6 +6,23 @@ global.logger = logger;
 import dotenv from 'dotenv';
 dotenv.config({ debug: true });
 
+// Sanity check for required env values
+if (!process.env.DATABASE_URL) {
+    throw Error('Fatal: environment is missing "DATABASE_URL"');
+}
+
+if (!process.env.PORT) {
+    throw Error('Fatal: environment is missing "PORT"');
+}
+
+if (!process.env.JWT_SECRET) {
+    throw Error('Fatal: environment is missing "JWT_SECRET"');
+}
+
+if (!process.env.NODE_ENV) {
+    throw Error('Fatal: environment is missing "NODE_ENV"');
+}
+
 // Import package.json for version info
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';

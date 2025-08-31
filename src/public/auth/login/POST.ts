@@ -11,6 +11,8 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 export default async function (context: Context) {
     const { tenant, username } = await context.req.json();
 
+    logger.info('/auth/login', { tenant, username });
+
     // Input validation
     if (!tenant) {
         throw HttpErrors.badRequest('Tenant is required', 'TENANT_MISSING');
@@ -22,34 +24,40 @@ export default async function (context: Context) {
 
     // Look up tenant record to get database name
     const authDb = DatabaseConnection.getMainPool();
-    const tenantResult = await authDb.query(
-        'SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', 
-        [tenant]
-    );
+    const tenantResult = await authDb.query('SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
 
     if (!tenantResult.rows || tenantResult.rows.length === 0) {
-        return context.json({
-            success: false,
-            error: 'Authentication failed',
-            error_code: 'AUTH_FAILED'
-        }, 401);
+        return context.json(
+            {
+                success: false,
+                error: 'Authentication failed',
+                error_code: 'AUTH_FAILED',
+            },
+            401
+        );
+    } else {
+        logger.info('Found tenant record:', { tenant: tenantResult.rows[0] });
     }
 
     const { name, database } = tenantResult.rows[0];
 
     // Look up user in the tenant's database
     const tenantDb = DatabaseConnection.getTenantPool(database);
-    const userResult = await tenantDb.query(
-        'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
-        [username]
-    );
+    const userResult = await tenantDb.query('SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL', [
+        username,
+    ]);
 
     if (!userResult.rows || userResult.rows.length === 0) {
-        return context.json({
-            success: false,
-            error: 'Authentication failed',
-            error_code: 'AUTH_FAILED'
-        }, 401);
+        return context.json(
+            {
+                success: false,
+                error: 'Authentication failed',
+                error_code: 'AUTH_FAILED',
+            },
+            401
+        );
+    } else {
+        logger.info('Found user record:', { user: userResult.rows[0] });
     }
 
     const user = userResult.rows[0];
@@ -65,10 +73,10 @@ export default async function (context: Context) {
         access_edit: user.access_edit || [],
         access_full: user.access_full || [],
         iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
     };
 
-    const token = await sign(payload, process.env['JWT_SECRET']!);
+    const token = await sign(payload, process.env.JWT_SECRET!);
 
     // Return response directly (no system context middleware)
     return context.json({
@@ -80,8 +88,8 @@ export default async function (context: Context) {
                 username: user.name,
                 tenant: name,
                 database: database,
-                access: user.access
-            }
-        }
+                access: user.access,
+            },
+        },
     });
 }

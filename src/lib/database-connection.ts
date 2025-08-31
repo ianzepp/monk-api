@@ -63,7 +63,8 @@ export class DatabaseConnection {
     }
 
     static getTenantPool(databaseName: string) {
-        if (!databaseName.startsWith(MONK_DB_TENANT_PREFIX)) {
+        // Tenant database names always start with a prefix, EXCEPT for the "system" database
+        if (!databaseName.startsWith(MONK_DB_TENANT_PREFIX) && databaseName !== 'system') {
             throw new Error(`Invalid tenant database name "${databaseName}". Must start with "${MONK_DB_TENANT_PREFIX}"`);
         }
 
