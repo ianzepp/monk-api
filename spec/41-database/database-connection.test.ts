@@ -37,11 +37,8 @@ describe('Direct Database Connection Test', () => {
     });
 
     test('should connect to auth database directly', async () => {
-        // Load monk configuration
-        MonkEnv.load();
-
         // Connect to auth database using DatabaseConnection
-        const authPool = DatabaseConnection.getBasePool();
+        const authPool = DatabaseConnection.getMainPool();
 
         logger.info(`🔍 Testing base pool for auth database`);
 
@@ -55,7 +52,7 @@ describe('Direct Database Connection Test', () => {
             logger.info(`✅ Auth database connected successfully, found ${result.rows.length} tenants`);
             logger.info(
                 `🏢 Tenants:`,
-                result.rows.map(r => r.name)
+                result.rows.map((r: any) => r.name)
             );
 
             client.release();

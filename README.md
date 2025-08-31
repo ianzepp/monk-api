@@ -136,7 +136,7 @@ Essential example of modern, high-performance backend development combining cutt
 ### API Reference
 - **[docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
 - **[docs/FILTER.md](docs/FILTER.md)** - Advanced filter system with 25+ operators
-- **[docs/FTP.md](docs/FTP.md)** - FTP middleware filesystem-like interface
+- **[docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
 
 ### Technical Specifications
 - **[docs/SPEC.md](docs/SPEC.md)** - Complete test specification and architecture

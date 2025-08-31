@@ -6,7 +6,6 @@
  */
 
 import { randomBytes } from 'crypto';
-import { MonkEnv } from '../../src/lib/monk-env.js';
 import { TenantService, type TenantInfo } from '../../src/lib/services/tenant.js';
 import { System } from '../../src/lib/system.js';
 import { Database } from '../../src/lib/database.js';
