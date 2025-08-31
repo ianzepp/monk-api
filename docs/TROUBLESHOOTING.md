@@ -349,20 +349,13 @@ npm run spec:ts integration             # Run integration test suite
 
 ### Configuration Debugging
 ```bash
-# Verify all configuration files
-ls -la ~/.config/monk/
-cat ~/.config/monk/env.json | jq .
-cat ~/.config/monk/server.json | jq .
-
 # Test configuration loading
 node -e "
-  import { MonkEnv } from './dist/lib/monk-env.js';
-  console.log('DATABASE_URL:', MonkEnv.get('DATABASE_URL'));
-  console.log('JWT_SECRET:', MonkEnv.get('JWT_SECRET') ? '[SET]' : '[NOT SET]');
+  console.log('DATABASE_URL:', process.env['DATABASE_URL']);
+  console.log('JWT_SECRET:', process.env['JWT_SECRET'] ? '[SET]' : '[NOT SET]');
 "
 
 # Reset configuration if needed
-rm -rf ~/.config/monk/
 npm run autoinstall
 ```
 

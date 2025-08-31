@@ -524,7 +524,6 @@ rm -rf ~/.config/monk/ && npm run autoinstall # Nuclear reset
 ## 9. Recent Architectural Improvements
 
 ### **Configuration Management & Security Hardening** (August 2025)
-- **Enhanced MonkEnv.get()**: Centralized configuration with required parameter validation
 - **Eliminated Security Risks**: Removed dangerous JWT_SECRET and DATABASE_URL defaults
 - **Fail-Fast Validation**: All critical configuration values properly validated with clear error messages
 
