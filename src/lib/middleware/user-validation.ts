@@ -8,6 +8,7 @@
 import type { Context, Next } from 'hono';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import type { JWTPayload } from './jwt-validation.js';
 
 /**
  * User validation middleware - validates user exists in tenant database

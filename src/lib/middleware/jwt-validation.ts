@@ -9,7 +9,7 @@ import type { Context, Next } from 'hono';
 import { verify } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
-interface JWTPayload {
+export interface JWTPayload {
     sub: string;
     user_id: string | null;
     tenant: string;

@@ -1,19 +1,6 @@
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-
-export interface JWTPayload {
-    sub: string; // Subject/system identifier
-    user_id: string | null; // User ID for database records (null for root/system)
-    tenant: string; // Tenant name
-    database: string; // Database name (converted)
-    access: string; // Access level (deny/read/edit/full/root)
-    access_read: string[]; // ACL read access
-    access_edit: string[]; // ACL edit access
-    access_full: string[]; // ACL full access
-    iat: number; // Issued at
-    exp: number; // Expires at
-    [key: string]: any; // Index signature for Hono compatibility
-}
+import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 
 export class AuthService {
     private static tokenExpiry = 24 * 60 * 60; // 24 hours in seconds
