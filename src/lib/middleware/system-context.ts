@@ -11,7 +11,6 @@
 import type { Context, Next } from 'hono';
 import { System } from '@src/lib/system.js';
 import { 
-    createSuccessResponse, 
     createValidationError, 
     createInternalError 
 } from '@src/lib/api/responses.js';
@@ -71,66 +70,6 @@ export async function systemContextMiddleware(context: Context, next: Next) {
             return createInternalError(context, 'Unknown error occurred');
         }
     }
-}
-
-/**
- * JSON response middleware for /api/data/* routes
- * 
- * Automatically formats route results as JSON API responses using createSuccessResponse()
- */
-export async function responseJsonMiddleware(context: Context, next: Next) {
-    await next();
-    
-    // Check if route handler set a result for JSON formatting
-    const routeResult = context.get('routeResult');
-    
-    if (routeResult !== undefined && !context.res.body) {
-        return createSuccessResponse(context, routeResult);
-    }
-}
-
-/**
- * YAML response middleware for /api/meta/* routes
- * 
- * Automatically formats route results as YAML responses and handles errors consistently.
- */
-export async function responseYamlMiddleware(context: Context, next: Next) {
-    try {
-        await next();
-        
-        // Check if route handler set a result for JSON formatting
-        const routeResult = context.get('routeResult');
-        
-        if (routeResult !== undefined && !context.res.body) {
-            // Auto-format as JSON response
-            return new Response(routeResult, {
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-    } catch (error) {
-        // Consistent error handling for all meta operations
-        console.error(`Meta API error: ${context.req.method} ${context.req.path}`, error);
-        
-        return new Response(JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : 'Meta operation failed'
-        }), {
-            headers: { 'Content-Type': 'application/json' },
-            status: error instanceof Error && error.message.includes('not found') ? 404 : 400
-        });
-    }
-}
-
-/**
- * File response middleware for future /api/file/* routes
- * 
- * Placeholder for file upload/download response formatting
- */
-export async function responseFileMiddleware(context: Context, next: Next) {
-    await next();
-    
-    // Future: Handle file responses, content-type headers, streaming, etc.
-    // Could format file metadata, handle multipart responses, etc.
 }
 
 /**

@@ -18,8 +18,12 @@ import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.
 import { createSuccessResponse, createInternalError } from '@src/lib/api/responses.js';
 import { AuthService } from '@src/lib/auth.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
-import { systemContextMiddleware, responseJsonMiddleware, responseFileMiddleware } from '@src/lib/middleware/system-context.js';
-import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/localhost-development-only.js';
+import { 
+    systemContextMiddleware, 
+    responseJsonMiddleware, 
+    responseFileMiddleware,
+    localhostDevelopmentOnlyMiddleware 
+} from '@src/lib/middleware/index.js';
 import { rootRouter } from '@src/routes/root/index.js';
 
 // Auth API handlers (clean barrel exports)
