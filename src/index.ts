@@ -1,7 +1,3 @@
-// Load monk configuration into process.env before other imports
-import { MonkEnv } from '@src/lib/monk-env.js';
-MonkEnv.loadIntoProcessEnv();
-
 // Import package.json for version info
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -187,7 +183,7 @@ app.notFound(c => {
 });
 
 // Server configuration
-const port = Number(MonkEnv.get('PORT', '9001'));
+const port = Number(process.env.PORT || 9001);
 
 // Initialize observer system
 logger.info('Preloading observer system');
