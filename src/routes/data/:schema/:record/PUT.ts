@@ -6,18 +6,18 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  * PUT /api/data/:schema/:id - Update single record by ID
  * @see docs/routes/DATA_API.md
  */
-export default withParams(async (context, { system, schema, recordId, body, method }) => {
+export default withParams(async (context, { system, schema, record, body, method }) => {
     let result;
-    
+
     // Smart routing: PATCH + include_trashed=true = revert operation
     if (method === 'PATCH' && system.options.trashed === true) {
-        result = await system.database.revertOne(schema!, recordId!);
-    } 
-    
+        result = await system.database.revertOne(schema!, record!);
+    }
+
     // Normal update operation
     else {
-        result = await system.database.updateOne(schema!, recordId!, body);
+        result = await system.database.updateOne(schema!, record!, body);
     }
-    
+
     setRouteResult(context, result);
 });

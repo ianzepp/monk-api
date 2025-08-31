@@ -12,18 +12,18 @@ export default withParams(async (context, { system, schema, body, method }) => {
     if (!Array.isArray(body)) {
         throw HttpErrors.badRequest('Request body must be an array of update records with id fields', 'REQUEST_INVALID_FORMAT');
     }
-    
+
     let result;
-    
+
     // Smart routing: PATCH + include_trashed=true = revert operation
     if (method === 'PATCH' && system.options.trashed === true) {
         result = await system.database.revertAll(schema!, body);
-    } 
-    
+    }
+
     // Normal update operation
     else {
         result = await system.database.updateAll(schema!, body);
     }
-    
+
     setRouteResult(context, result);
 });
