@@ -5,7 +5,7 @@
  */
 
 import type { Context, Next } from 'hono';
-import { createSuccessResponse } from '@src/lib/api/responses.js';
+import { createSuccessResponse } from '@src/lib/api-helpers.js';
 
 /**
  * JSON response middleware for /api/data/* routes

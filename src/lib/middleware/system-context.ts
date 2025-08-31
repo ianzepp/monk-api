@@ -13,7 +13,7 @@ import { System } from '@src/lib/system.js';
 import { 
     createValidationError, 
     createInternalError 
-} from '@src/lib/api/responses.js';
+} from '@src/lib/api-helpers.js';
 import { 
     ValidationError, 
     BusinessLogicError, 
