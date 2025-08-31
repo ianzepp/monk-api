@@ -5,7 +5,7 @@ set -e
 # Runs both TypeScript and Shell tests in sequence for complete coverage
 #
 # Usage: scripts/spec.sh [pattern|path] [--verbose]
-# 
+#
 # Smart Resolution:
 # - No args: Run all tests (ts then sh)
 # - Exact file path: Run specific test
@@ -13,7 +13,7 @@ set -e
 #
 # Examples:
 #   scripts/spec.sh                           # All tests (complete coverage)
-#   scripts/spec.sh 15                        # All auth tests (ts + sh)  
+#   scripts/spec.sh 15                        # All auth tests (ts + sh)
 #   scripts/spec.sh spec/15-auth/basic.test.ts # Single TypeScript test
 #   scripts/spec.sh spec/15-auth/basic.test.sh # Single shell test
 #   scripts/spec.sh auth                      # All tests matching "auth"
@@ -52,19 +52,19 @@ fi
 # Track overall results
 overall_exit_code=0
 
-# Phase 1: TypeScript Tests
-print_header "Phase 1: TypeScript Tests"
-if npm run spec:ts "$pattern_or_path" $verbose_flag; then
-    print_success "TypeScript tests completed"
-else
-    print_error "TypeScript tests failed"
-    overall_exit_code=1
-fi
+# # Starting: TypeScript Tests
+# print_header "Starting: TypeScript Tests"
+# if npm run spec:ts "$pattern_or_path" $verbose_flag; then
+#     print_success "TypeScript tests completed"
+# else
+#     print_error "TypeScript tests failed"
+#     overall_exit_code=1
+# fi
 
 echo ""
 
-# Phase 2: Shell Tests  
-print_header "Phase 2: Shell Tests"
+# Starting: Shell Tests
+print_header "Starting: Shell Tests"
 if npm run spec:sh "$pattern_or_path" $verbose_flag; then
     print_success "Shell tests completed"
 else

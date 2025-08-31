@@ -5,7 +5,7 @@ set -e
 # Enhanced version of spec-all.sh with intelligent pattern/path handling
 #
 # Usage: scripts/spec-ts.sh [pattern|path] [--verbose]
-# 
+#
 # Smart Resolution:
 # - No args: Run all *.test.ts files in sort order
 # - Exact file path: Run specific .test.ts file (list size = 1)
@@ -29,13 +29,24 @@ print_error() { echo -e "${RED}✗ $1${NC}" >&2; }
 print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 
+# DISABLED
+print_error "This test framework file (scripts/spec-ts.sh) is disabled"
+exit 1
+
 # Compilation must pass before running tests
-print_info "Running TypeScript compilation before tests..."
-if ! npm run compile; then
-    print_error "TypeScript compilation failed - cannot run tests"
+print_info "Running TypeScript build before tests..."
+if ! npm run build; then
+    print_error "TypeScript build failed - cannot run tests"
     exit 1
 fi
-print_success "TypeScript compilation successful"
+print_success "TypeScript build successful"
+
+print_info "Running TypeScript build:spec before tests..."
+if ! npm run build:spec; then
+    print_error "TypeScript build:spec failed - cannot run tests"
+    exit 1
+fi
+print_success "TypeScript build:spec successful"
 
 # Parse arguments
 pattern_or_path="$1"
@@ -51,7 +62,7 @@ fi
 # Smart resolution function with enhanced range pattern support
 resolve_typescript_tests() {
     local pattern_or_path="$1"
-    
+
     if [[ -z "$pattern_or_path" ]]; then
         # No args: run everything in sort order
         find spec/ -name "*.test.ts" | sort
@@ -62,7 +73,7 @@ resolve_typescript_tests() {
         # Range pattern detected (e.g., 00-09, 15-75, 00-50)
         local start_num="${BASH_REMATCH[1]}"
         local end_num="${BASH_REMATCH[2]}"
-        
+
         # Find all test files and filter by numeric range
         find spec/ -name "*.test.ts" | while read -r file; do
             # Extract series number from path (e.g., spec/05-infrastructure/test.ts -> 05)
@@ -72,7 +83,7 @@ resolve_typescript_tests() {
                 series_num=$((10#$series_num))
                 start_num=$((10#$start_num))
                 end_num=$((10#$end_num))
-                
+
                 if [[ $series_num -ge $start_num && $series_num -le $end_num ]]; then
                     echo "$file"
                 fi

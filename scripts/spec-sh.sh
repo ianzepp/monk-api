@@ -5,7 +5,7 @@ set -e
 # Enhanced version of test-all.sh with intelligent pattern/path handling
 #
 # Usage: scripts/spec-sh.sh [pattern|path] [--verbose]
-# 
+#
 # Smart Resolution:
 # - No args: Run all *.test.sh files in sort order
 # - Exact file path: Run specific .test.sh file (via test-one.sh pattern)
@@ -29,13 +29,17 @@ print_error() { echo -e "${RED}✗ $1${NC}" >&2; }
 print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_info() { echo -e "${YELLOW}ℹ $1${NC}"; }
 
+# DISABLED
+print_error "This test framework file (scripts/spec-sh.sh) is disabled"
+exit 1
+
 # Compilation must pass before running tests
-print_info "Running TypeScript compilation before tests..."
-if ! npm run compile; then
-    print_error "TypeScript compilation failed - cannot run tests"
+print_info "Running TypeScript build before tests..."
+if ! npm run build; then
+    print_error "TypeScript build failed - cannot run tests"
     exit 1
 fi
-print_success "TypeScript compilation successful"
+print_success "TypeScript build successful"
 
 # Parse arguments
 pattern_or_path="$1"
@@ -50,7 +54,7 @@ fi
 # Smart resolution function with enhanced range pattern support
 resolve_shell_tests() {
     local pattern_or_path="$1"
-    
+
     if [[ -z "$pattern_or_path" ]]; then
         # No args: run everything in sort order
         find spec/ -name "*.test.sh" | sort
@@ -61,7 +65,7 @@ resolve_shell_tests() {
         # Range pattern detected (e.g., 00-09, 15-75, 00-50)
         local start_num="${BASH_REMATCH[1]}"
         local end_num="${BASH_REMATCH[2]}"
-        
+
         # Find all test files and filter by numeric range
         find spec/ -name "*.test.sh" | while read -r file; do
             # Extract series number from path (e.g., spec/05-infrastructure/test.sh -> 05)
@@ -71,7 +75,7 @@ resolve_shell_tests() {
                 series_num=$((10#$series_num))
                 start_num=$((10#$start_num))
                 end_num=$((10#$end_num))
-                
+
                 if [[ $series_num -ge $start_num && $series_num -le $end_num ]]; then
                     echo "$file"
                 fi
@@ -118,13 +122,13 @@ failed_tests=()
 # Execute each test file using the existing test-one.sh pattern
 while IFS= read -r test_file; do
     test_name=$(basename "$test_file")
-    
+
     if [[ $test_count -gt 1 ]]; then
         echo -e "${BLUE}🧪 Running: $test_name${NC}"
     else
         echo -e "${YELLOW}ℹ Running single shell test: $test_name${NC}"
     fi
-    
+
     # Use existing test-one.sh infrastructure for tenant isolation
     if scripts/test-one.sh "$test_file"; then
         ((passed++))
@@ -136,7 +140,7 @@ while IFS= read -r test_file; do
         failed_tests+=("$test_name")
         print_error "$test_name"
     fi
-    
+
     if [[ $test_count -gt 1 ]]; then
         echo ""
     fi
