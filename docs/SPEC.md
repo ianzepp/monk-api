@@ -122,12 +122,12 @@ spec/
 │   ├── 43-schema/           # Reserved for schema/metabase unit tests
 │   ├── 44-filter/           # Filter system tests
 │   ├── 45-observers/        # Observer system tests
-│   ├── 46-ftp/              # FTP middleware tests
+│   ├── 46-file/             # FS middleware tests
 │   └── 47-49/               # Reserved for future unit test categories
 ├── 50-59-integration/       # Integration testing series
 │   ├── 50-integration/      # Core integration tests
 │   ├── 51-integration-observers/ # Observer pipeline integration
-│   ├── 52-integration-ftp/  # FTP middleware integration
+│   ├── 52-integration-file/ # FS middleware integration
 │   └── 53-59/               # Reserved for future integration categories
 └── helpers/                 # Test utilities
 ```
@@ -138,14 +138,14 @@ spec/
 # All tests
 npm run spec:ts
 
-# Series-specific  
+# Series-specific
 npm run spec:ts 11              # SQL injection security tests
 npm run spec:ts 12              # API endpoint security tests
 npm run spec:ts 15              # Authentication workflow tests
 npm run spec:ts 41              # Database unit tests
 npm run spec:ts 44              # Filter system tests
 npm run spec:ts 45              # Observer system tests
-npm run spec:ts 46              # FTP middleware tests
+npm run spec:ts 46              # FS middleware tests
 
 # Range patterns
 npm run spec:ts 10-19           # All security tests
@@ -161,12 +161,12 @@ npm run spec:ts spec/44-filter/logical-operators.test.ts
 #### Security Tests (10-19 Series)
 - **Purpose**: Security validation and injection protection
 - **Coverage**: SQL injection, API security, comprehensive attack testing
-- **Series**: 
+- **Series**:
   - **11-security-sql**: SQL injection protection
   - **12-security-api**: API endpoint security
   - **13-security-comprehensive**: Multi-vector security testing
 
-#### Unit Tests (40-49 Series) 
+#### Unit Tests (40-49 Series)
 - **Purpose**: Test pure logic, utilities, parsing (no database)
 - **Count**: 210+ tests
 - **Speed**: Fast (no external dependencies)
@@ -175,7 +175,7 @@ npm run spec:ts spec/44-filter/logical-operators.test.ts
   - **42-tenant**: Tenant service and multi-tenant routing
   - **44-filter**: Filter operators and query building
   - **45-observers**: Observer system and pipeline logic
-  - **46-ftp**: FTP middleware and file operations
+  - **46-file**: FS middleware and file operations
 
 #### Integration Tests (50-59 Series)
 - **Purpose**: Test database operations, API endpoints, multi-component workflows
@@ -184,7 +184,7 @@ npm run spec:ts spec/44-filter/logical-operators.test.ts
 - **Series**:
   - **50-integration**: Core integration workflows
   - **51-integration-observers**: Observer pipeline integration
-  - **52-integration-ftp**: FTP middleware integration
+  - **52-integration-file**: FS middleware integration
 
 ### Writing TypeScript Tests
 
@@ -202,7 +202,7 @@ describe('Filter Operators', () => {
         { age: { $gte: 18 } }
       ]
     });
-    
+
     expect(whereClause).toContain('AND');
     expect(params).toEqual(['active', 18]);
   });
@@ -223,10 +223,10 @@ describe('Database Operations', () => {
     // Create isolated tenant
     tenantManager = await createTestTenant();
     testContext = await createTestContext(tenantManager.tenant!, 'root');
-    
+
     // Load observers
     await ObserverLoader.preloadObservers();
-    
+
     // Create schema
     const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
     await testContext.metabase.createOne('account', schemaJson);
@@ -241,7 +241,7 @@ describe('Database Operations', () => {
       name: 'Test User',
       email: 'test@example.com'
     });
-    
+
     expect(record.id).toBeDefined();
   });
 });
@@ -332,7 +332,7 @@ describe.concurrent('Parallel Suite', () => {
 #### Shell Test Failures
 ```bash
 # Check database connectivity
-psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"
+psql -d monk_main -c "SELECT COUNT(*) FROM tenants;"
 
 # Check API server connectivity
 curl http://localhost:9001/health

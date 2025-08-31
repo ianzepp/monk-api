@@ -37,7 +37,7 @@
 - **Ring 8**: Webhooks and external integrations
 
 ### Multi-Tenant Capabilities
-- **Database Isolation**: Each tenant receives dedicated PostgreSQL database (`monk-api$tenant-name`)
+- **Database Isolation**: Each tenant receives dedicated PostgreSQL database (`tenant_12345678`)
 - **JWT-Based Routing**: Automatic tenant detection and database routing via JWT tokens
 - **Schema Independence**: Tenants can evolve schemas independently without interference
 - **Performance Optimization**: SHA256 caching provides 15x faster schema access
@@ -136,7 +136,7 @@ Essential example of modern, high-performance backend development combining cutt
 ### API Reference
 - **[docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
 - **[docs/FILTER.md](docs/FILTER.md)** - Advanced filter system with 25+ operators
-- **[docs/FTP.md](docs/FTP.md)** - FTP middleware filesystem-like interface
+- **[docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
 
 ### Technical Specifications
 - **[docs/SPEC.md](docs/SPEC.md)** - Complete test specification and architecture

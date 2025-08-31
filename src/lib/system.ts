@@ -1,16 +1,17 @@
+import pg from 'pg';
+
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
 import { Metabase } from '@src/lib/metabase.js';
-import type { DbContext, TxContext } from '@src/db/index.js';
-import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/types/system-context.js';
+import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
 
 /**
  * System class - Per-request context management
- * 
+ *
  * Initialized at the top-level route handler with Hono context.
  * Provides access to properly contextualized database operations.
  * Replaces singleton pattern with per-request instance pattern.
- * 
+ *
  * Implements SystemContext interface to provide business context to other components
  * while breaking circular dependencies through dependency injection.
  */
@@ -21,24 +22,24 @@ export class System implements SystemContextWithInfrastructure {
     public readonly correlationId: string;
 
     // Database context - always available for database operations
-    public readonly db: DbContext;
-    
+    public readonly db: pg.Pool;
+
     // Transaction context - set by SQL Observer when transactions needed
-    public tx?: TxContext;
-    
+    public tx?: pg.PoolClient;
+
     // System services
     public readonly database: Database;
     public readonly metabase: Metabase;
 
     constructor(c: Context, options: SystemOptions = {}) {
         this.context = c;
-        
+
         // Get database connection from Hono context (always required)
         const db = c.get('database');
         if (!db) {
             throw new Error('Database context not set - ensure JWT middleware is applied');
         }
-        
+
         if (!db) {
             throw new Error('Unable to initialize database connection - ensure database middleware is applied');
         }
@@ -46,20 +47,19 @@ export class System implements SystemContextWithInfrastructure {
         // Initialize database connection (always available)
         this.db = db;
         this.tx = undefined; // Will be set by SQL Observer when transactions needed
-        
+
         // Initialize service instances with clean dependency injection
         this.database = new Database(this);
         this.metabase = new Metabase(this);
-        
+
         // Store query options as read-only
         this.options = Object.freeze({ ...options });
-        
+
         // Extract user information from context (set by auth middleware)
         this.userId = c.get('userId') || 'anonymous';
-        
+
         // Generate correlation ID once per request
         this.correlationId = c.req.header('x-request-id') || this.generateCorrelationId();
-        
     }
 
     /**
@@ -86,7 +86,6 @@ export class System implements SystemContextWithInfrastructure {
         const payload = this.context.get('jwtPayload') as any;
         return payload?.access === 'root';
     }
-
 
     /**
      * Get actual tenant name from JWT payload

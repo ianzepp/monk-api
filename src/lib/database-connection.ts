@@ -3,191 +3,187 @@ import { logger } from '@src/lib/logger.js';
 
 const { Pool, Client } = pg;
 
+export const MONK_DB_MAIN_NAME = 'monk_main';
+export const MONK_DB_TENANT_PREFIX = 'tenant_';
+export const MONK_DB_TEST_PREFIX = 'test_';
+export const MONK_DB_TEST_TEMPLATE_PREFIX = 'test_template_';
+
+// Export lazy-loaded centralized pool - ONLY source of database connections
+export const db = new Proxy({} as pg.Pool, {
+    get(target, prop, receiver) {
+        const pool = DatabaseConnection.getMainPool();
+        return Reflect.get(pool, prop, receiver);
+    },
+});
+
+// TODO these should be just DatabaseConnection static methods
+export async function checkDatabaseConnection(): Promise<boolean> {
+    const result = await DatabaseConnection.healthCheck();
+
+    if (!result.success) {
+        logger.fail('Database connection failed:', result.error);
+        throw result.error;
+    } else {
+        logger.info('Database connected:', process.env.DATABASE_URL);
+    }
+
+    return result.success;
+}
+
+// TODO these should be just DatabaseConnection static methods
+export async function closeDatabaseConnection(): Promise<void> {
+    await DatabaseConnection.closeConnections();
+}
+
 /**
  * Centralized Database Connection Manager
- * 
+ *
  * CRITICAL: This is the ONLY file in the entire codebase that should:
  * 1. Call new pg.Pool() or new pg.Client()
  * 2. Read process.env.DATABASE_URL
  * 3. Handle database connection configuration
- * 
+ *
+ * The DATABASE_URL should point to the "monk_main" database:
+ * 1. For example: postgresql://<user>:<pass>@<host>:<port>/monk_main
+ * 2. This class will use the original DATABASE_URL for getMainPool()
+ * 3. This class will replace "monk_main" with "tenant_#" for getTenantPool(database)
+ *
  * All other files must use these methods for database connections.
  */
 export class DatabaseConnection {
-    private static basePool: pg.Pool | null = null;
-    private static tenantPools = new Map<string, pg.Pool>();
+    // General pooling map
+    private static pools = new Map<string, pg.Pool>();
 
-    /**
-     * Get DATABASE_URL from process.env with strict validation
-     * NO fallbacks, NO defaults - fail fast if not configured
-     */
-    private static getDatabaseURL(): string {
-        const databaseUrl = process.env.DATABASE_URL;
-        
-        if (!databaseUrl) {
-            throw new Error(
-                'DATABASE_URL not configured. ' +
-                'Ensure MonkEnv.loadIntoProcessEnv() was called on server startup and ' +
-                '~/.config/monk/env.json contains DATABASE_URL.'
-            );
-        }
+    //
+    // Public methods
+    //
 
-        if (!databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('postgres://')) {
-            throw new Error(
-                `Invalid DATABASE_URL format: ${databaseUrl}. ` +
-                'Must start with postgresql:// or postgres://'
-            );
-        }
-
-        return databaseUrl;
+    static getMainPool() {
+        return this.getPool(MONK_DB_MAIN_NAME, 10);
     }
 
-    /**
-     * Get the base database pool (for master/auth database)
-     * Creates exactly ONE pool for the entire application
-     */
-    static getBasePool(): pg.Pool {
-        if (!this.basePool) {
-            const databaseUrl = this.getDatabaseURL();
-            
-            this.basePool = new Pool(this.getPoolConfig(databaseUrl, 10));
+    static getTenantPool(databaseName: string) {
+        // Tenant database names always start with a prefix, EXCEPT for the "system" database
+        if (!databaseName.startsWith(MONK_DB_TENANT_PREFIX) && databaseName !== 'system') {
+            throw new Error(`Invalid tenant database name "${databaseName}". Must start with "${MONK_DB_TENANT_PREFIX}"`);
+        }
 
-            logger.info('Base database pool created', { 
-                database: this.extractDatabaseName(databaseUrl) 
+        return this.getPool(databaseName);
+    }
+
+    static getPool(databaseName: string, max: number = 5) {
+        if (typeof databaseName !== 'string') {
+            throw new Error(`Database name must be a string type`);
+        }
+
+        if (!databaseName) {
+            throw new Error(`Database name cannot be empty`);
+        }
+
+        if (!/^[a-zA-Z0-9_]+$/.test(databaseName)) {
+            throw new Error(`Database name "${databaseName}" contains invalid characters`);
+        }
+
+        if (!this.pools.has(databaseName)) {
+            const connectionString = this.toConnectionString(databaseName);
+            const config = this.toConfig(connectionString, max);
+
+            // Create the pool
+            const pool = new pg.Pool(config);
+
+            // Save to the map
+            this.pools.set(databaseName, pool);
+
+            logger.info('Database pool created', {
+                database: databaseName,
             });
         }
 
-        return this.basePool;
+        // Due to the IF above, this can be cast
+        return this.pools.get(databaseName) as pg.Pool;
     }
 
-    /**
-     * Get a tenant-specific database pool
-     * Creates one pool per tenant database for efficiency
-     */
-    static getTenantPool(tenantName: string): pg.Pool {
-        if (!this.tenantPools.has(tenantName)) {
-            const baseDatabaseUrl = this.getDatabaseURL();
-            const url = new URL(baseDatabaseUrl);
-            url.pathname = `/${tenantName}`;
-            const tenantDatabaseUrl = url.toString();
-            
-            const pool = new Pool(this.getPoolConfig(tenantDatabaseUrl, 5));
-
-            this.tenantPools.set(tenantName, pool);
-            
-            logger.info('Tenant database pool created', { 
-                tenant: tenantName,
-                database: this.extractDatabaseName(tenantDatabaseUrl)
-            });
-        }
-
-        return this.tenantPools.get(tenantName)!;
-    }
-
-    /**
-     * Create a one-time Client connection (for operations that need direct control)
-     * Use sparingly - pools are preferred for performance
-     */
-    static createClient(databaseName?: string): pg.Client {
-        const baseDatabaseUrl = this.getDatabaseURL();
-        let connectionString: string;
-        
-        if (databaseName) {
-            const url = new URL(baseDatabaseUrl);
-            url.pathname = `/${databaseName}`;
-            connectionString = url.toString();
-        } 
-        
-        else {
-            connectionString = baseDatabaseUrl;
-        }
+    static getClient(databaseName: string) {
+        const connectionString = this.toConnectionString(databaseName);
+        const configSsl = this.toConfigSsl(connectionString);
 
         return new Client({
             connectionString,
             connectionTimeoutMillis: 5000,
-            ssl: this.getSslConfig(baseDatabaseUrl)
+            ssl: configSsl,
         });
     }
 
-    /**
-     * Get SSL configuration based on database URL
-     */
-    private static getSslConfig(databaseUrl: string) {
-        return databaseUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false;
-    }
-
-    /**
-     * Get standard pool configuration
-     */
-    private static getPoolConfig(connectionString: string, maxConnections: number) {
-        return {
-            connectionString,
-            max: maxConnections,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 5000,
-            ssl: this.getSslConfig(connectionString)
-        };
-    }
-
-
-
-    /**
-     * Extract database name from connection URL for logging
-     */
-    private static extractDatabaseName(databaseUrl: string): string {
+    static async healthCheck(): Promise<{ success: boolean; error?: string }> {
         try {
-            const url = new URL(databaseUrl);
-            return url.pathname.substring(1) || 'postgres';
-        } catch {
-            return 'unknown';
+            const pool = this.getMainPool();
+            const client = await pool.connect();
+            await client.query('SELECT 1');
+            client.release();
+            return { success: true };
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown database error',
+            };
         }
     }
 
-    /**
-     * Close all connections (for graceful shutdown)
-     */
-    static async closeAllConnections(): Promise<void> {
+    static async closeConnections(): Promise<void> {
         const closePromises: Promise<void>[] = [];
 
-        if (this.basePool) {
-            closePromises.push(this.basePool.end());
-            this.basePool = null;
-        }
-
-        for (const [tenantName, pool] of this.tenantPools.entries()) {
+        for (const [databaseName, pool] of this.pools.entries()) {
             closePromises.push(pool.end());
         }
-        this.tenantPools.clear();
+        this.pools.clear();
 
         await Promise.all(closePromises);
         logger.info('All database connections closed');
+    }
+
+    //
+    // Internal helpers
+    //
+    private static toConnectionString(databaseName: string) {
+        const databaseUrl = process.env.DATABASE_URL || undefined;
+
+        if (!databaseUrl) {
+            throw new Error('DATABASE_URL not configured.');
+        }
+
+        if (!databaseUrl.startsWith('postgresql://')) {
+            throw new Error(`Invalid DATABASE_URL format: ${databaseUrl}. Must start with postgresql://`);
+        }
+
+        const url = new URL(databaseUrl);
+        url.pathname = `/${databaseName}`;
+        return url.toString();
+    }
+
+    private static toConfig(connectionString: string, max: number) {
+        return {
+            connectionString,
+            max: max,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+            ssl: this.toConfigSsl(connectionString),
+        };
+    }
+
+    private static toConfigSsl(connectionString: string) {
+        if (connectionString.includes('sslmode=require')) {
+            return { rejectUnauthorized: false };
+        }
+
+        return false;
     }
 
     /**
      * Set database connection for Hono request context
      */
     static setDatabaseForRequest(c: any, tenantName: string): void {
-        const db = this.getTenantPool(tenantName);
+        const db = this.getPool(tenantName);
         c.set('database', db);
         c.set('databaseDomain', tenantName);
     }
-
-    /**
-     * Health check - verify base database connectivity
-     */
-    static async healthCheck(): Promise<{ success: boolean; error?: string }> {
-        try {
-            const pool = this.getBasePool();
-            const client = await pool.connect();
-            await client.query('SELECT 1');
-            client.release();
-            return { success: true };
-        } catch (error) {
-            return { 
-                success: false, 
-                error: error instanceof Error ? error.message : 'Unknown database error' 
-            };
-        }
-    }
 }
-

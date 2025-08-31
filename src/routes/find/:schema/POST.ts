@@ -4,13 +4,13 @@ import type { FilterData } from '@src/lib/filter.js';
 
 export default async function (context: Context) {
     const system = context.get('system');
-    const schemaName = context.req.param('schema');
-    
-    console.debug('routes/find-schema: schemaName=%j', schemaName);
-    
+    const schema = context.req.param('schema');
+
+    console.debug('routes/find-schema: schema=%j', schema);
+
     // Parse request body as FilterData
     const filterData: FilterData = await context.req.json();
-    
-    const result = await system.database.selectAny(schemaName, filterData);
+
+    const result = await system.database.selectAny(schema, filterData);
     setRouteResult(context, result);
 }

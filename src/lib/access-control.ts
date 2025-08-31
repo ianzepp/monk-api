@@ -1,5 +1,5 @@
 import type { Context, Next } from 'hono'
-import { createErrorResponse, ApiErrorCode } from '@src/lib/api/responses.js'
+import { createErrorResponse, ApiErrorCode } from '@src/lib/api-helpers.js'
 
 // Access levels in hierarchical order
 export enum AccessLevel {

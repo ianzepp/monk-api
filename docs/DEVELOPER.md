@@ -19,7 +19,7 @@
 - **👁️ [docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
 - **🧪 [docs/TESTING.md](docs/TESTING.md)** - Comprehensive testing strategies and patterns
 - **🔧 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
-- **📁 [docs/FTP.md](docs/FTP.md)** - FTP middleware filesystem-like interface
+- **📁 [docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
 - **🔎 [docs/FILTER.md](docs/FILTER.md)** - Enterprise filter system with 25+ operators
 - **📊 [docs/SPEC.md](docs/SPEC.md)** - Complete test specification and template system
 
@@ -31,7 +31,6 @@
 
 - **Node.js 18+** and npm
 - **PostgreSQL 12+** server running and accessible
-- **Ruby 3.0+** (for bashly CLI development)
 - **jq** (for JSON processing in CLI and tests)
 
 ### Fresh Environment Setup
@@ -53,7 +52,7 @@ npm run spec:sh spec/10-connection/basic-ping.test.sh
 
 The `npm run autoinstall` script handles all setup steps automatically:
 - Verifies PostgreSQL connectivity
-- Creates auth database (`monk-api-auth`) with tenant table
+- Creates auth database (`monk_main`) with tenant table
 - Configures local server in `~/.config/monk/server.json`
 - Creates test tenant (`local-test`) for development
 - Compiles TypeScript and verifies complete setup
@@ -88,7 +87,7 @@ monk data select users
 
 ### Overview
 
-Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, featuring a **System pattern architecture** for clean per-request database context management. The project includes both a **Hono-based API server** and a **bashly-generated CLI** for comprehensive data management.
+Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, featuring a **System pattern architecture** for clean per-request database context management.
 
 ### Core Components
 
@@ -117,7 +116,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 #### **Unified Test Suite** (`spec/`)
 - **Side-by-side Organization**: TypeScript (.test.ts) and Shell (.test.sh) tests co-located by functionality
 - **Three-tier Commands**: `npm run spec` (both), `npm run spec:ts` (TypeScript), `npm run spec:sh` (Shell)
-- **Tenant Isolation**: Each test gets fresh tenant database  
+- **Tenant Isolation**: Each test gets fresh tenant database
 - **Comprehensive Testing**: Isolated test environments with shell script and TypeScript integration
 
 > **📖 For comprehensive testing guide, see [docs/TESTING.md](docs/TESTING.md)**
@@ -130,7 +129,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Service Integration**: Provides system.database.* and system.metabase.* unified APIs
 - **Dependency Injection**: Provides SystemContext interface to break circular dependencies
 
-#### **Database Class** (`src/lib/database.ts`)  
+#### **Database Class** (`src/lib/database.ts`)
 - **Observer Integration**: All operations run through universal observer pipeline
 - **Single→Array→Pipeline**: Consistent pattern across all CRUD methods
 - **Recursion Protection**: `SQL_MAX_RECURSION = 3` prevents infinite observer loops
@@ -145,7 +144,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 
 #### **Middleware Architecture** (`src/lib/middleware/`)
 - **systemContextMiddleware**: Universal System setup and global error handling
-- **responseJsonMiddleware**: Automatic JSON formatting for `/api/data/*` routes  
+- **responseJsonMiddleware**: Automatic JSON formatting for `/api/data/*` routes
 - **responseJsonMiddleware**: Enhanced JSON formatting with automatic error handling for `/api/meta/*` routes
 
 > **📖 For complete API documentation, see [docs/API.md](docs/API.md)**
@@ -159,12 +158,12 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 
 > **📖 For complete filter documentation, see [docs/FILTER.md](docs/FILTER.md)**
 
-#### **FTP Middleware** - Filesystem-like API Access
+#### **FS Middleware** - Filesystem-like API Access
 - **Path Structure**: `/data/users/user-123.json` → Complete record access
-- **Core Operations**: `POST /ftp/list`, `POST /ftp/store`, `POST /ftp/delete`
+- **Core Operations**: `POST /api/file/list`, `POST /api/file/store`, `POST /api/file/delete`
 - **Advanced Features**: Wildcard patterns, atomic transactions, caching
 
-> **📖 For complete FTP documentation, see [docs/FTP.md](docs/FTP.md)**
+> **📖 For complete FS documentation, see [docs/FILE.md](docs/FILE.md)**
 
 ---
 
@@ -189,7 +188,7 @@ npm run api:dev
 # Create new tenant
 monk tenant create my-tenant
 
-# Use tenant  
+# Use tenant
 monk tenant use my-tenant
 
 # Authenticate with tenant
@@ -241,10 +240,10 @@ src/observers/all/7/audit-logger.ts            # All schemas, audit ring
 export default class CustomValidator extends BaseObserver {
     ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         const { schema, data } = context;
-        
+
         for (const record of data) {
             schema.validateOrThrow(record);
             // Custom validation logic
@@ -258,33 +257,13 @@ npm run start:dev  # Observer system loads new observer automatically
 
 > **📖 For complete observer development guide, see [docs/OBSERVERS.md](docs/OBSERVERS.md)**
 
-### CLI Development
-
-#### **Bashly Workflow**
-The CLI is generated from source files using **bashly**:
-
-```bash
-# Install bashly
-gem install bashly
-
-# Regenerate CLI from sources (after changes)
-cd cli/src
-bashly generate
-
-# CLI is now a separate project
-# Install and test CLI
-git clone https://github.com/ianzepp/monk-cli.git
-cd monk-cli && ./install.sh
-monk --help
-```
-
 ### Testing Development
 
 #### **Unified Test Commands**
 
 ```bash
 npm run spec [pattern]              # Complete coverage (TypeScript → Shell)
-npm run spec:ts [pattern]           # TypeScript tests only  
+npm run spec:ts [pattern]           # TypeScript tests only
 npm run spec:sh [pattern]           # Shell tests only
 
 # Examples
@@ -311,7 +290,7 @@ npm run spec:sh basic-ping             # Basic connectivity test
 
 ### **User Configuration** (`~/.config/monk/`)
 - **server.json**: Server registry with current server selection
-- **env.json**: Environment variables (DATABASE_URL, NODE_ENV, PORT)  
+- **env.json**: Environment variables (DATABASE_URL, NODE_ENV, PORT)
 - **test.json**: Test run history and configuration
 
 ### **Server Management**
@@ -330,8 +309,8 @@ monk data select account            # Lists from staging database
 ```
 
 ### **Multi-tenant Architecture**
-- **Auth Database**: `monk-api-auth` contains tenant registry
-- **Tenant Databases**: `monk-api$tenant-name` for each tenant
+- **Main Database**: `monk_main` contains tenant registry
+- **Tenant Databases**: `tenant_12345678` for each tenant
 - **JWT Routing**: Tokens contain tenant and database routing information
 - **Isolation**: Each tenant gets separate database and user management
 
@@ -340,11 +319,11 @@ monk data select account            # Lists from staging database
 # ~/.config/monk/env.json
 {
   "DATABASE_URL": "postgresql://user:pass@localhost:5432/",
-  "NODE_ENV": "development", 
+  "NODE_ENV": "development",
   "PORT": "9001"
 }
 
-# ~/.config/monk/server.json  
+# ~/.config/monk/server.json
 {
   "servers": {
     "local": {
@@ -366,9 +345,6 @@ monk data select account            # Lists from staging database
 # TypeScript compilation
 npm run compile                   # Compiles src/ to dist/
 
-# CLI regeneration (after bashly.yml changes)
-cd cli/src && bashly generate
-
 # Complete build
 npm run autoinstall              # Full environment setup
 ```
@@ -384,7 +360,7 @@ npm run version:patch
 # New features
 npm run version:minor
 
-# Major releases 
+# Major releases
 npm run version:major
 ```
 
@@ -436,7 +412,7 @@ git checkout main && git pull
 
 ### **Branch Naming Conventions**
 - **feature/description-issue-123**: New features
-- **fix/description-issue-123**: Bug fixes  
+- **fix/description-issue-123**: Bug fixes
 - **docs/description-issue-123**: Documentation
 - **refactor/description-issue-123**: Code refactoring
 
@@ -450,11 +426,9 @@ git checkout main && git pull
 - **New features**: Must include comprehensive test coverage
 - **Bug fixes**: Must include regression test
 - **API changes**: Update integration tests
-- **CLI changes**: Test with bashly regeneration
 
 ### **Documentation Updates**
 - **API changes**: Update route documentation
-- **CLI changes**: Update command help text in bashly.yml
 - **Architecture changes**: Update specialized documentation files
 - **Breaking changes**: Update migration notes
 
@@ -467,7 +441,7 @@ git checkout main && git pull
 # Setup
 npm run autoinstall
 
-# Development  
+# Development
 npm run start:dev
 monk server use local
 monk auth login local-test root
@@ -496,16 +470,12 @@ monk data select contacts <id>
 npm run version:patch
 npm run version:minor
 npm run version:major
-
-# CLI regeneration
-cd cli/src && bashly generate
 ```
 
 ### **Key Configuration Files**
 - **~/.config/monk/server.json**: Server registry and selection
-- **~/.config/monk/env.json**: Environment variables  
+- **~/.config/monk/env.json**: Environment variables
 - **~/.config/monk/test.json**: Test run history and configuration
-- **cli/src/bashly.yml**: CLI command definitions
 - **sql/init-auth.sql**: Auth database schema
 - **sql/init-tenant.sql**: Tenant database schema
 
@@ -528,7 +498,7 @@ export default withParams(async (context, { system, schema, body }) => {
 export default class UserValidator extends BaseObserver {
     ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         // Implementation
     }
@@ -539,7 +509,7 @@ export default class UserValidator extends BaseObserver {
 ```bash
 # Check system health
 npm run compile                    # TypeScript compilation
-psql -d monk-api-auth -c "SELECT 1;" # Database connectivity
+psql -d monk_main -c "SELECT 1;" # Database connectivity
 curl http://localhost:9001/health  # API server
 
 # Common fixes
@@ -554,7 +524,6 @@ rm -rf ~/.config/monk/ && npm run autoinstall # Nuclear reset
 ## 9. Recent Architectural Improvements
 
 ### **Configuration Management & Security Hardening** (August 2025)
-- **Enhanced MonkEnv.get()**: Centralized configuration with required parameter validation
 - **Eliminated Security Risks**: Removed dangerous JWT_SECRET and DATABASE_URL defaults
 - **Fail-Fast Validation**: All critical configuration values properly validated with clear error messages
 
@@ -589,6 +558,6 @@ This guide provides everything needed to contribute effectively to the Monk API 
 - **👁️ Observer Development**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for complete observer guide
 - **🧪 Testing Strategy**: Review [docs/TESTING.md](docs/TESTING.md) for comprehensive testing approaches
 - **🔧 Issues & Debugging**: Consult [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for systematic problem-solving
-- **📁 Advanced Features**: Explore [docs/FTP.md](docs/FTP.md) and [docs/FILTER.md](docs/FILTER.md) for specialized systems
+- **📁 Advanced Features**: Explore [docs/FILE.md](docs/FILE.md) and [docs/FILTER.md](docs/FILTER.md) for specialized systems
 
 Happy coding! 🚀

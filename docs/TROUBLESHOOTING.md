@@ -19,14 +19,14 @@ npm run compile                         # Verify TypeScript compilation
 npm run spec:all unit                   # Test unit tests (no external dependencies)
 
 # Check basic connectivity
-psql -d monk-api-auth -c "SELECT current_user;"   # Test direct PostgreSQL
+psql -d monk_main -c "SELECT current_user;"   # Test direct PostgreSQL
 curl http://localhost:9001/health               # Test HTTP API if running
 ```
 
 ### 2. Environment vs Code Issues
 ```bash
 # If psql works but Node.js fails → Environment issue
-# If both fail → PostgreSQL configuration issue  
+# If both fail → PostgreSQL configuration issue
 # If HTTP API works but tests fail → Test configuration issue
 # If compilation fails → Code issue
 
@@ -40,8 +40,8 @@ node --version && npm --version        # Check runtime versions
 ```bash
 # Test database layers systematically
 psql -d postgres -c "SELECT version();"                    # PostgreSQL server
-psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"   # Auth database
-psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schema;" # Tenant database
+psql -d monk_main -c "SELECT COUNT(*) FROM tenants;"   # Auth database
+psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schemas;" # Tenant database
 
 # Test Node.js database connections
 npm run spec:one spec/unit/database-connection-test.test.ts  # Direct connections
@@ -61,7 +61,7 @@ npm run spec:one spec/05-infrastructure/connectivity.test.ts # Integration tests
 # PostgreSQL 17.6+ defaults to SCRAM-SHA-256 which requires explicit passwords
 
 # Diagnostic Steps:
-psql -U $USER -d monk-api-auth -c "SELECT current_user;"    # Should work
+psql -U $USER -d monk_main -c "SELECT current_user;"    # Should work
 npm run spec:one spec/unit/tenant-service-debug.test.ts     # May fail
 
 # Verify DATABASE_URL configuration
@@ -121,7 +121,7 @@ lsof -i :9001
 netstat -tlnp | grep 9001
 
 # Check database connectivity before server start
-psql -d monk-api-auth -c "SELECT 1;"
+psql -d monk_main -c "SELECT 1;"
 
 # Check observer system
 npm run compile                         # Ensure TypeScript compiled
@@ -137,10 +137,10 @@ curl http://localhost:9001/health
 curl -H "Authorization: Bearer $(monk auth token)" http://localhost:9001/ping
 
 # Test database-dependent endpoints
-curl -X POST http://localhost:9001/ftp/list \
+curl -X POST http://localhost:9001/api/file/list \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
-  -d '{"path": "/", "ftp_options": {"show_hidden": false, "long_format": true, "recursive": false}}'
+  -d '{"path": "/", "file_options": {"show_hidden": false, "long_format": true, "recursive": false}}'
 ```
 
 ### Configuration Issues
@@ -197,20 +197,20 @@ npm run spec:one spec/05-infrastructure/connectivity.test.ts
 ```bash
 # Create diagnostic matrix
 # ✅ psql works + ❌ Node.js fails = Authentication/environment issue
-# ❌ psql fails + ❌ Node.js fails = PostgreSQL server issue  
+# ❌ psql fails + ❌ Node.js fails = PostgreSQL server issue
 # ✅ HTTP API works + ❌ Tests fail = Test configuration issue
 # ❌ HTTP API fails + ❌ Tests fail = Code/database issue
 
 # Test each layer independently
 curl http://localhost:9001/health       # HTTP layer
-npm run spec:all unit                   # Code logic layer  
+npm run spec:all unit                   # Code logic layer
 npm run spec:one spec/unit/database-connection-test.test.ts # Database layer
 ```
 
 ### Database Connection Debugging
 ```bash
 # Compare working vs failing connection patterns
-# Working: DatabaseManager (main API) 
+# Working: DatabaseManager (main API)
 # Failing: TenantService (tests)
 
 # Check connection string differences
@@ -242,20 +242,20 @@ console.log('Params:', params);
 npm run spec:one spec/unit/filter/logical-operators.test.ts
 ```
 
-### FTP Middleware Debugging
+### FS middleware Debugging
 ```bash
-# Test FTP endpoints systematically
+# Test FS endpoints systematically
 # 1. Unit tests (path parsing, utilities)
-npm run spec:all unit/ftp
+npm run spec:all unit/file
 
-# 2. Direct HTTP endpoint testing  
+# 2. Direct HTTP endpoint testing
 TOKEN=$(monk auth token)
-curl -X POST http://localhost:9001/ftp/list \
+curl -X POST http://localhost:9001/api/file/list \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"path": "/", "ftp_options": {}}'
+  -d '{"path": "/", "file_options": {}}'
 
 # 3. Integration tests (requires database)
-npm run spec:all integration/ftp
+npm run spec:all integration/file
 ```
 
 ### Observer System Debugging
@@ -276,29 +276,11 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 # "[TIME] Observer: ObserverName 1.234ms { ring: N, operation: 'create' }"
 ```
 
-### CLI Development Debugging
-```bash
-# Check CLI regeneration
-cd cli/src && bashly generate
-
-# Test CLI commands individually
-monk --help                             # Basic CLI functionality
-monk server list                       # Server configuration
-monk auth token                         # Authentication
-
-# Enable verbose CLI output
-CLI_VERBOSE=true monk data select schema
-
-# Check monk configuration
-cat ~/.config/monk/server.json
-cat ~/.config/monk/env.json
-```
-
 ### Database Operations Debugging
 ```bash
 # Check database connections
-psql -d monk-api-auth -c "SELECT current_user;"
-psql -d "monk-api\$local-test" -c "SELECT name FROM schema;"
+psql -d monk_main -c "SELECT current_user;"
+psql -d "monk-api\$local-test" -c "SELECT name FROM schemas;"
 
 # Test database operations manually
 npm run compile                         # Ensure compiled
@@ -321,12 +303,6 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 - **Use manual testing**: curl commands to verify endpoint functionality
 - **Check logs**: `npm run start:dev` provides detailed operation logging
 
-### CLI Development
-- Always regenerate CLI after bashly.yml changes: `bashly generate`
-- Use `CLI_VERBOSE=true` for detailed command output
-- Test commands individually before batch testing
-- Check `~/.config/monk/server.json` for server configuration
-
 ### Observer Development
 - **All Database operations** automatically run observer pipeline with 10-ring execution
 - **Schema objects available**: Observers receive full `Schema` objects with validation capabilities
@@ -337,7 +313,7 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 - **Test integration**: Use vitest framework for real database observer testing
 - **Check logs**: Look for `✅ Observer executed:` messages during development
 
-### Database Development  
+### Database Development
 - **All CRUD operations** now use universal observer pipeline with Schema object context
 - **Database methods** follow single→array→pipeline pattern consistently
 - **Route handlers**: Use `context.get('system').database.*()` for database operations
@@ -373,20 +349,13 @@ npm run spec:ts integration             # Run integration test suite
 
 ### Configuration Debugging
 ```bash
-# Verify all configuration files
-ls -la ~/.config/monk/
-cat ~/.config/monk/env.json | jq .
-cat ~/.config/monk/server.json | jq .
-
 # Test configuration loading
 node -e "
-  import { MonkEnv } from './dist/lib/monk-env.js';
-  console.log('DATABASE_URL:', MonkEnv.get('DATABASE_URL'));
-  console.log('JWT_SECRET:', MonkEnv.get('JWT_SECRET') ? '[SET]' : '[NOT SET]');
+  console.log('DATABASE_URL:', process.env['DATABASE_URL']);
+  console.log('JWT_SECRET:', process.env['JWT_SECRET'] ? '[SET]' : '[NOT SET]');
 "
 
 # Reset configuration if needed
-rm -rf ~/.config/monk/
 npm run autoinstall
 ```
 
@@ -401,7 +370,7 @@ npm run autoinstall
 
 # Use appropriate debugging approach for each category
 npm run compile                         # For compilation errors
-psql -d monk-api-auth -c "SELECT 1;"   # For connection errors
+psql -d monk_main -c "SELECT 1;"   # For connection errors
 monk auth token                         # For authentication errors
 npm run spec:all unit/filter            # For validation errors
 npm run spec:all unit/observers         # For observer errors

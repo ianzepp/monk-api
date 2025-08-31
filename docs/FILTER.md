@@ -2,14 +2,14 @@
 
 ## Overview
 
-The Filter system provides enterprise-grade database query building with comprehensive operator support, PostgreSQL array operations, full-text search, and advanced filtering patterns. Restored from the 2019 cloud-api implementation with modern enhancements for ACL systems and FTP wildcard translation.
+The Filter system provides enterprise-grade database query building with comprehensive operator support, PostgreSQL array operations, full-text search, and advanced filtering patterns. Restored from the 2019 cloud-api implementation with modern enhancements for ACL systems and FS wildcard translation.
 
 ## Core Features
 
 - **Enterprise Operators**: 25+ operators including PostgreSQL arrays, logical operations, search
 - **Deep Nesting**: Supports 6+ levels of logical operator nesting with proper parameter management
 - **ACL Integration**: Native PostgreSQL array operations for access control systems
-- **FTP Support**: Complex wildcard pattern translation for filesystem-like interfaces
+- **FS Support**: Complex wildcard pattern translation for filesystem-like interfaces
 - **Performance**: Optimized SQL generation with parameterized queries and caching
 - **Security**: Complete SQL injection protection and input validation
 
@@ -20,7 +20,7 @@ Main query builder with schema integration and observer pipeline support.
 
 **Important**: Filter class is responsible for **SQL generation only**. All database execution should use `Database.selectAny()` to ensure proper observer pipeline execution, validation, security, and audit logging.
 
-### FilterWhere Class (`src/lib/filter-where.ts`) 
+### FilterWhere Class (`src/lib/filter-where.ts`)
 Schema-independent WHERE clause generation for reusable filtering logic.
 
 ### FilterOrder Class (`src/lib/filter-order.ts`)
@@ -44,9 +44,9 @@ Schema-independent ORDER BY clause generation for reusable sorting logic.
 
 ## Soft Delete Integration
 
-The Filter class automatically excludes soft-deleted and permanently deleted records by adding 
-`trashed_at IS NULL` and `deleted_at IS NULL` to all generated WHERE clauses. This ensures that 
-all database queries respect both soft delete and permanent delete behavior without requiring 
+The Filter class automatically excludes soft-deleted and permanently deleted records by adding
+`trashed_at IS NULL` and `deleted_at IS NULL` to all generated WHERE clauses. This ensures that
+all database queries respect both soft delete and permanent delete behavior without requiring
 explicit filtering in application code.
 
 All user-defined WHERE conditions are combined with the automatic filters using AND logic:
@@ -56,7 +56,7 @@ WHERE trashed_at IS NULL AND deleted_at IS NULL AND (user_conditions)
 
 ### Query Parameter Overrides
 - `?include_trashed=true` - Shows trashed records: `WHERE deleted_at IS NULL AND (user_conditions)`
-- `?include_deleted=true` - Shows deleted records: `WHERE trashed_at IS NULL AND (user_conditions)`  
+- `?include_deleted=true` - Shows deleted records: `WHERE trashed_at IS NULL AND (user_conditions)`
 - Both parameters - Shows all records: `WHERE (user_conditions)`
 
 ## WHERE Clause Operators
@@ -435,9 +435,9 @@ const documents = await system.database.selectAny("documents", {
 });
 ```
 
-### FTP Wildcard Translation
+### FS Wildcard Translation
 ```typescript
-// FTP Path: /data/users/*admin*/department/*eng*/created/2024-*
+// FS Path: /data/users/*admin*/department/*eng*/created/2024-*
 // Translates to Filter:
 const filter = new Filter(system, "users", "users_table");
 filter.assign({
@@ -551,7 +551,7 @@ npm run spec:one spec/unit/filter/complex-scenarios.test.ts
 
 ### Real-World Scenarios
 - **ACL filtering**: Multi-tenant access control with PostgreSQL arrays
-- **FTP wildcards**: Complex pattern matching for filesystem interfaces
+- **FS wildcards**: Complex pattern matching for filesystem interfaces
 - **Enterprise queries**: Deep nesting with 500+ parameters
 - **Performance testing**: Large arrays and complex branching scenarios
 
@@ -559,7 +559,7 @@ npm run spec:one spec/unit/filter/complex-scenarios.test.ts
 
 - ✅ **Core Filter System**: Complete with all 25+ operators
 - ✅ **FilterWhere**: Schema-independent WHERE clause generation
-- ✅ **FilterOrder**: Schema-independent ORDER BY generation  
+- ✅ **FilterOrder**: Schema-independent ORDER BY generation
 - ✅ **PostgreSQL Arrays**: Full ACL support with array operations
 - ✅ **Logical Operators**: Deep nesting with unlimited depth
 - ✅ **Performance**: Optimized for enterprise-scale operations

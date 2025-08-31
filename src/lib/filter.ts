@@ -1,22 +1,20 @@
-import { db, type DbContext, type TxContext } from '@src/db/index.js';
-import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
 import { FilterOrder } from '@src/lib/filter-order.js';
 
 /**
  * Filter - Enterprise-Grade Database Query Builder
- * 
+ *
  * Comprehensive query builder with 25+ operators including PostgreSQL arrays, logical operations,
  * full-text search, and advanced filtering patterns. Integrates with observer pipeline and ACL systems.
- * 
+ *
  * Quick Examples:
  * - Basic: `{ name: { $ilike: "john%" }, status: "active" }`
  * - ACL: `{ access_read: { $any: ["user-123", "group-456"] } }`
  * - Logic: `{ $and: [{ $or: [{ role: "admin" }, { verified: true }] }] }`
- * 
+ *
  * Architecture: Filter → FilterWhere → FilterOrder → SQL generation
  * Integration: Observer pipeline, soft delete filtering, schema validation
- * 
+ *
  * See docs/FILTER.md for complete operator reference and examples.
  */
 
@@ -24,13 +22,13 @@ import { FilterOrder } from '@src/lib/filter-order.js';
 export enum FilterOp {
     // Comparison
     EQ = '$eq',
-    NE = '$ne', 
+    NE = '$ne',
     NEQ = '$neq',
     GT = '$gt',
     GTE = '$gte',
     LT = '$lt',
     LTE = '$lte',
-    
+
     // Pattern matching
     LIKE = '$like',
     NLIKE = '$nlike',
@@ -38,7 +36,7 @@ export enum FilterOp {
     NILIKE = '$nilike',
     REGEX = '$regex',
     NREGEX = '$nregex',
-    
+
     // Array operations
     IN = '$in',
     NIN = '$nin',
@@ -46,19 +44,19 @@ export enum FilterOp {
     ALL = '$all',
     NANY = '$nany',
     NALL = '$nall',
-    
+
     // Logical
     AND = '$and',
     OR = '$or',
     NOT = '$not',
-    
+
     // Search
     FIND = '$find',
     TEXT = '$text',
-    
+
     // Existence
     EXISTS = '$exists',
-    NULL = '$null'
+    NULL = '$null',
 }
 
 // Filter interfaces
@@ -71,12 +69,12 @@ export interface FilterWhereInfo {
 // New tree structure for complex logical operators
 export interface ConditionNode {
     type: 'condition' | 'logical';
-    
+
     // For condition nodes
     column?: string;
     operator?: FilterOp;
     data?: any;
-    
+
     // For logical nodes
     logicalOp?: '$and' | '$or' | '$not';
     children?: ConditionNode[];
@@ -100,7 +98,6 @@ export interface FilterData {
 }
 
 export class Filter {
-    private _schemaName: string;
     private _tableName: string;
     private _query: any;
     private _select: string[] = [];
@@ -116,13 +113,9 @@ export class Filter {
     private _paramValues: any[] = [];
     private _paramIndex: number = 0;
 
-    public readonly system: SystemContextWithInfrastructure;
-
-    constructor(system: SystemContextWithInfrastructure, schemaName: string, tableName: string) {
-        this.system = system;
-        this._schemaName = schemaName;
+    constructor(tableName: string) {
         this._tableName = tableName;
-        
+
         // For dynamic schemas, we'll build queries using raw SQL
         // since Drizzle's type system doesn't know about runtime tables
         this._query = null; // Will build SQL manually
@@ -230,7 +223,7 @@ export class Filter {
 
     private _processWhereObject(conditions: any): ConditionNode[] {
         const nodes: ConditionNode[] = [];
-        
+
         for (const [key, value] of Object.entries(conditions)) {
             if (key.startsWith('$')) {
                 // Logical operators
@@ -240,7 +233,7 @@ export class Filter {
                 nodes.push(...this._processFieldCondition(key, value));
             }
         }
-        
+
         return nodes;
     }
 
@@ -250,55 +243,55 @@ export class Filter {
             value.forEach((condition: any) => {
                 children.push(...this._processWhereObject(condition));
             });
-            
+
             return {
                 type: 'logical',
                 logicalOp: '$and',
-                children
+                children,
             };
         } else if (operator === FilterOp.OR && Array.isArray(value)) {
             const children: ConditionNode[] = [];
             value.forEach((condition: any) => {
                 children.push(...this._processWhereObject(condition));
             });
-            
+
             return {
                 type: 'logical',
                 logicalOp: '$or',
-                children
+                children,
             };
         } else if (operator === FilterOp.NOT && typeof value === 'object') {
             const children = this._processWhereObject(value);
-            
+
             return {
                 type: 'logical',
                 logicalOp: '$not',
-                children
+                children,
             };
         }
-        
+
         throw new Error(`Unsupported logical operator: ${operator}`);
     }
 
     private _processFieldCondition(fieldName: string, fieldValue: any): ConditionNode[] {
         const nodes: ConditionNode[] = [];
-        
+
         if (Array.isArray(fieldValue)) {
             // Auto-convert array to $in: { "id": ["uuid1", "uuid2"] } → { "id": { "$in": ["uuid1", "uuid2"] } }
             const node = {
                 type: 'condition' as const,
                 column: fieldName,
                 operator: FilterOp.IN,
-                data: fieldValue
+                data: fieldValue,
             };
-            
+
             nodes.push(node);
-            
+
             // Also add to legacy array for backward compatibility
-            this._where.push({ 
-                column: fieldName, 
-                operator: FilterOp.IN, 
-                data: fieldValue 
+            this._where.push({
+                column: fieldName,
+                operator: FilterOp.IN,
+                data: fieldValue,
             });
         } else if (typeof fieldValue === 'object' && fieldValue !== null) {
             // Complex condition: { "age": { "$gte": 18, "$lt": 65 } }
@@ -307,14 +300,14 @@ export class Filter {
                     type: 'condition',
                     column: fieldName,
                     operator: op as FilterOp,
-                    data: data
+                    data: data,
                 });
-                
+
                 // Also add to legacy array for backward compatibility
-                this._where.push({ 
-                    column: fieldName, 
-                    operator: op as FilterOp, 
-                    data: data 
+                this._where.push({
+                    column: fieldName,
+                    operator: op as FilterOp,
+                    data: data,
                 });
             }
         } else {
@@ -323,19 +316,19 @@ export class Filter {
                 type: 'condition' as const,
                 column: fieldName,
                 operator: FilterOp.EQ,
-                data: fieldValue
+                data: fieldValue,
             };
-            
+
             nodes.push(node);
-            
+
             // Also add to legacy array for backward compatibility
-            this._where.push({ 
-                column: fieldName, 
-                operator: FilterOp.EQ, 
-                data: fieldValue 
+            this._where.push({
+                column: fieldName,
+                operator: FilterOp.EQ,
+                data: fieldValue,
             });
         }
-        
+
         return nodes;
     }
 
@@ -383,13 +376,13 @@ export class Filter {
     }
 
     // Execute the query
-    // 
+    //
     // 🚨 TODO: ARCHITECTURAL ISSUE - Filter should NOT execute database operations
     // This method bypasses the observer pipeline and violates separation of concerns.
     // Should be replaced with toSQL() method that returns query + parameters.
     /**
      * Generate SQL query and parameters (Issue #102 - toSQL pattern)
-     * 
+     *
      * Returns SQL query and parameters for execution by Database methods.
      * Uses parameterized queries for security and performance (Issue #105).
      */
@@ -397,26 +390,27 @@ export class Filter {
         // Reset parameter collection for fresh query generation
         this._paramValues = [];
         this._paramIndex = 0;
-        
+
         const query = this._buildSQL();
         return { query, params: this._paramValues };
     }
 
     /**
      * Generate WHERE clause with parameters for use in custom queries
-     * 
+     *
      * Returns WHERE clause conditions and parameters that can be used
      * to build COUNT queries or other custom SQL statements.
      */
     toWhereSQL(): { whereClause: string; params: any[] } {
         // Use FilterWhere for consistent WHERE clause generation
         const whereData = this.extractWhereData();
-        const options = {
-            includeTrashed: this.system.options.trashed || false,
-            includeDeleted: this.system.options.deleted || false
-        };
-        
-        return FilterWhere.generate(whereData, 0, options);
+
+        // const options = {
+        //     includeTrashed: this.system.options.trashed || false,
+        //     includeDeleted: this.system.options.deleted || false,
+        // };
+
+        return FilterWhere.generate(whereData, 0, {});
     }
 
     /**
@@ -425,12 +419,12 @@ export class Filter {
     private extractWhereData(): any {
         // Convert Filter's internal _where conditions to FilterWhere format
         const whereData: any = {};
-        
+
         for (const whereInfo of this._where) {
             const { column, operator, data } = whereInfo;
-            
+
             if (!column) continue; // Skip conditions without column
-            
+
             if (operator === FilterOp.EQ) {
                 whereData[column] = data;
             } else {
@@ -441,41 +435,43 @@ export class Filter {
                 whereData[column][operator] = data;
             }
         }
-        
+
         return whereData;
     }
 
     /**
      * Generate COUNT query with parameters
-     * 
+     *
      * Returns a COUNT(*) query using the current filter conditions.
      * Useful for pagination and result count operations.
      */
     toCountSQL(): { query: string; params: any[] } {
         const { whereClause, params } = this.toWhereSQL();
-        
+
         let query = `SELECT COUNT(*) as count FROM "${this._tableName}"`;
         if (whereClause) {
             query += ` WHERE ${whereClause}`;
         }
-        
+
         return { query, params };
     }
 
     // Get just the WHERE clause conditions for use in other queries
     getWhereClause(): string {
         const baseConditions = [];
-        
-        // Add soft delete filtering unless explicitly included via options
-        if (!this.system.options.trashed) {
-            baseConditions.push('trashed_at IS NULL');
-        }
-        
-        // Add permanent delete filtering unless explicitly included via options
-        if (!this.system.options.deleted) {
-            baseConditions.push('deleted_at IS NULL');
-        }
-        
+
+        // TODO - This should not be here in, not all tables have trashed_at/deleted_at properties
+        //
+        // // Add soft delete filtering unless explicitly included via options
+        // if (!this.system.options.trashed) {
+        //     baseConditions.push('trashed_at IS NULL');
+        // }
+
+        // // Add permanent delete filtering unless explicitly included via options
+        // if (!this.system.options.deleted) {
+        //     baseConditions.push('deleted_at IS NULL');
+        // }
+
         // Build WHERE clause using new tree structure
         if (this._conditions.length > 0) {
             const conditionSQL = this._buildConditionTreeSQL(this._conditions);
@@ -489,7 +485,7 @@ export class Filter {
                 baseConditions.push(`(${conditions.join(' AND ')})`);
             }
         }
-        
+
         return baseConditions.length > 0 ? baseConditions.join(' AND ') : '1=1';
     }
 
@@ -498,7 +494,7 @@ export class Filter {
         // Use FilterOrder for consistent ORDER BY generation
         const orderData = this.extractOrderData();
         const orderClause = FilterOrder.generate(orderData);
-        
+
         // Remove "ORDER BY" prefix since getOrderClause() returns just the clause part
         return orderClause.replace(/^ORDER BY\s+/, '');
     }
@@ -510,7 +506,7 @@ export class Filter {
         // Convert Filter's internal _order to FilterOrder format
         return this._order.map(orderInfo => ({
             column: orderInfo.column,
-            sort: orderInfo.sort
+            sort: orderInfo.sort,
         }));
     }
 
@@ -528,9 +524,7 @@ export class Filter {
 
     private _buildSQL(): any {
         // Build SELECT clause
-        const selectClause = this._select.length > 0 && !this._select.includes('*')
-            ? this._select.map(col => `"${col}"`).join(', ')
-            : '*';
+        const selectClause = this._select.length > 0 && !this._select.includes('*') ? this._select.map(col => `"${col}"`).join(', ') : '*';
 
         // Build WHERE clause using new tree structure
         let whereClause = '';
@@ -564,13 +558,7 @@ export class Filter {
         }
 
         // Combine all clauses
-        const query = [
-            `SELECT ${selectClause}`,
-            `FROM "${this._tableName}"`,
-            whereClause,
-            orderClause,
-            limitClause
-        ].filter(Boolean).join(' ');
+        const query = [`SELECT ${selectClause}`, `FROM "${this._tableName}"`, whereClause, orderClause, limitClause].filter(Boolean).join(' ');
 
         return query;
     }
@@ -578,9 +566,7 @@ export class Filter {
     // For testing - return the SQL string directly
     private _buildSQLString(): string {
         // Build SELECT clause
-        const selectClause = this._select.length > 0 && !this._select.includes('*')
-            ? this._select.map(col => `"${col}"`).join(', ')
-            : '*';
+        const selectClause = this._select.length > 0 && !this._select.includes('*') ? this._select.map(col => `"${col}"`).join(', ') : '*';
 
         // Build WHERE clause
         let whereClause = '';
@@ -608,41 +594,35 @@ export class Filter {
         }
 
         // Combine all clauses
-        return [
-            `SELECT ${selectClause}`,
-            `FROM "${this._tableName}"`,
-            whereClause,
-            orderClause,
-            limitClause
-        ].filter(Boolean).join(' ');
+        return [`SELECT ${selectClause}`, `FROM "${this._tableName}"`, whereClause, orderClause, limitClause].filter(Boolean).join(' ');
     }
 
     // Build SQL from condition tree - supports $and, $or, $not
     private _buildConditionTreeSQL(nodes: ConditionNode[]): string {
         if (nodes.length === 0) return '';
-        
+
         const clauses = nodes.map(node => this._buildNodeSQL(node)).filter(Boolean);
-        
+
         // Multiple top-level nodes are implicitly AND-ed
         return clauses.length > 1 ? clauses.join(' AND ') : clauses[0];
     }
-    
+
     private _buildNodeSQL(node: ConditionNode): string {
         if (node.type === 'condition') {
             return this._buildConditionSQL(node);
         } else if (node.type === 'logical') {
             return this._buildLogicalSQL(node);
         }
-        
+
         return '';
     }
-    
+
     private _buildConditionSQL(node: ConditionNode): string {
         if (!node.column || !node.operator) return '';
-        
+
         const quotedColumn = `"${node.column}"`;
         const { data } = node;
-        
+
         switch (node.operator) {
             case FilterOp.EQ:
                 return `${quotedColumn} = ${this.PARAM(data)}`;
@@ -672,36 +652,30 @@ export class Filter {
                 return '';
         }
     }
-    
+
     private _buildLogicalSQL(node: ConditionNode): string {
         if (!node.children || node.children.length === 0) return '';
-        
+
         const childClauses = node.children.map(child => this._buildNodeSQL(child)).filter(Boolean);
-        
+
         if (childClauses.length === 0) return '';
-        
+
         switch (node.logicalOp) {
             case '$and':
-                return childClauses.length > 1 
-                    ? `(${childClauses.join(' AND ')})` 
-                    : childClauses[0];
-                    
+                return childClauses.length > 1 ? `(${childClauses.join(' AND ')})` : childClauses[0];
+
             case '$or':
-                return childClauses.length > 1 
-                    ? `(${childClauses.join(' OR ')})` 
-                    : childClauses[0];
-                    
+                return childClauses.length > 1 ? `(${childClauses.join(' OR ')})` : childClauses[0];
+
             case '$not':
-                return childClauses.length === 1 
-                    ? `NOT ${childClauses[0]}`
-                    : `NOT (${childClauses.join(' AND ')})`;
-                    
+                return childClauses.length === 1 ? `NOT ${childClauses[0]}` : `NOT (${childClauses.join(' AND ')})`;
+
             default:
                 logger.warn('Unsupported logical operator', { operator: node.logicalOp });
                 return '';
         }
     }
-    
+
     private _formatSQLValue(value: any): string {
         if (value === null || value === undefined) {
             return 'NULL';
@@ -720,7 +694,7 @@ export class Filter {
 
     private _buildSQLCondition(whereInfo: FilterWhereInfo): string | null {
         const { column, operator, data } = whereInfo;
-        
+
         if (!column) return null;
 
         const quotedColumn = `"${column}"`;

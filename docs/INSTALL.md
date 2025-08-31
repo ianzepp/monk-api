@@ -49,13 +49,13 @@ Define data models using JSON with JSON Schema validation:
 
 ### 🔒 Multi-Tenant Architecture
 - JWT-based tenant routing
-- Isolated databases per tenant (`monk-api$tenant-name`)
+- Isolated databases per tenant (`tenant_12345678`)
 - Dynamic database connections
 
 ### 🎭 Observer System
 Ring-based business logic execution (0-9 rings):
 - **Ring 0**: Validation
-- **Ring 2**: Business logic  
+- **Ring 2**: Business logic
 - **Ring 5**: Database execution
 - **Ring 7**: Audit logging
 - **Ring 8**: Webhooks/integrations
@@ -85,7 +85,7 @@ monk init
 monk tenant create my-app
 monk auth login my-app root
 
-# Schema management  
+# Schema management
 cat contacts.json | monk meta create schema
 monk meta select schema contacts
 
@@ -99,11 +99,11 @@ monk data select contacts
 Add business logic without touching core code:
 
 ```typescript
-// src/observers/user/0/email-validator.ts
+// src/observers/users/0/email-validator.ts
 export default class EmailValidator extends BaseObserver {
     ring = ObserverRing.Validation;
     operations = ['create', 'update'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         for (const record of context.data) {
             if (!record.email.endsWith('@company.com')) {
@@ -156,7 +156,6 @@ npm run spec:sh spec/15-authentication/basic-auth.test.sh
 ## Related Projects
 
 - **[monk-cli](https://github.com/ianzepp/monk-cli)** - Standalone CLI for remote API management
-- **[monk-api-test](https://github.com/ianzepp/monk-api-test)** - Git-aware testing framework
 
 ## License
 

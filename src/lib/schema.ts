@@ -1,21 +1,20 @@
-import { type FilterData } from '@src/lib/filter.js';
-import { type TxContext } from '@src/db/index.js';
-import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
-import { isSystemField } from '@src/lib/metabase.js';
+import pg from 'pg';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
+
+import { type FilterData } from '@src/lib/filter.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
+import { isSystemField } from '@src/lib/metabase.js';
 
 export type SchemaName = string;
 
 // Custom validation error class
 export class ValidationError extends Error {
     public readonly errors: ErrorObject[];
-    
+
     constructor(errors: ErrorObject[]) {
-        const message = errors.map(err => 
-            `${err.instancePath || 'root'}: ${err.message}`
-        ).join(', ');
-        
+        const message = errors.map(err => `${err.instancePath || 'root'}: ${err.message}`).join(', ');
+
         super(`Validation failed: ${message}`);
         this.name = 'ValidationError';
         this.errors = errors;
@@ -30,7 +29,7 @@ export class ValidationError extends Error {
 export class Schema {
     private static ajv: Ajv | null = null;
     private cachedValidator?: Function;
-    
+
     // Schema properties from database record
     private schemaName: SchemaName;
     private tableName: string;
@@ -61,15 +60,15 @@ export class Schema {
     private static getAjv(): Ajv {
         if (!Schema.ajv) {
             Schema.ajv = new Ajv({
-                allErrors: true,        // Return all validation errors
+                allErrors: true, // Return all validation errors
                 removeAdditional: false, // Don't remove additional properties
-                coerceTypes: false,     // Don't auto-convert types
-                strict: false           // Allow unknown keywords
+                coerceTypes: false, // Don't auto-convert types
+                strict: false, // Allow unknown keywords
             });
-            
+
             // Add standard format validations (email, date-time, etc.)
             addFormats(Schema.ajv);
-            
+
             logger.info('Schema AJV initialized with formats');
         }
         return Schema.ajv;
@@ -91,7 +90,7 @@ export class Schema {
         // Deep clone to avoid modifying original
         const processed = JSON.parse(JSON.stringify(definition));
         const required = processed.required || [];
-        
+
         if (processed.properties) {
             for (const [fieldName, propertyDef] of Object.entries(processed.properties)) {
                 const property = propertyDef as any;
@@ -101,10 +100,7 @@ export class Schema {
                     if (property.enum) {
                         // Convert enum to anyOf that allows null or the enum values
                         processed.properties[fieldName] = {
-                            anyOf: [
-                                { type: 'null' },
-                                { enum: property.enum }
-                            ]
+                            anyOf: [{ type: 'null' }, { enum: property.enum }],
                         };
                         // Preserve other properties like description
                         if (property.description) {
@@ -120,7 +116,7 @@ export class Schema {
                 }
             }
         }
-        
+
         return processed;
     }
 
@@ -136,21 +132,21 @@ export class Schema {
         // Get or compile validator
         if (!this.cachedValidator) {
             const ajv = Schema.getAjv();
-            
+
             // Preprocess schema to allow nulls for non-required fields
             const processedDefinition = this.preprocessSchemaForNullability(this.definition);
-            
+
             this.cachedValidator = ajv.compile(processedDefinition);
             console.debug(`Schema '${this.schemaName}': compiled validator with nullable support for non-required fields`);
         }
 
         // Validate the data
         const valid = this.cachedValidator(recordData) as boolean;
-        
+
         if (!valid && (this.cachedValidator as any).errors) {
             return {
                 valid: false,
-                errors: [...(this.cachedValidator as any).errors]
+                errors: [...(this.cachedValidator as any).errors],
             };
         }
 
@@ -220,7 +216,7 @@ export class Schema {
         return this.system.database.updateOne(this.schemaName, recordId, updates);
     }
 
-    async updateAll(updates: Array<{id: string, data: Record<string, any>}>): Promise<any[]> {
+    async updateAll(updates: Array<{ id: string; data: Record<string, any> }>): Promise<any[]> {
         return this.system.database.updateAll(this.schemaName, updates);
     }
 
@@ -272,7 +268,7 @@ export class Schema {
         return this.system.database.accessOne(this.schemaName, recordId, accessChanges);
     }
 
-    async accessAll(updates: Array<{id: string, access: Record<string, any>}>): Promise<any[]> {
+    async accessAll(updates: Array<{ id: string; access: Record<string, any> }>): Promise<any[]> {
         return this.system.database.accessAll(this.schemaName, updates);
     }
 
@@ -298,7 +294,7 @@ export class Schema {
         return {
             name: this.schemaName,
             table: this.tableName,
-            definition: this.definition
+            definition: this.definition,
         };
     }
 }
@@ -308,14 +304,14 @@ export class Schema {
  */
 export async function createSchema(system: SystemContextWithInfrastructure, schemaName: string): Promise<Schema> {
     const schemaInfo = await system.database.toSchema(schemaName);
-    
+
     if (!schemaInfo) {
         throw new Error(`Schema '${schemaName}' not found`);
     }
-    
+
     return new Schema(system, schemaName, {
         table_name: schemaInfo.table,
         definition: schemaInfo.definition,
-        status: 'active' // Assume active for legacy calls
+        status: 'active', // Assume active for legacy calls
     });
 }

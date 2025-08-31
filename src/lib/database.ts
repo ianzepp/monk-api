@@ -1,38 +1,38 @@
-import { db, builtins, type DbContext, type TxContext } from '@src/db/index.js';
+import crypto from 'crypto';
+import pg from 'pg';
+
+import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
 import { Filter, type FilterData } from '@src/lib/filter.js';
-import type { Context } from 'hono';
-import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
-import crypto from 'crypto';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
  * Database service wrapper providing high-level operations
  * Per-request instance with specific database context
- * 
+ *
  * Uses dependency injection pattern to break circular dependencies:
  * - SystemContext provides business context
- * - DbContext/TxContext injected separately for database access
+ * - pg.Pool/pg.PoolClient injected separately for database access
  */
 export class Database {
     public readonly system: SystemContextWithInfrastructure;
-    
+
     /** Maximum observer recursion depth to prevent infinite loops */
     static readonly SQL_MAX_RECURSION = 3;
 
     constructor(system: SystemContextWithInfrastructure) {
         this.system = system;
     }
-    
+
     /**
      * Get transaction-aware database context
      * Uses transaction if available, otherwise uses database connection
      */
-    private get dbContext(): DbContext | TxContext {
+    private get dbContext(): pg.Pool | pg.PoolClient {
         return this.system.tx || this.system.db;
     }
 
@@ -40,17 +40,10 @@ export class Database {
     async toSchema(schemaName: SchemaName): Promise<Schema> {
         const schemaCache = SchemaCache.getInstance();
         const schemaRecord = await schemaCache.getSchema(this.system, schemaName);
-        
+
         // Create Schema instance with validation capabilities
         const schema = new Schema(this.system, schemaName, schemaRecord);
         return schema;
-    }
-
-    // List all schemas
-    async listSchemas() {
-        const query = `SELECT * FROM ${builtins.TABLE_NAMES.schema}`;
-        const result = await this.execute(query);
-        return result.rows;
     }
 
     // Core operation. Execute raw SQL query
@@ -66,7 +59,7 @@ export class Database {
     // Count
     async count(schemaName: SchemaName, filterData: FilterData = {}): Promise<number> {
         const schema = await this.toSchema(schemaName);
-        const filter = new Filter(this.system, schemaName, schema.table).assign(filterData);
+        const filter = new Filter(schema.table).assign(filterData);
 
         // Issue #102: Use toCountSQL() pattern instead of manual query building
         const { query, params } = filter.toCountSQL();
@@ -78,11 +71,11 @@ export class Database {
     async selectAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {
         // Extract IDs from records
         const ids = records.map(record => record.id).filter(id => id !== undefined);
-        
+
         if (ids.length === 0) {
             return [];
         }
-        
+
         // Use selectAny with ID filter - lenient approach, returns what exists
         return await this.selectAny(schemaName, { where: { id: { $in: ids } } });
     }
@@ -91,7 +84,6 @@ export class Database {
         // Universal pattern: Array → Observer Pipeline
         return await this.runObserverPipeline('create', schemaName, records);
     }
-
 
     /**
      * Core batch soft delete method - optimized for multiple records.
@@ -102,7 +94,7 @@ export class Database {
         // Universal pattern: Array → Observer Pipeline
         return await this.runObserverPipeline('delete', schemaName, deletes);
     }
-    
+
     // Core data operations
     async selectOne(schemaName: SchemaName, filterData: FilterData): Promise<any | null> {
         const results = await this.selectAny(schemaName, filterData);
@@ -138,19 +130,19 @@ export class Database {
     // Advanced operations - filter-based updates/deletes
     async selectAny(schemaName: SchemaName, filterData: FilterData = {}): Promise<any[]> {
         const schema = await this.toSchema(schemaName);
-        const filter = new Filter(this.system, schemaName, schema.table).assign(filterData);
-        
+        const filter = new Filter(schema.table).assign(filterData);
+
         // Use Filter.toSQL() pattern for proper separation of concerns
         const { query, params } = filter.toSQL();
         const result = await this.system.database.execute(query, params);
-        
+
         // Convert PostgreSQL string types back to proper JSON types
         return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
-    
+
     /**
      * Convert PostgreSQL string results back to proper JSON types
-     * 
+     *
      * PostgreSQL returns all values as strings by default. This method converts
      * them back to the correct JSON types based on the schema definition.
      */
@@ -158,14 +150,14 @@ export class Database {
         if (!schema.definition?.properties) {
             return record;
         }
-        
+
         const converted = { ...record };
         const properties = schema.definition.properties;
-        
+
         for (const [fieldName, fieldDef] of Object.entries(properties)) {
             if (converted[fieldName] !== null && converted[fieldName] !== undefined) {
                 const fieldDefinition = fieldDef as any;
-                
+
                 switch (fieldDefinition.type) {
                     case 'number':
                     case 'integer':
@@ -173,19 +165,19 @@ export class Database {
                             converted[fieldName] = Number(converted[fieldName]);
                         }
                         break;
-                        
+
                     case 'boolean':
                         if (typeof converted[fieldName] === 'string') {
                             converted[fieldName] = converted[fieldName] === 'true';
                         }
                         break;
-                        
+
                     // Arrays and objects should already be handled by PostgreSQL
                     // Strings and dates can remain as strings
                 }
             }
         }
-        
+
         return converted;
     }
 
@@ -228,11 +220,11 @@ export class Database {
 
     async updateOne(schemaName: SchemaName, recordId: string, updates: Record<string, any>): Promise<any> {
         const results = await this.updateAll(schemaName, [{ id: recordId, ...updates }]);
-        
+
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found', 'RECORD_NOT_FOUND');
         }
-        
+
         return results[0];
     }
 
@@ -250,11 +242,11 @@ export class Database {
      */
     async deleteOne(schemaName: SchemaName, recordId: string): Promise<any> {
         const results = await this.deleteAll(schemaName, [{ id: recordId }]);
-        
+
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found or already trashed', 'RECORD_NOT_FOUND');
         }
-        
+
         return results[0];
     }
 
@@ -275,11 +267,11 @@ export class Database {
      */
     async revertOne(schemaName: SchemaName, recordId: string): Promise<any> {
         const results = await this.revertAll(schemaName, [{ id: recordId, trashed_at: null }]);
-        
+
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found or not trashed', 'RECORD_NOT_FOUND');
         }
-        
+
         return results[0];
     }
 
@@ -293,69 +285,62 @@ export class Database {
         if (!this.system.options.trashed) {
             throw HttpErrors.badRequest('revertAny() requires include_trashed=true option to find trashed records', 'REQUEST_INVALID_OPTIONS');
         }
-        
+
         const trashedRecords = await this.selectAny(schemaName, filterData);
-        const recordsToRevert = trashedRecords
-            .filter(record => record.trashed_at !== null)
-            .map(record => ({ id: record.id, trashed_at: null }));
-        
+        const recordsToRevert = trashedRecords.filter(record => record.trashed_at !== null).map(record => ({ id: record.id, trashed_at: null }));
+
         if (recordsToRevert.length === 0) {
             return [];
         }
-        
+
         return await this.revertAll(schemaName, recordsToRevert);
     }
 
     /**
      * Observer Pipeline Integration (Phase 3.5)
-     * 
+     *
      * Executes the complete observer pipeline for any database operation.
      * Handles recursion detection, transaction management, and selective ring execution.
      */
-    private async runObserverPipeline(
-        operation: OperationType,
-        schemaName: string,
-        data: any[],
-        depth: number = 0
-    ): Promise<any[]> {
+    private async runObserverPipeline(operation: OperationType, schemaName: string, data: any[], depth: number = 0): Promise<any[]> {
         // Recursion protection
         if (depth > Database.SQL_MAX_RECURSION) {
             throw new ObserverRecursionError(depth, Database.SQL_MAX_RECURSION);
         }
 
         const startTime = Date.now();
-        
-        logger.info('Observer pipeline started', { 
-            operation, 
-            schemaName, 
-            recordCount: data.length, 
-            depth 
+
+        logger.info('Observer pipeline started', {
+            operation,
+            schemaName,
+            recordCount: data.length,
+            depth,
         });
-        
+
         // 🎯 SINGLE POINT: Convert schemaName → schema object here
         const schema = await this.toSchema(schemaName);
-        
+
         try {
             // Execute observer pipeline with resolved schema object
             const result = await this.executeObserverPipeline(operation, schema, data, depth + 1);
-            
+
             // Commit transaction if one was started by SQL Observer
             if (this.system.tx) {
                 await this.system.tx.query('COMMIT');
-                
+
                 logger.info('Transaction committed successfully', {
                     operation,
                     schemaName: schema.name,
-                    recordCount: data.length
+                    recordCount: data.length,
                 });
-                
+
                 // Release transaction client
                 if ('release' in this.system.tx) {
                     (this.system.tx as any).release();
                 }
                 this.system.tx = undefined;
             }
-            
+
             // Performance timing for successful pipeline
             const duration = Date.now() - startTime;
             logger.info('Observer pipeline completed', {
@@ -363,36 +348,35 @@ export class Database {
                 schemaName: schema.name,
                 recordCount: data.length,
                 depth,
-                durationMs: duration
+                durationMs: duration,
             });
-            
+
             return result;
-            
         } catch (error) {
             logger.warn('Observer pipeline failed', {
                 operation,
                 schemaName: schema.name,
                 recordCount: data.length,
                 depth,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             });
-            
+
             // Rollback transaction if one was started
             if (this.system.tx) {
                 try {
                     await this.system.tx.query('ROLLBACK');
-                    
+
                     logger.warn('Transaction rolled back due to observer pipeline failure', {
                         operation,
                         schemaName: schema.name,
-                        error: error instanceof Error ? error.message : String(error)
+                        error: error instanceof Error ? error.message : String(error),
                     });
                 } catch (rollbackError) {
                     logger.warn('Failed to rollback transaction after observer failure', {
                         operation,
                         schemaName: schema.name,
                         originalError: error instanceof Error ? error.message : String(error),
-                        rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+                        rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
                     });
                 } finally {
                     // Release transaction client
@@ -402,22 +386,17 @@ export class Database {
                     this.system.tx = undefined;
                 }
             }
-            
+
             throw error instanceof Error ? error : new SystemError(`Observer pipeline failed: ${error}`);
         }
     }
-    
+
     /**
      * Execute observer pipeline within existing transaction context
      */
-    private async executeObserverPipeline(
-        operation: OperationType,
-        schema: Schema,
-        data: any[],
-        depth: number
-    ): Promise<any[]> {
+    private async executeObserverPipeline(operation: OperationType, schema: Schema, data: any[], depth: number): Promise<any[]> {
         const runner = new ObserverRunner();
-        
+
         const result = await runner.execute(
             this.system as any, // TODO: Fix System vs SystemContext type mismatch
             operation,
@@ -426,11 +405,11 @@ export class Database {
             undefined, // existing records (for updates)
             depth
         );
-        
+
         if (!result.success) {
             throw new SystemError(`Observer pipeline validation failed: ${result.errors?.map(e => e.message).join(', ')}`);
         }
-        
+
         return result.result || data;
     }
 

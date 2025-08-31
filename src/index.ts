@@ -1,6 +1,27 @@
-// Load monk configuration into process.env before other imports
-import { MonkEnv } from '@src/lib/monk-env.js';
-MonkEnv.loadIntoProcessEnv();
+// Set up global logger instance
+import { logger } from '@src/lib/logger.js';
+global.logger = logger;
+
+// Import process environment as early as possible
+import dotenv from 'dotenv';
+dotenv.config({ debug: true });
+
+// Sanity check for required env values
+if (!process.env.DATABASE_URL) {
+    throw Error('Fatal: environment is missing "DATABASE_URL"');
+}
+
+if (!process.env.PORT) {
+    throw Error('Fatal: environment is missing "PORT"');
+}
+
+if (!process.env.JWT_SECRET) {
+    throw Error('Fatal: environment is missing "JWT_SECRET"');
+}
+
+if (!process.env.NODE_ENV) {
+    throw Error('Fatal: environment is missing "NODE_ENV"');
+}
 
 // Import package.json for version info
 import { readFileSync } from 'fs';
@@ -11,165 +32,165 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
 
-// Set up global logger instance
-import { logger } from '@src/lib/logger.js';
-global.logger = logger;
-
 // Imports
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
-import { createSuccessResponse, createInternalError } from '@src/lib/api/responses.js';
-import { AuthService } from '@src/lib/auth.js';
+import { checkDatabaseConnection, closeDatabaseConnection } from '@src/lib/database-connection.js';
+import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
+
+// Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
-import { 
-    systemContextMiddleware, 
-    responseJsonMiddleware, 
-    responseFileMiddleware 
-} from '@src/lib/middleware/system-context.js';
-import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/localhost-development-only.js';
+
+// Middleware
+import * as middleware from '@src/lib/middleware/index.js';
+
+// Root API
 import { rootRouter } from '@src/routes/root/index.js';
 
-// Data API handlers (clean barrel exports)
+// Public route handlers (no authentication required)
+import * as publicAuthRoutes from '@src/public/auth/routes.js';
+
+// Public docs  (no authentication required)
+import * as publicDocsRoutes from '@src/public/docs/routes.js';
+
+// Protected API handlers (JWT + user validation required)
+import * as authRoutes from '@src/routes/auth/routes.js';
 import * as dataRoutes from '@src/routes/data/routes.js';
-
-// Meta API handlers (clean barrel exports)
 import * as metaRoutes from '@src/routes/meta/routes.js';
+import * as fileRoutes from '@src/routes/file/routes.js';
 
-// Auth handlers
-import AuthLoginPost from '@src/routes/auth/login/POST.js';               // POST /auth/login
-import AuthRefreshPost from '@src/routes/auth/refresh/POST.js';           // POST /auth/refresh
-import AuthMeGet from '@src/routes/auth/me/GET.js';                       // GET /auth/me
+// Special protected endpoints
+import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
+import FindSchemaPost from '@src/routes/find/:schema/POST.js'; // POST /api/find/:schema
 
-// FTP Middleware handlers
-import FtpListPost from '@src/routes/ftp/list.js';                        // POST /ftp/list
-import FtpRetrievePost from '@src/routes/ftp/retrieve.js';                // POST /ftp/retrieve  
-import FtpStorePost from '@src/routes/ftp/store.js';                      // POST /ftp/store
-import FtpStatPost from '@src/routes/ftp/stat.js';                        // POST /ftp/stat
-import FtpDeletePost from '@src/routes/ftp/delete.js';                    // POST /ftp/delete
-import FtpSizePost from '@src/routes/ftp/size.js';                        // POST /ftp/size
-import FtpModifyTimePost from '@src/routes/ftp/modify-time.js';           // POST /ftp/modify-time
-
-// Special endpoints
-import BulkPost from '@src/routes/bulk/POST.js';                          // POST /api/bulk
-import FindSchemaPost from '@src/routes/find/:schema/POST.js';            // POST /api/find/:schema
+// Check database connection before doing anything else
+logger.info('Checking database connection:');
+logger.info('- NODE_ENV:', process.env.NODE_ENV);
+logger.info('- DATABASE_URL:', process.env.DATABASE_URL);
+checkDatabaseConnection();
 
 // Create Hono app
 const app = new Hono();
+
+// Request tracking middleware (first - database health check + analytics)
+app.use('*', middleware.requestTrackingMiddleware);
 
 // Request logging middleware
 app.use('*', async (c, next) => {
     const start = Date.now();
     const method = c.req.method;
     const path = c.req.path;
-    
+
     await next();
-    
+
     const duration = Date.now() - start;
     const status = c.res.status;
-    
+
     logger.info('Request completed', { method, path, status, duration });
 });
 
 // Root endpoint
-app.get('/', (c) => {
-    return createSuccessResponse(c, {
+app.get('/', c => {
+    const response = {
         name: 'Monk API (Hono)',
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
-            auth: '/auth/*',
-            data: '/api/data/:schema[/:id] (protected)',
-            meta: '/api/meta/* (protected)',
+            public_auth: '/auth/* (public - token acquisition)',
+            docs: '/docs[/:api] (public)',
+            root: undefined as string | undefined,
+            auth: '/api/auth/* (protected - user management)',
+            data: '/api/data/:schema[/:record] (protected)',
+            meta: '/api/meta/:schema (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
-            root: '/api/root/* (localhost development only)',
+            file: '/api/file/* (protected)',
         },
-    });
+        documentation: {
+            auth: ['/docs/auth', '/docs/public-auth'],
+            data: ['/docs/data'],
+            meta: ['/docs/meta'],
+            file: ['/docs/file'],
+            bulk: ['/docs/bulk'],
+            find: ['/docs/find'],
+            root: ['/docs/root'],
+        },
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+        response.endpoints.root = '/api/root/* (protected - requires root JWT)';
+    }
+
+    return createSuccessResponse(c, response);
 });
 
-// Root endpoint provides API info (no database access required)
+// Note: systemContextMiddleware only applied to protected routes that need it
 
-// Auth API middleware
-app.use('/auth/*', responseJsonMiddleware);      // Auth API: JSON responses
+// Public routes (no authentication required)
+app.use('/auth/*', middleware.responseJsonMiddleware); // Public auth: JSON responses
+app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
-// Auth API routes
-app.post('/auth/login', AuthLoginPost);                             // POST /auth/login
-app.post('/auth/refresh', AuthRefreshPost);                         // POST /auth/refresh
-app.get('/auth/me', AuthService.getJWTMiddleware(), AuthService.getUserContextMiddleware(), AuthMeGet); // GET /auth/me
+// Public auth routes (token acquisition)
+app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
+app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
+app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
 
-// Root API middleware (must come before protected routes)
-app.use('/api/root/*', localhostDevelopmentOnlyMiddleware);
-app.use('/api/root/*', responseJsonMiddleware);
-
-// Root API routes
-app.route('/api/root', rootRouter);
+// Public docs routes
+app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
+app.get('/docs/:api', publicDocsRoutes.ApiGet); // GET /docs/:api
 
 // Protected API routes - require JWT authentication from /auth
-app.use('/api/*', AuthService.getJWTMiddleware());
-app.use('/api/*', AuthService.getUserContextMiddleware());
-app.use('/api/*', systemContextMiddleware);
+app.use('/api/*', middleware.jwtValidationMiddleware);
+app.use('/api/*', middleware.userValidationMiddleware);
+app.use('/api/*', middleware.systemContextMiddleware);
+app.use('/api/*', middleware.responseJsonMiddleware);
 
-// Meta API middleware
-app.use('/api/meta/*', responseJsonMiddleware);  // Meta API: JSON responses  
+// Auth API routes (protected - user account management)
+app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
+app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
 
-// Meta API routes (clean barrel export organization)
-app.post('/api/meta/schema/:name', metaRoutes.SchemaPost);          // Create schema (with URL name)
-app.post('/api/meta/schema', metaRoutes.SchemaPost);                // Create schema (legacy, JSON name only)
-app.get('/api/meta/schema/:name', metaRoutes.SchemaGet);            // Get schema
-app.put('/api/meta/schema/:name', metaRoutes.SchemaPut);            // Update schema
-app.delete('/api/meta/schema/:name', metaRoutes.SchemaDelete);      // Delete schema
+// Meta API routes
+app.post('/api/meta/:schema', metaRoutes.SchemaPost); // Create schema (with URL name)
+app.get('/api/meta/:schema', metaRoutes.SchemaGet); // Get schema
+app.put('/api/meta/:schema', metaRoutes.SchemaPut); // Update schema
+app.delete('/api/meta/:schema', metaRoutes.SchemaDelete); // Delete schema
 
-// Data API middleware
-app.use('/api/data/*', responseJsonMiddleware);  // Data API: JSON responses
-
-// Data API routes (clean barrel export organization)
-app.post('/api/data/:schema', dataRoutes.SchemaPost);               // Create records
-app.get('/api/data/:schema', dataRoutes.SchemaGet);                 // List records
-app.put('/api/data/:schema', dataRoutes.SchemaPut);                 // Bulk update records
-app.delete('/api/data/:schema', dataRoutes.SchemaDelete);           // Bulk delete records
-app.get('/api/data/:schema/:id', dataRoutes.RecordGet);             // Get single record
-app.put('/api/data/:schema/:id', dataRoutes.RecordPut);             // Update single record
-app.delete('/api/data/:schema/:id', dataRoutes.RecordDelete);       // Delete single record
-
-// File API middleware (TODO)
-app.use('/api/file/*', responseFileMiddleware);  // Future: File responses
-
-// Bulk API middleware
-app.use('/api/bulk/*', responseJsonMiddleware);  // Bulk API: JSON responses
-
-// Bulk API routes
-app.post('/api/bulk', BulkPost);
-
-// Find API middleware
-app.use('/api/find/*', responseJsonMiddleware);  // Bulk API: JSON responses
+// Data API routes
+app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records
+app.get('/api/data/:schema', dataRoutes.SchemaGet); // List records
+app.put('/api/data/:schema', dataRoutes.SchemaPut); // Bulk update records
+app.delete('/api/data/:schema', dataRoutes.SchemaDelete); // Bulk delete records
+app.get('/api/data/:schema/:record', dataRoutes.RecordGet); // Get single record
+app.put('/api/data/:schema/:record', dataRoutes.RecordPut); // Update single record
+app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete single record
 
 // Find API routes
 app.post('/api/find/:schema', FindSchemaPost);
 
-// FTP middleware
-app.use('/ftp/*', AuthService.getJWTMiddleware());
-app.use('/ftp/*', AuthService.getUserContextMiddleware());
-app.use('/ftp/*', systemContextMiddleware);
-app.use('/ftp/*', responseJsonMiddleware);
+// File API routes
+app.post('/api/file/list', fileRoutes.ListPost); // Directory listing
+app.post('/api/file/retrieve', fileRoutes.RetrievePost); // File retrieval
+app.post('/api/file/store', fileRoutes.StorePost); // File storage
+app.post('/api/file/stat', fileRoutes.StatPost); // File status
+app.post('/api/file/delete', fileRoutes.DeletePost); // File deletion
+app.post('/api/file/size', fileRoutes.SizePost); // File size
+app.post('/api/file/modify-time', fileRoutes.ModifyTimePost); // File modification time
 
-// FTP routes
-app.post('/ftp/list', FtpListPost);                                 // Directory listing
-app.post('/ftp/retrieve', FtpRetrievePost);                         // File retrieval
-app.post('/ftp/store', FtpStorePost);                               // File storage
-app.post('/ftp/stat', FtpStatPost);                                 // File status
-app.post('/ftp/delete', FtpDeletePost);                             // File deletion
-app.post('/ftp/size', FtpSizePost);                                 // File size
-app.post('/ftp/modify-time', FtpModifyTimePost);                    // File modification time
+// Bulk API routes
+app.post('/api/bulk', BulkPost);
+
+// Find API routes
+app.post('/api/find/:schema', FindSchemaPost);
+
+// Root API routes (require elevated root access)
+app.use('/api/root/*', middleware.rootAccessMiddleware);
+app.route('/api/root', rootRouter);
 
 // Error handling
-app.onError((err, c) => {
-    console.error('Unhandled error:', err);
-    return createInternalError(c, err);
-});
+app.onError((err, c) => createInternalError(c, err));
 
 // 404 handler
-app.notFound((c) => {
+app.notFound(c => {
     return c.json(
         {
             success: false,
@@ -181,7 +202,7 @@ app.notFound((c) => {
 });
 
 // Server configuration
-const port = Number(MonkEnv.get('PORT', '9001'));
+const port = Number(process.env.PORT || 9001);
 
 // Initialize observer system
 logger.info('Preloading observer system');
@@ -201,7 +222,8 @@ if (process.argv.includes('--no-startup')) {
 
 // Start HTTP server only
 logger.info('Starting Monk HTTP API Server (Hono)');
-logger.info('For FTP server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
+logger.info('For FS server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
+logger.info('For FS-like interaction via the commandline, see monk-cli project: https://github.com/ianzepp/monk-cli');
 
 const server = serve({
     fetch: app.fetch,
@@ -213,15 +235,15 @@ logger.info('HTTP API server running', { port, url: `http://localhost:${port}` }
 // Graceful shutdown
 const gracefulShutdown = async () => {
     logger.info('Shutting down HTTP API server gracefully');
-    
+
     // Stop HTTP server
     server.close();
     logger.info('HTTP server stopped');
-    
+
     // Close database connections
     await closeDatabaseConnection();
     logger.info('Database connections closed');
-    
+
     process.exit(0);
 };
 

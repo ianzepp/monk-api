@@ -15,16 +15,14 @@ describe('Fixture System Phase 2', () => {
     beforeAll(async () => {
         try {
             await TemplateDatabase.dropTemplate('basic');
-        }
-        catch (error) {
+        } catch (error) {
             // Template might not exist - that's fine
         }
     });
     afterAll(async () => {
         try {
             await TemplateDatabase.dropTemplate('basic');
-        }
-        catch (error) {
+        } catch (error) {
             // Ignore cleanup errors
         }
     });
@@ -33,7 +31,7 @@ describe('Fixture System Phase 2', () => {
             const generator = new AccountGenerator();
             const records = generator.generate(5, {
                 include_edge_cases: false,
-                realistic_names: true
+                realistic_names: true,
             });
             expect(records).toHaveLength(5);
             // Validate structure
@@ -58,14 +56,14 @@ describe('Fixture System Phase 2', () => {
             const generator = new AccountGenerator();
             const records = generator.generate(2, {
                 include_edge_cases: true,
-                realistic_names: true
+                realistic_names: true,
             });
             // Should have regular records + edge cases
             expect(records.length).toBeGreaterThan(2);
             // Find edge case records
             const nullEdgeCase = records.find(r => r.username === 'edgenull');
             const maxEdgeCase = records.find(r => r.balance === 999999.99);
-            const specialCharsCase = records.find(r => r.name.includes('O\'Reilly'));
+            const specialCharsCase = records.find(r => r.name.includes("O'Reilly"));
             expect(nullEdgeCase).toBeDefined();
             expect(maxEdgeCase).toBeDefined();
             expect(specialCharsCase).toBeDefined();
@@ -78,13 +76,17 @@ describe('Fixture System Phase 2', () => {
                 allSchemas: {},
                 existingData: { account: accounts },
                 relationships: [],
-                options: { link_to_accounts: true, realistic_names: true }
+                options: { link_to_accounts: true, realistic_names: true },
             };
             const contactGenerator = new ContactGenerator();
-            const contacts = contactGenerator.generate(5, {
-                link_to_accounts: true,
-                realistic_names: true
-            }, context);
+            const contacts = contactGenerator.generate(
+                5,
+                {
+                    link_to_accounts: true,
+                    realistic_names: true,
+                },
+                context
+            );
             expect(contacts).toHaveLength(5);
             // Validate structure
             contacts.forEach(contact => {
@@ -136,11 +138,11 @@ describe('Fixture System Phase 2', () => {
             expect(contacts.length).toBeGreaterThan(0);
             expect(fixtureData.metadata.total_records).toBe(accounts.length + contacts.length);
             // Validate relationships
-            const linkedContacts = contacts.filter((c) => c.account_id);
+            const linkedContacts = contacts.filter(c => c.account_id);
             expect(linkedContacts.length).toBeGreaterThan(0);
             // Ensure all foreign keys reference valid accounts
-            linkedContacts.forEach((contact) => {
-                const referencedAccount = accounts.find((a) => a.id === contact.account_id);
+            linkedContacts.forEach(contact => {
+                const referencedAccount = accounts.find(a => a.id === contact.account_id);
                 expect(referencedAccount).toBeDefined();
             });
         }, 10000); // Increase timeout for fixture building
@@ -166,8 +168,8 @@ describe('Fixture System Phase 2', () => {
             expect(testContext.metabase).toBeDefined();
             expect(testContext.jwtToken).toBeDefined();
             // Verify schemas exist
-            const schemas = await testContext.metabase.selectAny('schema');
-            const schemaNames = schemas.map((s) => s.name);
+            const schemas = await testContext.metabase.selectAny('schemas');
+            const schemaNames = schemas.map(s => s.name);
             expect(schemaNames).toContain('account');
             expect(schemaNames).toContain('contact');
             // Verify data exists with relationships
@@ -176,12 +178,12 @@ describe('Fixture System Phase 2', () => {
             expect(accounts.length).toBeGreaterThan(0);
             expect(contacts.length).toBeGreaterThan(0);
             // Verify relationships work
-            const linkedContacts = contacts.filter((c) => c.account_id);
+            const linkedContacts = contacts.filter(c => c.account_id);
             expect(linkedContacts.length).toBeGreaterThan(0);
             // Test a specific relationship
             const firstLinkedContact = linkedContacts[0];
             const referencedAccount = await testContext.database.selectOne('account', {
-                where: { id: firstLinkedContact.account_id }
+                where: { id: firstLinkedContact.account_id },
             });
             expect(referencedAccount).toBeDefined();
             expect(referencedAccount.id).toBe(firstLinkedContact.account_id);
@@ -201,11 +203,11 @@ describe('Fixture System Phase 2', () => {
             // Create invalid records (missing id fields)
             const invalidRecords = [
                 { name: 'Test', email: 'test@example.com' }, // Missing id
-                { id: 'valid-id', name: 'Valid', email: 'valid@example.com' }
+                { id: 'valid-id', name: 'Valid', email: 'valid@example.com' },
             ];
             const validation = generator.validate(invalidRecords, {});
             expect(validation.isValid).toBe(false);
-            expect(validation.errors).toContain('Record 0: Missing required \'id\' field');
+            expect(validation.errors).toContain("Record 0: Missing required 'id' field");
         });
     });
 });
