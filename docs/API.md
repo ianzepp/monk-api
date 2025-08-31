@@ -18,7 +18,7 @@ Routes follow intuitive file organization where file path directly maps to URL p
 ```
 /routes/data/:schema/POST.ts        → POST /api/data/:schema
 /routes/data/:schema/:id/GET.ts     → GET /api/data/:schema/:id
-/routes/meta/schema/:name/PUT.ts    → PUT /api/meta/schema/:name
+/routes/meta/:schema/PUT.ts         → PUT /api/meta/:schema
 /routes/auth/login/POST.ts          → POST /auth/login
 ```
 
@@ -65,7 +65,7 @@ POST /api/data/:schema          → Expects: [], Returns: []
 PUT /api/data/:schema           → Expects: [], Returns: []
 DELETE /api/data/:schema        → Expects: [], Returns: []
 
-# Object endpoints (single record)  
+# Object endpoints (single record)
 GET /api/data/:schema/:id       → Returns: {}
 PUT /api/data/:schema/:id       → Expects: {}, Returns: {}
 DELETE /api/data/:schema/:id    → Returns: {}
@@ -76,7 +76,7 @@ DELETE /api/data/:schema/:id    → Returns: {}
 ```bash
 # CLI automatically handles array/object conversion
 monk data create account        # Wraps {} in [] for API
-monk data select account          # Calls array endpoint  
+monk data select account          # Calls array endpoint
 monk data select account <id>      # Calls object endpoint
 monk data update account <id>   # Calls object endpoint
 ```
@@ -84,8 +84,8 @@ monk data update account <id>   # Calls object endpoint
 ## Authentication
 
 ### Multi-tenant Authentication
-- **Auth Database**: `monk-api-auth` contains tenant registry
-- **Tenant Databases**: `monk-api$tenant-name` for each tenant
+- **Monk Main Database**: `monk_main` contains tenant registry
+- **Tenant Databases**: `tenant_12345678` for each tenant
 - **JWT Routing**: Tokens contain tenant and database routing information
 - **Isolation**: Each tenant gets separate database and user management
 
@@ -93,7 +93,7 @@ monk data update account <id>   # Calls object endpoint
 ```typescript
 interface JWTPayload {
     tenant: string;        // Tenant name
-    database: string;      // Full database name (monk-api$tenant)
+    database: string;      // Full database name (tenant_12345678)
     access: string;        // User access level
     user: string;          // Username
     exp: number;           // Expiration timestamp
@@ -105,7 +105,7 @@ interface JWTPayload {
 # 1. Create tenant
 monk tenant create my-tenant
 
-# 2. Use tenant  
+# 2. Use tenant
 monk tenant use my-tenant
 
 # 3. Authenticate with tenant
@@ -215,7 +215,7 @@ Content-Type: application/json
 
 Three-tier access pattern:
 - **📋 List Operations**: Hide trashed records (`GET /api/data/:schema`)
-- **🔍 Direct Access**: Allow ID retrieval (`GET /api/data/:schema/:id`)  
+- **🔍 Direct Access**: Allow ID retrieval (`GET /api/data/:schema/:id`)
 - **🔒 Update Operations**: Block modifications until restoration
 
 ## Meta API
@@ -228,7 +228,7 @@ The Meta API handles JSON schema definitions and DDL generation:
 
 **Preferred: URL Name Pattern**
 ```bash
-POST /api/meta/schema/:name[?force=true]
+POST /api/meta/:schema[?force=true]
 Content-Type: application/json
 Authorization: Bearer <jwt>
 
@@ -257,7 +257,7 @@ Authorization: Bearer <jwt>
 
 **Legacy: JSON Name Pattern**
 ```bash
-POST /api/meta/schema
+POST /api/meta
 Content-Type: application/json
 Authorization: Bearer <jwt>
 
@@ -278,7 +278,7 @@ Authorization: Bearer <jwt>
 
 #### List Schemas
 ```bash
-GET /api/meta/schema
+GET /api/meta
 Authorization: Bearer <jwt>
 
 # Response: Array of schema names
@@ -287,7 +287,7 @@ Authorization: Bearer <jwt>
 
 #### Get Schema
 ```bash
-GET /api/meta/schema/:name
+GET /api/meta/:schema
 Authorization: Bearer <jwt>
 
 # Response: Complete JSON schema definition
@@ -295,7 +295,7 @@ Authorization: Bearer <jwt>
 
 #### Update Schema
 ```bash
-PUT /api/meta/schema/:name
+PUT /api/meta/:schema
 Content-Type: application/json
 Authorization: Bearer <jwt>
 
@@ -305,7 +305,7 @@ Authorization: Bearer <jwt>
 
 #### Delete Schema
 ```bash
-DELETE /api/meta/schema/:name
+DELETE /api/meta/:schema
 Authorization: Bearer <jwt>
 
 # Soft deletes schema and associated table
@@ -466,7 +466,7 @@ GET /api/root/tenant?include_deleted=true   # Include hard deleted
   "tenants": [
     {
       "name": "my-tenant",
-      "database": "monk-api$my-tenant", 
+      "database": "tenant_12345678",
       "host": "localhost",
       "created_at": "2025-08-26T04:42:15.283Z",
       "updated_at": "2025-08-26T04:42:15.283Z",
@@ -483,7 +483,7 @@ GET /api/root/tenant?include_deleted=true   # Include hard deleted
 ```bash
 DELETE /api/root/tenant/my-tenant
 
-# Response  
+# Response
 {
   "success": true,
   "tenant": "my-tenant",
@@ -498,7 +498,7 @@ PUT /api/root/tenant/my-tenant
 
 # Response
 {
-  "success": true, 
+  "success": true,
   "tenant": "my-tenant",
   "restored": true,
   "restored_at": "2025-08-26T04:42:44.372Z"
@@ -521,13 +521,13 @@ const tenants = await fetch('http://localhost:9001/api/root/tenant')
   .then(r => r.json());
 
 // Soft delete when done (preserves data)
-await fetch('http://localhost:9001/api/root/tenant/ui-demo', { 
-  method: 'DELETE' 
+await fetch('http://localhost:9001/api/root/tenant/ui-demo', {
+  method: 'DELETE'
 });
 
 // Restore if needed
-await fetch('http://localhost:9001/api/root/tenant/ui-demo', { 
-  method: 'PUT' 
+await fetch('http://localhost:9001/api/root/tenant/ui-demo', {
+  method: 'PUT'
 });
 ```
 
@@ -592,13 +592,13 @@ curl -X POST http://localhost:9001/api/data/users \
   -d '{"name": "Test User", "email": "test@example.com"}'
 
 # Schema operations (preferred URL pattern)
-curl -X POST http://localhost:9001/api/meta/schema/test-schema \
+curl -X POST http://localhost:9001/api/meta/test-schema \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{"title": "Test Schema", "type": "object", "properties": {"name": {"type": "string"}}}'
 
 # Schema operations (legacy pattern)
-curl -X POST http://localhost:9001/api/meta/schema \
+curl -X POST http://localhost:9001/api/meta \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{"name": "test-schema", "title": "Test Schema"}}'

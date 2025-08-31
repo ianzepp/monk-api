@@ -138,7 +138,7 @@ spec/
 # All tests
 npm run spec:ts
 
-# Series-specific  
+# Series-specific
 npm run spec:ts 11              # SQL injection security tests
 npm run spec:ts 12              # API endpoint security tests
 npm run spec:ts 15              # Authentication workflow tests
@@ -161,12 +161,12 @@ npm run spec:ts spec/44-filter/logical-operators.test.ts
 #### Security Tests (10-19 Series)
 - **Purpose**: Security validation and injection protection
 - **Coverage**: SQL injection, API security, comprehensive attack testing
-- **Series**: 
+- **Series**:
   - **11-security-sql**: SQL injection protection
   - **12-security-api**: API endpoint security
   - **13-security-comprehensive**: Multi-vector security testing
 
-#### Unit Tests (40-49 Series) 
+#### Unit Tests (40-49 Series)
 - **Purpose**: Test pure logic, utilities, parsing (no database)
 - **Count**: 210+ tests
 - **Speed**: Fast (no external dependencies)
@@ -202,7 +202,7 @@ describe('Filter Operators', () => {
         { age: { $gte: 18 } }
       ]
     });
-    
+
     expect(whereClause).toContain('AND');
     expect(params).toEqual(['active', 18]);
   });
@@ -223,10 +223,10 @@ describe('Database Operations', () => {
     // Create isolated tenant
     tenantManager = await createTestTenant();
     testContext = await createTestContext(tenantManager.tenant!, 'root');
-    
+
     // Load observers
     await ObserverLoader.preloadObservers();
-    
+
     // Create schema
     const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
     await testContext.metabase.createOne('account', schemaJson);
@@ -241,7 +241,7 @@ describe('Database Operations', () => {
       name: 'Test User',
       email: 'test@example.com'
     });
-    
+
     expect(record.id).toBeDefined();
   });
 });
@@ -332,7 +332,7 @@ describe.concurrent('Parallel Suite', () => {
 #### Shell Test Failures
 ```bash
 # Check database connectivity
-psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"
+psql -d monk_main -c "SELECT COUNT(*) FROM tenants;"
 
 # Check API server connectivity
 curl http://localhost:9001/health

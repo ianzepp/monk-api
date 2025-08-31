@@ -19,14 +19,14 @@ npm run compile                         # Verify TypeScript compilation
 npm run spec:all unit                   # Test unit tests (no external dependencies)
 
 # Check basic connectivity
-psql -d monk-api-auth -c "SELECT current_user;"   # Test direct PostgreSQL
+psql -d monk_main -c "SELECT current_user;"   # Test direct PostgreSQL
 curl http://localhost:9001/health               # Test HTTP API if running
 ```
 
 ### 2. Environment vs Code Issues
 ```bash
 # If psql works but Node.js fails → Environment issue
-# If both fail → PostgreSQL configuration issue  
+# If both fail → PostgreSQL configuration issue
 # If HTTP API works but tests fail → Test configuration issue
 # If compilation fails → Code issue
 
@@ -40,7 +40,7 @@ node --version && npm --version        # Check runtime versions
 ```bash
 # Test database layers systematically
 psql -d postgres -c "SELECT version();"                    # PostgreSQL server
-psql -d monk-api-auth -c "SELECT COUNT(*) FROM tenants;"   # Auth database
+psql -d monk_main -c "SELECT COUNT(*) FROM tenants;"   # Auth database
 psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schema;" # Tenant database
 
 # Test Node.js database connections
@@ -61,7 +61,7 @@ npm run spec:one spec/05-infrastructure/connectivity.test.ts # Integration tests
 # PostgreSQL 17.6+ defaults to SCRAM-SHA-256 which requires explicit passwords
 
 # Diagnostic Steps:
-psql -U $USER -d monk-api-auth -c "SELECT current_user;"    # Should work
+psql -U $USER -d monk_main -c "SELECT current_user;"    # Should work
 npm run spec:one spec/unit/tenant-service-debug.test.ts     # May fail
 
 # Verify DATABASE_URL configuration
@@ -121,7 +121,7 @@ lsof -i :9001
 netstat -tlnp | grep 9001
 
 # Check database connectivity before server start
-psql -d monk-api-auth -c "SELECT 1;"
+psql -d monk_main -c "SELECT 1;"
 
 # Check observer system
 npm run compile                         # Ensure TypeScript compiled
@@ -197,20 +197,20 @@ npm run spec:one spec/05-infrastructure/connectivity.test.ts
 ```bash
 # Create diagnostic matrix
 # ✅ psql works + ❌ Node.js fails = Authentication/environment issue
-# ❌ psql fails + ❌ Node.js fails = PostgreSQL server issue  
+# ❌ psql fails + ❌ Node.js fails = PostgreSQL server issue
 # ✅ HTTP API works + ❌ Tests fail = Test configuration issue
 # ❌ HTTP API fails + ❌ Tests fail = Code/database issue
 
 # Test each layer independently
 curl http://localhost:9001/health       # HTTP layer
-npm run spec:all unit                   # Code logic layer  
+npm run spec:all unit                   # Code logic layer
 npm run spec:one spec/unit/database-connection-test.test.ts # Database layer
 ```
 
 ### Database Connection Debugging
 ```bash
 # Compare working vs failing connection patterns
-# Working: DatabaseManager (main API) 
+# Working: DatabaseManager (main API)
 # Failing: TenantService (tests)
 
 # Check connection string differences
@@ -248,7 +248,7 @@ npm run spec:one spec/unit/filter/logical-operators.test.ts
 # 1. Unit tests (path parsing, utilities)
 npm run spec:all unit/ftp
 
-# 2. Direct HTTP endpoint testing  
+# 2. Direct HTTP endpoint testing
 TOKEN=$(monk auth token)
 curl -X POST http://localhost:9001/ftp/list \
   -H "Authorization: Bearer $TOKEN" \
@@ -297,7 +297,7 @@ cat ~/.config/monk/env.json
 ### Database Operations Debugging
 ```bash
 # Check database connections
-psql -d monk-api-auth -c "SELECT current_user;"
+psql -d monk_main -c "SELECT current_user;"
 psql -d "monk-api\$local-test" -c "SELECT name FROM schema;"
 
 # Test database operations manually
@@ -337,7 +337,7 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 - **Test integration**: Use vitest framework for real database observer testing
 - **Check logs**: Look for `✅ Observer executed:` messages during development
 
-### Database Development  
+### Database Development
 - **All CRUD operations** now use universal observer pipeline with Schema object context
 - **Database methods** follow single→array→pipeline pattern consistently
 - **Route handlers**: Use `context.get('system').database.*()` for database operations
@@ -401,7 +401,7 @@ npm run autoinstall
 
 # Use appropriate debugging approach for each category
 npm run compile                         # For compilation errors
-psql -d monk-api-auth -c "SELECT 1;"   # For connection errors
+psql -d monk_main -c "SELECT 1;"   # For connection errors
 monk auth token                         # For authentication errors
 npm run spec:all unit/filter            # For validation errors
 npm run spec:all unit/observers         # For observer errors

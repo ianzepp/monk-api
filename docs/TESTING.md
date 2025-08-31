@@ -13,7 +13,7 @@ npm run spec
 # Run TypeScript tests only
 npm run spec:ts
 
-# Run shell tests only  
+# Run shell tests only
 npm run spec:sh
 ```
 
@@ -105,7 +105,7 @@ Each test gets an isolated tenant database:
 ```bash
 # Check system health
 npm run compile                    # TypeScript compilation
-psql -d monk-api-auth -c "SELECT 1;" # Database connectivity
+psql -d monk_main -c "SELECT 1;" # Database connectivity
 curl http://localhost:9001/health  # API server
 
 # Common fixes
