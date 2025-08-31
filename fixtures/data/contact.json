@@ -1,0 +1,49 @@
+[
+    {
+        "name": "David Miller",
+        "email": "david.miller@client.com",
+        "phone": "+15551234567",
+        "company": "Miller & Associates",
+        "status": "active",
+        "notes": "Primary contact for Miller & Associates account"
+    },
+    {
+        "name": "Sarah Connor",
+        "email": "sarah@techcorp.com",
+        "phone": "+15559876543",
+        "company": "TechCorp Solutions",
+        "status": "active",
+        "notes": "Technical lead, prefers email communication"
+    },
+    {
+        "name": "Mike Thompson",
+        "email": "mike.thompson@startup.io",
+        "phone": "+15554567890",
+        "company": "Innovation Startup",
+        "status": "prospect",
+        "notes": "Interested in premium features, follow up in Q3"
+    },
+    {
+        "name": "Lisa Rodriguez",
+        "email": "lisa@consulting.biz",
+        "phone": "+15553210987",
+        "company": "Rodriguez Consulting",
+        "status": "active",
+        "notes": "Long-term client, very satisfied with service"
+    },
+    {
+        "name": "Tom Wilson",
+        "email": "tom.wilson@oldcorp.com",
+        "company": "Legacy Corp",
+        "status": "inactive",
+        "notes": "Account closed, contact moved to competitor"
+    },
+    {
+        "name": "Emily Johnson",
+        "email": "emily@newventure.com",
+        "phone": "+15555551234",
+        "company": "New Venture LLC",
+        "status": "prospect",
+        "notes": "Demo scheduled for next week"
+    }
+]

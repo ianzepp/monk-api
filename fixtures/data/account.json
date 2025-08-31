@@ -1,0 +1,54 @@
+[
+    {
+        "name": "John Smith",
+        "email": "john.smith@example.com",
+        "username": "jsmith",
+        "account_type": "personal",
+        "balance": 1250.75,
+        "is_active": true,
+        "is_verified": true
+    },
+    {
+        "name": "Jane Doe",
+        "email": "jane.doe@business.com",
+        "username": "jdoe",
+        "account_type": "business",
+        "balance": 5000.00,
+        "is_active": true,
+        "is_verified": true,
+        "credit_limit": 10000
+    },
+    {
+        "name": "Bob Johnson",
+        "email": "bob@startup.io",
+        "username": "bjohnson",
+        "account_type": "trial",
+        "balance": 0,
+        "is_active": true,
+        "is_verified": false
+    },
+    {
+        "name": "Alice Wilson",
+        "email": "alice.wilson@corp.com",
+        "username": "awilson",
+        "account_type": "premium",
+        "balance": 2500.25,
+        "is_active": true,
+        "is_verified": true,
+        "credit_limit": 5000,
+        "preferences": {
+            "theme": "dark",
+            "notifications": true,
+            "language": "en"
+        }
+    },
+    {
+        "name": "Charlie Brown",
+        "email": "charlie@demo.test",
+        "username": "cbrown",
+        "account_type": "personal",
+        "balance": 150.00,
+        "is_active": false,
+        "is_verified": false
+    }
+]
