@@ -15,9 +15,9 @@ wait_for_server
 
 # Test 1: Create isolated test tenant
 print_step "Creating isolated test tenant"
-tenant_info=$(create_isolated_test_tenant "isolation_test")
-tenant_name=$(echo "$tenant_info" | cut -d' ' -f1)
-db_name=$(echo "$tenant_info" | cut -d' ' -f2)
+create_isolated_test_tenant "isolation_test" >/dev/null
+tenant_name="$TEST_TENANT_NAME"
+db_name="$TEST_DATABASE_NAME"
 
 if [[ -n "$tenant_name" && -n "$db_name" ]]; then
     print_success "Created isolated tenant: $tenant_name"
