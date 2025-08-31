@@ -1,10 +1,8 @@
 import type { Context } from 'hono';
-import { AuthService } from '@src/lib/auth.js';
-import { setRouteResult } from '@src/lib/middleware/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /auth/register - Generate a new tenant for the supplied tenant and username
+ * POST /auth/register - User registration (not implemented)
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
@@ -19,6 +17,10 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
     }
 
-    // TODO
-    HttpErrors.forbidden('Tenant self-registration is not yet implemented', 'UNIMPLEMENTED');
+    // Return not implemented directly
+    return context.json({
+        success: false,
+        error: 'Tenant self-registration is not yet implemented',
+        error_code: 'UNIMPLEMENTED'
+    }, 403);
 }

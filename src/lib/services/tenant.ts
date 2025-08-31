@@ -8,7 +8,7 @@
  * by the API server. It's intended for CLI operations and testing only.
  *
  * Consolidates functionality from:
- * - AuthService (login, JWT operations, tenant validation)
+ * - JWT operations handled by middleware and route handlers
  * - TenantManager (tenant CRUD operations)
  */
 

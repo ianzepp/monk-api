@@ -20,7 +20,6 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/lib/database-connection.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
-import { AuthService } from '@src/lib/auth.js';
 
 // Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
@@ -108,10 +107,7 @@ app.get('/', c => {
     return createSuccessResponse(c, response);
 });
 
-// All requests generate a system context, which starts out as an unauthenticated
-// user. This is to allow consistency in internal expectations around what structures
-// exist at any given moment.
-app.use('/*', middleware.systemContextMiddleware);
+// Note: systemContextMiddleware only applied to protected routes that need it
 
 // Public routes (no authentication required)
 app.use('/auth/*', middleware.responseJsonMiddleware); // Public auth: JSON responses
@@ -129,6 +125,7 @@ app.get('/docs/:api', publicDocsRoutes.ApiGet); // GET /docs/:api
 // Protected API routes - require JWT authentication from /auth
 app.use('/api/*', middleware.jwtValidationMiddleware);
 app.use('/api/*', middleware.userValidationMiddleware);
+app.use('/api/*', middleware.systemContextMiddleware);
 app.use('/api/*', middleware.responseJsonMiddleware);
 
 // Auth API routes (protected - user account management)

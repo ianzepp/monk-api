@@ -1,7 +1,8 @@
 import type { Context } from 'hono';
+import { sign } from 'hono/jwt';
 import { setRouteResult } from '@src/lib/middleware/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { AuthService } from '@src/lib/auth.js';
+import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 
 /**
  * POST /api/auth/sudo - Elevate user privileges to root level
@@ -44,7 +45,25 @@ export default async function (context: Context) {
         elevation_reason: reason
     };
     
-    const rootToken = await AuthService.generateElevatedToken(rootUser, 900); // 15 minutes
+    // Generate short-lived root token directly
+    const payload: JWTPayload = {
+        sub: rootUser.id,
+        user_id: rootUser.user_id,
+        tenant: rootUser.tenant,
+        database: rootUser.database,
+        access: rootUser.access,
+        access_read: rootUser.access_read || [],
+        access_edit: rootUser.access_edit || [],
+        access_full: rootUser.access_full || [],
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 900, // 15 minutes
+        // Elevation metadata
+        elevated_from: rootUser.elevated_from,
+        elevated_at: rootUser.elevated_at,
+        elevation_reason: rootUser.elevation_reason
+    };
+
+    const rootToken = await sign(payload, process.env['JWT_SECRET']!);
     
     // Log privilege escalation for security audit
     logger.warn('Privilege escalation granted', {
