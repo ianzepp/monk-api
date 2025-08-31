@@ -19,19 +19,19 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 print_step() {
-    echo -e "${BLUE}→ $1${NC}"
+    echo -e "${BLUE}→ $1${NC}" >&2
 }
 
 print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    echo -e "${GREEN}✓ $1${NC}" >&2
 }
 
 print_error() {
-    echo -e "${RED}✗ $1${NC}"
+    echo -e "${RED}✗ $1${NC}" >&2
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
+    echo -e "${YELLOW}⚠ $1${NC}" >&2
 }
 
 # Generate tenant database name using production hashing logic
@@ -104,6 +104,8 @@ create_isolated_test_tenant() {
     export TEST_DATABASE_NAME="$db_name"
     
     print_success "Test tenant ready: $tenant_name → $db_name"
+    
+    # Return only the tenant name (stdout)
     echo "$tenant_name"
 }
 

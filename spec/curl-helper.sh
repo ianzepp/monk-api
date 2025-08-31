@@ -150,7 +150,12 @@ root_delete() {
 login_user() {
     local tenant="$1"
     local username="$2"
-    api_post "auth/login" "{\"tenant\":\"$tenant\",\"username\":\"$username\"}"
+    
+    # Use jq to properly escape JSON to avoid control character issues
+    local json_data=$(jq -n --arg tenant "$tenant" --arg username "$username" \
+        '{tenant: $tenant, username: $username}')
+    
+    api_post "auth/login" "$json_data"
 }
 
 get_user_token() {
@@ -167,7 +172,10 @@ get_user_token() {
 
 escalate_sudo() {
     local reason="${1:-Testing operations}"
-    local response=$(auth_post "api/auth/sudo" "{\"reason\":\"$reason\"}")
+    
+    # Use jq to properly escape JSON
+    local json_data=$(jq -n --arg reason "$reason" '{reason: $reason}')
+    local response=$(auth_post "api/auth/sudo" "$json_data")
     
     if echo "$response" | jq -e '.success == true' >/dev/null; then
         echo "$response" | jq -r '.data.root_token'
