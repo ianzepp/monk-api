@@ -6,6 +6,6 @@ export default withParams(async (context, { system, schema }) => {
     // Delete schema via Metabase
     const result = await system.metabase.deleteOne(schema!);
 
-    // Set result for middleware formatting (DELETE returns JSON, not YAML)
+    // Set result for middleware formatting (DELETE returns JSON, not JSON)
     setRouteResult(context, result);
 });

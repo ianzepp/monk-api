@@ -88,7 +88,7 @@ The File API supports advanced pattern matching:
 
 **Supported Patterns:**
 - `*` - Match any characters
-- `?` - Match single character  
+- `?` - Match single character
 - `(admin|mod)` - Alternative patterns
 - `[01-12]` - Range patterns
 - `/data/*/recent_activity/` - Cross-schema patterns
@@ -163,7 +163,6 @@ File content retrieval with resume support and multiple formats.
 
 ### Supported Formats
 - `json` - Structured JSON (default)
-- `yaml` - YAML format
 - `raw` - Raw string content
 
 ### Success Response (200)
@@ -559,7 +558,7 @@ File modification timestamp query in filesystem format.
 // Start from root
 const root = await fetch('/api/file/list', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
@@ -569,7 +568,7 @@ const root = await fetch('/api/file/list', {
 // Browse schemas
 const schemas = await fetch('/api/file/list', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
@@ -579,7 +578,7 @@ const schemas = await fetch('/api/file/list', {
 // Browse records in a schema
 const users = await fetch('/api/file/list', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
@@ -592,7 +591,7 @@ const users = await fetch('/api/file/list', {
 // Get complete record
 const user = await fetch('/api/file/retrieve', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
@@ -605,7 +604,7 @@ const user = await fetch('/api/file/retrieve', {
 // Update specific field
 await fetch('/api/file/store', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
@@ -622,7 +621,7 @@ await fetch('/api/file/store', {
 // Find all admin users in engineering departments
 const results = await fetch('/api/file/list', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
@@ -641,7 +640,7 @@ const results = await fetch('/api/file/list', {
 // Create multiple records atomically
 const transaction = await fetch('/api/file/store', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
@@ -655,7 +654,7 @@ const transaction = await fetch('/api/file/store', {
 // Use same transaction for related operations
 await fetch('/api/file/store', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
@@ -663,8 +662,8 @@ await fetch('/api/file/store', {
     path: '/data/users/batch-user-2.json',
     content: { name: 'User 2', email: 'user2@example.com' },
     file_options: { atomic: true },
-    metadata: { 
-      transaction_id: transaction.transaction_info.transaction_id 
+    metadata: {
+      transaction_id: transaction.transaction_info.transaction_id
     }
   })
 });
@@ -680,16 +679,16 @@ The File API is designed to work seamlessly with FTP servers:
 ftpServer.on('LIST', async (path, callback) => {
   const response = await fetch('/api/file/list', {
     method: 'POST',
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       path: path,
       file_options: { long_format: true }
     })
   });
-  
-  const listing = response.entries.map(entry => 
+
+  const listing = response.entries.map(entry =>
     `${entry.file_permissions} ${entry.file_size} ${entry.file_modified} ${entry.name}`
   );
-  
+
   callback(listing.join('\n'));
 });
 
@@ -697,12 +696,12 @@ ftpServer.on('LIST', async (path, callback) => {
 ftpServer.on('RETR', async (path, callback) => {
   const response = await fetch('/api/file/retrieve', {
     method: 'POST',
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       path: path,
       file_options: { format: 'raw' }
     })
   });
-  
+
   callback(response.content);
 });
 ```
@@ -724,7 +723,7 @@ async function loadDirectory(path) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path })
   });
-  
+
   const data = await response.json();
   displayFiles(data.entries);
 }

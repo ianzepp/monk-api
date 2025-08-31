@@ -8,7 +8,7 @@ export interface FileRetrieveRequest {
         binary_mode: boolean; // File transfer mode
         start_offset: number; // Resume support
         max_bytes?: number; // Partial transfer
-        format?: 'json' | 'yaml' | 'raw';
+        format?: 'json' | 'raw';
     };
 }
 
@@ -28,14 +28,9 @@ export interface FileRetrieveResponse {
  * File Content Formatter - Format content for File transfer
  */
 class FileContentFormatter {
-    static formatContent(content: any, format: 'json' | 'yaml' | 'raw', binaryMode: boolean): string {
+    static formatContent(content: any, format: 'json' | 'raw', binaryMode: boolean): string {
         if (format === 'raw' || typeof content === 'string') {
             return String(content);
-        }
-
-        if (format === 'yaml') {
-            // TODO: Add YAML formatting when needed
-            return JSON.stringify(content, null, 2);
         }
 
         // Default JSON formatting
@@ -46,11 +41,9 @@ class FileContentFormatter {
         return Buffer.byteLength(content, 'utf8');
     }
 
-    static getContentType(format: 'json' | 'yaml' | 'raw', fieldName?: string): string {
+    static getContentType(format: 'json' | 'raw', fieldName?: string): string {
         switch (format) {
             case 'json':
-                return 'application/json';
-            case 'yaml':
                 return 'application/json';
             case 'raw':
                 // Guess content type based on field name

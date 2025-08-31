@@ -61,7 +61,7 @@ export function isSystemField(fieldName: string): boolean {
 /**
  * Metabase Class - Schema Definition Management
  *
- * Handles schema YAML operations following the same patterns as Database class.
+ * Handles schema JSON operations following the same patterns as Database class.
  * Focused purely on schema definition management (no list operations - use Data API).
  *
  * Architecture:
@@ -74,7 +74,7 @@ export class Metabase {
     constructor(private system: System) {}
 
     /**
-     * Create new schema from YAML content
+     * Create new schema from JSON content
      */
     async createOne(schemaName: string, jsonContent: any): Promise<any> {
         return await this.run('create', schemaName, async (tx: pg.PoolClient) => {
@@ -101,7 +101,7 @@ export class Metabase {
     }
 
     /**
-     * Get schema as YAML content
+     * Get schema as JSON content
      */
     async selectOne(schemaName: string): Promise<string> {
         const db = this.system.db;
@@ -124,7 +124,7 @@ export class Metabase {
     }
 
     /**
-     * Update existing schema from YAML content
+     * Update existing schema from JSON content
      */
     async updateOne(schemaName: string, jsonContent: any): Promise<any> {
         return await this.run('update', schemaName, async (tx: pg.PoolClient) => {
@@ -137,7 +137,7 @@ export class Metabase {
             // Update schema metadata record
             const updateQuery = `
                 UPDATE schemas
-                SET definition = $1, field_count = $2, yaml_checksum = $3, updated_at = NOW()
+                SET definition = $1, field_count = $2, json_checksum = $3, updated_at = NOW()
                 WHERE name = $4
                 RETURNING *
             `;
@@ -221,14 +221,14 @@ export class Metabase {
     }
 
     /**
-     * Parse YAML content to JSON Schema (public method for route handlers)
+     * Parse JSON content to JSON Schema (public method for route handlers)
      */
     parseSchema(jsonContent: any): JsonSchema {
         return this.parseJsonSchema(jsonContent);
     }
 
     /**
-     * Parse YAML content to JSON Schema (internal implementation)
+     * Parse JSON content to JSON Schema (internal implementation)
      */
     private parseJsonSchema(jsonContent: any): JsonSchema {
         if (!jsonContent || typeof jsonContent !== 'object') {
@@ -351,7 +351,7 @@ export class Metabase {
 
         const insertQuery = `
             INSERT INTO schemas
-            (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
+            (id, name, table_name, status, definition, field_count, json_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), '{}', '{}', '{}', '{}')
             RETURNING *
         `;

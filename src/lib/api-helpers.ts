@@ -6,7 +6,7 @@ import { createSchema } from '@src/lib/schema.js';
 
 /**
  * API Request/Response Helpers
- * 
+ *
  * Combined utilities for API route handling including parameter extraction,
  * content-type processing, error handling, and response formatting.
  */
@@ -90,11 +90,6 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
             // Handle JSON content
             if (params.contentType.includes('application/json')) {
                 params.body = await context.req.json(); // Parsed JSON
-            }
-
-            // All schema definitions now use JSON
-            else if (params.contentType.includes('text/yaml') || params.contentType.includes('application/yaml')) {
-                throw new Error('YAML content-type no longer supported. Use application/json instead.');
             }
 
             // Handle binary content for file uploads

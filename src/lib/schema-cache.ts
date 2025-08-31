@@ -5,7 +5,7 @@ import type { SystemContextWithInfrastructure } from '@src/lib/system-context-ty
 // Cached schema entry
 interface CachedSchema {
     schema: any | null; // Full schema object (lazy loaded)
-    yamlChecksum: string; // Checksum for cache validation
+    jsonChecksum: string; // Checksum for cache validation
     updatedAt: string; // Last update timestamp
     validator?: Function; // Compiled JSON Schema validator (lazy loaded)
 }
@@ -21,7 +21,7 @@ interface DatabaseCache {
  * Multi-database schema caching system with checksum-based invalidation
  *
  * Each database gets its own cache space to handle multi-tenant architecture.
- * Uses yaml_checksum for efficient cache validation without fetching full schemas.
+ * Uses json_checksum for efficient cache validation without fetching full schemas.
  */
 export class SchemaCache {
     private static instance: SchemaCache | null = null;
@@ -75,9 +75,9 @@ export class SchemaCache {
     /**
      * Load all schema checksums for a database
      */
-    private async loadSchemaChecksums(dtx: pg.Pool | pg.PoolClient): Promise<{ name: string; yaml_checksum: string; updated_at: string }[]> {
+    private async loadSchemaChecksums(dtx: pg.Pool | pg.PoolClient): Promise<{ name: string; json_checksum: string; updated_at: string }[]> {
         const result = await dtx.query(`
-            SELECT name, yaml_checksum, updated_at
+            SELECT name, json_checksum, updated_at
             FROM schema
             WHERE status IN ('active', 'system')
         `);
@@ -104,7 +104,7 @@ export class SchemaCache {
                 // Query specific schemas using raw SQL (consistent with our approach)
                 const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
                 const result = await dtx.query(`
-                    SELECT name, yaml_checksum, updated_at
+                    SELECT name, json_checksum, updated_at
                     FROM schema
                     WHERE name IN (${quotedNames}) AND status IN ('active', 'system')
                 `);
@@ -118,7 +118,7 @@ export class SchemaCache {
             for (const row of currentChecksums as any[]) {
                 const cached = dbCache.schemas.get(row.name);
 
-                if (cached && cached.yamlChecksum !== row.yaml_checksum) {
+                if (cached && cached.jsonChecksum !== row.json_checksum) {
                     // Checksum mismatch - invalidate cache entry
                     dbCache.schemas.delete(row.name);
                     logger.info('Schema cache invalidated', { schemaName: row.name, reason: 'checksum changed' });
@@ -126,7 +126,7 @@ export class SchemaCache {
                     // New schema found - add minimal cache entry
                     dbCache.schemas.set(row.name, {
                         schema: null, // Lazy load
-                        yamlChecksum: row.yaml_checksum,
+                        jsonChecksum: row.json_checksum,
                         updatedAt: row.updated_at,
                         validator: undefined,
                     });
@@ -190,7 +190,7 @@ export class SchemaCache {
             // Shouldn't happen after validateCacheChecksums, but handle gracefully
             dbCache.schemas.set(schemaName, {
                 schema,
-                yamlChecksum: schema.yaml_checksum || '',
+                jsonChecksum: schema.json_checksum || '',
                 updatedAt: schema.updated_at,
                 validator: undefined,
             });

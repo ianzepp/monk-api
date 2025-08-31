@@ -5,7 +5,7 @@ Lightweight PaaS backend API built with **Hono** and **TypeScript**, featuring o
 ## What is Monk API?
 
 A high-performance backend API that provides:
-- **Schema-first development** - Define your data models in YAML
+- **Schema-first development** - Define your data models in JSON
 - **Multi-tenant architecture** - Each tenant gets isolated databases
 - **Observer pattern** - Event-driven business logic hooks
 - **REST API** - Full programmatic management interface

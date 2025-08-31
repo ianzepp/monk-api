@@ -17,7 +17,7 @@ CREATE TABLE "schemas" (
 	"status" text DEFAULT 'pending' NOT NULL,
 	"definition" jsonb NOT NULL,
 	"field_count" text NOT NULL,
-	"yaml_checksum" text,
+	"json_checksum" text,
 	CONSTRAINT "schema_name_unique" UNIQUE("name"),
 	CONSTRAINT "schema_table_name_unique" UNIQUE("table_name")
 );
@@ -83,7 +83,7 @@ CREATE TABLE "pings" (
 
 -- Insert self-reference row to enable recursive schema discovery via data API
 -- This allows GET /api/data/schemas to work by querying the schema table itself
-INSERT INTO "schemas" (name, table_name, status, definition, field_count, yaml_checksum)
+INSERT INTO "schemas" (name, table_name, status, definition, field_count, json_checksum)
 VALUES (
     'schemas',
     'schemas',
@@ -124,10 +124,10 @@ VALUES (
                 "description": "Number of fields in schema",
                 "example": "5"
             },
-            "yaml_checksum": {
+            "json_checksum": {
                 "type": "string",
                 "pattern": "^[a-f0-9]{64}$",
-                "description": "SHA256 checksum of original YAML",
+                "description": "SHA256 checksum of original JSON",
                 "example": "a1b2c3d4..."
             }
         },
@@ -140,7 +140,7 @@ VALUES (
 
 -- Insert user schema registration to enable user API access
 -- This allows GET /api/data/users and GET /api/meta/users to work
-INSERT INTO "schemas" (name, table_name, status, definition, field_count, yaml_checksum)
+INSERT INTO "schemas" (name, table_name, status, definition, field_count, json_checksum)
 VALUES (
     'users',
     'users',

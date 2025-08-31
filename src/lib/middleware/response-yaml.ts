@@ -1,15 +1,15 @@
 /**
- * YAML Response Middleware
+ * JSON Response Middleware
  *
- * Automatically formats route results as YAML responses and handles errors consistently.
+ * Automatically formats route results as JSON responses and handles errors consistently.
  */
 
 import type { Context, Next } from 'hono';
 
 /**
- * YAML response middleware for /api/meta/* routes
+ * JSON response middleware for /api/meta/* routes
  *
- * Automatically formats route results as YAML responses and handles errors consistently.
+ * Automatically formats route results as JSON responses and handles errors consistently.
  */
 export async function responseYamlMiddleware(context: Context, next: Next) {
     try {
