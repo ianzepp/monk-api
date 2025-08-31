@@ -12,6 +12,7 @@ set -e
 #   --clean-node    Delete node_modules and reinstall dependencies
 #   --clean-dist    Delete dist/ directory and recompile TypeScript
 #   --clean-auth    Delete and recreate monk_main database
+#   --force         Run all --clean-* operations for complete fresh install
 #   --help          Show this help message
 #
 # What this script does:
@@ -79,6 +80,7 @@ handle_error() {
 CLEAN_NODE=false
 CLEAN_DIST=false
 CLEAN_AUTH=false
+FORCE_CLEAN=false
 SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
@@ -92,6 +94,13 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --clean-auth)
+            CLEAN_AUTH=true
+            shift
+            ;;
+        --force)
+            FORCE_CLEAN=true
+            CLEAN_NODE=true
+            CLEAN_DIST=true
             CLEAN_AUTH=true
             shift
             ;;
@@ -118,6 +127,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo "  --clean-node    Delete node_modules and reinstall dependencies"
     echo "  --clean-dist    Delete dist/ directory and recompile TypeScript"
     echo "  --clean-auth    Delete and recreate monk_main database"
+    echo "  --force         Run all --clean-* operations for complete fresh install"
     echo "  --help, -h      Show this help message"
     echo
     echo "This script automates all setup steps from INSTALL.md for a complete"
@@ -128,6 +138,11 @@ fi
 print_header "Monk API Automated Fresh Install"
 print_info "This script will set up a complete development environment"
 print_info "Following the steps from INSTALL.md automatically"
+
+# Show force mode status
+if [ "$FORCE_CLEAN" = true ]; then
+    print_warning "FORCE MODE: Will clean all components (node_modules, dist, auth database)"
+fi
 echo
 
 # Step 1: Verify PostgreSQL Connection and DATABASE_URL
@@ -244,54 +259,54 @@ print_header "Step 4: Initialize Main Database"
 
 # Handle --clean-auth option
 if [ "$CLEAN_AUTH" = true ]; then
-    print_step "Clean auth requested - removing existing auth database..."
+    print_step "Clean main database requested - removing existing monk_main database..."
     if psql -lqt | cut -d'|' -f1 | grep -qw "monk_main" 2>/dev/null; then
         if dropdb monk_main 2>/dev/null; then
-            print_success "Existing auth database removed"
+            print_success "Existing main database removed"
         else
-            handle_error "Auth database removal" "Check PostgreSQL permissions for dropping databases"
+            handle_error "Main database removal" "Check PostgreSQL permissions for dropping databases"
         fi
     else
-        print_info "Auth database did not exist"
+        print_info "Main database did not exist"
     fi
 fi
 
-print_step "Checking if auth database exists..."
+print_step "Checking if main database exists..."
 
-# Check if auth database already exists
-if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
-    print_info "Auth database already exists"
+# Check if main database already exists
+if psql -lqt | cut -d'|' -f1 | grep -qw "monk_main" 2>/dev/null; then
+    print_info "Main database already exists"
 
     # Check if it has the required tables
-    if psql -d monk -c "SELECT 1 FROM tenant LIMIT 1;" >/dev/null 2>&1; then
-        print_success "Auth database properly initialized"
+    if psql -d monk_main -c "SELECT 1 FROM tenant LIMIT 1;" >/dev/null 2>&1; then
+        print_success "Main database properly initialized"
         # Show tenant count
-        tenant_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenant;" 2>/dev/null | xargs)
+        tenant_count=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenant;" 2>/dev/null | xargs)
         print_info "Existing tenants: $tenant_count"
     else
-        print_warning "Auth database exists but may need initialization"
-        print_step "Re-initializing auth database schema..."
-        if psql -d monk -f sql/init-auth.sql >/dev/null 2>&1; then
-            print_success "Auth database schema updated"
+        print_warning "Main database exists but may need initialization"
+        print_step "Re-initializing main database schema..."
+        if psql -d monk_main -f sql/init-monk-main.sql >/dev/null 2>&1; then
+            print_success "Main database schema updated"
         else
-            handle_error "Auth database schema initialization" "Check sql/init-auth.sql file exists and PostgreSQL permissions"
+            handle_error "Main database schema initialization" "Check sql/init-monk-main.sql file exists and PostgreSQL permissions"
         fi
     fi
 else
-    print_step "Creating auth database..."
-    if createdb monk 2>/dev/null; then
-        print_success "Auth database created"
+    print_step "Creating main database..."
+    if createdb monk_main 2>/dev/null; then
+        print_success "Main database created"
     else
-        handle_error "Auth database creation" "Check PostgreSQL permissions and that createdb command is available"
+        handle_error "Main database creation" "Check PostgreSQL permissions and that createdb command is available"
     fi
 
-    print_step "Initializing auth database schema..."
-    if psql -d monk -f sql/init-auth.sql >/dev/null 2>&1; then
-        print_success "Auth database schema initialized"
+    print_step "Initializing main database schema..."
+    if psql -d monk_main -f sql/init-monk-main.sql >/dev/null 2>&1; then
+        print_success "Main database schema initialized"
         print_info "Created tenant table with indexes and triggers"
         print_info "Added default system tenant"
     else
-        handle_error "Auth database schema initialization" "Check sql/init-auth.sql file exists and PostgreSQL permissions"
+        handle_error "Main database schema initialization" "Check sql/init-monk-main.sql file exists and PostgreSQL permissions"
     fi
 fi
 
@@ -301,7 +316,7 @@ print_success "Monk API setup completed successfully!"
 echo
 print_info "Environment ready for development:"
 print_info "• PostgreSQL: Connected and configured"
-print_info "• Auth database: Initialized with schema"
+print_info "• Main database (monk_main): Initialized with schema"
 print_info "• TypeScript: Compiled and ready"
 print_info "• Local server: http://localhost:9001"
 echo
