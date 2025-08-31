@@ -26,11 +26,7 @@ import { AuthService } from '@src/lib/auth.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
 
 // Middleware
-import { systemContextMiddleware } from '@src/lib/middleware/index.js';
-import { responseJsonMiddleware } from '@src/lib/middleware/index.js';
-import { responseFileMiddleware } from '@src/lib/middleware/index.js';
-import { requestTrackingMiddleware } from '@src/lib/middleware/index.js';
-import { localhostDevelopmentOnlyMiddleware } from '@src/lib/middleware/index.js';
+import * as middleware from '@src/lib/middleware/index.js';
 
 // Root API
 import { rootRouter } from '@src/routes/root/index.js';
@@ -62,7 +58,7 @@ checkDatabaseConnection();
 const app = new Hono();
 
 // Request tracking middleware (first - database health check + analytics)
-app.use('*', requestTrackingMiddleware);
+app.use('*', middleware.requestTrackingMiddleware);
 
 // Request logging middleware
 app.use('*', async (c, next) => {
@@ -111,31 +107,31 @@ app.get('/', c => {
 // All requests generate a system context, which starts out as an unauthenticated
 // user. This is to allow consistency in internal expectations around what structures
 // exist at any given moment.
-app.use('/*', systemContextMiddleware);
+app.use('/*', middleware.systemContextMiddleware);
 
 // Docs require no authentication and return plain text
 app.get('/docs/:api', DocsGet);
 
 // Auth API middleware
-app.use('/auth/*', responseJsonMiddleware); // Auth API: JSON responses
+app.use('/auth/*', middleware.responseJsonMiddleware); // Auth API: JSON responses
 
 // Auth API routes
 app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
 app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
-app.get('/auth/whoami', AuthService.getJWTMiddleware(), AuthService.getUserContextMiddleware(), authRoutes.WhoamiGet); // GET /auth/me
+app.get('/auth/whoami', middleware.jwtValidationMiddleware, middleware.userValidationMiddleware, authRoutes.WhoamiGet); // GET /auth/whoami
 
 // Root API middleware (must come before protected routes)
-app.use('/root/*', localhostDevelopmentOnlyMiddleware);
-app.use('/root/*', responseJsonMiddleware);
+app.use('/root/*', middleware.localhostDevelopmentOnlyMiddleware);
+app.use('/root/*', middleware.responseJsonMiddleware);
 
 // Root API routes - Must be before JWT middleware
 app.route('/root', rootRouter);
 
 // Protected API routes - require JWT authentication from /auth
-app.use('/api/*', AuthService.getJWTMiddleware());
-app.use('/api/*', AuthService.getUserContextMiddleware());
-app.use('/api/*', responseJsonMiddleware);
+app.use('/api/*', middleware.jwtValidationMiddleware);
+app.use('/api/*', middleware.userValidationMiddleware);
+app.use('/api/*', middleware.responseJsonMiddleware);
 
 // Meta API routes
 app.post('/api/meta/:schema', metaRoutes.SchemaPost); // Create schema (with URL name)
