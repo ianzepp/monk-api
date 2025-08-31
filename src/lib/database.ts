@@ -1,13 +1,13 @@
-import { db, builtins, type DbContext, type TxContext } from '@src/db/index.js';
+import crypto from 'crypto';
+import pg from 'pg';
+
+import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
 import { Filter, type FilterData } from '@src/lib/filter.js';
-import type { Context } from 'hono';
-import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
-import crypto from 'crypto';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -16,7 +16,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * Uses dependency injection pattern to break circular dependencies:
  * - SystemContext provides business context
- * - DbContext/TxContext injected separately for database access
+ * - pg.Pool/pg.PoolClient injected separately for database access
  */
 export class Database {
     public readonly system: SystemContextWithInfrastructure;
@@ -32,7 +32,7 @@ export class Database {
      * Get transaction-aware database context
      * Uses transaction if available, otherwise uses database connection
      */
-    private get dbContext(): DbContext | TxContext {
+    private get dbContext(): pg.Pool | pg.PoolClient {
         return this.system.tx || this.system.db;
     }
 

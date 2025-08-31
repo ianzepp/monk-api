@@ -1,7 +1,7 @@
-import { builtins, type TxContext, type DbContext } from '@src/db/index.js';
-import type { System } from '@src/lib/system.js';
-import type { Context } from 'hono';
 import crypto from 'crypto';
+import pg from 'pg';
+
+import type { System } from '@src/lib/system.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 export interface JsonSchemaProperty {
@@ -77,7 +77,7 @@ export class Metabase {
      * Create new schema from YAML content
      */
     async createOne(schemaName: string, jsonContent: any): Promise<any> {
-        return await this.run('create', schemaName, async (tx: TxContext) => {
+        return await this.run('create', schemaName, async (tx: pg.PoolClient) => {
             const jsonSchema = this.parseJsonSchema(jsonContent);
             const tableName = jsonSchema.table || schemaName;
 
@@ -107,7 +107,7 @@ export class Metabase {
         const db = this.system.db;
 
         // Get schema record from database (exclude soft-deleted schemas)
-        const selectQuery = `SELECT * FROM ${builtins.TABLE_NAMES.schemas} WHERE name = $1 AND trashed_at IS NULL LIMIT 1`;
+        const selectQuery = `SELECT * FROM schemas WHERE name = $1 AND trashed_at IS NULL LIMIT 1`;
         const schemaResult = await db.query(selectQuery, [schemaName]);
 
         if (schemaResult.rows.length === 0) {
@@ -127,7 +127,7 @@ export class Metabase {
      * Update existing schema from YAML content
      */
     async updateOne(schemaName: string, jsonContent: any): Promise<any> {
-        return await this.run('update', schemaName, async (tx: TxContext) => {
+        return await this.run('update', schemaName, async (tx: pg.PoolClient) => {
             this.validateSchemaProtection(schemaName);
 
             const newJsonSchema = this.parseJsonSchema(jsonContent);
@@ -136,7 +136,7 @@ export class Metabase {
 
             // Update schema metadata record
             const updateQuery = `
-                UPDATE ${builtins.TABLE_NAMES.schemas}
+                UPDATE schemas
                 SET definition = $1, field_count = $2, yaml_checksum = $3, updated_at = NOW()
                 WHERE name = $4
                 RETURNING *
@@ -156,12 +156,12 @@ export class Metabase {
      * Delete schema (soft delete)
      */
     async deleteOne(schemaName: string): Promise<any> {
-        return await this.run('delete', schemaName, async (tx: TxContext) => {
+        return await this.run('delete', schemaName, async (tx: pg.PoolClient) => {
             this.validateSchemaProtection(schemaName);
 
             // Soft delete schema record
             const deleteQuery = `
-                UPDATE ${builtins.TABLE_NAMES.schemas}
+                UPDATE schemas
                 SET trashed_at = NOW(), updated_at = NOW()
                 WHERE name = $1 AND trashed_at IS NULL
                 RETURNING *
@@ -181,7 +181,7 @@ export class Metabase {
      * Restore soft-deleted schema
      */
     async revertOne(schemaName: string): Promise<any> {
-        return await this.run('revert', schemaName, async (tx: TxContext) => {
+        return await this.run('revert', schemaName, async (tx: pg.PoolClient) => {
             // TODO: Implementation - restore soft-deleted schema
             throw HttpErrors.internal('Metabase.revertOne() not yet implemented', 'NOT_IMPLEMENTED');
         });
@@ -190,7 +190,7 @@ export class Metabase {
     /**
      * Transaction management pattern (consistent with Database class)
      */
-    private async run(operation: string, schemaName: string, fn: (tx: TxContext) => Promise<any>): Promise<any> {
+    private async run(operation: string, schemaName: string, fn: (tx: pg.PoolClient) => Promise<any>): Promise<any> {
         const db = this.system.db;
 
         console.debug(`🔄 Starting metabase operation: ${operation} on schema ${schemaName}`);
@@ -346,11 +346,11 @@ export class Metabase {
     /**
      * Insert schema metadata record
      */
-    private async insertSchemaRecord(tx: TxContext, schemaName: string, tableName: string, jsonSchema: JsonSchema, jsonChecksum: string): Promise<void> {
+    private async insertSchemaRecord(tx: pg.PoolClient, schemaName: string, tableName: string, jsonSchema: JsonSchema, jsonChecksum: string): Promise<void> {
         const fieldCount = Object.keys(jsonSchema.properties).length;
 
         const insertQuery = `
-            INSERT INTO ${builtins.TABLE_NAMES.schemas}
+            INSERT INTO schemas
             (id, name, table_name, status, definition, field_count, yaml_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), '{}', '{}', '{}', '{}')
             RETURNING *

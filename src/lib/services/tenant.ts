@@ -79,21 +79,21 @@ export class TenantService {
      * Create one-time client for auth database operations
      */
     private static createAuthClient(): pg.Client {
-        return DatabaseConnection.createClient('monk');
+        return DatabaseConnection.getClient('monk');
     }
 
     /**
      * Create one-time client for tenant database operations
      */
     private static createTenantClient(tenantName: string): pg.Client {
-        return DatabaseConnection.createClient(tenantName);
+        return DatabaseConnection.getClient(tenantName);
     }
 
     /**
      * Create one-time client for postgres system database
      */
     private static createPostgresClient(): pg.Client {
-        return DatabaseConnection.createClient('postgres');
+        return DatabaseConnection.getClient('postgres');
     }
 
     /**

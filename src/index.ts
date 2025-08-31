@@ -1,6 +1,10 @@
+// Set up global logger instance
+import { logger } from '@src/lib/logger.js';
+global.logger = logger;
+
 // Import process environment as early as possible
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ debug: true });
 
 // Import package.json for version info
 import { readFileSync } from 'fs';
@@ -11,14 +15,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
 
-// Set up global logger instance
-import { logger } from '@src/lib/logger.js';
-global.logger = logger;
-
 // Imports
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
+import { checkDatabaseConnection, closeDatabaseConnection } from '@src/lib/database-connection.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api/responses.js';
 import { AuthService } from '@src/lib/auth.js';
 
@@ -50,6 +50,12 @@ import * as fileRoutes from '@src/routes/file/routes.js';
 import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
 import FindSchemaPost from '@src/routes/find/:schema/POST.js'; // POST /api/find/:schema
 import DocsGet from '@src/routes/docs/:api/GET.js'; // GET /docs/:api.id
+
+// Check database connection before doing anything else
+logger.info('Checking database connection:');
+logger.info('- NODE_ENV:', process.env.NODE_ENV);
+logger.info('- DATABASE_URL:', process.env.DATABASE_URL);
+checkDatabaseConnection();
 
 // Create Hono app
 const app = new Hono();

@@ -25,7 +25,7 @@ async function testTemplateData(templateName: string): Promise<void> {
         logger.info(`✅ Created test tenant from template: ${tenant.name}`);
 
         // Connect to the cloned database using centralized connection
-        const client = DatabaseConnection.createClient(tenant.database);
+        const client = DatabaseConnection.getClient(tenant.database);
         await client.connect();
 
         logger.info('📋 Template database content:');

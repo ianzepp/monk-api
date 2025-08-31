@@ -257,7 +257,7 @@ export async function createTestUser(tenant: TenantInfo, username: string, acces
     logger.info(`👤 Creating test user: ${username} (access: ${access})`);
 
     // Use DatabaseConnection for consistent connection management
-    const client = DatabaseConnection.createClient(tenant.database);
+    const client = DatabaseConnection.getClient(tenant.database);
 
     try {
         await client.connect();

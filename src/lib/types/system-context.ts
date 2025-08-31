@@ -63,10 +63,10 @@ export interface SystemContext {
  */
 export interface SystemContextWithInfrastructure extends SystemContext {
     /** Database connection - always available for database operations */
-    readonly db: any; // Avoid importing DbContext to prevent circular deps
+    readonly db: any; // Avoid importing pg.Pool to prevent circular deps
     
     /** Transaction context - set by SQL Observer when transactions needed */
-    tx?: any; // Avoid importing TxContext to prevent circular deps
+    tx?: any; // Avoid importing pg.PoolClient to prevent circular deps
     
     /** Database instance for high-level operations */
     readonly database: any; // Avoid importing Database class to prevent circular deps
