@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import pg from 'pg';
 
-import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
 import { Filter, type FilterData } from '@src/lib/filter.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';

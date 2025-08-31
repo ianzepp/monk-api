@@ -1,6 +1,6 @@
 import pg from 'pg';
 import crypto from 'crypto';
-import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 
 // Cached schema entry
 interface CachedSchema {

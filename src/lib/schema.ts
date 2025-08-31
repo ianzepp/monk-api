@@ -3,7 +3,7 @@ import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
 import { type FilterData } from '@src/lib/filter.js';
-import type { SystemContextWithInfrastructure } from '@src/lib/types/system-context.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { isSystemField } from '@src/lib/metabase.js';
 
 export type SchemaName = string;

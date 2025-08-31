@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { System } from '@src/lib/system.js';
-import type { SystemOptions } from '@src/lib/types/system-context.js';
+import type { SystemOptions } from '@src/lib/system-context-types.js';
 import { isHttpError } from '@src/lib/errors/http-error.js';
 import { createSchema } from '@src/lib/schema.js';
 

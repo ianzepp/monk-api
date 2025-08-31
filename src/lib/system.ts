@@ -3,7 +3,7 @@ import pg from 'pg';
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
 import { Metabase } from '@src/lib/metabase.js';
-import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/types/system-context.js';
+import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
 
 /**
  * System class - Per-request context management
