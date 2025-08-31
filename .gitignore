@@ -63,11 +63,3 @@ spec/**/*.js
 spec/**/*.d.ts
 spec/**/*.js.map
 spec/**/*.d.ts.map
-
-# Monk CLI Configuration
-# Ignore runtime files but preserve directory structure
-.config/monk/run-info
-.config/monk/test-env
-.config/monk/server-pid
-# CRITICAL: Never ignore .config/monk/.gitkeep or .config/monk/README.md
-# These files are required for test environment functionality

@@ -37,7 +37,7 @@
 - **Ring 8**: Webhooks and external integrations
 
 ### Multi-Tenant Capabilities
-- **Database Isolation**: Each tenant receives dedicated PostgreSQL database (`monk-api$tenant-name`)
+- **Database Isolation**: Each tenant receives dedicated PostgreSQL database (`tenant_12345678`)
 - **JWT-Based Routing**: Automatic tenant detection and database routing via JWT tokens
 - **Schema Independence**: Tenants can evolve schemas independently without interference
 - **Performance Optimization**: SHA256 caching provides 15x faster schema access
