@@ -105,8 +105,8 @@ create_isolated_test_tenant() {
     
     print_success "Test tenant ready: $tenant_name → $db_name"
     
-    # Return only the tenant name (stdout)
-    echo "$tenant_name"
+    # Return both tenant name and database name (stdout)
+    echo "$tenant_name $db_name"
 }
 
 # Clean up test tenant and all associated data

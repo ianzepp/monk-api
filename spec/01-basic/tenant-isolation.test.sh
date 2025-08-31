@@ -15,9 +15,11 @@ wait_for_server
 
 # Test 1: Create isolated test tenant
 print_step "Creating isolated test tenant"
-tenant_name=$(create_isolated_test_tenant "isolation_test")
+tenant_info=$(create_isolated_test_tenant "isolation_test")
+tenant_name=$(echo "$tenant_info" | cut -d' ' -f1)
+db_name=$(echo "$tenant_info" | cut -d' ' -f2)
 
-if [[ -n "$tenant_name" ]]; then
+if [[ -n "$tenant_name" && -n "$db_name" ]]; then
     print_success "Created isolated tenant: $tenant_name"
 else
     test_fail "Failed to create isolated tenant"
@@ -35,7 +37,7 @@ fi
 
 # Test 3: Verify tenant database structure
 print_step "Verifying tenant database structure"
-verify_test_tenant "$tenant_name" "$TEST_DATABASE_NAME"
+verify_test_tenant "$tenant_name" "$db_name"
 
 # Test 4: Test different user access levels
 print_step "Testing different user access levels"
@@ -68,7 +70,7 @@ fi
 
 # Test 6: Manual cleanup test
 print_step "Testing manual tenant cleanup"
-cleanup_test_tenant "$tenant_name" "$TEST_DATABASE_NAME"
+cleanup_test_tenant "$tenant_name" "$db_name"
 
 # Verify cleanup worked
 cleanup_check=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenants WHERE name = '$tenant_name'" | xargs)
@@ -79,7 +81,7 @@ else
 fi
 
 # Verify database was dropped
-if psql -l | grep -q "$TEST_DATABASE_NAME"; then
+if psql -l | grep -q "$db_name"; then
     print_warning "Tenant database still exists after cleanup"
 else
     print_success "Tenant database properly dropped"
