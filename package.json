@@ -7,9 +7,9 @@
   "scripts": {
     "start": "node dist/index.js",
     "start:dev": "npm run build && concurrently \"npm run build:watch\" \"node --watch dist/index.js\"",
-    "build": "scripts/compile.sh",
+    "build": "scripts/build.sh",
     "build:watch": "nodemon --watch src --ext ts --exec 'npm run build'",
-    "build:spec": "scripts/compile-spec.sh",
+    "build:spec": "scripts/build-spec.sh",
     "autoinstall": "scripts/autoinstall.sh",
     "spec": "scripts/spec.sh",
     "spec:ts": "scripts/spec-ts.sh",
