@@ -93,6 +93,8 @@ app.get('/', c => {
             data: ['/docs/data'],
             meta: ['/docs/meta'],
             file: ['/docs/file'],
+            bulk: ['/docs/bulk'],
+            find: ['/docs/find'],
             root: ['/docs/root']
         },
     };
