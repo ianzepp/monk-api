@@ -2,22 +2,21 @@ import type { Context, Next } from 'hono';
 import { jwt } from 'hono/jwt';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { MonkEnv } from '@src/lib/monk-env.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import pg from 'pg';
 
 export interface JWTPayload {
-    sub: string;           // Subject/system identifier
+    sub: string; // Subject/system identifier
     user_id: string | null; // User ID for database records (null for root/system)
-    tenant: string;        // Tenant name
-    database: string;      // Database name (converted)
-    access: string;        // Access level (deny/read/edit/full/root)
+    tenant: string; // Tenant name
+    database: string; // Database name (converted)
+    access: string; // Access level (deny/read/edit/full/root)
     access_read: string[]; // ACL read access
     access_edit: string[]; // ACL edit access
     access_full: string[]; // ACL full access
-    iat: number;           // Issued at
-    exp: number;           // Expires at
-    [key: string]: any;    // Index signature for Hono compatibility
+    iat: number; // Issued at
+    exp: number; // Expires at
+    [key: string]: any; // Index signature for Hono compatibility
 }
 
 export class AuthService {
@@ -25,13 +24,13 @@ export class AuthService {
     private static authPool: pg.Pool | null = null;
 
     private static getJwtSecret(): string {
-        return MonkEnv.get('JWT_SECRET', undefined, true);
+        return process.env['JWT_SECRET']!;
     }
 
     // Get persistent auth database connection
     private static getAuthDatabase(): pg.Pool {
         // Use centralized database connection to monk database
-        return DatabaseConnection.getTenantPool('monk');
+        return DatabaseConnection.getMainPool();
     }
 
     // Generate JWT token for user
@@ -46,7 +45,7 @@ export class AuthService {
             access_edit: user.access_edit || [],
             access_full: user.access_full || [],
             iat: Math.floor(Date.now() / 1000),
-            exp: Math.floor(Date.now() / 1000) + this.tokenExpiry
+            exp: Math.floor(Date.now() / 1000) + this.tokenExpiry,
         };
 
         return await sign(payload, this.getJwtSecret());
@@ -54,7 +53,7 @@ export class AuthService {
 
     // Verify and decode JWT token
     static async verifyToken(token: string): Promise<JWTPayload> {
-        return await verify(token, this.getJwtSecret()) as JWTPayload;
+        return (await verify(token, this.getJwtSecret())) as JWTPayload;
     }
 
     // Login with tenant and username authentication
@@ -65,15 +64,13 @@ export class AuthService {
 
         // Look up tenant record to get database name
         const authDb = this.getAuthDatabase();
-        const tenantResult = await authDb.query(
-            'SELECT name, database FROM tenant WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', 
-            [tenant]
-        );
+        const tenantResult = await authDb.query('SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
 
         if (!tenantResult.rows || tenantResult.rows.length === 0) {
             return null; // Tenant not found or inactive
         }
 
+        console.info('tenantResult:', tenantResult);
         const { name, database } = tenantResult.rows[0];
 
         // Look up user in the tenant's database
@@ -101,7 +98,7 @@ export class AuthService {
             access_edit: user.access_edit || [],
             access_full: user.access_full || [],
             access_deny: user.access_deny || [],
-            is_active: true
+            is_active: true,
         };
 
         // Generate token
@@ -114,8 +111,8 @@ export class AuthService {
                 username: authUser.username,
                 tenant: authUser.tenant,
                 database: authUser.database,
-                access: authUser.access
-            }
+                access: authUser.access,
+            },
         };
     }
 
@@ -123,7 +120,7 @@ export class AuthService {
     static async refreshToken(oldToken: string): Promise<string | null> {
         try {
             const payload = await this.verifyToken(oldToken);
-            
+
             // For test mode, recreate test user from payload
             const testUser = {
                 id: payload.sub,
@@ -136,7 +133,7 @@ export class AuthService {
                 access_edit: payload.access_edit,
                 access_full: payload.access_full,
                 is_active: true,
-                last_login: new Date().toISOString()
+                last_login: new Date().toISOString(),
             };
 
             // Generate new token with fresh timestamps
@@ -155,14 +152,15 @@ export class AuthService {
             } catch (error: any) {
                 // Convert JWT middleware errors to proper HttpErrors
                 if (error instanceof Error) {
-                    if (error.message === 'Unauthorized' || 
-                        (error.cause && typeof error.cause === 'object' && 'name' in error.cause &&
-                         (error.cause.name === 'JwtTokenExpired' || error.cause.name === 'JwtTokenInvalid')) ||
-                        error.message.includes('jwt')) {
+                    if (
+                        error.message === 'Unauthorized' ||
+                        (error.cause && typeof error.cause === 'object' && 'name' in error.cause && (error.cause.name === 'JwtTokenExpired' || error.cause.name === 'JwtTokenInvalid')) ||
+                        error.message.includes('jwt')
+                    ) {
                         throw HttpErrors.unauthorized('Authentication required', 'TOKEN_INVALID');
                     }
                 }
-                
+
                 // Re-throw other errors
                 throw error;
             }
@@ -173,7 +171,7 @@ export class AuthService {
     static getUserContextMiddleware() {
         return async (c: Context, next: Next) => {
             const payload = c.get('jwtPayload') as JWTPayload;
-            
+
             try {
                 // Set up database connection for the JWT database
                 DatabaseConnection.setDatabaseForRequest(c, payload.database);
@@ -190,7 +188,7 @@ export class AuthService {
                     access_edit: payload.access_edit,
                     access_full: payload.access_full,
                     is_active: true,
-                    last_login: new Date(payload.iat * 1000).toISOString()
+                    last_login: new Date(payload.iat * 1000).toISOString(),
                 };
 
                 // Set user context for handlers
@@ -199,14 +197,16 @@ export class AuthService {
                 c.set('accessReadIds', payload.access_read || []);
                 c.set('accessEditIds', payload.access_edit || []);
                 c.set('accessFullIds', payload.access_full || []);
-
             } catch (error) {
                 console.error('Database setup error:', error);
-                return c.json({ 
-                    success: false, 
-                    error: 'Database connection failed for tenant',
-                    error_code: 'DATABASE_ERROR'
-                }, 500);
+                return c.json(
+                    {
+                        success: false,
+                        error: 'Database connection failed for tenant',
+                        error_code: 'DATABASE_ERROR',
+                    },
+                    500
+                );
             }
 
             await next();
@@ -217,17 +217,19 @@ export class AuthService {
     static requireRole(requiredRole: string) {
         return async (c: Context, next: Next) => {
             const userRole = c.get('userRole');
-            
+
             if (userRole !== requiredRole) {
-                return c.json({
-                    success: false,
-                    error: `${requiredRole} role required`,
-                    error_code: 'INSUFFICIENT_PERMISSIONS'
-                }, 403);
+                return c.json(
+                    {
+                        success: false,
+                        error: `${requiredRole} role required`,
+                        error_code: 'INSUFFICIENT_PERMISSIONS',
+                    },
+                    403
+                );
             }
-            
+
             await next();
         };
     }
-
 }

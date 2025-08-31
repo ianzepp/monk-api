@@ -11,6 +11,8 @@ const { Pool, Client } = pg;
  * 2. Read process.env.DATABASE_URL
  * 3. Handle database connection configuration
  *
+ * The DATABASE_URL should point to the "monk_main" database.
+ *
  * All other files must use these methods for database connections.
  */
 export class DatabaseConnection {
@@ -28,7 +30,7 @@ export class DatabaseConnection {
         const databaseUrl = process.env.DATABASE_URL;
 
         if (!databaseUrl) {
-            throw new Error('DATABASE_URL not configured. ' + 'Ensure MonkEnv.loadIntoProcessEnv() was called on server startup and ' + '~/.config/monk/env.json contains DATABASE_URL.');
+            throw new Error('DATABASE_URL not configured.');
         }
 
         if (!databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('postgres://')) {
