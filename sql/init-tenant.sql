@@ -2,7 +2,7 @@
 -- These tables are required for the Hono API to function correctly
 
 -- Schema registry table to store JSON Schema definitions
-CREATE TABLE "schema" (
+CREATE TABLE "schemas" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
 	"access_edit" uuid[] DEFAULT '{}'::uuid[],
@@ -22,7 +22,7 @@ CREATE TABLE "schema" (
 	CONSTRAINT "schema_table_name_unique" UNIQUE("table_name")
 );
 
--- Column registry table to store individual field metadata  
+-- Column registry table to store individual field metadata
 CREATE TABLE "columns" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
@@ -44,8 +44,8 @@ CREATE TABLE "columns" (
 );
 
 -- Add foreign key constraint
-ALTER TABLE "columns" ADD CONSTRAINT "columns_schema_name_schema_name_fk" 
-    FOREIGN KEY ("schema_name") REFERENCES "public"."schema"("name") 
+ALTER TABLE "columns" ADD CONSTRAINT "columns_schemas_name_schema_name_fk"
+    FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("name")
     ON DELETE no action ON UPDATE no action;
 
 -- Users table to store tenant users and their access levels (1-db-per-tenant)
@@ -73,7 +73,7 @@ CREATE TABLE "pings" (
     "user_agent" text,
     "request_id" text,
     "response_time_ms" integer,
-    "jwt_domain" text,
+    "jwt_tenant" text,
     "jwt_user_id" uuid,
     "jwt_access" text,
     "server_version" text,
@@ -82,15 +82,15 @@ CREATE TABLE "pings" (
 );
 
 -- Insert self-reference row to enable recursive schema discovery via data API
--- This allows GET /api/data/schema to work by querying the schema table itself
-INSERT INTO "schema" (name, table_name, status, definition, field_count, yaml_checksum)
+-- This allows GET /api/data/schemas to work by querying the schema table itself
+INSERT INTO "schemas" (name, table_name, status, definition, field_count, yaml_checksum)
 VALUES (
-    'schema',
-    'schema', 
+    'schemas',
+    'schemas',
     'system',
     '{
         "type": "object",
-        "title": "Schema",
+        "title": "Schemas",
         "description": "Schema registry table for meta API schema definitions",
         "properties": {
             "name": {
@@ -101,7 +101,7 @@ VALUES (
                 "example": "account"
             },
             "table_name": {
-                "type": "string", 
+                "type": "string",
                 "minLength": 1,
                 "maxLength": 100,
                 "description": "Database table name",
@@ -120,7 +120,7 @@ VALUES (
             },
             "field_count": {
                 "type": "string",
-                "pattern": "^[0-9]+$", 
+                "pattern": "^[0-9]+$",
                 "description": "Number of fields in schema",
                 "example": "5"
             },
@@ -129,37 +129,27 @@ VALUES (
                 "pattern": "^[a-f0-9]{64}$",
                 "description": "SHA256 checksum of original YAML",
                 "example": "a1b2c3d4..."
-            },
-            "tenant": {
-                "type": "string",
-                "description": "Tenant context (nullable)"
             }
         },
         "required": ["name", "table_name", "status", "definition", "field_count"],
         "additionalProperties": false
     }',
-    '7',
+    '6',
     null
 );
 
 -- Insert user schema registration to enable user API access
--- This allows GET /api/data/user and GET /api/meta/schema/user to work
-INSERT INTO "schema" (name, table_name, status, definition, field_count, yaml_checksum)
+-- This allows GET /api/data/users and GET /api/meta/users to work
+INSERT INTO "schemas" (name, table_name, status, definition, field_count, yaml_checksum)
 VALUES (
-    'user',
+    'users',
     'users',
     'system',
     '{
         "type": "object",
-        "title": "User",
+        "title": "Users",
         "description": "User management schema for tenant databases",
         "properties": {
-            "id": {
-                "type": "string",
-                "format": "uuid",
-                "description": "Unique user identifier",
-                "example": "550e8400-e29b-41d4-a716-446655440000"
-            },
             "name": {
                 "type": "string",
                 "minLength": 2,
@@ -179,47 +169,11 @@ VALUES (
                 "enum": ["root", "full", "edit", "read", "deny"],
                 "description": "Access level for the user",
                 "example": "full"
-            },
-            "access_read": {
-                "type": "array",
-                "description": "UUIDs of records the user can read",
-                "items": {
-                    "type": "string",
-                    "format": "uuid"
-                },
-                "default": []
-            },
-            "access_edit": {
-                "type": "array",
-                "description": "UUIDs of records the user can edit",
-                "items": {
-                    "type": "string",
-                    "format": "uuid"
-                },
-                "default": []
-            },
-            "access_full": {
-                "type": "array",
-                "description": "UUIDs of records the user has full access to",
-                "items": {
-                    "type": "string",
-                    "format": "uuid"
-                },
-                "default": []
-            },
-            "access_deny": {
-                "type": "array",
-                "description": "UUIDs of records the user is denied access to",
-                "items": {
-                    "type": "string",
-                    "format": "uuid"
-                },
-                "default": []
             }
         },
         "required": ["id", "name", "auth", "access"],
         "additionalProperties": false
     }',
-    '8',
+    '3',
     null
 );
