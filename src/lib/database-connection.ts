@@ -71,6 +71,10 @@ export class DatabaseConnection {
         return this.getPool(databaseName);
     }
 
+    static getPostgresClient() {
+        return this.getClient('postgres');
+    }
+
     static getPool(databaseName: string, max: number = 5) {
         if (typeof databaseName !== 'string') {
             throw new Error(`Database name must be a string type`);

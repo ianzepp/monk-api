@@ -9,4 +9,5 @@
 
 export { default as LoginPost } from './login/POST.js';
 export { default as RegisterPost } from './register/POST.js';
+export { default as RegisterDemoPost } from './register-demo/POST.js';
 export { default as RefreshPost } from './refresh/POST.js';
