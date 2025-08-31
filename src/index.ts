@@ -43,8 +43,8 @@ import * as dataRoutes from '@src/routes/data/routes.js';
 // Meta API handlers (clean barrel exports)
 import * as metaRoutes from '@src/routes/meta/routes.js';
 
-// FTP API handlers (clean barrel exports)
-import * as ftpRoutes from '@src/routes/ftp/routes.js';
+// File API handlers (clean barrel exports)
+import * as fileRoutes from '@src/routes/file/routes.js';
 
 // Special endpoints
 import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
@@ -82,6 +82,7 @@ app.get('/', c => {
             meta: '/api/meta/:schema (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
+            file: '/api/file/* (protected)',
         },
         documentation: {
             auth: '/docs/auth (markdown format)',
@@ -97,8 +98,12 @@ app.get('/', c => {
     return createSuccessResponse(c, response);
 });
 
-// Docs are up front, since they require no auth
-// app.get('/README.md', c => {});
+// All requests generate a system context, which starts out as an unauthenticated
+// user. This is to allow consistency in internal expectations around what structures
+// exist at any given moment.
+app.use('/*', systemContextMiddleware);
+
+// Docs require no authentication and return plain text
 app.get('/docs/:api', DocsGet);
 
 // Auth API middleware
@@ -120,21 +125,15 @@ app.route('/root', rootRouter);
 // Protected API routes - require JWT authentication from /auth
 app.use('/api/*', AuthService.getJWTMiddleware());
 app.use('/api/*', AuthService.getUserContextMiddleware());
-app.use('/api/*', systemContextMiddleware);
+app.use('/api/*', responseJsonMiddleware);
 
-// Meta API middleware
-app.use('/api/meta/*', responseJsonMiddleware); // Meta API: JSON responses
-
-// Meta API routes (clean barrel export organization)
+// Meta API routes
 app.post('/api/meta/:schema', metaRoutes.SchemaPost); // Create schema (with URL name)
 app.get('/api/meta/:schema', metaRoutes.SchemaGet); // Get schema
 app.put('/api/meta/:schema', metaRoutes.SchemaPut); // Update schema
 app.delete('/api/meta/:schema', metaRoutes.SchemaDelete); // Delete schema
 
-// Data API middleware
-app.use('/api/data/*', responseJsonMiddleware); // Data API: JSON responses
-
-// Data API routes (clean barrel export organization)
+// Data API routes
 app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records
 app.get('/api/data/:schema', dataRoutes.SchemaGet); // List records
 app.put('/api/data/:schema', dataRoutes.SchemaPut); // Bulk update records
@@ -143,35 +142,20 @@ app.get('/api/data/:schema/:record', dataRoutes.RecordGet); // Get single record
 app.put('/api/data/:schema/:record', dataRoutes.RecordPut); // Update single record
 app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete single record
 
-// File API middleware (TODO)
-app.use('/api/file/*', responseFileMiddleware); // Future: File responses
-
-// Bulk API middleware
-app.use('/api/bulk/*', responseJsonMiddleware); // Bulk API: JSON responses
-
-// Bulk API routes
-app.post('/api/bulk', BulkPost);
-
-// Find API middleware
-app.use('/api/find/*', responseJsonMiddleware); // Bulk API: JSON responses
-
 // Find API routes
 app.post('/api/find/:schema', FindSchemaPost);
 
-// FTP middleware
-app.use('/ftp/*', AuthService.getJWTMiddleware());
-app.use('/ftp/*', AuthService.getUserContextMiddleware());
-app.use('/ftp/*', systemContextMiddleware);
-app.use('/ftp/*', responseJsonMiddleware);
+// File API routes
+app.post('/api/file/list', fileRoutes.ListPost); // Directory listing
+app.post('/api/file/retrieve', fileRoutes.RetrievePost); // File retrieval
+app.post('/api/file/store', fileRoutes.StorePost); // File storage
+app.post('/api/file/stat', fileRoutes.StatPost); // File status
+app.post('/api/file/delete', fileRoutes.DeletePost); // File deletion
+app.post('/api/file/size', fileRoutes.SizePost); // File size
+app.post('/api/file/modify-time', fileRoutes.ModifyTimePost); // File modification time
 
-// FTP routes
-app.post('/ftp/list', ftpRoutes.ListPost); // Directory listing
-app.post('/ftp/retrieve', ftpRoutes.RetrievePost); // File retrieval
-app.post('/ftp/store', ftpRoutes.StorePost); // File storage
-app.post('/ftp/stat', ftpRoutes.StatPost); // File status
-app.post('/ftp/delete', ftpRoutes.DeletePost); // File deletion
-app.post('/ftp/size', ftpRoutes.SizePost); // File size
-app.post('/ftp/modify-time', ftpRoutes.ModifyTimePost); // File modification time
+// Bulk API routes
+app.post('/api/bulk', BulkPost);
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));
@@ -209,7 +193,8 @@ if (process.argv.includes('--no-startup')) {
 
 // Start HTTP server only
 logger.info('Starting Monk HTTP API Server (Hono)');
-logger.info('For FTP server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
+logger.info('For FS server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
+logger.info('For FS-like interaction via the commandline, see monk-cli project: https://github.com/ianzepp/monk-cli');
 
 const server = serve({
     fetch: app.fetch,

@@ -11,7 +11,7 @@
 | **Meta** | `/api/meta/:schema` | Required | Schema definition management |
 | **Bulk** | `/api/bulk` | Required | Batch operations across multiple schemas |
 | **Find** | `/api/find/:schema` | Required | Advanced search and filtering |
-| **FTP** | `/ftp/*` | Required | Filesystem-like data access interface |
+| **File** | `/api/file/*` | Required | Filesystem-like data access interface |
 
 ## Quick Start
 

@@ -2,12 +2,12 @@ import type { Context } from 'hono';
 import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
-// FTP Stat Transport Types
-export interface FtpStatRequest {
+// File Stat Transport Types
+export interface FileStatRequest {
     path: string; // "/data/accounts/123/" or "/data/accounts/123.json"
 }
 
-export interface FtpStatSchemaInfo {
+export interface FileStatSchemaInfo {
     description?: string;
     record_count: number;
     recent_changes: number;
@@ -24,15 +24,15 @@ export interface FtpStatSchemaInfo {
     common_operations?: string[];
 }
 
-export interface FtpStatResponse {
+export interface FileStatResponse {
     success: true;
     path: string;
     type: 'directory' | 'file' | 'link';
-    permissions: string; // FTP permissions format
+    permissions: string; // File permissions format
     size: number;
-    modified_time: string; // FTP timestamp format
-    created_time: string; // FTP timestamp format
-    access_time: string; // FTP timestamp format
+    modified_time: string; // File timestamp format
+    created_time: string; // File timestamp format
+    access_time: string; // File timestamp format
     record_info: {
         schema: string;
         record_id?: string;
@@ -43,7 +43,7 @@ export interface FtpStatResponse {
     };
     children_count?: number; // For directories
     total_size?: number; // Recursive size calculation
-    schema_info?: FtpStatSchemaInfo; // NEW: Enhanced schema information
+    schema_info?: FileStatSchemaInfo; // NEW: Enhanced schema information
 }
 
 /**
@@ -53,7 +53,7 @@ class SchemaAnalyzer {
     /**
      * Generate schema information from cached Schema object (no database queries)
      */
-    static async generateSchemaInfo(system: any, schemaName: string): Promise<FtpStatSchemaInfo> {
+    static async generateSchemaInfo(system: any, schemaName: string): Promise<FileStatSchemaInfo> {
         try {
             // Use cached schema object (no database query)
             const schema = await system.database.getSchema(schemaName);
@@ -126,10 +126,10 @@ class SchemaAnalyzer {
 }
 
 /**
- * FTP Status Calculator - Generate detailed status information
+ * File Status Calculator - Generate detailed status information
  */
-class FtpStatusCalculator {
-    static formatFtpTimestamp(date: Date | string): string {
+class FileStatusCalculator {
+    static formatFileTimestamp(date: Date | string): string {
         const d = new Date(date);
         const year = d.getFullYear();
         const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -208,20 +208,20 @@ class FtpStatusCalculator {
 }
 
 /**
- * POST /ftp/stat - Status Information Middleware
+ * POST /api/file/stat - Status Information Middleware
  *
- * Provides detailed file/directory status for FTP STAT command.
+ * Provides detailed file/directory status for File STAT command.
  * Returns comprehensive metadata for monk-ftp operations.
  * Enhanced with schema and field introspection for Issue #165.
  */
 export default withParams(async (context, { system, body }) => {
-    const requestBody: FtpStatRequest = body;
+    const requestBody: FileStatRequest = body;
 
     try {
         const cleanPath = requestBody.path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
         const parts = cleanPath.split('/').filter(p => p.length > 0);
 
-        let response: FtpStatResponse;
+        let response: FileStatResponse;
 
         if (parts.length === 0) {
             // Root directory
@@ -231,9 +231,9 @@ export default withParams(async (context, { system, body }) => {
                 type: 'directory',
                 permissions: 'r-x',
                 size: 0,
-                modified_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
-                created_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
-                access_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
+                modified_time: FileStatusCalculator.formatFileTimestamp(new Date()),
+                created_time: FileStatusCalculator.formatFileTimestamp(new Date()),
+                access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
                 record_info: {
                     schema: '',
                     soft_deleted: false,
@@ -252,9 +252,9 @@ export default withParams(async (context, { system, body }) => {
                 type: 'directory',
                 permissions: 'r-x',
                 size: 0,
-                modified_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
-                created_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
-                access_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
+                modified_time: FileStatusCalculator.formatFileTimestamp(new Date()),
+                created_time: FileStatusCalculator.formatFileTimestamp(new Date()),
+                access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
                 record_info: {
                     schema: '',
                     soft_deleted: false,
@@ -277,9 +277,9 @@ export default withParams(async (context, { system, body }) => {
                 type: 'directory',
                 permissions: 'rwx',
                 size: 0,
-                modified_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
-                created_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
-                access_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
+                modified_time: FileStatusCalculator.formatFileTimestamp(new Date()),
+                created_time: FileStatusCalculator.formatFileTimestamp(new Date()),
+                access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
                 record_info: {
                     schema,
                     soft_deleted: false,
@@ -308,12 +308,12 @@ export default withParams(async (context, { system, body }) => {
                 throw new Error(`Record not found: ${recordId}`);
             }
 
-            const permissions = FtpStatusCalculator.calculatePermissions(system, record);
-            const accessPermissions = FtpStatusCalculator.getAccessPermissions(system, record);
+            const permissions = FileStatusCalculator.calculatePermissions(system, record);
+            const accessPermissions = FileStatusCalculator.getAccessPermissions(system, record);
 
             if (isJsonFile) {
                 // JSON file status
-                const contentSize = FtpStatusCalculator.calculateContentSize(record);
+                const contentSize = FileStatusCalculator.calculateContentSize(record);
 
                 response = {
                     success: true,
@@ -321,9 +321,9 @@ export default withParams(async (context, { system, body }) => {
                     type: 'file',
                     permissions,
                     size: contentSize,
-                    modified_time: FtpStatusCalculator.formatFtpTimestamp(record.updated_at || record.created_at),
-                    created_time: FtpStatusCalculator.formatFtpTimestamp(record.created_at),
-                    access_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
+                    modified_time: FileStatusCalculator.formatFileTimestamp(record.updated_at || record.created_at),
+                    created_time: FileStatusCalculator.formatFileTimestamp(record.created_at),
+                    access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
                     record_info: {
                         schema,
                         record_id: recordId,
@@ -342,9 +342,9 @@ export default withParams(async (context, { system, body }) => {
                     type: 'directory',
                     permissions,
                     size: 0,
-                    modified_time: FtpStatusCalculator.formatFtpTimestamp(record.updated_at || record.created_at),
-                    created_time: FtpStatusCalculator.formatFtpTimestamp(record.created_at),
-                    access_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
+                    modified_time: FileStatusCalculator.formatFileTimestamp(record.updated_at || record.created_at),
+                    created_time: FileStatusCalculator.formatFileTimestamp(record.created_at),
+                    access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
                     record_info: {
                         schema,
                         record_id: recordId,
@@ -373,10 +373,10 @@ export default withParams(async (context, { system, body }) => {
                 throw new Error(`Field not found: ${fieldName}`);
             }
 
-            const permissions = FtpStatusCalculator.calculatePermissions(system, record);
-            const accessPermissions = FtpStatusCalculator.getAccessPermissions(system, record);
+            const permissions = FileStatusCalculator.calculatePermissions(system, record);
+            const accessPermissions = FileStatusCalculator.getAccessPermissions(system, record);
             const fieldContent = record[fieldName];
-            const contentSize = FtpStatusCalculator.calculateContentSize(fieldContent);
+            const contentSize = FileStatusCalculator.calculateContentSize(fieldContent);
 
             response = {
                 success: true,
@@ -384,9 +384,9 @@ export default withParams(async (context, { system, body }) => {
                 type: 'file',
                 permissions,
                 size: contentSize,
-                modified_time: FtpStatusCalculator.formatFtpTimestamp(record.updated_at || record.created_at),
-                created_time: FtpStatusCalculator.formatFtpTimestamp(record.created_at),
-                access_time: FtpStatusCalculator.formatFtpTimestamp(new Date()),
+                modified_time: FileStatusCalculator.formatFileTimestamp(record.updated_at || record.created_at),
+                created_time: FileStatusCalculator.formatFileTimestamp(record.created_at),
+                access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
                 record_info: {
                     schema,
                     record_id: recordId,
@@ -399,7 +399,7 @@ export default withParams(async (context, { system, body }) => {
             throw new Error(`Unsupported path format for stat: ${requestBody.path}`);
         }
 
-        logger.info('FTP stat completed', {
+        logger.info('File stat completed', {
             path: requestBody.path,
             type: response.type,
             size: response.size,
@@ -408,7 +408,7 @@ export default withParams(async (context, { system, body }) => {
 
         setRouteResult(context, response);
     } catch (error) {
-        logger.warn('FTP stat failed', {
+        logger.warn('File stat failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error),
         });

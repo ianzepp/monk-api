@@ -1,23 +1,23 @@
 import type { Context } from 'hono';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
-// FTP Retrieve Transport Types
-export interface FtpRetrieveRequest {
+// File Retrieve Transport Types
+export interface FileRetrieveRequest {
     path: string; // "/data/accounts/123.json" or "/data/accounts/123/email"
-    ftp_options: {
-        binary_mode: boolean; // FTP transfer mode
+    file_options: {
+        binary_mode: boolean; // File transfer mode
         start_offset: number; // Resume support
         max_bytes?: number; // Partial transfer
         format?: 'json' | 'yaml' | 'raw';
     };
 }
 
-export interface FtpRetrieveResponse {
+export interface FileRetrieveResponse {
     success: true;
     content: any; // File content
-    ftp_metadata: {
+    file_metadata: {
         size: number; // Exact byte count
-        modified_time: string; // FTP timestamp format
+        modified_time: string; // File timestamp format
         content_type: string; // MIME type
         can_resume: boolean; // Supports partial transfers
         etag?: string; // For caching
@@ -25,9 +25,9 @@ export interface FtpRetrieveResponse {
 }
 
 /**
- * FTP Content Formatter - Format content for FTP transfer
+ * File Content Formatter - Format content for File transfer
  */
-class FtpContentFormatter {
+class FileContentFormatter {
     static formatContent(content: any, format: 'json' | 'yaml' | 'raw', binaryMode: boolean): string {
         if (format === 'raw' || typeof content === 'string') {
             return String(content);
@@ -69,7 +69,7 @@ class FtpContentFormatter {
         return crypto.createHash('md5').update(content).digest('hex');
     }
 
-    static formatFtpTimestamp(date: Date | string): string {
+    static formatFileTimestamp(date: Date | string): string {
         const d = new Date(date);
         const year = d.getFullYear();
         const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -83,18 +83,18 @@ class FtpContentFormatter {
 }
 
 /**
- * POST /ftp/retrieve - File Retrieval Middleware
+ * POST /api/file/retrieve - File Retrieval Middleware
  *
- * Optimized file content retrieval with FTP metadata for monk-ftp integration.
+ * Optimized file content retrieval with File metadata for monk-ftp integration.
  * Supports record-level and field-level access with resume capabilities.
  */
-export default async function ftpRetrieveHandler(context: Context): Promise<any> {
+export default async function fileRetrieveHandler(context: Context): Promise<any> {
     const system = context.get('system');
-    const requestBody: FtpRetrieveRequest = await context.req.json();
+    const requestBody: FileRetrieveRequest = await context.req.json();
 
-    logger.info('FTP retrieve operation', {
+    logger.info('File retrieve operation', {
         path: requestBody.path,
-        options: requestBody.ftp_options,
+        options: requestBody.file_options,
     });
 
     try {
@@ -154,38 +154,38 @@ export default async function ftpRetrieveHandler(context: Context): Promise<any>
         }
 
         // Format content based on options
-        const format = requestBody.ftp_options.format || 'json';
-        const formattedContent = FtpContentFormatter.formatContent(content, format, requestBody.ftp_options.binary_mode);
+        const format = requestBody.file_options.format || 'json';
+        const formattedContent = FileContentFormatter.formatContent(content, format, requestBody.file_options.binary_mode);
 
         // Handle partial content (resume support)
         let finalContent = formattedContent;
-        if (requestBody.ftp_options.start_offset > 0) {
-            finalContent = formattedContent.substring(requestBody.ftp_options.start_offset);
+        if (requestBody.file_options.start_offset > 0) {
+            finalContent = formattedContent.substring(requestBody.file_options.start_offset);
         }
 
-        if (requestBody.ftp_options.max_bytes) {
-            finalContent = finalContent.substring(0, requestBody.ftp_options.max_bytes);
+        if (requestBody.file_options.max_bytes) {
+            finalContent = finalContent.substring(0, requestBody.file_options.max_bytes);
         }
 
         // Calculate metadata
-        const fullSize = FtpContentFormatter.calculateSize(formattedContent);
-        const actualSize = FtpContentFormatter.calculateSize(finalContent);
+        const fullSize = FileContentFormatter.calculateSize(formattedContent);
+        const actualSize = FileContentFormatter.calculateSize(finalContent);
 
         // Get record for timestamp (already retrieved above)
 
-        const response: FtpRetrieveResponse = {
+        const response: FileRetrieveResponse = {
             success: true,
-            content: requestBody.ftp_options.format === 'raw' ? finalContent : JSON.parse(finalContent || 'null'),
-            ftp_metadata: {
+            content: requestBody.file_options.format === 'raw' ? finalContent : JSON.parse(finalContent || 'null'),
+            file_metadata: {
                 size: actualSize,
-                modified_time: FtpContentFormatter.formatFtpTimestamp(record?.updated_at || record?.created_at || new Date()),
-                content_type: FtpContentFormatter.getContentType(format, fieldName),
+                modified_time: FileContentFormatter.formatFileTimestamp(record?.updated_at || record?.created_at || new Date()),
+                content_type: FileContentFormatter.getContentType(format, fieldName),
                 can_resume: fullSize > actualSize,
-                etag: FtpContentFormatter.generateEtag(formattedContent),
+                etag: FileContentFormatter.generateEtag(formattedContent),
             },
         };
 
-        logger.info('FTP retrieve completed', {
+        logger.info('File retrieve completed', {
             path: requestBody.path,
             schema,
             recordId,
@@ -197,7 +197,7 @@ export default async function ftpRetrieveHandler(context: Context): Promise<any>
 
         setRouteResult(context, response);
     } catch (error) {
-        logger.warn('FTP retrieve failed', {
+        logger.warn('File retrieve failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error),
         });

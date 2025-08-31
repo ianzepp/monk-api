@@ -2,14 +2,14 @@ import type { Context } from 'hono';
 import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
-// FTP Modify Time Transport Types
-export interface FtpModifyTimeRequest {
+// File Modify Time Transport Types
+export interface FileModifyTimeRequest {
     path: string; // "/data/accounts/123.json" or "/data/accounts/123/email" or "/data/accounts/"
 }
 
-export interface FtpModifyTimeResponse {
+export interface FileModifyTimeResponse {
     success: true;
-    modified_time: string; // FTP format: YYYYMMDDHHMMSS
+    modified_time: string; // File format: YYYYMMDDHHMMSS
     path: string;
     timestamp_info: {
         source: 'updated_at' | 'created_at' | 'current_time';
@@ -18,22 +18,22 @@ export interface FtpModifyTimeResponse {
     };
 }
 
-export interface FtpModifyTimeErrorResponse {
+export interface FileModifyTimeErrorResponse {
     success: false;
     error: 'file_not_found' | 'permission_denied' | 'invalid_path';
     message: string;
     path: string;
-    ftp_code: number;
+    file_code: number;
 }
 
 /**
- * FTP Timestamp Formatter - Convert dates to FTP MDTM format
+ * File Timestamp Formatter - Convert dates to File MDTM format
  */
-class FtpTimestampFormatter {
+class FileTimestampFormatter {
     /**
-     * Format date to FTP timestamp: YYYYMMDDHHMMSS
+     * Format date to File timestamp: YYYYMMDDHHMMSS
      */
-    static formatFtpTimestamp(date: Date | string): string {
+    static formatFileTimestamp(date: Date | string): string {
         const d = new Date(date);
         const year = d.getUTCFullYear();
         const month = (d.getUTCMonth() + 1).toString().padStart(2, '0');
@@ -72,10 +72,10 @@ class FtpTimestampFormatter {
 }
 
 /**
- * FTP Modify Time Path Parser - Parse paths for MDTM command
+ * File Modify Time Path Parser - Parse paths for MDTM command
  */
-class FtpModifyTimePathParser {
-    static parse(path: string): FtpModifyTimePath {
+class FileModifyTimePathParser {
+    static parse(path: string): FileModifyTimePath {
         const cleanPath = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
         const parts = cleanPath.split('/').filter(p => p.length > 0);
 
@@ -88,7 +88,7 @@ class FtpModifyTimePathParser {
 
         // /data or /meta paths only
         if (parts[0] !== 'data' && parts[0] !== 'meta') {
-            throw new FtpModifyTimeError('invalid_path', 'MDTM command only supports /data and /meta paths', path, 550);
+            throw new FileModifyTimeError('invalid_path', 'MDTM command only supports /data and /meta paths', path, 550);
         }
 
         const apiType = parts[0] as 'data' | 'meta';
@@ -156,7 +156,7 @@ class FtpModifyTimePathParser {
             };
         }
 
-        throw new FtpModifyTimeError('invalid_path', `Invalid FTP modify time path format: ${path} - too many path components`, path, 550);
+        throw new FileModifyTimeError('invalid_path', `Invalid File modify time path format: ${path} - too many path components`, path, 550);
     }
 
     static validate(path: string): boolean {
@@ -169,7 +169,7 @@ class FtpModifyTimePathParser {
     }
 }
 
-export interface FtpModifyTimePath {
+export interface FileModifyTimePath {
     api_type: 'root' | 'data' | 'meta';
     operation_type: 'root' | 'directory' | 'record_file' | 'field_file';
     directory_type?: 'api_root' | 'schema' | 'record';
@@ -179,25 +179,25 @@ export interface FtpModifyTimePath {
 }
 
 /**
- * FTP Modify Time Error - Specialized error for MDTM command failures
+ * File Modify Time Error - Specialized error for MDTM command failures
  */
-class FtpModifyTimeError extends Error {
+class FileModifyTimeError extends Error {
     constructor(
         public readonly errorType: string,
         message: string,
         public readonly path: string,
-        public readonly ftpCode: number
+        public readonly fileCode: number
     ) {
         super(message);
-        this.name = 'FtpModifyTimeError';
+        this.name = 'FileModifyTimeError';
     }
 }
 
 /**
- * FTP Modify Time Permission Validator - Check file/directory access permissions
+ * File Modify Time Permission Validator - Check file/directory access permissions
  */
-class FtpModifyTimePermissionValidator {
-    static async validateModifyTimePermission(system: any, path: FtpModifyTimePath): Promise<boolean> {
+class FileModifyTimePermissionValidator {
+    static async validateModifyTimePermission(system: any, path: FileModifyTimePath): Promise<boolean> {
         const user = system.getUser();
 
         // Root user has all permissions
@@ -213,7 +213,7 @@ class FtpModifyTimePermissionValidator {
                 });
 
                 if (!record) {
-                    throw new FtpModifyTimeError('file_not_found', `File does not exist: ${path.record_id}`, '', 550);
+                    throw new FileModifyTimeError('file_not_found', `File does not exist: ${path.record_id}`, '', 550);
                 }
 
                 // Check user permissions for reading
@@ -232,22 +232,22 @@ class FtpModifyTimePermissionValidator {
             // For directories and root, generally allow access
             return true;
         } catch (error) {
-            if (error instanceof FtpModifyTimeError) {
+            if (error instanceof FileModifyTimeError) {
                 throw error;
             }
 
-            throw new FtpModifyTimeError('permission_denied', 'Permission check failed', '', 550);
+            throw new FileModifyTimeError('permission_denied', 'Permission check failed', '', 550);
         }
     }
 }
 
 /**
- * FTP Modify Time Operations - Handle different path types
+ * File Modify Time Operations - Handle different path types
  */
-class FtpModifyTimeOperations {
+class FileModifyTimeOperations {
     static async getModificationTime(
         system: any,
-        path: FtpModifyTimePath
+        path: FileModifyTimePath
     ): Promise<{
         timestamp: Date;
         source: 'updated_at' | 'created_at' | 'current_time';
@@ -270,13 +270,13 @@ class FtpModifyTimeOperations {
                 return await this.getFieldFileModificationTime(system, path);
 
             default:
-                throw new FtpModifyTimeError('invalid_path', `Unsupported operation type: ${path.operation_type}`, '', 550);
+                throw new FileModifyTimeError('invalid_path', `Unsupported operation type: ${path.operation_type}`, '', 550);
         }
     }
 
     static async getDirectoryModificationTime(
         system: any,
-        path: FtpModifyTimePath
+        path: FileModifyTimePath
     ): Promise<{
         timestamp: Date;
         source: 'updated_at' | 'created_at' | 'current_time';
@@ -298,7 +298,7 @@ class FtpModifyTimeOperations {
                     });
 
                     if (recentRecord.length > 0) {
-                        const { timestamp, source } = FtpTimestampFormatter.getBestTimestamp(recentRecord[0]);
+                        const { timestamp, source } = FileTimestampFormatter.getBestTimestamp(recentRecord[0]);
                         return { timestamp, source };
                     }
 
@@ -322,10 +322,10 @@ class FtpModifyTimeOperations {
                 });
 
                 if (!record) {
-                    throw new FtpModifyTimeError('file_not_found', `Record not found: ${path.record_id}`, '', 550);
+                    throw new FileModifyTimeError('file_not_found', `Record not found: ${path.record_id}`, '', 550);
                 }
 
-                const { timestamp, source } = FtpTimestampFormatter.getBestTimestamp(record);
+                const { timestamp, source } = FileTimestampFormatter.getBestTimestamp(record);
                 return { timestamp, source };
 
             default:
@@ -338,7 +338,7 @@ class FtpModifyTimeOperations {
 
     static async getRecordFileModificationTime(
         system: any,
-        path: FtpModifyTimePath
+        path: FileModifyTimePath
     ): Promise<{
         timestamp: Date;
         source: 'updated_at' | 'created_at' | 'current_time';
@@ -348,16 +348,16 @@ class FtpModifyTimeOperations {
         });
 
         if (!record) {
-            throw new FtpModifyTimeError('file_not_found', `Record not found: ${path.record_id}`, '', 550);
+            throw new FileModifyTimeError('file_not_found', `Record not found: ${path.record_id}`, '', 550);
         }
 
-        const { timestamp, source } = FtpTimestampFormatter.getBestTimestamp(record);
+        const { timestamp, source } = FileTimestampFormatter.getBestTimestamp(record);
         return { timestamp, source };
     }
 
     static async getFieldFileModificationTime(
         system: any,
-        path: FtpModifyTimePath
+        path: FileModifyTimePath
     ): Promise<{
         timestamp: Date;
         source: 'updated_at' | 'created_at' | 'current_time';
@@ -367,50 +367,50 @@ class FtpModifyTimeOperations {
         });
 
         if (!record) {
-            throw new FtpModifyTimeError('file_not_found', `Record not found: ${path.record_id}`, '', 550);
+            throw new FileModifyTimeError('file_not_found', `Record not found: ${path.record_id}`, '', 550);
         }
 
         if (!(path.field_name! in record)) {
-            throw new FtpModifyTimeError('file_not_found', `Field not found: ${path.field_name}`, '', 550);
+            throw new FileModifyTimeError('file_not_found', `Field not found: ${path.field_name}`, '', 550);
         }
 
         // Field inherits parent record's timestamp
-        const { timestamp, source } = FtpTimestampFormatter.getBestTimestamp(record);
+        const { timestamp, source } = FileTimestampFormatter.getBestTimestamp(record);
         return { timestamp, source };
     }
 }
 
 /**
- * POST /ftp/modify-time - Modification Time Query Middleware
+ * POST /api/file/modify-time - Modification Time Query Middleware
  *
- * Lightweight endpoint for FTP MDTM command support.
- * Returns modification timestamps in FTP format (YYYYMMDDHHMMSS)
+ * Lightweight endpoint for File MDTM command support.
+ * Returns modification timestamps in File format (YYYYMMDDHHMMSS)
  * for files, directories, and fields.
  */
 export default withParams(async (context, { system, body }) => {
-    const requestBody: FtpModifyTimeRequest = body;
+    const requestBody: FileModifyTimeRequest = body;
 
-    logger.info('FTP modify time operation', {
+    logger.info('File modify time operation', {
         path: requestBody.path,
     });
 
     try {
-        // Parse and validate FTP path for MDTM operation
-        const ftpPath = FtpModifyTimePathParser.parse(requestBody.path);
+        // Parse and validate File path for MDTM operation
+        const filePath = FileModifyTimePathParser.parse(requestBody.path);
 
         // Validate permissions
-        const hasPermission = await FtpModifyTimePermissionValidator.validateModifyTimePermission(system, ftpPath);
+        const hasPermission = await FileModifyTimePermissionValidator.validateModifyTimePermission(system, filePath);
 
         if (!hasPermission) {
-            const errorResponse: FtpModifyTimeErrorResponse = {
+            const errorResponse: FileModifyTimeErrorResponse = {
                 success: false,
                 error: 'permission_denied',
                 message: 'Access denied',
                 path: requestBody.path,
-                ftp_code: 550,
+                file_code: 550,
             };
 
-            logger.warn('FTP modify time permission denied', {
+            logger.warn('File modify time permission denied', {
                 path: requestBody.path,
                 user: system.getUser().id,
             });
@@ -420,12 +420,12 @@ export default withParams(async (context, { system, body }) => {
         }
 
         // Get modification time based on path type
-        const { timestamp, source } = await FtpModifyTimeOperations.getModificationTime(system, ftpPath);
+        const { timestamp, source } = await FileModifyTimeOperations.getModificationTime(system, filePath);
 
         // Build successful response
-        const response: FtpModifyTimeResponse = {
+        const response: FileModifyTimeResponse = {
             success: true,
-            modified_time: FtpTimestampFormatter.formatFtpTimestamp(timestamp),
+            modified_time: FileTimestampFormatter.formatFileTimestamp(timestamp),
             path: requestBody.path,
             timestamp_info: {
                 source: source,
@@ -434,25 +434,25 @@ export default withParams(async (context, { system, body }) => {
             },
         };
 
-        logger.info('FTP modify time completed', {
+        logger.info('File modify time completed', {
             path: requestBody.path,
             modifiedTime: response.modified_time,
             source: source,
-            operationType: ftpPath.operation_type,
+            operationType: filePath.operation_type,
         });
 
         setRouteResult(context, response);
     } catch (error) {
-        if (error instanceof FtpModifyTimeError) {
-            const errorResponse: FtpModifyTimeErrorResponse = {
+        if (error instanceof FileModifyTimeError) {
+            const errorResponse: FileModifyTimeErrorResponse = {
                 success: false,
                 error: error.errorType as any,
                 message: error.message,
                 path: requestBody.path,
-                ftp_code: error.ftpCode,
+                file_code: error.fileCode,
             };
 
-            logger.warn('FTP modify time failed', {
+            logger.warn('File modify time failed', {
                 path: requestBody.path,
                 error: error.errorType,
                 message: error.message,
@@ -460,7 +460,7 @@ export default withParams(async (context, { system, body }) => {
 
             setRouteResult(context, errorResponse);
         } else {
-            logger.warn('FTP modify time unexpected error', {
+            logger.warn('File modify time unexpected error', {
                 path: requestBody.path,
                 error: error instanceof Error ? error.message : String(error),
             });

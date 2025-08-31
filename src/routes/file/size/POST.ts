@@ -2,12 +2,12 @@ import type { Context } from 'hono';
 import { withParams } from '@src/lib/route-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
-// FTP Size Transport Types
-export interface FtpSizeRequest {
+// File Size Transport Types
+export interface FileSizeRequest {
     path: string; // "/data/accounts/123.json" or "/data/accounts/123/email"
 }
 
-export interface FtpSizeResponse {
+export interface FileSizeResponse {
     success: true;
     size: number; // Exact byte size
     path: string;
@@ -18,18 +18,18 @@ export interface FtpSizeResponse {
     };
 }
 
-export interface FtpSizeErrorResponse {
+export interface FileSizeErrorResponse {
     success: false;
     error: 'not_a_file' | 'file_not_found' | 'permission_denied' | 'invalid_path';
     message: string;
     path: string;
-    ftp_code: number;
+    file_code: number;
 }
 
 /**
- * FTP Size Calculator - Calculate exact byte sizes for FTP SIZE command
+ * File Size Calculator - Calculate exact byte sizes for File SIZE command
  */
-class FtpSizeCalculator {
+class FileSizeCalculator {
     /**
      * Calculate exact byte size of content
      */
@@ -73,32 +73,32 @@ class FtpSizeCalculator {
 }
 
 /**
- * FTP Size Path Parser - Parse paths for SIZE command validation
+ * File Size Path Parser - Parse paths for SIZE command validation
  */
-class FtpSizePathParser {
-    static parse(path: string): FtpSizePath {
+class FileSizePathParser {
+    static parse(path: string): FileSizePath {
         const cleanPath = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
         const parts = cleanPath.split('/').filter(p => p.length > 0);
 
         if (parts.length === 0) {
-            throw new FtpSizeError('not_a_file', 'SIZE command only works on files, not directories', path, 550);
+            throw new FileSizeError('not_a_file', 'SIZE command only works on files, not directories', path, 550);
         }
 
         // /data or /meta paths only
         if (parts[0] !== 'data' && parts[0] !== 'meta') {
-            throw new FtpSizeError('invalid_path', 'SIZE command only supports /data and /meta paths', path, 550);
+            throw new FileSizeError('invalid_path', 'SIZE command only supports /data and /meta paths', path, 550);
         }
 
         const apiType = parts[0] as 'data' | 'meta';
 
         // /data or /meta (directories)
         if (parts.length === 1) {
-            throw new FtpSizeError('not_a_file', 'SIZE command only works on files, not directories', path, 550);
+            throw new FileSizeError('not_a_file', 'SIZE command only works on files, not directories', path, 550);
         }
 
         // /data/schema (directories)
         if (parts.length === 2) {
-            throw new FtpSizeError('not_a_file', 'SIZE command only works on files, not directories', path, 550);
+            throw new FileSizeError('not_a_file', 'SIZE command only works on files, not directories', path, 550);
         }
 
         // /data/schema/record-id or /data/schema/record-id.json
@@ -113,7 +113,7 @@ class FtpSizePathParser {
             }
 
             if (!isJsonFile) {
-                throw new FtpSizeError('not_a_file', 'SIZE command only works on files, not directories', path, 550);
+                throw new FileSizeError('not_a_file', 'SIZE command only works on files, not directories', path, 550);
             }
 
             return {
@@ -140,7 +140,7 @@ class FtpSizePathParser {
             };
         }
 
-        throw new FtpSizeError('invalid_path', `Invalid FTP size path format: ${path} - too many path components`, path, 550);
+        throw new FileSizeError('invalid_path', `Invalid File size path format: ${path} - too many path components`, path, 550);
     }
 
     static validate(path: string): boolean {
@@ -153,7 +153,7 @@ class FtpSizePathParser {
     }
 }
 
-export interface FtpSizePath {
+export interface FileSizePath {
     api_type: 'data' | 'meta';
     operation_type: 'record' | 'field';
     schema: string;
@@ -163,25 +163,25 @@ export interface FtpSizePath {
 }
 
 /**
- * FTP Size Error - Specialized error for SIZE command failures
+ * File Size Error - Specialized error for SIZE command failures
  */
-class FtpSizeError extends Error {
+class FileSizeError extends Error {
     constructor(
         public readonly errorType: string,
         message: string,
         public readonly path: string,
-        public readonly ftpCode: number
+        public readonly fileCode: number
     ) {
         super(message);
-        this.name = 'FtpSizeError';
+        this.name = 'FileSizeError';
     }
 }
 
 /**
- * FTP Size Permission Validator - Check file access permissions
+ * File Size Permission Validator - Check file access permissions
  */
-class FtpSizePermissionValidator {
-    static async validateSizePermission(system: any, path: FtpSizePath): Promise<boolean> {
+class FileSizePermissionValidator {
+    static async validateSizePermission(system: any, path: FileSizePath): Promise<boolean> {
         const user = system.getUser();
 
         // Root user has all permissions
@@ -196,7 +196,7 @@ class FtpSizePermissionValidator {
             });
 
             if (!record) {
-                throw new FtpSizeError('file_not_found', `File does not exist: ${path.record_id}`, '', 550);
+                throw new FileSizeError('file_not_found', `File does not exist: ${path.record_id}`, '', 550);
             }
 
             // Check user permissions for reading
@@ -211,46 +211,46 @@ class FtpSizePermissionValidator {
 
             return hasReadAccess && !isDenied;
         } catch (error) {
-            if (error instanceof FtpSizeError) {
+            if (error instanceof FileSizeError) {
                 throw error;
             }
 
-            throw new FtpSizeError('permission_denied', 'Permission check failed', '', 550);
+            throw new FileSizeError('permission_denied', 'Permission check failed', '', 550);
         }
     }
 }
 
 /**
- * POST /ftp/size - File Size Query Middleware
+ * POST /api/file/size - File Size Query Middleware
  *
- * Lightweight endpoint for FTP SIZE command support.
+ * Lightweight endpoint for File SIZE command support.
  * Returns exact byte sizes for files without full metadata overhead.
  * Supports both complete record JSON files and individual field files.
  */
 export default withParams(async (context, { system, body }) => {
-    const requestBody: FtpSizeRequest = body;
+    const requestBody: FileSizeRequest = body;
 
-    logger.info('FTP size operation', {
+    logger.info('File size operation', {
         path: requestBody.path,
     });
 
     try {
-        // Parse and validate FTP path for SIZE operation
-        const ftpPath = FtpSizePathParser.parse(requestBody.path);
+        // Parse and validate File path for SIZE operation
+        const filePath = FileSizePathParser.parse(requestBody.path);
 
         // Validate permissions
-        const hasPermission = await FtpSizePermissionValidator.validateSizePermission(system, ftpPath);
+        const hasPermission = await FileSizePermissionValidator.validateSizePermission(system, filePath);
 
         if (!hasPermission) {
-            const errorResponse: FtpSizeErrorResponse = {
+            const errorResponse: FileSizeErrorResponse = {
                 success: false,
                 error: 'permission_denied',
                 message: 'Access denied',
                 path: requestBody.path,
-                ftp_code: 550,
+                file_code: 550,
             };
 
-            logger.warn('FTP size permission denied', {
+            logger.warn('File size permission denied', {
                 path: requestBody.path,
                 user: system.getUser().id,
             });
@@ -262,44 +262,44 @@ export default withParams(async (context, { system, body }) => {
         let fileSize: number;
 
         // Execute the size calculation based on path type
-        switch (ftpPath.operation_type) {
+        switch (filePath.operation_type) {
             case 'record':
                 // Complete JSON record size
-                const record = await system.database.selectOne(ftpPath.schema, {
-                    where: { id: ftpPath.record_id },
+                const record = await system.database.selectOne(filePath.schema, {
+                    where: { id: filePath.record_id },
                 });
 
                 if (!record) {
-                    throw new FtpSizeError('file_not_found', `Record not found: ${ftpPath.record_id}`, requestBody.path, 550);
+                    throw new FileSizeError('file_not_found', `Record not found: ${filePath.record_id}`, requestBody.path, 550);
                 }
 
-                fileSize = FtpSizeCalculator.calculateRecordSize(record);
+                fileSize = FileSizeCalculator.calculateRecordSize(record);
                 break;
 
             case 'field':
                 // Individual field size
-                const fieldRecord = await system.database.selectOne(ftpPath.schema, {
-                    where: { id: ftpPath.record_id },
+                const fieldRecord = await system.database.selectOne(filePath.schema, {
+                    where: { id: filePath.record_id },
                 });
 
                 if (!fieldRecord) {
-                    throw new FtpSizeError('file_not_found', `Record not found: ${ftpPath.record_id}`, requestBody.path, 550);
+                    throw new FileSizeError('file_not_found', `Record not found: ${filePath.record_id}`, requestBody.path, 550);
                 }
 
-                if (!(ftpPath.field_name! in fieldRecord)) {
-                    throw new FtpSizeError('file_not_found', `Field not found: ${ftpPath.field_name}`, requestBody.path, 550);
+                if (!(filePath.field_name! in fieldRecord)) {
+                    throw new FileSizeError('file_not_found', `Field not found: ${filePath.field_name}`, requestBody.path, 550);
                 }
 
-                const fieldValue = fieldRecord[ftpPath.field_name!];
-                fileSize = FtpSizeCalculator.calculateFieldSize(fieldValue);
+                const fieldValue = fieldRecord[filePath.field_name!];
+                fileSize = FileSizeCalculator.calculateFieldSize(fieldValue);
                 break;
 
             default:
-                throw new FtpSizeError('invalid_path', `Unsupported operation type: ${ftpPath.operation_type}`, requestBody.path, 550);
+                throw new FileSizeError('invalid_path', `Unsupported operation type: ${filePath.operation_type}`, requestBody.path, 550);
         }
 
         // Build successful response
-        const response: FtpSizeResponse = {
+        const response: FileSizeResponse = {
             success: true,
             size: fileSize,
             path: requestBody.path,
@@ -310,24 +310,24 @@ export default withParams(async (context, { system, body }) => {
             },
         };
 
-        logger.info('FTP size completed', {
+        logger.info('File size completed', {
             path: requestBody.path,
             size: fileSize,
-            operationType: ftpPath.operation_type,
+            operationType: filePath.operation_type,
         });
 
         setRouteResult(context, response);
     } catch (error) {
-        if (error instanceof FtpSizeError) {
-            const errorResponse: FtpSizeErrorResponse = {
+        if (error instanceof FileSizeError) {
+            const errorResponse: FileSizeErrorResponse = {
                 success: false,
                 error: error.errorType as any,
                 message: error.message,
                 path: requestBody.path,
-                ftp_code: error.ftpCode,
+                file_code: error.fileCode,
             };
 
-            logger.warn('FTP size failed', {
+            logger.warn('File size failed', {
                 path: requestBody.path,
                 error: error.errorType,
                 message: error.message,
@@ -335,7 +335,7 @@ export default withParams(async (context, { system, body }) => {
 
             setRouteResult(context, errorResponse);
         } else {
-            logger.warn('FTP size unexpected error', {
+            logger.warn('File size unexpected error', {
                 path: requestBody.path,
                 error: error instanceof Error ? error.message : String(error),
             });

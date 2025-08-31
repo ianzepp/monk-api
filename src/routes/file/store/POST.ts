@@ -1,14 +1,14 @@
 import type { Context } from 'hono';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
-// Enhanced FTP Store Transport Types (Phase 3)
-export interface FtpStoreRequest {
+// Enhanced File Store Transport Types (Phase 3)
+export interface FileStoreRequest {
     path: string; // "/data/users/new-user.json" or "/data/users/user-123/email"
     content: any; // Record data or field value
-    ftp_options: {
-        binary_mode: boolean; // FTP transfer mode
+    file_options: {
+        binary_mode: boolean; // File transfer mode
         overwrite: boolean; // Allow overwriting existing records
-        append_mode: boolean; // FTP append vs replace
+        append_mode: boolean; // File append vs replace
         create_path: boolean; // Auto-create intermediate directories (schemas)
         resume_offset?: number; // Resume partial uploads
         atomic: boolean; // Atomic operation (default: true)
@@ -23,8 +23,8 @@ export interface FtpStoreRequest {
     };
 }
 
-// Enhanced FTP Store Response (Phase 3)
-export interface FtpStoreResponse {
+// Enhanced File Store Response (Phase 3)
+export interface FileStoreResponse {
     success: true;
     operation: 'create' | 'update' | 'append' | 'field_update';
     result: {
@@ -36,8 +36,8 @@ export interface FtpStoreResponse {
         updated: boolean; // Was record updated?
         validation_passed: boolean; // Schema validation result
     };
-    ftp_metadata: {
-        modified_time: string; // FTP timestamp format
+    file_metadata: {
+        modified_time: string; // File timestamp format
         permissions: string; // User's permissions on created/updated record
         can_resume: boolean; // Future resume support
         etag: string; // Content ETag for caching
@@ -52,16 +52,16 @@ export interface FtpStoreResponse {
 }
 
 /**
- * Transaction Manager for FTP Operations (Phase 3)
+ * Transaction Manager for File Operations (Phase 3)
  */
-export class FtpTransactionManager {
-    private static transactions = new Map<string, FtpTransaction>();
+export class FileTransactionManager {
+    private static transactions = new Map<string, FileTransaction>();
 
     static async beginTransaction(system: any, operation: 'store' | 'delete' | 'copy' | 'move', path: string): Promise<string> {
-        const transactionId = `ftp-${operation}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const transactionId = `file-${operation}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const timeoutMs = 30000; // 30 seconds default timeout
 
-        const transaction: FtpTransaction = {
+        const transaction: FileTransaction = {
             id: transactionId,
             operation,
             path,
@@ -80,7 +80,7 @@ export class FtpTransactionManager {
 
         this.transactions.set(transactionId, transaction);
 
-        logger.info('FTP transaction started', {
+        logger.info('File transaction started', {
             transactionId,
             operation,
             path,
@@ -136,12 +136,12 @@ export class FtpTransactionManager {
         }, 60000);
     }
 
-    static getTransaction(transactionId: string): FtpTransaction | undefined {
+    static getTransaction(transactionId: string): FileTransaction | undefined {
         return this.transactions.get(transactionId);
     }
 }
 
-export interface FtpTransaction {
+export interface FileTransaction {
     id: string;
     operation: 'store' | 'delete' | 'copy' | 'move';
     path: string;
@@ -153,10 +153,10 @@ export interface FtpTransaction {
 }
 
 /**
- * Enhanced FTP Path Parser - Enhanced for write operations (Phase 3)
+ * Enhanced File Path Parser - Enhanced for write operations (Phase 3)
  */
-class FtpStorePathParser {
-    static parse(path: string): FtpStorePath {
+class FileStorePathParser {
+    static parse(path: string): FileStorePath {
         const cleanPath = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
         const parts = cleanPath.split('/').filter(p => p.length > 0);
 
@@ -166,7 +166,7 @@ class FtpStorePathParser {
 
         // /data or /meta paths only
         if (parts[0] !== 'data' && parts[0] !== 'meta') {
-            throw new Error('FTP store only supports /data and /meta paths');
+            throw new Error('File store only supports /data and /meta paths');
         }
 
         const apiType = parts[0] as 'data' | 'meta';
@@ -211,7 +211,7 @@ class FtpStorePathParser {
             };
         }
 
-        throw new Error(`Invalid FTP store path format: ${path} - too many path components`);
+        throw new Error(`Invalid File store path format: ${path} - too many path components`);
     }
 
     static validate(path: string): boolean {
@@ -224,7 +224,7 @@ class FtpStorePathParser {
     }
 }
 
-export interface FtpStorePath {
+export interface FileStorePath {
     api_type: 'data' | 'meta';
     operation_type: 'record' | 'field';
     schema: string;
@@ -236,8 +236,8 @@ export interface FtpStorePath {
 /**
  * Content Processor - Handle different content types and formats (Phase 3)
  */
-class FtpContentProcessor {
-    static processContent(content: any, path: FtpStorePath, options: FtpStoreRequest['ftp_options']): ProcessedContent {
+class FileContentProcessor {
+    static processContent(content: any, path: FileStorePath, options: FileStoreRequest['file_options']): ProcessedContent {
         if (path.operation_type === 'field') {
             // Field-level storage - content is the field value
             return {
@@ -317,10 +317,10 @@ export interface ProcessedContent {
 }
 
 /**
- * FTP Permission Validator - Check write permissions (Phase 3)
+ * File Permission Validator - Check write permissions (Phase 3)
  */
-class FtpPermissionValidator {
-    static async validateStorePermission(system: any, path: FtpStorePath, operation: 'create' | 'update'): Promise<ValidationResult> {
+class FilePermissionValidator {
+    static async validateStorePermission(system: any, path: FileStorePath, operation: 'create' | 'update'): Promise<ValidationResult> {
         const user = system.getUser();
 
         // Root user has all permissions
@@ -410,14 +410,14 @@ export interface ValidationResult {
 }
 
 /**
- * POST /ftp/store - Enhanced File Storage Middleware (Phase 3)
+ * POST /api/file/store - Enhanced File Storage Middleware (Phase 3)
  *
  * Advanced file storage endpoint supporting atomic operations, field-level updates,
  * transaction management, and comprehensive error handling.
  */
-export default async function ftpStoreHandler(context: Context): Promise<any> {
+export default async function fileStoreHandler(context: Context): Promise<any> {
     const system = context.get('system');
-    const requestBody: FtpStoreRequest = await context.req.json();
+    const requestBody: FileStoreRequest = await context.req.json();
 
     if (!system) {
         throw new Error('System context not available - ensure systemContextMiddleware is applied');
@@ -426,9 +426,9 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
     // Start timing for performance metrics
     const startTime = process.hrtime.bigint();
 
-    logger.info('FTP store operation (Phase 3)', {
+    logger.info('File store operation (Phase 3)', {
         path: requestBody.path,
-        options: requestBody.ftp_options,
+        options: requestBody.file_options,
         hasContent: !!requestBody.content,
         contentSize: JSON.stringify(requestBody.content).length,
     });
@@ -438,32 +438,32 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
     try {
         // Default options
         const options = {
-            ...requestBody.ftp_options,
-            binary_mode: requestBody.ftp_options.binary_mode ?? false,
-            overwrite: requestBody.ftp_options.overwrite ?? true,
-            append_mode: requestBody.ftp_options.append_mode ?? false,
-            create_path: requestBody.ftp_options.create_path ?? false,
-            atomic: requestBody.ftp_options.atomic ?? true,
-            validate_schema: requestBody.ftp_options.validate_schema ?? true,
+            ...requestBody.file_options,
+            binary_mode: requestBody.file_options.binary_mode ?? false,
+            overwrite: requestBody.file_options.overwrite ?? true,
+            append_mode: requestBody.file_options.append_mode ?? false,
+            create_path: requestBody.file_options.create_path ?? false,
+            atomic: requestBody.file_options.atomic ?? true,
+            validate_schema: requestBody.file_options.validate_schema ?? true,
         };
 
-        // Parse FTP path to understand the storage operation
-        const ftpPath = FtpStorePathParser.parse(requestBody.path);
+        // Parse File path to understand the storage operation
+        const filePath = FileStorePathParser.parse(requestBody.path);
 
         // Process content based on path and options
-        const processedContent = FtpContentProcessor.processContent(requestBody.content, ftpPath, options);
+        const processedContent = FileContentProcessor.processContent(requestBody.content, filePath, options);
 
         // Start transaction if atomic operation requested
         if (options.atomic && !requestBody.metadata?.transaction_id) {
-            transactionId = await FtpTransactionManager.beginTransaction(system, 'store', requestBody.path);
+            transactionId = await FileTransactionManager.beginTransaction(system, 'store', requestBody.path);
         } else if (requestBody.metadata?.transaction_id) {
             transactionId = requestBody.metadata.transaction_id;
         }
 
         // Validate permissions
-        const permissionCheck = await FtpPermissionValidator.validateStorePermission(
+        const permissionCheck = await FilePermissionValidator.validateStorePermission(
             system,
-            ftpPath,
+            filePath,
             'create' // Will be determined during operation
         );
 
@@ -475,24 +475,24 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
         let operation: 'create' | 'update' | 'append' | 'field_update';
 
         // Execute the storage operation
-        switch (ftpPath.operation_type) {
+        switch (filePath.operation_type) {
             case 'record':
-                operationResult = await handleRecordStorage(system, ftpPath, processedContent, options);
+                operationResult = await handleRecordStorage(system, filePath, processedContent, options);
                 operation = operationResult.created ? 'create' : 'update';
                 break;
 
             case 'field':
-                operationResult = await handleFieldStorage(system, ftpPath, processedContent, options);
+                operationResult = await handleFieldStorage(system, filePath, processedContent, options);
                 operation = 'field_update';
                 break;
 
             default:
-                throw new Error(`Unsupported operation type: ${ftpPath.operation_type}`);
+                throw new Error(`Unsupported operation type: ${filePath.operation_type}`);
         }
 
         // Commit transaction if we started one
         if (transactionId && options.atomic) {
-            await FtpTransactionManager.commitTransaction(transactionId);
+            await FileTransactionManager.commitTransaction(transactionId);
         }
 
         // Calculate performance metrics
@@ -502,20 +502,20 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
         const etag = generateETag(operationResult.result, processedContent);
 
         // Build response
-        const response: FtpStoreResponse = {
+        const response: FileStoreResponse = {
             success: true,
             operation,
             result: {
                 path: requestBody.path,
-                record_id: ftpPath.record_id,
-                field_name: ftpPath.field_name,
+                record_id: filePath.record_id,
+                field_name: filePath.field_name,
                 size: processedContent.size,
                 created: operationResult.created || false,
                 updated: operationResult.updated || true,
                 validation_passed: true, // TODO: Implement schema validation
             },
-            ftp_metadata: {
-                modified_time: formatFtpTimestamp(new Date()),
+            file_metadata: {
+                modified_time: formatFileTimestamp(new Date()),
                 permissions: calculatePermissions(system, operationResult.result),
                 can_resume: false, // TODO: Implement resume support
                 etag,
@@ -530,10 +530,10 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
                 : undefined,
         };
 
-        logger.info('FTP store completed (Phase 3)', {
+        logger.info('File store completed (Phase 3)', {
             path: requestBody.path,
             operation,
-            recordId: ftpPath.record_id,
+            recordId: filePath.record_id,
             size: processedContent.size,
             totalTimeMs: Math.round(totalTime * 100) / 100,
             transactionId,
@@ -544,7 +544,7 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
         // Rollback transaction if needed
         if (transactionId) {
             try {
-                await FtpTransactionManager.rollbackTransaction(transactionId);
+                await FileTransactionManager.rollbackTransaction(transactionId);
             } catch (rollbackError) {
                 logger.warn('Failed to rollback transaction', {
                     transactionId,
@@ -553,7 +553,7 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
             }
         }
 
-        logger.warn('FTP store failed', {
+        logger.warn('File store failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error),
             transactionId,
@@ -564,7 +564,7 @@ export default async function ftpStoreHandler(context: Context): Promise<any> {
 }
 
 // Helper methods for the handler (Phase 3)
-async function handleRecordStorage(system: any, path: FtpStorePath, content: ProcessedContent, options: FtpStoreRequest['ftp_options']): Promise<StorageResult> {
+async function handleRecordStorage(system: any, path: FileStorePath, content: ProcessedContent, options: FileStoreRequest['file_options']): Promise<StorageResult> {
     // Check if record exists
     const existingRecord = await system.database.selectOne(path.schema, {
         where: { id: path.record_id },
@@ -603,7 +603,7 @@ async function handleRecordStorage(system: any, path: FtpStorePath, content: Pro
     return { result, created, updated };
 }
 
-async function handleFieldStorage(system: any, path: FtpStorePath, content: ProcessedContent, options: FtpStoreRequest['ftp_options']): Promise<StorageResult> {
+async function handleFieldStorage(system: any, path: FileStorePath, content: ProcessedContent, options: FileStoreRequest['file_options']): Promise<StorageResult> {
     // Field updates always target existing records
     const existingRecord = await system.database.selectOne(path.schema, {
         where: { id: path.record_id },
@@ -648,7 +648,7 @@ function calculatePermissions(system: any, record: any): string {
     return 'r--';
 }
 
-function formatFtpTimestamp(date: Date): string {
+function formatFileTimestamp(date: Date): string {
     const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');

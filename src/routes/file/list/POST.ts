@@ -1,12 +1,12 @@
 import type { Context } from 'hono';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { WildcardTranslator, type WildcardTranslation } from '@src/ftp/wildcard-translator.js';
-import { PatternCache } from '@src/ftp/pattern-cache.js';
+import { WildcardTranslator, type WildcardTranslation } from '@src/lib/file-wildcard-translator.js';
+import { PatternCache } from '@src/lib/file-pattern-cache.js';
 
-// Enhanced FTP List Transport Types (Phase 2)
-export interface FtpListRequest {
+// Enhanced File List Transport Types (Phase 2)
+export interface FileListRequest {
     path: string; // Complex wildcard path: "/data/users/*admin*/department/eng*/"
-    ftp_options: {
+    file_options: {
         show_hidden: boolean; // Include trashed records
         long_format: boolean; // Detailed file info
         recursive: boolean; // Recursive listing
@@ -25,10 +25,10 @@ export interface FtpListRequest {
     };
 }
 
-// Enhanced FTP List Response (Phase 2)
-export interface FtpListResponse {
+// Enhanced File List Response (Phase 2)
+export interface FileListResponse {
     success: true;
-    entries: FtpEntry[];
+    entries: FileEntry[];
     total: number;
     has_more: boolean;
     pattern_info?: {
@@ -50,13 +50,13 @@ export interface FtpListResponse {
     };
 }
 
-export interface FtpEntry {
-    name: string; // Entry name for FTP display
-    ftp_type: 'd' | 'f' | 'l'; // Directory, File, Link
-    ftp_size: number; // Size for FTP SIZE command
-    ftp_permissions: string; // User permissions: "rwx", "r--", etc
-    ftp_modified: string; // FTP timestamp: "20240115103000"
-    path: string; // Full FTP path
+export interface FileEntry {
+    name: string; // Entry name for File display
+    file_type: 'd' | 'f' | 'l'; // Directory, File, Link
+    file_size: number; // Size for File SIZE command
+    file_permissions: string; // User permissions: "rwx", "r--", etc
+    file_modified: string; // File timestamp: "20240115103000"
+    path: string; // Full File path
     api_context: {
         // Context for subsequent operations
         schema: string;
@@ -66,8 +66,8 @@ export interface FtpEntry {
     };
 }
 
-// Enhanced FTP Path Analysis (Phase 2)
-export interface FtpPath {
+// Enhanced File Path Analysis (Phase 2)
+export interface FilePath {
     type: 'root' | 'data' | 'meta' | 'schema' | 'record' | 'field';
     schema?: string;
     record_id?: string;
@@ -80,7 +80,7 @@ export interface FtpPath {
 
 // Pattern Analysis for Advanced Wildcard Support
 export interface PatternAnalysis {
-    original_pattern: string; // Original FTP path pattern
+    original_pattern: string; // Original File path pattern
     normalized_pattern: string; // Normalized pattern
     component_count: number; // Number of pattern components
     wildcard_count: number; // Number of wildcard elements
@@ -104,10 +104,10 @@ export interface PatternComponent {
 }
 
 /**
- * FTP Path Parser - Convert FTP filesystem paths to API context
+ * File Path Parser - Convert File filesystem paths to API context
  */
-class FtpPathParser {
-    static parse(path: string): FtpPath {
+class FilePathParser {
+    static parse(path: string): FilePath {
         const cleanPath = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
         const parts = cleanPath.split('/').filter(p => p.length > 0);
 
@@ -170,7 +170,7 @@ class FtpPathParser {
             }
         }
 
-        throw new Error(`Invalid FTP path format: ${path}`);
+        throw new Error(`Invalid File path format: ${path}`);
     }
 
     static validate(path: string): boolean {
@@ -206,9 +206,9 @@ class FtpPathParser {
 }
 
 /**
- * FTP Permission Calculator - Convert user ACL to FTP permissions
+ * File Permission Calculator - Convert user ACL to File permissions
  */
-class FtpPermissionCalculator {
+class FilePermissionCalculator {
     static calculatePermissions(userContext: any, recordAccess: any): string {
         const user = userContext.getUser();
         const userId = user.id;
@@ -242,7 +242,7 @@ class FtpPermissionCalculator {
         return '---'; // No access
     }
 
-    static formatFtpTimestamp(date: Date | string): string {
+    static formatFileTimestamp(date: Date | string): string {
         const d = new Date(date);
         const year = d.getFullYear();
         const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -256,15 +256,15 @@ class FtpPermissionCalculator {
 }
 
 /**
- * POST /ftp/list - Enhanced Directory Listing Middleware (Phase 2)
+ * POST /api/file/list - Enhanced Directory Listing Middleware (Phase 2)
  *
  * Advanced directory listing with complex wildcard pattern support.
  * Integrates WildcardTranslator and PatternCache for high-performance
  * pattern-based queries using enhanced Filter operators.
  */
-export default async function ftpListHandler(context: Context): Promise<any> {
+export default async function fileListHandler(context: Context): Promise<any> {
     const system = context.get('system');
-    const requestBody: FtpListRequest = await context.req.json();
+    const requestBody: FileListRequest = await context.req.json();
 
     if (!system) {
         throw new Error('System context not available - ensure systemContextMiddleware is applied');
@@ -274,9 +274,9 @@ export default async function ftpListHandler(context: Context): Promise<any> {
     const startTime = process.hrtime.bigint();
     const translationStartTime = process.hrtime.bigint();
 
-    logger.info('FTP list operation (Phase 2)', {
+    logger.info('File list operation (Phase 2)', {
         path: requestBody.path,
-        options: requestBody.ftp_options,
+        options: requestBody.file_options,
         performance_hints: requestBody.performance_hints,
     });
 
@@ -286,19 +286,19 @@ export default async function ftpListHandler(context: Context): Promise<any> {
             pattern_optimization: true,
             cross_schema_limit: 100,
             use_pattern_cache: true,
-            ...requestBody.ftp_options,
+            ...requestBody.file_options,
         };
 
-        // Parse FTP path to understand what's being requested
-        const ftpPath = FtpPathParser.parse(requestBody.path);
-        const entries: FtpEntry[] = [];
+        // Parse File path to understand what's being requested
+        const filePath = FilePathParser.parse(requestBody.path);
+        const entries: FileEntry[] = [];
         let totalRecordsScanned = 0;
 
         // Get or create wildcard translation with caching
         let wildcardTranslation: WildcardTranslation;
         let cacheHit = false;
 
-        if (options.use_pattern_cache && ftpPath.wildcards.length > 0) {
+        if (options.use_pattern_cache && filePath.wildcards.length > 0) {
             const cachedTranslation = PatternCache.get(requestBody.path);
             if (cachedTranslation) {
                 wildcardTranslation = cachedTranslation;
@@ -314,16 +314,16 @@ export default async function ftpListHandler(context: Context): Promise<any> {
         const translationTime = Number(process.hrtime.bigint() - translationStartTime) / 1_000_000;
         const databaseStartTime = process.hrtime.bigint();
 
-        switch (ftpPath.type) {
+        switch (filePath.type) {
             case 'root':
                 // List root directories: /data, /meta
                 entries.push(
                     {
                         name: 'data',
-                        ftp_type: 'd',
-                        ftp_size: 0,
-                        ftp_permissions: 'r-x',
-                        ftp_modified: FtpPermissionCalculator.formatFtpTimestamp(new Date()),
+                        file_type: 'd',
+                        file_size: 0,
+                        file_permissions: 'r-x',
+                        file_modified: FilePermissionCalculator.formatFileTimestamp(new Date()),
                         path: '/data/',
                         api_context: {
                             schema: '',
@@ -332,10 +332,10 @@ export default async function ftpListHandler(context: Context): Promise<any> {
                     },
                     {
                         name: 'meta',
-                        ftp_type: 'd',
-                        ftp_size: 0,
-                        ftp_permissions: 'r-x',
-                        ftp_modified: FtpPermissionCalculator.formatFtpTimestamp(new Date()),
+                        file_type: 'd',
+                        file_size: 0,
+                        file_permissions: 'r-x',
+                        file_modified: FilePermissionCalculator.formatFileTimestamp(new Date()),
                         path: '/meta/',
                         api_context: {
                             schema: '',
@@ -357,10 +357,10 @@ export default async function ftpListHandler(context: Context): Promise<any> {
 
                     entries.push({
                         name: schemaRecord.name,
-                        ftp_type: 'd',
-                        ftp_size: 0,
-                        ftp_permissions: 'rwx', // TODO: Calculate from ACL
-                        ftp_modified: FtpPermissionCalculator.formatFtpTimestamp(schemaRecord.updated_at || schemaRecord.created_at),
+                        file_type: 'd',
+                        file_size: 0,
+                        file_permissions: 'rwx', // TODO: Calculate from ACL
+                        file_modified: FilePermissionCalculator.formatFileTimestamp(schemaRecord.updated_at || schemaRecord.created_at),
                         path: `/data/${schemaRecord.name}/`,
                         api_context: {
                             schema: schemaRecord.name,
@@ -372,14 +372,14 @@ export default async function ftpListHandler(context: Context): Promise<any> {
 
             case 'schema':
                 // Enhanced schema listing with advanced wildcard support
-                if (!ftpPath.schema) {
+                if (!filePath.schema) {
                     throw new Error('Schema name required');
                 }
 
                 // Use advanced wildcard translation for complex patterns
                 let filterData: any = {};
 
-                if (ftpPath.wildcards.length > 0 && wildcardTranslation.filter && Object.keys(wildcardTranslation.filter).length > 0) {
+                if (filePath.wildcards.length > 0 && wildcardTranslation.filter && Object.keys(wildcardTranslation.filter).length > 0) {
                     // Use enhanced Filter system from WildcardTranslator
                     filterData = { ...wildcardTranslation.filter };
 
@@ -387,9 +387,9 @@ export default async function ftpListHandler(context: Context): Promise<any> {
                     if (options.pattern_optimization) {
                         filterData = WildcardTranslator.optimizeFilter(filterData);
                     }
-                } else if (ftpPath.wildcards.length > 0) {
+                } else if (filePath.wildcards.length > 0) {
                     // Fallback to simple wildcard conversion for compatibility
-                    const wildcardConditions = ftpPath.wildcards.map(wildcard => {
+                    const wildcardConditions = filePath.wildcards.map(wildcard => {
                         const sqlPattern = wildcard.replace(/\*/g, '%').replace(/\?/g, '_');
                         return { id: { $like: sqlPattern } };
                     });
@@ -424,21 +424,21 @@ export default async function ftpListHandler(context: Context): Promise<any> {
                     filterData.limit = options.cross_schema_limit;
                 }
 
-                const records = await system.database.selectAny(ftpPath.schema, filterData);
+                const records = await system.database.selectAny(filePath.schema, filterData);
                 totalRecordsScanned = records.length;
 
                 for (const record of records) {
-                    const permissions = FtpPermissionCalculator.calculatePermissions(system, record);
+                    const permissions = FilePermissionCalculator.calculatePermissions(system, record);
 
                     entries.push({
                         name: record.id,
-                        ftp_type: 'd',
-                        ftp_size: 0,
-                        ftp_permissions: permissions,
-                        ftp_modified: FtpPermissionCalculator.formatFtpTimestamp(record.updated_at || record.created_at),
-                        path: `/data/${ftpPath.schema}/${record.id}/`,
+                        file_type: 'd',
+                        file_size: 0,
+                        file_permissions: permissions,
+                        file_modified: FilePermissionCalculator.formatFileTimestamp(record.updated_at || record.created_at),
+                        path: `/data/${filePath.schema}/${record.id}/`,
                         api_context: {
-                            schema: ftpPath.schema,
+                            schema: filePath.schema,
                             record_id: record.id,
                             access_level: permissions.includes('w') ? 'edit' : 'read',
                         },
@@ -448,31 +448,31 @@ export default async function ftpListHandler(context: Context): Promise<any> {
 
             case 'record':
                 // List fields in record
-                if (!ftpPath.schema || !ftpPath.record_id) {
+                if (!filePath.schema || !filePath.record_id) {
                     throw new Error('Schema and record ID required');
                 }
 
-                const record = await system.database.selectOne(ftpPath.schema, {
-                    where: { id: ftpPath.record_id },
+                const record = await system.database.selectOne(filePath.schema, {
+                    where: { id: filePath.record_id },
                 });
 
                 if (!record) {
-                    throw new Error(`Record not found: ${ftpPath.record_id}`);
+                    throw new Error(`Record not found: ${filePath.record_id}`);
                 }
 
-                const recordPermissions = FtpPermissionCalculator.calculatePermissions(system, record);
+                const recordPermissions = FilePermissionCalculator.calculatePermissions(system, record);
 
                 // Add JSON file entry for the complete record
                 entries.push({
-                    name: `${ftpPath.record_id}.json`,
-                    ftp_type: 'f',
-                    ftp_size: JSON.stringify(record).length,
-                    ftp_permissions: recordPermissions,
-                    ftp_modified: FtpPermissionCalculator.formatFtpTimestamp(record.updated_at || record.created_at),
-                    path: `/data/${ftpPath.schema}/${ftpPath.record_id}.json`,
+                    name: `${filePath.record_id}.json`,
+                    file_type: 'f',
+                    file_size: JSON.stringify(record).length,
+                    file_permissions: recordPermissions,
+                    file_modified: FilePermissionCalculator.formatFileTimestamp(record.updated_at || record.created_at),
+                    path: `/data/${filePath.schema}/${filePath.record_id}.json`,
                     api_context: {
-                        schema: ftpPath.schema,
-                        record_id: ftpPath.record_id,
+                        schema: filePath.schema,
+                        record_id: filePath.record_id,
                         access_level: recordPermissions.includes('w') ? 'edit' : 'read',
                     },
                 });
@@ -488,14 +488,14 @@ export default async function ftpListHandler(context: Context): Promise<any> {
 
                     entries.push({
                         name: fieldName,
-                        ftp_type: 'f',
-                        ftp_size: fieldSize,
-                        ftp_permissions: recordPermissions,
-                        ftp_modified: FtpPermissionCalculator.formatFtpTimestamp(record.updated_at || record.created_at),
-                        path: `/data/${ftpPath.schema}/${ftpPath.record_id}/${fieldName}`,
+                        file_type: 'f',
+                        file_size: fieldSize,
+                        file_permissions: recordPermissions,
+                        file_modified: FilePermissionCalculator.formatFileTimestamp(record.updated_at || record.created_at),
+                        path: `/data/${filePath.schema}/${filePath.record_id}/${fieldName}`,
                         api_context: {
-                            schema: ftpPath.schema,
-                            record_id: ftpPath.record_id,
+                            schema: filePath.schema,
+                            record_id: filePath.record_id,
                             field_name: fieldName,
                             access_level: recordPermissions.includes('w') ? 'edit' : 'read',
                         },
@@ -504,7 +504,7 @@ export default async function ftpListHandler(context: Context): Promise<any> {
                 break;
 
             default:
-                throw new Error(`Unsupported path type: ${ftpPath.type}`);
+                throw new Error(`Unsupported path type: ${filePath.type}`);
         }
 
         // Calculate performance metrics
@@ -512,7 +512,7 @@ export default async function ftpListHandler(context: Context): Promise<any> {
         const totalTime = Number(process.hrtime.bigint() - startTime) / 1_000_000;
 
         // Build enhanced response with pattern metadata
-        const response: FtpListResponse = {
+        const response: FileListResponse = {
             success: true,
             entries,
             total: entries.length,
@@ -526,14 +526,14 @@ export default async function ftpListHandler(context: Context): Promise<any> {
                 cross_schema_count: wildcardTranslation.cross_schema ? wildcardTranslation.schemas.length : undefined,
                 estimated_cost: wildcardTranslation.estimated_cost,
                 pattern_breakdown:
-                    ftpPath.wildcards.length > 0
+                    filePath.wildcards.length > 0
                         ? {
                               original_pattern: requestBody.path,
-                              normalized_pattern: FtpPathParser.normalize(requestBody.path),
-                              component_count: ftpPath.wildcards.length,
-                              wildcard_count: ftpPath.wildcards.filter(w => w.includes('*') || w.includes('?')).length,
-                              alternative_count: ftpPath.wildcards.filter(w => w.includes('(')).length,
-                              range_count: ftpPath.wildcards.filter(w => w.includes('[')).length,
+                              normalized_pattern: FilePathParser.normalize(requestBody.path),
+                              component_count: filePath.wildcards.length,
+                              wildcard_count: filePath.wildcards.filter(w => w.includes('*') || w.includes('?')).length,
+                              alternative_count: filePath.wildcards.filter(w => w.includes('(')).length,
+                              range_count: filePath.wildcards.filter(w => w.includes('[')).length,
                               cross_schema: wildcardTranslation.cross_schema,
                               supported_features: ['wildcards', 'alternatives', 'ranges', 'acl_filtering'],
                               unsupported_features: [],
@@ -549,10 +549,10 @@ export default async function ftpListHandler(context: Context): Promise<any> {
             },
         };
 
-        logger.info('FTP list completed (Phase 2)', {
+        logger.info('File list completed (Phase 2)', {
             path: requestBody.path,
             entryCount: entries.length,
-            pathType: ftpPath.type,
+            pathType: filePath.type,
             complexity: wildcardTranslation.complexity,
             cacheHit: cacheHit,
             totalTimeMs: Math.round(totalTime * 100) / 100,
@@ -560,7 +560,7 @@ export default async function ftpListHandler(context: Context): Promise<any> {
 
         setRouteResult(context, response);
     } catch (error) {
-        logger.warn('FTP list failed', {
+        logger.warn('File list failed', {
             path: requestBody.path,
             error: error instanceof Error ? error.message : String(error),
         });
