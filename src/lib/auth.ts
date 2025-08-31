@@ -1,9 +1,5 @@
-import type { Context, Next } from 'hono';
-import { jwt } from 'hono/jwt';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { HttpErrors } from '@src/lib/errors/http-error.js';
-import pg from 'pg';
 
 export interface JWTPayload {
     sub: string; // Subject/system identifier
@@ -21,17 +17,7 @@ export interface JWTPayload {
 
 export class AuthService {
     private static tokenExpiry = 24 * 60 * 60; // 24 hours in seconds
-    private static authPool: pg.Pool | null = null;
 
-    private static getJwtSecret(): string {
-        return process.env['JWT_SECRET']!;
-    }
-
-    // Get persistent auth database connection
-    private static getAuthDatabase(): pg.Pool {
-        // Use centralized database connection to monk database
-        return DatabaseConnection.getMainPool();
-    }
 
     // Generate JWT token for user
     static async generateToken(user: any): Promise<string> {
@@ -48,12 +34,12 @@ export class AuthService {
             exp: Math.floor(Date.now() / 1000) + this.tokenExpiry,
         };
 
-        return await sign(payload, this.getJwtSecret());
+        return await sign(payload, process.env['JWT_SECRET']!);
     }
 
     // Verify and decode JWT token
     static async verifyToken(token: string): Promise<JWTPayload> {
-        return (await verify(token, this.getJwtSecret())) as JWTPayload;
+        return (await verify(token, process.env['JWT_SECRET']!)) as JWTPayload;
     }
 
     // Login with tenant and username authentication
@@ -63,7 +49,7 @@ export class AuthService {
         }
 
         // Look up tenant record to get database name
-        const authDb = this.getAuthDatabase();
+        const authDb = DatabaseConnection.getMainPool();
         const tenantResult = await authDb.query('SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
 
         if (!tenantResult.rows || tenantResult.rows.length === 0) {
@@ -143,93 +129,4 @@ export class AuthService {
         }
     }
 
-    // Get Hono JWT middleware with proper error handling
-    static getJWTMiddleware() {
-        return async (c: Context, next: Next) => {
-            try {
-                // Use Hono's built-in JWT middleware
-                await jwt({ secret: this.getJwtSecret() })(c, next);
-            } catch (error: any) {
-                // Convert JWT middleware errors to proper HttpErrors
-                if (error instanceof Error) {
-                    if (
-                        error.message === 'Unauthorized' ||
-                        (error.cause && typeof error.cause === 'object' && 'name' in error.cause && (error.cause.name === 'JwtTokenExpired' || error.cause.name === 'JwtTokenInvalid')) ||
-                        error.message.includes('jwt')
-                    ) {
-                        throw HttpErrors.unauthorized('Authentication required', 'TOKEN_INVALID');
-                    }
-                }
-
-                // Re-throw other errors
-                throw error;
-            }
-        };
-    }
-
-    // Enhanced auth middleware with user context
-    static getUserContextMiddleware() {
-        return async (c: Context, next: Next) => {
-            const payload = c.get('jwtPayload') as JWTPayload;
-
-            try {
-                // Set up database connection for the JWT database
-                DatabaseConnection.setDatabaseForRequest(c, payload.database);
-
-                // Create user object from JWT payload (for test mode)
-                const user = {
-                    id: payload.sub,
-                    username: payload.username,
-                    email: payload.email,
-                    tenant: payload.tenant,
-                    database: payload.database,
-                    role: payload.role,
-                    access_read: payload.access_read,
-                    access_edit: payload.access_edit,
-                    access_full: payload.access_full,
-                    is_active: true,
-                    last_login: new Date(payload.iat * 1000).toISOString(),
-                };
-
-                // Set user context for handlers
-                c.set('user', user);
-                c.set('userId', payload.sub);
-                c.set('accessReadIds', payload.access_read || []);
-                c.set('accessEditIds', payload.access_edit || []);
-                c.set('accessFullIds', payload.access_full || []);
-            } catch (error) {
-                console.error('Database setup error:', error);
-                return c.json(
-                    {
-                        success: false,
-                        error: 'Database connection failed for tenant',
-                        error_code: 'DATABASE_ERROR',
-                    },
-                    500
-                );
-            }
-
-            await next();
-        };
-    }
-
-    // Role-based middleware
-    static requireRole(requiredRole: string) {
-        return async (c: Context, next: Next) => {
-            const userRole = c.get('userRole');
-
-            if (userRole !== requiredRole) {
-                return c.json(
-                    {
-                        success: false,
-                        error: `${requiredRole} role required`,
-                        error_code: 'INSUFFICIENT_PERMISSIONS',
-                    },
-                    403
-                );
-            }
-
-            await next();
-        };
-    }
 }
