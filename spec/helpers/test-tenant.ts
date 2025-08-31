@@ -35,9 +35,6 @@ export interface TestContext {
  * Create a fresh test tenant with unique name
  */
 export async function createTestTenant(): Promise<TestTenantManager> {
-    // Load monk configuration before any database operations
-    MonkEnv.load();
-
     // Debug database configuration
     logger.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
     logger.info(`🔍 DB_USER: ${process.env.DB_USER}`);
