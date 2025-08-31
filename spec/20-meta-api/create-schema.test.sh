@@ -61,11 +61,15 @@ print_step "Testing GET /api/meta/account to verify creation"
 
 get_response=$(auth_get "api/meta/account")
 assert_success "$get_response"
-assert_has_field "data.title" "$get_response"
-assert_has_field "data.properties" "$get_response"
+
+# Extract and parse the schema JSON using the helper function
+schema_json=$(extract_data "$get_response")
+if [[ "$schema_json" == "null" ]]; then
+    test_fail "Schema data is null in GET response"
+fi
 
 # Verify essential properties exist
-retrieved_title=$(echo "$get_response" | jq -r '.data.title')
+retrieved_title=$(echo "$schema_json" | jq -r '.title')
 if [[ "$retrieved_title" == "Account" ]]; then
     print_success "Schema successfully retrieved with title: $retrieved_title"
 else
@@ -73,19 +77,19 @@ else
 fi
 
 # Check for key properties
-if echo "$get_response" | jq -e '.data.properties.email' >/dev/null; then
+if echo "$schema_json" | jq -e '.properties.email' >/dev/null; then
     print_success "Schema contains expected 'email' property"
 else
     test_fail "Schema missing expected 'email' property"
 fi
 
-if echo "$get_response" | jq -e '.data.properties.name' >/dev/null; then
+if echo "$schema_json" | jq -e '.properties.name' >/dev/null; then
     print_success "Schema contains expected 'name' property"
 else
     test_fail "Schema missing expected 'name' property"
 fi
 
-if echo "$get_response" | jq -e '.data.properties.account_type' >/dev/null; then
+if echo "$schema_json" | jq -e '.properties.account_type' >/dev/null; then
     print_success "Schema contains expected 'account_type' property"
 else
     test_fail "Schema missing expected 'account_type' property"
@@ -94,7 +98,7 @@ fi
 # Test 3: Verify required fields are preserved
 print_step "Verifying required field validation"
 
-required_fields=$(echo "$get_response" | jq -r '.data.required[]')
+required_fields=$(echo "$schema_json" | jq -r '.required[]')
 if echo "$required_fields" | grep -q "email"; then
     print_success "Required field 'email' preserved"
 else

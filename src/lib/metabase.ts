@@ -38,7 +38,6 @@ export interface JsonSchema {
  */
 export const SYSTEM_FIELDS = [
     'id', // UUID primary key
-    'tenant', // Tenant identifier
     'access_read', // Read access control list
     'access_edit', // Edit access control list
     'access_full', // Full access control list
@@ -253,7 +252,6 @@ export class Metabase {
 
         // Standard PaaS fields
         ddl += `    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n`;
-        ddl += `    "tenant" TEXT,\n`;
         ddl += `    "access_read" UUID[] DEFAULT '{}',\n`;
         ddl += `    "access_edit" UUID[] DEFAULT '{}',\n`;
         ddl += `    "access_full" UUID[] DEFAULT '{}',\n`;

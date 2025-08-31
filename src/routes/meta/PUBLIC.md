@@ -33,7 +33,7 @@ Create a new schema definition with automatic table generation.
       "description": "User full name"
     },
     "email": {
-      "type": "string", 
+      "type": "string",
       "format": "email",
       "description": "User email address"
     },
@@ -62,7 +62,7 @@ Create a new schema definition with automatic table generation.
   "success": true,
   "data": {
     "name": "users",
-    "table": "users", 
+    "table": "users",
     "created": true
   }
 }
@@ -95,7 +95,7 @@ Retrieve an existing schema definition.
   "success": true,
   "data": {
     "title": "users",
-    "description": "User account management schema", 
+    "description": "User account management schema",
     "properties": {
       "name": {"type": "string", "minLength": 1},
       "email": {"type": "string", "format": "email"},
@@ -129,7 +129,7 @@ Update an existing schema definition. Changes are applied to both the schema met
   "description": "Updated user schema with new fields",
   "properties": {
     "name": {"type": "string", "minLength": 1},
-    "email": {"type": "string", "format": "email"}, 
+    "email": {"type": "string", "format": "email"},
     "role": {"type": "string", "enum": ["admin", "user", "moderator"]},
     "department": {"type": "string", "description": "User department"},
     "active": {"type": "boolean", "default": true}
@@ -231,7 +231,7 @@ curl -X POST http://localhost:9001/api/meta/users \
 ```
 
 ### Product Catalog Schema
-```bash  
+```bash
 curl -X POST http://localhost:9001/api/meta/products \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
@@ -262,7 +262,6 @@ All schemas automatically include system-managed fields that should not be defin
 | Field | Type | Purpose |
 |-------|------|---------|
 | `id` | UUID | Primary key (auto-generated) |
-| `tenant` | TEXT | Tenant identifier |
 | `access_read` | UUID[] | Read access control list |
 | `access_edit` | UUID[] | Edit access control list |
 | `access_full` | UUID[] | Full access control list |
@@ -286,7 +285,7 @@ System schemas cannot be modified or deleted:
 # 1. Create schema
 POST /api/meta/users
 
-# 2. Add data using Data API  
+# 2. Add data using Data API
 POST /api/data/users
 
 # 3. Update schema as needed

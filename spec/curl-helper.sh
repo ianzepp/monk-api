@@ -260,6 +260,25 @@ assert_has_field() {
         test_fail "Expected field '$field' in response: $response"
 }
 
+# Extract and parse the data field from API responses
+# Many API endpoints return data as a JSON string that needs parsing
+extract_data() {
+    local response="$1"
+    local data_string=$(echo "$response" | jq -r '.data // empty')
+    
+    if [[ -z "$data_string" || "$data_string" == "null" ]]; then
+        echo "null"
+        return
+    fi
+    
+    # Try to parse as JSON, if it fails return as-is
+    if echo "$data_string" | jq . >/dev/null 2>&1; then
+        echo "$data_string" | jq .
+    else
+        echo "$data_string"
+    fi
+}
+
 # HTTP status validation
 check_http_status() {
     local expected_status="$1"

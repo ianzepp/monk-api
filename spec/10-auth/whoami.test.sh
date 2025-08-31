@@ -20,7 +20,6 @@ print_step "Testing GET /api/auth/whoami"
 response=$(auth_get "api/auth/whoami")
 assert_success "$response"
 assert_has_field "data.id" "$response"
-assert_has_field "data.tenant" "$response"
 assert_has_field "data.access" "$response"
 
 print_success "Whoami endpoint returns user information"

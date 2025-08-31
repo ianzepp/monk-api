@@ -3,12 +3,6 @@
     "description": "User account schema for testing data operations and authentication scenarios",
     "type": "object",
     "properties": {
-        "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Unique account identifier",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-        },
         "name": {
             "type": "string",
             "minLength": 2,
@@ -98,6 +92,6 @@
             "example": "+1 (555) 123-4567"
         }
     },
-    "required": ["id", "name", "email", "username", "account_type"],
+    "required": ["name", "email", "username", "account_type"],
     "additionalProperties": false
 }

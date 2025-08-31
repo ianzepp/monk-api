@@ -28,9 +28,9 @@ None - GET request with no body.
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "username": "john.doe",
-    "tenant": "my-company", 
+    "tenant": "my-company",
     "database": "tenant_a1b2c3d4",
-    "access": "admin",
+    "access": "full",
     "access_read": ["uuid1", "uuid2"],
     "access_edit": ["uuid3"],
     "access_full": ["uuid4"],
@@ -96,7 +96,7 @@ Escalate user privileges to root level for administrative operations. Generates 
 ```javascript
 // Client should maintain separate tokens:
 localStorage.setItem('user_token', userJwt);        // Long-lived (1 hour)
-sessionStorage.setItem('root_token', rootJwt);     // Short-lived (15 minutes) 
+sessionStorage.setItem('root_token', rootJwt);     // Short-lived (15 minutes)
 localStorage.setItem('refresh_token', refreshJwt); // Very long-lived (30 days)
 
 // Use appropriate token for different operations:
@@ -116,7 +116,7 @@ curl -X POST http://localhost:9001/api/auth/sudo \
   -H "Content-Type: application/json" \
   -d '{"reason": "Tenant administration tasks"}'
 
-# 3. Use root JWT for administrative operations  
+# 3. Use root JWT for administrative operations
 curl -X GET http://localhost:9001/api/root/tenant \
   -H "Authorization: Bearer ROOT_JWT_TOKEN"
 ```
@@ -131,7 +131,7 @@ curl -X GET http://localhost:9001/api/root/tenant \
 
 ### Best Practices
 1. **Request sudo only when needed**: Don't preemptively escalate
-2. **Provide clear reasons**: Include meaningful audit trail information  
+2. **Provide clear reasons**: Include meaningful audit trail information
 3. **Handle expiration**: Root tokens expire quickly - be prepared to re-escalate
 4. **Separate storage**: Keep user and root tokens in different storage mechanisms
 
@@ -142,7 +142,7 @@ All error responses follow the standardized format documented in the main error 
 ## Related Documentation
 
 - **Token Acquisition**: `/docs/public-auth` - Login, register, refresh operations
-- **Administrative Operations**: `/docs/root` - Root API requiring elevated privileges  
+- **Administrative Operations**: `/docs/root` - Root API requiring elevated privileges
 - **User Data Management**: `/docs/data` - Working with user data and schemas
 
 The Protected Auth API enables secure user account management and privilege escalation within the authenticated context of the Monk platform.

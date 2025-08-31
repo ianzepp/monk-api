@@ -37,7 +37,7 @@ Authenticate a user and receive JWT tokens for API access.
       "username": "john.doe",
       "tenant": "my-company",
       "database": "tenant_a1b2c3d4",
-      "access": "admin"
+      "access": "full"
     },
     "expires_in": 3600
   }
@@ -154,7 +154,7 @@ if (apiResponse.status === 401) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token })
   });
-  
+
   if (refreshResponse.ok) {
     const { token: newToken } = (await refreshResponse.json()).data;
     localStorage.setItem('access_token', newToken);
@@ -172,7 +172,7 @@ All error responses follow the standardized format documented in the main error 
 After obtaining a JWT token:
 
 1. **Explore APIs**: Use `/docs/data`, `/docs/file`, `/docs/meta` for API references
-2. **User management**: Access `/docs/auth` for account management operations  
+2. **User management**: Access `/docs/auth` for account management operations
 3. **Administrative tasks**: See `/docs/root` for elevated privilege operations
 
 The public authentication endpoints provide the foundation for accessing all protected APIs in the Monk platform.
