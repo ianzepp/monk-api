@@ -5,35 +5,13 @@
 # Tests updating schemas using the template's pre-loaded schemas
 
 # Source helpers
-source "$(dirname "$0")/../curl-helper.sh"
-source "$(dirname "$0")/../helpers/test-tenant-helper.sh"
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Meta API schema updates"
 
-# Wait for server to be ready
-wait_for_server
-
-# Setup test environment using fixtures template (includes account + contact schemas)
-print_step "Creating test tenant from fixtures template"
-tenant_name=$(create_test_tenant_from_template "update-schema" "basic")
-load_test_env
-
-if [[ -z "$tenant_name" ]]; then
-    test_fail "Template cloning failed - fixtures template required for this test"
-fi
-
-print_success "Test tenant cloned from template (includes account + contact schemas)"
-
-# Authenticate with admin user
-print_step "Setting up authentication for admin user"
-JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "admin")
-
-if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-    print_success "Admin authentication configured"
-    export JWT_TOKEN
-else
-    test_fail "Failed to authenticate admin user"
-fi
+# Setup test environment with template and admin authentication
+setup_test_with_template "update-schema"
+setup_admin_auth
 
 # Test 1: Get existing contact schema to update
 print_step "Getting existing contact schema for update"
@@ -146,24 +124,10 @@ else
     test_fail "Existing 'company' field lost during update"
 fi
 
-# Test 4: Test updating non-existent schema
-print_step "Testing PUT /api/meta/nonexistent"
-
-nonexistent_update=$(auth_put "api/meta/nonexistent" "$updated_schema" || echo '{"success":false}')
-if echo "$nonexistent_update" | jq -e '.success == false' >/dev/null; then
-    print_success "Non-existent schema update properly returns error"
-else
-    test_fail "Expected error for non-existent schema update: $nonexistent_update"
-fi
+# Test 4: Test updating non-existent schema  
+test_nonexistent_schema "update" "$updated_schema"
 
 # Test 5: Test updating protected schema
-print_step "Testing PUT /api/meta/users (protected schema)"
-
-protected_update=$(auth_put "api/meta/users" "$updated_schema" || echo '{"success":false}')
-if echo "$protected_update" | jq -e '.success == false' >/dev/null; then
-    print_success "Protected schema update properly returns error"
-else
-    test_fail "Expected error for protected schema update: $protected_update"
-fi
+test_endpoint_error "PUT" "api/meta/users" "$updated_schema" "SCHEMA_PROTECTED" "Protected schema update"
 
 print_success "Meta API schema update tests completed successfully"

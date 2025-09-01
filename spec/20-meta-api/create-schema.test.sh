@@ -5,28 +5,13 @@ set -e
 # Tests creating a new schema using the account.json definition
 
 # Source helpers
-source "$(dirname "$0")/../curl-helper.sh"
-source "$(dirname "$0")/../helpers/test-tenant-helper.sh"
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Meta API schema creation"
 
-# Wait for server to be ready
-wait_for_server
-
-# Setup isolated test environment
-print_step "Creating isolated test tenant"
-setup_isolated_test
-
-# Authenticate with admin user (has schema creation privileges)
-print_step "Setting up authentication for admin user"
-JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "admin")
-
-if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-    print_success "Admin authentication configured"
-    export JWT_TOKEN
-else
-    test_fail "Failed to authenticate admin user"
-fi
+# Setup isolated test environment and admin authentication
+setup_test_isolated "create-schema"
+setup_admin_auth
 
 # Test 1: Create schema using account.json
 print_step "Testing POST /api/meta/account"
@@ -40,14 +25,13 @@ account_schema=$(cat spec/account.json)
 
 # Create the schema
 response=$(auth_post "api/meta/account" "$account_schema")
+data=$(extract_and_validate_data "$response" "Schema creation result")
 
-# Verify successful creation
-assert_success "$response"
-assert_has_field "data.name" "$response"
-assert_has_field "data.created" "$response"
+# Verify operation result fields
+validate_record_fields "$data" "name" "created"
 
 # Check that the correct schema name is returned
-schema_name=$(echo "$response" | jq -r '.data.name')
+schema_name=$(echo "$data" | jq -r '.name')
 if [[ "$schema_name" == "account" ]]; then
     print_success "Schema created with correct name: $schema_name"
 else
@@ -55,7 +39,7 @@ else
 fi
 
 # Verify operation confirmation
-created_status=$(echo "$response" | jq -r '.data.created')
+created_status=$(echo "$data" | jq -r '.created')
 if [[ "$created_status" == "true" ]]; then
     print_success "Schema creation confirmed: $created_status"
 else
@@ -68,13 +52,7 @@ print_success "Schema creation successful - API returned operation result"
 print_step "Testing GET /api/meta/account to verify creation"
 
 get_response=$(auth_get "api/meta/account")
-assert_success "$get_response"
-
-# Extract and parse the schema JSON using the helper function
-schema_json=$(extract_data "$get_response")
-if [[ "$schema_json" == "null" ]]; then
-    test_fail "Schema data is null in GET response"
-fi
+schema_json=$(extract_and_validate_data "$get_response" "Retrieved schema data")
 
 # Verify essential properties exist
 retrieved_title=$(echo "$schema_json" | jq -r '.title')
@@ -84,23 +62,16 @@ else
     test_fail "Expected title 'Account', got: $retrieved_title"
 fi
 
-# Check for key properties
+# Check for key properties using helper
+validate_record_fields "$schema_json" "properties" "required"
 if echo "$schema_json" | jq -e '.properties.email' >/dev/null; then
     print_success "Schema contains expected 'email' property"
-else
-    test_fail "Schema missing expected 'email' property"
 fi
-
 if echo "$schema_json" | jq -e '.properties.name' >/dev/null; then
-    print_success "Schema contains expected 'name' property"
-else
-    test_fail "Schema missing expected 'name' property"
+    print_success "Schema contains expected 'name' property"  
 fi
-
 if echo "$schema_json" | jq -e '.properties.account_type' >/dev/null; then
     print_success "Schema contains expected 'account_type' property"
-else
-    test_fail "Schema missing expected 'account_type' property"
 fi
 
 # Test 3: Verify required fields are preserved
@@ -120,13 +91,6 @@ else
 fi
 
 # Test 4: Test duplicate schema creation (should fail)
-print_step "Testing duplicate schema creation"
-
-duplicate_response=$(auth_post "api/meta/account" "$account_schema" || echo '{"success":false}')
-if echo "$duplicate_response" | jq -e '.success == false' >/dev/null; then
-    print_success "Duplicate schema creation properly rejected"
-else
-    print_warning "Duplicate schema creation did not fail as expected"
-fi
+test_endpoint_error "POST" "api/meta/account" "$account_schema" "" "Duplicate schema creation"
 
 print_success "Meta API schema creation tests completed successfully"
