@@ -1,4 +1,4 @@
-# Monk API
+# Monk API Installation Guide
 
 Lightweight PaaS backend API built with **Hono** and **TypeScript**, featuring observer-driven architecture and multi-tenant database routing.
 
@@ -12,7 +12,17 @@ A high-performance backend API that provides:
 
 Perfect for building SaaS applications that need flexible data modeling and tenant isolation.
 
+## Prerequisites
+
+Before installation, ensure you have:
+
+- **Node.js 18+** and **npm** installed
+- **PostgreSQL** server running and accessible
+- Ability to connect to PostgreSQL: `psql -d postgres -c "SELECT version();"`
+
 ## Quick Start
+
+The fastest way to get started is using the automated setup:
 
 ```bash
 # Clone and setup
@@ -28,6 +38,111 @@ npm run start:dev
 # Test connectivity
 npm run spec:sh spec/10-connection/basic-ping.test.sh
 ```
+
+The `autoinstall` script will:
+1. Copy `.env.example` to `.env`
+2. Auto-detect your PostgreSQL configuration
+3. Install dependencies and build TypeScript
+4. Initialize the main database with schema
+5. Create a test tenant for development
+
+## Manual Installation
+
+If you prefer manual setup or the autoinstall fails:
+
+### 1. Environment Configuration
+
+Copy the example environment file and configure your database connection:
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit with your PostgreSQL credentials
+nano .env
+```
+
+Update the `DATABASE_URL` in `.env`:
+```env
+# Example configurations:
+DATABASE_URL=postgresql://your_username@localhost:5432/
+DATABASE_URL=postgresql://your_username:your_password@localhost:5432/
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Build TypeScript
+
+```bash
+npm run build
+```
+
+### 4. Initialize Database
+
+Create and initialize the main database:
+
+```bash
+# Create main database
+createdb monk_main
+
+# Initialize schema
+psql -d monk_main -f sql/init-monk-main.sql
+```
+
+### 5. Create Development Tenant
+
+Create a test tenant for development:
+
+```bash
+# Create system tenant database
+createdb system
+
+# Initialize tenant schema
+psql -d system -f sql/init-tenant.sql
+
+# Create development users
+psql -d system -c "
+INSERT INTO users (name, auth, access, access_read, access_edit, access_full) VALUES
+('Development Root User', 'root', 'root', '{}', '{}', '{}'),
+('Development Admin User', 'admin', 'full', '{}', '{}', '{}'),
+('Development User', 'user', 'edit', '{}', '{}', '{}')
+ON CONFLICT (auth) DO NOTHING;
+"
+```
+
+## Verification
+
+Test your installation:
+
+```bash
+# Start the server
+npm run start:dev
+
+# In another terminal, test connectivity
+curl http://localhost:9001/health
+
+# Test authentication
+curl -X POST http://localhost:9001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"tenant":"system","username":"root"}'
+```
+
+## Development Environment
+
+Your development environment includes:
+
+- **Server**: http://localhost:9001
+- **Main Database**: `monk_main` (tenant registry)
+- **System Tenant**: `system` database with test users
+- **Available Users**:
+  - `root@system` - Full administrative privileges
+  - `admin@system` - Administrative operations
+  - `user@system` - Standard user operations
 
 ## Core Features
 
@@ -145,12 +260,46 @@ npm run spec:sh spec/15-authentication/basic-auth.test.sh
 - **AJV** - High-performance JSON Schema validation
 - **JSON Schema** - Validation and documentation
 
+## Troubleshooting
+
+### Database Connection Issues
+
+Check your `.env` file configuration:
+```bash
+# Verify environment variables
+cat .env
+echo "DATABASE_URL: $DATABASE_URL"
+
+# Test PostgreSQL connection
+psql -d postgres -c "SELECT version();"
+```
+
+### Fresh Installation
+
+For a complete reset:
+```bash
+# Clean installation with all components
+npm run autoinstall -- --force
+
+# Or step by step:
+npm run autoinstall -- --clean-node    # Reinstall dependencies
+npm run autoinstall -- --clean-dist    # Rebuild TypeScript
+npm run autoinstall -- --clean-auth    # Recreate databases
+```
+
+### Common Issues
+
+1. **PostgreSQL not running**: Start your PostgreSQL service
+2. **Connection refused**: Check DATABASE_URL format and credentials
+3. **Permission denied**: Ensure PostgreSQL user has database creation privileges
+4. **Port in use**: Change PORT in `.env` or stop conflicting services
+
 > 📖 For detailed architecture, development workflows, and implementation guides, see **[DEVELOPER.md](DEVELOPER.md)**
 
 ## Documentation
 
 - **[DEVELOPER.md](DEVELOPER.md)** - Comprehensive development guide
-- **[INSTALL.md](INSTALL.md)** - Installation instructions
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
 - **Observer System** - Event-driven architecture patterns
 
 ## Related Projects

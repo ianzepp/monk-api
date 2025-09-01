@@ -145,15 +145,81 @@ if [ "$FORCE_CLEAN" = true ]; then
 fi
 echo
 
-# Starting: Verify PostgreSQL Connection and DATABASE_URL
-print_header "Starting: Verify PostgreSQL Connection and DATABASE_URL"
-print_step "Checking required tools..."
+# Function to auto-detect PostgreSQL authentication
+autodetect_database_auth() {
+    local detected_url=""
+    
+    # First check if DATABASE_URL is already set in environment
+    if [ -n "$DATABASE_URL" ]; then
+        print_info "Using DATABASE_URL from environment"
+        echo "$DATABASE_URL"
+        return 0
+    fi
+    
+    # Test PostgreSQL connectivity first
+    if ! psql -d postgres -c "SELECT version();" >/dev/null 2>&1; then
+        return 1
+    fi
+    
+    # Get current system info
+    local current_user=$(whoami)
+    local system_os=$(uname -s)
+    
+    # Define test configurations based on platform and common defaults
+    local test_urls=()
+    
+    if [ "$system_os" = "Darwin" ]; then
+        # macOS: Homebrew and Postgres.app typically use current user with trust auth
+        test_urls=(
+            "postgresql://$current_user@localhost:5432/"
+            "postgresql://postgres@localhost:5432/"
+            "postgresql://$current_user:$current_user@localhost:5432/"
+            "postgresql://postgres:postgres@localhost:5432/"
+        )
+        print_info "Detected macOS - testing Homebrew/Postgres.app patterns first"
+    else
+        # Linux: Package managers typically use postgres user with peer/trust auth
+        test_urls=(
+            "postgresql://postgres@localhost:5432/"
+            "postgresql://$current_user@localhost:5432/"
+            "postgresql://$current_user:$current_user@localhost:5432/"
+            "postgresql://postgres:postgres@localhost:5432/"
+        )
+        print_info "Detected Linux - testing package manager patterns first"
+    fi
+    
+    # Test each configuration
+    for test_url in "${test_urls[@]}"; do
+        # Extract password if present for PGPASSWORD
+        local password=""
+        if [[ "$test_url" == *":"*"@"* ]]; then
+            password=$(echo "$test_url" | sed -n 's/.*:\/\/.*:\(.*\)@.*/\1/p')
+        fi
+        
+        # Test connection
+        if [ -n "$password" ]; then
+            if PGPASSWORD="$password" psql "$test_url" -c "SELECT 1;" >/dev/null 2>&1; then
+                detected_url="$test_url"
+                break
+            fi
+        else
+            if psql "$test_url" -c "SELECT 1;" >/dev/null 2>&1; then
+                detected_url="$test_url"
+                break
+            fi
+        fi
+    done
+    
+    if [ -n "$detected_url" ]; then
+        echo "$detected_url"
+        return 0
+    else
+        return 1
+    fi
+}
 
-# Check jq availability
-if ! command -v jq >/dev/null 2>&1; then
-    handle_error "jq not found" "Install jq: sudo apt install jq (Ubuntu) or brew install jq (macOS)"
-fi
-print_success "jq is available"
+# Starting: Verify PostgreSQL Connection and .env Configuration
+print_header "Starting: Verify PostgreSQL Connection and .env Configuration"
 
 print_step "Testing PostgreSQL connectivity..."
 
@@ -166,32 +232,62 @@ else
     handle_error "PostgreSQL connection test" "Ensure PostgreSQL is running and you can connect. See INSTALL.md prerequisites."
 fi
 
-print_step "Checking DATABASE_URL configuration..."
-config_file="$HOME/.config/monk/env.json"
-if [ -f "$config_file" ] && grep -q "DATABASE_URL" "$config_file"; then
-    print_success "DATABASE_URL configured in monk config"
-    print_info "Config file: $config_file"
+print_step "Checking .env configuration..."
+
+# Check if .env file exists
+if [ -f ".env" ]; then
+    print_success ".env file found"
+    if grep -q "DATABASE_URL=" ".env"; then
+        db_url=$(grep "DATABASE_URL=" ".env" | cut -d'=' -f2-)
+        if [ -n "$db_url" ] && [ "$db_url" != "postgresql://username:password@localhost:5432/" ]; then
+            print_success "DATABASE_URL configured in .env"
+            print_info ".env file: $(pwd)/.env"
+        else
+            print_warning "DATABASE_URL in .env needs to be configured"
+            print_info "Please edit .env file with your PostgreSQL credentials and re-run this script"
+            exit 1
+        fi
+    else
+        print_warning ".env file exists but missing DATABASE_URL"
+        print_info "Please add DATABASE_URL to your .env file and re-run this script"
+        exit 1
+    fi
 else
-    print_warning "No DATABASE_URL found in monk configuration"
-    print_step "Creating monk environment configuration..."
-
-    # Ensure config directory exists
-    mkdir -p "$HOME/.config/monk"
-
-    # Create env.json with DATABASE_URL using current user
-    cat > "$config_file" << EOF
-{
-  "DATABASE_URL": "postgresql://$(whoami):$(whoami)@localhost:5432/",
-  "NODE_ENV": "development",
-  "PORT": "9001"
-}
-EOF
-
-    print_success "Monk environment configuration created"
-    print_info "Config file: $config_file"
-    print_info "Using DATABASE_URL: postgresql://$(whoami):$(whoami)@localhost:5432/"
-    print_warning "Assuming PostgreSQL user password matches username"
-    print_info "If authentication fails, edit $config_file with correct password"
+    print_warning "No .env file found"
+    print_step "Creating .env file from .env.example..."
+    
+    if [ ! -f ".env.example" ]; then
+        handle_error ".env.example file not found" "Ensure you're running this from the project root directory"
+    fi
+    
+    # Copy .env.example to .env
+    cp ".env.example" ".env"
+    
+    # Try to auto-detect DATABASE_URL
+    print_step "Attempting to auto-detect PostgreSQL configuration..."
+    
+    if detected_url=$(autodetect_database_auth); then
+        # Update .env with detected DATABASE_URL using a safer approach
+        # Create a temporary file to avoid sed escaping issues
+        temp_file=$(mktemp)
+        while IFS= read -r line; do
+            if [[ "$line" == DATABASE_URL=* ]]; then
+                echo "DATABASE_URL=$detected_url"
+            else
+                echo "$line"
+            fi
+        done < ".env" > "$temp_file"
+        mv "$temp_file" ".env"
+        print_success "Auto-detected PostgreSQL configuration"
+        print_info "Updated .env with: $detected_url"
+    else
+        print_warning "Could not auto-detect PostgreSQL configuration"
+        print_info "Created .env file with placeholder DATABASE_URL"
+        print_info "Please edit .env file with your PostgreSQL credentials:"
+        print_info "  DATABASE_URL=postgresql://username:password@localhost:5432/"
+        print_info "Then re-run this script: npm run autoinstall"
+        exit 1
+    fi
 fi
 
 # Starting: Install Dependencies
