@@ -20,7 +20,7 @@ print_step "Testing bulk create with 2 accounts"
 bulk_request='{
     "operations": [
         {
-            "operation": "createAll",
+            "operation": "create-all",
             "schema": "account",
             "data": [
                 {
