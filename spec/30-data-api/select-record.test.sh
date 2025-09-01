@@ -5,35 +5,13 @@
 # Tests retrieving records using the template's pre-loaded data
 
 # Source helpers
-source "$(dirname "$0")/../curl-helper.sh"
-source "$(dirname "$0")/../helpers/test-tenant-helper.sh"
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Data API record selection"
 
-# Wait for server to be ready
-wait_for_server
-
-# Setup test environment using fixtures template (includes sample data)
-print_step "Creating test tenant from fixtures template"
-tenant_name=$(create_test_tenant_from_template "select-record" "basic")
-load_test_env
-
-if [[ -z "$tenant_name" ]]; then
-    test_fail "Template cloning failed - fixtures template required for this test"
-fi
-
-print_success "Test tenant cloned from template (includes 5 accounts + 6 contacts)"
-
-# Authenticate with admin user
-print_step "Setting up authentication for admin user"
-JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "admin")
-
-if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-    print_success "Admin authentication configured"
-    export JWT_TOKEN
-else
-    test_fail "Failed to authenticate admin user"
-fi
+# Setup test environment with template and admin authentication
+setup_test_with_template "select-record"
+setup_admin_auth
 
 # Test 1: Get all accounts from template data
 print_step "Testing GET /api/data/account (list all records)"

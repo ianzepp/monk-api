@@ -5,35 +5,13 @@
 # Tests deleting schemas using the template's pre-loaded schemas
 
 # Source helpers
-source "$(dirname "$0")/../curl-helper.sh"
-source "$(dirname "$0")/../helpers/test-tenant-helper.sh"
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Meta API schema deletion"
 
-# Wait for server to be ready
-wait_for_server
-
-# Setup test environment using fixtures template (includes account + contact schemas)
-print_step "Creating test tenant from fixtures template"
-tenant_name=$(create_test_tenant_from_template "delete-schema" "basic")
-load_test_env
-
-if [[ -z "$tenant_name" ]]; then
-    test_fail "Template cloning failed - fixtures template required for this test"
-fi
-
-print_success "Test tenant cloned from template (includes account + contact schemas)"
-
-# Authenticate with admin user
-print_step "Setting up authentication for admin user"
-JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "admin")
-
-if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-    print_success "Admin authentication configured"
-    export JWT_TOKEN
-else
-    test_fail "Failed to authenticate admin user"
-fi
+# Setup test environment with template and admin authentication
+setup_test_with_template "delete-schema"
+setup_admin_auth
 
 # Test 1: Verify contact schema exists before deletion
 print_step "Verifying contact schema exists before deletion"
@@ -99,23 +77,9 @@ else
 fi
 
 # Test 5: Test deleting non-existent schema
-print_step "Testing DELETE /api/meta/nonexistent"
-
-nonexistent_delete=$(auth_delete "api/meta/nonexistent" || echo '{"success":false}')
-if echo "$nonexistent_delete" | jq -e '.success == false' >/dev/null; then
-    print_success "Non-existent schema deletion properly returns error"
-else
-    test_fail "Expected error for non-existent schema deletion: $nonexistent_delete"
-fi
+test_nonexistent_schema "delete"
 
 # Test 6: Test deleting protected schema
-print_step "Testing DELETE /api/meta/users (protected schema)"
-
-protected_delete=$(auth_delete "api/meta/users" || echo '{"success":false}')
-if echo "$protected_delete" | jq -e '.success == false' >/dev/null; then
-    print_success "Protected schema deletion properly returns error"
-else
-    test_fail "Expected error for protected schema deletion: $protected_delete"
-fi
+test_endpoint_error "DELETE" "api/meta/users" "" "SCHEMA_PROTECTED" "Protected schema deletion"
 
 print_success "Meta API schema deletion tests completed successfully"

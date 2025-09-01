@@ -4,13 +4,13 @@ set -e
 # API Discovery Test
 # Tests the root endpoint for API discovery and documentation links
 
-# Source curl helper
-source "$(dirname "$0")/../curl-helper.sh"
+# Source helpers
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing API discovery endpoint"
 
-# Wait for server to be ready
-wait_for_server
+# Simple setup for public endpoint testing
+setup_test_basic
 
 # Test root endpoint
 print_step "Testing GET /"
