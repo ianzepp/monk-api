@@ -125,18 +125,29 @@ Essential example of modern, high-performance backend development combining cutt
 ## Documentation
 
 ### Quick Start
-- **[docs/INSTALL.md](docs/INSTALL.md)** - Installation, setup, and quick start guide
-- **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and common commands
+- **[INSTALL.md](INSTALL.md)** - Installation, setup, and quick start guide
 
 ### Development
 - **[docs/DEVELOPER.md](docs/DEVELOPER.md)** - Comprehensive developer guide and architecture
 - **[docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
 - **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
+- **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and common commands
 
 ### API Reference
 - **[docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
 - **[docs/FILTER.md](docs/FILTER.md)** - Advanced filter system with 25+ operators
 - **[docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
+
+#### Live API Documentation
+- **[src/routes/PUBLIC.md](src/routes/PUBLIC.md)** - Complete API overview and architecture
+- **[src/public/auth/PUBLIC.md](src/public/auth/PUBLIC.md)** - Public authentication API (login, refresh, register)
+- **[src/routes/auth/PUBLIC.md](src/routes/auth/PUBLIC.md)** - Protected auth API (user management, privilege escalation)
+- **[src/routes/data/PUBLIC.md](src/routes/data/PUBLIC.md)** - Data API (CRUD operations, soft delete, bulk operations)
+- **[src/routes/meta/PUBLIC.md](src/routes/meta/PUBLIC.md)** - Meta API (JSON schema management and validation)
+- **[src/routes/file/PUBLIC.md](src/routes/file/PUBLIC.md)** - File API (filesystem-like interface for data navigation)
+- **[src/routes/bulk/PUBLIC.md](src/routes/bulk/PUBLIC.md)** - Bulk API (batch operations across multiple schemas)
+- **[src/routes/find/PUBLIC.md](src/routes/find/PUBLIC.md)** - Find API (advanced search and filtering capabilities)
+- **[src/routes/root/PUBLIC.md](src/routes/root/PUBLIC.md)** - Root API (tenant management and system administration)
 
 ### Technical Specifications
 - **[docs/SPEC.md](docs/SPEC.md)** - Complete test specification and architecture
