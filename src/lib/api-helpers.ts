@@ -124,6 +124,92 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
     };
 }
 
+/**
+ * Higher-order function that wraps withParams with automatic transaction management
+ * Provides atomic transaction boundaries for modification operations
+ * 
+ * Automatically handles:
+ * - Transaction creation (BEGIN) if not already in transaction
+ * - Transaction commit (COMMIT) on successful completion
+ * - Transaction rollback (ROLLBACK) on any error
+ * - Connection cleanup (release) in all cases
+ * 
+ * Use for routes that perform write operations requiring atomicity.
+ * Read-only routes should use withParams instead.
+ */
+export function withTransactionParams(handler: (context: Context, params: RouteParams) => Promise<void>) {
+    return withParams(async (context, params) => {
+        const { system } = params;
+        
+        // Start transaction if not already in one (for nested calls)
+        let transactionStarted = false;
+        let transactionClient = null;
+        
+        if (!system.tx) {
+            try {
+                // Get tenant database pool from system context
+                const pool = system.db;
+                transactionClient = await pool.connect();
+                await transactionClient.query('BEGIN');
+                
+                system.tx = transactionClient; // Set for observers and database operations
+                transactionStarted = true;
+                
+                logger.info('Transaction started for route', { 
+                    method: params.method,
+                    schema: params.schema,
+                    record: params.record
+                });
+            } catch (error) {
+                logger.warn('Failed to start transaction', { 
+                    error: error instanceof Error ? error.message : String(error) 
+                });
+                throw error;
+            }
+        }
+        
+        try {
+            // Execute route handler - observers will detect and use system.tx
+            await handler(context, params);
+            
+            // Commit transaction if we started it
+            if (transactionStarted && transactionClient) {
+                await transactionClient.query('COMMIT');
+                logger.info('Transaction committed successfully', {
+                    method: params.method,
+                    schema: params.schema
+                });
+            }
+            
+        } catch (error) {
+            // Rollback transaction if we started it
+            if (transactionStarted && transactionClient) {
+                try {
+                    await transactionClient.query('ROLLBACK');
+                    logger.info('Transaction rolled back due to error', {
+                        method: params.method,
+                        schema: params.schema,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                } catch (rollbackError) {
+                    logger.warn('Failed to rollback transaction', {
+                        rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+                    });
+                }
+            }
+            
+            throw error; // Re-throw original error
+            
+        } finally {
+            // Always clean up transaction context if we started it
+            if (transactionStarted && transactionClient) {
+                transactionClient.release(); // Release connection back to pool
+                system.tx = undefined; // Clear transaction context
+            }
+        }
+    });
+}
+
 // Error handling wrapper - keeps business logic in handlers
 export async function withErrorHandling<T>(c: Context, handler: () => Promise<T>, successStatus: number = 200): Promise<any> {
     const schema = c.req.param('schema');
