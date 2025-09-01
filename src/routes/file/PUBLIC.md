@@ -2,6 +2,16 @@
 
 The File API provides a filesystem-like interface for accessing data and metadata records, transforming the traditional REST approach into intuitive path-based operations. This abstraction makes it possible to interact with schemas, records, and fields as if they were directories and files in a traditional filesystem.
 
+## Recent Improvements
+
+**Architecture Refactoring (Latest)**: The File API has been refactored to follow modern design patterns with:
+- **Unified Components**: Shared path parsing, permission validation, and utilities
+- **Transaction Integration**: Proper database transaction support using `withTransactionParams()`
+- **Standardized Errors**: Consistent HttpErrors with FTP-compatible error codes
+- **Optional Parameters**: All `file_options` are now optional with sensible defaults
+- **Performance**: Removed timing metrics for cleaner, faster responses
+- **Breaking Changes**: Response formats standardized (acceptable since no current clients)
+
 ## Base Path
 All File API routes are prefixed with `/api/file`
 
@@ -66,15 +76,11 @@ Directory listing with advanced wildcard support and performance optimization.
     "pattern_optimization": true,
     "cross_schema_limit": 100,
     "use_pattern_cache": true
-  },
-  "performance_hints": {
-    "expected_result_count": 50,
-    "cache_duration": 15,
-    "priority": "speed",
-    "timeout_ms": 30000
   }
 }
 ```
+
+**Note**: All `file_options` are optional with sensible defaults. The `performance_hints` section has been removed as performance metrics are no longer collected for simplicity.
 
 ### Wildcard Support
 
@@ -101,7 +107,7 @@ The File API supports advanced pattern matching:
     {
       "name": "user-123",
       "file_type": "d",
-      "file_size": 1024,
+      "file_size": 0,
       "file_permissions": "rwx",
       "file_modified": "20241201120000",
       "path": "/data/users/user-123/",
@@ -114,22 +120,17 @@ The File API supports advanced pattern matching:
   ],
   "total": 1,
   "has_more": false,
-  "pattern_info": {
-    "complexity": "simple",
-    "schemas_queried": ["users"],
-    "query_time_ms": 23.45,
-    "cache_hit": true,
-    "optimization_applied": ["acl_filtering"],
-    "estimated_cost": 15
-  },
-  "performance_metrics": {
-    "translation_time_ms": 2.1,
-    "database_time_ms": 18.3,
-    "total_records_scanned": 247,
-    "filter_efficiency": 0.95
+  "file_metadata": {
+    "path": "/data/users/",
+    "type": "directory",
+    "permissions": "r-x",
+    "size": 0,
+    "modified_time": "20241201120000"
   }
 }
 ```
+
+**Note**: The response has been simplified to remove performance metrics (`pattern_info`, `performance_metrics`) for cleaner API design. The core functionality remains the same.
 
 ### File Types
 - `d` - Directory (schema, record directory)
@@ -139,6 +140,7 @@ The File API supports advanced pattern matching:
 ### File Permissions
 - `rwx` - Read, write, execute (full access)
 - `rw-` - Read and write (edit access)
+- `r-x` - Read and execute (directory access)
 - `r--` - Read only
 - `---` - No access
 
@@ -160,6 +162,8 @@ File content retrieval with resume support and multiple formats.
   }
 }
 ```
+
+**Note**: All `file_options` are optional. Defaults: `binary_mode: false`, `start_offset: 0`, `format: "json"`.
 
 ### Supported Formats
 - `json` - Structured JSON (default)
@@ -228,13 +232,11 @@ Atomic file storage with transaction management and schema validation.
     "create_path": false,
     "atomic": true,
     "validate_schema": true
-  },
-  "metadata": {
-    "content_type": "application/json",
-    "expected_size": 128
   }
 }
 ```
+
+**Note**: All `file_options` are optional. Defaults: `binary_mode: false`, `overwrite: true`, `append_mode: false`, `create_path: false`, `atomic: true`, `validate_schema: true`. The `metadata` section has been removed as it's handled automatically.
 
 #### Field-Level Update
 ```json
@@ -250,33 +252,32 @@ Atomic file storage with transaction management and schema validation.
 }
 ```
 
+**Note**: Field-level updates support the same options as record storage.
+
 ### Success Response (201)
 ```json
 {
   "success": true,
   "operation": "create",
   "result": {
-    "path": "/data/users/user-456.json",
     "record_id": "user-456",
-    "size": 256,
     "created": true,
     "updated": false,
     "validation_passed": true
   },
   "file_metadata": {
-    "modified_time": "20241201120000",
+    "path": "/data/users/user-456.json",
+    "type": "file",
     "permissions": "rwx",
-    "can_resume": false,
-    "etag": "xyz789abc123",
-    "content_type": "application/json"
-  },
-  "transaction_info": {
-    "transaction_id": "file-store-1703123456789-abc123",
-    "can_rollback": false,
-    "timeout_ms": 30000
+    "size": 256,
+    "modified_time": "20241201120000",
+    "content_type": "application/json",
+    "etag": "xyz789abc123"
   }
 }
 ```
+
+**Note**: The response has been simplified with standardized `file_metadata` structure. Transaction management is now handled automatically by the database layer.
 
 ---
 
@@ -376,12 +377,11 @@ Safe deletion with soft-delete support and comprehensive safety checks.
   "safety_checks": {
     "require_empty": false,
     "max_deletions": 100
-  },
-  "metadata": {
-    "reason": "User account deactivation"
   }
 }
 ```
+
+**Note**: All `file_options` and `safety_checks` are optional. Defaults: `recursive: false`, `force: false`, `permanent: false`, `atomic: true`, `max_deletions: 100`. The `metadata` section has been simplified.
 
 ### Success Response (200)
 
@@ -393,8 +393,7 @@ Safe deletion with soft-delete support and comprehensive safety checks.
   "results": {
     "deleted_count": 1,
     "paths": ["/data/users/user-123"],
-    "records_affected": ["user-123"],
-    "skipped": []
+    "records_affected": ["user-123"]
   },
   "file_metadata": {
     "can_restore": true,
@@ -403,17 +402,18 @@ Safe deletion with soft-delete support and comprehensive safety checks.
 }
 ```
 
+**Note**: Response simplified to remove `skipped` array for cleaner structure.
+
 #### Field Deletion Response
 ```json
 {
-  "path": "/data/users/user-123/temp_field",
+  "success": true,
   "operation": "field_delete",
   "results": {
     "deleted_count": 1,
     "paths": ["/data/users/user-123/temp_field"],
     "records_affected": ["user-123"],
-    "fields_cleared": ["temp_field"],
-    "skipped": []
+    "fields_cleared": ["temp_field"]
   },
   "file_metadata": {
     "can_restore": false
@@ -439,25 +439,30 @@ Lightweight file size query for optimal performance.
 {
   "success": true,
   "size": 256,
-  "path": "/data/users/user-123.json",
-  "content_info": {
+  "file_metadata": {
+    "path": "/data/users/user-123.json",
     "type": "file",
-    "encoding": "utf8",
-    "estimated": false
+    "permissions": "rw-",
+    "size": 256,
+    "modified_time": "20241201120000",
+    "content_type": "application/json"
   }
 }
 ```
 
-### Error Response (550)
+**Note**: Response now uses standardized `file_metadata` structure instead of `content_info`.
+
+### Error Response (400)
 ```json
 {
   "success": false,
-  "error": "not_a_file",
-  "message": "SIZE command only works on files, not directories",
-  "path": "/data/users/",
-  "file_code": 550
+  "error": "NOT_A_FILE", 
+  "error_code": "NOT_A_FILE",
+  "message": "SIZE command only works on files, not directories"
 }
 ```
+
+**Note**: Error responses now use standardized HttpErrors format with descriptive error codes suitable for FTP protocol translation.
 
 ---
 
@@ -477,7 +482,13 @@ File modification timestamp query in filesystem format.
 {
   "success": true,
   "modified_time": "20241201120000",
-  "path": "/data/users/user-123.json",
+  "file_metadata": {
+    "path": "/data/users/user-123.json",
+    "type": "file",
+    "permissions": "rw-",
+    "size": 0,
+    "modified_time": "20241201120000"
+  },
   "timestamp_info": {
     "source": "updated_at",
     "iso_timestamp": "2024-12-01T12:00:00Z",
@@ -485,6 +496,8 @@ File modification timestamp query in filesystem format.
   }
 }
 ```
+
+**Note**: Response now includes standardized `file_metadata` structure for consistency across all File API endpoints.
 
 ---
 
@@ -515,11 +528,12 @@ File modification timestamp query in filesystem format.
 {
   "success": false,
   "error": "PERMISSION_DENIED",
-  "message": "User lacks edit permission for record deletion",
-  "path": "/data/users/user-123",
-  "file_code": 550
+  "error_code": "PERMISSION_DENIED", 
+  "message": "User lacks edit permission for record deletion"
 }
 ```
+
+**Note**: Error responses now use standardized HttpErrors format. Error codes are descriptive and suitable for FTP protocol translation.
 
 ### Common Error Codes
 
@@ -529,8 +543,12 @@ File modification timestamp query in filesystem format.
 | 403 | `PERMISSION_DENIED` | Insufficient access permissions |
 | 404 | `RECORD_NOT_FOUND` | Record or field does not exist |
 | 404 | `SCHEMA_NOT_FOUND` | Invalid schema name |
+| 404 | `FIELD_NOT_FOUND` | Field does not exist in record |
 | 400 | `INVALID_PATH` | Malformed filesystem path |
-| 550 | `NOT_A_FILE` | Operation requires file, not directory |
+| 400 | `NOT_A_FILE` | Operation requires file, not directory |
+| 400 | `WILDCARDS_NOT_ALLOWED` | Wildcards not supported for operation |
+| 400 | `CROSS_SCHEMA_REQUIRES_FORCE` | Cross-schema operations require force flag |
+| 409 | `RECORD_EXISTS` | Record already exists and overwrite disabled |
 
 ---
 
