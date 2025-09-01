@@ -96,6 +96,7 @@ app.get('/', c => {
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
+            home: '/ (public)',
             public_auth: '/auth/* (public - token acquisition)',
             docs: '/docs[/:api] (public)',
             root: undefined as string | undefined,
@@ -107,6 +108,7 @@ app.get('/', c => {
             file: '/api/file/* (protected)',
         },
         documentation: {
+            home: ['/README.md'],
             auth: ['/docs/auth', '/docs/public-auth'],
             data: ['/docs/data'],
             meta: ['/docs/meta'],

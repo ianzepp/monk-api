@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/../spec/helpers/test-tenant-helper.sh"
 
 # Configuration
 TEMPLATE_NAME="${1:-basic}"
-FIXTURES_DIR="fixtures"
+FIXTURES_DIR="fixtures/${TEMPLATE_NAME}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -40,8 +40,17 @@ print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
 }
 
+server_start() {
+    npm run start:bg
+}
+
+server_stop() {
+    npm run stop
+}
+
 fail() {
     print_error "$1"
+    server_stop
     exit 1
 }
 
@@ -55,6 +64,9 @@ fi
 if [[ ! -d "$FIXTURES_DIR/data" ]]; then
     fail "Fixtures data directory not found: $FIXTURES_DIR/data"
 fi
+
+# Start the server
+server_start
 
 # Wait for server to be ready
 print_step "Waiting for server to be ready"
@@ -93,13 +105,13 @@ for schema_file in "$FIXTURES_DIR/schemas"/*.json; do
         print_warning "No schema files found in $FIXTURES_DIR/schemas/"
         continue
     fi
-    
+
     schema_name=$(basename "$schema_file" .json)
     print_step "Loading schema: $schema_name"
-    
+
     schema_content=$(cat "$schema_file")
     response=$(auth_post "api/meta/$schema_name" "$schema_content")
-    
+
     if echo "$response" | jq -e '.success == true' >/dev/null; then
         print_success "Schema '$schema_name' loaded successfully"
         ((schema_count++))
@@ -122,21 +134,21 @@ for data_file in "$FIXTURES_DIR/data"/*.json; do
         print_warning "No data files found in $FIXTURES_DIR/data/"
         continue
     fi
-    
+
     data_name=$(basename "$data_file" .json)
     print_step "Loading data: $data_name"
-    
+
     data_content=$(cat "$data_file")
-    
+
     # Validate that data is an array
     if ! echo "$data_content" | jq -e 'type == "array"' >/dev/null; then
         print_error "Data file $data_file must contain an array of records"
         fail "Data validation failed"
     fi
-    
+
     record_count=$(echo "$data_content" | jq 'length')
     response=$(auth_post "api/data/$data_name" "$data_content")
-    
+
     if echo "$response" | jq -e '.success == true' >/dev/null; then
         print_success "Data '$data_name' loaded: $record_count records"
         ((data_count++))
@@ -182,8 +194,8 @@ print_step "Registering template in tenants registry"
 
 # Update the tenant record to mark as template
 template_update_sql="
-    UPDATE tenants 
-    SET database = '$template_db_final', 
+    UPDATE tenants
+    SET database = '$template_db_final',
         tenant_type = 'template',
         name = 'monk_$TEMPLATE_NAME'
     WHERE name = '$tenant_name'
@@ -195,7 +207,7 @@ print_success "Template registered: monk_$TEMPLATE_NAME → $template_db_final"
 # Step 7: Summary
 print_header "Fixture Template Build Complete"
 echo "Template Name: monk_$TEMPLATE_NAME"
-echo "Database Name: $template_db_final"  
+echo "Database Name: $template_db_final"
 echo "Schemas: $schema_count"
 echo "Records: $total_records"
 echo ""
