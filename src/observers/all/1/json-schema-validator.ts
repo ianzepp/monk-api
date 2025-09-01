@@ -29,11 +29,22 @@ export default class JsonSchemaValidator extends BaseObserver {
         let validatedCount = 0;
         let errorCount = 0;
         
+        // Define system fields that should be excluded from JSON schema validation
+        const systemFields = [
+            'id', 'created_at', 'updated_at', 'deleted_at', 'trashed_at',
+            'access_deny', 'access_edit', 'access_full', 'access_read'
+        ];
+
         // Validate each record against the JSON Schema
         for (const record of data) {
+            // Filter out system fields before validation - only validate user-provided fields
+            const userRecord = Object.fromEntries(
+                Object.entries(record).filter(([key]) => !systemFields.includes(key))
+            );
+            
             try {
-                // Use Schema object's validation method
-                schema.validateOrThrow(record);
+                // Use Schema object's validation method on user fields only
+                schema.validateOrThrow(userRecord);
                 validatedCount++;
                 
             } catch (error) {
@@ -41,8 +52,26 @@ export default class JsonSchemaValidator extends BaseObserver {
                 
                 // Convert schema validation errors to observer ValidationError
                 const validationMessage = error instanceof Error ? error.message : String(error);
+                
+                // Enhanced error reporting - show what fields are being validated vs schema
+                const userRecordFields = Object.keys(userRecord).sort();
+                const allRecordFields = Object.keys(record).sort();
+                const filteredFields = systemFields.filter(field => record.hasOwnProperty(field)).sort();
+                const schemaProperties = schema.definition?.properties ? Object.keys(schema.definition.properties).sort() : [];
+                const additionalFields = userRecordFields.filter(field => !schemaProperties.includes(field));
+                
+                let enhancedMessage = `Schema validation failed for ${schemaName}: ${validationMessage}`;
+                enhancedMessage += `\n  All record fields: [${allRecordFields.join(', ')}]`;
+                enhancedMessage += `\n  System fields filtered out: [${filteredFields.join(', ')}]`;
+                enhancedMessage += `\n  User fields validated: [${userRecordFields.join(', ')}]`;
+                enhancedMessage += `\n  Schema allows: [${schemaProperties.join(', ')}]`;
+                
+                if (additionalFields.length > 0) {
+                    enhancedMessage += `\n  Additional user fields found: [${additionalFields.join(', ')}]`;
+                }
+                
                 throw new ValidationError(
-                    `Schema validation failed for ${schemaName}: ${validationMessage}`,
+                    enhancedMessage,
                     undefined, // No specific field
                     'JSON_SCHEMA_VALIDATION_FAILED'
                 );
