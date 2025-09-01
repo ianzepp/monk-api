@@ -1,12 +1,12 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
  * PUT /api/data/:schema/:id - Update single record by ID
  * @see docs/routes/DATA_API.md
  */
-export default withParams(async (context, { system, schema, record, body, method }) => {
+export default withTransactionParams(async (context, { system, schema, record, body, method }) => {
     let result;
 
     // Smart routing: PATCH + include_trashed=true = revert operation

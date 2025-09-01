@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
@@ -7,7 +7,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * PUT /api/data/:schema - Bulk update records in schema
  * @see docs/routes/DATA_API.md
  */
-export default withParams(async (context, { system, schema, body, method }) => {
+export default withTransactionParams(async (context, { system, schema, body, method }) => {
     // Always expect array input for PUT/PATCH /api/data/:schema
     if (!Array.isArray(body)) {
         throw HttpErrors.badRequest('Request body must be an array of update records with id fields', 'REQUEST_INVALID_FORMAT');
