@@ -149,18 +149,13 @@ print_step "Testing SELECT non-existent field"
 
 invalid_select_filter='{"select": ["nonexistent_field"]}'
 
-response=$(auth_post "api/find/account" "$invalid_select_filter")
-data=$(extract_and_validate_data "$response" "Invalid select results")
+response=$(auth_post "api/find/account" "$invalid_select_filter" || echo '{"success":false,"error":"Expected error"}')
 
-record_count=$(echo "$data" | jq 'length')
-print_success "Non-existent field SELECT returned $record_count records"
-
-# The behavior here depends on implementation - might return empty fields or error
-first_invalid=$(echo "$data" | jq -r '.[0]')
-if echo "$first_invalid" | jq -e '.nonexistent_field' >/dev/null; then
-    print_success "Non-existent field included in response (with null value)"
+# This should return an error since PostgreSQL will reject unknown columns
+if echo "$response" | jq -e '.success == false' >/dev/null; then
+    print_success "Non-existent field SELECT correctly returned error"
 else
-    print_success "Non-existent field excluded from response"
+    test_fail "Expected error for non-existent field SELECT, got success"
 fi
 
 print_success "Find API basic SELECT functionality tests completed successfully"
