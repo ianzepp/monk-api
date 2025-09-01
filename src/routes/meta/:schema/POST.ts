@@ -1,9 +1,9 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
-export default withParams(async (context, { system, schema, body }) => {
+export default withTransactionParams(async (context, { system, schema, body }) => {
     // Parse JSON to get schema name from content
     const jsonSchema = system.metabase.parseSchema(body);
     const jsonName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');

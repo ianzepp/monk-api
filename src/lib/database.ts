@@ -384,22 +384,7 @@ export class Database {
             // Execute observer pipeline with resolved schema object
             const result = await this.executeObserverPipeline(operation, schema, data, depth + 1);
 
-            // Commit transaction if one was started by SQL Observer
-            if (this.system.tx) {
-                await this.system.tx.query('COMMIT');
-
-                logger.info('Transaction committed successfully', {
-                    operation,
-                    schemaName: schema.name,
-                    recordCount: data.length,
-                });
-
-                // Release transaction client
-                if ('release' in this.system.tx) {
-                    (this.system.tx as any).release();
-                }
-                this.system.tx = undefined;
-            }
+            // Transaction management now handled at route level via withTransactionParams
 
             // Performance timing for successful pipeline
             const duration = Date.now() - startTime;
@@ -421,31 +406,7 @@ export class Database {
                 error: error instanceof Error ? error.message : String(error),
             });
 
-            // Rollback transaction if one was started
-            if (this.system.tx) {
-                try {
-                    await this.system.tx.query('ROLLBACK');
-
-                    logger.warn('Transaction rolled back due to observer pipeline failure', {
-                        operation,
-                        schemaName: schema.name,
-                        error: error instanceof Error ? error.message : String(error),
-                    });
-                } catch (rollbackError) {
-                    logger.warn('Failed to rollback transaction after observer failure', {
-                        operation,
-                        schemaName: schema.name,
-                        originalError: error instanceof Error ? error.message : String(error),
-                        rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
-                    });
-                } finally {
-                    // Release transaction client
-                    if ('release' in this.system.tx) {
-                        (this.system.tx as any).release();
-                    }
-                    this.system.tx = undefined;
-                }
-            }
+            // Transaction rollback now handled at route level via withTransactionParams
 
             throw error instanceof Error ? error : new SystemError(`Observer pipeline failed: ${error}`);
         }
