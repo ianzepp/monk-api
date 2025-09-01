@@ -151,7 +151,7 @@ autodetect_database_auth() {
     
     # First check if DATABASE_URL is already set in environment
     if [ -n "$DATABASE_URL" ]; then
-        print_info "Using DATABASE_URL from environment"
+        print_info "Using DATABASE_URL from environment" >&2
         echo "$DATABASE_URL"
         return 0
     fi
@@ -176,7 +176,7 @@ autodetect_database_auth() {
             "postgresql://$current_user:$current_user@localhost:5432/"
             "postgresql://postgres:postgres@localhost:5432/"
         )
-        print_info "Detected macOS - testing Homebrew/Postgres.app patterns first"
+        print_info "Detected macOS - testing Homebrew/Postgres.app patterns first" >&2
     else
         # Linux: Package managers typically use postgres user with peer/trust auth
         test_urls=(
@@ -185,7 +185,7 @@ autodetect_database_auth() {
             "postgresql://$current_user:$current_user@localhost:5432/"
             "postgresql://postgres:postgres@localhost:5432/"
         )
-        print_info "Detected Linux - testing package manager patterns first"
+        print_info "Detected Linux - testing package manager patterns first" >&2
     fi
     
     # Test each configuration
@@ -483,4 +483,21 @@ print_info "• root@system (root access) - Full administrative privileges"
 print_info "• admin@system (full access) - Administrative operations"
 print_info "• user@system (edit access) - Standard user operations"
 echo
+# Starting: Verify Build and Server
+print_header "Starting: Verify Build and Server"
+
+print_step "Running build verification..."
+if npm run build >/dev/null 2>&1; then
+    print_success "Build verification passed - code compiles successfully on this system"
+else
+    handle_error "Build verification" "The code failed to compile on this local system"
+fi
+
+print_step "Running server startup test..."
+if npm run start -- --no-startup >/dev/null 2>&1; then
+    print_success "Server startup test passed - server can start successfully"
+else
+    handle_error "Server startup test" "The server failed to start properly"
+fi
+
 print_success "Ready for development!"
