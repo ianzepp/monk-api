@@ -11,6 +11,6 @@ export default async function (context: Context) {
     // Parse request body as FilterData
     const filterData: FilterData = await context.req.json();
 
-    const result = await system.database.selectAny(schema, filterData);
+    const result = await system.database.selectAny(schema, filterData, { context: 'api' });
     setRouteResult(context, result);
 }

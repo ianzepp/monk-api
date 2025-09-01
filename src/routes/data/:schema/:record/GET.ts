@@ -7,6 +7,6 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  * @see docs/routes/DATA_API.md
  */
 export default withParams(async (context, { system, schema, record }) => {
-    const result = await system.database.select404(schema!, { where: { id: record! } });
+    const result = await system.database.select404(schema!, { where: { id: record! } }, undefined, { context: 'api' });
     setRouteResult(context, result);
 });

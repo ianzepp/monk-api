@@ -4,11 +4,19 @@ import pg from 'pg';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
 import { Filter, type FilterData } from '@src/lib/filter.js';
+import type { FilterWhereOptions } from '@src/lib/filter-where.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+
+/**
+ * Options for database select operations with context-aware soft delete handling
+ */
+export interface SelectOptions extends FilterWhereOptions {
+    context?: 'api' | 'observer' | 'system';
+}
 
 /**
  * Database service wrapper providing high-level operations
@@ -77,7 +85,7 @@ export class Database {
         }
 
         // Use selectAny with ID filter - lenient approach, returns what exists
-        return await this.selectAny(schemaName, { where: { id: { $in: ids } } });
+        return await this.selectAny(schemaName, { where: { id: { $in: ids } } }, { context: 'system' });
     }
 
     async createAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {
@@ -96,13 +104,22 @@ export class Database {
     }
 
     // Core data operations
-    async selectOne(schemaName: SchemaName, filterData: FilterData): Promise<any | null> {
-        const results = await this.selectAny(schemaName, filterData);
+    async selectOne(
+        schemaName: SchemaName, 
+        filterData: FilterData,
+        options: SelectOptions = {}
+    ): Promise<any | null> {
+        const results = await this.selectAny(schemaName, filterData, options);
         return results[0] || null;
     }
 
-    async select404(schemaName: SchemaName, filter: FilterData, message?: string): Promise<any> {
-        const record = await this.selectOne(schemaName, filter);
+    async select404(
+        schemaName: SchemaName, 
+        filter: FilterData, 
+        message?: string,
+        options: SelectOptions = {}
+    ): Promise<any> {
+        const record = await this.selectOne(schemaName, filter, options);
 
         if (!record) {
             throw HttpErrors.notFound(message || 'Record not found', 'RECORD_NOT_FOUND');
@@ -112,9 +129,13 @@ export class Database {
     }
 
     // ID-based operations - always work with arrays
-    async selectIds(schemaName: SchemaName, ids: string[]): Promise<any[]> {
+    async selectIds(
+        schemaName: SchemaName, 
+        ids: string[],
+        options: SelectOptions = {}
+    ): Promise<any[]> {
         if (ids.length === 0) return [];
-        return await this.selectAny(schemaName, { where: { id: { $in: ids } } });
+        return await this.selectAny(schemaName, { where: { id: { $in: ids } } }, options);
     }
 
     async updateIds(schemaName: SchemaName, ids: string[], changes: Record<string, any>): Promise<any[]> {
@@ -128,9 +149,20 @@ export class Database {
     }
 
     // Advanced operations - filter-based updates/deletes
-    async selectAny(schemaName: SchemaName, filterData: FilterData = {}): Promise<any[]> {
+    async selectAny(
+        schemaName: SchemaName, 
+        filterData: FilterData = {},
+        options: SelectOptions = {}
+    ): Promise<any[]> {
         const schema = await this.toSchema(schemaName);
-        const filter = new Filter(schema.table).assign(filterData);
+        
+        // Apply context-based soft delete defaults
+        const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
+        const mergedOptions = { ...defaultOptions, ...options };
+        
+        const filter = new Filter(schema.table)
+            .assign(filterData)
+            .withSoftDeleteOptions(mergedOptions);
 
         // Use Filter.toSQL() pattern for proper separation of concerns
         const { query, params } = filter.toSQL();
@@ -138,6 +170,34 @@ export class Database {
 
         // Convert PostgreSQL string types back to proper JSON types
         return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
+    }
+
+    /**
+     * Get default soft delete options based on context
+     * 
+     * - 'api': Excludes trashed and deleted records (default user-facing behavior)
+     * - 'observer': Includes trashed but excludes deleted (observers may need trashed records)
+     * - 'system': Includes everything (system-level operations)
+     */
+    private getDefaultSoftDeleteOptions(context?: 'api' | 'observer' | 'system'): FilterWhereOptions {
+        switch (context) {
+            case 'observer':
+                return {
+                    includeTrashed: true,
+                    includeDeleted: false
+                };
+            case 'system':
+                return {
+                    includeTrashed: true,
+                    includeDeleted: true
+                };
+            case 'api':
+            default:
+                return {
+                    includeTrashed: false,
+                    includeDeleted: false
+                };
+        }
     }
 
     /**
@@ -182,8 +242,8 @@ export class Database {
     }
 
     async updateAny(schemaName: string, filterData: FilterData, changes: Record<string, any>): Promise<any[]> {
-        // 1. Find all records matching the filter
-        const records = await this.selectAny(schemaName, filterData);
+        // 1. Find all records matching the filter - use system context for internal operations
+        const records = await this.selectAny(schemaName, filterData, { context: 'system' });
 
         if (records.length === 0) {
             return [];
@@ -200,8 +260,8 @@ export class Database {
     }
 
     async deleteAny(schemaName: string, filter: FilterData): Promise<any[]> {
-        // 1. Find all records matching the filter
-        const records = await this.selectAny(schemaName, filter);
+        // 1. Find all records matching the filter - use system context for internal operations  
+        const records = await this.selectAny(schemaName, filter, { context: 'system' });
 
         if (records.length === 0) {
             return [];
@@ -286,7 +346,7 @@ export class Database {
             throw HttpErrors.badRequest('revertAny() requires include_trashed=true option to find trashed records', 'REQUEST_INVALID_OPTIONS');
         }
 
-        const trashedRecords = await this.selectAny(schemaName, filterData);
+        const trashedRecords = await this.selectAny(schemaName, filterData, { includeTrashed: true, includeDeleted: false, context: 'system' });
         const recordsToRevert = trashedRecords.filter(record => record.trashed_at !== null).map(record => ({ id: record.id, trashed_at: null }));
 
         if (recordsToRevert.length === 0) {
@@ -477,8 +537,8 @@ export class Database {
     }
 
     async accessAny(schemaName: SchemaName, filter: FilterData, accessChanges: Record<string, any>): Promise<any[]> {
-        // 1. Find all records matching the filter
-        const records = await this.selectAny(schemaName, filter);
+        // 1. Find all records matching the filter - use system context for internal operations
+        const records = await this.selectAny(schemaName, filter, { context: 'system' });
 
         if (records.length === 0) {
             return [];

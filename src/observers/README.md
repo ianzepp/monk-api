@@ -26,7 +26,7 @@ src/observers/all/8/webhook-sender.ts          # All schemas, integration ring
 - **Ring 4 - Enrichment**: Data enrichment, defaults, computed fields
 
 **Database Ring (5):**
-- **Ring 5 - Database**: 🎯 Actual SQL execution (handled by framework)
+- **Ring 5 - Database**: 🎯 Actual SQL execution observers
 
 **Post-Database Rings (6-9):**
 - **Ring 6 - PostDatabase**: Immediate post-database processing

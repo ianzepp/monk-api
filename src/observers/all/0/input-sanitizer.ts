@@ -1,6 +1,6 @@
 /**
  * Input Sanitization Observer
- * 
+ *
  * Universal sanitizer that cleans input data for security
  * Ring: 0 (Validation) - Schema: all - Operations: create, update
  */
@@ -40,7 +40,7 @@ export default class InputSanitizer extends BaseObserver {
 
     private sanitizeString(input: string): string {
         if (!input) return input;
-        
+
         return input
             // Trim whitespace
             .trim()
