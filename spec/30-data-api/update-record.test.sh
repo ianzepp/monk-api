@@ -5,35 +5,13 @@
 # Tests updating records using the template's pre-loaded data
 
 # Source helpers
-source "$(dirname "$0")/../curl-helper.sh"
-source "$(dirname "$0")/../helpers/test-tenant-helper.sh"
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Data API record updates"
 
-# Wait for server to be ready
-wait_for_server
-
-# Setup test environment using fixtures template (includes sample data)
-print_step "Creating test tenant from fixtures template"
-tenant_name=$(create_test_tenant_from_template "update-record" "basic")
-load_test_env
-
-if [[ -z "$tenant_name" ]]; then
-    test_fail "Template cloning failed - fixtures template required for this test"
-fi
-
-print_success "Test tenant cloned from template (includes 5 accounts + 6 contacts)"
-
-# Authenticate with admin user
-print_step "Setting up authentication for admin user"
-JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "admin")
-
-if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-    print_success "Admin authentication configured"
-    export JWT_TOKEN
-else
-    test_fail "Failed to authenticate admin user"
-fi
+# Setup test environment with template and admin authentication
+setup_test_with_template "update-record"
+setup_admin_auth
 
 # Test 1: Get an existing account to update
 print_step "Getting existing account for update testing"
@@ -134,13 +112,6 @@ else
 fi
 
 # Test 5: Test updating non-existent record
-print_step "Testing PUT /api/data/account/00000000-0000-0000-0000-000000000000"
-
-nonexistent_update=$(auth_put "api/data/account/00000000-0000-0000-0000-000000000000" "$updated_data" || echo '{"success":false}')
-if echo "$nonexistent_update" | jq -e '.success == false' >/dev/null; then
-    print_success "Non-existent record update properly returns error"
-else
-    test_fail "Expected error for non-existent record update: $nonexistent_update"
-fi
+test_nonexistent_record "account" "update" "$updated_data"
 
 print_success "Data API record update tests completed successfully"
