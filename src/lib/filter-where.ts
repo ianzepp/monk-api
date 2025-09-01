@@ -177,6 +177,14 @@ export class FilterWhere {
      * Parse logical operator with nested conditions
      */
     private parseLogicalOperator(operator: FilterOp, data: any): void {
+        // Normalize $not operator to accept both object and array formats for better usability
+        // This allows intuitive single-condition syntax: {"$not": {"field": "value"}}
+        // instead of requiring array wrapper: {"$not": [{"field": "value"}]}
+        // Other logical operators ($and, $or) naturally require arrays for multiple conditions
+        if (operator === FilterOp.NOT && !Array.isArray(data) && typeof data === 'object' && data !== null) {
+            data = [data]; // Convert object to single-item array for consistent processing
+        }
+        
         if (!Array.isArray(data)) {
             throw new Error(`Logical operator ${operator} requires array of conditions`);
         }
