@@ -19,19 +19,39 @@ print_success() {
     echo -e "${GREEN}✓ $1${NC}"
 }
 
+print_warning() {
+    echo -e "${YELLOW}⚠ $1${NC}"
+}
+
 print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
-print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
+server_start() {
+    print_header "Starting server"
+    npm run start:bg
+    print_success "Server starting, waiting 3 seconds.."
+    sleep 3
 }
+
+server_stop() {
+    print_header "Stopping server (if running)"
+    npm run stop
+}
+
+# Run the build
+npm run build
+
+# Start the API server
+server_stop
+server_start
 
 # Find all test.sh files and sort by name
 test_files=$(find spec -name "*.test.sh" -type f | sort)
 
 if [[ -z "$test_files" ]]; then
     print_error "No test files found in spec/ directory"
+    server_stop
     exit 1
 fi
 
@@ -74,8 +94,11 @@ if [[ $failed -gt 0 ]]; then
         echo "  - $failed_test"
     done
     echo
+    server_stop
     exit 1
 else
     echo
+    server_stop
     print_success "All tests passed!"
+    exit 0
 fi
