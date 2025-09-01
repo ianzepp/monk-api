@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { System } from '@src/lib/system.js';
 import type { SystemOptions } from '@src/lib/system-context-types.js';
+import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError } from '@src/lib/errors/http-error.js';
 import { createSchema } from '@src/lib/schema.js';
 
@@ -50,17 +51,19 @@ interface RouteParams {
     body?: any; // Content-type aware body
     method: string;
     contentType: string;
+    options: SelectOptions; // Pre-extracted soft delete options
 }
 
 // ===========================
 // Request Parameter Helpers
 // ===========================
 
-// Helper function to extract system options from request
-function extractOptionsFromContext(context: Context): SystemOptions {
+// Helper function to extract select options from request
+function extractSelectOptionsFromContext(context: Context): SelectOptions {
     return {
-        trashed: context.req.query('include_trashed') === 'true',
-        deleted: context.req.query('include_deleted') === 'true',
+        context: 'api',
+        includeTrashed: context.req.query('include_trashed') === 'true',
+        includeDeleted: context.req.query('include_deleted') === 'true',
     };
 }
 
@@ -83,6 +86,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
             method: context.req.method,
             contentType: context.req.header('content-type') || 'application/json',
             body: undefined,
+            options: extractSelectOptionsFromContext(context),
         };
 
         // Smart body handling based on content type

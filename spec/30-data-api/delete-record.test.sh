@@ -116,6 +116,51 @@ else
     test_fail "Expected error when accessing deleted record: $deleted_get_response"
 fi
 
+# Test 4b: Verify record can be retrieved with include_trashed=true
+print_step "Testing GET /api/data/account/$account_id?include_trashed=true (should succeed)"
+
+trashed_get_response=$(auth_get "api/data/account/$account_id?include_trashed=true")
+assert_success "$trashed_get_response"
+
+trashed_record=$(extract_data "$trashed_get_response")
+trashed_record_id=$(echo "$trashed_record" | jq -r '.id')
+trashed_timestamp=$(echo "$trashed_record" | jq -r '.trashed_at')
+
+if [[ "$trashed_record_id" == "$account_id" ]]; then
+    print_success "Trashed record retrieved successfully with include_trashed=true"
+else
+    test_fail "Expected trashed record ID '$account_id', got: '$trashed_record_id'"
+fi
+
+if [[ -n "$trashed_timestamp" && "$trashed_timestamp" != "null" ]]; then
+    print_success "Trashed record contains trashed_at timestamp: $trashed_timestamp"
+else
+    test_fail "Expected trashed_at timestamp in retrieved record"
+fi
+
+# Test 4c: Verify trashed record appears in listings with include_trashed=true
+print_step "Testing GET /api/data/account?include_trashed=true (should include trashed record)"
+
+trashed_list_response=$(auth_get "api/data/account?include_trashed=true")
+assert_success "$trashed_list_response"
+
+trashed_list_data=$(extract_data "$trashed_list_response")
+trashed_list_count=$(echo "$trashed_list_data" | jq 'length')
+
+if [[ "$trashed_list_count" -eq 5 ]]; then
+    print_success "Account listing with include_trashed=true shows all 5 records (including trashed)"
+else
+    test_fail "Expected 5 accounts with include_trashed=true, got: $trashed_list_count"
+fi
+
+# Verify the trashed account is in the list
+trashed_found_in_list=$(echo "$trashed_list_data" | jq --arg id "$account_id" 'map(select(.id == $id)) | length')
+if [[ "$trashed_found_in_list" -eq 1 ]]; then
+    print_success "Trashed account appears in listings with include_trashed=true"
+else
+    test_fail "Trashed account not found in listings with include_trashed=true"
+fi
+
 # Test 5: Test deleting non-existent record
 print_step "Testing DELETE /api/data/account/00000000-0000-0000-0000-000000000000"
 

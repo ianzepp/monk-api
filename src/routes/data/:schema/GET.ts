@@ -6,7 +6,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  * GET /api/data/:schema - List all records in schema
  * @see docs/routes/DATA_API.md
  */
-export default withParams(async (context, { system, schema }) => {
-    const result = await system.database.selectAny(schema!);
+export default withParams(async (context, { system, schema, options }) => {
+    const result = await system.database.selectAny(schema!, {}, options);
     setRouteResult(context, result);
 });
