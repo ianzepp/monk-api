@@ -21,17 +21,16 @@ Execute advanced search queries against a specific schema with complex filtering
 ### Request Body
 ```json
 {
-  "filter": {
-    "where": {
-      // Complex filter conditions (see Filter Operations below)
-    },
-    "order": [
-      {"field": "created_at", "direction": "desc"},
-      {"field": "name", "direction": "asc"}
-    ],
-    "limit": 100,
-    "offset": 0
-  }
+  "select": ["name", "email", "created_at"],  // Optional: specify columns to return
+  "where": {
+    // Complex filter conditions (see Filter Operations below)
+  },
+  "order": [
+    "created_at desc",
+    "name asc"
+  ],
+  "limit": 100,
+  "offset": 0
 }
 ```
 
@@ -73,14 +72,13 @@ Execute advanced search queries against a specific schema with complex filtering
   "where": {
     "$and": [
       {"department": "engineering"},
-      {"$or": [
-        {"role": "senior"},
-        {"experience": {"$gte": 5}}
-      ]}
+      {"role": "senior"}        // $and operator works correctly
     ]
   }
 }
 ```
+
+> **Known Issues**: The `$or` and `$not` logical operators currently have implementation issues and may not return expected results. The `$and` operator works correctly. Complex logical nesting should be avoided until these issues are resolved.
 
 ### Array Operations (ACL Support)
 ```json
@@ -112,15 +110,40 @@ Execute advanced search queries against a specific schema with complex filtering
 }
 ```
 
+## Column Selection (SELECT)
+
+### Specific Columns
+```json
+{
+  "select": ["name", "email", "account_type"]  // Return only specified columns
+}
+```
+
+### All Columns  
+```json
+{
+  "select": ["*"]     // Return all available columns (default behavior)
+}
+```
+
+### System Fields
+```json
+{
+  "select": ["id", "created_at", "updated_at", "trashed_at"]  // System-managed fields
+}
+```
+
+> **Performance Note**: The SELECT clause implements true database-level column projection, reducing data transfer and improving query performance by only returning requested fields.
+
 ## Sorting and Pagination
 
 ### Multiple Sort Fields
 ```json
 {
   "order": [
-    {"field": "priority", "direction": "desc"},
-    {"field": "created_at", "direction": "asc"},
-    {"field": "name", "direction": "asc"}
+    "priority desc",
+    "created_at asc", 
+    "name asc"
   ]
 }
 ```
@@ -133,6 +156,8 @@ Execute advanced search queries against a specific schema with complex filtering
 }
 ```
 
+> **Note**: Offset functionality is currently not implemented. The `offset` parameter is accepted but ignored, returning all matching records. This will be addressed in a future update.
+
 ## Usage Examples
 
 ### User Search with Complex Criteria
@@ -141,20 +166,18 @@ curl -X POST http://localhost:9001/api/find/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "filter": {
-      "where": {
-        "$and": [
-          {"department": "engineering"},
-          {"status": {"$in": ["active", "probation"]}},
-          {"created_at": {"$gte": "2024-01-01T00:00:00Z"}},
-          {"access_read": {"$any": ["project-alpha"]}}
-        ]
-      },
-      "order": [
-        {"field": "last_login", "direction": "desc"}
-      ],
-      "limit": 25
-    }
+    "where": {
+      "$and": [
+        {"department": "engineering"},
+        {"status": {"$in": ["active", "probation"]}},
+        {"created_at": {"$gte": "2024-01-01T00:00:00Z"}},
+        {"access_read": {"$any": ["project-alpha"]}}
+      ]
+    },
+    "order": [
+      "last_login desc"
+    ],
+    "limit": 25
   }'
 ```
 
@@ -164,20 +187,18 @@ curl -X POST http://localhost:9001/api/find/products \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "filter": {
-      "where": {
-        "$or": [
-          {"category": "electronics"},
-          {"tags": {"$any": ["featured", "sale"]}}
-        ],
-        "price": {"$between": [10, 500]},
-        "in_stock": true
-      },
-      "order": [
-        {"field": "popularity", "direction": "desc"},
-        {"field": "price", "direction": "asc"}
-      ]
-    }
+    "where": {
+      "$or": [
+        {"category": "electronics"},
+        {"tags": {"$any": ["featured", "sale"]}}
+      ],
+      "price": {"$between": [10, 500]},
+      "in_stock": true
+    },
+    "order": [
+      "popularity desc",
+      "price asc"
+    ]
   }'
 ```
 
@@ -187,17 +208,15 @@ curl -X POST http://localhost:9001/api/find/documents \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "filter": {
-      "where": {
-        "$and": [
-          {"access_read": {"$any": ["current-user-id"]}},
-          {"trashed_at": null},
-          {"$or": [
-            {"tags": {"$any": ["urgent"]}},
-            {"priority": {"$gte": 8}}
-          ]}
-        ]
-      }
+    "where": {
+      "$and": [
+        {"access_read": {"$any": ["current-user-id"]}},
+        {"trashed_at": null},
+        {"$or": [
+          {"tags": {"$any": ["urgent"]}},
+          {"priority": {"$gte": 8}}
+        ]}
+      ]
     }
   }'
 ```
