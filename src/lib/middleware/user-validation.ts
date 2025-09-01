@@ -7,6 +7,7 @@
 
 import type { Context, Next } from 'hono';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { TenantService } from '@src/lib/services/tenant.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import type { JWTPayload } from './jwt-validation.js';
 
@@ -28,6 +29,12 @@ export async function userValidationMiddleware(context: Context, next: Next) {
     }
     
     try {
+        // TODO: Add tenant status validation here
+        // const tenantInfo = await TenantService.getTenant(tenant);
+        // if (!tenantInfo) {
+        //     throw HttpErrors.unauthorized('Tenant not found or inactive', 'TENANT_INACTIVE');
+        // }
+        
         // Set up database connection for the tenant
         DatabaseConnection.setDatabaseForRequest(context, database);
         
