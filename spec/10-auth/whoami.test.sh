@@ -4,15 +4,13 @@ set -e
 # Protected Auth API Test
 # Tests protected auth endpoints that require JWT authentication
 
-# Source curl helper
-source "$(dirname "$0")/../curl-helper.sh"
+# Source helpers
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing protected Auth API endpoints"
 
-# Wait for server to be ready
-wait_for_server
-
-# Setup authentication
+# Simple setup with authentication
+setup_test_basic
 setup_test_auth "system" "root"
 
 # Test whoami endpoint

@@ -4,13 +4,13 @@ set -e
 # Documentation API Test
 # Tests self-documenting API endpoints for all available APIs
 
-# Source curl helper  
-source "$(dirname "$0")/../curl-helper.sh"
+# Source helpers
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing self-documenting API endpoints"
 
-# Wait for server to be ready
-wait_for_server
+# Simple setup for documentation testing
+setup_test_basic
 
 # Test public auth documentation
 print_step "Testing GET /docs/public-auth"

@@ -4,13 +4,13 @@ set -e
 # Public Authentication Test
 # Tests public auth endpoints (login, register, refresh) without JWT requirements
 
-# Source curl helper
-source "$(dirname "$0")/../curl-helper.sh"
+# Source helpers
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing public authentication endpoints"
 
-# Wait for server to be ready
-wait_for_server
+# Simple setup for auth tests (no tenant isolation needed)
+setup_test_basic
 
 # Test login endpoint
 print_step "Testing POST /auth/login"

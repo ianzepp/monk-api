@@ -5,13 +5,12 @@ set -e
 # Verifies isolated test tenant creation and cleanup functionality
 
 # Source helpers
-source "$(dirname "$0")/../curl-helper.sh"
-source "$(dirname "$0")/../helpers/test-tenant-helper.sh"
+source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing isolated tenant creation and cleanup"
 
-# Wait for server to be ready
-wait_for_server
+# Simple setup for tenant testing
+setup_test_basic
 
 # Test 1: Create isolated test tenant
 print_step "Creating isolated test tenant"
