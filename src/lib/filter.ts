@@ -1,12 +1,22 @@
 import { FilterWhere } from '@src/lib/filter-where.js';
 import { FilterOrder } from '@src/lib/filter-order.js';
-import type { FilterWhereOptions } from '@src/lib/filter-where.js';
+import { FilterOp, type FilterWhereInfo, type FilterWhereOptions, type FilterData, type ConditionNode, type FilterOrderInfo } from '@src/lib/filter-types.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { logger } from '@src/lib/logger.js';
+
+// Re-export types for convenience
+export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterOrderInfo, ConditionNode } from '@src/lib/filter-types.js';
 
 /**
  * Filter - Enterprise-Grade Database Query Builder
  *
  * Comprehensive query builder with 25+ operators including PostgreSQL arrays, logical operations,
  * full-text search, and advanced filtering patterns. Integrates with observer pipeline and ACL systems.
+ *
+ * Provides clean separation of concerns:
+ * - Filter data validation and normalization
+ * - SQL generation with proper parameterization
+ * - Query execution via consistent API patterns
  *
  * Quick Examples:
  * - Basic: `{ name: { $ilike: "john%" }, status: "active" }`
@@ -19,91 +29,23 @@ import type { FilterWhereOptions } from '@src/lib/filter-where.js';
  * See docs/FILTER.md for complete operator reference and examples.
  */
 
-// Filter operation types
-export enum FilterOp {
-    // Comparison
-    EQ = '$eq',
-    NE = '$ne',
-    NEQ = '$neq',
-    GT = '$gt',
-    GTE = '$gte',
-    LT = '$lt',
-    LTE = '$lte',
+// All types and enums are now imported from filter-types.js for consistency
 
-    // Pattern matching
-    LIKE = '$like',
-    NLIKE = '$nlike',
-    ILIKE = '$ilike',
-    NILIKE = '$nilike',
-    REGEX = '$regex',
-    NREGEX = '$nregex',
-
-    // Array operations
-    IN = '$in',
-    NIN = '$nin',
-    ANY = '$any',
-    ALL = '$all',
-    NANY = '$nany',
-    NALL = '$nall',
-
-    // Logical
-    AND = '$and',
-    OR = '$or',
-    NOT = '$not',
-
-    // Search
-    FIND = '$find',
-    TEXT = '$text',
-
-    // Existence
-    EXISTS = '$exists',
-    NULL = '$null',
-}
-
-// Filter interfaces
-export interface FilterWhereInfo {
-    column?: string;
-    operator: FilterOp;
-    data: any;
-}
-
-// New tree structure for complex logical operators
-export interface ConditionNode {
-    type: 'condition' | 'logical';
-
-    // For condition nodes
-    column?: string;
-    operator?: FilterOp;
-    data?: any;
-
-    // For logical nodes
-    logicalOp?: '$and' | '$or' | '$not';
-    children?: ConditionNode[];
-}
-
-export interface FilterOrderInfo {
-    column: string;
-    sort: 'asc' | 'desc';
-}
-
-export interface FilterData {
-    schema?: string;
-    select?: string[];
-    where?: any;
-    order?: any;
-    limit?: number;
-    offset?: number;
-    lookups?: any;
-    related?: any;
-    options?: any;
-}
-
+/**
+ * Filter - Handles database query building with proper validation and execution
+ * 
+ * Provides clean separation of concerns:
+ * - Filter data validation and normalization
+ * - SQL generation with proper parameterization
+ * - Query execution via consistent API patterns
+ * 
+ * Designed for integration with observer pipeline and ACL systems.
+ */
 export class Filter {
     private _tableName: string;
     private _query: any;
     private _select: string[] = [];
-    private _where: FilterWhereInfo[] = []; // Legacy - keep for backward compatibility
-    private _conditions: ConditionNode[] = []; // New tree structure
+    private _whereData: any = {}; // Store raw WHERE data for FilterWhere
     private _order: FilterOrderInfo[] = [];
     private _limit?: number;
     private _offset?: number;
@@ -111,88 +53,178 @@ export class Filter {
     private _related: any[] = [];
     private _softDeleteOptions: FilterWhereOptions = {};
 
-    // Parameter collection for SQL parameterization (Issue #105)
-    private _paramValues: any[] = [];
-    private _paramIndex: number = 0;
-
     constructor(tableName: string) {
         this._tableName = tableName;
+        this.validateTableName(tableName);
 
         // For dynamic schemas, we'll build queries using raw SQL
         // since Drizzle's type system doesn't know about runtime tables
         this._query = null; // Will build SQL manually
     }
 
-    /**
-     * Add parameter to collection and return PostgreSQL placeholder
-     * Creates parameterized queries for security and performance
-     */
-    private PARAM(value: any): string {
-        this._paramValues.push(value);
-        return `$${++this._paramIndex}`;
-    }
+    // Parameter management is now handled by FilterWhere
 
-    // Main assignment method - handles multiple input formats
+    /**
+     * Process filter data with comprehensive validation and normalization
+     */
     assign(source?: FilterData | string | string[]): Filter {
         if (source === undefined) {
             return this;
         }
 
-        console.debug('lib/filter: source=%j', source);
-
-        // Array of IDs → convert to $in (skip empty arrays)
-        if (Array.isArray(source)) {
-            if (source.length === 0) {
-                return this; // Empty array = no conditions
-            }
-            return this.assign({ where: { id: { $in: source } } });
-        }
-
-        // Single UUID → convert to $eq
-        if (typeof source === 'string' && this.isUUID(source)) {
-            return this.assign({ where: { id: source } });
-        }
-
-        // Plain string → assume name field
-        if (typeof source === 'string') {
-            return this.assign({ where: { name: source } });
-        }
-
-        // Process FilterData object
-        if (typeof source === 'object') {
-            this._assignData(source);
+        try {
+            // Validate and normalize input
+            const normalizedSource = this.validateAndNormalizeInput(source);
+            
+            // Process the normalized data
+            this.processFilterData(normalizedSource);
+            
+            logger.debug('Filter assignment completed', {
+                tableName: this._tableName,
+                sourceType: Array.isArray(source) ? 'array' : typeof source
+            });
+            
+        } catch (error) {
+            logger.warn('Filter assignment failed', {
+                tableName: this._tableName,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error; // Re-throw to maintain error handling
         }
 
         return this;
     }
 
-    private _assignData(source: FilterData): void {
-        // SELECT
-        if (source.select) {
-            this.$select(...source.select);
+    /**
+     * Validate table name to prevent SQL injection
+     */
+    private validateTableName(tableName: string): void {
+        if (!tableName || typeof tableName !== 'string') {
+            throw HttpErrors.badRequest('Table name must be a non-empty string', 'FILTER_INVALID_TABLE');
         }
-
-        // WHERE
-        if (source.where) {
-            this.$where(source.where);
+        
+        // Basic SQL injection protection for table names
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+            throw HttpErrors.badRequest('Invalid table name format', 'FILTER_INVALID_TABLE_FORMAT');
         }
-
-        // ORDER
-        if (source.order) {
-            this.$order(source.order);
-        }
-
-        // LIMIT/OFFSET
-        if (source.limit !== undefined) {
-            this.$limit(source.limit, source.offset);
-        }
-
-        // TODO: LOOKUPS and RELATED
-        // if (source.lookups) this.$lookups(source.lookups);
-        // if (source.related) this.$related(source.related);
     }
 
-    // SELECT field specification
+    /**
+     * Validate and normalize filter input data
+     */
+    private validateAndNormalizeInput(source: FilterData | string | string[]): FilterData {
+        // Array of IDs → convert to $in (skip empty arrays)
+        if (Array.isArray(source)) {
+            if (source.length === 0) {
+                return {}; // Empty array = no conditions
+            }
+            return { where: { id: { $in: source } } };
+        }
+
+        // Single UUID → convert to $eq
+        if (typeof source === 'string' && this.isUUID(source)) {
+            return { where: { id: source } };
+        }
+
+        // Plain string → assume name field
+        if (typeof source === 'string') {
+            return { where: { name: source } };
+        }
+
+        // Process FilterData object
+        if (typeof source === 'object' && source !== null) {
+            return this.validateFilterData(source);
+        }
+
+        throw HttpErrors.badRequest('Invalid filter source type', 'FILTER_INVALID_SOURCE_TYPE');
+    }
+
+    /**
+     * Validate FilterData object structure
+     */
+    private validateFilterData(source: FilterData): FilterData {
+        // Validate select array if provided
+        if (source.select && (!Array.isArray(source.select) || source.select.some(col => typeof col !== 'string'))) {
+            throw HttpErrors.badRequest('Select must be an array of column names', 'FILTER_INVALID_SELECT');
+        }
+
+        // Validate limit/offset if provided
+        if (source.limit !== undefined && (!Number.isInteger(source.limit) || source.limit < 0)) {
+            throw HttpErrors.badRequest('Limit must be a non-negative integer', 'FILTER_INVALID_LIMIT');
+        }
+        
+        if (source.offset !== undefined && (!Number.isInteger(source.offset) || source.offset < 0)) {
+            throw HttpErrors.badRequest('Offset must be a non-negative integer', 'FILTER_INVALID_OFFSET');
+        }
+
+        return source;
+    }
+
+    /**
+     * Process validated FilterData with proper error handling
+     */
+    private processFilterData(source: FilterData): void {
+        try {
+            // SELECT
+            if (source.select) {
+                this.processSelectClause(source.select);
+            }
+
+            // WHERE
+            if (source.where) {
+                this.processWhereClause(source.where);
+            }
+
+            // ORDER
+            if (source.order) {
+                this.processOrderClause(source.order);
+            }
+
+            // LIMIT/OFFSET
+            if (source.limit !== undefined) {
+                this.processLimitClause(source.limit, source.offset);
+            }
+
+            // TODO: LOOKUPS and RELATED
+            // if (source.lookups) this.processLookups(source.lookups);
+            // if (source.related) this.processRelated(source.related);
+            
+        } catch (error) {
+            throw error; // Re-throw validation errors
+        }
+    }
+
+    /**
+     * Process SELECT clause with validation
+     */
+    private processSelectClause(columns: string[]): void {
+        this.validateSelectColumns(columns);
+        this.$select(...columns);
+    }
+
+    /**
+     * Validate SELECT columns
+     */
+    private validateSelectColumns(columns: string[]): void {
+        if (!Array.isArray(columns)) {
+            throw HttpErrors.badRequest('Select columns must be an array', 'FILTER_INVALID_SELECT_TYPE');
+        }
+        
+        for (const column of columns) {
+            if (typeof column !== 'string' || !column.trim()) {
+                throw HttpErrors.badRequest('All select columns must be non-empty strings', 'FILTER_INVALID_COLUMN_NAME');
+            }
+            
+            // Basic SQL injection protection for column names
+            if (column !== '*' && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
+                throw HttpErrors.badRequest(`Invalid column name format: ${column}`, 'FILTER_INVALID_COLUMN_FORMAT');
+            }
+        }
+    }
+
+    /**
+     * SELECT field specification
+     */
     $select(...columns: string[]): Filter {
         // If '*' is included, select all (for now, just track the request)
         if (columns.includes('*')) {
@@ -203,174 +235,119 @@ export class Filter {
         return this;
     }
 
-    // WHERE clause processing
+    /**
+     * Process WHERE clause with validation - delegates to FilterWhere
+     */
+    private processWhereClause(conditions: any): void {
+        // Let FilterWhere handle all validation
+        FilterWhere.validate(conditions);
+        this.$where(conditions);
+    }
+
+    /**
+     * WHERE clause processing - simplified to delegate to FilterWhere
+     */
     $where(conditions: any): Filter {
         if (!conditions) return this;
 
-        // String → convert to ID lookup
-        if (typeof conditions === 'string') {
-            this._where.push({ column: 'id', operator: FilterOp.EQ, data: conditions });
-            return this;
+        // Store raw WHERE data for FilterWhere to process
+        if (this._whereData && Object.keys(this._whereData).length > 0) {
+            // Merge with existing conditions using $and
+            this._whereData = {
+                $and: [this._whereData, conditions]
+            };
+        } else {
+            this._whereData = conditions;
         }
 
-        // Object → process each key-value pair
-        if (typeof conditions === 'object') {
-            const nodes = this._processWhereObject(conditions);
-            this._conditions.push(...nodes);
-        }
-
-        this._applyWhereConditions();
         return this;
     }
 
-    private _processWhereObject(conditions: any): ConditionNode[] {
-        const nodes: ConditionNode[] = [];
-
-        for (const [key, value] of Object.entries(conditions)) {
-            if (key.startsWith('$')) {
-                // Logical operators
-                nodes.push(this._processLogicalOperator(key as FilterOp, value));
-            } else {
-                // Field conditions
-                nodes.push(...this._processFieldCondition(key, value));
-            }
-        }
-
-        return nodes;
+    /**
+     * Process ORDER clause with validation - delegates to FilterOrder
+     */
+    private processOrderClause(orderSpec: any): void {
+        // Let FilterOrder handle all validation
+        FilterOrder.validate(orderSpec);
+        this.$order(orderSpec);
     }
 
-    private _processLogicalOperator(operator: FilterOp, value: any): ConditionNode {
-        if (operator === FilterOp.AND && Array.isArray(value)) {
-            const children: ConditionNode[] = [];
-            value.forEach((condition: any) => {
-                children.push(...this._processWhereObject(condition));
-            });
-
-            return {
-                type: 'logical',
-                logicalOp: '$and',
-                children,
-            };
-        } else if (operator === FilterOp.OR && Array.isArray(value)) {
-            const children: ConditionNode[] = [];
-            value.forEach((condition: any) => {
-                children.push(...this._processWhereObject(condition));
-            });
-
-            return {
-                type: 'logical',
-                logicalOp: '$or',
-                children,
-            };
-        } else if (operator === FilterOp.NOT && typeof value === 'object') {
-            const children = this._processWhereObject(value);
-
-            return {
-                type: 'logical',
-                logicalOp: '$not',
-                children,
-            };
-        }
-
-        throw new Error(`Unsupported logical operator: ${operator}`);
-    }
-
-    private _processFieldCondition(fieldName: string, fieldValue: any): ConditionNode[] {
-        const nodes: ConditionNode[] = [];
-
-        if (Array.isArray(fieldValue)) {
-            // Auto-convert array to $in: { "id": ["uuid1", "uuid2"] } → { "id": { "$in": ["uuid1", "uuid2"] } }
-            const node = {
-                type: 'condition' as const,
-                column: fieldName,
-                operator: FilterOp.IN,
-                data: fieldValue,
-            };
-
-            nodes.push(node);
-
-            // Also add to legacy array for backward compatibility
-            this._where.push({
-                column: fieldName,
-                operator: FilterOp.IN,
-                data: fieldValue,
-            });
-        } else if (typeof fieldValue === 'object' && fieldValue !== null) {
-            // Complex condition: { "age": { "$gte": 18, "$lt": 65 } }
-            for (const [op, data] of Object.entries(fieldValue)) {
-                nodes.push({
-                    type: 'condition',
-                    column: fieldName,
-                    operator: op as FilterOp,
-                    data: data,
-                });
-
-                // Also add to legacy array for backward compatibility
-                this._where.push({
-                    column: fieldName,
-                    operator: op as FilterOp,
-                    data: data,
-                });
-            }
-        } else {
-            // Simple equality: { "status": "active" }
-            const node = {
-                type: 'condition' as const,
-                column: fieldName,
-                operator: FilterOp.EQ,
-                data: fieldValue,
-            };
-
-            nodes.push(node);
-
-            // Also add to legacy array for backward compatibility
-            this._where.push({
-                column: fieldName,
-                operator: FilterOp.EQ,
-                data: fieldValue,
-            });
-        }
-
-        return nodes;
-    }
-
-    private _applyWhereConditions(): void {
-        // WHERE conditions will be applied during SQL building
-        // since we're using raw SQL for dynamic schemas
-    }
-
-    // ORDER BY processing
+    /**
+     * ORDER BY processing - simplified to store raw data for FilterOrder
+     */
     $order(orderSpec: any): Filter {
         if (!orderSpec) return this;
 
+        // Store raw ORDER data for FilterOrder to process
+        // Convert to array format for consistent handling
         if (Array.isArray(orderSpec)) {
-            orderSpec.forEach((spec: any) => this._processOrderSpec(spec));
+            this._order.push(...this.normalizeOrderSpecToArray(orderSpec));
         } else {
-            this._processOrderSpec(orderSpec);
+            this._order.push(...this.normalizeOrderSpecToArray([orderSpec]));
         }
 
         return this;
     }
 
-    private _processOrderSpec(spec: any): void {
-        if (typeof spec === 'string') {
-            // "name asc" or just "name"
-            const parts = spec.split(' ');
-            const column = parts[0];
-            const sort = (parts[1] || 'asc') as 'asc' | 'desc';
-            this._order.push({ column, sort });
-        } else if (typeof spec === 'object') {
-            // { "name": "asc" } or { "column": "name", "sort": "asc" }
-            if (spec.column && spec.sort) {
-                this._order.push({ column: spec.column, sort: spec.sort });
-            } else {
-                const [column, sort] = Object.entries(spec)[0];
-                this._order.push({ column, sort: sort as 'asc' | 'desc' });
+    /**
+     * Normalize order specification to FilterOrderInfo array
+     */
+    private normalizeOrderSpecToArray(orderSpecs: any[]): FilterOrderInfo[] {
+        const result: FilterOrderInfo[] = [];
+        
+        for (const spec of orderSpecs) {
+            if (typeof spec === 'string') {
+                const parts = spec.split(' ');
+                const column = parts[0];
+                const sort = (parts[1] || 'asc').toLowerCase() as 'asc' | 'desc';
+                result.push({ column, sort: sort === 'desc' ? 'desc' : 'asc' });
+            } else if (typeof spec === 'object' && spec !== null) {
+                if (spec.column && spec.sort) {
+                    const sort = spec.sort.toLowerCase();
+                    result.push({ 
+                        column: spec.column, 
+                        sort: (sort === 'desc' || sort === 'descending') ? 'desc' : 'asc' 
+                    });
+                } else {
+                    // Process all entries in the object: { name: 'asc', created_at: 'desc' }
+                    for (const [column, sort] of Object.entries(spec)) {
+                        const normalizedSort = (sort as string).toLowerCase();
+                        result.push({ 
+                            column, 
+                            sort: (normalizedSort === 'desc' || normalizedSort === 'descending') ? 'desc' : 'asc' 
+                        });
+                    }
+                }
             }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Process LIMIT clause with validation
+     */
+    private processLimitClause(limit: number, offset?: number): void {
+        this.validateLimitClause(limit, offset);
+        this.$limit(limit, offset);
+    }
+
+    /**
+     * Validate LIMIT/OFFSET clause
+     */
+    private validateLimitClause(limit: number, offset?: number): void {
+        if (!Number.isInteger(limit) || limit < 0) {
+            throw HttpErrors.badRequest('Limit must be a non-negative integer', 'FILTER_INVALID_LIMIT_VALUE');
+        }
+        
+        if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) {
+            throw HttpErrors.badRequest('Offset must be a non-negative integer', 'FILTER_INVALID_OFFSET_VALUE');
         }
     }
 
-    // LIMIT/OFFSET processing
+    /**
+     * LIMIT/OFFSET processing
+     */
     $limit(limit?: number, offset?: number): Filter {
         this._limit = limit;
         this._offset = offset;
@@ -389,48 +366,63 @@ export class Filter {
     // This method bypasses the observer pipeline and violates separation of concerns.
     // Should be replaced with toSQL() method that returns query + parameters.
     /**
-     * Generate SQL query and parameters (Issue #102 - toSQL pattern)
+     * Generate SQL query and parameters with comprehensive validation (Issue #102 - toSQL pattern)
      *
      * Returns SQL query and parameters for execution by Database methods.
      * Uses FilterWhere and FilterOrder for consistent SQL generation with soft delete support.
      */
     toSQL(): { query: string; params: any[] } {
-        // Reset parameter collection for fresh query generation
-        this._paramValues = [];
-        this._paramIndex = 0;
+        try {
+            // Build SELECT clause (no parameters)
+            const selectClause = this.buildSelectClause();
 
-        // Build SELECT clause (no parameters typically)
-        const selectClause = this._select.length > 0 && !this._select.includes('*') 
-            ? this._select.map(col => `"${col}"`).join(', ') 
-            : '*';
+            // Use FilterWhere for WHERE clause with soft delete options
+            const { whereClause, params: whereParams } = FilterWhere.generate(
+                this._whereData, 
+                0,
+                this._softDeleteOptions
+            );
 
-        // Use FilterWhere for WHERE clause with soft delete options
-        const whereData = this.extractWhereData();
-        const { whereClause, params: whereParams } = FilterWhere.generate(
-            whereData, 
-            this._paramIndex,
-            this._softDeleteOptions
-        );
-        this._paramValues.push(...whereParams);
-        this._paramIndex += whereParams.length;
+            // Use FilterOrder for ORDER BY clause
+            const orderData = this.extractOrderData();
+            const orderClause = FilterOrder.generate(orderData);
 
-        // Use FilterOrder for ORDER BY clause
-        const orderData = this.extractOrderData();
-        const orderClause = FilterOrder.generate(orderData);
+            // Build LIMIT/OFFSET clause
+            const limitClause = this.getLimitClause();
 
-        // Build LIMIT/OFFSET clause
-        const limitClause = this.getLimitClause();
+            // Combine all clauses
+            const query = [
+                `SELECT ${selectClause}`,
+                `FROM "${this._tableName}"`,
+                whereClause ? `WHERE ${whereClause}` : '',
+                orderClause, // FilterOrder already includes "ORDER BY" prefix
+                limitClause
+            ].filter(Boolean).join(' ');
 
-        // Combine all clauses
-        const query = [
-            `SELECT ${selectClause}`,
-            `FROM "${this._tableName}"`,
-            whereClause ? `WHERE ${whereClause}` : '',
-            orderClause, // FilterOrder already includes "ORDER BY" prefix
-            limitClause
-        ].filter(Boolean).join(' ');
+            logger.debug('SQL query generated successfully', {
+                tableName: this._tableName,
+                paramCount: whereParams.length
+            });
 
-        return { query, params: this._paramValues };
+            return { query, params: whereParams };
+        } catch (error) {
+            logger.warn('SQL query generation failed', {
+                tableName: this._tableName,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Build SELECT clause with proper escaping
+     */
+    private buildSelectClause(): string {
+        if (this._select.length === 0 || this._select.includes('*')) {
+            return '*';
+        }
+        
+        return this._select.map(col => `"${col}"`).join(', ');
     }
 
     /**
@@ -440,42 +432,26 @@ export class Filter {
      * to build COUNT queries or other custom SQL statements.
      */
     toWhereSQL(): { whereClause: string; params: any[] } {
-        // Use FilterWhere for consistent WHERE clause generation
-        const whereData = this.extractWhereData();
-
-        // const options = {
-        //     includeTrashed: this.system.options.trashed || false,
-        //     includeDeleted: this.system.options.deleted || false,
-        // };
-
-        return FilterWhere.generate(whereData, 0, {});
-    }
-
-    /**
-     * Extract WHERE data from Filter's internal state for FilterWhere
-     */
-    private extractWhereData(): any {
-        // Convert Filter's internal _where conditions to FilterWhere format
-        const whereData: any = {};
-
-        for (const whereInfo of this._where) {
-            const { column, operator, data } = whereInfo;
-
-            if (!column) continue; // Skip conditions without column
-
-            if (operator === FilterOp.EQ) {
-                whereData[column] = data;
-            } else {
-                // Complex operators stored as objects
-                if (!whereData[column]) {
-                    whereData[column] = {};
-                }
-                whereData[column][operator] = data;
-            }
+        try {
+            // Use FilterWhere for consistent WHERE clause generation
+            const result = FilterWhere.generate(this._whereData, 0, this._softDeleteOptions);
+            
+            logger.debug('WHERE clause generated successfully', {
+                tableName: this._tableName,
+                paramCount: result.params.length
+            });
+            
+            return result;
+        } catch (error) {
+            logger.warn('WHERE clause generation failed', {
+                tableName: this._tableName,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
         }
-
-        return whereData;
     }
+
+    // extractWhereData() method removed - now using _whereData directly
 
     /**
      * Generate COUNT query with parameters
@@ -484,32 +460,64 @@ export class Filter {
      * Useful for pagination and result count operations.
      */
     toCountSQL(): { query: string; params: any[] } {
-        const { whereClause, params } = this.toWhereSQL();
+        try {
+            const { whereClause, params } = this.toWhereSQL();
 
-        let query = `SELECT COUNT(*) as count FROM "${this._tableName}"`;
-        if (whereClause) {
-            query += ` WHERE ${whereClause}`;
+            let query = `SELECT COUNT(*) as count FROM "${this._tableName}"`;
+            if (whereClause) {
+                query += ` WHERE ${whereClause}`;
+            }
+
+            logger.debug('COUNT query generated successfully', {
+                tableName: this._tableName,
+                paramCount: params.length
+            });
+
+            return { query, params };
+        } catch (error) {
+            logger.warn('COUNT query generation failed', {
+                tableName: this._tableName,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
         }
-
-        return { query, params };
     }
 
-    // Get just the WHERE clause conditions for use in other queries
+    /**
+     * Get just the WHERE clause conditions for use in other queries
+     */
     getWhereClause(): string {
-        // Use FilterWhere for consistent WHERE clause generation
-        const whereData = this.extractWhereData();
-        const { whereClause } = FilterWhere.generate(whereData, 0, this._softDeleteOptions);
-        return whereClause || '1=1';
+        try {
+            // Use FilterWhere for consistent WHERE clause generation
+            const { whereClause } = FilterWhere.generate(this._whereData, 0, this._softDeleteOptions);
+            return whereClause || '1=1';
+        } catch (error) {
+            logger.warn('WHERE clause extraction failed', {
+                tableName: this._tableName,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
+        }
     }
 
-    // Get just the ORDER BY clause for use in other queries
+    /**
+     * Get just the ORDER BY clause for use in other queries
+     */
     getOrderClause(): string {
-        // Use FilterOrder for consistent ORDER BY generation
-        const orderData = this.extractOrderData();
-        const orderClause = FilterOrder.generate(orderData);
+        try {
+            // Use FilterOrder for consistent ORDER BY generation
+            const orderData = this.extractOrderData();
+            const orderClause = FilterOrder.generate(orderData);
 
-        // Remove "ORDER BY" prefix since getOrderClause() returns just the clause part
-        return orderClause.replace(/^ORDER BY\s+/, '');
+            // Remove "ORDER BY" prefix since getOrderClause() returns just the clause part
+            return orderClause.replace(/^ORDER BY\s+/, '');
+        } catch (error) {
+            logger.warn('ORDER clause extraction failed', {
+                tableName: this._tableName,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
+        }
     }
 
     /**
@@ -523,22 +531,38 @@ export class Filter {
         }));
     }
 
-    // Get just the LIMIT/OFFSET clause for use in other queries
+    /**
+     * Get just the LIMIT/OFFSET clause for use in other queries
+     */
     getLimitClause(): string {
-        if (this._limit !== undefined) {
-            let limitClause = `LIMIT ${this._limit}`;
-            if (this._offset !== undefined) {
-                limitClause += ` OFFSET ${this._offset}`;
+        try {
+            if (this._limit !== undefined) {
+                let limitClause = `LIMIT ${this._limit}`;
+                if (this._offset !== undefined) {
+                    limitClause += ` OFFSET ${this._offset}`;
+                }
+                return limitClause;
             }
-            return limitClause;
+            return '';
+        } catch (error) {
+            logger.warn('LIMIT clause generation failed', {
+                tableName: this._tableName,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
         }
-        return '';
     }
 
 
 
-    // Utility methods
+    /**
+     * Utility method to check if string is a valid UUID
+     */
     private isUUID(str: string): boolean {
+        if (typeof str !== 'string') {
+            return false;
+        }
+        
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         return uuidRegex.test(str);
     }

@@ -1,11 +1,16 @@
+import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { logger } from '@src/lib/logger.js';
+import { FilterOp, type FilterWhereInfo, type FilterWhereOptions } from '@src/lib/filter-types.js';
+
 /**
  * FilterWhere - Schema-independent WHERE clause generation
  *
- * Generates parameterized WHERE clauses without requiring schema setup.
- * Extracted from Filter class to enable reusable filtering logic in SqlObserver
- * and other contexts.
+ * The authoritative implementation for WHERE clause logic including validation,
+ * parameter management, and SQL generation. Extracted from Filter class to enable
+ * reusable filtering logic across the application.
  *
- * Features: Parameter offsetting, SQL injection protection, soft delete handling
+ * Features: Parameter offsetting, SQL injection protection, soft delete handling,
+ * comprehensive validation of filter operators and data types.
  *
  * Quick Examples:
  * - Simple: `FilterWhere.generate({ name: 'John', age: 25 })`
@@ -14,65 +19,6 @@
  *
  * See docs/FILTER.md for complete operator reference and examples.
  */
-
-export enum FilterOp {
-    // Comparison operators
-    EQ = '$eq',
-    NE = '$ne',
-    NEQ = '$neq',
-    GT = '$gt',
-    GTE = '$gte',
-    LT = '$lt',
-    LTE = '$lte',
-
-    // Pattern matching operators
-    LIKE = '$like',
-    NLIKE = '$nlike',
-    ILIKE = '$ilike',
-    NILIKE = '$nilike',
-    REGEX = '$regex',
-    NREGEX = '$nregex',
-
-    // Array membership operators
-    IN = '$in',
-    NIN = '$nin',
-
-    // PostgreSQL array operations (CRITICAL for ACL)
-    ANY = '$any', // Array overlap: access_read && ARRAY[user_id, group_id]
-    ALL = '$all', // Array contains: tags @> ARRAY['feature', 'backend']
-    NANY = '$nany', // NOT array overlap: NOT (access_deny && ARRAY[user_id])
-    NALL = '$nall', // NOT array contains: NOT (permissions @> ARRAY['admin'])
-    SIZE = '$size', // Array size: array_length(tags, 1) = 3
-
-    // Logical operators (CRITICAL for FS wildcards)
-    AND = '$and', // Explicit AND: { $and: [condition1, condition2] }
-    OR = '$or', // OR conditions: { $or: [{ role: 'admin' }, { role: 'mod' }] }
-    NOT = '$not', // NOT condition: { $not: { status: 'banned' } }
-    NAND = '$nand', // NAND operations
-    NOR = '$nor', // NOR operations
-
-    // Range operations
-    BETWEEN = '$between', // Range: { age: { $between: [18, 65] } } → age BETWEEN 18 AND 65
-
-    // Search operations
-    FIND = '$find', // Full-text search: { content: { $find: 'search terms' } }
-    TEXT = '$text', // Text search: { description: { $text: 'keyword' } }
-
-    // Existence operators
-    EXISTS = '$exists', // Field exists: { field: { $exists: true } } → field IS NOT NULL
-    NULL = '$null', // Field is null: { field: { $null: true } } → field IS NULL
-}
-
-export interface FilterWhereInfo {
-    column: string;
-    operator: FilterOp;
-    data: any;
-}
-
-export interface FilterWhereOptions {
-    includeTrashed?: boolean;
-    includeDeleted?: boolean;
-}
 
 export class FilterWhere {
     private _paramValues: any[] = [];
@@ -93,11 +39,153 @@ export class FilterWhere {
     }
 
     /**
-     * Static method for quick WHERE clause generation
+     * Static method for quick WHERE clause generation with validation
+     * This is the authoritative entry point for all WHERE clause generation
      */
     static generate(whereData: any, startingParamIndex: number = 0, options: FilterWhereOptions = {}): { whereClause: string; params: any[] } {
-        const filterWhere = new FilterWhere(startingParamIndex);
-        return filterWhere.build(whereData, options);
+        try {
+            // Validate the WHERE data before processing
+            FilterWhere.validateWhereData(whereData);
+            
+            const filterWhere = new FilterWhere(startingParamIndex);
+            return filterWhere.build(whereData, options);
+        } catch (error) {
+            logger.warn('FilterWhere validation failed', {
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Public validation method for external use
+     * Allows other classes to validate WHERE data without generating SQL
+     */
+    static validate(whereData: any): void {
+        FilterWhere.validateWhereData(whereData);
+    }
+
+    /**
+     * Validate WHERE data structure and operator requirements
+     * Centralized validation logic where operator implementation lives
+     */
+    static validateWhereData(whereData: any): void {
+        if (!whereData) {
+            return; // Empty conditions are valid
+        }
+
+        if (typeof whereData === 'string') {
+            if (!whereData.trim()) {
+                throw HttpErrors.badRequest('WHERE condition string cannot be empty', 'FILTER_EMPTY_WHERE_STRING');
+            }
+            return; // String conditions are valid
+        }
+
+        if (typeof whereData !== 'object' || whereData === null) {
+            throw HttpErrors.badRequest('WHERE conditions must be object or string', 'FILTER_INVALID_WHERE_TYPE');
+        }
+
+        // Validate object structure recursively
+        FilterWhere.validateWhereObject(whereData);
+    }
+
+    /**
+     * Validate WHERE object structure recursively
+     */
+    private static validateWhereObject(conditions: any): void {
+        for (const [key, value] of Object.entries(conditions)) {
+            if (key.startsWith('$')) {
+                // Validate logical operators
+                FilterWhere.validateLogicalOperator(key as FilterOp, value);
+            } else {
+                // Validate field conditions
+                FilterWhere.validateFieldCondition(key, value);
+            }
+        }
+    }
+
+    /**
+     * Validate logical operator structure
+     */
+    private static validateLogicalOperator(operator: FilterOp, value: any): void {
+        if (operator === FilterOp.AND || operator === FilterOp.OR) {
+            if (!Array.isArray(value)) {
+                throw HttpErrors.badRequest(`${operator} operator requires an array of conditions`, 'FILTER_INVALID_LOGICAL_OPERATOR');
+            }
+            
+            if (value.length === 0) {
+                throw HttpErrors.badRequest(`${operator} operator cannot have empty conditions array`, 'FILTER_EMPTY_LOGICAL_ARRAY');
+            }
+            
+            // Recursively validate each condition
+            value.forEach((condition: any, index: number) => {
+                if (typeof condition !== 'object' || condition === null) {
+                    throw HttpErrors.badRequest(`${operator} condition at index ${index} must be an object`, 'FILTER_INVALID_LOGICAL_CONDITION');
+                }
+                FilterWhere.validateWhereObject(condition);
+            });
+        } else if (operator === FilterOp.NOT) {
+            if (typeof value !== 'object' || value === null) {
+                throw HttpErrors.badRequest('$not operator requires an object condition', 'FILTER_INVALID_NOT_CONDITION');
+            }
+            FilterWhere.validateWhereObject(value);
+        } else if (Object.values(FilterOp).includes(operator)) {
+            // Valid operator, will be handled in field validation
+        } else {
+            throw HttpErrors.badRequest(`Unsupported logical operator: ${operator}`, 'FILTER_UNSUPPORTED_LOGICAL_OPERATOR');
+        }
+    }
+
+    /**
+     * Validate field condition structure
+     */
+    private static validateFieldCondition(fieldName: string, fieldValue: any): void {
+        // Validate field name
+        if (!fieldName || typeof fieldName !== 'string') {
+            throw HttpErrors.badRequest('Field name must be a non-empty string', 'FILTER_INVALID_FIELD_NAME');
+        }
+
+        // Basic SQL injection protection for field names
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fieldName)) {
+            throw HttpErrors.badRequest(`Invalid field name format: ${fieldName}`, 'FILTER_INVALID_FIELD_FORMAT');
+        }
+
+        // Validate field value structure
+        if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
+            // Complex condition validation: { "age": { "$gte": 18, "$lt": 65 } }
+            for (const [op, data] of Object.entries(fieldValue)) {
+                if (!Object.values(FilterOp).includes(op as FilterOp)) {
+                    throw HttpErrors.badRequest(`Unsupported filter operator: ${op}`, 'FILTER_UNSUPPORTED_OPERATOR');
+                }
+                FilterWhere.validateOperatorData(op as FilterOp, data);
+            }
+        }
+        // Array and simple values are handled in processing
+    }
+
+    /**
+     * Validate operator-specific data requirements
+     */
+    private static validateOperatorData(operator: FilterOp, data: any): void {
+        // Array operators require array data
+        const arrayOperators = [FilterOp.IN, FilterOp.NIN, FilterOp.ANY, FilterOp.ALL, FilterOp.NANY, FilterOp.NALL];
+        if (arrayOperators.includes(operator) && !Array.isArray(data)) {
+            throw HttpErrors.badRequest(`Operator ${operator} requires array data`, 'FILTER_OPERATOR_REQUIRES_ARRAY');
+        }
+
+        // Null/exists operators have specific requirements
+        if (operator === FilterOp.NULL && typeof data !== 'boolean') {
+            throw HttpErrors.badRequest('$null operator requires boolean value', 'FILTER_NULL_REQUIRES_BOOLEAN');
+        }
+        
+        if (operator === FilterOp.EXISTS && typeof data !== 'boolean') {
+            throw HttpErrors.badRequest('$exists operator requires boolean value', 'FILTER_EXISTS_REQUIRES_BOOLEAN');
+        }
+
+        // Between operator requires array with exactly 2 elements
+        if (operator === FilterOp.BETWEEN && (!Array.isArray(data) || data.length !== 2)) {
+            throw HttpErrors.badRequest('$between operator requires array with exactly 2 elements [min, max]', 'FILTER_BETWEEN_REQUIRES_ARRAY');
+        }
     }
 
     /**

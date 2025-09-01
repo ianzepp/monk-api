@@ -18,7 +18,7 @@
  * - Parameter management: Efficient SQL parameterization for complex queries
  */
 
-import type { FilterData } from '@src/lib/filter.js';
+import type { FilterData } from '@src/lib/filter-types.js';
 
 // WHERE clause condition interface (what translateComplexPattern actually returns)
 export interface WhereCondition {
@@ -28,7 +28,7 @@ export interface WhereCondition {
     $nor?: WhereCondition[];
     [field: string]: any; // For field conditions like { role: { $like: '%admin%' } }
 }
-import { FilterOp } from '@src/lib/filter-where.js';
+import { FilterOp } from '@src/lib/filter-types.js';
 
 export interface WildcardTranslation {
     schemas: string[]; // Affected schemas

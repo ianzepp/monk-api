@@ -1,6 +1,6 @@
 /**
  * Standalone Logger Utility
- * 
+ *
  * Provides consistent logging with environment-aware formatting.
  */
 
@@ -10,10 +10,17 @@ export class Logger {
     /**
      * Log info message with context
      */
+    debug(message: string, meta?: any) {
+        console.info(this.formatLog('DEBUG', message, meta));
+    }
+
+    /**
+     * Log info message with context
+     */
     info(message: string, meta?: any) {
         console.info(this.formatLog('INFO', message, meta));
     }
-    
+
     /**
      * Log warning message with context
      */
@@ -26,6 +33,13 @@ export class Logger {
      */
     fail(message: string, meta?: any) {
         console.error(this.formatLog('FAIL', message, meta));
+    }
+
+    /**
+     * Log failure message with context
+     */
+    error(message: string, meta?: any) {
+        console.error(this.formatLog('ERROR', message, meta));
     }
 
     /**
@@ -44,7 +58,7 @@ export class Logger {
      */
     private formatLog(level: string, message: string, meta?: any): string {
         const timestamp = new Date().toISOString();
-        
+
         if (process.env.NODE_ENV === 'production') {
             // Structured JSON for production log aggregation
             return JSON.stringify({
