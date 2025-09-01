@@ -214,17 +214,19 @@ curl -X POST http://localhost:9001/api/bulk \
 
 ## Transaction Behavior
 
-All operations within a single bulk request are executed within a database transaction. If any operation fails, all operations are rolled back to maintain data consistency.
+> **Current Limitation**: Operations are executed sequentially without transaction rollback. If any operation fails, previously completed operations are NOT rolled back, potentially leaving the database in a partial state.
 
 ```javascript
-// Example: If user creation fails, account update is also rolled back
+// Current behavior: If user creation fails, account update is NOT rolled back
 {
   "operations": [
-    {"operation": "createOne", "schema": "users", "data": {...}},      // Fails
-    {"operation": "updateOne", "schema": "accounts", "id": "123", ...} // Rolled back
+    {"operation": "updateOne", "schema": "accounts", "id": "123", ...}, // Completes
+    {"operation": "createOne", "schema": "users", "data": {...}}        // Fails - no rollback
   ]
 }
 ```
+
+**TODO**: Implement atomic transaction support for true all-or-nothing behavior.
 
 ## Related Documentation
 
