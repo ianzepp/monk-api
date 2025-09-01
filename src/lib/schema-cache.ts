@@ -78,7 +78,7 @@ export class SchemaCache {
     private async loadSchemaChecksums(dtx: pg.Pool | pg.PoolClient): Promise<{ name: string; json_checksum: string; updated_at: string }[]> {
         const result = await dtx.query(`
             SELECT name, json_checksum, updated_at
-            FROM schema
+            FROM schemas
             WHERE status IN ('active', 'system')
         `);
 
@@ -105,7 +105,7 @@ export class SchemaCache {
                 const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
                 const result = await dtx.query(`
                     SELECT name, json_checksum, updated_at
-                    FROM schema
+                    FROM schemas
                     WHERE name IN (${quotedNames}) AND status IN ('active', 'system')
                 `);
                 currentChecksums = result.rows;
