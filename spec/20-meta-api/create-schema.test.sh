@@ -43,18 +43,26 @@ response=$(auth_post "api/meta/account" "$account_schema")
 
 # Verify successful creation
 assert_success "$response"
-assert_has_field "data.title" "$response"
-assert_has_field "data.properties" "$response"
+assert_has_field "data.name" "$response"
+assert_has_field "data.created" "$response"
 
 # Check that the correct schema name is returned
-schema_name=$(echo "$response" | jq -r '.data.title')
-if [[ "$schema_name" == "Account" ]]; then
-    print_success "Schema created with correct title: $schema_name"
+schema_name=$(echo "$response" | jq -r '.data.name')
+if [[ "$schema_name" == "account" ]]; then
+    print_success "Schema created with correct name: $schema_name"
 else
-    test_fail "Expected schema title 'Account', got: $schema_name"
+    test_fail "Expected schema name 'account', got: $schema_name"
 fi
 
-print_success "Schema creation successful - API returned full schema definition"
+# Verify operation confirmation
+created_status=$(echo "$response" | jq -r '.data.created')
+if [[ "$created_status" == "true" ]]; then
+    print_success "Schema creation confirmed: $created_status"
+else
+    test_fail "Expected created status 'true', got: $created_status"
+fi
+
+print_success "Schema creation successful - API returned operation result"
 
 # Test 2: Verify schema exists by retrieving it
 print_step "Testing GET /api/meta/account to verify creation"

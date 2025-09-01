@@ -18,8 +18,8 @@ export default withParams(async (context, { system, schema, body }) => {
     }
 
     // Create schema via Metabase using the final determined name
-    await system.metabase.createOne(schema!, body);
+    const result = await system.metabase.createOne(schema!, body);
 
     // Set result for middleware formatting
-    setRouteResult(context, body);
+    setRouteResult(context, result);
 });
