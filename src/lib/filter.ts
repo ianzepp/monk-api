@@ -1,8 +1,11 @@
-import { FilterWhere, FilterOp, type FilterWhereInfo } from '@src/lib/filter-where.js';
-import { FilterOrder, type FilterOrderInfo } from '@src/lib/filter-order.js';
-import type { FilterWhereOptions } from '@src/lib/filter-where.js';
+import { FilterWhere } from '@src/lib/filter-where.js';
+import { FilterOrder } from '@src/lib/filter-order.js';
+import { FilterOp, type FilterWhereInfo, type FilterWhereOptions, type FilterData, type ConditionNode, type FilterOrderInfo } from '@src/lib/filter-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { logger } from '@src/lib/logger.js';
+
+// Re-export types for convenience
+export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterOrderInfo, ConditionNode } from '@src/lib/filter-types.js';
 
 /**
  * Filter - Enterprise-Grade Database Query Builder
@@ -26,37 +29,7 @@ import { logger } from '@src/lib/logger.js';
  * See docs/FILTER.md for complete operator reference and examples.
  */
 
-// FilterOp enum is now imported from FilterWhere where the implementation logic lives
-
-// FilterWhereInfo is now imported from FilterWhere where the implementation logic lives
-
-// New tree structure for complex logical operators
-export interface ConditionNode {
-    type: 'condition' | 'logical';
-
-    // For condition nodes
-    column?: string;
-    operator?: FilterOp;
-    data?: any;
-
-    // For logical nodes
-    logicalOp?: '$and' | '$or' | '$not';
-    children?: ConditionNode[];
-}
-
-// FilterOrderInfo is now imported from FilterOrder where the implementation logic lives
-
-export interface FilterData {
-    schema?: string;
-    select?: string[];
-    where?: any;
-    order?: any;
-    limit?: number;
-    offset?: number;
-    lookups?: any;
-    related?: any;
-    options?: any;
-}
+// All types and enums are now imported from filter-types.js for consistency
 
 /**
  * Filter - Handles database query building with proper validation and execution
@@ -72,18 +45,13 @@ export class Filter {
     private _tableName: string;
     private _query: any;
     private _select: string[] = [];
-    private _where: FilterWhereInfo[] = []; // Legacy - keep for backward compatibility
-    private _conditions: ConditionNode[] = []; // New tree structure
+    private _whereData: any = {}; // Store raw WHERE data for FilterWhere
     private _order: FilterOrderInfo[] = [];
     private _limit?: number;
     private _offset?: number;
     private _lookups: any[] = [];
     private _related: any[] = [];
     private _softDeleteOptions: FilterWhereOptions = {};
-
-    // Parameter collection for SQL parameterization (Issue #105)
-    private _paramValues: any[] = [];
-    private _paramIndex: number = 0;
 
     constructor(tableName: string) {
         this._tableName = tableName;
@@ -94,14 +62,7 @@ export class Filter {
         this._query = null; // Will build SQL manually
     }
 
-    /**
-     * Add parameter to collection and return PostgreSQL placeholder
-     * Creates parameterized queries for security and performance
-     */
-    private PARAM(value: any): string {
-        this._paramValues.push(value);
-        return `$${++this._paramIndex}`;
-    }
+    // Parameter management is now handled by FilterWhere
 
     /**
      * Process filter data with comprehensive validation and normalization
@@ -275,382 +236,92 @@ export class Filter {
     }
 
     /**
-     * Process WHERE clause with validation
+     * Process WHERE clause with validation - delegates to FilterWhere
      */
     private processWhereClause(conditions: any): void {
-        this.validateWhereConditions(conditions);
+        // Let FilterWhere handle all validation
+        FilterWhere.validate(conditions);
         this.$where(conditions);
     }
 
     /**
-     * Validate WHERE conditions structure
-     */
-    private validateWhereConditions(conditions: any): void {
-        if (!conditions) {
-            return; // Empty conditions are valid
-        }
-
-        if (typeof conditions === 'string') {
-            if (!conditions.trim()) {
-                throw HttpErrors.badRequest('WHERE condition string cannot be empty', 'FILTER_EMPTY_WHERE_STRING');
-            }
-            return; // String conditions are valid
-        }
-
-        if (typeof conditions !== 'object' || conditions === null) {
-            throw HttpErrors.badRequest('WHERE conditions must be object or string', 'FILTER_INVALID_WHERE_TYPE');
-        }
-
-        // Validate object structure
-        this.validateWhereObject(conditions);
-    }
-
-    /**
-     * Validate WHERE object structure recursively
-     */
-    private validateWhereObject(conditions: any): void {
-        for (const [key, value] of Object.entries(conditions)) {
-            if (key.startsWith('$')) {
-                // Validate logical operators
-                this.validateLogicalOperator(key as FilterOp, value);
-            } else {
-                // Validate field conditions
-                this.validateFieldCondition(key, value);
-            }
-        }
-    }
-
-    /**
-     * Validate logical operator structure
-     */
-    private validateLogicalOperator(operator: FilterOp, value: any): void {
-        if (operator === FilterOp.AND || operator === FilterOp.OR) {
-            if (!Array.isArray(value)) {
-                throw HttpErrors.badRequest(`${operator} operator requires an array of conditions`, 'FILTER_INVALID_LOGICAL_OPERATOR');
-            }
-            
-            if (value.length === 0) {
-                throw HttpErrors.badRequest(`${operator} operator cannot have empty conditions array`, 'FILTER_EMPTY_LOGICAL_ARRAY');
-            }
-            
-            // Recursively validate each condition
-            value.forEach((condition: any, index: number) => {
-                if (typeof condition !== 'object' || condition === null) {
-                    throw HttpErrors.badRequest(`${operator} condition at index ${index} must be an object`, 'FILTER_INVALID_LOGICAL_CONDITION');
-                }
-                this.validateWhereObject(condition);
-            });
-        } else if (operator === FilterOp.NOT) {
-            if (typeof value !== 'object' || value === null) {
-                throw HttpErrors.badRequest('$not operator requires an object condition', 'FILTER_INVALID_NOT_CONDITION');
-            }
-            this.validateWhereObject(value);
-        } else {
-            throw HttpErrors.badRequest(`Unsupported logical operator: ${operator}`, 'FILTER_UNSUPPORTED_LOGICAL_OPERATOR');
-        }
-    }
-
-    /**
-     * Validate field condition structure
-     */
-    private validateFieldCondition(fieldName: string, fieldValue: any): void {
-        // Validate field name
-        if (!fieldName || typeof fieldName !== 'string') {
-            throw HttpErrors.badRequest('Field name must be a non-empty string', 'FILTER_INVALID_FIELD_NAME');
-        }
-
-        // Basic SQL injection protection for field names
-        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fieldName)) {
-            throw HttpErrors.badRequest(`Invalid field name format: ${fieldName}`, 'FILTER_INVALID_FIELD_FORMAT');
-        }
-
-        // Validate field value structure
-        if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
-            // Complex condition validation: { "age": { "$gte": 18, "$lt": 65 } }
-            for (const [op, data] of Object.entries(fieldValue)) {
-                if (!Object.values(FilterOp).includes(op as FilterOp)) {
-                    throw HttpErrors.badRequest(`Unsupported filter operator: ${op}`, 'FILTER_UNSUPPORTED_OPERATOR');
-                }
-                this.validateOperatorData(op as FilterOp, data);
-            }
-        }
-        // Array and simple values are handled in processing
-    }
-
-    /**
-     * Validate operator-specific data requirements
-     */
-    private validateOperatorData(operator: FilterOp, data: any): void {
-        // Array operators require array data
-        const arrayOperators = [FilterOp.IN, FilterOp.NIN, FilterOp.ANY, FilterOp.ALL, FilterOp.NANY, FilterOp.NALL];
-        if (arrayOperators.includes(operator) && !Array.isArray(data)) {
-            throw HttpErrors.badRequest(`Operator ${operator} requires array data`, 'FILTER_OPERATOR_REQUIRES_ARRAY');
-        }
-
-        // Null/exists operators have specific requirements
-        if (operator === FilterOp.NULL && typeof data !== 'boolean') {
-            throw HttpErrors.badRequest('$null operator requires boolean value', 'FILTER_NULL_REQUIRES_BOOLEAN');
-        }
-        
-        if (operator === FilterOp.EXISTS && typeof data !== 'boolean') {
-            throw HttpErrors.badRequest('$exists operator requires boolean value', 'FILTER_EXISTS_REQUIRES_BOOLEAN');
-        }
-
-        // Between operator requires array with exactly 2 elements
-        if (operator === FilterOp.BETWEEN && (!Array.isArray(data) || data.length !== 2)) {
-            throw HttpErrors.badRequest('$between operator requires array with exactly 2 elements [min, max]', 'FILTER_BETWEEN_REQUIRES_ARRAY');
-        }
-    }
-
-    /**
-     * WHERE clause processing
+     * WHERE clause processing - simplified to delegate to FilterWhere
      */
     $where(conditions: any): Filter {
         if (!conditions) return this;
 
-        // String → convert to ID lookup
-        if (typeof conditions === 'string') {
-            this._where.push({ column: 'id', operator: FilterOp.EQ, data: conditions });
-            return this;
+        // Store raw WHERE data for FilterWhere to process
+        if (this._whereData && Object.keys(this._whereData).length > 0) {
+            // Merge with existing conditions using $and
+            this._whereData = {
+                $and: [this._whereData, conditions]
+            };
+        } else {
+            this._whereData = conditions;
         }
 
-        // Object → process each key-value pair
-        if (typeof conditions === 'object') {
-            const nodes = this._processWhereObject(conditions);
-            this._conditions.push(...nodes);
-        }
-
-        this._applyWhereConditions();
         return this;
     }
 
-    private _processWhereObject(conditions: any): ConditionNode[] {
-        const nodes: ConditionNode[] = [];
-
-        for (const [key, value] of Object.entries(conditions)) {
-            if (key.startsWith('$')) {
-                // Logical operators
-                nodes.push(this._processLogicalOperator(key as FilterOp, value));
-            } else {
-                // Field conditions
-                nodes.push(...this._processFieldCondition(key, value));
-            }
-        }
-
-        return nodes;
-    }
-
-    private _processLogicalOperator(operator: FilterOp, value: any): ConditionNode {
-        try {
-            if (operator === FilterOp.AND && Array.isArray(value)) {
-                const children: ConditionNode[] = [];
-                value.forEach((condition: any) => {
-                    children.push(...this._processWhereObject(condition));
-                });
-
-                return {
-                    type: 'logical',
-                    logicalOp: '$and',
-                    children,
-                };
-            } else if (operator === FilterOp.OR && Array.isArray(value)) {
-                const children: ConditionNode[] = [];
-                value.forEach((condition: any) => {
-                    children.push(...this._processWhereObject(condition));
-                });
-
-                return {
-                    type: 'logical',
-                    logicalOp: '$or',
-                    children,
-                };
-            } else if (operator === FilterOp.NOT && typeof value === 'object') {
-                const children = this._processWhereObject(value);
-
-                return {
-                    type: 'logical',
-                    logicalOp: '$not',
-                    children,
-                };
-            }
-
-            throw HttpErrors.badRequest(`Unsupported logical operator: ${operator}`, 'FILTER_UNSUPPORTED_LOGICAL_OPERATOR');
-        } catch (error) {
-            logger.warn('Logical operator processing failed', {
-                operator,
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
-    }
-
-    private _processFieldCondition(fieldName: string, fieldValue: any): ConditionNode[] {
-        const nodes: ConditionNode[] = [];
-
-        if (Array.isArray(fieldValue)) {
-            // Auto-convert array to $in: { "id": ["uuid1", "uuid2"] } → { "id": { "$in": ["uuid1", "uuid2"] } }
-            const node = {
-                type: 'condition' as const,
-                column: fieldName,
-                operator: FilterOp.IN,
-                data: fieldValue,
-            };
-
-            nodes.push(node);
-
-            // Also add to legacy array for backward compatibility
-            this._where.push({
-                column: fieldName,
-                operator: FilterOp.IN,
-                data: fieldValue,
-            });
-        } else if (typeof fieldValue === 'object' && fieldValue !== null) {
-            // Complex condition: { "age": { "$gte": 18, "$lt": 65 } }
-            for (const [op, data] of Object.entries(fieldValue)) {
-                nodes.push({
-                    type: 'condition',
-                    column: fieldName,
-                    operator: op as FilterOp,
-                    data: data,
-                });
-
-                // Also add to legacy array for backward compatibility
-                this._where.push({
-                    column: fieldName,
-                    operator: op as FilterOp,
-                    data: data,
-                });
-            }
-        } else {
-            // Simple equality: { "status": "active" }
-            const node = {
-                type: 'condition' as const,
-                column: fieldName,
-                operator: FilterOp.EQ,
-                data: fieldValue,
-            };
-
-            nodes.push(node);
-
-            // Also add to legacy array for backward compatibility
-            this._where.push({
-                column: fieldName,
-                operator: FilterOp.EQ,
-                data: fieldValue,
-            });
-        }
-
-        return nodes;
-    }
-
-    private _applyWhereConditions(): void {
-        // WHERE conditions will be applied during SQL building
-        // since we're using raw SQL for dynamic schemas
-    }
-
     /**
-     * Process ORDER clause with validation
+     * Process ORDER clause with validation - delegates to FilterOrder
      */
     private processOrderClause(orderSpec: any): void {
-        this.validateOrderClause(orderSpec);
+        // Let FilterOrder handle all validation
+        FilterOrder.validate(orderSpec);
         this.$order(orderSpec);
     }
 
     /**
-     * Validate ORDER clause structure
-     */
-    private validateOrderClause(orderSpec: any): void {
-        if (!orderSpec) return;
-
-        if (Array.isArray(orderSpec)) {
-            orderSpec.forEach((spec: any, index: number) => {
-                try {
-                    this.validateOrderSpec(spec);
-                } catch (error) {
-                    throw HttpErrors.badRequest(`Invalid order specification at index ${index}: ${error instanceof Error ? error.message : String(error)}`, 'FILTER_INVALID_ORDER_SPEC');
-                }
-            });
-        } else {
-            this.validateOrderSpec(orderSpec);
-        }
-    }
-
-    /**
-     * Validate individual order specification
-     */
-    private validateOrderSpec(spec: any): void {
-        if (typeof spec === 'string') {
-            const parts = spec.split(' ');
-            const column = parts[0];
-            const sort = parts[1] || 'asc';
-            
-            if (!column || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
-                throw HttpErrors.badRequest(`Invalid column name in order spec: ${column}`, 'FILTER_INVALID_ORDER_COLUMN');
-            }
-            
-            if (sort && !['asc', 'desc'].includes(sort.toLowerCase())) {
-                throw HttpErrors.badRequest(`Invalid sort direction: ${sort}. Must be 'asc' or 'desc'`, 'FILTER_INVALID_SORT_DIRECTION');
-            }
-        } else if (typeof spec === 'object' && spec !== null) {
-            if (spec.column && spec.sort) {
-                // { "column": "name", "sort": "asc" }
-                if (typeof spec.column !== 'string' || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(spec.column)) {
-                    throw HttpErrors.badRequest(`Invalid column name: ${spec.column}`, 'FILTER_INVALID_ORDER_COLUMN');
-                }
-                if (!['asc', 'desc'].includes(spec.sort)) {
-                    throw HttpErrors.badRequest(`Invalid sort direction: ${spec.sort}`, 'FILTER_INVALID_SORT_DIRECTION');
-                }
-            } else {
-                // { "name": "asc" }
-                const entries = Object.entries(spec);
-                if (entries.length !== 1) {
-                    throw HttpErrors.badRequest('Order object must have exactly one column-sort pair', 'FILTER_INVALID_ORDER_OBJECT');
-                }
-                
-                const [column, sort] = entries[0];
-                if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
-                    throw HttpErrors.badRequest(`Invalid column name: ${column}`, 'FILTER_INVALID_ORDER_COLUMN');
-                }
-                if (!['asc', 'desc'].includes(sort as string)) {
-                    throw HttpErrors.badRequest(`Invalid sort direction: ${sort}`, 'FILTER_INVALID_SORT_DIRECTION');
-                }
-            }
-        } else {
-            throw HttpErrors.badRequest('Order specification must be string or object', 'FILTER_INVALID_ORDER_TYPE');
-        }
-    }
-
-    /**
-     * ORDER BY processing
+     * ORDER BY processing - simplified to store raw data for FilterOrder
      */
     $order(orderSpec: any): Filter {
         if (!orderSpec) return this;
 
+        // Store raw ORDER data for FilterOrder to process
+        // Convert to array format for consistent handling
         if (Array.isArray(orderSpec)) {
-            orderSpec.forEach((spec: any) => this._processOrderSpec(spec));
+            this._order.push(...this.normalizeOrderSpecToArray(orderSpec));
         } else {
-            this._processOrderSpec(orderSpec);
+            this._order.push(...this.normalizeOrderSpecToArray([orderSpec]));
         }
 
         return this;
     }
 
-    private _processOrderSpec(spec: any): void {
-        if (typeof spec === 'string') {
-            // "name asc" or just "name"
-            const parts = spec.split(' ');
-            const column = parts[0];
-            const sort = (parts[1] || 'asc') as 'asc' | 'desc';
-            this._order.push({ column, sort });
-        } else if (typeof spec === 'object') {
-            // { "name": "asc" } or { "column": "name", "sort": "asc" }
-            if (spec.column && spec.sort) {
-                this._order.push({ column: spec.column, sort: spec.sort });
-            } else {
-                const [column, sort] = Object.entries(spec)[0];
-                this._order.push({ column, sort: sort as 'asc' | 'desc' });
+    /**
+     * Normalize order specification to FilterOrderInfo array
+     */
+    private normalizeOrderSpecToArray(orderSpecs: any[]): FilterOrderInfo[] {
+        const result: FilterOrderInfo[] = [];
+        
+        for (const spec of orderSpecs) {
+            if (typeof spec === 'string') {
+                const parts = spec.split(' ');
+                const column = parts[0];
+                const sort = (parts[1] || 'asc').toLowerCase() as 'asc' | 'desc';
+                result.push({ column, sort: sort === 'desc' ? 'desc' : 'asc' });
+            } else if (typeof spec === 'object' && spec !== null) {
+                if (spec.column && spec.sort) {
+                    const sort = spec.sort.toLowerCase();
+                    result.push({ 
+                        column: spec.column, 
+                        sort: (sort === 'desc' || sort === 'descending') ? 'desc' : 'asc' 
+                    });
+                } else {
+                    // Process all entries in the object: { name: 'asc', created_at: 'desc' }
+                    for (const [column, sort] of Object.entries(spec)) {
+                        const normalizedSort = (sort as string).toLowerCase();
+                        result.push({ 
+                            column, 
+                            sort: (normalizedSort === 'desc' || normalizedSort === 'descending') ? 'desc' : 'asc' 
+                        });
+                    }
+                }
             }
         }
+        
+        return result;
     }
 
     /**
@@ -702,22 +373,15 @@ export class Filter {
      */
     toSQL(): { query: string; params: any[] } {
         try {
-            // Reset parameter collection for fresh query generation
-            this._paramValues = [];
-            this._paramIndex = 0;
-
-            // Build SELECT clause (no parameters typically)
+            // Build SELECT clause (no parameters)
             const selectClause = this.buildSelectClause();
 
             // Use FilterWhere for WHERE clause with soft delete options
-            const whereData = this.extractWhereData();
             const { whereClause, params: whereParams } = FilterWhere.generate(
-                whereData, 
-                this._paramIndex,
+                this._whereData, 
+                0,
                 this._softDeleteOptions
             );
-            this._paramValues.push(...whereParams);
-            this._paramIndex += whereParams.length;
 
             // Use FilterOrder for ORDER BY clause
             const orderData = this.extractOrderData();
@@ -737,10 +401,10 @@ export class Filter {
 
             logger.debug('SQL query generated successfully', {
                 tableName: this._tableName,
-                paramCount: this._paramValues.length
+                paramCount: whereParams.length
             });
 
-            return { query, params: this._paramValues };
+            return { query, params: whereParams };
         } catch (error) {
             logger.warn('SQL query generation failed', {
                 tableName: this._tableName,
@@ -770,14 +434,7 @@ export class Filter {
     toWhereSQL(): { whereClause: string; params: any[] } {
         try {
             // Use FilterWhere for consistent WHERE clause generation
-            const whereData = this.extractWhereData();
-
-            // const options = {
-            //     includeTrashed: this.system.options.trashed || false,
-            //     includeDeleted: this.system.options.deleted || false,
-            // };
-
-            const result = FilterWhere.generate(whereData, 0, {});
+            const result = FilterWhere.generate(this._whereData, 0, this._softDeleteOptions);
             
             logger.debug('WHERE clause generated successfully', {
                 tableName: this._tableName,
@@ -794,31 +451,7 @@ export class Filter {
         }
     }
 
-    /**
-     * Extract WHERE data from Filter's internal state for FilterWhere
-     */
-    private extractWhereData(): any {
-        // Convert Filter's internal _where conditions to FilterWhere format
-        const whereData: any = {};
-
-        for (const whereInfo of this._where) {
-            const { column, operator, data } = whereInfo;
-
-            if (!column) continue; // Skip conditions without column
-
-            if (operator === FilterOp.EQ) {
-                whereData[column] = data;
-            } else {
-                // Complex operators stored as objects
-                if (!whereData[column]) {
-                    whereData[column] = {};
-                }
-                whereData[column][operator] = data;
-            }
-        }
-
-        return whereData;
-    }
+    // extractWhereData() method removed - now using _whereData directly
 
     /**
      * Generate COUNT query with parameters
@@ -856,8 +489,7 @@ export class Filter {
     getWhereClause(): string {
         try {
             // Use FilterWhere for consistent WHERE clause generation
-            const whereData = this.extractWhereData();
-            const { whereClause } = FilterWhere.generate(whereData, 0, this._softDeleteOptions);
+            const { whereClause } = FilterWhere.generate(this._whereData, 0, this._softDeleteOptions);
             return whereClause || '1=1';
         } catch (error) {
             logger.warn('WHERE clause extraction failed', {

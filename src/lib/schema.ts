@@ -2,7 +2,7 @@ import pg from 'pg';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 
-import { type FilterData } from '@src/lib/filter.js';
+import type { FilterData } from '@src/lib/filter-types.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { isSystemField } from '@src/lib/metabase.js';
 

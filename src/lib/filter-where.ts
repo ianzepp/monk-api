@@ -1,12 +1,13 @@
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { logger } from '@src/lib/logger.js';
+import { FilterOp, type FilterWhereInfo, type FilterWhereOptions } from '@src/lib/filter-types.js';
 
 /**
  * FilterWhere - Schema-independent WHERE clause generation
  *
- * Generates parameterized WHERE clauses without requiring schema setup.
- * Extracted from Filter class to enable reusable filtering logic in SqlObserver
- * and other contexts.
+ * The authoritative implementation for WHERE clause logic including validation,
+ * parameter management, and SQL generation. Extracted from Filter class to enable
+ * reusable filtering logic across the application.
  *
  * Features: Parameter offsetting, SQL injection protection, soft delete handling,
  * comprehensive validation of filter operators and data types.
@@ -18,65 +19,6 @@ import { logger } from '@src/lib/logger.js';
  *
  * See docs/FILTER.md for complete operator reference and examples.
  */
-
-export enum FilterOp {
-    // Comparison operators
-    EQ = '$eq',
-    NE = '$ne',
-    NEQ = '$neq',
-    GT = '$gt',
-    GTE = '$gte',
-    LT = '$lt',
-    LTE = '$lte',
-
-    // Pattern matching operators
-    LIKE = '$like',
-    NLIKE = '$nlike',
-    ILIKE = '$ilike',
-    NILIKE = '$nilike',
-    REGEX = '$regex',
-    NREGEX = '$nregex',
-
-    // Array membership operators
-    IN = '$in',
-    NIN = '$nin',
-
-    // PostgreSQL array operations (CRITICAL for ACL)
-    ANY = '$any', // Array overlap: access_read && ARRAY[user_id, group_id]
-    ALL = '$all', // Array contains: tags @> ARRAY['feature', 'backend']
-    NANY = '$nany', // NOT array overlap: NOT (access_deny && ARRAY[user_id])
-    NALL = '$nall', // NOT array contains: NOT (permissions @> ARRAY['admin'])
-    SIZE = '$size', // Array size: array_length(tags, 1) = 3
-
-    // Logical operators (CRITICAL for FS wildcards)
-    AND = '$and', // Explicit AND: { $and: [condition1, condition2] }
-    OR = '$or', // OR conditions: { $or: [{ role: 'admin' }, { role: 'mod' }] }
-    NOT = '$not', // NOT condition: { $not: { status: 'banned' } }
-    NAND = '$nand', // NAND operations
-    NOR = '$nor', // NOR operations
-
-    // Range operations
-    BETWEEN = '$between', // Range: { age: { $between: [18, 65] } } → age BETWEEN 18 AND 65
-
-    // Search operations
-    FIND = '$find', // Full-text search: { content: { $find: 'search terms' } }
-    TEXT = '$text', // Text search: { description: { $text: 'keyword' } }
-
-    // Existence operators
-    EXISTS = '$exists', // Field exists: { field: { $exists: true } } → field IS NOT NULL
-    NULL = '$null', // Field is null: { field: { $null: true } } → field IS NULL
-}
-
-export interface FilterWhereInfo {
-    column: string;
-    operator: FilterOp;
-    data: any;
-}
-
-export interface FilterWhereOptions {
-    includeTrashed?: boolean;
-    includeDeleted?: boolean;
-}
 
 export class FilterWhere {
     private _paramValues: any[] = [];
@@ -98,6 +40,7 @@ export class FilterWhere {
 
     /**
      * Static method for quick WHERE clause generation with validation
+     * This is the authoritative entry point for all WHERE clause generation
      */
     static generate(whereData: any, startingParamIndex: number = 0, options: FilterWhereOptions = {}): { whereClause: string; params: any[] } {
         try {
@@ -112,6 +55,14 @@ export class FilterWhere {
             });
             throw error;
         }
+    }
+
+    /**
+     * Public validation method for external use
+     * Allows other classes to validate WHERE data without generating SQL
+     */
+    static validate(whereData: any): void {
+        FilterWhere.validateWhereData(whereData);
     }
 
     /**

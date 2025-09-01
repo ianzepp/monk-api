@@ -3,8 +3,9 @@ import pg from 'pg';
 
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
-import { Filter, type FilterData } from '@src/lib/filter.js';
-import type { FilterWhereOptions } from '@src/lib/filter-where.js';
+import { Filter } from '@src/lib/filter.js';
+import type { FilterData } from '@src/lib/filter-types.js';
+import type { FilterWhereOptions } from '@src/lib/filter-types.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
