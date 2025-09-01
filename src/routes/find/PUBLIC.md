@@ -21,17 +21,15 @@ Execute advanced search queries against a specific schema with complex filtering
 ### Request Body
 ```json
 {
-  "filter": {
-    "where": {
-      // Complex filter conditions (see Filter Operations below)
-    },
-    "order": [
-      {"field": "created_at", "direction": "desc"},
-      {"field": "name", "direction": "asc"}
-    ],
-    "limit": 100,
-    "offset": 0
-  }
+  "where": {
+    // Complex filter conditions (see Filter Operations below)
+  },
+  "order": [
+    "created_at desc",
+    "name asc"
+  ],
+  "limit": 100,
+  "offset": 0
 }
 ```
 
@@ -118,9 +116,9 @@ Execute advanced search queries against a specific schema with complex filtering
 ```json
 {
   "order": [
-    {"field": "priority", "direction": "desc"},
-    {"field": "created_at", "direction": "asc"},
-    {"field": "name", "direction": "asc"}
+    "priority desc",
+    "created_at asc", 
+    "name asc"
   ]
 }
 ```
@@ -141,20 +139,18 @@ curl -X POST http://localhost:9001/api/find/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "filter": {
-      "where": {
-        "$and": [
-          {"department": "engineering"},
-          {"status": {"$in": ["active", "probation"]}},
-          {"created_at": {"$gte": "2024-01-01T00:00:00Z"}},
-          {"access_read": {"$any": ["project-alpha"]}}
-        ]
-      },
-      "order": [
-        {"field": "last_login", "direction": "desc"}
-      ],
-      "limit": 25
-    }
+    "where": {
+      "$and": [
+        {"department": "engineering"},
+        {"status": {"$in": ["active", "probation"]}},
+        {"created_at": {"$gte": "2024-01-01T00:00:00Z"}},
+        {"access_read": {"$any": ["project-alpha"]}}
+      ]
+    },
+    "order": [
+      "last_login desc"
+    ],
+    "limit": 25
   }'
 ```
 
@@ -164,20 +160,18 @@ curl -X POST http://localhost:9001/api/find/products \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "filter": {
-      "where": {
-        "$or": [
-          {"category": "electronics"},
-          {"tags": {"$any": ["featured", "sale"]}}
-        ],
-        "price": {"$between": [10, 500]},
-        "in_stock": true
-      },
-      "order": [
-        {"field": "popularity", "direction": "desc"},
-        {"field": "price", "direction": "asc"}
-      ]
-    }
+    "where": {
+      "$or": [
+        {"category": "electronics"},
+        {"tags": {"$any": ["featured", "sale"]}}
+      ],
+      "price": {"$between": [10, 500]},
+      "in_stock": true
+    },
+    "order": [
+      "popularity desc",
+      "price asc"
+    ]
   }'
 ```
 
@@ -187,17 +181,15 @@ curl -X POST http://localhost:9001/api/find/documents \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "filter": {
-      "where": {
-        "$and": [
-          {"access_read": {"$any": ["current-user-id"]}},
-          {"trashed_at": null},
-          {"$or": [
-            {"tags": {"$any": ["urgent"]}},
-            {"priority": {"$gte": 8}}
-          ]}
-        ]
-      }
+    "where": {
+      "$and": [
+        {"access_read": {"$any": ["current-user-id"]}},
+        {"trashed_at": null},
+        {"$or": [
+          {"tags": {"$any": ["urgent"]}},
+          {"priority": {"$gte": 8}}
+        ]}
+      ]
     }
   }'
 ```
