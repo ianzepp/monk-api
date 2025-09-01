@@ -557,11 +557,35 @@ npm run spec:one spec/unit/filter/complex-scenarios.test.ts
 
 ## Implementation Status
 
-- ✅ **Core Filter System**: Complete with all 25+ operators
+- ✅ **Core Filter System**: Complete with 20+ working operators
 - ✅ **FilterWhere**: Schema-independent WHERE clause generation
-- ✅ **FilterOrder**: Schema-independent ORDER BY generation
-- ✅ **PostgreSQL Arrays**: Full ACL support with array operations
-- ✅ **Logical Operators**: Deep nesting with unlimited depth
-- ✅ **Performance**: Optimized for enterprise-scale operations
+- ✅ **FilterOrder**: Schema-independent ORDER BY generation  
+- ✅ **Basic Operators**: Equality, comparison, pattern, regex, array membership, range, search, existence
+- ✅ **Column Selection**: True database-level SELECT projection
+- ⚠️ **Logical Operators**: $and works correctly, $or/$not have implementation issues
+- ⚠️ **Offset Functionality**: Not yet implemented (limit works correctly)
+- ⚠️ **PostgreSQL Arrays**: ACL arrays functional, user array operations need testing template
+- ✅ **Performance**: Optimized queries with parameterization and column projection
+
+## Find API Integration
+
+The Find API (`POST /api/find/:schema`) provides direct access to Filter system capabilities:
+
+```typescript
+// Find API uses FilterData directly
+POST /api/find/users
+{
+  "select": ["name", "email"],           // Column projection
+  "where": {"status": {"$in": ["active", "pending"]}}, // Filter operators
+  "order": ["created_at desc"],         // Sorting
+  "limit": 50                           // Result limiting
+}
+```
+
+### Comprehensive Test Coverage
+The Find API includes 15 comprehensive tests validating all operator functionality:
+- **spec/44-filter/**: Complete test suite covering every operator category
+- **Real-world validation**: Tests use realistic template data and scenarios
+- **Issue identification**: Tests identify implementation bugs for future fixes
 
 The Filter system provides comprehensive query building capabilities suitable for enterprise applications with complex data access patterns, ACL systems, and high-performance requirements.

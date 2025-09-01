@@ -21,6 +21,7 @@ Execute advanced search queries against a specific schema with complex filtering
 ### Request Body
 ```json
 {
+  "select": ["name", "email", "created_at"],  // Optional: specify columns to return
   "where": {
     // Complex filter conditions (see Filter Operations below)
   },
@@ -71,14 +72,13 @@ Execute advanced search queries against a specific schema with complex filtering
   "where": {
     "$and": [
       {"department": "engineering"},
-      {"$or": [
-        {"role": "senior"},
-        {"experience": {"$gte": 5}}
-      ]}
+      {"role": "senior"}        // $and operator works correctly
     ]
   }
 }
 ```
+
+> **Known Issues**: The `$or` and `$not` logical operators currently have implementation issues and may not return expected results. The `$and` operator works correctly. Complex logical nesting should be avoided until these issues are resolved.
 
 ### Array Operations (ACL Support)
 ```json
@@ -110,6 +110,31 @@ Execute advanced search queries against a specific schema with complex filtering
 }
 ```
 
+## Column Selection (SELECT)
+
+### Specific Columns
+```json
+{
+  "select": ["name", "email", "account_type"]  // Return only specified columns
+}
+```
+
+### All Columns  
+```json
+{
+  "select": ["*"]     // Return all available columns (default behavior)
+}
+```
+
+### System Fields
+```json
+{
+  "select": ["id", "created_at", "updated_at", "trashed_at"]  // System-managed fields
+}
+```
+
+> **Performance Note**: The SELECT clause implements true database-level column projection, reducing data transfer and improving query performance by only returning requested fields.
+
 ## Sorting and Pagination
 
 ### Multiple Sort Fields
@@ -130,6 +155,8 @@ Execute advanced search queries against a specific schema with complex filtering
   "offset": 100       // Skip first 100 records (for page 3 of 50-record pages)
 }
 ```
+
+> **Note**: Offset functionality is currently not implemented. The `offset` parameter is accepted but ignored, returning all matching records. This will be addressed in a future update.
 
 ## Usage Examples
 
