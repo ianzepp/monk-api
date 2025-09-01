@@ -51,12 +51,18 @@ export interface BulkOperation {
 
 export default async function (c: Context): Promise<any> {
     const system = c.get('system');
-    const operations: BulkOperation[] = await c.req.json();
+    const requestBody = await c.req.json();
 
-    // Validate input
-    if (!Array.isArray(operations)) {
-        throw HttpErrors.badRequest('Request body must be an array of operations', 'REQUEST_INVALID_FORMAT');
+    // Validate input format - expect object with operations array to match documentation
+    if (!requestBody || typeof requestBody !== 'object') {
+        throw HttpErrors.badRequest('Request body must be an object with operations array', 'REQUEST_INVALID_FORMAT');
     }
+
+    if (!requestBody.operations || !Array.isArray(requestBody.operations)) {
+        throw HttpErrors.badRequest('Request body must contain an operations array', 'REQUEST_INVALID_FORMAT');
+    }
+
+    const operations: BulkOperation[] = requestBody.operations;
 
     if (operations.length === 0) {
         setRouteResult(c, []);
