@@ -15,11 +15,13 @@ export interface JsonSchemaProperty {
     maximum?: number;
     default?: any;
     description?: string;
-    'x-paas'?: {
-        foreign_key?: {
-            table: string;
-            column: string;
-        };
+    'x-monk-relationship'?: {
+        type: 'owned' | 'referenced';
+        schema: string;
+        name: string;
+        column?: string;
+        cascadeDelete?: boolean;
+        required?: boolean;
     };
 }
 
@@ -414,16 +416,14 @@ export class Metabase {
             const isRequired = requiredFields.includes(columnName) ? 'true' : 'false';
             const defaultValue = columnDefinition.default !== undefined ? String(columnDefinition.default) : null;
             
-            // Extract constraints (everything except type-specific fields)
-            const constraints = this.extractConstraints(columnDefinition);
-            
-            // Extract foreign key metadata (for future x-paas support)
-            const foreignKey = this.extractForeignKey(columnDefinition);
+            // Extract constraint and relationship metadata
+            const constraintData = this.extractConstraintData(columnDefinition);
+            const relationshipData = this.extractRelationshipData(columnDefinition);
             
             const insertQuery = `
                 INSERT INTO columns
-                (id, schema_name, column_name, pg_type, is_required, default_value, constraints, foreign_key, description, created_at, updated_at, access_read, access_edit, access_full, access_deny)
-                VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), '{}', '{}', '{}', '{}')
+                (id, schema_name, column_name, pg_type, is_required, default_value, relationship_type, related_schema, related_column, relationship_name, cascade_delete, required_relationship, minimum, maximum, pattern_regex, enum_values, is_array, description, created_at, updated_at, access_read, access_edit, access_full, access_deny)
+                VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW(), '{}', '{}', '{}', '{}')
             `;
             
             await tx.query(insertQuery, [
@@ -432,8 +432,17 @@ export class Metabase {
                 pgType,
                 isRequired,
                 defaultValue,
-                constraints ? JSON.stringify(constraints) : null,
-                foreignKey ? JSON.stringify(foreignKey) : null,
+                relationshipData.relationshipType,
+                relationshipData.relatedSchema,
+                relationshipData.relatedColumn,
+                relationshipData.relationshipName,
+                relationshipData.cascadeDelete,
+                relationshipData.requiredRelationship,
+                constraintData.minimum,
+                constraintData.maximum,
+                constraintData.patternRegex,
+                constraintData.enumValues,
+                constraintData.isArray,
                 columnDefinition.description || null
             ]);
         }
@@ -445,35 +454,43 @@ export class Metabase {
     }
 
     /**
-     * Extract constraints from JSON Schema property definition
+     * Extract constraint data from JSON Schema property definition
      */
-    private extractConstraints(columnDefinition: any): any {
-        const constraints: any = {};
-        
-        // Copy relevant constraint fields
-        const constraintFields = [
-            'minLength', 'maxLength', 'minimum', 'maximum', 'pattern', 'format', 
-            'enum', 'minItems', 'maxItems', 'uniqueItems'
-        ];
-        
-        for (const field of constraintFields) {
-            if (columnDefinition[field] !== undefined) {
-                constraints[field] = columnDefinition[field];
-            }
-        }
-        
-        return Object.keys(constraints).length > 0 ? constraints : null;
+    private extractConstraintData(columnDefinition: any): any {
+        return {
+            minimum: columnDefinition.minLength ?? columnDefinition.minimum ?? null,
+            maximum: columnDefinition.maxLength ?? columnDefinition.maximum ?? null,
+            patternRegex: columnDefinition.pattern ?? null,
+            enumValues: columnDefinition.enum ? columnDefinition.enum : null,
+            isArray: columnDefinition.type === 'array'
+        };
     }
 
     /**
-     * Extract foreign key metadata from JSON Schema property definition
+     * Extract relationship metadata from JSON Schema property definition
      */
-    private extractForeignKey(columnDefinition: any): any {
-        // Check for x-paas extension with foreign key metadata
-        if (columnDefinition['x-paas']?.foreign_key) {
-            return columnDefinition['x-paas'].foreign_key;
+    private extractRelationshipData(columnDefinition: any): any {
+        // Check for x-monk-relationship extension
+        const xMonkRelationship = columnDefinition['x-monk-relationship'];
+        
+        if (xMonkRelationship) {
+            return {
+                relationshipType: xMonkRelationship.type,
+                relatedSchema: xMonkRelationship.schema,
+                relatedColumn: xMonkRelationship.column ?? 'id',
+                relationshipName: xMonkRelationship.name,
+                cascadeDelete: xMonkRelationship.cascadeDelete ?? (xMonkRelationship.type === 'owned'),
+                requiredRelationship: xMonkRelationship.required ?? (xMonkRelationship.type === 'owned')
+            };
         }
         
-        return null;
+        return {
+            relationshipType: null,
+            relatedSchema: null,
+            relatedColumn: null,
+            relationshipName: null,
+            cascadeDelete: false,
+            requiredRelationship: false
+        };
     }
 }

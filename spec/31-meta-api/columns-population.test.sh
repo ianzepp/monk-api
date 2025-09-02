@@ -103,7 +103,10 @@ columns_query="SELECT
     pg_type,
     is_required,
     default_value,
-    constraints,
+    minimum,
+    maximum,
+    pattern_regex,
+    enum_values,
     description
 FROM columns 
 WHERE schema_name = 'tasks'
@@ -174,11 +177,11 @@ for expected in "${expected_columns[@]}"; do
     fi
 done
 
-# Test 4: Verify constraint metadata is stored as JSONB
+# Test 4: Verify constraint metadata is stored in regular columns
 print_step "Validating constraint metadata storage"
 
-# Check that columns with constraints have JSONB constraint data
-constraint_check="SELECT column_name, constraints FROM columns WHERE schema_name = 'tasks' AND constraints IS NOT NULL"
+# Check that columns with constraints have regular column constraint data
+constraint_check="SELECT column_name, minimum, maximum, pattern_regex, enum_values FROM columns WHERE schema_name = 'tasks' AND (minimum IS NOT NULL OR maximum IS NOT NULL OR pattern_regex IS NOT NULL OR enum_values IS NOT NULL)"
 constraint_result=$(psql -d "$TEST_DATABASE_NAME" -t -c "$constraint_check")
 
 if [[ -z "$constraint_result" ]]; then
@@ -187,12 +190,18 @@ else
     constraint_count=$(echo "$constraint_result" | wc -l | xargs)
     print_success "Found constraint metadata for $constraint_count columns"
     
-    # Verify a specific constraint (title field should have minLength/maxLength)
-    title_constraints=$(echo "$constraint_result" | grep "title" | cut -d'|' -f2 | xargs)
-    if echo "$title_constraints" | jq -e '.minLength == 1 and .maxLength == 200' >/dev/null 2>&1; then
-        print_success "Title field constraints correctly stored as JSONB"
+    # Verify a specific constraint (title field should have minimum=1, maximum=200)
+    title_constraint_row=$(echo "$constraint_result" | grep "title")
+    if [[ -n "$title_constraint_row" ]]; then
+        title_min=$(echo "$title_constraint_row" | cut -d'|' -f2 | xargs)
+        title_max=$(echo "$title_constraint_row" | cut -d'|' -f3 | xargs)
+        if [[ "$title_min" == "1" && "$title_max" == "200" ]]; then
+            print_success "Title field constraints correctly stored: min=$title_min, max=$title_max"
+        else
+            print_success "Title field constraints stored: min=$title_min, max=$title_max"
+        fi
     else
-        print_success "Title field constraints stored (format may vary): $title_constraints"
+        print_warning "Title field not found in constraint results"
     fi
 fi
 
