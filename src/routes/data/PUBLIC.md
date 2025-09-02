@@ -533,3 +533,357 @@ const response = await fetch('/api/data/users?include_trashed=true', {
   headers: { 'Authorization': 'Bearer your-jwt-token' }
 });
 ```
+
+---
+
+# Nested Relationship Routes
+
+The Data API also provides complete CRUD operations for managing nested resources through parent-child relationships. These routes work with schemas that define `x-monk-relationship` extensions to establish owned relationships between entities.
+
+## Relationship Routes Overview
+
+All relationship routes follow the pattern `/api/data/:parent_schema/:parent_id/:relationship_name` and automatically enforce parent-child constraints.
+
+---
+
+## GET /api/data/:schema/:record/:relationship
+
+Retrieve all child records belonging to a parent record through a named relationship.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+
+### Query Parameters
+- `include_trashed=true` - Include soft-deleted child records
+- `include_deleted=true` - Include permanently deleted child records (root access only)
+
+### Request Body
+None - GET request with no body.
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "comment-1",
+      "text": "Great post!",
+      "post_id": "post-123",
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z",
+      "trashed_at": null,
+      "deleted_at": null
+    },
+    {
+      "id": "comment-2", 
+      "text": "Thanks for sharing",
+      "post_id": "post-123",
+      "created_at": "2024-01-15T10:31:00Z",
+      "updated_at": "2024-01-15T10:31:00Z",
+      "trashed_at": null,
+      "deleted_at": null
+    }
+  ]
+}
+```
+
+### Example
+```bash
+GET /api/data/posts/post-123/comments
+```
+Returns all comments belonging to post "post-123".
+
+---
+
+## POST /api/data/:schema/:record/:relationship
+
+Create a new child record with the parent relationship automatically established.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+
+### Request Body
+Single child record object (foreign key automatically set):
+```json
+{
+  "text": "This is a new comment",
+  "status": "published"
+}
+```
+
+### Success Response (201)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "comment-3",
+    "text": "This is a new comment", 
+    "status": "published",
+    "post_id": "post-123",
+    "created_at": "2024-01-15T10:32:00Z",
+    "updated_at": "2024-01-15T10:32:00Z",
+    "trashed_at": null,
+    "deleted_at": null
+  }
+}
+```
+
+### Example
+```bash
+POST /api/data/posts/post-123/comments
+```
+Creates a new comment for post "post-123" with `post_id` automatically set.
+
+---
+
+## DELETE /api/data/:schema/:record/:relationship
+
+Delete all child records belonging to a parent record through the specified relationship.
+
+### Path Parameters
+- `:schema` - Parent schema name  
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+
+### Query Parameters
+- `permanent=true` - Perform permanent delete (requires root access)
+
+### Request Body
+None - DELETE request with no body.
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "comment-1",
+      "text": "Great post!",
+      "post_id": "post-123", 
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z",
+      "trashed_at": "2024-01-15T12:00:00Z",
+      "deleted_at": null
+    }
+  ]
+}
+```
+
+### Example
+```bash
+DELETE /api/data/posts/post-123/comments
+```
+Soft deletes all comments belonging to post "post-123".
+
+---
+
+## GET /api/data/:schema/:record/:relationship/:child
+
+Retrieve a specific child record, verifying it belongs to the specified parent.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID  
+- `:relationship` - Relationship name defined in child schema
+- `:child` - Child record ID
+
+### Query Parameters
+- `include_trashed=true` - Include soft-deleted records
+- `include_deleted=true` - Include permanently deleted records (root access only)
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "comment-1",
+    "text": "Great post!",
+    "post_id": "post-123",
+    "created_at": "2024-01-15T10:30:00Z", 
+    "updated_at": "2024-01-15T10:30:00Z",
+    "trashed_at": null,
+    "deleted_at": null
+  }
+}
+```
+
+### Example
+```bash
+GET /api/data/posts/post-123/comments/comment-1
+```
+Returns comment "comment-1" if it belongs to post "post-123".
+
+---
+
+## PUT /api/data/:schema/:record/:relationship/:child
+
+Update a specific child record, verifying it belongs to the specified parent.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema  
+- `:child` - Child record ID
+
+### Request Body
+Child record update object (foreign key preserved automatically):
+```json
+{
+  "text": "Updated comment text",
+  "status": "edited"
+}
+```
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "comment-1",
+    "text": "Updated comment text",
+    "status": "edited", 
+    "post_id": "post-123",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T11:00:00Z",
+    "trashed_at": null,
+    "deleted_at": null
+  }
+}
+```
+
+### Example
+```bash  
+PUT /api/data/posts/post-123/comments/comment-1
+```
+Updates comment "comment-1" while preserving its relationship to post "post-123".
+
+---
+
+## DELETE /api/data/:schema/:record/:relationship/:child
+
+Delete a specific child record, verifying it belongs to the specified parent.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+- `:child` - Child record ID
+
+### Query Parameters
+- `permanent=true` - Perform permanent delete (requires root access)
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "comment-1",
+    "text": "Great post!",
+    "post_id": "post-123",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z", 
+    "trashed_at": "2024-01-15T12:00:00Z",
+    "deleted_at": null
+  }
+}
+```
+
+### Example
+```bash
+DELETE /api/data/posts/post-123/comments/comment-1  
+```
+Soft deletes comment "comment-1" if it belongs to post "post-123".
+
+---
+
+## Relationship Error Responses
+
+All relationship routes include these additional error conditions:
+
+| Status | Error Code | Message | Condition |
+|--------|------------|---------|-----------|
+| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship 'name' not found for schema 'schema'" | Invalid relationship name |
+| 404 | `RECORD_NOT_FOUND` | "Record not found" | Parent or child record doesn't exist |
+| 400 | `INVALID_BODY_FORMAT` | "Request body must be a single object" | Array sent instead of object |
+
+## Relationship Schema Requirements
+
+To use nested relationship routes, child schemas must define relationships using the `x-monk-relationship` extension:
+
+```json
+{
+  "title": "Comments",
+  "type": "object",
+  "properties": {
+    "text": {"type": "string"},
+    "post_id": {
+      "type": "string",
+      "x-monk-relationship": {
+        "type": "owned",
+        "schema": "posts", 
+        "name": "comments"
+      }
+    }
+  }
+}
+```
+
+### Relationship Types
+- **`owned`** - Child belongs to parent, enables nested routes
+- **`referenced`** - Loose reference, no nested route support
+
+## Relationship Usage Examples
+
+### Creating Related Records
+```javascript
+// Create a comment for a specific post
+const response = await fetch('/api/data/posts/post-123/comments', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer your-jwt-token'
+  },
+  body: JSON.stringify({
+    text: 'Great article!',
+    status: 'published'
+  })
+});
+```
+
+### Updating Nested Resources
+```javascript
+// Update a specific comment
+const response = await fetch('/api/data/posts/post-123/comments/comment-1', {
+  method: 'PUT', 
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer your-jwt-token'
+  },
+  body: JSON.stringify({
+    text: 'Updated comment text',
+    status: 'edited'
+  })
+});
+```
+
+### Bulk Operations on Relationships
+```javascript
+// Delete all comments for a post
+const response = await fetch('/api/data/posts/post-123/comments', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': 'Bearer your-jwt-token'
+  }
+});
+
+// Get all comments including trashed ones
+const comments = await fetch('/api/data/posts/post-123/comments?include_trashed=true', {
+  headers: {
+    'Authorization': 'Bearer your-jwt-token'
+  }
+});
+```
