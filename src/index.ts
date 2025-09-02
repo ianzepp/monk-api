@@ -100,29 +100,27 @@ app.get('/', c => {
             home: '/ (public)',
             public_auth: '/auth/* (public - token acquisition)',
             docs: '/docs[/:api] (public)',
-            root: undefined as string | undefined,
             auth: '/api/auth/* (protected - user management)',
-            data: '/api/data/:schema[/:record] (protected)',
             meta: '/api/meta/:schema (protected)',
+            data: '/api/data/:schema[/:record] (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
             file: '/api/file/* (protected)',
+            acls: '/api/acls/:schema/:record (protected)',
+            root: '/api/root/* (restricted, requires sudo or localhost)',
         },
         documentation: {
             home: ['/README.md'],
             auth: ['/docs/auth', '/docs/public-auth'],
-            data: ['/docs/data'],
             meta: ['/docs/meta'],
-            file: ['/docs/file'],
-            bulk: ['/docs/bulk'],
+            data: ['/docs/data'],
             find: ['/docs/find'],
+            bulk: ['/docs/bulk'],
+            file: ['/docs/file'],
+            acls: ['/docs/acls'],
             root: ['/docs/root'],
         },
     };
-
-    if (process.env.NODE_ENV === 'development') {
-        response.endpoints.root = '/api/root/* (protected - requires root JWT)';
-    }
 
     return createSuccessResponse(c, response);
 });
