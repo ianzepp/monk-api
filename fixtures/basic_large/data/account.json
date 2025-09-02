@@ -1,0 +1,160 @@
+[
+  {
+    "name": "Tim Langworth",
+    "email": "Lawson_Leannon@hotmail.com",
+    "username": "Kyleigh13_0000",
+    "account_type": "business",
+    "balance": 577.56,
+    "is_active": false,
+    "is_verified": true,
+    "credit_limit": 100.84,
+    "last_login": "2025-08-07T21:36:39.281Z",
+    "preferences": {
+      "notifications": false,
+      "theme": "dark",
+      "language": "en"
+    }
+  },
+  {
+    "name": "Julie Kreiger",
+    "email": "Manley31@yahoo.com",
+    "username": "OraGrimes21_0001",
+    "account_type": "premium",
+    "balance": 969.9,
+    "is_active": true,
+    "is_verified": true,
+    "credit_limit": null,
+    "last_login": "2025-08-22T15:54:27.611Z",
+    "metadata": {
+      "tags": [
+        "beta",
+        "vip",
+        "test"
+      ],
+      "source": "mobile"
+    },
+    "phone": "+1 (185) 663-3940"
+  },
+  {
+    "name": "Beatrice Nader",
+    "email": "Kitty51@hotmail.com",
+    "username": "Randall_Little_0002",
+    "account_type": "business",
+    "balance": 506.69,
+    "is_active": true,
+    "is_verified": true,
+    "credit_limit": null,
+    "last_login": null,
+    "preferences": {
+      "notifications": true,
+      "theme": "light",
+      "language": "es"
+    },
+    "phone": "+1 (427) 141-6394"
+  },
+  {
+    "name": "Christie Koch PhD",
+    "email": "Guy_Yundt34@yahoo.com",
+    "username": "Fanny0_0003",
+    "account_type": "premium",
+    "balance": 474.43,
+    "is_active": true,
+    "is_verified": true,
+    "credit_limit": null,
+    "last_login": null,
+    "preferences": {
+      "notifications": false,
+      "theme": "light",
+      "language": "es"
+    },
+    "phone": "+1 (640) 159-1522"
+  },
+  {
+    "name": "Alison Mann",
+    "email": "Carolyne89@hotmail.com",
+    "username": "German_Denesik_0004",
+    "account_type": "premium",
+    "balance": 985.42,
+    "is_active": false,
+    "is_verified": true,
+    "credit_limit": null,
+    "last_login": "2025-08-08T15:46:13.559Z",
+    "phone": "+7239135673639"
+  },
+  {
+    "name": "Mrs. Melba Hodkiewicz",
+    "email": "John.Kozey19@hotmail.com",
+    "username": "Louvenia_Hahn_0005",
+    "account_type": "premium",
+    "balance": 937.93,
+    "is_active": true,
+    "is_verified": true,
+    "credit_limit": null,
+    "last_login": null,
+    "metadata": {
+      "tags": [
+        "premium"
+      ],
+      "source": "api"
+    },
+    "phone": "+1 (273) 025-8260"
+  },
+  {
+    "name": "Jessie Keebler",
+    "email": "June72@gmail.com",
+    "username": "Janet16_0006",
+    "account_type": "trial",
+    "balance": 751.57,
+    "is_active": false,
+    "is_verified": false,
+    "credit_limit": null,
+    "last_login": null,
+    "preferences": {
+      "notifications": false,
+      "theme": "dark",
+      "language": "en"
+    },
+    "phone": "+1 (719) 424-3172"
+  },
+  {
+    "name": "Sylvia Sporer",
+    "email": "Candelario23@yahoo.com",
+    "username": "Shany_Hartmann31_0007",
+    "account_type": "premium",
+    "balance": 828.63,
+    "is_active": true,
+    "is_verified": true,
+    "credit_limit": null,
+    "last_login": "2025-08-19T08:48:27.590Z"
+  },
+  {
+    "name": "Shawn Kassulke MD",
+    "email": "Frederic.Smith-Bruen@gmail.com",
+    "username": "RetaKilback10_0008",
+    "account_type": "personal",
+    "balance": 287.64,
+    "is_active": false,
+    "is_verified": false,
+    "credit_limit": null,
+    "last_login": "2025-08-10T00:59:36.119Z",
+    "metadata": {
+      "tags": [
+        "vip",
+        "test",
+        "premium"
+      ],
+      "source": "web"
+    }
+  },
+  {
+    "name": "Philip Gottlieb",
+    "email": "Cara.Anderson29@yahoo.com",
+    "username": "MervinLittle_0009",
+    "account_type": "premium",
+    "balance": 629.52,
+    "is_active": false,
+    "is_verified": true,
+    "credit_limit": null,
+    "last_login": null
+  }
+]
