@@ -43,9 +43,9 @@ curl -X GET http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266141
     "record_id": "123e4567-e89b-12d3-a456-426614174000",
     "schema": "users",
     "access_lists": {
-      "access_read": ["user1", "user2"],
-      "access_edit": ["admin1"],
-      "access_full": ["root"],
+      "access_read": ["11111111-2222-3333-4444-555555555551", "22222222-3333-4444-5555-666666666662"],
+      "access_edit": ["33333333-4444-5555-6666-777777777773"],
+      "access_full": ["44444444-5555-6666-7777-888888888884"],
       "access_deny": []
     }
   }
@@ -59,8 +59,8 @@ curl -X POST http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-426614
   -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "access_read": ["user3", "user4"],
-    "access_edit": ["admin2"]
+    "access_read": ["55555555-6666-7777-8888-999999999995", "66666666-7777-8888-9999-aaaaaaaaaaa6"],
+    "access_edit": ["77777777-8888-9999-aaaa-bbbbbbbbbb7"]
   }'
 ```
 
@@ -71,10 +71,10 @@ curl -X PUT http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266141
   -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "access_read": ["user1"],
-    "access_edit": ["admin1"],
-    "access_full": ["root"],
-    "access_deny": ["blocked_user"]
+    "access_read": ["11111111-2222-3333-4444-555555555551"],
+    "access_edit": ["33333333-4444-5555-6666-777777777773"],
+    "access_full": ["44444444-5555-6666-7777-888888888884"],
+    "access_deny": ["88888888-9999-aaaa-bbbb-cccccccccc8"]
   }'
 ```
 
@@ -89,7 +89,6 @@ curl -X DELETE http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266
 ```json
 {
   "success": true,
-  "message": "All ACL lists cleared - record returned to default permissions",
   "data": {
     "record_id": "123e4567-e89b-12d3-a456-426614174000",
     "schema": "users",
@@ -125,7 +124,7 @@ When ACL arrays are empty (`[]`), the record uses default role-based permissions
 ## Security Notes
 
 - Only admin and root users can modify ACLs
-- User IDs in ACL arrays must be valid string identifiers
+- User IDs in ACL arrays must be valid UUID format strings
 - Duplicate user IDs are automatically removed
 - ACL changes take effect immediately
 - Always validate user IDs exist before adding to ACL lists
