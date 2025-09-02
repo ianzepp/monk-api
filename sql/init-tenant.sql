@@ -48,6 +48,10 @@ ALTER TABLE "columns" ADD CONSTRAINT "columns_schemas_name_schema_name_fk"
     FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("name")
     ON DELETE no action ON UPDATE no action;
 
+-- Add unique index for schema+column combination
+CREATE UNIQUE INDEX "idx_columns_schema_column" 
+    ON "columns" ("schema_name", "column_name");
+
 -- Users table to store tenant users and their access levels (1-db-per-tenant)
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
