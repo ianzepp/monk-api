@@ -87,15 +87,6 @@ PUT  /api/data/users/123  # Update specific user (object input)
 - **Testing**: Isolated test environments with comprehensive coverage
 - **Documentation**: Extensive developer documentation and implementation guides
 
-### CLI Integration
-Complete API management via **monk-cli**:
-```bash
-monk tenant create my-app     # Create new tenant
-monk auth login my-app root   # Authenticate with tenant
-monk meta create schema       # Create schema from JSON
-monk data create user         # Create user records
-```
-
 ### Use Cases
 - **SaaS Application Backend**: Rapid development platform for multi-tenant SaaS applications
 - **API-First Development**: Schema-driven development with automatic endpoint generation

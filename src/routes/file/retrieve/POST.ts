@@ -1,200 +1,124 @@
-import type { Context } from 'hono';
+import { withParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-
-// File Retrieve Transport Types
-export interface FileRetrieveRequest {
-    path: string; // "/data/accounts/123.json" or "/data/accounts/123/email"
-    file_options: {
-        binary_mode: boolean; // File transfer mode
-        start_offset: number; // Resume support
-        max_bytes?: number; // Partial transfer
-        format?: 'json' | 'raw';
-    };
-}
-
-export interface FileRetrieveResponse {
-    success: true;
-    content: any; // File content
-    file_metadata: {
-        size: number; // Exact byte count
-        modified_time: string; // File timestamp format
-        content_type: string; // MIME type
-        can_resume: boolean; // Supports partial transfers
-        etag?: string; // For caching
-    };
-}
+import { FilePathParser } from '@src/lib/file-api/file-path-parser.js';
+import { FilePermissionValidator } from '@src/lib/file-api/file-permission-validator.js';
+import { FileTimestampFormatter } from '@src/lib/file-api/file-timestamp-formatter.js';
+import { FileContentCalculator } from '@src/lib/file-api/file-content-calculator.js';
+import type { FileRetrieveRequest, FileRetrieveResponse } from '@src/lib/file-api/file-types.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { logger } from '@src/lib/logger.js';
 
 /**
- * File Content Formatter - Format content for File transfer
- */
-class FileContentFormatter {
-    static formatContent(content: any, format: 'json' | 'raw', binaryMode: boolean): string {
-        if (format === 'raw' || typeof content === 'string') {
-            return String(content);
-        }
-
-        // Default JSON formatting
-        return JSON.stringify(content, null, binaryMode ? 0 : 2);
-    }
-
-    static calculateSize(content: string): number {
-        return Buffer.byteLength(content, 'utf8');
-    }
-
-    static getContentType(format: 'json' | 'raw', fieldName?: string): string {
-        switch (format) {
-            case 'json':
-                return 'application/json';
-            case 'raw':
-                // Guess content type based on field name
-                if (fieldName?.includes('email')) return 'text/plain';
-                if (fieldName?.includes('url') || fieldName?.includes('link')) return 'text/uri-list';
-                if (fieldName?.includes('html')) return 'text/html';
-                return 'text/plain';
-            default:
-                return 'application/octet-stream';
-        }
-    }
-
-    static generateEtag(content: string): string {
-        // Simple ETag generation for caching
-        const crypto = require('crypto');
-        return crypto.createHash('md5').update(content).digest('hex');
-    }
-
-    static formatFileTimestamp(date: Date | string): string {
-        const d = new Date(date);
-        const year = d.getFullYear();
-        const month = (d.getMonth() + 1).toString().padStart(2, '0');
-        const day = d.getDate().toString().padStart(2, '0');
-        const hour = d.getHours().toString().padStart(2, '0');
-        const minute = d.getMinutes().toString().padStart(2, '0');
-        const second = d.getSeconds().toString().padStart(2, '0');
-
-        return `${year}${month}${day}${hour}${minute}${second}`;
-    }
-}
-
-/**
- * POST /api/file/retrieve - File Retrieval Middleware
+ * POST /api/file/retrieve - File Content Retrieval
  *
- * Optimized file content retrieval with File metadata for monk-ftp integration.
+ * Optimized file content retrieval with File metadata for FTP integration.
  * Supports record-level and field-level access with resume capabilities.
  */
-export default async function fileRetrieveHandler(context: Context): Promise<any> {
-    const system = context.get('system');
-    const requestBody: FileRetrieveRequest = await context.req.json();
+export default withParams(async (context, { system, body }) => {
+    const request: FileRetrieveRequest = body;
 
     logger.info('File retrieve operation', {
-        path: requestBody.path,
-        options: requestBody.file_options,
+        path: request.path,
+        options: request.file_options,
     });
 
-    try {
-        // Parse path to determine what to retrieve
-        const pathParts = requestBody.path.split('/').filter(p => p.length > 0);
+    // Default options
+    const options = {
+        binary_mode: false,
+        start_offset: 0,
+        format: 'json' as const,
+        ...request.file_options,
+    };
 
-        // Handle different path patterns
-        if (pathParts.length < 3) {
-            throw new Error('Invalid path for file retrieval');
-        }
+    // Parse path - retrieve only works on specific files, no wildcards
+    const filePath = FilePathParser.parse(request.path, {
+        operation: 'retrieve',
+        allowWildcards: false,
+        requireFile: false, // Can retrieve both files and directory contents
+    });
 
-        const [dataPrefix, schema, recordPart] = pathParts;
-
-        if (dataPrefix !== 'data') {
-            throw new Error('Only /data/* paths supported for retrieval');
-        }
-
-        let recordId: string;
-        let fieldName: string | undefined;
-        let content: any;
-        let record: any; // Store record for metadata
-
-        // Check if path is record.json or record/field
-        if (recordPart.endsWith('.json')) {
-            // Complete record: /data/accounts/123.json
-            recordId = recordPart.replace('.json', '');
-
-            record = await system.database.selectOne(schema, {
-                where: { id: recordId },
-            });
-
-            if (!record) {
-                throw new Error(`Record not found: ${recordId}`);
-            }
-
-            content = record;
-        } else if (pathParts.length === 4) {
-            // Specific field: /data/accounts/123/email
-            recordId = recordPart;
-            fieldName = pathParts[3];
-
-            record = await system.database.selectOne(schema, {
-                where: { id: recordId },
-            });
-
-            if (!record) {
-                throw new Error(`Record not found: ${recordId}`);
-            }
-
-            if (!(fieldName in record)) {
-                throw new Error(`Field not found: ${fieldName}`);
-            }
-
-            content = record[fieldName];
-        } else {
-            throw new Error('Invalid path format for file retrieval');
-        }
-
-        // Format content based on options
-        const format = requestBody.file_options.format || 'json';
-        const formattedContent = FileContentFormatter.formatContent(content, format, requestBody.file_options.binary_mode);
-
-        // Handle partial content (resume support)
-        let finalContent = formattedContent;
-        if (requestBody.file_options.start_offset > 0) {
-            finalContent = formattedContent.substring(requestBody.file_options.start_offset);
-        }
-
-        if (requestBody.file_options.max_bytes) {
-            finalContent = finalContent.substring(0, requestBody.file_options.max_bytes);
-        }
-
-        // Calculate metadata
-        const fullSize = FileContentFormatter.calculateSize(formattedContent);
-        const actualSize = FileContentFormatter.calculateSize(finalContent);
-
-        // Get record for timestamp (already retrieved above)
-
-        const response: FileRetrieveResponse = {
-            success: true,
-            content: requestBody.file_options.format === 'raw' ? finalContent : JSON.parse(finalContent || 'null'),
-            file_metadata: {
-                size: actualSize,
-                modified_time: FileContentFormatter.formatFileTimestamp(record?.updated_at || record?.created_at || new Date()),
-                content_type: FileContentFormatter.getContentType(format, fieldName),
-                can_resume: fullSize > actualSize,
-                etag: FileContentFormatter.generateEtag(formattedContent),
-            },
-        };
-
-        logger.info('File retrieve completed', {
-            path: requestBody.path,
-            schema,
-            recordId,
-            fieldName,
-            contentSize: actualSize,
-            fullSize,
-            format,
-        });
-
-        setRouteResult(context, response);
-    } catch (error) {
-        logger.warn('File retrieve failed', {
-            path: requestBody.path,
-            error: error instanceof Error ? error.message : String(error),
-        });
-
-        throw error;
+    // Validate path type - only record and field operations supported
+    if (filePath.type !== 'record' && filePath.type !== 'field') {
+        throw HttpErrors.badRequest('Retrieve only supports record and field paths', 'INVALID_RETRIEVE_PATH');
     }
-}
+
+    // Build permission context and validate
+    const permissionContext = FilePermissionValidator.buildContext(system, 'retrieve');
+    permissionContext.path = filePath;
+
+    const permissionResult = await FilePermissionValidator.validate(system, filePath, permissionContext);
+    if (!permissionResult.allowed) {
+        throw HttpErrors.forbidden(`Permission denied: ${permissionResult.reason}`, 'PERMISSION_DENIED');
+    }
+
+    // Retrieve the record
+    const record = await system.database.selectOne(filePath.schema!, {
+        where: { id: filePath.record_id! },
+    });
+
+    if (!record) {
+        throw HttpErrors.notFound(`Record not found: ${filePath.record_id}`, 'RECORD_NOT_FOUND');
+    }
+
+    let content: any;
+    let contentType: string;
+
+    if (filePath.type === 'field') {
+        // Field-level retrieval
+        if (!(filePath.field_name! in record)) {
+            throw HttpErrors.notFound(`Field not found: ${filePath.field_name}`, 'FIELD_NOT_FOUND');
+        }
+
+        content = record[filePath.field_name!];
+        contentType = FileContentCalculator.detectContentType(content, filePath.field_name);
+    } else {
+        // Record-level retrieval
+        content = record;
+        contentType = 'application/json';
+    }
+
+    // Process content with options
+    const processed = FileContentCalculator.processContent(content, {
+        format: options.format,
+        binaryMode: options.binary_mode,
+    });
+
+    // Handle partial content (resume support)
+    let finalContent = processed.content;
+    if (options.start_offset > 0) {
+        finalContent = finalContent.substring(options.start_offset);
+    }
+    if (options.max_bytes) {
+        finalContent = finalContent.substring(0, options.max_bytes);
+    }
+
+    const finalSize = FileContentCalculator.calculateSize(finalContent);
+    const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
+
+    // Build response
+    const response: FileRetrieveResponse = {
+        success: true,
+        content: options.format === 'raw' ? finalContent : (finalContent ? JSON.parse(finalContent) : null),
+        file_metadata: {
+            path: request.path,
+            type: 'file',
+            permissions: permissionResult.permissions,
+            size: finalSize,
+            modified_time: timestampInfo.formatted,
+            content_type: contentType,
+            etag: FileContentCalculator.generateETag(processed.content),
+            can_resume: finalSize < processed.size,
+        },
+    };
+
+    logger.info('File retrieve completed', {
+        path: request.path,
+        schema: filePath.schema,
+        recordId: filePath.record_id,
+        fieldName: filePath.field_name,
+        contentSize: finalSize,
+        format: options.format,
+    });
+
+    setRouteResult(context, response);
+});

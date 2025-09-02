@@ -1,418 +1,307 @@
-import type { Context } from 'hono';
 import { withParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-
-// File Stat Transport Types
-export interface FileStatRequest {
-    path: string; // "/data/accounts/123/" or "/data/accounts/123.json"
-}
-
-export interface FileStatSchemaInfo {
-    description?: string;
-    record_count: number;
-    recent_changes: number;
-    last_modified?: string;
-    field_definitions: Array<{
-        name: string;
-        type: string;
-        required: boolean;
-        constraints?: string;
-        description?: string;
-        usage_percentage?: number;
-        common_values?: Record<string, number>;
-    }>;
-    common_operations?: string[];
-}
-
-export interface FileStatResponse {
-    success: true;
-    path: string;
-    type: 'directory' | 'file' | 'link';
-    permissions: string; // File permissions format
-    size: number;
-    modified_time: string; // File timestamp format
-    created_time: string; // File timestamp format
-    access_time: string; // File timestamp format
-    record_info: {
-        schema: string;
-        record_id?: string;
-        field_name?: string;
-        field_count?: number;
-        soft_deleted: boolean;
-        access_permissions: string[]; // User's access levels
-    };
-    children_count?: number; // For directories
-    total_size?: number; // Recursive size calculation
-    schema_info?: FileStatSchemaInfo; // NEW: Enhanced schema information
-}
+import { FilePathParser } from '@src/lib/file-api/file-path-parser.js';
+import { FilePermissionValidator } from '@src/lib/file-api/file-permission-validator.js';
+import { FileTimestampFormatter } from '@src/lib/file-api/file-timestamp-formatter.js';
+import { FileContentCalculator } from '@src/lib/file-api/file-content-calculator.js';
+import type { FileStatRequest, FileStatResponse } from '@src/lib/file-api/file-types.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { logger } from '@src/lib/logger.js';
 
 /**
- * Schema Analysis Engine - Generate schema information from cached Schema object
- */
-class SchemaAnalyzer {
-    /**
-     * Generate schema information from cached Schema object (no database queries)
-     */
-    static async generateSchemaInfo(system: any, schemaName: string): Promise<FileStatSchemaInfo> {
-        try {
-            // Use cached schema object (no database query)
-            const schema = await system.database.getSchema(schemaName);
-            const schemaJson = schema.definition;
-
-            // Analyze field definitions from cached schema only
-            const fieldDefinitions = SchemaAnalyzer.analyzeFields(schemaJson);
-
-            return {
-                description: schemaJson.description || schemaJson.title || `${schemaName} schema`,
-                record_count: 0, // TODO: Would require database query
-                recent_changes: 0, // TODO: Would require database query
-                last_modified: undefined, // TODO: Would require database query
-                field_definitions: fieldDefinitions,
-                common_operations: undefined, // TODO: Could infer from schema name
-            };
-        } catch (error) {
-            // Return minimal info if schema not found
-            return {
-                description: `${schemaName} schema`,
-                record_count: 0,
-                recent_changes: 0,
-                last_modified: undefined,
-                field_definitions: [],
-                common_operations: undefined,
-            };
-        }
-    }
-
-    /**
-     * Analyze field definitions from cached schema definition only
-     */
-    static analyzeFields(schemaJson: any): any[] {
-        const fields: any[] = [];
-        const properties = schemaJson.properties || {};
-        const required = schemaJson.required || [];
-
-        for (const [fieldName, fieldDef] of Object.entries(properties)) {
-            const field: any = fieldDef as any;
-
-            fields.push({
-                name: fieldName,
-                type: field.type || 'unknown',
-                required: required.includes(fieldName),
-                constraints: SchemaAnalyzer.buildConstraintsString(field),
-                description: field.description || `${fieldName} field`,
-                usage_percentage: undefined, // TODO: Would require database analysis
-                common_values: undefined, // TODO: Would require database analysis
-            });
-        }
-
-        return fields;
-    }
-
-    /**
-     * Build human-readable constraints string from schema definition
-     */
-    static buildConstraintsString(field: any): string {
-        const constraints: string[] = [];
-
-        if (field.minLength) constraints.push(`min ${field.minLength} chars`);
-        if (field.maxLength) constraints.push(`max ${field.maxLength} chars`);
-        if (field.minimum) constraints.push(`min ${field.minimum}`);
-        if (field.maximum) constraints.push(`max ${field.maximum}`);
-        if (field.format) constraints.push(`${field.format} format`);
-        if (field.enum) constraints.push(field.enum.join('|'));
-
-        return constraints.join(', ') || 'no constraints';
-    }
-}
-
-/**
- * File Status Calculator - Generate detailed status information
- */
-class FileStatusCalculator {
-    static formatFileTimestamp(date: Date | string): string {
-        const d = new Date(date);
-        const year = d.getFullYear();
-        const month = (d.getMonth() + 1).toString().padStart(2, '0');
-        const day = d.getDate().toString().padStart(2, '0');
-        const hour = d.getHours().toString().padStart(2, '0');
-        const minute = d.getMinutes().toString().padStart(2, '0');
-        const second = d.getSeconds().toString().padStart(2, '0');
-
-        return `${year}${month}${day}${hour}${minute}${second}`;
-    }
-
-    static calculatePermissions(system: any, record?: any): string {
-        if (!record) {
-            return 'r-x'; // Directory permissions
-        }
-
-        const user = system.getUser();
-        const userContext = [user.id, ...user.accessRead];
-
-        // Check access levels
-        const hasRead = record.access_read?.some((id: string) => userContext.includes(id)) || false;
-        const hasEdit = record.access_edit?.some((id: string) => userContext.includes(id)) || false;
-        const hasFull = record.access_full?.some((id: string) => userContext.includes(id)) || false;
-        const isDenied = record.access_deny?.some((id: string) => userContext.includes(id)) || false;
-
-        if (isDenied) {
-            return '---';
-        }
-
-        if (hasFull) {
-            return 'rwx';
-        }
-
-        if (hasEdit) {
-            return 'rw-';
-        }
-
-        if (hasRead) {
-            return 'r--';
-        }
-
-        return '---';
-    }
-
-    static getAccessPermissions(system: any, record?: any): string[] {
-        if (!record) {
-            return ['read'];
-        }
-
-        const user = system.getUser();
-        const userContext = [user.id, ...user.accessRead];
-        const permissions: string[] = [];
-
-        if (record.access_read?.some((id: string) => userContext.includes(id))) {
-            permissions.push('read');
-        }
-
-        if (record.access_edit?.some((id: string) => userContext.includes(id))) {
-            permissions.push('edit');
-        }
-
-        if (record.access_full?.some((id: string) => userContext.includes(id))) {
-            permissions.push('full');
-        }
-
-        return permissions.length > 0 ? permissions : ['none'];
-    }
-
-    static calculateContentSize(content: any): number {
-        if (typeof content === 'string') {
-            return Buffer.byteLength(content, 'utf8');
-        }
-
-        return Buffer.byteLength(JSON.stringify(content), 'utf8');
-    }
-}
-
-/**
- * POST /api/file/stat - Status Information Middleware
+ * POST /api/file/stat - File/Directory Status Information
  *
- * Provides detailed file/directory status for File STAT command.
- * Returns comprehensive metadata for monk-ftp operations.
- * Enhanced with schema and field introspection for Issue #165.
+ * Provides detailed file/directory status for FTP STAT command.
+ * Returns comprehensive metadata with schema and field introspection.
  */
 export default withParams(async (context, { system, body }) => {
-    const requestBody: FileStatRequest = body;
+    const request: FileStatRequest = body;
 
-    try {
-        const cleanPath = requestBody.path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
-        const parts = cleanPath.split('/').filter(p => p.length > 0);
+    logger.info('File stat operation', {
+        path: request.path,
+    });
 
-        let response: FileStatResponse;
+    // Parse path - stat works on any path type, no wildcards
+    const filePath = FilePathParser.parse(request.path, {
+        operation: 'stat',
+        allowWildcards: false,
+    });
 
-        if (parts.length === 0) {
-            // Root directory
-            response = {
-                success: true,
-                path: '/',
-                type: 'directory',
-                permissions: 'r-x',
-                size: 0,
-                modified_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                created_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                record_info: {
-                    schema: '',
-                    soft_deleted: false,
-                    access_permissions: ['read'],
-                },
-                children_count: 2, // /data and /meta
-                total_size: 0,
-            };
-        } else if (parts.length === 1 && (parts[0] === 'data' || parts[0] === 'meta')) {
-            // /data or /meta directory
-            const schemas = await system.database.selectAny('schemas');
+    // Build permission context and validate
+    const permissionContext = FilePermissionValidator.buildContext(system, 'stat');
+    permissionContext.path = filePath;
 
-            response = {
-                success: true,
-                path: `/${parts[0]}/`,
-                type: 'directory',
-                permissions: 'r-x',
-                size: 0,
-                modified_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                created_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                record_info: {
-                    schema: '',
-                    soft_deleted: false,
-                    access_permissions: ['read'],
-                },
-                children_count: schemas.length,
-                total_size: 0,
-            };
-        } else if (parts.length === 2 && parts[0] === 'data') {
-            // /data/schema directory - Enhanced with schema introspection
-            const schema = parts[1];
-            const recordCount = await system.database.count(schema);
-
-            // Generate comprehensive schema analysis
-            const schemaInfo = await SchemaAnalyzer.generateSchemaInfo(system, schema);
-
-            response = {
-                success: true,
-                path: `/data/${schema}/`,
-                type: 'directory',
-                permissions: 'rwx',
-                size: 0,
-                modified_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                created_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                record_info: {
-                    schema,
-                    soft_deleted: false,
-                    access_permissions: ['read', 'edit'], // TODO: Calculate from user ACL
-                },
-                children_count: recordCount,
-                total_size: 0,
-                schema_info: schemaInfo, // NEW: Enhanced schema information
-            };
-        } else if (parts.length === 3 && parts[0] === 'data') {
-            // /data/schema/record-id or /data/schema/record.json
-            const schema = parts[1];
-            let recordId = parts[2];
-            let isJsonFile = false;
-
-            if (recordId.endsWith('.json')) {
-                recordId = recordId.replace('.json', '');
-                isJsonFile = true;
-            }
-
-            const record = await system.database.selectOne(schema, {
-                where: { id: recordId },
-            });
-
-            if (!record) {
-                throw new Error(`Record not found: ${recordId}`);
-            }
-
-            const permissions = FileStatusCalculator.calculatePermissions(system, record);
-            const accessPermissions = FileStatusCalculator.getAccessPermissions(system, record);
-
-            if (isJsonFile) {
-                // JSON file status
-                const contentSize = FileStatusCalculator.calculateContentSize(record);
-
-                response = {
-                    success: true,
-                    path: `/data/${schema}/${recordId}.json`,
-                    type: 'file',
-                    permissions,
-                    size: contentSize,
-                    modified_time: FileStatusCalculator.formatFileTimestamp(record.updated_at || record.created_at),
-                    created_time: FileStatusCalculator.formatFileTimestamp(record.created_at),
-                    access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                    record_info: {
-                        schema,
-                        record_id: recordId,
-                        field_count: Object.keys(record).length,
-                        soft_deleted: !!record.trashed_at,
-                        access_permissions: accessPermissions,
-                    },
-                };
-            } else {
-                // Record directory status
-                const fieldCount = Object.keys(record).filter(key => !['id', 'created_at', 'updated_at', 'trashed_at', 'deleted_at'].includes(key)).length;
-
-                response = {
-                    success: true,
-                    path: `/data/${schema}/${recordId}/`,
-                    type: 'directory',
-                    permissions,
-                    size: 0,
-                    modified_time: FileStatusCalculator.formatFileTimestamp(record.updated_at || record.created_at),
-                    created_time: FileStatusCalculator.formatFileTimestamp(record.created_at),
-                    access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                    record_info: {
-                        schema,
-                        record_id: recordId,
-                        field_count: fieldCount + 1, // +1 for .json file
-                        soft_deleted: !!record.trashed_at,
-                        access_permissions: accessPermissions,
-                    },
-                    children_count: fieldCount + 1,
-                };
-            }
-        } else if (parts.length === 4 && parts[0] === 'data') {
-            // /data/schema/record-id/field
-            const schema = parts[1];
-            const recordId = parts[2];
-            const fieldName = parts[3];
-
-            const record = await system.database.selectOne(schema, {
-                where: { id: recordId },
-            });
-
-            if (!record) {
-                throw new Error(`Record not found: ${recordId}`);
-            }
-
-            if (!(fieldName in record)) {
-                throw new Error(`Field not found: ${fieldName}`);
-            }
-
-            const permissions = FileStatusCalculator.calculatePermissions(system, record);
-            const accessPermissions = FileStatusCalculator.getAccessPermissions(system, record);
-            const fieldContent = record[fieldName];
-            const contentSize = FileStatusCalculator.calculateContentSize(fieldContent);
-
-            response = {
-                success: true,
-                path: `/data/${schema}/${recordId}/${fieldName}`,
-                type: 'file',
-                permissions,
-                size: contentSize,
-                modified_time: FileStatusCalculator.formatFileTimestamp(record.updated_at || record.created_at),
-                created_time: FileStatusCalculator.formatFileTimestamp(record.created_at),
-                access_time: FileStatusCalculator.formatFileTimestamp(new Date()),
-                record_info: {
-                    schema,
-                    record_id: recordId,
-                    field_name: fieldName,
-                    soft_deleted: !!record.trashed_at,
-                    access_permissions: accessPermissions,
-                },
-            };
-        } else {
-            throw new Error(`Unsupported path format for stat: ${requestBody.path}`);
-        }
-
-        logger.info('File stat completed', {
-            path: requestBody.path,
-            type: response.type,
-            size: response.size,
-            permissions: response.permissions,
-        });
-
-        setRouteResult(context, response);
-    } catch (error) {
-        logger.warn('File stat failed', {
-            path: requestBody.path,
-            error: error instanceof Error ? error.message : String(error),
-        });
-
-        throw error;
+    const permissionResult = await FilePermissionValidator.validate(system, filePath, permissionContext);
+    if (!permissionResult.allowed) {
+        throw HttpErrors.forbidden(`Permission denied: ${permissionResult.reason}`, 'PERMISSION_DENIED');
     }
+
+    let response: FileStatResponse;
+
+    switch (filePath.type) {
+        case 'root':
+            response = createRootStatResponse(filePath);
+            break;
+
+        case 'data':
+        case 'meta':
+            response = await createApiRootStatResponse(system, filePath);
+            break;
+
+        case 'schema':
+            response = await createSchemaStatResponse(system, filePath, permissionResult);
+            break;
+
+        case 'record':
+            response = await createRecordStatResponse(system, filePath, permissionResult);
+            break;
+
+        case 'field':
+            response = await createFieldStatResponse(system, filePath, permissionResult);
+            break;
+
+        default:
+            throw HttpErrors.badRequest(`Unsupported path type for stat: ${filePath.type}`, 'UNSUPPORTED_PATH_TYPE');
+    }
+
+    logger.info('File stat completed', {
+        path: request.path,
+        type: response.file_metadata.type,
+        size: response.file_metadata.size,
+        permissions: response.file_metadata.permissions,
+    });
+
+    setRouteResult(context, response);
 });
+
+// Helper functions for different stat operations
+
+function createRootStatResponse(filePath: any): FileStatResponse {
+    const currentTime = FileTimestampFormatter.current();
+    
+    return {
+        success: true,
+        file_metadata: {
+            path: '/',
+            type: 'directory',
+            permissions: 'r-x',
+            size: 0,
+            modified_time: currentTime,
+            created_time: currentTime,
+            access_time: currentTime,
+        },
+        record_info: {
+            schema: '',
+            soft_deleted: false,
+            access_permissions: ['read'],
+        },
+        children_count: 2, // /data and /meta
+    };
+}
+
+async function createApiRootStatResponse(system: any, filePath: any): Promise<FileStatResponse> {
+    const schemas = await system.database.selectAny('schemas');
+    const currentTime = FileTimestampFormatter.current();
+
+    return {
+        success: true,
+        file_metadata: {
+            path: filePath.normalized_path,
+            type: 'directory',
+            permissions: 'r-x',
+            size: 0,
+            modified_time: currentTime,
+            created_time: currentTime,
+            access_time: currentTime,
+        },
+        record_info: {
+            schema: '',
+            soft_deleted: false,
+            access_permissions: ['read'],
+        },
+        children_count: schemas.length,
+    };
+}
+
+async function createSchemaStatResponse(system: any, filePath: any, permissionResult: any): Promise<FileStatResponse> {
+    const recordCount = await system.database.count(filePath.schema);
+    const currentTime = FileTimestampFormatter.current();
+
+    // Generate schema information
+    let schemaInfo;
+    try {
+        const schema = await system.database.toSchema(filePath.schema);
+        const schemaJson = schema.definition;
+
+        schemaInfo = {
+            description: schemaJson.description || schemaJson.title || `${filePath.schema} schema`,
+            record_count: recordCount,
+            field_definitions: generateFieldDefinitions(schemaJson),
+        };
+    } catch (error) {
+        schemaInfo = {
+            description: `${filePath.schema} schema`,
+            record_count: recordCount,
+            field_definitions: [],
+        };
+    }
+
+    return {
+        success: true,
+        file_metadata: {
+            path: filePath.normalized_path,
+            type: 'directory',
+            permissions: permissionResult.permissions,
+            size: 0,
+            modified_time: currentTime,
+            created_time: currentTime,
+            access_time: currentTime,
+        },
+        record_info: {
+            schema: filePath.schema,
+            soft_deleted: false,
+            access_permissions: [permissionResult.access_level],
+        },
+        children_count: recordCount,
+        schema_info: schemaInfo,
+    };
+}
+
+async function createRecordStatResponse(system: any, filePath: any, permissionResult: any): Promise<FileStatResponse> {
+    const record = await system.database.selectOne(filePath.schema, {
+        where: { id: filePath.record_id },
+    });
+
+    if (!record) {
+        throw HttpErrors.notFound(`Record not found: ${filePath.record_id}`, 'RECORD_NOT_FOUND');
+    }
+
+    const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
+    const isJsonFile = filePath.is_json_file;
+
+    if (isJsonFile) {
+        // JSON file status
+        const contentSize = FileContentCalculator.calculateRecordSize(record);
+
+        return {
+            success: true,
+            file_metadata: {
+                path: filePath.normalized_path,
+                type: 'file',
+                permissions: permissionResult.permissions,
+                size: contentSize,
+                modified_time: timestampInfo.formatted,
+                created_time: FileTimestampFormatter.format(record.created_at),
+                access_time: FileTimestampFormatter.current(),
+                content_type: 'application/json',
+                etag: FileContentCalculator.generateETag(record),
+            },
+            record_info: {
+                schema: filePath.schema,
+                record_id: filePath.record_id,
+                field_count: Object.keys(record).length,
+                soft_deleted: !!record.trashed_at,
+                access_permissions: [permissionResult.access_level],
+            },
+        };
+    } else {
+        // Record directory status
+        const fieldCount = Object.keys(record).filter(key => 
+            !['id', 'created_at', 'updated_at', 'trashed_at', 'deleted_at'].includes(key)
+        ).length;
+
+        return {
+            success: true,
+            file_metadata: {
+                path: filePath.normalized_path,
+                type: 'directory',
+                permissions: permissionResult.permissions,
+                size: 0,
+                modified_time: timestampInfo.formatted,
+                created_time: FileTimestampFormatter.format(record.created_at),
+                access_time: FileTimestampFormatter.current(),
+            },
+            record_info: {
+                schema: filePath.schema,
+                record_id: filePath.record_id,
+                field_count: fieldCount + 1, // +1 for .json file
+                soft_deleted: !!record.trashed_at,
+                access_permissions: [permissionResult.access_level],
+            },
+            children_count: fieldCount + 1,
+        };
+    }
+}
+
+async function createFieldStatResponse(system: any, filePath: any, permissionResult: any): Promise<FileStatResponse> {
+    const record = await system.database.selectOne(filePath.schema, {
+        where: { id: filePath.record_id },
+    });
+
+    if (!record) {
+        throw HttpErrors.notFound(`Record not found: ${filePath.record_id}`, 'RECORD_NOT_FOUND');
+    }
+
+    if (!(filePath.field_name in record)) {
+        throw HttpErrors.notFound(`Field not found: ${filePath.field_name}`, 'FIELD_NOT_FOUND');
+    }
+
+    const fieldValue = record[filePath.field_name];
+    const fieldSize = FileContentCalculator.calculateFieldSize(fieldValue);
+    const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
+
+    return {
+        success: true,
+        file_metadata: {
+            path: filePath.normalized_path,
+            type: 'file',
+            permissions: permissionResult.permissions,
+            size: fieldSize,
+            modified_time: timestampInfo.formatted,
+            created_time: FileTimestampFormatter.format(record.created_at),
+            access_time: FileTimestampFormatter.current(),
+            content_type: FileContentCalculator.detectContentType(fieldValue, filePath.field_name),
+            etag: FileContentCalculator.generateETag(fieldValue),
+        },
+        record_info: {
+            schema: filePath.schema,
+            record_id: filePath.record_id,
+            field_name: filePath.field_name,
+            soft_deleted: !!record.trashed_at,
+            access_permissions: [permissionResult.access_level],
+        },
+    };
+}
+
+function generateFieldDefinitions(schemaJson: any): any[] {
+    const fields: any[] = [];
+    const properties = schemaJson.properties || {};
+    const required = schemaJson.required || [];
+
+    for (const [fieldName, fieldDef] of Object.entries(properties)) {
+        const field: any = fieldDef as any;
+
+        fields.push({
+            name: fieldName,
+            type: field.type || 'unknown',
+            required: required.includes(fieldName),
+            constraints: buildConstraintsString(field),
+            description: field.description || `${fieldName} field`,
+        });
+    }
+
+    return fields;
+}
+
+function buildConstraintsString(field: any): string {
+    const constraints: string[] = [];
+
+    if (field.minLength) constraints.push(`min ${field.minLength} chars`);
+    if (field.maxLength) constraints.push(`max ${field.maxLength} chars`);
+    if (field.minimum) constraints.push(`min ${field.minimum}`);
+    if (field.maximum) constraints.push(`max ${field.maximum}`);
+    if (field.format) constraints.push(`${field.format} format`);
+    if (field.enum) constraints.push(field.enum.join('|'));
+
+    return constraints.join(', ') || 'no constraints';
+}
