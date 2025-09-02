@@ -12,8 +12,7 @@ build/
 .env.*.local
 .env.neon
 
-# Neon integration scripts (contain credentials in connection strings)
-vendors/neon/*.js
+# Neon integration scripts are now safe to commit (use environment variables)
 
 # Database files
 *.db
