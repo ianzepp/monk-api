@@ -38,8 +38,17 @@ CREATE TABLE "columns" (
 	"pg_type" text NOT NULL,
 	"is_required" text DEFAULT 'false' NOT NULL,
 	"default_value" text,
-	"constraints" jsonb,
-	"foreign_key" jsonb,
+	"relationship_type" text,
+	"related_schema" text,
+	"related_column" text,
+	"relationship_name" text,
+	"cascade_delete" boolean DEFAULT false,
+	"required_relationship" boolean DEFAULT false,
+	"minimum" numeric,
+	"maximum" numeric,
+	"pattern_regex" text,
+	"enum_values" text[],
+	"is_array" boolean DEFAULT false,
 	"description" text
 );
 
