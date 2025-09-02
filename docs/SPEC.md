@@ -132,30 +132,6 @@ spec/
 └── helpers/                 # Test utilities
 ```
 
-### Running TypeScript Tests
-
-```bash
-# All tests
-npm run spec:ts
-
-# Series-specific
-npm run spec:ts 11              # SQL injection security tests
-npm run spec:ts 12              # API endpoint security tests
-npm run spec:ts 15              # Authentication workflow tests
-npm run spec:ts 41              # Database unit tests
-npm run spec:ts 44              # Filter system tests
-npm run spec:ts 45              # Observer system tests
-npm run spec:ts 46              # FS middleware tests
-
-# Range patterns
-npm run spec:ts 10-19           # All security tests
-npm run spec:ts 40-49           # All unit tests
-npm run spec:ts 20-30           # All API tests
-
-# Individual file
-npm run spec:ts spec/44-filter/logical-operators.test.ts
-```
-
 ### Test Categories
 
 #### Security Tests (10-19 Series)

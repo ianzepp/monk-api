@@ -243,6 +243,7 @@ export interface FilePermissionResult {
 export interface FilePermissionContext {
     user_id: string;
     user_groups: string[];
+    user_role: string; // 'root', 'full', 'edit', 'read', etc.
     is_root: boolean;
     operation: FileOperationType;
     path: FilePath;

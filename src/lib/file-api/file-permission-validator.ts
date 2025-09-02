@@ -54,6 +54,7 @@ export class FilePermissionValidator {
         return {
             user_id: user.id,
             user_groups: user.accessRead || [],
+            user_role: user.role || 'read', // Default to read if role not specified
             is_root: system.isRoot(),
             operation,
             path: {} as FilePath, // Will be set by caller
@@ -244,7 +245,60 @@ export class FilePermissionValidator {
             return { permissions: 'r--', access_level: 'read' };
         }
 
+        // Check if all ACL arrays are empty - if so, ACL system is not yet configured
+        // and we should be permissive rather than restrictive
+        const aclArrays = [
+            record.access_read || [],
+            record.access_edit || [],
+            record.access_full || [],
+            record.access_deny || []
+        ];
+        const allAclsEmpty = aclArrays.every(arr => Array.isArray(arr) && arr.length === 0);
+
+        if (allAclsEmpty) {
+            // ACL system not configured - provide default access based on user's role
+            // This prevents overly permissive access while still allowing authenticated users
+            // to work with unconfigured ACL data
+            return FilePermissionValidator.getDefaultPermissionsForRole(context);
+        }
+
+        // ACL system is configured but user not found in any list
         return { permissions: '---', access_level: 'none' };
+    }
+
+    /**
+     * Get default permissions for user role when ACL arrays are empty
+     * This provides appropriate access based on the user's authenticated role
+     * while maintaining security when ACL system is not configured
+     */
+    private static getDefaultPermissionsForRole(context: FilePermissionContext): { permissions: FilePermissions; access_level: AccessLevel } {
+        // Root users get full access regardless of ACL configuration
+        if (context.is_root || context.user_role === 'root') {
+            return { permissions: 'rwx', access_level: 'full' };
+        }
+        
+        // Map user roles to appropriate permissions when ACL arrays are empty
+        // This provides secure defaults based on authenticated user's role
+        switch (context.user_role) {
+            case 'full':
+                return { permissions: 'rwx', access_level: 'full' };
+            
+            case 'edit':
+                return { permissions: 'rw-', access_level: 'edit' };
+            
+            case 'read':
+                return { permissions: 'r--', access_level: 'read' };
+            
+            case 'deny':
+            case 'none':
+                return { permissions: '---', access_level: 'none' };
+            
+            default:
+                // For unknown roles, provide conservative read-only access
+                // This ensures authenticated users can still access data when ACLs are empty
+                // while being more secure than full permissive access
+                return { permissions: 'r--', access_level: 'read' };
+        }
     }
 
     /**
