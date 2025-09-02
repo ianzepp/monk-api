@@ -1,0 +1,40 @@
+{
+    "title": "Contact",
+    "description": "Customer contact management schema for testing",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Contact full name"
+        },
+        "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Contact email address"
+        },
+        "phone": {
+            "type": "string",
+            "pattern": "^\\+?[1-9]\\d{1,14}$",
+            "description": "Contact phone number"
+        },
+        "company": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Company name"
+        },
+        "status": {
+            "type": "string",
+            "enum": ["active", "inactive", "prospect"],
+            "default": "prospect",
+            "description": "Contact status"
+        },
+        "notes": {
+            "type": "string",
+            "description": "Additional notes about the contact"
+        }
+    },
+    "required": ["name", "email"],
+    "additionalProperties": false
+}
