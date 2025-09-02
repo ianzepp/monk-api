@@ -10,6 +10,9 @@ build/
 .env
 .env.local
 .env.*.local
+.env.neon
+
+# Neon integration scripts are now safe to commit (use environment variables)
 
 # Database files
 *.db
