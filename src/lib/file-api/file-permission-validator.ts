@@ -97,7 +97,7 @@ export class FilePermissionValidator {
         // For schema operations, check if schema exists (unless wildcards)
         if (!path.has_wildcards) {
             try {
-                await system.database.getSchema(path.schema!);
+                await system.database.toSchema(path.schema!);
             } catch (error) {
                 throw HttpErrors.notFound(`Schema not found: ${path.schema}`, 'SCHEMA_NOT_FOUND');
             }

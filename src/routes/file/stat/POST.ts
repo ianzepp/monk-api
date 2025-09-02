@@ -130,7 +130,7 @@ async function createSchemaStatResponse(system: any, filePath: any, permissionRe
     // Generate schema information
     let schemaInfo;
     try {
-        const schema = await system.database.getSchema(filePath.schema);
+        const schema = await system.database.toSchema(filePath.schema);
         const schemaJson = schema.definition;
 
         schemaInfo = {
