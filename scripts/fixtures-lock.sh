@@ -32,7 +32,16 @@ print_warning() {
 # Validate template name
 if [[ -z "$TEMPLATE_NAME" ]]; then
     print_error "Usage: npm run fixtures:lock <template-name>"
-    print_error "Example: npm run fixtures:lock basic"
+    print_error "Example: npm run fixtures:lock basic_large"
+    exit 1
+fi
+
+# Validate template name format (lowercase and underscores only)
+if [[ ! "$TEMPLATE_NAME" =~ ^[a-z_]+$ ]]; then
+    print_error "Template name must contain only lowercase letters and underscores"
+    print_error "Invalid name: '$TEMPLATE_NAME'"
+    print_error "Valid examples: basic_large, demo_small, test_data"
+    print_error "Invalid examples: Basic-Large, demo-small, TestData"
     exit 1
 fi
 

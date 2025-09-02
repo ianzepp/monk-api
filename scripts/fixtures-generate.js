@@ -135,8 +135,17 @@ async function generateFixtures() {
   // Validate arguments
   if (!templateName) {
     printError('Usage: npm run fixtures:generate <template-name> <record-count>');
-    printError('Example: npm run fixtures:generate basic-large 1000');
-    printError('Example: npm run fixtures:generate demo-small 50');
+    printError('Example: npm run fixtures:generate basic_large 1000');
+    printError('Example: npm run fixtures:generate demo_small 50');
+    process.exit(1);
+  }
+
+  // Validate template name format
+  if (!/^[a-z_]+$/.test(templateName)) {
+    printError('Template name must contain only lowercase letters and underscores');
+    printError(`Invalid name: '${templateName}'`);
+    printError('Valid examples: basic_large, demo_small, test_data');
+    printError('Invalid examples: Basic-Large, demo-small, TestData');
     process.exit(1);
   }
 
