@@ -49,6 +49,7 @@ interface RouteParams {
     schema?: string;
     record?: string;
     relationship?: string;
+    child?: string;
     body?: any; // Content-type aware body
     method: string;
     contentType: string;
@@ -85,6 +86,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
             schema: context.req.param('schema'),
             record: context.req.param('record'),
             relationship: context.req.param('relationship'),
+            child: context.req.param('child'),
             method: context.req.method,
             contentType: context.req.header('content-type') || 'application/json',
             body: undefined,

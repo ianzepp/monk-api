@@ -168,6 +168,10 @@ app.put('/api/data/:schema/:record', dataRoutes.RecordPut); // Update single rec
 app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete single record
 
 app.get('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
+app.post('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
+app.get('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
+app.put('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
+app.delete('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
 
 // 33-find-api: Find API routes
 app.post('/api/find/:schema', FindSchemaPost);
