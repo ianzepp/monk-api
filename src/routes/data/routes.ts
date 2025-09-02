@@ -21,6 +21,7 @@ export { default as RecordDelete } from '@src/routes/data/:schema/:record/DELETE
 // Relationship operations
 export { default as RelationshipGet } from '@src/routes/data/:schema/:record/:relationship/GET.js';
 export { default as RelationshipPost } from '@src/routes/data/:schema/:record/:relationship/POST.js';
+export { default as RelationshipDelete } from '@src/routes/data/:schema/:record/:relationship/DELETE.js';
 
 // Nested record operations
 export { default as NestedRecordGet } from '@src/routes/data/:schema/:record/:relationship/:child/GET.js';

@@ -146,7 +146,10 @@ export class Database {
 
     async deleteIds(schemaName: SchemaName, ids: string[]): Promise<any[]> {
         if (ids.length === 0) return [];
-        return await this.deleteAny(schemaName, { where: { id: { $in: ids } } });
+        
+        // Convert IDs to delete records with just ID field
+        const deleteRecords = ids.map(id => ({ id }));
+        return await this.deleteAll(schemaName, deleteRecords);
     }
 
     // Advanced operations - filter-based updates/deletes

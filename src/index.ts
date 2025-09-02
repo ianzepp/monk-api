@@ -169,6 +169,7 @@ app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete sing
 
 app.get('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
 app.post('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
+app.delete('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
 app.get('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
 app.put('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
 app.delete('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
