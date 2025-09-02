@@ -38,6 +38,25 @@ function printWarning(message) {
   console.log(`${colors.yellow}⚠ ${message}${colors.reset}`);
 }
 
+// Generate valid phone number matching schema pattern
+function generateValidPhone() {
+  // Pattern allows: ^\+?[1-9]\d{1,14}$|^\+?1 \([0-9]{3}\) [0-9]{3}-[0-9]{4}$
+  
+  if (faker.datatype.boolean(0.7)) {
+    // Generate US format: +1 (555) 123-4567
+    const area = faker.string.numeric(3, { bannedChars: ['0', '1'] }); // Area code can't start with 0 or 1
+    const exchange = faker.string.numeric(3);
+    const number = faker.string.numeric(4);
+    return `+1 (${area}) ${exchange}-${number}`;
+  } else {
+    // Generate international format: +[1-9][0-14 more digits]
+    const countryCode = faker.helpers.arrayElement(['1', '44', '49', '33', '81', '61', '7']);
+    const length = faker.number.int({ min: 6, max: 12 });
+    const number = faker.string.numeric(length);
+    return `+${countryCode}${number}`;
+  }
+}
+
 // Account generator based on the schema
 function generateAccount(index) {
   const accountTypes = ['personal', 'business', 'trial', 'premium'];
@@ -47,7 +66,7 @@ function generateAccount(index) {
   return {
     name: faker.person.fullName(),
     email: faker.internet.email(),
-    username: faker.internet.username() + '_' + index.toString().padStart(4, '0'),
+    username: faker.internet.username().replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 46) + '_' + index.toString().padStart(4, '0'),
     account_type: faker.helpers.arrayElement(accountTypes),
     balance: parseFloat(faker.finance.amount(0, 10000, 2)),
     is_active: faker.datatype.boolean(0.8), // 80% chance of being active
@@ -63,8 +82,17 @@ function generateAccount(index) {
       tags: faker.helpers.arrayElements(['vip', 'beta', 'test', 'premium'], { min: 1, max: 3 }),
       source: faker.helpers.arrayElement(['web', 'mobile', 'api'])
     } : undefined,
-    phone: faker.datatype.boolean(0.6) ? faker.phone.number() : undefined // 60% have phone
+    phone: faker.datatype.boolean(0.6) ? generateValidPhone() : undefined // 60% have phone
   };
+}
+
+// Generate valid contact phone number (simpler pattern)
+function generateValidContactPhone() {
+  // Pattern: ^\+?[1-9]\d{1,14}$ (no US format, just international)
+  const countryCode = faker.helpers.arrayElement(['1', '44', '49', '33', '81', '61', '7']);
+  const length = faker.number.int({ min: 6, max: 12 });
+  const number = faker.string.numeric(length);
+  return faker.datatype.boolean(0.8) ? `+${countryCode}${number}` : `${countryCode}${number}`;
 }
 
 // Contact generator based on the schema
@@ -72,11 +100,10 @@ function generateContact(index) {
   return {
     name: faker.person.fullName(),
     email: faker.internet.email(),
-    phone: faker.datatype.boolean(0.8) ? faker.phone.number() : undefined,
+    phone: faker.datatype.boolean(0.8) ? generateValidContactPhone() : undefined,
     company: faker.datatype.boolean(0.6) ? faker.company.name() : undefined,
-    message: faker.datatype.boolean(0.7) ? faker.lorem.paragraph() : undefined,
-    status: faker.helpers.arrayElement(['pending', 'contacted', 'resolved']),
-    created_at: faker.date.recent({ days: 90 }).toISOString()
+    notes: faker.datatype.boolean(0.7) ? faker.lorem.paragraph() : undefined,
+    status: faker.helpers.arrayElement(['active', 'inactive', 'prospect'])
   };
 }
 

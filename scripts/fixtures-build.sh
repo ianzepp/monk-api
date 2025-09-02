@@ -7,7 +7,7 @@
 # Source helpers
 SCRIPT_DIR="$(dirname "$0")"
 source "$SCRIPT_DIR/../spec/curl-helper.sh"
-source "$SCRIPT_DIR/../spec/helpers/test-tenant-helper.sh"
+source "$SCRIPT_DIR/../spec/test-tenant-helper.sh"
 
 # Configuration
 TEMPLATE_NAME="${1:-basic}"
