@@ -12,10 +12,8 @@ build/
 .env.*.local
 .env.neon
 
-# Neon integration test scripts (temporary)
-create-monk-main-db.js
-test-monk-neon.js
-test-neon-connection.js
+# Neon integration scripts (contain credentials in connection strings)
+vendors/neon/*.js
 
 # Database files
 *.db
