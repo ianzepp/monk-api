@@ -21,10 +21,16 @@ Neon is a serverless PostgreSQL platform that provides:
 
 ## Usage
 
-All scripts expect a `.env.neon` file in the project root with:
+All scripts use the standard `.env` file (via dotenv). To use Neon, ensure your `.env` points to Neon configuration:
 
+**Setup `.env.neon` with your Neon credentials:**
 ```bash
 DATABASE_URL=postgresql://username:password@host/database?sslmode=require&channel_binding=require
+```
+
+**Activate Neon environment:**
+```bash
+ln -sf .env.neon .env
 ```
 
 Run scripts from project root:
