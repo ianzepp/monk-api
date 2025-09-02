@@ -6,7 +6,7 @@
 
 # Source all required helpers
 source "$(dirname "${BASH_SOURCE[0]}")/curl-helper.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/helpers/test-tenant-helper.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/test-tenant-helper.sh"
 
 # ===========================
 # Test Setup Functions

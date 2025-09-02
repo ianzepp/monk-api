@@ -192,7 +192,7 @@ setup_test_auth() {
     # Ensure we have a test tenant
     if [[ -z "$tenant" || -z "$TEST_TENANT_NAME" ]]; then
         print_warning "No test tenant available - creating isolated tenant"
-        source "$(dirname "${BASH_SOURCE[0]}")/helpers/test-tenant-helper.sh"
+        source "$(dirname "${BASH_SOURCE[0]}")/test-tenant-helper.sh"
         setup_isolated_test "auth_test"
         tenant="$TEST_TENANT_NAME"
     fi
