@@ -9,8 +9,46 @@ SCRIPT_DIR="$(dirname "$0")"
 source "$SCRIPT_DIR/../spec/curl-helper.sh"
 source "$SCRIPT_DIR/../spec/test-tenant-helper.sh"
 
+# Parse arguments
+FORCE_REBUILD=false
+TEMPLATE_NAME="basic"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force)
+            FORCE_REBUILD=true
+            shift
+            ;;
+        --help|-h)
+            echo "Fixtures Build Script"
+            echo "Usage: $0 [options] [template_name]"
+            echo ""
+            echo "Arguments:"
+            echo "  template_name    Name of the fixture template to build (default: basic)"
+            echo ""
+            echo "Options:"
+            echo "  --force         Delete existing template database if it exists"
+            echo "  --help, -h      Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 basic"
+            echo "  $0 --force basic_large"
+            echo "  npm run fixtures:build -- --force basic"
+            exit 0
+            ;;
+        -*)
+            print_error "Unknown option: $1"
+            exit 1
+            ;;
+        *)
+            TEMPLATE_NAME="$1"
+            shift
+            ;;
+    esac
+done
+
 # Configuration
-TEMPLATE_NAME="${1:-basic}"
 FIXTURES_DIR="fixtures/${TEMPLATE_NAME}"
 
 # Validate template name format (lowercase and underscores only)
@@ -49,6 +87,10 @@ print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
 }
 
+print_info() {
+    echo -e "${YELLOW}ℹ $1${NC}"
+}
+
 server_start() {
     npm run start:bg
 }
@@ -72,6 +114,44 @@ fi
 
 if [[ ! -d "$FIXTURES_DIR/data" ]]; then
     fail "Fixtures data directory not found: $FIXTURES_DIR/data"
+fi
+
+# Check if target template database already exists
+template_db_final="monk_template_$TEMPLATE_NAME"
+if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_final" 2>/dev/null; then
+    if [[ "$FORCE_REBUILD" == true ]]; then
+        print_warning "Template database '$template_db_final' already exists - removing due to --force"
+        
+        # Stop any running server to close connections
+        print_step "Stopping server to close database connections"
+        npm run stop >/dev/null 2>&1 || true
+        sleep 2
+        
+        # Remove the existing template database
+        print_step "Dropping existing template database: $template_db_final"
+        if dropdb "$template_db_final" 2>/dev/null; then
+            print_success "Template database dropped"
+        else
+            print_warning "Failed to drop template database (may not exist or have active connections)"
+        fi
+        
+        # Remove the tenant registry entry
+        print_step "Cleaning tenant registry"
+        if psql -d monk_main -c "DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'" >/dev/null 2>&1; then
+            print_success "Tenant registry cleaned"
+        else
+            print_warning "Failed to clean tenant registry (may not exist)"
+        fi
+        
+        print_success "Existing template cleaned - proceeding with rebuild"
+    else
+        print_warning "Template database '$template_db_final' already exists"
+        print_info "To rebuild, either use --force or manually clean up:"
+        print_info "  dropdb '$template_db_final'"
+        print_info "  psql -d monk_main -c \"DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'\""
+        print_info "Or run: npm run fixtures:build -- --force $TEMPLATE_NAME"
+        fail "Template database already exists"
+    fi
 fi
 
 # Start the server
@@ -173,8 +253,7 @@ print_success "Loaded data for $data_count schemas: $total_records total records
 # Step 5: Convert to template database
 print_step "Converting to template database"
 
-# Generate template database name
-template_db_final="monk_template_$TEMPLATE_NAME"
+# Template database name was already generated during prerequisites check
 
 # Stop server to close database connections before rename
 print_step "Stopping server to close database connections"

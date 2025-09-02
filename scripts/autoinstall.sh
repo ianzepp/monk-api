@@ -9,6 +9,7 @@ set -e
 #        scripts/autoinstall.sh [options]
 #
 # Options:
+#   --clean         Remove all Monk API databases (tenant_*, monk_template_*, monk_main, system)
 #   --clean-node    Delete node_modules and reinstall dependencies
 #   --clean-dist    Delete dist/ directory and recompile TypeScript
 #   --clean-auth    Delete and recreate monk_main database
@@ -72,11 +73,13 @@ handle_error() {
     if [ -n "$suggestion" ]; then
         print_info "Suggestion: $suggestion"
     fi
+
     print_info "Check INSTALL.md for manual setup instructions"
     exit 1
 }
 
 # Parse command line arguments
+CLEAN_DATABASES=false
 CLEAN_NODE=false
 CLEAN_DIST=false
 CLEAN_AUTH=false
@@ -85,6 +88,10 @@ SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --clean)
+            CLEAN_DATABASES=true
+            shift
+            ;;
         --clean-node)
             CLEAN_NODE=true
             shift
@@ -99,6 +106,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --force)
             FORCE_CLEAN=true
+            CLEAN_DATABASES=true
             CLEAN_NODE=true
             CLEAN_DIST=true
             CLEAN_AUTH=true
@@ -124,6 +132,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo "       scripts/autoinstall.sh [options]"
     echo
     echo "Options:"
+    echo "  --clean         Remove all Monk API databases (tenant_*, monk_template_*, monk_main, system)"
     echo "  --clean-node    Delete node_modules and reinstall dependencies"
     echo "  --clean-dist    Delete dist/ directory and recompile TypeScript"
     echo "  --clean-auth    Delete and recreate monk_main database"
@@ -135,39 +144,88 @@ if [ "$SHOW_HELP" = true ]; then
     exit 0
 fi
 
+# Function to clean all Monk API databases
+clean_monk_databases() {
+    print_step "Finding all Monk API related databases..."
+
+    # Get list of all databases
+    local all_dbs=$(psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -v "^$")
+    local monk_dbs=()
+
+    # Find databases matching Monk API patterns
+    for db in $all_dbs; do
+        if [[ "$db" == tenant_* ]] || [[ "$db" == monk_template_* ]] || [[ "$db" == "monk_main" ]] || [[ "$db" == "system" ]]; then
+            monk_dbs+=("$db")
+        fi
+    done
+
+    if [ ${#monk_dbs[@]} -eq 0 ]; then
+        print_info "No Monk API databases found to clean"
+        return 0
+    fi
+
+    print_info "Found ${#monk_dbs[@]} Monk API databases: ${monk_dbs[*]}"
+    print_step "Removing Monk API databases..."
+
+    local failed_drops=()
+    for db in "${monk_dbs[@]}"; do
+        if dropdb "$db" 2>/dev/null; then
+            print_success "Dropped database: $db"
+        else
+            print_warning "Failed to drop database: $db"
+            failed_drops+=("$db")
+        fi
+    done
+
+    if [ ${#failed_drops[@]} -gt 0 ]; then
+        print_warning "Some databases could not be dropped: ${failed_drops[*]}"
+        print_info "This may be due to active connections or permissions"
+    fi
+}
+
 print_header "Monk API Automated Fresh Install"
 print_info "This script will set up a complete development environment"
 print_info "Following the steps from INSTALL.md automatically"
 
+# Close any server connections
+print_header "Stopping any existing API servers to close open connections"
+npm run stop
+
+# Handle --clean option first (before any other operations)
+if [ "$CLEAN_DATABASES" = true ]; then
+    print_header "Starting: Clean All Monk API Databases"
+    clean_monk_databases
+fi
+
 # Show force mode status
 if [ "$FORCE_CLEAN" = true ]; then
-    print_warning "FORCE MODE: Will clean all components (node_modules, dist, auth database)"
+    print_warning "FORCE MODE: Will clean all components (databases, node_modules, dist, auth database)"
 fi
 echo
 
 # Function to auto-detect PostgreSQL authentication
 autodetect_database_auth() {
     local detected_url=""
-    
+
     # First check if DATABASE_URL is already set in environment
     if [ -n "$DATABASE_URL" ]; then
         print_info "Using DATABASE_URL from environment" >&2
         echo "$DATABASE_URL"
         return 0
     fi
-    
+
     # Test PostgreSQL connectivity first
     if ! psql -d postgres -c "SELECT version();" >/dev/null 2>&1; then
         return 1
     fi
-    
+
     # Get current system info
     local current_user=$(whoami)
     local system_os=$(uname -s)
-    
+
     # Define test configurations based on platform and common defaults
     local test_urls=()
-    
+
     if [ "$system_os" = "Darwin" ]; then
         # macOS: Homebrew and Postgres.app typically use current user with trust auth
         test_urls=(
@@ -187,7 +245,7 @@ autodetect_database_auth() {
         )
         print_info "Detected Linux - testing package manager patterns first" >&2
     fi
-    
+
     # Test each configuration
     for test_url in "${test_urls[@]}"; do
         # Extract password if present for PGPASSWORD
@@ -195,7 +253,7 @@ autodetect_database_auth() {
         if [[ "$test_url" == *":"*"@"* ]]; then
             password=$(echo "$test_url" | sed -n 's/.*:\/\/.*:\(.*\)@.*/\1/p')
         fi
-        
+
         # Test connection
         if [ -n "$password" ]; then
             if PGPASSWORD="$password" psql "$test_url" -c "SELECT 1;" >/dev/null 2>&1; then
@@ -209,7 +267,7 @@ autodetect_database_auth() {
             fi
         fi
     done
-    
+
     if [ -n "$detected_url" ]; then
         echo "$detected_url"
         return 0
@@ -255,17 +313,17 @@ if [ -f ".env" ]; then
 else
     print_warning "No .env file found"
     print_step "Creating .env file from .env.example..."
-    
+
     if [ ! -f ".env.example" ]; then
         handle_error ".env.example file not found" "Ensure you're running this from the project root directory"
     fi
-    
+
     # Copy .env.example to .env
     cp ".env.example" ".env"
-    
+
     # Try to auto-detect DATABASE_URL
     print_step "Attempting to auto-detect PostgreSQL configuration..."
-    
+
     if detected_url=$(autodetect_database_auth); then
         # Update .env with detected DATABASE_URL using a safer approach
         # Create a temporary file to avoid sed escaping issues
@@ -498,6 +556,39 @@ if npm run start -- --no-startup >/dev/null 2>&1; then
     print_success "Server startup test passed - server can start successfully"
 else
     handle_error "Server startup test" "The server failed to start properly"
+fi
+
+# Show available fixture templates
+print_header "Available Fixture Templates"
+
+if [ -d "fixtures" ]; then
+    fixture_templates=()
+    for dir in fixtures/*/; do
+        if [ -d "$dir" ]; then
+            fixture_name=$(basename "$dir")
+            if [ -d "$dir/schemas" ] && [ -d "$dir/data" ]; then
+                fixture_templates+=("$fixture_name")
+            fi
+        fi
+    done
+    
+    if [ ${#fixture_templates[@]} -gt 0 ]; then
+        print_info "Found ${#fixture_templates[@]} fixture templates available for building:"
+        for template in "${fixture_templates[@]}"; do
+            print_info "• $template"
+        done
+        echo
+        print_info "To build template databases for testing:"
+        print_info "• Build single template: npm run fixtures:build <template_name>"
+        print_info "• Force rebuild existing: npm run fixtures:build -- --force <template_name>"
+        print_info "• Example: npm run fixtures:build basic"
+        echo
+        print_info "Template databases are used for fast test environment setup"
+    else
+        print_warning "No valid fixture templates found in fixtures/ directory"
+    fi
+else
+    print_warning "fixtures/ directory not found"
 fi
 
 print_success "Ready for development!"

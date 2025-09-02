@@ -92,6 +92,9 @@ export class Metabase {
             // Insert schema metadata
             const jsonChecksum = this.generateJsonChecksum(JSON.stringify(jsonContent));
             await this.insertSchemaRecord(tx, schemaName, tableName, jsonSchema, jsonChecksum);
+            
+            // Insert column metadata
+            await this.insertColumnRecords(tx, schemaName, jsonSchema);
 
             logger.info('Schema created successfully', { schemaName, tableName });
 
@@ -335,6 +338,41 @@ export class Metabase {
     }
 
     /**
+     * Validate column name follows PostgreSQL naming rules
+     */
+    private validateColumnName(columnName: string): void {
+        // PostgreSQL identifier rules:
+        // - Must start with letter or underscore
+        // - Can contain letters, digits, underscores
+        // - Max length 63 characters
+        // - Case insensitive (but we'll be strict)
+        
+        if (!columnName || typeof columnName !== 'string') {
+            throw HttpErrors.badRequest(`Column name must be a non-empty string`, 'INVALID_COLUMN_NAME');
+        }
+
+        if (columnName.length > 63) {
+            throw HttpErrors.badRequest(`Column name '${columnName}' exceeds 63 character limit`, 'COLUMN_NAME_TOO_LONG');
+        }
+
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(columnName)) {
+            throw HttpErrors.badRequest(`Column name '${columnName}' must start with letter or underscore and contain only letters, digits, and underscores`, 'INVALID_COLUMN_NAME');
+        }
+
+        // Check against PostgreSQL reserved words (basic list)
+        const reservedWords = [
+            'select', 'insert', 'update', 'delete', 'from', 'where', 'join', 'inner', 'outer',
+            'left', 'right', 'on', 'group', 'order', 'by', 'having', 'union', 'table', 'index',
+            'primary', 'key', 'foreign', 'constraint', 'create', 'drop', 'alter', 'database',
+            'schema', 'view', 'trigger', 'function', 'procedure', 'user', 'grant', 'revoke'
+        ];
+
+        if (reservedWords.includes(columnName.toLowerCase())) {
+            throw HttpErrors.badRequest(`Column name '${columnName}' is a PostgreSQL reserved word`, 'RESERVED_COLUMN_NAME');
+        }
+    }
+
+    /**
      * Generate JSON content checksum for cache invalidation
      */
     private generateJsonChecksum(jsonContent: string): string {
@@ -355,5 +393,87 @@ export class Metabase {
         `;
 
         await tx.query(insertQuery, [schemaName, tableName, 'active', JSON.stringify(jsonSchema), fieldCount.toString(), jsonChecksum]);
+    }
+
+    /**
+     * Insert column metadata records for schema properties
+     */
+    private async insertColumnRecords(tx: pg.PoolClient, schemaName: string, jsonSchema: JsonSchema): Promise<void> {
+        if (!jsonSchema.properties || Object.keys(jsonSchema.properties).length === 0) {
+            return; // No properties to process
+        }
+
+        const requiredFields = jsonSchema.required || [];
+        
+        for (const [columnName, columnDefinition] of Object.entries(jsonSchema.properties)) {
+            // Validate column name
+            this.validateColumnName(columnName);
+            
+            // Map JSON Schema type to PostgreSQL type
+            const pgType = this.jsonSchemaTypeToPostgres(columnDefinition);
+            const isRequired = requiredFields.includes(columnName) ? 'true' : 'false';
+            const defaultValue = columnDefinition.default !== undefined ? String(columnDefinition.default) : null;
+            
+            // Extract constraints (everything except type-specific fields)
+            const constraints = this.extractConstraints(columnDefinition);
+            
+            // Extract foreign key metadata (for future x-paas support)
+            const foreignKey = this.extractForeignKey(columnDefinition);
+            
+            const insertQuery = `
+                INSERT INTO columns
+                (id, schema_name, column_name, pg_type, is_required, default_value, constraints, foreign_key, description, created_at, updated_at, access_read, access_edit, access_full, access_deny)
+                VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), '{}', '{}', '{}', '{}')
+            `;
+            
+            await tx.query(insertQuery, [
+                schemaName,
+                columnName,
+                pgType,
+                isRequired,
+                defaultValue,
+                constraints ? JSON.stringify(constraints) : null,
+                foreignKey ? JSON.stringify(foreignKey) : null,
+                columnDefinition.description || null
+            ]);
+        }
+        
+        logger.info('Column records inserted', { 
+            schemaName, 
+            columnCount: Object.keys(jsonSchema.properties).length 
+        });
+    }
+
+    /**
+     * Extract constraints from JSON Schema property definition
+     */
+    private extractConstraints(columnDefinition: any): any {
+        const constraints: any = {};
+        
+        // Copy relevant constraint fields
+        const constraintFields = [
+            'minLength', 'maxLength', 'minimum', 'maximum', 'pattern', 'format', 
+            'enum', 'minItems', 'maxItems', 'uniqueItems'
+        ];
+        
+        for (const field of constraintFields) {
+            if (columnDefinition[field] !== undefined) {
+                constraints[field] = columnDefinition[field];
+            }
+        }
+        
+        return Object.keys(constraints).length > 0 ? constraints : null;
+    }
+
+    /**
+     * Extract foreign key metadata from JSON Schema property definition
+     */
+    private extractForeignKey(columnDefinition: any): any {
+        // Check for x-paas extension with foreign key metadata
+        if (columnDefinition['x-paas']?.foreign_key) {
+            return columnDefinition['x-paas'].foreign_key;
+        }
+        
+        return null;
     }
 }
