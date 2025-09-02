@@ -94,16 +94,8 @@ export class FilePermissionValidator {
      * Validate schema-level permissions
      */
     private static async validateSchemaPermission(system: any, path: FilePath, context: FilePermissionContext): Promise<FilePermissionResult> {
-        // For schema operations, check if schema exists (unless wildcards)
-        if (!path.has_wildcards) {
-            try {
-                await system.database.toSchema(path.schema!);
-            } catch (error) {
-                throw HttpErrors.notFound(`Schema not found: ${path.schema}`, 'SCHEMA_NOT_FOUND');
-            }
-        }
-
         // Schema-level operations - allow read for authenticated users
+        // Individual route handlers will validate schema existence when needed
         if (FilePermissionValidator.isReadOperation(context.operation)) {
             return {
                 allowed: true,
@@ -113,8 +105,14 @@ export class FilePermissionValidator {
             };
         }
 
-        // Schema-level modifications require admin privileges
+        // Schema-level modifications require admin privileges and schema validation
         if (context.operation === 'delete' && !path.has_wildcards) {
+            try {
+                await system.database.toSchema(path.schema!);
+            } catch (error) {
+                throw HttpErrors.notFound(`Schema not found: ${path.schema}`, 'SCHEMA_NOT_FOUND');
+            }
+            
             return {
                 allowed: false,
                 reason: 'schema_deletion_forbidden',
@@ -122,6 +120,15 @@ export class FilePermissionValidator {
                 permissions: '---',
                 access_level: 'none',
             };
+        }
+
+        // Store operations - validate schema exists
+        if (context.operation === 'store' && !path.has_wildcards) {
+            try {
+                await system.database.toSchema(path.schema!);
+            } catch (error) {
+                throw HttpErrors.notFound(`Schema not found: ${path.schema}`, 'SCHEMA_NOT_FOUND');
+            }
         }
 
         // Wildcard operations at schema level
