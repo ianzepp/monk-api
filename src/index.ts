@@ -45,7 +45,6 @@ import { ObserverLoader } from '@src/lib/observers/loader.js';
 import * as middleware from '@src/lib/middleware/index.js';
 
 // Root API
-import { rootRouter } from '@src/routes/root/index.js';
 
 // Public route handlers (no authentication required)
 import * as publicAuthRoutes from '@src/public/auth/routes.js';
@@ -58,6 +57,8 @@ import * as authRoutes from '@src/routes/auth/routes.js';
 import * as dataRoutes from '@src/routes/data/routes.js';
 import * as metaRoutes from '@src/routes/meta/routes.js';
 import * as fileRoutes from '@src/routes/file/routes.js';
+import * as aclsRoutes from '@src/routes/acls/routes.js';
+import { rootRouter } from '@src/routes/root/index.js';
 
 // Special protected endpoints
 import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
@@ -99,29 +100,27 @@ app.get('/', c => {
             home: '/ (public)',
             public_auth: '/auth/* (public - token acquisition)',
             docs: '/docs[/:api] (public)',
-            root: undefined as string | undefined,
             auth: '/api/auth/* (protected - user management)',
-            data: '/api/data/:schema[/:record] (protected)',
             meta: '/api/meta/:schema (protected)',
+            data: '/api/data/:schema[/:record] (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
             file: '/api/file/* (protected)',
+            acls: '/api/acls/:schema/:record (protected)',
+            root: '/api/root/* (restricted, requires sudo or localhost)',
         },
         documentation: {
             home: ['/README.md'],
             auth: ['/docs/auth', '/docs/public-auth'],
-            data: ['/docs/data'],
             meta: ['/docs/meta'],
-            file: ['/docs/file'],
-            bulk: ['/docs/bulk'],
+            data: ['/docs/data'],
             find: ['/docs/find'],
+            bulk: ['/docs/bulk'],
+            file: ['/docs/file'],
+            acls: ['/docs/acls'],
             root: ['/docs/root'],
         },
     };
-
-    if (process.env.NODE_ENV === 'development') {
-        response.endpoints.root = '/api/root/* (protected - requires root JWT)';
-    }
 
     return createSuccessResponse(c, response);
 });
@@ -148,17 +147,17 @@ app.use('/api/*', middleware.userValidationMiddleware);
 app.use('/api/*', middleware.systemContextMiddleware);
 app.use('/api/*', middleware.responseJsonMiddleware);
 
-// Auth API routes (protected - user account management)
+// 30-auth-api: Auth API routes (protected - user account management)
 app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
 app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
 
-// Meta API routes
+// 31-meta-api: Meta API routes
 app.post('/api/meta/:schema', metaRoutes.SchemaPost); // Create schema (with URL name)
 app.get('/api/meta/:schema', metaRoutes.SchemaGet); // Get schema
 app.put('/api/meta/:schema', metaRoutes.SchemaPut); // Update schema
 app.delete('/api/meta/:schema', metaRoutes.SchemaDelete); // Delete schema
 
-// Data API routes
+// 32-data-api: Data API routes
 app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records
 app.get('/api/data/:schema', dataRoutes.SchemaGet); // List records
 app.put('/api/data/:schema', dataRoutes.SchemaPut); // Bulk update records
@@ -167,10 +166,13 @@ app.get('/api/data/:schema/:record', dataRoutes.RecordGet); // Get single record
 app.put('/api/data/:schema/:record', dataRoutes.RecordPut); // Update single record
 app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete single record
 
-// Find API routes
+// 33-find-api: Find API routes
 app.post('/api/find/:schema', FindSchemaPost);
 
-// File API routes
+// 35-bulk-api: Bulk API routes
+app.post('/api/bulk', BulkPost);
+
+// 37-file-api: File API routes
 app.post('/api/file/list', fileRoutes.ListPost); // Directory listing
 app.post('/api/file/retrieve', fileRoutes.RetrievePost); // File retrieval
 app.post('/api/file/store', fileRoutes.StorePost); // File storage
@@ -179,13 +181,13 @@ app.post('/api/file/delete', fileRoutes.DeletePost); // File deletion
 app.post('/api/file/size', fileRoutes.SizePost); // File size
 app.post('/api/file/modify-time', fileRoutes.ModifyTimePost); // File modification time
 
-// Bulk API routes
-app.post('/api/bulk', BulkPost);
+// 38-acls-api: Acls API routes
+app.get('/api/acls/:schema/:record', aclsRoutes.RecordAclGet); // Get acls for a single record
+app.post('/api/acls/:schema/:record', aclsRoutes.RecordAclPost); // Merge acls for a single record
+app.put('/api/acls/:schema/:record', aclsRoutes.RecordAclPut); // Replace acls for a single record
+app.delete('/api/acls/:schema/:record', aclsRoutes.RecordAclDelete); // Delete acls for a single record
 
-// Find API routes
-app.post('/api/find/:schema', FindSchemaPost);
-
-// Root API routes (require elevated root access)
+// 39-root-api: Root API routes (require elevated root access)
 app.use('/api/root/*', middleware.rootAccessMiddleware);
 app.route('/api/root', rootRouter);
 
