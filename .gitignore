@@ -10,6 +10,12 @@ build/
 .env
 .env.local
 .env.*.local
+.env.neon
+
+# Neon integration test scripts (temporary)
+create-monk-main-db.js
+test-monk-neon.js
+test-neon-connection.js
 
 # Database files
 *.db
