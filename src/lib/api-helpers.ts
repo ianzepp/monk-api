@@ -48,6 +48,7 @@ interface RouteParams {
     system: System;
     schema?: string;
     record?: string;
+    relationship?: string;
     body?: any; // Content-type aware body
     method: string;
     contentType: string;
@@ -83,6 +84,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
             system: context.get('system'),
             schema: context.req.param('schema'),
             record: context.req.param('record'),
+            relationship: context.req.param('relationship'),
             method: context.req.method,
             contentType: context.req.header('content-type') || 'application/json',
             body: undefined,
@@ -127,43 +129,43 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
 /**
  * Higher-order function that wraps withParams with automatic transaction management
  * Provides atomic transaction boundaries for modification operations
- * 
+ *
  * Automatically handles:
  * - Transaction creation (BEGIN) if not already in transaction
  * - Transaction commit (COMMIT) on successful completion
  * - Transaction rollback (ROLLBACK) on any error
  * - Connection cleanup (release) in all cases
- * 
+ *
  * Use for routes that perform write operations requiring atomicity.
  * Read-only routes should use withParams instead.
  */
 export function withTransactionParams(handler: (context: Context, params: RouteParams) => Promise<void>) {
     return withParams(async (context, params) => {
         const { system } = params;
-        
+
         // Always start transaction (only routes call withTransactionParams)
         const pool = system.db;
         const tx = await pool.connect();
         await tx.query('BEGIN');
         system.tx = tx;
-        
-        logger.info('Transaction started for route', { 
+
+        logger.info('Transaction started for route', {
             method: params.method,
             schema: params.schema,
             record: params.record
         });
-        
+
         try {
             // Execute route handler - observers and database operations will use system.tx
             await handler(context, params);
-            
+
             // Always commit (we always start the transaction)
             await tx.query('COMMIT');
             logger.info('Transaction committed successfully', {
                 method: params.method,
                 schema: params.schema
             });
-            
+
         } catch (error) {
             // Always rollback on error (we always start the transaction)
             try {
@@ -178,9 +180,9 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
                     rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
                 });
             }
-            
+
             throw error; // Re-throw original error
-            
+
         } finally {
             // Always clean up (we always start the transaction)
             tx.release(); // Release connection back to pool

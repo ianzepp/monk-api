@@ -17,3 +17,6 @@ export { default as SchemaDelete } from '@src/routes/data/:schema/DELETE.js';
 export { default as RecordGet } from '@src/routes/data/:schema/:record/GET.js';
 export { default as RecordPut } from '@src/routes/data/:schema/:record/PUT.js';
 export { default as RecordDelete } from '@src/routes/data/:schema/:record/DELETE.js';
+
+// Relationship operations
+export { default as RelationshipGet } from '@src/routes/data/:schema/:record/:relationship/GET.js';

@@ -162,9 +162,12 @@ app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records
 app.get('/api/data/:schema', dataRoutes.SchemaGet); // List records
 app.put('/api/data/:schema', dataRoutes.SchemaPut); // Bulk update records
 app.delete('/api/data/:schema', dataRoutes.SchemaDelete); // Bulk delete records
+
 app.get('/api/data/:schema/:record', dataRoutes.RecordGet); // Get single record
 app.put('/api/data/:schema/:record', dataRoutes.RecordPut); // Update single record
 app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete single record
+
+app.get('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
 
 // 33-find-api: Find API routes
 app.post('/api/find/:schema', FindSchemaPost);
