@@ -15,11 +15,13 @@ export interface JsonSchemaProperty {
     maximum?: number;
     default?: any;
     description?: string;
-    'x-paas'?: {
-        foreign_key?: {
-            table: string;
-            column: string;
-        };
+    'x-monk-relationship'?: {
+        type: 'owned' | 'referenced';
+        schema: string;
+        name: string;
+        column?: string;
+        cascadeDelete?: boolean;
+        required?: boolean;
     };
 }
 
@@ -468,40 +470,17 @@ export class Metabase {
      * Extract relationship metadata from JSON Schema property definition
      */
     private extractRelationshipData(columnDefinition: any): any {
-        // Check for x-paas extension with master-detail or lookup relationship
-        const xPaas = columnDefinition['x-paas'];
+        // Check for x-monk-relationship extension
+        const xMonkRelationship = columnDefinition['x-monk-relationship'];
         
-        if (xPaas?.master_detail) {
+        if (xMonkRelationship) {
             return {
-                relationshipType: 'master_detail',
-                relatedSchema: xPaas.master_detail.master,
-                relatedColumn: xPaas.master_detail.related_column ?? 'id',
-                relationshipName: xPaas.master_detail.relationship_name,
-                cascadeDelete: xPaas.master_detail.cascade_delete ?? true,
-                requiredRelationship: xPaas.master_detail.required_relationship ?? true
-            };
-        }
-        
-        if (xPaas?.lookup) {
-            return {
-                relationshipType: 'lookup',
-                relatedSchema: xPaas.lookup.schema,
-                relatedColumn: xPaas.lookup.related_column ?? 'id',
-                relationshipName: xPaas.lookup.relationship_name,
-                cascadeDelete: xPaas.lookup.cascade_delete ?? false,
-                requiredRelationship: xPaas.lookup.required_relationship ?? false
-            };
-        }
-        
-        // Check for legacy foreign_key format (for backward compatibility)
-        if (xPaas?.foreign_key) {
-            return {
-                relationshipType: 'lookup',
-                relatedSchema: xPaas.foreign_key.table,
-                relatedColumn: xPaas.foreign_key.column,
-                relationshipName: null,
-                cascadeDelete: false,
-                requiredRelationship: false
+                relationshipType: xMonkRelationship.type,
+                relatedSchema: xMonkRelationship.schema,
+                relatedColumn: xMonkRelationship.column ?? 'id',
+                relationshipName: xMonkRelationship.name,
+                cascadeDelete: xMonkRelationship.cascadeDelete ?? (xMonkRelationship.type === 'owned'),
+                requiredRelationship: xMonkRelationship.required ?? (xMonkRelationship.type === 'owned')
             };
         }
         
