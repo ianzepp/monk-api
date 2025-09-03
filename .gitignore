@@ -66,3 +66,7 @@ spec/**/*.js
 spec/**/*.d.ts
 spec/**/*.js.map
 spec/**/*.d.ts.map
+
+# Warp Code files
+WARP.md
+

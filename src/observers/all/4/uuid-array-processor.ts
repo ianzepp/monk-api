@@ -1,13 +1,13 @@
 /**
  * UUID Array Processor Observer
- * 
+ *
  * Processes UUID array fields (access_read, access_edit, access_full, access_deny)
  * to ensure proper PostgreSQL array format handling. Sets metadata flags for
- * SqlObserver to generate correct PostgreSQL array literals.
- * 
+ * SQL observers to generate correct PostgreSQL array literals.
+ *
  * This observer prepares UUID array data for PostgreSQL compatibility without
- * modifying the actual data - just sets metadata hints for SqlObserver.
- * 
+ * modifying the actual data - just sets metadata hints for SQL observers.
+ *
  * Ring: 4 (Enrichment) - Schema: all - Operations: create, update
  */
 
@@ -24,40 +24,40 @@ export default class UuidArrayProcessor extends BaseObserver {
      */
     private readonly UUID_ARRAY_FIELDS = [
         'access_read',
-        'access_edit', 
+        'access_edit',
         'access_full',
         'access_deny'
     ];
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, schemaName, operation, data, metadata } = context;
-        
+
         let processedFields = 0;
         let processedRecords = 0;
-        
+
         // Process each record to identify UUID array fields
         for (const record of data) {
             let recordHasUuidArrays = false;
-            
+
             for (const fieldName of this.UUID_ARRAY_FIELDS) {
                 if (record[fieldName] && Array.isArray(record[fieldName])) {
-                    // Set metadata flag for SqlObserver to use PostgreSQL array format
+                    // Set metadata flag for SQL observers to use PostgreSQL array format
                     metadata.set(`${fieldName}_is_uuid_array`, true);
                     processedFields++;
                     recordHasUuidArrays = true;
                 }
             }
-            
+
             if (recordHasUuidArrays) {
                 processedRecords++;
             }
         }
-        
+
         // Log processing summary for audit
         metadata.set('uuid_array_processing', 'completed');
         metadata.set('uuid_fields_processed', processedFields);
         metadata.set('records_with_uuid_arrays', processedRecords);
-        
+
         if (processedFields > 0) {
             logger.info('UUID array processing completed', {
                 schemaName,

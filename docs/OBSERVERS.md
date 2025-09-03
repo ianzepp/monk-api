@@ -45,7 +45,7 @@ Ring 1: InputValidation // Schema validation, format checks, basic integrity
 Ring 2: Security        // Access control, protection policies, rate limiting
 Ring 3: Business        // Complex business logic, domain rules, workflows
 Ring 4: Enrichment      // Data enrichment, defaults, computed fields
-Ring 5: Database        // 🎯 SQL EXECUTION (SqlObserver)
+Ring 5: Database        // 🎯 SQL EXECUTION
 Ring 6: PostDatabase    // Immediate post-database processing
 Ring 7: Audit           // Audit logging, change tracking, compliance
 Ring 8: Integration     // External APIs, webhooks, cache invalidation (async)
@@ -60,7 +60,7 @@ Ring 9: Notification    // User notifications, email alerts, real-time updates (
 - **Ring 2 (Security)**: Access control, soft delete protection, existence validation
 - **Ring 3 (Business)**: Complex business rules, domain validation, workflow logic
 - **Ring 4 (Enrichment)**: Computed fields, default values, data transformation
-- **Ring 5 (Database)**: SQL execution only - handled by SqlObserver
+- **Ring 5 (Database)**: SQL execution only
 
 #### **Asynchronous Rings (6-9): Non-blocking Execution**
 - **Ring 6 (PostDatabase)**: Immediate post-processing that doesn't need external calls
@@ -98,27 +98,27 @@ import type { ObserverContext } from '@src/lib/observers/observer-context.js';
 export default class CustomValidator extends BaseObserver {
     ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         const { system, schema, schemaName, data, metadata } = context;
-        
+
         // Use preloaded data from RecordPreloader (Ring 0) for efficiency
         const existingRecords = RecordPreloader.getPreloadedRecords(context);
-        
+
         for (const record of data) {
             // Access Schema object for validation
             schema.validateOrThrow(record);
-            
+
             if (!this.isValid(record)) {
                 throw new ValidationError('Invalid data', 'field');
             }
         }
-        
+
         // Record validation metadata for audit
         metadata.set('custom_validation', 'passed');
         logger.info('Custom validation completed', { schemaName, recordCount: data.length });
     }
-    
+
     private isValid(record: any): boolean {
         // Custom validation logic
         return true;
@@ -153,10 +153,10 @@ import { BaseAsyncObserver } from '@src/lib/observers/base-async-observer.js';
 export default class WebhookSender extends BaseAsyncObserver {
     ring = ObserverRing.Integration;
     operations = ['create', 'update', 'delete'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         const { operation, schemaName, result } = context;
-        
+
         // This executes asynchronously after database commit
         // Failures are logged but don't affect the API response
         try {
@@ -170,7 +170,7 @@ export default class WebhookSender extends BaseAsyncObserver {
             // API response already sent successfully
         }
     }
-    
+
     private async sendWebhook(payload: any): Promise<void> {
         // External webhook implementation
     }
@@ -198,7 +198,7 @@ All observers are automatically tracked with nanosecond precision:
 ```
 [TIME] Observer: RecordPreloader 1.291ms { ring: 0, operation: "update", schemaName: "users", status: "success" }
 [TIME] Observer: JsonSchemaValidator 0.090ms { ring: 1, operation: "update", schemaName: "users", status: "success" }
-[TIME] Observer: SqlObserver 3.257ms { ring: 5, operation: "update", schemaName: "users", status: "success" }
+[TIME] Observer: UpdateSqlObserver 3.257ms { ring: 5, operation: "update", schemaName: "users", status: "success" }
 [TIME] AsyncObserver: CacheInvalidator 1.625ms { ring: 8, operation: "update", status: "success" }
 ```
 
@@ -216,18 +216,18 @@ All observers are automatically tracked with nanosecond precision:
 export default class RecordPreloader extends BaseObserver {
     ring = ObserverRing.DataPreparation;
     operations = ['update', 'delete', 'revert'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         const { system, schemaName, data } = context;
-        
+
         // Preload existing records for efficient access by other observers
         const ids = data.map(record => record.id).filter(Boolean);
         if (ids.length === 0) return;
-        
+
         const existingRecords = await system.database.selectAny(schemaName, {
             where: { id: { $in: ids } }
         });
-        
+
         // Store in context for other observers to use
         context.metadata.set('preloaded_records', Object.freeze(existingRecords));
     }
@@ -240,10 +240,10 @@ export default class RecordPreloader extends BaseObserver {
 export default class JsonSchemaValidator extends BaseObserver {
     ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         const { schema, data } = context;
-        
+
         for (const record of data) {
             // Use Schema object's built-in validation
             schema.validateOrThrow(record);
@@ -258,10 +258,10 @@ export default class JsonSchemaValidator extends BaseObserver {
 export default class SoftDeleteProtector extends BaseObserver {
     ring = ObserverRing.Security;
     operations = ['update', 'delete'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         const preloadedRecords = context.metadata.get('preloaded_records') || [];
-        
+
         for (const record of preloadedRecords) {
             if (record.trashed_at || record.deleted_at) {
                 throw new SecurityError(`Cannot modify ${record.trashed_at ? 'trashed' : 'deleted'} record`);
@@ -289,10 +289,10 @@ describe('CustomValidator Observer', () => {
             operation: 'create',
             data: [{ email: 'test@example.com' }]
         });
-        
+
         await expect(observer.execute(context)).resolves.not.toThrow();
     });
-    
+
     test('should throw ValidationError for invalid data', async () => {
         const observer = new CustomValidator();
         const context = createMockObserverContext({
@@ -300,7 +300,7 @@ describe('CustomValidator Observer', () => {
             operation: 'create',
             data: [{ email: 'invalid-email' }]
         });
-        
+
         await expect(observer.execute(context)).rejects.toThrow(ValidationError);
     });
 });
@@ -325,7 +325,7 @@ describe('Observer Pipeline Integration', () => {
             email: 'test@example.com',
             name: 'Test User'
         });
-        
+
         // Verify all observers ran successfully
         expect(result.id).toBeDefined();
         expect(result.created_at).toBeDefined();
@@ -355,7 +355,7 @@ The data integrity observer pipeline provides universal protection for all datab
 - **All schemas protected**: Every database operation gets validation, security, business logic automatically
 - **Single query preloading**: O(1) vs O(N) database calls for multi-record operations
 - **Read-only safety**: Frozen preloaded objects prevent accidental mutation
-- **Clean SQL transport**: SqlObserver (Ring 5) handles pure database operations after validation
+- **Clean SQL transport**: Sql observers (Ring 5) handle pure database operations after validation
 
 ## Observer Development Workflow
 
@@ -371,7 +371,7 @@ src/observers/all/7/audit-logger.ts            # All schemas, audit ring
 export default class CustomObserver extends BaseObserver {
     ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
-    
+
     async execute(context: ObserverContext): Promise<void> {
         // Implementation
     }

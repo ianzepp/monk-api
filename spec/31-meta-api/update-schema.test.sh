@@ -28,7 +28,9 @@ print_success "Retrieved contact schema: $original_title"
 print_step "Testing PUT /api/meta/contact (adding new field)"
 
 # Create updated schema with additional field
-updated_schema='{
+# Use jq to generate proper JSON to avoid bash escaping issues
+updated_schema=$(jq -n '
+{
     "title": "Contact",
     "description": "Updated customer contact management schema",
     "type": "object",
@@ -73,7 +75,7 @@ updated_schema='{
     },
     "required": ["name", "email"],
     "additionalProperties": false
-}'
+}')
 
 update_response=$(auth_put "api/meta/contact" "$updated_schema")
 assert_success "$update_response"
