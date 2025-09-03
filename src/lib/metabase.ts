@@ -107,7 +107,7 @@ export class Metabase {
     /**
      * Get schema as JSON content
      */
-    async selectOne(schemaName: string): Promise<string> {
+    async selectOne(schemaName: string): Promise<any> {
         const db = this.system.db;
 
         // Get schema record from database (exclude soft-deleted schemas)
@@ -121,10 +121,8 @@ export class Metabase {
         const schemaRecord = schemaResult.rows[0];
         const jsonDefinition = schemaRecord.definition;
 
-        // Return JSON definition as compressed JSON string
-        const jsonOutput = JSON.stringify(jsonDefinition);
-
-        return jsonOutput;
+        // Return JSON definition directly as an object
+        return jsonDefinition;
     }
 
     /**
