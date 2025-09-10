@@ -60,7 +60,7 @@ export function isSystemField(fieldName: string): boolean {
 }
 
 /**
- * Metabase Class - Schema Definition Management
+ * Describe Class - Schema Definition Management
  *
  * Handles schema JSON operations following the same patterns as Database class.
  * Focused purely on schema definition management (no list operations - use Data API).
@@ -71,7 +71,7 @@ export function isSystemField(fieldName: string): boolean {
  * - Schema-specific utilities and DDL generation
  * - Observer access for future deployment scenarios
  */
-export class Metabase {
+export class Describe {
     constructor(private system: System) {}
 
     /**
@@ -185,7 +185,7 @@ export class Metabase {
     async revertOne(schemaName: string): Promise<any> {
         return await this.run('revert', schemaName, async (tx: pg.PoolClient) => {
             // TODO: Implementation - restore soft-deleted schema
-            throw HttpErrors.internal('Metabase.revertOne() not yet implemented', 'NOT_IMPLEMENTED');
+            throw HttpErrors.internal('Describe.revertOne() not yet implemented', 'NOT_IMPLEMENTED');
         });
     }
 
@@ -195,7 +195,7 @@ export class Metabase {
     private async run(operation: string, schemaName: string, fn: (tx: pg.PoolClient) => Promise<any>): Promise<any> {
         const db = this.system.db;
 
-        console.debug(`🔄 Starting metabase operation: ${operation} on schema ${schemaName}`);
+        console.debug(`🔄 Starting describe operation: ${operation} on schema ${schemaName}`);
 
         // Start transaction
         const client = await db.connect();
@@ -210,12 +210,12 @@ export class Metabase {
             const result = await fn(client);
 
             await client.query('COMMIT');
-            console.debug(`✅ Metabase operation completed: ${operation} on ${schemaName}`);
+            console.debug(`✅ Describe operation completed: ${operation} on ${schemaName}`);
 
             return result;
         } catch (error) {
             await client.query('ROLLBACK');
-            console.error(`💥 Metabase operation failed: ${operation} on ${schemaName}`, error);
+            console.error(`💥 Describe operation failed: ${operation} on ${schemaName}`, error);
             throw error;
         } finally {
             client.release();

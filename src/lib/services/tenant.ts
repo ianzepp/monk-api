@@ -18,7 +18,7 @@ import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { Metabase } from '@src/lib/metabase.js';
+import { Describe } from '@src/lib/describe.js';
 import pg from 'pg';
 
 export interface TenantInfo {
@@ -551,7 +551,7 @@ export class TenantService {
         // Set up database context for the tenant
         DatabaseConnection.setDatabaseForRequest(mockContext as any, databaseName);
 
-        const metabase = new Metabase(mockContext as any);
+        const describe = new Describe(mockContext as any);
 
         try {
             // Note: This method is disabled because user schema is now SQL-managed via init-tenant.sql
