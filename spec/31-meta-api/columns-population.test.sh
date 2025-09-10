@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API Columns Population Test  
+# Describe API Columns Population Test  
 # Tests that creating a schema correctly populates the columns table
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API columns table population"
+print_step "Testing Describe API columns table population"
 
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "columns-population" "basic"
@@ -232,4 +232,4 @@ else
     test_fail "Incorrect column count: got $total_columns, expected $expected_count"
 fi
 
-print_success "Meta API columns population tests completed successfully"
+print_success "Describe API columns population tests completed successfully"

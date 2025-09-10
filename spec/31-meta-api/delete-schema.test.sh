@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API Schema Deletion Test  
+# Describe API Schema Deletion Test  
 # Tests deleting schemas using the template's pre-loaded schemas
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API schema deletion"
+print_step "Testing Describe API schema deletion"
 
 # Setup test environment with template and admin authentication
 setup_test_with_template "delete-schema"
@@ -82,4 +82,4 @@ test_nonexistent_schema "delete"
 # Test 6: Test deleting protected schema
 test_endpoint_error "DELETE" "api/meta/users" "" "SCHEMA_PROTECTED" "Protected schema deletion"
 
-print_success "Meta API schema deletion tests completed successfully"
+print_success "Describe API schema deletion tests completed successfully"

@@ -151,7 +151,7 @@ app.use('/api/*', middleware.responseJsonMiddleware);
 app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
 app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
 
-// 31-meta-api: Meta API routes
+// 31-meta-api: Describe API routes
 app.post('/api/meta/:schema', metaRoutes.SchemaPost); // Create schema (with URL name)
 app.get('/api/meta/:schema', metaRoutes.SchemaGet); // Get schema
 app.put('/api/meta/:schema', metaRoutes.SchemaPut); // Update schema

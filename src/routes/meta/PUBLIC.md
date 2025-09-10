@@ -1,9 +1,9 @@
-# Meta API
+# Describe API
 
-The Meta API provides schema definition and management capabilities for the Monk platform. Create, update, and manage JSON Schema definitions that define the structure and validation rules for your data.
+The Describe API provides schema definition and management capabilities for the Monk platform. Create, update, and manage JSON Schema definitions that define the structure and validation rules for your data.
 
 ## Base Path
-All Meta API routes are prefixed with `/api/meta`
+All Describe API routes are prefixed with `/api/meta`
 
 ## Content Type
 - **Request**: `application/json`
@@ -301,9 +301,9 @@ GET /api/data/users
 - **Validation updates**: Constraint changes validated against existing records
 - **Soft delete**: Schemas can be deleted and restored without data loss
 
-## When to Use Meta API
+## When to Use Describe API
 
-**Use Meta API when:**
+**Use Describe API when:**
 - Defining new data structures and validation rules
 - Managing schema evolution and data model changes
 - Setting up new applications or modules
@@ -326,4 +326,4 @@ GET /api/data/users
 - **Bulk Operations**: `/docs/bulk` - Batch schema and record operations
 - **Advanced Search**: `/docs/find` - Complex queries across schema data
 
-The Meta API provides the foundation for all data operations by defining the structure, validation rules, and relationships that govern your application's data model.
+The Describe API provides the foundation for all data operations by defining the structure, validation rules, and relationships that govern your application's data model.

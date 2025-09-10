@@ -10,7 +10,7 @@ Security tests for API endpoint protection and request/response security.
 
 **Test Focus:**
 - Data API endpoint security
-- Meta API endpoint security
+- Describe API endpoint security
 - Bulk operation security validation
 - Request body injection testing
 - Observer security integration

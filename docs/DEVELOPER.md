@@ -126,7 +126,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 #### **System Class** (`src/lib/system.ts`)
 - **Per-request context**: Created by `systemContextMiddleware` and attached to `context.get('system')`
 - **Database routing**: JWT-based multi-tenant database context management
-- **Service Integration**: Provides system.database.* and system.metabase.* unified APIs
+- **Service Integration**: Provides system.database.* and system.describe.* unified APIs
 - **Dependency Injection**: Provides SystemContext interface to break circular dependencies
 
 #### **Database Class** (`src/lib/database.ts`)
@@ -136,7 +136,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Universal Coverage**: createOne, updateOne, deleteOne, selectOne, revertOne all use observers
 - **Parameterized SQL**: Secure queries using Filter.toSQL() pattern with PostgreSQL placeholders
 
-#### **Metabase Class** (`src/lib/metabase.ts`)
+#### **Describe Class** (`src/lib/describe.ts`)
 - **Schema Definition Management**: Clean CRUD operations for schema JSON definitions
 - **Consistent Patterns**: Follows Database class architecture (createOne, selectOne, updateOne, deleteOne)
 - **Transaction Management**: Clean begin/commit/rollback pattern with run() method

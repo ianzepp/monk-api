@@ -15,7 +15,7 @@
 |-----|-----------|---------|
 | **Auth API** | `/api/auth/*` | User account management and privilege escalation |
 | **Data API** | `/api/data/:schema[/:record]` | CRUD operations for schema records |
-| **Meta API** | `/api/meta/:schema` | JSON Schema definition management |
+| **Describe API** | `/api/meta/:schema` | JSON Schema definition management |
 | **File API** | `/api/file/*` | Filesystem-like interface to data and metadata |
 | **Bulk API** | `/api/bulk` | Batch operations across multiple schemas |
 | **Find API** | `/api/find/:schema` | Advanced search and filtering |

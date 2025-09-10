@@ -1,0 +1,268 @@
+# WARP.md
+
+This file provides guidance to WARP (warp.dev) when working with code in this repository.
+
+## Project Overview
+
+Monk API is a lightweight Platform-as-a-Service (PaaS) backend built with Hono and TypeScript, featuring a multi-tenant architecture with a sophisticated ring-based observer system. The API provides schema-first development with automatic REST endpoint generation from JSON Schema definitions.
+
+## Development Commands
+
+### Quick Setup
+```bash
+# Complete automated setup (handles everything)
+npm run autoinstall
+
+# Start development server with auto-reload
+npm run start:dev
+
+# Verify installation
+npm run spec:sh spec/10-connection/basic-ping.test.sh
+```
+
+### Build Commands
+```bash
+# TypeScript compilation
+npm run build                    # Full build via scripts/build.sh
+npm run build:watch             # Auto-rebuild on changes
+npm run build:spec              # Build specification tests
+
+# Development workflow
+npm run start:dev                # API server with auto-reload (uses concurrently)
+npm run start:bg                 # Start server in background
+npm run stop                     # Stop all running servers
+```
+
+### Testing Commands
+```bash
+# Comprehensive test suite (TypeScript + Shell)
+npm run test                     # Run all tests via scripts/test.sh
+npm run spec                     # Same as npm run test
+
+# TypeScript tests (Vitest)
+npm run spec:ts [pattern]        # TypeScript tests only
+npm run spec:ts unit             # Unit tests only
+npm run spec:ts unit/filter      # Specific unit test module
+
+# Shell integration tests
+npm run spec:sh [pattern]        # Shell tests only
+npm run spec:sh 15               # Authentication tests (directory-based)
+npm run spec:sh basic-ping       # Basic connectivity test
+```
+
+### CLI Operations (monk-cli required)
+```bash
+# Server management
+monk server use local            # Switch to local development server
+monk server add staging api.example.com:443
+
+# Authentication
+monk auth login local-test root   # Login to test tenant
+
+# Schema operations  
+cat contacts.json | monk meta create schema
+monk meta select schema contacts
+monk meta delete schema contacts
+
+# Data operations (runs through observer pipeline)
+echo '{"name":"test"}' | monk data create users
+monk data select users [id]
+```
+
+## Architecture Overview
+
+### Core Technology Stack
+- **Hono**: Ultra-fast web framework (~50KB) with multi-runtime support
+- **TypeScript**: Strict typing with ES2022 target and ESNext modules
+- **PostgreSQL**: Multi-tenant database with automatic tenant routing
+- **AJV**: High-performance JSON Schema validation with caching
+- **Node.js 18+**: Primary runtime environment
+
+### Multi-Tenant Architecture
+The system uses a sophisticated multi-tenant model:
+- **Main Database**: `monk_main` contains tenant registry and user management
+- **Tenant Databases**: Each tenant gets isolated database (`tenant_12345678`)
+- **JWT-Based Routing**: Automatic tenant detection and database routing via JWT tokens
+- **Schema Independence**: Tenants can evolve schemas without interference
+
+### System Class Architecture
+The core `System` class (`src/lib/system.ts`) provides per-request context management:
+- **Per-Request Instances**: Replaces singleton pattern for clean request isolation  
+- **Database Context**: Provides `system.database.*` and `system.metabase.*` unified APIs
+- **JWT Integration**: Extracts user info, tenant routing from Hono context
+- **Transaction Management**: Supports SQL transactions through `system.tx`
+
+### Observer System (Ring-Based Execution)
+All database operations flow through a 10-ring observer pipeline (`src/lib/observers/`):
+
+```typescript
+Ring 0: DataPreparation  // Input loading, merging, preparation
+Ring 1: InputValidation  // Schema validation, format checks
+Ring 2: Security         // Access control, rate limiting
+Ring 3: Business         // Complex business logic, workflows  
+Ring 4: Enrichment       // Data defaults, computed fields
+Ring 5: Database         // 🎯 SQL EXECUTION (core ring)
+Ring 6: PostDatabase     // Immediate post-DB processing
+Ring 7: Audit           // Change tracking, compliance logging
+Ring 8: Integration     // External APIs, webhooks (async)
+Ring 9: Notification    // User notifications, alerts (async)
+```
+
+**Observer File Structure**:
+- `src/observers/:schema/:ring/observer-name.ts` - Schema-specific observers
+- `src/observers/all/:ring/observer-name.ts` - Universal observers for all schemas
+
+### Route Organization
+Routes follow a file-path = URL-path pattern:
+- `src/routes/data/:schema/GET.ts` → `GET /api/data/:schema`
+- `src/routes/meta/:schema/POST.ts` → `POST /api/meta/:schema`
+- `src/public/auth/routes.ts` → Public authentication endpoints
+
+### Middleware Stack
+- **systemContextMiddleware**: Creates System instance per request
+- **jwtValidationMiddleware**: JWT parsing and tenant routing
+- **userValidationMiddleware**: User authentication and ACL setup
+- **responseJsonMiddleware**: Automatic JSON response formatting
+
+## Development Patterns
+
+### Creating New API Endpoints
+Use the `withParams` pattern for consistent parameter extraction:
+
+```typescript
+// src/routes/new-endpoint/GET.ts
+import { withParams } from '@src/lib/route-helpers.js';
+
+export default withParams(async (context, { system, schema, body }) => {
+    const result = await system.database.selectAny(schema!);
+    setRouteResult(context, result);
+});
+```
+
+### Observer Development
+Create observers in the appropriate ring and schema directory:
+
+```typescript
+// src/observers/users/1/custom-validation.ts
+export default class CustomValidator extends BaseObserver {
+    ring = ObserverRing.InputValidation;
+    operations = ['create', 'update'] as const;
+
+    async execute(context: ObserverContext): Promise<void> {
+        // Custom validation logic
+        for (const record of context.data) {
+            schema.validateOrThrow(record);
+        }
+    }
+}
+```
+
+### Database Operations
+All database operations should use the System class methods which automatically route through the observer pipeline:
+
+```typescript
+// ✅ Correct - uses observer pipeline
+await system.database.createOne(schema, data);
+await system.database.updateOne(schema, id, data);
+
+// ❌ Avoid - bypasses observers and business logic
+await system.db.query('INSERT INTO...');
+```
+
+### Testing Patterns
+The project uses dual testing approach:
+- **TypeScript Tests** (`*.test.ts`): Unit tests, observer tests, utility functions
+- **Shell Tests** (`*.test.sh`): Integration tests, API endpoint validation, CLI testing
+
+Tests are organized side-by-side in `spec/` directory with pattern-based execution.
+
+## Configuration Management
+
+### Environment Variables (Required)
+```bash
+DATABASE_URL=postgresql://user:pass@localhost:5432/
+JWT_SECRET=your-secret-key
+NODE_ENV=development|staging|production
+PORT=9001
+```
+
+### User Configuration (`~/.config/monk/`)
+- **server.json**: Server registry and current server selection
+- **env.json**: Environment variables and database configuration
+- **test.json**: Test run history and configuration
+
+## Key Files and Directories
+
+### Source Structure (`src/`)
+- `index.ts` - Main server entry point with route registration
+- `lib/system.ts` - Core System class for request context
+- `lib/database.ts` - Database operations with observer integration
+- `lib/metabase.ts` - Schema management and DDL operations
+- `lib/observers/` - Observer system implementation
+- `routes/` - API endpoint handlers organized by URL structure
+- `public/` - Public endpoints (no authentication required)
+
+### Configuration Files
+- `package.json` - Dependencies and npm scripts
+- `tsconfig.json` - TypeScript configuration with path aliases
+- `vitest.config.ts` - Test configuration with aliases
+- `.env.example` - Environment variable template
+
+### Development Scripts (`scripts/`)
+- `autoinstall.sh` - Complete development environment setup
+- `build.sh` - TypeScript compilation with asset copying
+- `test.sh` - Complete test suite execution
+- `start-bg.sh` - Background server startup
+
+## Performance Considerations
+
+### Schema Operations
+- Schema definitions cached with SHA256 checksums (15x performance improvement)
+- Compiled AJV validators reused across requests
+- Batch operations minimize database round trips
+
+### Database Optimizations
+- Connection pooling per tenant via System class
+- Raw SQL generation avoids ORM overhead
+- Observer pipeline optimized with selective ring execution
+- Parameterized queries prevent SQL injection
+
+### Observer Performance
+- Ring execution matrix skips irrelevant rings per operation type
+- Universal observers (`all/`) execute across all schemas efficiently
+- Async rings (8-9) don't block request completion
+
+## Troubleshooting
+
+### Common Issues
+```bash
+# TypeScript compilation errors
+npm run build                    # Check for build errors
+
+# Database connectivity
+psql -d monk_main -c "SELECT 1;" # Test PostgreSQL connection
+
+# Server health check
+curl http://localhost:9001/       # Verify API server
+
+# Reset development environment
+rm -rf ~/.config/monk/ && npm run autoinstall
+```
+
+### Environment Setup Problems
+- Ensure PostgreSQL is running and accessible
+- Verify all required environment variables are set
+- Check `~/.config/monk/` configuration files
+- Run `npm run autoinstall` for complete reset
+
+## Version Management
+
+The project uses managed npm versioning:
+```bash
+npm run version:patch    # Bug fixes (2.0.0-rc4 → 2.0.0-rc5)
+npm run version:minor    # New features (2.0.0-rc4 → 2.1.0)
+npm run version:major    # Breaking changes (2.0.0-rc4 → 3.0.0)
+```
+
+Each version command automatically runs pre-validation, creates Git tags, and generates GitHub releases.
+

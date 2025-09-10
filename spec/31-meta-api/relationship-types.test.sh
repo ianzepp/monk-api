@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API x-monk-relationship Test  
+# Describe API x-monk-relationship Test  
 # Tests that owned and referenced relationship types are correctly parsed and stored
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API x-monk-relationship types"
+print_step "Testing Describe API x-monk-relationship types"
 
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "relationship-types" "basic"
@@ -254,4 +254,4 @@ else
     test_fail "Non-relationship column 'text' incorrectly included in relationship results"
 fi
 
-print_success "Meta API x-monk-relationship tests completed successfully"
+print_success "Describe API x-monk-relationship tests completed successfully"

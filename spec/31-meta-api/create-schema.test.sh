@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-# Meta API Schema Creation Test
+# Describe API Schema Creation Test
 # Tests creating a new schema using the account.json definition
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API schema creation"
+print_step "Testing Describe API schema creation"
 
 # Setup isolated test environment and admin authentication
 setup_test_isolated "create-schema"
@@ -93,4 +93,4 @@ fi
 # Test 4: Test duplicate schema creation (should fail)
 test_endpoint_error "POST" "api/meta/account" "$account_schema" "" "Duplicate schema creation"
 
-print_success "Meta API schema creation tests completed successfully"
+print_success "Describe API schema creation tests completed successfully"

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API Nested Relationships Test  
+# Describe API Nested Relationships Test  
 # Tests the GET /api/data/:schema/:record/:relationship endpoint
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API nested relationship endpoints"
+print_step "Testing Describe API nested relationship endpoints"
 
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "nested-relationships" "basic"
@@ -213,4 +213,4 @@ else
     test_fail "Expected empty array, got $empty_count items"
 fi
 
-print_success "Meta API nested relationship tests completed successfully"
+print_success "Describe API nested relationship tests completed successfully"

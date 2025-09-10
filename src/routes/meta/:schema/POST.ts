@@ -17,7 +17,7 @@ export default withTransactionParams(async (context, { system, schema, body }) =
         }
     }
 
-    // Create schema via Metabase using the final determined name
+    // Create schema via Describe using the final determined name
     const result = await system.metabase.createOne(schema!, body);
 
     // Set result for middleware formatting

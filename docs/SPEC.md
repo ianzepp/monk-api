@@ -119,7 +119,7 @@ spec/
 ├── 40-49-unit/              # Unit testing series
 │   ├── 41-database/         # Database connection tests
 │   ├── 42-tenant/           # Tenant service tests
-│   ├── 43-schema/           # Reserved for schema/metabase unit tests
+│   ├── 43-schema/           # Reserved for schema/describe unit tests
 │   ├── 44-filter/           # Filter system tests
 │   ├── 45-observers/        # Observer system tests
 │   ├── 46-file/             # FS middleware tests
@@ -205,7 +205,7 @@ describe('Database Operations', () => {
 
     // Create schema
     const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
-    await testContext.metabase.createOne('account', schemaJson);
+    await testContext.describe.createOne('account', schemaJson);
   });
 
   afterAll(async () => {

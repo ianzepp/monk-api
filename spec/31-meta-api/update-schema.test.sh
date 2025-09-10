@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API Schema Update Test
+# Describe API Schema Update Test
 # Tests updating schemas using the template's pre-loaded schemas
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API schema updates"
+print_step "Testing Describe API schema updates"
 
 # Setup test environment with template and admin authentication
 setup_test_with_template "update-schema"
@@ -132,4 +132,4 @@ test_nonexistent_schema "update" "$updated_schema"
 # Test 5: Test updating protected schema
 test_endpoint_error "PUT" "api/meta/users" "$updated_schema" "SCHEMA_PROTECTED" "Protected schema update"
 
-print_success "Meta API schema update tests completed successfully"
+print_success "Describe API schema update tests completed successfully"

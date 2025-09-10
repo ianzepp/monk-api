@@ -5,7 +5,7 @@
 2. [Endpoint Patterns](#endpoint-patterns)
 3. [Authentication](#authentication)
 4. [Data API](#data-api)
-5. [Meta API](#meta-api)
+5. [Describe API](#meta-api)
 6. [Root API](#root-api)
 7. [Common Development Tasks](#common-development-tasks)
 
@@ -218,11 +218,11 @@ Three-tier access pattern:
 - **🔍 Direct Access**: Allow ID retrieval (`GET /api/data/:schema/:id`)
 - **🔒 Update Operations**: Block modifications until restoration
 
-## Meta API
+## Describe API
 
 ### Schema Management
 
-The Meta API handles JSON schema definitions and DDL generation:
+The Describe API handles JSON schema definitions and DDL generation:
 
 #### Create Schema
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API Schema Selection Test
+# Describe API Schema Selection Test
 # Tests retrieving schemas using the template's pre-loaded schemas
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API schema selection"
+print_step "Testing Describe API schema selection"
 
 # Setup test environment with template and admin authentication
 setup_test_with_template "select-schema"
@@ -94,4 +94,4 @@ else
     test_fail "Contact schema missing required 'name' field"
 fi
 
-print_success "Meta API schema selection tests completed successfully"
+print_success "Describe API schema selection tests completed successfully"
