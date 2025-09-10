@@ -72,5 +72,5 @@ export interface SystemContextWithInfrastructure extends SystemContext {
     readonly database: any; // Avoid importing Database class to prevent circular deps
 
     /** Describe instance for schema operations */
-    readonly metabase: any; // Avoid importing Describe class to prevent circular deps
+    readonly describe: any; // Avoid importing Describe class to prevent circular deps
 }

@@ -2,7 +2,7 @@ import pg from 'pg';
 
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
-import { Metabase } from '@src/lib/metabase.js';
+import { Describe } from '@src/lib/describe.js';
 import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
 
 /**
@@ -29,7 +29,7 @@ export class System implements SystemContextWithInfrastructure {
 
     // System services
     public readonly database: Database;
-    public readonly metabase: Metabase;
+    public readonly describe!: Describe;
 
     constructor(c: Context, options: SystemOptions = {}) {
         this.context = c;
@@ -50,7 +50,7 @@ export class System implements SystemContextWithInfrastructure {
 
         // Initialize service instances with clean dependency injection
         this.database = new Database(this);
-        this.metabase = new Metabase(this);
+        this.describe = new Describe(this);
 
         // Store query options as read-only
         this.options = Object.freeze({ ...options });

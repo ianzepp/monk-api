@@ -4,7 +4,7 @@ import addFormats from 'ajv-formats';
 
 import type { FilterData } from '@src/lib/filter-types.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
-import { isSystemField } from '@src/lib/metabase.js';
+import { isSystemField } from '@src/lib/describe.js';
 
 export type SchemaName = string;
 
