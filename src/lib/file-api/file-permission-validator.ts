@@ -68,7 +68,7 @@ export class FilePermissionValidator {
         switch (path.type) {
             case 'root':
             case 'data':
-            case 'meta':
+            case 'describe':
                 // Directory operations - generally allowed for authenticated users
                 return {
                     allowed: true,
@@ -113,7 +113,7 @@ export class FilePermissionValidator {
             } catch (error) {
                 throw HttpErrors.notFound(`Schema not found: ${path.schema}`, 'SCHEMA_NOT_FOUND');
             }
-            
+
             return {
                 allowed: false,
                 reason: 'schema_deletion_forbidden',
@@ -276,23 +276,23 @@ export class FilePermissionValidator {
         if (context.is_root || context.user_role === 'root') {
             return { permissions: 'rwx', access_level: 'full' };
         }
-        
+
         // Map user roles to appropriate permissions when ACL arrays are empty
         // This provides secure defaults based on authenticated user's role
         switch (context.user_role) {
             case 'full':
                 return { permissions: 'rwx', access_level: 'full' };
-            
+
             case 'edit':
                 return { permissions: 'rw-', access_level: 'edit' };
-            
+
             case 'read':
                 return { permissions: 'r--', access_level: 'read' };
-            
+
             case 'deny':
             case 'none':
                 return { permissions: '---', access_level: 'none' };
-            
+
             default:
                 // For unknown roles, provide conservative read-only access
                 // This ensures authenticated users can still access data when ACLs are empty
@@ -319,13 +319,13 @@ export class FilePermissionValidator {
             case 'size':
             case 'modify-time':
                 return 'read';
-            
+
             case 'store':
                 return 'edit';
-                
+
             case 'delete':
                 return 'full';
-                
+
             default:
                 return 'full';
         }
@@ -336,19 +336,19 @@ export class FilePermissionValidator {
      */
     private static hasRequiredAccess(operation: FileOperationType, userAccess: AccessLevel): boolean {
         const required = FilePermissionValidator.getRequiredAccess(operation);
-        
+
         if (required === 'read') {
             return ['read', 'edit', 'full'].includes(userAccess);
         }
-        
+
         if (required === 'edit') {
             return ['edit', 'full'].includes(userAccess);
         }
-        
+
         if (required === 'full') {
             return userAccess === 'full';
         }
-        
+
         return false;
     }
 

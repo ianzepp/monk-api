@@ -1,6 +1,6 @@
 /**
  * System Context Types
- * 
+ *
  * Defines the context interface needed by business logic components,
  * breaking circular dependencies while maintaining clean architecture.
  */
@@ -29,10 +29,10 @@ export interface UserInfo {
 
 /**
  * SystemContext interface - Defines the context needed by business logic components
- * 
+ *
  * This interface provides the essential context information that Database, Schema,
  * and other business logic classes need without creating circular dependencies.
- * 
+ *
  * Design principles:
  * - Contains only business context, not infrastructure concerns
  * - Forward-compatible with Ring 5 observer architecture (Issue #94)
@@ -41,20 +41,20 @@ export interface UserInfo {
 export interface SystemContext {
     /** User ID from authentication context */
     readonly userId: string;
-    
+
     /** Query behavior options (soft delete handling, etc.) */
     readonly options: Readonly<SystemOptions>;
-    
+
     /**
      * Get comprehensive user information from the request context
      */
     getUser(): UserInfo;
-    
+
     /**
      * Check if the current user has root access level
      */
     isRoot(): boolean;
-    
+
 }
 
 /**
@@ -64,13 +64,13 @@ export interface SystemContext {
 export interface SystemContextWithInfrastructure extends SystemContext {
     /** Database connection - always available for database operations */
     readonly db: any; // Avoid importing pg.Pool to prevent circular deps
-    
+
     /** Transaction context - set by SQL Observer when transactions needed */
     tx?: any; // Avoid importing pg.PoolClient to prevent circular deps
-    
+
     /** Database instance for high-level operations */
     readonly database: any; // Avoid importing Database class to prevent circular deps
-    
-    /** Metabase instance for schema operations */
-    readonly metabase: any; // Avoid importing Metabase class to prevent circular deps
+
+    /** Describe instance for schema operations */
+    readonly describe: any; // Avoid importing Describe class to prevent circular deps
 }

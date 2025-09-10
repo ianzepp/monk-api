@@ -121,12 +121,12 @@ template_db_final="monk_template_$TEMPLATE_NAME"
 if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_final" 2>/dev/null; then
     if [[ "$FORCE_REBUILD" == true ]]; then
         print_warning "Template database '$template_db_final' already exists - removing due to --force"
-        
+
         # Stop any running server to close connections
         print_step "Stopping server to close database connections"
         npm run stop >/dev/null 2>&1 || true
         sleep 2
-        
+
         # Remove the existing template database
         print_step "Dropping existing template database: $template_db_final"
         if dropdb "$template_db_final" 2>/dev/null; then
@@ -134,7 +134,7 @@ if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_fi
         else
             print_warning "Failed to drop template database (may not exist or have active connections)"
         fi
-        
+
         # Remove the tenant registry entry
         print_step "Cleaning tenant registry"
         if psql -d monk_main -c "DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'" >/dev/null 2>&1; then
@@ -142,7 +142,7 @@ if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_fi
         else
             print_warning "Failed to clean tenant registry (may not exist)"
         fi
-        
+
         print_success "Existing template cleaned - proceeding with rebuild"
     else
         print_warning "Template database '$template_db_final' already exists"
@@ -199,7 +199,7 @@ for schema_file in "$FIXTURES_DIR/schemas"/*.json; do
     print_step "Loading schema: $schema_name"
 
     schema_content=$(cat "$schema_file")
-    response=$(auth_post "api/meta/$schema_name" "$schema_content")
+    response=$(auth_post "api/describe/$schema_name" "$schema_content")
 
     if echo "$response" | jq -e '.success == true' >/dev/null; then
         print_success "Schema '$schema_name' loaded successfully"

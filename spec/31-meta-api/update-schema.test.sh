@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API Schema Update Test
+# Describe API Schema Update Test
 # Tests updating schemas using the template's pre-loaded schemas
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API schema updates"
+print_step "Testing Describe API schema updates"
 
 # Setup test environment with template and admin authentication
 setup_test_with_template "update-schema"
@@ -16,7 +16,7 @@ setup_admin_auth
 # Test 1: Get existing contact schema to update
 print_step "Getting existing contact schema for update"
 
-original_response=$(auth_get "api/meta/contact")
+original_response=$(auth_get "api/describe/contact")
 assert_success "$original_response"
 
 original_schema=$(extract_data "$original_response")
@@ -25,7 +25,7 @@ original_title=$(echo "$original_schema" | jq -r '.title')
 print_success "Retrieved contact schema: $original_title"
 
 # Test 2: Update the contact schema (add new field)
-print_step "Testing PUT /api/meta/contact (adding new field)"
+print_step "Testing PUT /api/describe/contact (adding new field)"
 
 # Create updated schema with additional field
 # Use jq to generate proper JSON to avoid bash escaping issues
@@ -77,7 +77,7 @@ updated_schema=$(jq -n '
     "additionalProperties": false
 }')
 
-update_response=$(auth_put "api/meta/contact" "$updated_schema")
+update_response=$(auth_put "api/describe/contact" "$updated_schema")
 assert_success "$update_response"
 
 # Verify update response
@@ -91,9 +91,9 @@ else
 fi
 
 # Test 3: Verify schema was actually updated
-print_step "Testing GET /api/meta/contact to verify update"
+print_step "Testing GET /api/describe/contact to verify update"
 
-verify_response=$(auth_get "api/meta/contact")
+verify_response=$(auth_get "api/describe/contact")
 assert_success "$verify_response"
 
 updated_schema_data=$(extract_data "$verify_response")
@@ -126,10 +126,10 @@ else
     test_fail "Existing 'company' field lost during update"
 fi
 
-# Test 4: Test updating non-existent schema  
+# Test 4: Test updating non-existent schema
 test_nonexistent_schema "update" "$updated_schema"
 
 # Test 5: Test updating protected schema
-test_endpoint_error "PUT" "api/meta/users" "$updated_schema" "SCHEMA_PROTECTED" "Protected schema update"
+test_endpoint_error "PUT" "api/describe/users" "$updated_schema" "SCHEMA_PROTECTED" "Protected schema update"
 
-print_success "Meta API schema update tests completed successfully"
+print_success "Describe API schema update tests completed successfully"

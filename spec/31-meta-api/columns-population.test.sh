@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API Columns Population Test  
+# Describe API Columns Population Test
 # Tests that creating a schema correctly populates the columns table
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API columns table population"
+print_step "Testing Describe API columns table population"
 
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "columns-population" "basic"
@@ -16,7 +16,7 @@ setup_admin_auth
 # Test 1: Create a tasks schema with various field types and constraints
 print_step "Creating tasks schema with diverse field types"
 
-# Define comprehensive tasks schema to test column metadata extraction
+# Define comprehensive tasks schema to test column describe extraction
 tasks_schema='{
     "title": "Tasks",
     "description": "Task management schema for testing columns population",
@@ -29,7 +29,7 @@ tasks_schema='{
             "description": "Task title"
         },
         "description": {
-            "type": "string", 
+            "type": "string",
             "description": "Detailed task description"
         },
         "status": {
@@ -80,7 +80,7 @@ tasks_schema='{
 }'
 
 # Create the schema
-create_response=$(auth_post "api/meta/tasks" "$tasks_schema")
+create_response=$(auth_post "api/describe/tasks" "$tasks_schema")
 assert_success "$create_response"
 
 # Verify schema creation response
@@ -95,10 +95,10 @@ else
 fi
 
 # Test 2: Query the columns table to verify metadata was populated
-print_step "Querying columns table for tasks schema metadata"
+print_step "Querying columns table for tasks schema describe"
 
 # Use psql to directly query the tenant's columns table
-columns_query="SELECT 
+columns_query="SELECT
     column_name,
     pg_type,
     is_required,
@@ -108,7 +108,7 @@ columns_query="SELECT
     pattern_regex,
     enum_values,
     description
-FROM columns 
+FROM columns
 WHERE schema_name = 'tasks'
 ORDER BY column_name"
 
@@ -121,12 +121,12 @@ fi
 print_success "Successfully queried columns table"
 
 # Test 3: Verify expected columns are present with correct metadata
-print_step "Validating column metadata"
+print_step "Validating column describe"
 
 # Check for specific columns and their properties
 expected_columns=(
     "assignee_id:UUID:false"
-    "description:TEXT:false" 
+    "description:TEXT:false"
     "due_date:TIMESTAMP:false"
     "estimated_hours:DECIMAL:false"
     "is_urgent:BOOLEAN:false:false"
@@ -139,34 +139,34 @@ expected_columns=(
 
 for expected in "${expected_columns[@]}"; do
     IFS=':' read -r col_name pg_type required default_val <<< "$expected"
-    
+
     # Extract this column's data from the query result
     col_data=$(echo "$columns_result" | grep -E "^\s*$col_name\s*\|")
-    
+
     if [[ -z "$col_data" ]]; then
         test_fail "Column '$col_name' not found in columns table"
         continue
     fi
-    
+
     # Parse the column data (format: column_name | pg_type | is_required | default_value | constraints | description)
     actual_type=$(echo "$col_data" | cut -d'|' -f2 | xargs)
     actual_required=$(echo "$col_data" | cut -d'|' -f3 | xargs)
     actual_default=$(echo "$col_data" | cut -d'|' -f4 | xargs)
-    
+
     # Verify PostgreSQL type mapping
     if [[ "$actual_type" == "$pg_type" ]]; then
         print_success "Column '$col_name': correct PG type ($pg_type)"
     else
         test_fail "Column '$col_name': expected PG type '$pg_type', got '$actual_type'"
     fi
-    
+
     # Verify required flag
     if [[ "$actual_required" == "$required" ]]; then
         print_success "Column '$col_name': correct required flag ($required)"
     else
         test_fail "Column '$col_name': expected required '$required', got '$actual_required'"
     fi
-    
+
     # Verify default value (if specified)
     if [[ -n "$default_val" ]]; then
         if [[ "$actual_default" == "$default_val" ]]; then
@@ -189,7 +189,7 @@ if [[ -z "$constraint_result" ]]; then
 else
     constraint_count=$(echo "$constraint_result" | wc -l | xargs)
     print_success "Found constraint metadata for $constraint_count columns"
-    
+
     # Verify a specific constraint (title field should have minimum=1, maximum=200)
     title_constraint_row=$(echo "$constraint_result" | grep "title")
     if [[ -n "$title_constraint_row" ]]; then
@@ -212,7 +212,7 @@ system_fields=("id" "access_read" "access_edit" "access_full" "access_deny" "cre
 
 for system_field in "${system_fields[@]}"; do
     system_check=$(psql -d "$TEST_DATABASE_NAME" -t -c "SELECT COUNT(*) FROM columns WHERE schema_name = 'tasks' AND column_name = '$system_field'" | xargs)
-    
+
     if [[ "$system_check" == "0" ]]; then
         print_success "System field '$system_field' correctly excluded from columns table"
     else
@@ -232,4 +232,4 @@ else
     test_fail "Incorrect column count: got $total_columns, expected $expected_count"
 fi
 
-print_success "Meta API columns population tests completed successfully"
+print_success "Describe API columns population tests completed successfully"

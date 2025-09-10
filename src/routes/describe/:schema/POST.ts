@@ -5,7 +5,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 export default withTransactionParams(async (context, { system, schema, body }) => {
     // Parse JSON to get schema name from content
-    const jsonSchema = system.metabase.parseSchema(body);
+    const jsonSchema = system.describe.parseSchema(body);
     const jsonName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
 
     // URL schema must match jsonName if force !== true
@@ -17,8 +17,8 @@ export default withTransactionParams(async (context, { system, schema, body }) =
         }
     }
 
-    // Create schema via Metabase using the final determined name
-    const result = await system.metabase.createOne(schema!, body);
+    // Create schema via Describe using the final determined name
+    const result = await system.describe.createOne(schema!, body);
 
     // Set result for middleware formatting
     setRouteResult(context, result);

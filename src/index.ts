@@ -55,7 +55,7 @@ import * as publicDocsRoutes from '@src/public/docs/routes.js';
 // Protected API handlers (JWT + user validation required)
 import * as authRoutes from '@src/routes/auth/routes.js';
 import * as dataRoutes from '@src/routes/data/routes.js';
-import * as metaRoutes from '@src/routes/meta/routes.js';
+import * as describeRoutes from '@src/routes/describe/routes.js';
 import * as fileRoutes from '@src/routes/file/routes.js';
 import * as aclsRoutes from '@src/routes/acls/routes.js';
 import { rootRouter } from '@src/routes/root/index.js';
@@ -101,7 +101,7 @@ app.get('/', c => {
             public_auth: '/auth/* (public - token acquisition)',
             docs: '/docs[/:api] (public)',
             auth: '/api/auth/* (protected - user management)',
-            meta: '/api/meta/:schema (protected)',
+            describe: '/api/describe/:schema (protected)',
             data: '/api/data/:schema[/:record] (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
@@ -112,7 +112,7 @@ app.get('/', c => {
         documentation: {
             home: ['/README.md'],
             auth: ['/docs/auth', '/docs/public-auth'],
-            meta: ['/docs/meta'],
+            describe: ['/docs/describe'],
             data: ['/docs/data'],
             find: ['/docs/find'],
             bulk: ['/docs/bulk'],
@@ -151,11 +151,11 @@ app.use('/api/*', middleware.responseJsonMiddleware);
 app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
 app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
 
-// 31-meta-api: Meta API routes
-app.post('/api/meta/:schema', metaRoutes.SchemaPost); // Create schema (with URL name)
-app.get('/api/meta/:schema', metaRoutes.SchemaGet); // Get schema
-app.put('/api/meta/:schema', metaRoutes.SchemaPut); // Update schema
-app.delete('/api/meta/:schema', metaRoutes.SchemaDelete); // Delete schema
+// 31-describe-api: Describe API routes
+app.post('/api/describe/:schema', describeRoutes.SchemaPost); // Create schema (with URL name)
+app.get('/api/describe/:schema', describeRoutes.SchemaGet); // Get schema
+app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema
+app.delete('/api/describe/:schema', describeRoutes.SchemaDelete); // Delete schema
 
 // 32-data-api: Data API routes
 app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records

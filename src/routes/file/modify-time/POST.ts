@@ -46,7 +46,7 @@ export default withParams(async (context, { system, body }) => {
     switch (filePath.type) {
         case 'root':
         case 'data':
-        case 'meta':
+        case 'describe':
             // Directories use current time
             timestampInfo = {
                 timestamp: new Date(),

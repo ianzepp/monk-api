@@ -33,7 +33,7 @@ print_success "Tenant admin authentication configured"
 
 # Create account schema
 account_schema=$(cat spec/account.json)
-schema_response=$(curl -s -X POST "http://localhost:9001/api/meta/account" \
+schema_response=$(curl -s -X POST "http://localhost:9001/api/describe/account" \
     -H "Authorization: Bearer $JWT_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$account_schema")
@@ -73,7 +73,7 @@ else
 fi
 
 # Test schema read
-schema_read_response=$(curl -s -X GET "http://localhost:9001/api/meta/account" \
+schema_read_response=$(curl -s -X GET "http://localhost:9001/api/describe/account" \
     -H "Authorization: Bearer $JWT_TOKEN")
 
 if echo "$schema_read_response" | jq -e '.success == true' >/dev/null; then
@@ -173,7 +173,7 @@ fi
 print_step "Testing schema operations denial"
 
 # Schema read
-denied_schema_read=$(curl -s -X GET "http://localhost:9001/api/meta/account" \
+denied_schema_read=$(curl -s -X GET "http://localhost:9001/api/describe/account" \
     -H "Authorization: Bearer $JWT_TOKEN" || echo '{"success":false}')
 
 if echo "$denied_schema_read" | jq -e '.success == false' >/dev/null; then
@@ -184,7 +184,7 @@ fi
 
 # Schema update
 updated_schema='{"title": "Updated Account", "properties": {"name": {"type": "string"}}, "additionalProperties": false}'
-denied_schema_update=$(curl -s -X PUT "http://localhost:9001/api/meta/account" \
+denied_schema_update=$(curl -s -X PUT "http://localhost:9001/api/describe/account" \
     -H "Authorization: Bearer $JWT_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$updated_schema" || echo '{"success":false}')

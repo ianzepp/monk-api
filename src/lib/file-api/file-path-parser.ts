@@ -26,7 +26,7 @@ export class FilePathParser {
         try {
             // Validate the path before processing
             FilePathParser.validatePath(path, options);
-            
+
             return FilePathParser.parsePath(path, options);
         } catch (error) {
             logger.warn('FilePathParser validation failed', {
@@ -102,7 +102,7 @@ export class FilePathParser {
     private static parsePath(path: string, options: FilePathOptions): FilePath {
         const cleanPath = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
         const parts = cleanPath.split('/').filter(p => p.length > 0);
-        
+
         const hasWildcards = path.includes('*') || path.includes('?') || path.includes('(') || path.includes('[');
         const isCrossSchema = hasWildcards && parts.length >= 2 && parts[1].includes('*');
 
@@ -120,14 +120,14 @@ export class FilePathParser {
         }
 
         // Validate API prefix
-        if (parts[0] !== 'data' && parts[0] !== 'meta') {
-            throw HttpErrors.badRequest('Path must start with /data or /meta', 'INVALID_API_PREFIX');
+        if (parts[0] !== 'data' && parts[0] !== 'describe') {
+            throw HttpErrors.badRequest('Path must start with /data or /describe', 'INVALID_API_PREFIX');
         }
 
-        // API root: /data or /meta
+        // API root: /data or /describe
         if (parts.length === 1) {
             return {
-                type: parts[0] as 'data' | 'meta',
+                type: parts[0] as 'data' | 'describe',
                 operation: options.operation,
                 is_directory: true,
                 has_wildcards: false,
@@ -140,7 +140,7 @@ export class FilePathParser {
         // Schema level: /data/users
         if (parts.length === 2) {
             FilePathParser.validateSchemaName(parts[1]);
-            
+
             return {
                 type: 'schema',
                 operation: options.operation,
@@ -156,7 +156,7 @@ export class FilePathParser {
         // Record level: /data/users/123 or /data/users/123.json
         if (parts.length === 3) {
             FilePathParser.validateSchemaName(parts[1]);
-            
+
             let recordId = parts[2];
             let isJsonFile = false;
             let isDirectory = true;
@@ -274,7 +274,7 @@ export class FilePathParser {
      */
     static extractWildcards(path: string): string[] {
         const parts = path.split('/').filter(p => p.length > 0);
-        return parts.filter(part => 
+        return parts.filter(part =>
             part.includes('*') || part.includes('?') || part.includes('(') || part.includes('[')
         );
     }

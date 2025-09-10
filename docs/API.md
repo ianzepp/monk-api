@@ -5,7 +5,7 @@
 2. [Endpoint Patterns](#endpoint-patterns)
 3. [Authentication](#authentication)
 4. [Data API](#data-api)
-5. [Meta API](#meta-api)
+5. [Describe API](#describe-api)
 6. [Root API](#root-api)
 7. [Common Development Tasks](#common-development-tasks)
 
@@ -18,7 +18,7 @@ Routes follow intuitive file organization where file path directly maps to URL p
 ```
 /routes/data/:schema/POST.ts        → POST /api/data/:schema
 /routes/data/:schema/:id/GET.ts     → GET /api/data/:schema/:id
-/routes/meta/:schema/PUT.ts         → PUT /api/meta/:schema
+/routes/describe/:schema/PUT.ts         → PUT /api/describe/:schema
 /routes/auth/login/POST.ts          → POST /auth/login
 ```
 
@@ -45,7 +45,7 @@ export default withParams(async (context, { system, schema, body }) => {
 ```bash
 # Barrel exports for clean organization
 src/routes/data/routes.ts     # SchemaGet, SchemaPost, RecordGet, RecordPut
-src/routes/meta/routes.ts     # SchemaGet, SchemaPost, SchemaPut, SchemaDelete
+src/routes/describe/routes.ts     # SchemaGet, SchemaPost, SchemaPut, SchemaDelete
 src/routes/health/GET.ts      # Health check in proper file structure
 
 # Clean index.ts registration
@@ -218,17 +218,17 @@ Three-tier access pattern:
 - **🔍 Direct Access**: Allow ID retrieval (`GET /api/data/:schema/:id`)
 - **🔒 Update Operations**: Block modifications until restoration
 
-## Meta API
+## Describe API
 
 ### Schema Management
 
-The Meta API handles JSON schema definitions and DDL generation:
+The Describe API handles JSON schema definitions and DDL generation:
 
 #### Create Schema
 
 **Preferred: URL Name Pattern**
 ```bash
-POST /api/meta/:schema[?force=true]
+POST /api/describe/:schema[?force=true]
 Content-Type: application/json
 Authorization: Bearer <jwt>
 
@@ -257,7 +257,7 @@ Authorization: Bearer <jwt>
 
 **Legacy: JSON Name Pattern**
 ```bash
-POST /api/meta
+POST /api/describe
 Content-Type: application/json
 Authorization: Bearer <jwt>
 
@@ -278,7 +278,7 @@ Authorization: Bearer <jwt>
 
 #### List Schemas
 ```bash
-GET /api/meta
+GET /api/describe
 Authorization: Bearer <jwt>
 
 # Response: Array of schema names
@@ -287,7 +287,7 @@ Authorization: Bearer <jwt>
 
 #### Get Schema
 ```bash
-GET /api/meta/:schema
+GET /api/describe/:schema
 Authorization: Bearer <jwt>
 
 # Response: Complete JSON schema definition
@@ -295,7 +295,7 @@ Authorization: Bearer <jwt>
 
 #### Update Schema
 ```bash
-PUT /api/meta/:schema
+PUT /api/describe/:schema
 Content-Type: application/json
 Authorization: Bearer <jwt>
 
@@ -305,7 +305,7 @@ Authorization: Bearer <jwt>
 
 #### Delete Schema
 ```bash
-DELETE /api/meta/:schema
+DELETE /api/describe/:schema
 Authorization: Bearer <jwt>
 
 # Soft deletes schema and associated table
@@ -568,7 +568,7 @@ app.route('/api/new', newRouter);
 tests/schemas/new-schema.json
 
 # 2. Deploy for testing
-cat tests/schemas/new-schema.json | monk meta create schema
+cat tests/schemas/new-schema.json | monk describe create schema
 
 # 3. Test CRUD operations
 echo '{"field": "value"}' | monk data create new-schema
@@ -592,13 +592,13 @@ curl -X POST http://localhost:9001/api/data/users \
   -d '{"name": "Test User", "email": "test@example.com"}'
 
 # Schema operations (preferred URL pattern)
-curl -X POST http://localhost:9001/api/meta/test-schema \
+curl -X POST http://localhost:9001/api/describe/test-schema \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{"title": "Test Schema", "type": "object", "properties": {"name": {"type": "string"}}}'
 
 # Schema operations (legacy pattern)
-curl -X POST http://localhost:9001/api/meta \
+curl -X POST http://localhost:9001/api/describe \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{"name": "test-schema", "title": "Test Schema"}}'

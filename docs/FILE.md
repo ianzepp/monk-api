@@ -14,7 +14,7 @@ File middleware provides filesystem-like access to API data with intuitive path 
 /data/accounts/account-123/           → List record fields + .json file
 /data/accounts/account-123.json       → Complete record as JSON
 /data/accounts/account-123/email      → Individual field access
-/meta/accounts                        → Schema definitions
+/describe/accounts                        → Schema definitions
 ```
 
 ## Core File Operations

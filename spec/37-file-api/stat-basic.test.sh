@@ -26,7 +26,7 @@ validate_file_metadata "$root_stat" "directory" "Root directory"
 
 root_children=$(echo "$root_stat" | jq -r '.children_count')
 if [[ "$root_children" -eq 2 ]]; then
-    print_success "Root directory has 2 children (/data, /meta)"
+    print_success "Root directory has 2 children (/data, /describe)"
 else
     test_fail "Root should have 2 children, got: $root_children"
 fi

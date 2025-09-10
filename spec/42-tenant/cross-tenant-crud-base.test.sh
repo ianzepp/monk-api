@@ -33,7 +33,7 @@ print_success "Tenant A admin authentication configured"
 
 # Create account schema for Tenant A
 account_schema_a=$(cat spec/account.json)
-schema_response_a=$(curl -s -X POST "http://localhost:9001/api/meta/account" \
+schema_response_a=$(curl -s -X POST "http://localhost:9001/api/describe/account" \
     -H "Authorization: Bearer $JWT_TOKEN_A" \
     -H "Content-Type: application/json" \
     -d "$account_schema_a")
@@ -77,7 +77,7 @@ fi
 print_success "Tenant B admin authentication configured"
 
 # Create account schema for Tenant B
-schema_response_b=$(curl -s -X POST "http://localhost:9001/api/meta/account" \
+schema_response_b=$(curl -s -X POST "http://localhost:9001/api/describe/account" \
     -H "Authorization: Bearer $JWT_TOKEN_B" \
     -H "Content-Type: application/json" \
     -d "$account_schema_a")
@@ -88,7 +88,7 @@ fi
 
 print_success "Account schema created for Tenant B"
 
-# Create account record in Tenant B  
+# Create account record in Tenant B
 account_data_b=$(generate_test_account "Tenant B User" "userb@example.com" "userb")
 account_response_b=$(curl -s -X POST "http://localhost:9001/api/data/account" \
     -H "Authorization: Bearer $JWT_TOKEN_B" \
@@ -117,7 +117,7 @@ else
     test_fail "SECURITY VIOLATION: Tenant A can read Tenant B's account: $cross_read_response"
 fi
 
-# Test 2: Tenant B cannot see Tenant A's account  
+# Test 2: Tenant B cannot see Tenant A's account
 print_step "Testing Tenant B cannot read Tenant A's account"
 
 cross_read_response_b=$(curl -s -X GET "http://localhost:9001/api/data/account/$ACCOUNT_A_ID" \

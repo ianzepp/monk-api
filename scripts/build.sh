@@ -67,7 +67,7 @@ main() {
     fi
 
     # Step 3: Copy non-TypeScript assets
-    # Note: src/metadata was removed - test fixture schemas are in spec/fixtures/schema/
+    # Note: src/describedata was removed - test fixture schemas are in spec/fixtures/schema/
     log_info "Checking for additional assets to copy..."
 
     # Copy markdown documentation files
@@ -108,7 +108,7 @@ main() {
     log_info "Compilation summary:"
     log_info "  TypeScript files: $ts_files"
     log_info "  JavaScript files: $js_files"
-    log_info "  Metadata files: $(find dist/metadata -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+    log_info "  Metadata files: $(find dist/describedata -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  Documentation files: $(find dist -name 'PUBLIC.md' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  SQL files: $(find dist/sql -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')"
 

@@ -16,16 +16,16 @@ source "$(dirname "${BASH_SOURCE[0]}")/test-tenant-helper.sh"
 setup_test_with_template() {
     local test_name="$1"
     local template="${2:-basic}"
-    
+
     wait_for_server
     print_step "Creating test tenant from fixtures template"
     local tenant_name=$(create_test_tenant_from_template "$test_name" "$template")
     load_test_env
-    
+
     if [[ -z "$tenant_name" ]]; then
         test_fail "Template cloning failed - fixtures template required for this test"
     fi
-    
+
     print_success "Test tenant cloned from template"
     echo "$tenant_name"
 }
@@ -33,7 +33,7 @@ setup_test_with_template() {
 # Complete test setup with isolated tenant (fallback pattern)
 setup_test_isolated() {
     local test_name="$1"
-    
+
     wait_for_server
     setup_isolated_test "$test_name"
     print_success "Isolated test environment ready"
@@ -52,7 +52,7 @@ setup_test_basic() {
 setup_admin_auth() {
     print_step "Setting up authentication for admin user"
     JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "admin")
-    
+
     if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
         print_success "Admin authentication configured"
         export JWT_TOKEN
@@ -65,7 +65,7 @@ setup_admin_auth() {
 setup_root_auth() {
     print_step "Setting up authentication for root user"
     JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "root")
-    
+
     if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
         print_success "Root authentication configured"
         export JWT_TOKEN
@@ -82,15 +82,15 @@ setup_root_auth() {
 extract_and_validate_data() {
     local response="$1"
     local description="${2:-data}"
-    
+
     assert_success "$response"
     assert_has_field "data" "$response"
-    
+
     local data=$(extract_data "$response")
     if [[ "$data" == "null" ]]; then
         test_fail "$description is null in response"
     fi
-    
+
     echo "$data"
 }
 
@@ -99,7 +99,7 @@ validate_record_fields() {
     local record="$1"
     shift
     local fields=("$@")
-    
+
     for field in "${fields[@]}"; do
         if echo "$record" | jq -e ".$field != null" >/dev/null; then
             print_success "Record contains expected '$field' field"
@@ -112,14 +112,14 @@ validate_record_fields() {
 # Validate system timestamps are present
 validate_system_timestamps() {
     local record="$1"
-    
+
     local created_at=$(echo "$record" | jq -r '.created_at')
     if [[ -n "$created_at" && "$created_at" != "null" ]]; then
         print_success "Record has created_at timestamp: $created_at"
     else
         test_fail "Expected created_at timestamp to be set"
     fi
-    
+
     local updated_at=$(echo "$record" | jq -r '.updated_at')
     if [[ -n "$updated_at" && "$updated_at" != "null" ]]; then
         print_success "Record has updated_at timestamp: $updated_at"
@@ -139,9 +139,9 @@ test_endpoint_error() {
     local data="$3"
     local expected_code="$4"
     local description="$5"
-    
+
     print_step "Testing $method $endpoint ($description)"
-    
+
     local response
     case "$method" in
         "GET") response=$(auth_get "$endpoint" || echo '{"success":false}') ;;
@@ -149,12 +149,12 @@ test_endpoint_error() {
         "PUT") response=$(auth_put "$endpoint" "$data" || echo '{"success":false}') ;;
         "DELETE") response=$(auth_delete "$endpoint" || echo '{"success":false}') ;;
     esac
-    
+
     assert_error "$response"
     if [[ -n "$expected_code" ]]; then
         assert_error_code "$expected_code" "$response"
     fi
-    
+
     print_success "$description properly returns error"
 }
 
@@ -163,10 +163,10 @@ test_nonexistent_record() {
     local schema="$1"
     local operation="$2"
     local data="${3:-{}}"
-    
+
     local fake_id="00000000-0000-0000-0000-000000000000"
     local endpoint="api/data/$schema/$fake_id"
-    
+
     case "$operation" in
         "get") test_endpoint_error "GET" "$endpoint" "" "" "Non-existent record retrieval" ;;
         "update") test_endpoint_error "PUT" "$endpoint" "$data" "" "Non-existent record update" ;;
@@ -178,9 +178,9 @@ test_nonexistent_record() {
 test_nonexistent_schema() {
     local operation="$1"
     local data="${2:-{}}"
-    
-    local endpoint="api/meta/nonexistent"
-    
+
+    local endpoint="api/describe/nonexistent"
+
     case "$operation" in
         "get") test_endpoint_error "GET" "$endpoint" "" "SCHEMA_NOT_FOUND" "Non-existent schema retrieval" ;;
         "update") test_endpoint_error "PUT" "$endpoint" "$data" "SCHEMA_NOT_FOUND" "Non-existent schema update" ;;
@@ -197,7 +197,7 @@ generate_test_account() {
     local name="${1:-Test User}"
     local email="${2:-testuser@example.com}"
     local username="${3:-testuser}"
-    
+
     cat <<EOF
 [{
     "name": "$name",
@@ -215,7 +215,7 @@ EOF
 generate_simple_schema() {
     local title="$1"
     local required_fields="$2"
-    
+
     cat <<EOF
 {
     "title": "$title",

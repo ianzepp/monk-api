@@ -5,7 +5,7 @@ set -e
 # Creates fresh tenant, runs test file, and cleans up tenant
 #
 # Usage: scripts/test-one.sh <test-file> [--verbose]
-# 
+#
 # Architecture: Three-Layer Design (Layer 2)
 # Layer 1 (test-all.sh): Pattern matching and orchestration
 # Layer 2 (this script): Tenant lifecycle management
@@ -20,7 +20,7 @@ set -e
 #
 # Examples:
 #   scripts/test-one.sh tests/05-infrastructure/servers-config-test.sh
-#   scripts/test-one.sh tests/20-meta-api/basic-meta-endpoints.sh --verbose
+#   scripts/test-one.sh tests/20-describe-api/basic-describe-endpoints.sh --verbose
 
 # Colors for output
 RED='\033[0;31m'
@@ -41,14 +41,14 @@ cleanup_test_environment() {
         monk auth logout >/dev/null 2>&1 || true
         monk root tenant delete "$TEST_TENANT_NAME" >/dev/null 2>&1 || true
     fi
-    
+
     # Kill API server if we started it
     if [ -n "$API_SERVER_PID" ]; then
         print_info "Stopping test API server (PID: $API_SERVER_PID)"
         kill $API_SERVER_PID 2>/dev/null || true
         wait $API_SERVER_PID 2>/dev/null || true
     fi
-    
+
     # Clean up temporary CLI config directory
     if [ -n "$TEST_CLI_CONFIG" ] && [ -d "$TEST_CLI_CONFIG" ]; then
         print_info "Cleaning up test CLI config: $TEST_CLI_CONFIG"
@@ -83,7 +83,7 @@ if [ -z "$test_file" ]; then
     echo ""
     echo "Examples:"
     echo "  $0 tests/05-infrastructure/servers-config-test.sh"
-    echo "  $0 tests/20-meta-api/basic-meta-endpoints.sh --verbose"
+    echo "  $0 tests/20-describe-api/basic-describe-endpoints.sh --verbose"
     exit 1
 fi
 
@@ -116,10 +116,10 @@ print_info "Using isolated CLI config: $TEST_CLI_CONFIG"
 if [[ "$test_file" == */0[0-9]-* ]]; then
     print_info "Infrastructure test detected - running without tenant setup"
     echo
-    
+
     # Run test directly without tenant lifecycle management
     start_time=$(date +%s)
-    
+
     if (cd "$test_dir" && "./$(basename "$test_file")"); then
         end_time=$(date +%s)
         duration=$((end_time - start_time))
@@ -158,14 +158,14 @@ print_info "Setting up isolated test environment..."
 find_available_port() {
     local start_port=$1
     local end_port=${2:-$((start_port + 99))}
-    
+
     for port in $(seq $start_port $end_port); do
         if ! lsof -i :$port >/dev/null 2>&1; then
             echo $port
             return 0
         fi
     done
-    
+
     print_error "No available ports in range $start_port-$end_port"
     exit 1
 }
@@ -316,22 +316,22 @@ start_time=$(date +%s)
 if (cd "$test_dir" && "./$(basename "$test_file")"); then
     end_time=$(date +%s)
     duration=$((end_time - start_time))
-    
+
     # Cleanup test environment
     echo
     cleanup_test_environment
-    
+
     echo
     print_success "Test passed: $test_name (${duration}s)"
     exit 0
 else
     end_time=$(date +%s)
     duration=$((end_time - start_time))
-    
+
     # Cleanup test environment
     echo
     cleanup_test_environment
-    
+
     echo
     print_error "Test failed: $test_name (${duration}s)"
     exit 1

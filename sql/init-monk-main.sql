@@ -10,7 +10,7 @@
 
 -- tenants registry table to store multi-tenant database routing information
 -- This table maps tenants names to their respective databases and hosts
--- Structure matches metabase JSON schema format for consistency
+-- Structure matches describe JSON schema format for consistency
 CREATE TABLE "tenants" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "name" VARCHAR(255) NOT NULL UNIQUE,          -- Unique tenants identifier

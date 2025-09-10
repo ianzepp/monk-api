@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Meta API Schema Deletion Test  
+# Describe API Schema Deletion Test
 # Tests deleting schemas using the template's pre-loaded schemas
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing Meta API schema deletion"
+print_step "Testing Describe API schema deletion"
 
 # Setup test environment with template and admin authentication
 setup_test_with_template "delete-schema"
@@ -16,7 +16,7 @@ setup_admin_auth
 # Test 1: Verify contact schema exists before deletion
 print_step "Verifying contact schema exists before deletion"
 
-pre_delete_response=$(auth_get "api/meta/contact")
+pre_delete_response=$(auth_get "api/describe/contact")
 assert_success "$pre_delete_response"
 
 pre_delete_schema=$(extract_data "$pre_delete_response")
@@ -29,9 +29,9 @@ else
 fi
 
 # Test 2: Delete the contact schema
-print_step "Testing DELETE /api/meta/contact"
+print_step "Testing DELETE /api/describe/contact"
 
-delete_response=$(auth_delete "api/meta/contact")
+delete_response=$(auth_delete "api/describe/contact")
 assert_success "$delete_response"
 
 # Verify deletion response
@@ -52,9 +52,9 @@ else
 fi
 
 # Test 3: Verify schema no longer accessible
-print_step "Testing GET /api/meta/contact (should fail after deletion)"
+print_step "Testing GET /api/describe/contact (should fail after deletion)"
 
-post_delete_response=$(auth_get "api/meta/contact" || echo '{"success":false}')
+post_delete_response=$(auth_get "api/describe/contact" || echo '{"success":false}')
 if echo "$post_delete_response" | jq -e '.success == false' >/dev/null; then
     print_success "Deleted schema properly returns error on access"
 else
@@ -64,7 +64,7 @@ fi
 # Test 4: Verify account schema remains intact
 print_step "Verifying other schemas remain intact"
 
-account_response=$(auth_get "api/meta/account")
+account_response=$(auth_get "api/describe/account")
 assert_success "$account_response"
 
 account_schema=$(extract_data "$account_response")
@@ -80,6 +80,6 @@ fi
 test_nonexistent_schema "delete"
 
 # Test 6: Test deleting protected schema
-test_endpoint_error "DELETE" "api/meta/users" "" "SCHEMA_PROTECTED" "Protected schema deletion"
+test_endpoint_error "DELETE" "api/describe/users" "" "SCHEMA_PROTECTED" "Protected schema deletion"
 
-print_success "Meta API schema deletion tests completed successfully"
+print_success "Describe API schema deletion tests completed successfully"

@@ -1,9 +1,9 @@
 /**
  * Shared types and interfaces for File API system
- * 
+ *
  * This file contains all shared interfaces, enums, and types used across
  * File API routes to eliminate duplication and ensure consistency.
- * 
+ *
  * Following the established patterns from Filter system refactoring.
  */
 
@@ -47,7 +47,7 @@ export interface FileMetadata {
 // Path Parsing Types
 // ===========================
 
-export type FilePathType = 'root' | 'data' | 'meta' | 'schema' | 'record' | 'field';
+export type FilePathType = 'root' | 'data' | 'describe' | 'schema' | 'record' | 'field';
 export type FileOperationType = 'list' | 'retrieve' | 'store' | 'delete' | 'stat' | 'size' | 'modify-time';
 
 export interface FilePath {

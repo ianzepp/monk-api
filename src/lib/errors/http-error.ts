@@ -8,8 +8,8 @@
  * - Add statusCode, errorCode properties
  * - Export common error factory methods
  * 
- * Phase 2: Update Metabase Operations
- * - Replace all 'throw new Error()' calls in metabase.ts with HttpError
+ * Phase 2: Update Describe Operations
+ * - Replace all 'throw new Error()' calls in describe.ts with HttpError
  * - Map business logic errors to appropriate HTTP status codes:
  *   - 400: Schema validation, parsing, required field errors
  *   - 403: Protected schema modification attempts  

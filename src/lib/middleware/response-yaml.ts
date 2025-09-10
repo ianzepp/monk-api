@@ -7,7 +7,7 @@
 import type { Context, Next } from 'hono';
 
 /**
- * JSON response middleware for /api/meta/* routes
+ * JSON response middleware for /api/describe/* routes
  *
  * Automatically formats route results as JSON responses and handles errors consistently.
  */
@@ -25,13 +25,13 @@ export async function responseYamlMiddleware(context: Context, next: Next) {
             });
         }
     } catch (error) {
-        // Consistent error handling for all meta operations
-        console.error(`Meta API error: ${context.req.method} ${context.req.path}`, error);
+        // Consistent error handling for all describe operations
+        console.error(`Describe API error: ${context.req.method} ${context.req.path}`, error);
 
         return new Response(
             JSON.stringify({
                 success: false,
-                error: error instanceof Error ? error.message : 'Meta operation failed',
+                error: error instanceof Error ? error.message : 'Describe operation failed',
             }),
             {
                 headers: { 'Content-Type': 'application/json' },

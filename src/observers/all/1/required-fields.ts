@@ -1,7 +1,7 @@
 /**
  * Required Fields Validator
- * 
- * Universal validator that checks for required fields based on schema metadata
+ *
+ * Universal validator that checks for required fields based on schema describe
  * Ring: 1 (Input Validation) - Schema: % (all schemas) - Operations: create, update
  */
 
@@ -38,28 +38,28 @@ export default class RequiredFieldsValidator extends BaseObserver {
 
     private getRequiredFields(schema: string, operation: string): string[] {
         const schemaFields = this.requiredFields[schema] || [];
-        
+
         // For updates, we might be more lenient on some fields
         if (operation === 'update') {
             // Example: email might not be required for updates
             return schemaFields.filter(field => field !== 'email');
         }
-        
+
         return schemaFields;
     }
 
     private hasValue(data: any, field: string): boolean {
         const value = data[field];
-        
+
         // Check for null, undefined, empty string, or empty arrays
         if (value === null || value === undefined || value === '') {
             return false;
         }
-        
+
         if (Array.isArray(value) && value.length === 0) {
             return false;
         }
-        
+
         return true;
     }
 }
