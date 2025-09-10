@@ -185,7 +185,7 @@ export class TenantService {
             // Initialize tenant database schema
             await this.initializeTenantSchema(databaseName);
 
-            // Create user schema via metabase (API-managed user table)
+            // Create user schema via describe (API-managed user table)
             // DISABLED: User table is already created by init-tenant.sql during initializeTenantSchema()
             // This was redundant schema creation that caused mockContext architectural issues
             // await this.createUserSchema(databaseName);
@@ -538,10 +538,10 @@ export class TenantService {
     }
 
     /**
-     * Create user schema via metabase for API-managed user table
+     * Create user schema via describe for API-managed user table
      */
     private static async createUserSchema(databaseName: string): Promise<void> {
-        // Create a system context for metabase operations
+        // Create a system context for describe operations
         const mockContext = {
             env: { JWT_SECRET: process.env['JWT_SECRET']! },
             get: () => undefined,
@@ -558,12 +558,12 @@ export class TenantService {
             // Test fixture schemas are located in spec/fixtures/schema/ (not src/metadata)
             // const userSchemaYaml = '...';
 
-            // Create user schema via metabase (proper DDL generation + schema registration)
+            // Create user schema via describe (proper DDL generation + schema registration)
             // await metabase.createOne('schemas', userSchemaYaml);
 
-            logger.info('User schema created via metabase', { databaseName });
+            logger.info('User schema created via describe', { databaseName });
         } catch (error) {
-            logger.warn('Failed to create user schema via metabase', { databaseName, error });
+            logger.warn('Failed to create user schema via describe', { databaseName, error });
             throw new Error(`Failed to create user schema: ${error}`);
         }
     }
