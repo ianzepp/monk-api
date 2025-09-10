@@ -65,11 +65,11 @@ export class Logger {
                 timestamp,
                 level,
                 message,
-                ...(describe && { describe })
+                ...(meta && { meta })
             });
         } else {
             // Pretty format for development
-            const metaStr = describe ? ` ${JSON.stringify(meta)}` : '';
+            const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
             return `${level} ${message}${metaStr}`;
         }
     }
