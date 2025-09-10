@@ -74,7 +74,7 @@ export async function requestTrackingMiddleware(context: Context, next: Next) {
 function extractApiFromPath(path: string): string | null {
     if (path.startsWith('/auth/')) return 'auth';
     if (path.startsWith('/api/data/')) return 'data';
-    if (path.startsWith('/api/meta/')) return 'meta';
+    if (path.startsWith('/api/describe/')) return 'describe';
     if (path.startsWith('/api/file/')) return 'file';
     if (path.startsWith('/api/bulk')) return 'bulk';
     if (path.startsWith('/api/find/')) return 'find';

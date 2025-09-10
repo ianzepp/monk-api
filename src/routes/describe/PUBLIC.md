@@ -3,7 +3,7 @@
 The Describe API provides schema definition and management capabilities for the Monk platform. Create, update, and manage JSON Schema definitions that define the structure and validation rules for your data.
 
 ## Base Path
-All Describe API routes are prefixed with `/api/meta`
+All Describe API routes are prefixed with `/api/describe`
 
 ## Content Type
 - **Request**: `application/json`
@@ -14,7 +14,7 @@ Requires valid JWT token in Authorization header: `Bearer <token>`
 
 ---
 
-## POST /api/meta/:schema
+## POST /api/describe/:schema
 
 Create a new schema definition with automatic table generation.
 
@@ -82,7 +82,7 @@ Create a new schema definition with automatic table generation.
 
 ---
 
-## GET /api/meta/:schema
+## GET /api/describe/:schema
 
 Retrieve an existing schema definition.
 
@@ -115,9 +115,9 @@ Retrieve an existing schema definition.
 
 ---
 
-## PUT /api/meta/:schema
+## PUT /api/describe/:schema
 
-Update an existing schema definition. Changes are applied to both the schema metadata and underlying database table structure.
+Update an existing schema definition. Changes are applied to both the schema describe and underlying database table structure.
 
 ### URL Parameters
 - **schema**: Schema name to update
@@ -159,7 +159,7 @@ Update an existing schema definition. Changes are applied to both the schema met
 
 ---
 
-## DELETE /api/meta/:schema
+## DELETE /api/describe/:schema
 
 Soft delete a schema definition. The schema is marked as deleted but can be restored.
 
@@ -215,7 +215,7 @@ Soft delete a schema definition. The schema is marked as deleted but can be rest
 
 ### User Schema Definition
 ```bash
-curl -X POST http://localhost:9001/api/meta/users \
+curl -X POST http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -232,7 +232,7 @@ curl -X POST http://localhost:9001/api/meta/users \
 
 ### Product Catalog Schema
 ```bash
-curl -X POST http://localhost:9001/api/meta/products \
+curl -X POST http://localhost:9001/api/describe/products \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -251,7 +251,7 @@ curl -X POST http://localhost:9001/api/meta/products \
 
 ### Schema Retrieval
 ```bash
-curl -X GET http://localhost:9001/api/meta/users \
+curl -X GET http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -283,13 +283,13 @@ System schemas cannot be modified or deleted:
 ### Development Workflow
 ```bash
 # 1. Create schema
-POST /api/meta/users
+POST /api/describe/users
 
 # 2. Add data using Data API
 POST /api/data/users
 
 # 3. Update schema as needed
-PUT /api/meta/users
+PUT /api/describe/users
 
 # 4. Query data with new structure
 GET /api/data/users

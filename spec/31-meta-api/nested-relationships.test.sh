@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Describe API Nested Relationships Test  
+# Describe API Nested Relationships Test
 # Tests the GET /api/data/:schema/:record/:relationship endpoint
 
 # Source helpers
@@ -41,7 +41,7 @@ posts_schema='{
     "additionalProperties": false
 }'
 
-create_posts_response=$(auth_post "api/meta/posts" "$posts_schema")
+create_posts_response=$(auth_post "api/describe/posts" "$posts_schema")
 assert_success "$create_posts_response"
 
 posts_data=$(extract_data "$create_posts_response")
@@ -55,7 +55,7 @@ fi
 print_step "Creating comments schema with owned relationship to posts"
 
 comments_schema='{
-    "title": "Comments", 
+    "title": "Comments",
     "description": "Comments with owned relationship to posts",
     "type": "object",
     "properties": {
@@ -82,7 +82,7 @@ comments_schema='{
     "additionalProperties": false
 }'
 
-create_comments_response=$(auth_post "api/meta/comments" "$comments_schema")
+create_comments_response=$(auth_post "api/describe/comments" "$comments_schema")
 assert_success "$create_comments_response"
 
 comments_data=$(extract_data "$create_comments_response")

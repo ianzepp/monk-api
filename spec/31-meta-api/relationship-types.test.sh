@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Note: Removed set -e to handle errors gracefully
 
-# Describe API x-monk-relationship Test  
+# Describe API x-monk-relationship Test
 # Tests that owned and referenced relationship types are correctly parsed and stored
 
 # Source helpers
@@ -42,7 +42,7 @@ relationship_schema='{
         },
         "author_id": {
             "type": "string",
-            "format": "uuid", 
+            "format": "uuid",
             "description": "Comment author (referenced relationship)",
             "x-monk-relationship": {
                 "type": "referenced",
@@ -69,7 +69,7 @@ relationship_schema='{
 }'
 
 # Create the schema
-create_response=$(auth_post "api/meta/comments" "$relationship_schema")
+create_response=$(auth_post "api/describe/comments" "$relationship_schema")
 assert_success "$create_response"
 
 # Verify schema creation response
@@ -87,7 +87,7 @@ fi
 print_step "Querying columns table for relationship metadata"
 
 # Use psql to query relationship columns specifically
-relationship_query="SELECT 
+relationship_query="SELECT
     column_name,
     pg_type,
     relationship_type,
@@ -95,7 +95,7 @@ relationship_query="SELECT
     relationship_name,
     cascade_delete,
     required_relationship
-FROM columns 
+FROM columns
 WHERE schema_name = 'comments' AND relationship_type IS NOT NULL
 ORDER BY column_name"
 
@@ -118,7 +118,7 @@ fi
 # Parse post_id relationship data
 post_id_data=($post_id_row)
 post_relationship_type=$(echo "$post_id_row" | cut -d'|' -f3 | xargs)
-post_related_schema=$(echo "$post_id_row" | cut -d'|' -f4 | xargs) 
+post_related_schema=$(echo "$post_id_row" | cut -d'|' -f4 | xargs)
 post_relationship_name=$(echo "$post_id_row" | cut -d'|' -f5 | xargs)
 post_cascade_delete=$(echo "$post_id_row" | cut -d'|' -f6 | xargs)
 post_required_relationship=$(echo "$post_id_row" | cut -d'|' -f7 | xargs)

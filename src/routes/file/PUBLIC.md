@@ -32,7 +32,7 @@ The File API maps database concepts to filesystem paths for intuitive navigation
 ```
 /                          → Root directory
 /data/                     → List all schemas
-/meta/                     → Schema definitions
+/describe/                     → Schema definitions
 /data/users/               → List all user records
 /data/users/user-123/      → List record fields + .json file
 /data/users/user-123.json  → Complete user record as JSON
@@ -456,7 +456,7 @@ Lightweight file size query for optimal performance.
 ```json
 {
   "success": false,
-  "error": "NOT_A_FILE", 
+  "error": "NOT_A_FILE",
   "error_code": "NOT_A_FILE",
   "message": "SIZE command only works on files, not directories"
 }
@@ -528,7 +528,7 @@ File modification timestamp query in filesystem format.
 {
   "success": false,
   "error": "PERMISSION_DENIED",
-  "error_code": "PERMISSION_DENIED", 
+  "error_code": "PERMISSION_DENIED",
   "message": "User lacks edit permission for record deletion"
 }
 ```

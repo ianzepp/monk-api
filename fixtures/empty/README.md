@@ -11,7 +11,7 @@ Perfect for production tenants who want to start with a clean, empty database co
 ### Schemas (0 files)
 - No schema definitions - tenants will create their own schemas via the API
 
-### Data (0 files)  
+### Data (0 files)
 - No sample data - completely clean slate for production use
 
 ## Core Tables Created
@@ -19,7 +19,7 @@ Perfect for production tenants who want to start with a clean, empty database co
 When this template is built, it creates only the essential infrastructure tables via `sql/init-tenant.sql`:
 
 - **`schemas`** - Schema registry (empty)
-- **`columns`** - Column metadata (empty)  
+- **`columns`** - Column registry (empty)
 - **`users`** - User accounts (contains only root user)
 - **`pings`** - Health check table (empty)
 
@@ -29,7 +29,7 @@ When this template is built, it creates only the essential infrastructure tables
 # Build empty template locally
 npm run fixtures:build empty
 
-# Deploy to Neon 
+# Deploy to Neon
 npm run fixtures:deploy empty --progress
 
 # Use for production tenant creation

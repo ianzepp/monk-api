@@ -91,11 +91,11 @@ export class Describe {
             const ddl = this.generateCreateTableDDL(tableName, jsonSchema);
             await tx.query(ddl);
 
-            // Insert schema metadata
+            // Insert schema describe
             const jsonChecksum = this.generateJsonChecksum(JSON.stringify(jsonContent));
             await this.insertSchemaRecord(tx, schemaName, tableName, jsonSchema, jsonChecksum);
-            
-            // Insert column metadata
+
+            // Insert column describe
             await this.insertColumnRecords(tx, schemaName, jsonSchema);
 
             logger.info('Schema created successfully', { schemaName, tableName });
@@ -136,7 +136,7 @@ export class Describe {
             const jsonChecksum = this.generateJsonChecksum(JSON.stringify(jsonContent));
             const fieldCount = Object.keys(newJsonSchema.properties).length;
 
-            // Update schema metadata record
+            // Update schema describe record
             const updateQuery = `
                 UPDATE schemas
                 SET definition = $1, field_count = $2, json_checksum = $3, updated_at = NOW()
@@ -346,7 +346,7 @@ export class Describe {
         // - Can contain letters, digits, underscores
         // - Max length 63 characters
         // - Case insensitive (but we'll be strict)
-        
+
         if (!columnName || typeof columnName !== 'string') {
             throw HttpErrors.badRequest(`Column name must be a non-empty string`, 'INVALID_COLUMN_NAME');
         }
@@ -380,7 +380,7 @@ export class Describe {
     }
 
     /**
-     * Insert schema metadata record
+     * Insert schema describe record
      */
     private async insertSchemaRecord(tx: pg.PoolClient, schemaName: string, tableName: string, jsonSchema: JsonSchema, jsonChecksum: string): Promise<void> {
         const fieldCount = Object.keys(jsonSchema.properties).length;
@@ -396,7 +396,7 @@ export class Describe {
     }
 
     /**
-     * Insert column metadata records for schema properties
+     * Insert column describe records for schema properties
      */
     private async insertColumnRecords(tx: pg.PoolClient, schemaName: string, jsonSchema: JsonSchema): Promise<void> {
         if (!jsonSchema.properties || Object.keys(jsonSchema.properties).length === 0) {
@@ -404,26 +404,26 @@ export class Describe {
         }
 
         const requiredFields = jsonSchema.required || [];
-        
+
         for (const [columnName, columnDefinition] of Object.entries(jsonSchema.properties)) {
             // Validate column name
             this.validateColumnName(columnName);
-            
+
             // Map JSON Schema type to PostgreSQL type
             const pgType = this.jsonSchemaTypeToPostgres(columnDefinition);
             const isRequired = requiredFields.includes(columnName) ? 'true' : 'false';
             const defaultValue = columnDefinition.default !== undefined ? String(columnDefinition.default) : null;
-            
+
             // Extract constraint and relationship metadata
             const constraintData = this.extractConstraintData(columnDefinition);
             const relationshipData = this.extractRelationshipData(columnDefinition);
-            
+
             const insertQuery = `
                 INSERT INTO columns
                 (id, schema_name, column_name, pg_type, is_required, default_value, relationship_type, related_schema, related_column, relationship_name, cascade_delete, required_relationship, minimum, maximum, pattern_regex, enum_values, is_array, description, created_at, updated_at, access_read, access_edit, access_full, access_deny)
                 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW(), '{}', '{}', '{}', '{}')
             `;
-            
+
             await tx.query(insertQuery, [
                 schemaName,
                 columnName,
@@ -444,10 +444,10 @@ export class Describe {
                 columnDefinition.description || null
             ]);
         }
-        
-        logger.info('Column records inserted', { 
-            schemaName, 
-            columnCount: Object.keys(jsonSchema.properties).length 
+
+        logger.info('Column records inserted', {
+            schemaName,
+            columnCount: Object.keys(jsonSchema.properties).length
         });
     }
 
@@ -470,7 +470,7 @@ export class Describe {
     private extractRelationshipData(columnDefinition: any): any {
         // Check for x-monk-relationship extension
         const xMonkRelationship = columnDefinition['x-monk-relationship'];
-        
+
         if (xMonkRelationship) {
             return {
                 relationshipType: xMonkRelationship.type,
@@ -481,7 +481,7 @@ export class Describe {
                 requiredRelationship: xMonkRelationship.required ?? (xMonkRelationship.type === 'owned')
             };
         }
-        
+
         return {
             relationshipType: null,
             relatedSchema: null,

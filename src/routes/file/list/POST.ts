@@ -60,7 +60,7 @@ export default withParams(async (context, { system, body }) => {
         case 'root':
             entries.push(
                 createRootEntry('data'),
-                createRootEntry('meta')
+                createRootEntry('describe')
             );
             break;
 
@@ -114,7 +114,7 @@ export default withParams(async (context, { system, body }) => {
 
 // Helper functions for clean code organization
 
-function createRootEntry(name: 'data' | 'meta'): FileEntry {
+function createRootEntry(name: 'data' | 'describe'): FileEntry {
     return {
         name,
         file_type: 'd',
@@ -230,7 +230,7 @@ async function handleRecordListing(system: any, filePath: any, entries: FileEntr
         throw new Error(`Record not found: ${filePath.record_id}`);
     }
 
-    const permissionResult = await FilePermissionValidator.validate(system, filePath, 
+    const permissionResult = await FilePermissionValidator.validate(system, filePath,
         FilePermissionValidator.buildContext(system, 'list'));
 
     // Add JSON file entry for the complete record

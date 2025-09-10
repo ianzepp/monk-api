@@ -73,7 +73,7 @@ export class WildcardTranslator {
         const parts = cleanPath.split('/').filter(p => p.length > 0);
 
         // Skip root-level paths that don't contain data operations
-        if (parts.length === 0 || (parts.length === 1 && (parts[0] === 'data' || parts[0] === 'meta'))) {
+        if (parts.length === 0 || (parts.length === 1 && (parts[0] === 'data' || parts[0] === 'describe'))) {
             return {
                 schemas: [],
                 filter: {},

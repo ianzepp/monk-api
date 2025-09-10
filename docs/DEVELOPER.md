@@ -71,8 +71,8 @@ npm run spec:ts unit                   # Unit tests only
 npm run spec:sh 15                     # Authentication tests
 
 # Schema management
-cat contacts.json | monk meta create schema
-monk meta select schema contacts
+cat contacts.json | monk describe create schema
+monk describe select schema contacts
 
 # Data operations (automatic observer pipeline)
 echo '{"name":"test"}' | monk data create users
@@ -103,7 +103,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **CLI Tool**: Available as standalone [monk-cli](https://github.com/ianzepp/monk-cli) project
 - **Persistent Config**: Uses `~/.config/monk/` for servers, auth, and test config
 - **Multi-server**: Switch between development, staging, production environments
-- **Full CRUD**: Complete data and meta operations matching API endpoints
+- **Full CRUD**: Complete data and describe operations matching API endpoints
 
 #### **Observer System** (`src/lib/observers/`, `src/observers/`)
 - **Ring-Based Execution**: 10 ordered rings (0-9) for structured business logic execution
@@ -145,7 +145,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 #### **Middleware Architecture** (`src/lib/middleware/`)
 - **systemContextMiddleware**: Universal System setup and global error handling
 - **responseJsonMiddleware**: Automatic JSON formatting for `/api/data/*` routes
-- **responseJsonMiddleware**: Enhanced JSON formatting with automatic error handling for `/api/meta/*` routes
+- **responseJsonMiddleware**: Enhanced JSON formatting with automatic error handling for `/api/describe/*` routes
 
 > **📖 For complete API documentation, see [docs/API.md](docs/API.md)**
 
@@ -201,13 +201,13 @@ monk ping
 #### **Schema Development**
 ```bash
 # Create schema from JSON
-cat contacts.json | monk meta create schema
+cat contacts.json | monk describe create schema
 
 # Read new schema JSON
-monk meta select schema contacts
+monk describe select schema contacts
 
 # Delete schema
-monk meta delete schema contacts
+monk describe delete schema contacts
 ```
 
 ### Observer Development
@@ -453,8 +453,8 @@ npm run spec:sh 15                     # Auth tests
 npm run spec:one spec/path/test.test.ts # Single test
 
 # Schema management
-cat contacts.json | monk meta create schema
-monk meta select schema contacts
+cat contacts.json | monk describe create schema
+monk describe select schema contacts
 
 # Data operations (automatic observer pipeline)
 echo '{"field":"value"}' | monk data create contacts

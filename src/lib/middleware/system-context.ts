@@ -59,7 +59,7 @@ export async function systemContextMiddleware(context: Context, next: Next) {
  * Helper for route handlers to set their result for automatic formatting
  *
  * Use this for data API routes that should be JSON formatted.
- * Meta API routes use system.metabase methods with automatic JSON formatting.
+ * Describe API routes use system.describe methods with automatic JSON formatting.
  */
 export function setRouteResult(context: Context, result: any) {
     context.set('routeResult', result);

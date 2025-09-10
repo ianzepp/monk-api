@@ -1,5 +1,5 @@
 /**
- * Meta API Route Barrel Export
+ * Describe API Route Barrel Export
  *
  * Schema management operations using clean naming convention:
  * - Schema operations: SchemaGet, SchemaPost, SchemaPut, SchemaDelete

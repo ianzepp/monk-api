@@ -5,7 +5,7 @@ set -e
 # Finds spec tests by pattern and runs them with vitest
 #
 # Usage: scripts/spec-all.sh [pattern] [--verbose]
-# 
+#
 # Features:
 # - Pattern-based test discovery and filtering for spec/ directory
 # - Runs vitest with specific test file patterns
@@ -66,13 +66,13 @@ echo
 # Function to find spec tests by pattern
 find_spec_tests_by_pattern() {
     local pattern="$1"
-    
+
     if [ -z "$pattern" ]; then
         # No pattern - find all spec tests
         find "$SPEC_BASE_DIR" -name "*.test.ts" -type f | sort
         return
     fi
-    
+
     # Check if pattern is a number range (e.g., "05", "15-30")
     if echo "$pattern" | grep -E '^[0-9]{2}(-[0-9]{2})?$' >/dev/null 2>&1; then
         # Extract start and end numbers
@@ -83,7 +83,7 @@ find_spec_tests_by_pattern() {
             start_num="$pattern"
             end_num="$pattern"
         fi
-        
+
         # Find spec tests in numeric range
         find "$SPEC_BASE_DIR" -name "*.test.ts" -type f | while read -r file; do
             dir_name=$(basename $(dirname "$file"))
@@ -96,7 +96,7 @@ find_spec_tests_by_pattern() {
         done | sort
         return
     fi
-    
+
     # Text pattern - find tests containing the pattern
     find "$SPEC_BASE_DIR" -name "*.test.ts" -type f | while read -r file; do
         if echo "$file" | grep -i "$pattern" >/dev/null 2>&1; then
@@ -129,12 +129,12 @@ if [ "$test_count" -eq 1 ]; then
 else
     # Multiple test files - run in sorted order for proper dependency flow
     print_info "Running matching spec tests in sorted order"
-    
+
     if [ -n "$verbose_flag" ]; then
         print_info "Running with verbose output"
     fi
-    
-    # Run tests in sorted order (infrastructure → auth → meta → data)
+
+    # Run tests in sorted order (infrastructure → auth → describe → data)
     # This ensures core features are validated before complex features
     echo "$test_files" | while IFS= read -r test_file; do
         if [ -n "$test_file" ]; then

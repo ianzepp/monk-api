@@ -14,9 +14,9 @@ setup_test_with_template "select-schema"
 setup_admin_auth
 
 # Test 1: Get account schema from template
-print_step "Testing GET /api/meta/account"
+print_step "Testing GET /api/describe/account"
 
-response=$(auth_get "api/meta/account")
+response=$(auth_get "api/describe/account")
 assert_success "$response"
 
 # Extract and verify the schema
@@ -47,9 +47,9 @@ else
 fi
 
 # Test 2: Get contact schema from template
-print_step "Testing GET /api/meta/contact"
+print_step "Testing GET /api/describe/contact"
 
-contact_response=$(auth_get "api/meta/contact")
+contact_response=$(auth_get "api/describe/contact")
 assert_success "$contact_response"
 
 contact_schema=$(extract_data "$contact_response")

@@ -15,7 +15,7 @@
 |-----|-----------|---------|
 | **Auth API** | `/api/auth/*` | User account management and privilege escalation |
 | **Data API** | `/api/data/:schema[/:record]` | CRUD operations for schema records |
-| **Describe API** | `/api/meta/:schema` | JSON Schema definition management |
+| **Describe API** | `/api/describe/:schema` | JSON Schema definition management |
 | **File API** | `/api/file/*` | Filesystem-like interface to data and metadata |
 | **Bulk API** | `/api/bulk` | Batch operations across multiple schemas |
 | **Find API** | `/api/find/:schema` | Advanced search and filtering |
@@ -29,7 +29,7 @@
 
 - **Schema-First Development**: Define data models with JSON Schema validation and automatic PostgreSQL table generation
 - **Multi-Tenant Architecture**: Isolated tenant databases with JWT-based routing and security
-- **Filesystem Data Interface**: Intuitive file/directory metaphor for complex data exploration and manipulation  
+- **Filesystem Data Interface**: Intuitive file/directory metaphor for complex data exploration and manipulation
 - **Privilege Escalation**: Enterprise-grade sudo model with time-limited root access for administrative operations
 - **Observer System**: Ring-based business logic execution (0-9 rings) for extensible data processing
 - **Advanced Filtering**: 25+ filter operators with complex logical operations and ACL integration
@@ -64,7 +64,7 @@ curl http://localhost:9001/
       "docs": "/docs[/:api] (public)",
       "auth": "/api/auth/* (protected - user management)",
       "data": "/api/data/:schema[/:record] (protected)",
-      "meta": "/api/meta/:schema (protected)", 
+      "describe": "/api/describe/:schema (protected)",
       "file": "/api/file/* (protected)",
       "bulk": "/api/bulk (protected)",
       "find": "/api/find/:schema (protected)",
@@ -73,8 +73,8 @@ curl http://localhost:9001/
     "documentation": {
       "auth": ["/docs/auth", "/docs/public-auth"],
       "data": ["/docs/data"],
-      "meta": ["/docs/meta"],
-      "file": ["/docs/file"], 
+      "describe": ["/docs/describe"],
+      "file": ["/docs/file"],
       "bulk": ["/docs/bulk"],
       "find": ["/docs/find"],
       "root": ["/docs/root"]
@@ -89,13 +89,13 @@ curl http://localhost:9001/
 - **Token Operations**: `/docs/public-auth` - Login, register, refresh workflows
 - **User Management**: `/docs/auth` - Account management and privilege escalation
 
-### Core API Documentation  
+### Core API Documentation
 - **Data Management**: `/docs/data` - CRUD operations and record management
-- **Schema Management**: `/docs/meta` - JSON Schema definition and validation
+- **Schema Management**: `/docs/describe` - JSON Schema definition and validation
 - **File Interface**: `/docs/file` - Filesystem-like data access and exploration
 
 ### Advanced Operations
-- **Batch Processing**: `/docs/bulk` - Multi-schema transaction operations  
+- **Batch Processing**: `/docs/bulk` - Multi-schema transaction operations
 - **Complex Search**: `/docs/find` - Advanced filtering with 25+ operators
 - **Administration**: `/docs/root` - Tenant management and system operations
 
@@ -103,8 +103,8 @@ curl http://localhost:9001/
 
 1. **Explore APIs**: `GET /` to discover available endpoints and documentation
 2. **Authentication**: Follow `/docs/public-auth` to obtain JWT tokens
-3. **Schema Setup**: Use `/docs/meta` to define your data structures
-4. **Data Operations**: Use `/docs/data` for standard CRUD operations  
+3. **Schema Setup**: Use `/docs/describe` to define your data structures
+4. **Data Operations**: Use `/docs/data` for standard CRUD operations
 5. **Advanced Features**: Explore `/docs/file`, `/docs/bulk`, `/docs/find` for sophisticated data access
 
 ## Response Format
@@ -115,14 +115,14 @@ All endpoints return consistent JSON responses:
 // Success responses
 {"success": true, "data": { /* response data */ }}
 
-// Error responses  
+// Error responses
 {"success": false, "error": "message", "error_code": "CODE"}
 ```
 
 ## Architecture Highlights
 
 - **Ultra-Fast Performance**: Hono framework with ~50KB footprint and multi-runtime support
-- **Schema-Driven**: JSON Schema validation with automatic database DDL generation  
+- **Schema-Driven**: JSON Schema validation with automatic database DDL generation
 - **Multi-Tenant**: Automatic tenant isolation with dedicated PostgreSQL databases
 - **Self-Documenting**: Complete API reference served via HTTP endpoints
 - **Enterprise Security**: Sophisticated authentication with privilege escalation

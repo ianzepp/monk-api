@@ -101,7 +101,7 @@ app.get('/', c => {
             public_auth: '/auth/* (public - token acquisition)',
             docs: '/docs[/:api] (public)',
             auth: '/api/auth/* (protected - user management)',
-            meta: '/api/meta/:schema (protected)',
+            meta: '/api/describe/:schema (protected)',
             data: '/api/data/:schema[/:record] (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
@@ -112,7 +112,7 @@ app.get('/', c => {
         documentation: {
             home: ['/README.md'],
             auth: ['/docs/auth', '/docs/public-auth'],
-            meta: ['/docs/meta'],
+            meta: ['/docs/describe'],
             data: ['/docs/data'],
             find: ['/docs/find'],
             bulk: ['/docs/bulk'],
@@ -151,7 +151,7 @@ app.use('/api/*', middleware.responseJsonMiddleware);
 app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
 app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
 
-// 31-meta-api: Describe API routes
+// 31-describe-api: Describe API routes
 app.post('/api/describe/:schema', describeRoutes.SchemaPost); // Create schema (with URL name)
 app.get('/api/describe/:schema', describeRoutes.SchemaGet); // Get schema
 app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema

@@ -555,11 +555,11 @@ export class TenantService {
 
         try {
             // Note: This method is disabled because user schema is now SQL-managed via init-tenant.sql
-            // Test fixture schemas are located in spec/fixtures/schema/ (not src/metadata)
+            // Test fixture schemas are located in spec/fixtures/schema/ (not src/describedata)
             // const userSchemaYaml = '...';
 
             // Create user schema via describe (proper DDL generation + schema registration)
-            // await metabase.createOne('schemas', userSchemaYaml);
+            // await describe.createOne('schemas', userSchemaYaml);
 
             logger.info('User schema created via describe', { databaseName });
         } catch (error) {

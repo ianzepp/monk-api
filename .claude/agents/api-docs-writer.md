@@ -14,7 +14,7 @@ Your primary responsibilities:
 
 2. **Documentation Structure**: Create or update PUBLIC.md files with:
    - Header section linking to root directory ("GET /") and root README ("GET /README.md")
-   - Clear API endpoint documentation organized by API level (data API, meta API, file API, etc.)
+   - Clear API endpoint documentation organized by API level (data API, describe API, file API, etc.)
    - HTTP error codes in table format
    - Input examples using CURL with appropriate JSON body data
    - Expected output examples with realistic sample data

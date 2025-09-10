@@ -44,7 +44,7 @@ export default withParams(async (context, { system, body }) => {
             break;
 
         case 'data':
-        case 'meta':
+        case 'describe':
             response = await createApiRootStatResponse(system, filePath);
             break;
 
@@ -78,7 +78,7 @@ export default withParams(async (context, { system, body }) => {
 
 function createRootStatResponse(filePath: any): FileStatResponse {
     const currentTime = FileTimestampFormatter.current();
-    
+
     return {
         success: true,
         file_metadata: {
@@ -95,7 +95,7 @@ function createRootStatResponse(filePath: any): FileStatResponse {
             soft_deleted: false,
             access_permissions: ['read'],
         },
-        children_count: 2, // /data and /meta
+        children_count: 2, // /data and /describe
     };
 }
 
@@ -206,7 +206,7 @@ async function createRecordStatResponse(system: any, filePath: any, permissionRe
         };
     } else {
         // Record directory status
-        const fieldCount = Object.keys(record).filter(key => 
+        const fieldCount = Object.keys(record).filter(key =>
             !['id', 'created_at', 'updated_at', 'trashed_at', 'deleted_at'].includes(key)
         ).length;
 

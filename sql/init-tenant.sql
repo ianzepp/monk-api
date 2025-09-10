@@ -58,7 +58,7 @@ ALTER TABLE "columns" ADD CONSTRAINT "columns_schemas_name_schema_name_fk"
     ON DELETE no action ON UPDATE no action;
 
 -- Add unique index for schema+column combination
-CREATE UNIQUE INDEX "idx_columns_schema_column" 
+CREATE UNIQUE INDEX "idx_columns_schema_column"
     ON "columns" ("schema_name", "column_name");
 
 -- Users table to store tenant users and their access levels (1-db-per-tenant)
@@ -104,7 +104,7 @@ VALUES (
     '{
         "type": "object",
         "title": "Schemas",
-        "description": "Schema registry table for meta API schema definitions",
+        "description": "Schema registry table for describe API schema definitions",
         "properties": {
             "name": {
                 "type": "string",
@@ -152,7 +152,7 @@ VALUES (
 );
 
 -- Insert user schema registration to enable user API access
--- This allows GET /api/data/users and GET /api/meta/users to work
+-- This allows GET /api/data/users and GET /api/describe/users to work
 INSERT INTO "schemas" (name, table_name, status, definition, field_count, json_checksum)
 VALUES (
     'users',

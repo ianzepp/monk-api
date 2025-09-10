@@ -14,7 +14,7 @@ set -e
 # Examples:
 #   scripts/spec-sh.sh                                # All shell tests
 #   scripts/spec-sh.sh 15                             # All *.test.sh in 15-*
-#   scripts/spec-sh.sh spec/20-meta-api               # All *.test.sh in 20-meta-api/
+#   scripts/spec-sh.sh spec/20-describe-api               # All *.test.sh in 20-describe-api/
 #   scripts/spec-sh.sh spec/15-auth/basic.test.sh     # Single specific test
 #   scripts/spec-sh.sh auth                           # All *.test.sh matching "auth"
 

@@ -39,7 +39,7 @@ tests/
 ├── 05-infrastructure/     # Server config, connectivity
 ├── 10-connection/         # Database connectivity, ping
 ├── 15-authentication/     # Auth flows, JWT, multi-user
-├── 20-meta-api/          # Schema management operations
+├── 20-describe-api/          # Schema management operations
 ├── 30-data-api/          # CRUD operations, validation
 ├── 50-integration/       # End-to-end workflows
 ├── 60-lifecycle/         # Record lifecycle, soft deletes
@@ -56,7 +56,7 @@ npm run spec:sh
 
 # Pattern matching
 npm run spec:sh 15              # All auth tests
-npm run spec:sh 20-30           # Meta and data API tests
+npm run spec:sh 20-30           # Describe and data API tests
 
 # Individual test
 npm run spec:sh spec/15-authentication/basic-auth.test.sh
@@ -114,7 +114,7 @@ spec/
 │   ├── 14-18/               # Reserved for future security categories
 │   └── 19-security-integration/ # Security integration testing
 ├── 15-authentication/        # Auth workflow tests
-├── 20-meta-api/              # Schema management tests
+├── 20-describe-api/              # Schema management tests
 ├── 30-data-api/              # Data operation tests
 ├── 40-49-unit/              # Unit testing series
 │   ├── 41-database/         # Database connection tests

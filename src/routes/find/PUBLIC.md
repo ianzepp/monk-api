@@ -119,7 +119,7 @@ Execute advanced search queries against a specific schema with complex filtering
 }
 ```
 
-### All Columns  
+### All Columns
 ```json
 {
   "select": ["*"]     // Return all available columns (default behavior)
@@ -142,7 +142,7 @@ Execute advanced search queries against a specific schema with complex filtering
 {
   "order": [
     "priority desc",
-    "created_at asc", 
+    "created_at asc",
     "name asc"
   ]
 }
@@ -283,7 +283,7 @@ curl -X POST http://localhost:9001/api/find/documents \
 # Good: Specific filters with limits
 {"where": {"status": "active", "department": "sales"}, "limit": 100}
 
-# Avoid: Broad queries without limits  
+# Avoid: Broad queries without limits
 {"where": {"created_at": {"$gte": "2020-01-01"}}} # No limit - could return millions
 ```
 
@@ -305,7 +305,7 @@ curl -X POST http://localhost:9001/api/find/documents \
 
 - **Data Operations**: `/docs/data` - Standard CRUD operations
 - **Bulk Operations**: `/docs/bulk` - Multi-schema batch processing
-- **Schema Management**: `/docs/meta` - Creating and managing data schemas
+- **Schema Management**: `/docs/describe` - Creating and managing data schemas
 - **File Interface**: `/docs/file` - Filesystem-like data access
 
 The Find API provides powerful search capabilities while maintaining full integration with the Monk platform's observer system and access control mechanisms.

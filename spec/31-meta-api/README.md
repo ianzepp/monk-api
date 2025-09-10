@@ -1,4 +1,4 @@
-# 20-meta-api: Schema Management API Tests
+# 20-describe-api: Schema Management API Tests
 
 Tests for the Describe API endpoints handling JSON schema operations.
 

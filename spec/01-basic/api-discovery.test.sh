@@ -17,7 +17,7 @@ print_step "Testing GET /"
 response=$(api_get "")
 assert_success "$response"
 assert_has_field "data.name" "$response"
-assert_has_field "data.endpoints" "$response" 
+assert_has_field "data.endpoints" "$response"
 assert_has_field "data.documentation" "$response"
 
 print_success "Root endpoint responds with API catalog"
@@ -36,7 +36,7 @@ else
 fi
 
 # Verify all expected APIs are documented
-expected_apis=("auth" "data" "meta" "file" "bulk" "find" "root")
+expected_apis=("auth" "data" "describe" "file" "bulk" "find" "root")
 for api in "${expected_apis[@]}"; do
     if echo "$response" | jq -e ".data.documentation.$api" >/dev/null; then
         print_success "Documentation available for $api API"

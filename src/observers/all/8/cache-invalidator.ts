@@ -1,6 +1,6 @@
 /**
  * Cache Invalidator Observer
- * 
+ *
  * Universal integration observer that invalidates caches after data changes
  * Ring: 8 (Integration) - Schema: all - Operations: create, update, delete
  */
@@ -16,36 +16,36 @@ export default class CacheInvalidator extends BaseAsyncObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { schemaName, result, existing, metadata, operation, data } = context;
-        
+
         // Process data as array if needed
         const recordsToProcess = Array.isArray(data) ? data : [{ result, existing }];
-        
+
         try {
             // Invalidate schema-level caches (once per execution)
             await this.invalidateSchemaCache(schemaName);
-            
+
             // Process each record
             for (const record of recordsToProcess) {
                 const recordResult = record.result || result;
                 const recordExisting = record.existing || existing;
-                
+
                 // Invalidate record-level caches
                 const recordId = this.getRecordId(recordResult, recordExisting);
                 if (recordId) {
                     await this.invalidateRecordCache(schemaName, recordId);
                 }
-                
+
                 // Invalidate relationship caches
                 await this.invalidateRelationshipCaches(schemaName, recordResult, recordExisting);
             }
-            
+
             // Invalidate search/index caches
             await this.invalidateSearchCache(schemaName, operation);
-            
+
             // Mark cache invalidation complete
             metadata.set('cache_invalidated', true);
             metadata.set('cache_invalidation_timestamp', new Date().toISOString());
-            
+
         } catch (error) {
             // Cache invalidation failures are system errors
             throw new SystemError(
@@ -64,7 +64,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
             `api:${schema}:list`,
             `api:${schema}:paginated`
         ];
-        
+
         await this.invalidateKeys(cacheKeys);
         logger.info('Cache invalidated for schema', { schema });
     }
@@ -76,7 +76,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
             `api:${schema}:${recordId}`,
             `permissions:${schema}:${recordId}`
         ];
-        
+
         await this.invalidateKeys(cacheKeys);
         logger.info('Cache invalidated for record', { schema, recordId });
     }
@@ -85,11 +85,11 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         // Get relationship fields that might have changed
         const relationships = this.getRelationshipFields(schema);
         const record = result || existing;
-        
+
         if (!record || relationships.length === 0) return;
-        
+
         const cacheKeys: string[] = [];
-        
+
         for (const relationship of relationships) {
             const relationshipValue = record[relationship.field];
             if (relationshipValue) {
@@ -105,7 +105,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
                 }
             }
         }
-        
+
         if (cacheKeys.length > 0) {
             await this.invalidateKeys(cacheKeys);
             logger.info('Cache invalidated for relationships', { schema });
@@ -120,9 +120,9 @@ export default class CacheInvalidator extends BaseAsyncObserver {
             `index:${schema}:*`,
             `filter:${schema}:*`
         ];
-        
+
         await this.invalidateKeys(searchKeys);
-        
+
         // For create/delete operations, also invalidate count caches
         if (operation === 'create' || operation === 'delete') {
             await this.invalidateKeys([
@@ -131,14 +131,14 @@ export default class CacheInvalidator extends BaseAsyncObserver {
                 `stats:${schema}:summary`
             ]);
         }
-        
+
         logger.info('Cache invalidated for search', { schema });
     }
 
     private async invalidateKeys(keys: string[]): Promise<void> {
         // In a real implementation, this would interface with Redis, Memcached, etc.
         // For now, we'll just log the cache invalidation
-        
+
         for (const key of keys) {
             if (key.includes('*')) {
                 // Pattern-based invalidation
@@ -157,7 +157,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
     }
 
     private getRelationshipFields(schema: string): Array<{field: string, schema: string}> {
-        // In a real implementation, this would come from schema metadata
+        // In a real implementation, this would come from schema describe
         // For now, return common relationship patterns
         const relationships: Record<string, Array<{field: string, schema: string}>> = {
             user: [
@@ -170,7 +170,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
             ],
             // Add more schema relationships as needed
         };
-        
+
         return relationships[schema] || [];
     }
 }

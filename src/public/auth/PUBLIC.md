@@ -171,7 +171,7 @@ All error responses follow the standardized format documented in the main error 
 
 After obtaining a JWT token:
 
-1. **Explore APIs**: Use `/docs/data`, `/docs/file`, `/docs/meta` for API references
+1. **Explore APIs**: Use `/docs/data`, `/docs/file`, `/docs/describe` for API references
 2. **User management**: Access `/docs/auth` for account management operations
 3. **Administrative tasks**: See `/docs/root` for elevated privilege operations
 

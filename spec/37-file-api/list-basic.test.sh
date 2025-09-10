@@ -30,14 +30,14 @@ assert_has_field "file_metadata" "$root_list"
 
 entries_count=$(echo "$root_list" | jq '.entries | length')
 if [[ "$entries_count" -eq 2 ]]; then
-    print_success "Root directory shows 2 entries (/data, /meta)"
+    print_success "Root directory shows 2 entries (/data, /describe)"
 else
     test_fail "Root should show 2 entries, got: $entries_count"
 fi
 
-# Verify data and meta directories are present
+# Verify data and describe directories are present
 data_entry=$(echo "$root_list" | jq '.entries[] | select(.name == "data")')
-meta_entry=$(echo "$root_list" | jq '.entries[] | select(.name == "meta")')
+meta_entry=$(echo "$root_list" | jq '.entries[] | select(.name == "describe")')
 
 if [[ -n "$data_entry" && "$data_entry" != "null" ]]; then
     print_success "Found /data directory entry"
@@ -46,9 +46,9 @@ else
 fi
 
 if [[ -n "$meta_entry" && "$meta_entry" != "null" ]]; then
-    print_success "Found /meta directory entry"
+    print_success "Found /describe directory entry"
 else
-    test_fail "Missing /meta directory in root listing"
+    test_fail "Missing /describe directory in root listing"
 fi
 
 # Test 2: Data namespace listing (shows schemas)
@@ -66,7 +66,7 @@ fi
 account_entry=$(echo "$data_list" | jq '.entries[] | select(.name == "account")')
 if [[ -n "$account_entry" && "$account_entry" != "null" ]]; then
     print_success "Found account schema in /data listing"
-    
+
     # Validate account schema entry structure
     account_file_type=$(echo "$account_entry" | jq -r '.file_type')
     if [[ "$account_file_type" == "d" ]]; then
@@ -74,7 +74,7 @@ if [[ -n "$account_entry" && "$account_entry" != "null" ]]; then
     else
         test_fail "Account schema should be directory (d), got: $account_file_type"
     fi
-    
+
     account_path=$(echo "$account_entry" | jq -r '.path')
     if [[ "$account_path" == "/data/account/" ]]; then
         print_success "Account schema path: $account_path"
@@ -100,7 +100,7 @@ fi
 test_account_entry=$(echo "$account_list" | jq ".entries[] | select(.name == \"$ACCOUNT_ID\")")
 if [[ -n "$test_account_entry" && "$test_account_entry" != "null" ]]; then
     print_success "Found test account record in schema listing"
-    
+
     # Validate record entry structure
     record_file_type=$(echo "$test_account_entry" | jq -r '.file_type')
     if [[ "$record_file_type" == "d" ]]; then
@@ -108,7 +108,7 @@ if [[ -n "$test_account_entry" && "$test_account_entry" != "null" ]]; then
     else
         test_fail "Account record should be directory (d), got: $record_file_type"
     fi
-    
+
     record_path=$(echo "$test_account_entry" | jq -r '.path')
     expected_path="/data/account/$ACCOUNT_ID/"
     if [[ "$record_path" == "$expected_path" ]]; then
@@ -116,11 +116,11 @@ if [[ -n "$test_account_entry" && "$test_account_entry" != "null" ]]; then
     else
         test_fail "Account record path should be '$expected_path', got: $record_path"
     fi
-    
+
     # Validate API context
     api_schema=$(echo "$test_account_entry" | jq -r '.api_context.schema')
     api_record_id=$(echo "$test_account_entry" | jq -r '.api_context.record_id')
-    
+
     if [[ "$api_schema" == "account" && "$api_record_id" == "$ACCOUNT_ID" ]]; then
         print_success "API context correct: schema=$api_schema, record_id=$api_record_id"
     else
@@ -145,14 +145,14 @@ fi
 json_entry=$(echo "$record_list" | jq ".entries[] | select(.name == \"$ACCOUNT_ID.json\")")
 if [[ -n "$json_entry" && "$json_entry" != "null" ]]; then
     print_success "Found .json file entry in record listing"
-    
+
     json_file_type=$(echo "$json_entry" | jq -r '.file_type')
     if [[ "$json_file_type" == "f" ]]; then
         print_success "JSON file correctly shown as file (f)"
     else
         test_fail "JSON file should be file (f), got: $json_file_type"
     fi
-    
+
     json_size=$(echo "$json_entry" | jq -r '.file_size')
     if [[ "$json_size" -gt 0 ]]; then
         print_success "JSON file has realistic size: $json_size bytes"
@@ -167,14 +167,14 @@ fi
 email_entry=$(echo "$record_list" | jq '.entries[] | select(.name == "email")')
 if [[ -n "$email_entry" && "$email_entry" != "null" ]]; then
     print_success "Found email field entry in record listing"
-    
+
     email_file_type=$(echo "$email_entry" | jq -r '.file_type')
     if [[ "$email_file_type" == "f" ]]; then
         print_success "Email field correctly shown as file (f)"
     else
         test_fail "Email field should be file (f), got: $email_file_type"
     fi
-    
+
     # Validate field size matches expected email length
     email_size=$(echo "$email_entry" | jq -r '.file_size')
     email_length=${#ACCOUNT_EMAIL}
@@ -183,7 +183,7 @@ if [[ -n "$email_entry" && "$email_entry" != "null" ]]; then
     else
         test_fail "Email field size should be >= $email_length, got: $email_size"
     fi
-    
+
     # Validate field API context
     field_api_context=$(echo "$email_entry" | jq -r '.api_context.field_name')
     if [[ "$field_api_context" == "email" ]]; then
@@ -199,7 +199,7 @@ fi
 name_entry=$(echo "$record_list" | jq '.entries[] | select(.name == "name")')
 if [[ -n "$name_entry" && "$name_entry" != "null" ]]; then
     print_success "Found name field entry in record listing"
-    
+
     name_size=$(echo "$name_entry" | jq -r '.file_size')
     name_length=${#ACCOUNT_NAME}
     if [[ "$name_size" -ge "$name_length" ]]; then
@@ -232,14 +232,14 @@ echo "$record_list" | jq '.entries[]' | while read -r entry; do
     entry_name=$(echo "$entry" | jq -r '.name')
     entry_permissions=$(echo "$entry" | jq -r '.file_permissions')
     entry_modified=$(echo "$entry" | jq -r '.file_modified')
-    
+
     # Validate permissions format
     if [[ "$entry_permissions" =~ ^[r-][w-][x-]$ ]]; then
         print_success "Entry '$entry_name' has valid permissions: $entry_permissions"
     else
         test_fail "Entry '$entry_name' has invalid permissions: $entry_permissions"
     fi
-    
+
     # Validate timestamp format
     if [[ "$entry_modified" =~ ^[0-9]{14}$ ]]; then
         print_success "Entry '$entry_name' has valid timestamp: $entry_modified"

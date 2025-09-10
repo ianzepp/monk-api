@@ -14,7 +14,7 @@ setup_test_isolated "create-schema"
 setup_admin_auth
 
 # Test 1: Create schema using account.json
-print_step "Testing POST /api/meta/account"
+print_step "Testing POST /api/describe/account"
 
 # Read the account schema file
 if [[ ! -f "spec/account.json" ]]; then
@@ -24,7 +24,7 @@ fi
 account_schema=$(cat spec/account.json)
 
 # Create the schema
-response=$(auth_post "api/meta/account" "$account_schema")
+response=$(auth_post "api/describe/account" "$account_schema")
 data=$(extract_and_validate_data "$response" "Schema creation result")
 
 # Verify operation result fields
@@ -49,9 +49,9 @@ fi
 print_success "Schema creation successful - API returned operation result"
 
 # Test 2: Verify schema exists by retrieving it
-print_step "Testing GET /api/meta/account to verify creation"
+print_step "Testing GET /api/describe/account to verify creation"
 
-get_response=$(auth_get "api/meta/account")
+get_response=$(auth_get "api/describe/account")
 schema_json=$(extract_and_validate_data "$get_response" "Retrieved schema data")
 
 # Verify essential properties exist
@@ -68,7 +68,7 @@ if echo "$schema_json" | jq -e '.properties.email' >/dev/null; then
     print_success "Schema contains expected 'email' property"
 fi
 if echo "$schema_json" | jq -e '.properties.name' >/dev/null; then
-    print_success "Schema contains expected 'name' property"  
+    print_success "Schema contains expected 'name' property"
 fi
 if echo "$schema_json" | jq -e '.properties.account_type' >/dev/null; then
     print_success "Schema contains expected 'account_type' property"
@@ -91,6 +91,6 @@ else
 fi
 
 # Test 4: Test duplicate schema creation (should fail)
-test_endpoint_error "POST" "api/meta/account" "$account_schema" "" "Duplicate schema creation"
+test_endpoint_error "POST" "api/describe/account" "$account_schema" "" "Duplicate schema creation"
 
 print_success "Describe API schema creation tests completed successfully"

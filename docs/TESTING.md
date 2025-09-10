@@ -38,7 +38,7 @@ npm run spec:sh basic-auth   # Shell auth test
 
 # By pattern
 npm run spec:ts unit         # All unit tests
-npm run spec:sh 15-20        # Auth and meta API tests
+npm run spec:sh 15-20        # Auth and describe API tests
 
 # Individual files
 npm run spec:ts spec/44-filter/logical-operators.test.ts
@@ -52,7 +52,7 @@ Tests are organized by numbered series for easy categorization:
 - **00-prerequisites**: Command availability checks
 - **05-infrastructure**: Core connectivity and configuration
 - **15-authentication**: Auth workflows and JWT handling
-- **20-meta-api**: Schema management (JSON operations)
+- **20-describe-api**: Schema management (JSON operations)
 - **30-data-api**: Data operations (CRUD)
 - **40-49**: Unit test series (no database)
 - **50-59**: Integration test series (requires database)

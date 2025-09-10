@@ -24,12 +24,12 @@ test_post_schema='{
   }
 }'
 
-response=$(auth_post "api/meta/posts" "$test_post_schema")
+response=$(auth_post "api/describe/posts" "$test_post_schema")
 extract_and_validate_data "$response" "Created post schema"
 
 test_comment_schema='{
   "title": "Comments",
-  "type": "object", 
+  "type": "object",
   "properties": {
     "text": {"type": "string"},
     "status": {"type": "string"},
@@ -44,7 +44,7 @@ test_comment_schema='{
   }
 }'
 
-response=$(auth_post "api/meta/comments" "$test_comment_schema")
+response=$(auth_post "api/describe/comments" "$test_comment_schema")
 extract_and_validate_data "$response" "Created comment schema"
 
 # Basic setup - create test data

@@ -134,7 +134,7 @@ Essential example of modern, high-performance backend development combining cutt
 - **[src/public/auth/PUBLIC.md](src/public/auth/PUBLIC.md)** - Public authentication API (login, refresh, register)
 - **[src/routes/auth/PUBLIC.md](src/routes/auth/PUBLIC.md)** - Protected auth API (user management, privilege escalation)
 - **[src/routes/data/PUBLIC.md](src/routes/data/PUBLIC.md)** - Data API (CRUD operations, soft delete, bulk operations)
-- **[src/routes/meta/PUBLIC.md](src/routes/meta/PUBLIC.md)** - Describe API (JSON schema management and validation)
+- **[src/routes/describe/PUBLIC.md](src/routes/describe/PUBLIC.md)** - Describe API (JSON schema management and validation)
 - **[src/routes/file/PUBLIC.md](src/routes/file/PUBLIC.md)** - File API (filesystem-like interface for data navigation)
 - **[src/routes/bulk/PUBLIC.md](src/routes/bulk/PUBLIC.md)** - Bulk API (batch operations across multiple schemas)
 - **[src/routes/find/PUBLIC.md](src/routes/find/PUBLIC.md)** - Find API (advanced search and filtering capabilities)

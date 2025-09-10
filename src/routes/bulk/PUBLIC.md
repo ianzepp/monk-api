@@ -50,7 +50,7 @@ Execute multiple operations across different schemas in a single atomic request.
       }
     },
     {
-      "operation": "updateOne", 
+      "operation": "updateOne",
       "schema": "accounts",
       "result": {
         "id": "660f9500-f39c-52e5-b827-557766551001",
@@ -104,7 +104,7 @@ curl -X POST http://localhost:9001/api/bulk \
       },
       {
         "operation": "updateOne",
-        "schema": "accounts", 
+        "schema": "accounts",
         "id": "account-123",
         "data": {
           "status": "active",
@@ -231,7 +231,7 @@ curl -X POST http://localhost:9001/api/bulk \
 ## Related Documentation
 
 - **Individual Operations**: See `/docs/data` for detailed CRUD operation documentation
-- **Schema Management**: See `/docs/meta` for schema creation and management
+- **Schema Management**: See `/docs/describe` for schema creation and management
 - **Access Control**: See `/docs/auth` for user privilege management
 - **Advanced Filtering**: See `/docs/find` for complex query operations
 

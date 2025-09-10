@@ -19,7 +19,7 @@ spec/
 
 - `01-basic/` - Basic API functionality and discovery
 - `10-auth/` - Authentication and authorization
-- `31-meta-api/` - Schema management operations  
+- `31-describe-api/` - Schema management operations
 - `32-data-api/` - Record CRUD operations
 - `35-bulk-api/` - Bulk operations
 - `37-file-api/` - File operations
@@ -43,12 +43,12 @@ spec/
 
 3. **Run specific test:**
    ```bash
-   ./spec/31-meta-api/create-schema.test.sh
+   ./spec/31-describe-api/create-schema.test.sh
    ```
 
 4. **Run entire series:**
    ```bash
-   ./spec/run-series.sh 31-meta-api
+   ./spec/run-series.sh 31-describe-api
    ```
 
 ## Helper Libraries
@@ -56,7 +56,7 @@ spec/
 ### Core Helpers
 
 - **`test-helper.sh`** - Main test setup and validation functions
-- **`curl-helper.sh`** - HTTP request wrappers and response validation  
+- **`curl-helper.sh`** - HTTP request wrappers and response validation
 - **`test-tenant-helper.sh`** - Isolated tenant database management
 - **`file-api-helpers.sh`** - File API specific operations
 
@@ -84,7 +84,7 @@ setup_test_with_template "test-name" "basic"
 # Admin user authentication
 setup_admin_auth
 
-# Root user authentication  
+# Root user authentication
 setup_root_auth
 ```
 
@@ -93,7 +93,7 @@ setup_root_auth
 ```bash
 # Authenticated requests
 response=$(auth_get "api/data/account")
-response=$(auth_post "api/meta/account" "$schema_json")
+response=$(auth_post "api/describe/account" "$schema_json")
 response=$(auth_put "api/data/account/$id" "$update_data")
 response=$(auth_delete "api/data/account/$id")
 
@@ -127,7 +127,7 @@ test_nonexistent_record "account" "get"
 test_nonexistent_schema "get"
 
 # Test endpoint errors with expected codes
-test_endpoint_error "GET" "api/meta/invalid" "" "SCHEMA_NOT_FOUND" "invalid schema"
+test_endpoint_error "GET" "api/describe/invalid" "" "SCHEMA_NOT_FOUND" "invalid schema"
 ```
 
 ## Test Data Generation
@@ -189,7 +189,7 @@ print_success "Test completed successfully"
 ### Best Practices
 
 - Use descriptive test and step names
-- Validate both success and error cases  
+- Validate both success and error cases
 - Test with realistic data using generators
 - Include verification steps after operations
 - Use appropriate setup function for test needs
