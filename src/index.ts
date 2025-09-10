@@ -101,7 +101,7 @@ app.get('/', c => {
             public_auth: '/auth/* (public - token acquisition)',
             docs: '/docs[/:api] (public)',
             auth: '/api/auth/* (protected - user management)',
-            meta: '/api/describe/:schema (protected)',
+            describe: '/api/describe/:schema (protected)',
             data: '/api/data/:schema[/:record] (protected)',
             find: '/api/find/:schema (protected)',
             bulk: '/api/bulk (protected)',
@@ -112,7 +112,7 @@ app.get('/', c => {
         documentation: {
             home: ['/README.md'],
             auth: ['/docs/auth', '/docs/public-auth'],
-            meta: ['/docs/describe'],
+            describe: ['/docs/describe'],
             data: ['/docs/data'],
             find: ['/docs/find'],
             bulk: ['/docs/bulk'],
