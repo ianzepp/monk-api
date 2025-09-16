@@ -11,7 +11,7 @@
 import type { Context, Next } from 'hono';
 import { System } from '@src/lib/system.js';
 import { createValidationError, createInternalError } from '@src/lib/api-helpers.js';
-import { ValidationError, BusinessLogicError, SystemError } from '@src/lib/observers/errors.js';
+import { ValidationError, BusinessLogicError, SystemError } from '@src/lib/pipeline/errors.js';
 
 /**
  * System context middleware - sets up System instance and global error handling

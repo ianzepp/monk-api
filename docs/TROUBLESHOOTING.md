@@ -90,8 +90,8 @@ ps aux | grep postgres
 # Check observer system preloading
 npm run spec:one spec/05-infrastructure/connectivity.test.ts
 
-# Common issue: Observers not loaded
-# Solution: Add await ObserverLoader.preloadObservers() to test setup
+# Common issue: Pipelines not loaded
+# Solution: Add await PipelineLoader.preloadPipelines() to test setup
 
 # Check test tenant creation
 npm run spec:one spec/unit/tenant-service-debug.test.ts
@@ -158,7 +158,7 @@ echo $NODE_ENV                          # Should be development/production
 npm run autoinstall                     # Regenerate configuration
 ```
 
-### Observer System Issues
+### Pipeline System Issues
 ```bash
 # Check observer loading
 npm run compile                         # Compile observers
@@ -169,7 +169,7 @@ npm run spec:all unit/observers         # Unit test observers
 npm run spec:one spec/integration/observer-pipeline.test.ts
 
 # Common observer issues:
-# - Missing observer files in src/observers/
+# - Missing observer files in src/pipeline/
 # - TypeScript compilation errors
 # - Circular dependency issues
 ```
@@ -258,14 +258,14 @@ curl -X POST http://localhost:9001/api/file/list \
 npm run spec:all integration/file
 ```
 
-### Observer System Debugging
+### Pipeline System Debugging
 ```bash
 # Test observer loading and execution
 npm run compile                         # Ensure observers compiled
 npm run start:dev                       # Check observer loading logs
 
 # Look for observer loading messages:
-# "✅ Observer loaded: ObserverName (ring N, schema X)"
+# "✅ Pipeline loaded: PipelineName (ring N, schema X)"
 
 # Test individual observers
 npm run spec:all unit/observers         # Unit test observers
@@ -273,7 +273,7 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 
 # Debug observer execution in development
 # Look for execution timing logs:
-# "[TIME] Observer: ObserverName 1.234ms { ring: N, operation: 'create' }"
+# "[TIME] Pipeline: PipelineName 1.234ms { ring: N, operation: 'create' }"
 ```
 
 ### Database Operations Debugging
@@ -303,34 +303,34 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 - **Use manual testing**: curl commands to verify endpoint functionality
 - **Check logs**: `npm run start:dev` provides detailed operation logging
 
-### Observer Development
+### Pipeline Development
 - **All Database operations** automatically run observer pipeline with 10-ring execution
-- **Schema objects available**: Observers receive full `Schema` objects with validation capabilities
-- **Create observers** in `src/observers/schema/ring/` for auto-discovery by ObserverRunner
+- **Schema objects available**: Pipelines receive full `Schema` objects with validation capabilities
+- **Create observers** in `src/pipeline/schema/ring/` for auto-discovery by PipelineRunner
 - **Use `BaseObserver`** class with executeTry/execute pattern for error handling
-- **Observer context**: Access `context.schema.isSystemSchema()`, `context.schema.validateOrThrow()`
+- **Pipeline context**: Access `context.schema.isSystemSchema()`, `context.schema.validateOrThrow()`
 - **Unit testable**: Most observers can be unit tested without database setup
 - **Test integration**: Use vitest framework for real database observer testing
-- **Check logs**: Look for `✅ Observer executed:` messages during development
+- **Check logs**: Look for `✅ Pipeline executed:` messages during development
 
 ### Database Development
 - **All CRUD operations** now use universal observer pipeline with Schema object context
 - **Database methods** follow single→array→pipeline pattern consistently
 - **Route handlers**: Use `context.get('system').database.*()` for database operations
-- **Observer pipeline**: Provides validation, security, audit automatically with Schema objects
-- **Schema loading**: ObserverRunner loads Schema objects once per operation for all observers
-- **Test integration**: Observer pipeline transparent to existing database tests
+- **Pipeline pipeline**: Provides validation, security, audit automatically with Schema objects
+- **Schema loading**: PipelineRunner loads Schema objects once per operation for all observers
+- **Test integration**: Pipeline pipeline transparent to existing database tests
 
 ### Transaction Management
-- **Clean DB/TX separation**: `system.db` (always available) vs `system.tx` (SQL Observer managed)
-- **Observer-driven transactions**: Observers signal transaction needs via `this.needsTransaction(context, reason)`
-- **SQL Observer control**: Ring 5 manages all transaction boundaries (begin/commit/rollback)
+- **Clean DB/TX separation**: `system.db` (always available) vs `system.tx` (SQL Pipeline managed)
+- **Pipeline-driven transactions**: Pipelines signal transaction needs via `this.needsTransaction(context, reason)`
+- **SQL Pipeline control**: Ring 5 manages all transaction boundaries (begin/commit/rollback)
 - **Transaction visibility**: Nested database calls automatically use active transaction context
 - **ACID compliance**: Multi-observer operations maintain data integrity with proper isolation
 
 ### Logging Patterns
 - **`logger.info/warn`**: Use consistently throughout codebase (global logger pattern)
-- **Observer logging**: Always use `logger.info()` since global logger is available
+- **Pipeline logging**: Always use `logger.info()` since global logger is available
 - **Structured metadata**: Include schemaName, operation, and relevant context in logs
 - **Performance timing**: Use manual timing with `logger.info()` for performance tracking
 
@@ -366,7 +366,7 @@ npm run autoinstall
 # 2. Connection errors → Database/network issues
 # 3. Authentication errors → JWT/tenant issues
 # 4. Validation errors → Schema/data issues
-# 5. Observer errors → Business logic issues
+# 5. Pipeline errors → Business logic issues
 
 # Use appropriate debugging approach for each category
 npm run compile                         # For compilation errors

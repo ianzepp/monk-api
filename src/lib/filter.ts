@@ -24,7 +24,7 @@ export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterO
  * - Logic: `{ $and: [{ $or: [{ role: "admin" }, { verified: true }] }] }`
  *
  * Architecture: Filter → FilterWhere → FilterOrder → SQL generation
- * Integration: Observer pipeline, soft delete filtering, schema validation
+ * Integration: Pipeline pipeline, soft delete filtering, schema validation
  *
  * See docs/FILTER.md for complete operator reference and examples.
  */
@@ -33,12 +33,12 @@ export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterO
 
 /**
  * Filter - Handles database query building with proper validation and execution
- * 
+ *
  * Provides clean separation of concerns:
  * - Filter data validation and normalization
  * - SQL generation with proper parameterization
  * - Query execution via consistent API patterns
- * 
+ *
  * Designed for integration with observer pipeline and ACL systems.
  */
 export class Filter {
@@ -75,15 +75,15 @@ export class Filter {
         try {
             // Validate and normalize input
             const normalizedSource = this.validateAndNormalizeInput(source);
-            
+
             // Process the normalized data
             this.processFilterData(normalizedSource);
-            
+
             logger.debug('Filter assignment completed', {
                 tableName: this._tableName,
                 sourceType: Array.isArray(source) ? 'array' : typeof source
             });
-            
+
         } catch (error) {
             logger.warn('Filter assignment failed', {
                 tableName: this._tableName,
@@ -102,7 +102,7 @@ export class Filter {
         if (!tableName || typeof tableName !== 'string') {
             throw HttpErrors.badRequest('Table name must be a non-empty string', 'FILTER_INVALID_TABLE');
         }
-        
+
         // Basic SQL injection protection for table names
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
             throw HttpErrors.badRequest('Invalid table name format', 'FILTER_INVALID_TABLE_FORMAT');
@@ -152,7 +152,7 @@ export class Filter {
         if (source.limit !== undefined && (!Number.isInteger(source.limit) || source.limit < 0)) {
             throw HttpErrors.badRequest('Limit must be a non-negative integer', 'FILTER_INVALID_LIMIT');
         }
-        
+
         if (source.offset !== undefined && (!Number.isInteger(source.offset) || source.offset < 0)) {
             throw HttpErrors.badRequest('Offset must be a non-negative integer', 'FILTER_INVALID_OFFSET');
         }
@@ -188,7 +188,7 @@ export class Filter {
             // TODO: LOOKUPS and RELATED
             // if (source.lookups) this.processLookups(source.lookups);
             // if (source.related) this.processRelated(source.related);
-            
+
         } catch (error) {
             throw error; // Re-throw validation errors
         }
@@ -209,12 +209,12 @@ export class Filter {
         if (!Array.isArray(columns)) {
             throw HttpErrors.badRequest('Select columns must be an array', 'FILTER_INVALID_SELECT_TYPE');
         }
-        
+
         for (const column of columns) {
             if (typeof column !== 'string' || !column.trim()) {
                 throw HttpErrors.badRequest('All select columns must be non-empty strings', 'FILTER_INVALID_COLUMN_NAME');
             }
-            
+
             // Basic SQL injection protection for column names
             if (column !== '*' && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
                 throw HttpErrors.badRequest(`Invalid column name format: ${column}`, 'FILTER_INVALID_COLUMN_FORMAT');
@@ -294,7 +294,7 @@ export class Filter {
      */
     private normalizeOrderSpecToArray(orderSpecs: any[]): FilterOrderInfo[] {
         const result: FilterOrderInfo[] = [];
-        
+
         for (const spec of orderSpecs) {
             if (typeof spec === 'string') {
                 const parts = spec.split(' ');
@@ -304,23 +304,23 @@ export class Filter {
             } else if (typeof spec === 'object' && spec !== null) {
                 if (spec.column && spec.sort) {
                     const sort = spec.sort.toLowerCase();
-                    result.push({ 
-                        column: spec.column, 
-                        sort: (sort === 'desc' || sort === 'descending') ? 'desc' : 'asc' 
+                    result.push({
+                        column: spec.column,
+                        sort: (sort === 'desc' || sort === 'descending') ? 'desc' : 'asc'
                     });
                 } else {
                     // Process all entries in the object: { name: 'asc', created_at: 'desc' }
                     for (const [column, sort] of Object.entries(spec)) {
                         const normalizedSort = (sort as string).toLowerCase();
-                        result.push({ 
-                            column, 
-                            sort: (normalizedSort === 'desc' || normalizedSort === 'descending') ? 'desc' : 'asc' 
+                        result.push({
+                            column,
+                            sort: (normalizedSort === 'desc' || normalizedSort === 'descending') ? 'desc' : 'asc'
                         });
                     }
                 }
             }
         }
-        
+
         return result;
     }
 
@@ -339,7 +339,7 @@ export class Filter {
         if (!Number.isInteger(limit) || limit < 0) {
             throw HttpErrors.badRequest('Limit must be a non-negative integer', 'FILTER_INVALID_LIMIT_VALUE');
         }
-        
+
         if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) {
             throw HttpErrors.badRequest('Offset must be a non-negative integer', 'FILTER_INVALID_OFFSET_VALUE');
         }
@@ -378,7 +378,7 @@ export class Filter {
 
             // Use FilterWhere for WHERE clause with soft delete options
             const { whereClause, params: whereParams } = FilterWhere.generate(
-                this._whereData, 
+                this._whereData,
                 0,
                 this._softDeleteOptions
             );
@@ -421,7 +421,7 @@ export class Filter {
         if (this._select.length === 0 || this._select.includes('*')) {
             return '*';
         }
-        
+
         return this._select.map(col => `"${col}"`).join(', ');
     }
 
@@ -435,12 +435,12 @@ export class Filter {
         try {
             // Use FilterWhere for consistent WHERE clause generation
             const result = FilterWhere.generate(this._whereData, 0, this._softDeleteOptions);
-            
+
             logger.debug('WHERE clause generated successfully', {
                 tableName: this._tableName,
                 paramCount: result.params.length
             });
-            
+
             return result;
         } catch (error) {
             logger.warn('WHERE clause generation failed', {
@@ -562,7 +562,7 @@ export class Filter {
         if (typeof str !== 'string') {
             return false;
         }
-        
+
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         return uuidRegex.test(str);
     }

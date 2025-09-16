@@ -191,7 +191,7 @@ curl -X POST http://localhost:9001/api/bulk \
 - **Single HTTP request**: Multiple database operations in one call
 - **Transaction safety**: All operations succeed or all fail atomically
 - **Reduced latency**: Eliminates multiple round-trips for related operations
-- **Observer pipeline**: Efficient execution through unified observer system
+- **Pipeline pipeline**: Efficient execution through unified observer system
 
 ### Common Use Cases
 - **Data migration**: Bulk create/update operations across multiple schemas

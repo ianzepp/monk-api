@@ -24,7 +24,7 @@ export class System implements SystemContextWithInfrastructure {
     // Database context - always available for database operations
     public readonly db: pg.Pool;
 
-    // Transaction context - set by SQL Observer when transactions needed
+    // Transaction context - set by SQL Pipeline when transactions needed
     public tx?: pg.PoolClient;
 
     // System services
@@ -46,7 +46,7 @@ export class System implements SystemContextWithInfrastructure {
 
         // Initialize database connection (always available)
         this.db = db;
-        this.tx = undefined; // Will be set by SQL Observer when transactions needed
+        this.tx = undefined; // Will be set by SQL Pipeline when transactions needed
 
         // Initialize service instances with clean dependency injection
         this.database = new Database(this);

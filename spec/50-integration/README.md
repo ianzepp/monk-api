@@ -10,7 +10,7 @@ Integration tests for complete system workflows and multi-component operations.
 
 **Test Focus:**
 - Full application workflow testing
-- Database + API + Observer integration
+- Database + API + Pipeline integration
 - Complex multi-step operations
 - System-level performance validation
 - Inter-component communication testing

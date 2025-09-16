@@ -16,7 +16,7 @@
 
 - **🏗️ [DEVELOPER.md](DEVELOPER.md)** - This guide: Architecture, workflows, quick start
 - **🔍 [docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
-- **👁️ [docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
+- **👁️ [docs/OBSERVERS.md](docs/OBSERVERS.md)** - Pipeline system development guide
 - **🧪 [docs/TESTING.md](docs/TESTING.md)** - Comprehensive testing strategies and patterns
 - **🔧 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
 - **📁 [docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
@@ -92,7 +92,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 ### Core Components
 
 #### **Hono API Server** (`src/`)
-- **Observer-Driven Architecture**: Universal business logic execution through ring-based observer pipeline
+- **Pipeline-Driven Architecture**: Universal business logic execution through ring-based observer pipeline
 - **Path-Based Route Structure**: Intuitive file organization where file path = URL path
 - **Middleware Pattern**: System context and response formatting through clean middleware chain
 - **Multi-tenant**: JWT-based database routing with auth database validation
@@ -105,10 +105,10 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Multi-server**: Switch between development, staging, production environments
 - **Full CRUD**: Complete data and describe operations matching API endpoints
 
-#### **Observer System** (`src/lib/observers/`, `src/observers/`)
+#### **Pipeline System** (`src/lib/pipeline/`, `src/pipeline/`)
 - **Ring-Based Execution**: 10 ordered rings (0-9) for structured business logic execution
 - **Universal Coverage**: All database operations automatically run through observer pipeline
-- **File-Based Discovery**: Observers organized by schema and ring number for easy management
+- **File-Based Discovery**: Pipelines organized by schema and ring number for easy management
 - **Extensible Business Logic**: Add validation, security, audit, integration without touching core code
 
 > **📖 For complete observer development guide, see [docs/OBSERVERS.md](docs/OBSERVERS.md)**
@@ -121,7 +121,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 
 > **📖 For comprehensive testing guide, see [docs/TESTING.md](docs/TESTING.md)**
 
-### Observer-Driven Architecture
+### Pipeline-Driven Architecture
 
 #### **System Class** (`src/lib/system.ts`)
 - **Per-request context**: Created by `systemContextMiddleware` and attached to `context.get('system')`
@@ -130,7 +130,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Dependency Injection**: Provides SystemContext interface to break circular dependencies
 
 #### **Database Class** (`src/lib/database.ts`)
-- **Observer Integration**: All operations run through universal observer pipeline
+- **Pipeline Integration**: All operations run through universal observer pipeline
 - **Single→Array→Pipeline**: Consistent pattern across all CRUD methods
 - **Recursion Protection**: `SQL_MAX_RECURSION = 3` prevents infinite observer loops
 - **Universal Coverage**: createOne, updateOne, deleteOne, selectOne, revertOne all use observers
@@ -210,9 +210,9 @@ monk describe select schema contacts
 monk describe delete schema contacts
 ```
 
-### Observer Development
+### Pipeline Development
 
-#### **Observer Ring System (Brief Overview)**
+#### **Pipeline Ring System (Brief Overview)**
 
 The observer system executes business logic in **10 ordered rings (0-9)** for every database operation:
 
@@ -229,19 +229,19 @@ Ring 8: Integration     // External APIs, webhooks, cache invalidation (async)
 Ring 9: Notification    // User notifications, email alerts, real-time updates (async)
 ```
 
-#### **Creating Basic Observer**
+#### **Creating Basic Pipeline**
 
 ```bash
 # 1. Create observer file in appropriate directory
-src/observers/users/1/custom-validation.ts     # User schema, validation ring
-src/observers/all/7/audit-logger.ts            # All schemas, audit ring
+src/pipeline/users/1/custom-validation.ts     # User schema, validation ring
+src/pipeline/all/7/audit-logger.ts            # All schemas, audit ring
 
 # 2. Implement observer
 export default class CustomValidator extends BaseObserver {
-    ring = ObserverRing.InputValidation;
+    ring = PipelineRing.InputValidation;
     operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         const { schema, data } = context;
 
         for (const record of data) {
@@ -251,8 +251,8 @@ export default class CustomValidator extends BaseObserver {
     }
 }
 
-# 3. Observer auto-discovery loads it at server startup
-npm run start:dev  # Observer system loads new observer automatically
+# 3. Pipeline auto-discovery loads it at server startup
+npm run start:dev  # Pipeline system loads new observer automatically
 ```
 
 > **📖 For complete observer development guide, see [docs/OBSERVERS.md](docs/OBSERVERS.md)**
@@ -269,7 +269,7 @@ npm run spec:sh [pattern]           # Shell tests only
 # Examples
 npm run spec 15                     # All auth tests
 npm run spec:ts unit/filter         # Filter unit tests
-npm run spec:sh observer-startup    # Observer integration test
+npm run spec:sh observer-startup    # Pipeline integration test
 ```
 
 #### **Testing Development**
@@ -382,7 +382,7 @@ Each version command automatically:
 - Use batch methods (updateAll, createAll) vs individual operations
 - System pattern provides efficient connection pooling per tenant
 - Raw SQL generation avoids ORM overhead
-- Observer pipeline optimized with preloading and single-pass execution
+- Pipeline pipeline optimized with preloading and single-pass execution
 
 ### **Testing Performance**
 - Tenant isolation ensures no test pollution
@@ -461,8 +461,8 @@ echo '{"field":"value"}' | monk data create contacts
 monk data select contacts
 monk data select contacts <id>
 
-# Observer development
-# Create: src/observers/schema/ring/observer.ts
+# Pipeline development
+# Create: src/pipeline/schema/ring/pipeline.ts
 # Test: npm run spec:ts unit/observers
 # Integration: npm run spec:sh observer-startup-test.sh
 
@@ -492,14 +492,14 @@ export default withParams(async (context, { system, schema, body }) => {
 });
 ```
 
-#### **Creating Observers**
+#### **Creating Pipelines**
 ```typescript
-// src/observers/users/1/validator.ts
+// src/pipeline/users/1/validator.ts
 export default class UserValidator extends BaseObserver {
-    ring = ObserverRing.InputValidation;
+    ring = PipelineRing.InputValidation;
     operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         // Implementation
     }
 }
@@ -535,7 +535,7 @@ rm -rf ~/.config/monk/ && npm run autoinstall # Nuclear reset
 ### **Import Path Standardization** (August 2025)
 - **Explicit Directory Structure**: All imports use @src namespace for clear visibility
 - **Architectural Clarity**: Directory organization visible in every import statement
-- **Example**: `import { BaseObserver } from '@src/lib/observers/base-observer.js'`
+- **Example**: `import { BaseObserver } from '@src/lib/pipeline/base-observer.js'`
 
 ### **Route Handler Deduplication** (August 2025)
 - **withParams() Pattern**: Pre-extracts common parameters (system, schema, recordId, body)
@@ -555,7 +555,7 @@ rm -rf ~/.config/monk/ && npm run autoinstall # Nuclear reset
 This guide provides everything needed to contribute effectively to the Monk API project. For deeper dives into specific areas:
 
 - **🔍 API Development**: Start with [docs/API.md](docs/API.md) for endpoint patterns and examples
-- **👁️ Observer Development**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for complete observer guide
+- **👁️ Pipeline Development**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for complete observer guide
 - **🧪 Testing Strategy**: Review [docs/TESTING.md](docs/TESTING.md) for comprehensive testing approaches
 - **🔧 Issues & Debugging**: Consult [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for systematic problem-solving
 - **📁 Advanced Features**: Explore [docs/FILE.md](docs/FILE.md) and [docs/FILTER.md](docs/FILTER.md) for specialized systems

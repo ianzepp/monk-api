@@ -45,7 +45,7 @@ tests/
 ├── 60-lifecycle/         # Record lifecycle, soft deletes
 ├── 70-validation/        # Schema validation, constraints
 ├── 80-filter/           # Filter system testing
-└── 85-observer-integration/ # Observer pipeline testing
+└── 85-observer-integration/ # Pipeline pipeline testing
 ```
 
 ### Running Shell Tests
@@ -121,12 +121,12 @@ spec/
 │   ├── 42-tenant/           # Tenant service tests
 │   ├── 43-schema/           # Reserved for schema/describe unit tests
 │   ├── 44-filter/           # Filter system tests
-│   ├── 45-observers/        # Observer system tests
+│   ├── 45-pipeline/        # Pipeline system tests
 │   ├── 46-file/             # FS middleware tests
 │   └── 47-49/               # Reserved for future unit test categories
 ├── 50-59-integration/       # Integration testing series
 │   ├── 50-integration/      # Core integration tests
-│   ├── 51-integration-observers/ # Observer pipeline integration
+│   ├── 51-integration-pipeline/ # Pipeline pipeline integration
 │   ├── 52-integration-file/ # FS middleware integration
 │   └── 53-59/               # Reserved for future integration categories
 └── helpers/                 # Test utilities
@@ -150,7 +150,7 @@ spec/
   - **41-database**: Database connection and pool management
   - **42-tenant**: Tenant service and multi-tenant routing
   - **44-filter**: Filter operators and query building
-  - **45-observers**: Observer system and pipeline logic
+  - **45-observers**: Pipeline system and pipeline logic
   - **46-file**: FS middleware and file operations
 
 #### Integration Tests (50-59 Series)
@@ -159,7 +159,7 @@ spec/
 - **Speed**: Slower (database setup/teardown)
 - **Series**:
   - **50-integration**: Core integration workflows
-  - **51-integration-observers**: Observer pipeline integration
+  - **51-integration-observers**: Pipeline pipeline integration
   - **52-integration-file**: FS middleware integration
 
 ### Writing TypeScript Tests
@@ -201,7 +201,7 @@ describe('Database Operations', () => {
     testContext = await createTestContext(tenantManager.tenant!, 'root');
 
     // Load observers
-    await ObserverLoader.preloadObservers();
+    await PipelineLoader.preloadPipelines();
 
     // Create schema
     const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
@@ -286,7 +286,7 @@ describe.concurrent('Parallel Suite', () => {
 
 3. **Use TypeScript Integration Tests For:**
    - Database operations
-   - Observer pipeline
+   - Pipeline pipeline
    - API endpoints
    - Complex queries
 
@@ -325,7 +325,7 @@ curl -X POST http://localhost:9001/auth/login \
 npm run spec:ts spec/unit/database-connection-test.test.ts
 
 # Verify observer loading
-npm run spec:ts spec/unit/observers/
+npm run spec:ts spec/unit/pipeline/
 
 # Test in isolation
 npm run spec:ts failing-test.test.ts --verbose

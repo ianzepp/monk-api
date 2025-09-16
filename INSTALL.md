@@ -7,7 +7,7 @@ Lightweight PaaS backend API built with **Hono** and **TypeScript**, featuring o
 A high-performance backend API that provides:
 - **Schema-first development** - Define your data models in JSON
 - **Multi-tenant architecture** - Each tenant gets isolated databases
-- **Observer pattern** - Event-driven business logic hooks
+- **Pipeline pattern** - Event-driven business logic hooks
 - **REST API** - Full programmatic management interface
 
 Perfect for building SaaS applications that need flexible data modeling and tenant isolation.
@@ -167,7 +167,7 @@ Define data models using JSON with JSON Schema validation:
 - Isolated databases per tenant (`tenant_12345678`)
 - Dynamic database connections
 
-### 🎭 Observer System
+### 🎭 Pipeline System
 Ring-based business logic execution (0-9 rings):
 - **Ring 0**: Validation
 - **Ring 2**: Business logic
@@ -209,17 +209,17 @@ echo '{"name":"John","email":"john@example.com"}' | monk data create contacts
 monk data select contacts
 ```
 
-## Observer Development
+## Pipeline Development
 
 Add business logic without touching core code:
 
 ```typescript
-// src/observers/users/0/email-validator.ts
+// src/pipeline/users/0/email-validator.ts
 export default class EmailValidator extends BaseObserver {
-    ring = ObserverRing.Validation;
+    ring = PipelineRing.Validation;
     operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         for (const record of context.data) {
             if (!record.email.endsWith('@company.com')) {
                 throw new ValidationError('Only company emails allowed', 'email');
@@ -300,7 +300,7 @@ npm run autoinstall -- --clean-auth    # Recreate databases
 
 - **[DEVELOPER.md](DEVELOPER.md)** - Comprehensive development guide
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
-- **Observer System** - Event-driven architecture patterns
+- **Pipeline System** - Event-driven architecture patterns
 
 ## Related Projects
 

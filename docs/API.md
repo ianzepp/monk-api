@@ -627,13 +627,13 @@ The API uses consistent error response format:
 - **SQL Injection Protection**: All queries use parameterized SQL
 - **Schema Validation**: All data validated against JSON Schema
 - **Soft Delete**: Automatic exclusion of deleted records
-- **Observer Pipeline**: Universal security, validation, and audit
+- **Pipeline Pipeline**: Universal security, validation, and audit
 
 ### Performance Optimizations
 
 - **Schema Caching**: 15x performance improvement with compiled validators
 - **Batch Operations**: Efficient bulk create/update/delete operations
-- **Observer Pipeline**: Single-pass execution with preloaded data
+- **Pipeline Pipeline**: Single-pass execution with preloaded data
 - **Connection Pooling**: Per-tenant database connection management
 - **Parameterized Queries**: Optimized SQL with PostgreSQL parameter placeholders
 
@@ -642,5 +642,5 @@ The API uses consistent error response format:
 This API documentation provides comprehensive coverage of all endpoints and patterns. For detailed examples of specific features, see:
 - [FILE.md](FILE.md) - FS middleware filesystem-like interface
 - [FILTER.md](FILTER.md) - Advanced filtering and query capabilities
-- [OBSERVERS.md](OBSERVERS.md) - Observer system integration
+- [OBSERVERS.md](OBSERVERS.md) - Pipeline system integration
 - [TESTING.md](TESTING.md) - API endpoint testing strategies

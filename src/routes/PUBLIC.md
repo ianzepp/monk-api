@@ -31,7 +31,7 @@
 - **Multi-Tenant Architecture**: Isolated tenant databases with JWT-based routing and security
 - **Filesystem Data Interface**: Intuitive file/directory metaphor for complex data exploration and manipulation
 - **Privilege Escalation**: Enterprise-grade sudo model with time-limited root access for administrative operations
-- **Observer System**: Ring-based business logic execution (0-9 rings) for extensible data processing
+- **Pipeline System**: Ring-based business logic execution (0-9 rings) for extensible data processing
 - **Advanced Filtering**: 25+ filter operators with complex logical operations and ACL integration
 
 ## Authentication Model

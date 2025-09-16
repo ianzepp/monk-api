@@ -1,17 +1,17 @@
-# 85-observer-integration: Observer Integration Tests
+# 85-observer-integration: Pipeline Integration Tests
 
 Tests for observer system integration and startup validation.
 
 **Scope:**
-- Observer system integration
-- Observer startup and initialization
-- Observer coordination testing
+- Pipeline system integration
+- Pipeline startup and initialization
+- Pipeline coordination testing
 - Full observer workflow validation
 
 **Test Focus:**
-- Observer system startup
-- Observer loading and registration
+- Pipeline system startup
+- Pipeline loading and registration
 - Inter-observer communication
-- Observer pipeline coordination
-- Observer error handling
+- Pipeline pipeline coordination
+- Pipeline error handling
 - Integration with data operations

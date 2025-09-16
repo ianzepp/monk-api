@@ -20,7 +20,7 @@
     "paths": {
       "@src/*": ["src/*"],
       "@lib/*": ["src/lib/*"],
-      "@observers/*": ["src/observers/*"],
+      "@pipeline/*": ["src/pipeline/*"],
       "@spec/*": ["spec/*"],
       "@sql/*": ["sql/*"]
     }

@@ -1,34 +1,34 @@
-# Observer System Development Guide
+# Pipeline System Development Guide
 
 ## Table of Contents
-1. [Observer Architecture](#observer-architecture)
+1. [Pipeline Architecture](#observer-architecture)
 2. [Ring System](#ring-system)
-3. [Creating Observers](#creating-observers)
-4. [Async Observers](#async-observers)
+3. [Creating Pipelines](#creating-observers)
+4. [Async Pipelines](#async-observers)
 5. [Performance Profiling](#performance-profiling)
-6. [Observer Patterns](#observer-patterns)
-7. [Testing Observers](#testing-observers)
+6. [Pipeline Patterns](#observer-patterns)
+7. [Testing Pipelines](#testing-observers)
 8. [Data Integrity Pipeline](#data-integrity-pipeline)
 
-## Observer Architecture
+## Pipeline Architecture
 
-The Observer system provides **universal business logic execution** through a ring-based pipeline that automatically runs for every database operation. This ensures consistent validation, security, audit, and integration without touching core database code.
+The Pipeline system provides **universal business logic execution** through a ring-based pipeline that automatically runs for every database operation. This ensures consistent validation, security, audit, and integration without touching core database code.
 
 ### Core Components
 
-#### **ObserverRunner** (`src/lib/observers/observer-runner.ts`)
+#### **PipelineRunner** (`src/lib/pipeline/observer-runner.ts`)
 - **Ring-Based Execution**: 10 ordered rings (0-9) with selective execution per operation type
-- **File-Based Discovery**: Auto-loads observers from `src/observers/schema/ring/observer.ts`
+- **File-Based Discovery**: Auto-loads observers from `src/pipeline/schema/ring/pipeline.ts`
 - **Universal Coverage**: All database operations automatically run through observer pipeline
 - **Schema Integration**: Provides Schema objects with validation capabilities to all observers
 
-#### **BaseObserver Pattern** (`src/lib/observers/base-observer.ts`)
+#### **BaseObserver Pattern** (`src/lib/pipeline/base-observer.ts`)
 - **executeTry/execute separation**: Comprehensive error handling with pure business logic
 - **Schema Context**: Access to full Schema objects with `schema.validateOrThrow()` and `schema.isSystemSchema()`
 - **Consistent Logging**: Built-in timing and execution tracking
 - **Error Classification**: ValidationError, BusinessLogicError, SystemError for proper handling
 
-#### **BaseAsyncObserver** (`src/lib/observers/base-async-observer.ts`)
+#### **BaseAsyncPipeline** (`src/lib/pipeline/base-async-observer.ts`)
 - **Non-blocking execution**: Perfect for external APIs, notifications, cache invalidation
 - **Error isolation**: Failures logged but don't affect committed database operations
 - **Timeout protection**: 10s default timeout for external service operations
@@ -68,38 +68,38 @@ Ring 9: Notification    // User notifications, email alerts, real-time updates (
 - **Ring 8 (Integration)**: External APIs, webhooks, cache clearing, search indexing
 - **Ring 9 (Notification)**: Email, push notifications, real-time updates
 
-## Creating Observers
+## Creating Pipelines
 
 ### File Organization
 ```
-src/observers/:schema/:ring/:observer-name.ts
+src/pipeline/:schema/:ring/:observer-name.ts
 
 Examples:
-src/observers/all/0/record-preloader.ts        # Ring 0: All schemas, data preparation
-src/observers/all/1/json-schema-validator.ts   # Ring 1: All schemas, validation
-src/observers/users/1/email-validation.ts      # Ring 1: Users schema only
-src/observers/all/7/change-tracker.ts          # Ring 7: All schemas, audit
-src/observers/all/8/webhook-sender.ts          # Ring 8: All schemas, async integration
+src/pipeline/all/0/record-preloader.ts        # Ring 0: All schemas, data preparation
+src/pipeline/all/1/json-schema-validator.ts   # Ring 1: All schemas, validation
+src/pipeline/users/1/email-validation.ts      # Ring 1: Users schema only
+src/pipeline/all/7/change-tracker.ts          # Ring 7: All schemas, audit
+src/pipeline/all/8/webhook-sender.ts          # Ring 8: All schemas, async integration
 ```
 
 ### Schema Targeting
-- **Specific schema**: `src/observers/users/` → Only applies to "users" schema
-- **All schemas**: `src/observers/all/` → Applies to every schema
-- **Auto-discovery**: Observer system loads all observers at server startup
+- **Specific schema**: `src/pipeline/users/` → Only applies to "users" schema
+- **All schemas**: `src/pipeline/all/` → Applies to every schema
+- **Auto-discovery**: Pipeline system loads all observers at server startup
 
-### Basic Observer Pattern
+### Basic Pipeline Pattern
 
 ```typescript
-import { BaseObserver } from '@src/lib/observers/base-observer.js';
-import { ObserverRing } from '@src/lib/observers/observer-ring.js';
+import { BaseObserver } from '@src/lib/pipeline/base-observer.js';
+    import { PipelineRing } from '@src/lib/pipeline/pipeline-ring.js';
 import { ValidationError } from '@src/lib/errors.js';
-import type { ObserverContext } from '@src/lib/observers/observer-context.js';
+import type { PipelineContext } from '@src/lib/pipeline/observer-context.js';
 
 export default class CustomValidator extends BaseObserver {
-    ring = ObserverRing.InputValidation;
+    ring = PipelineRing.InputValidation;
     operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         const { system, schema, schemaName, data, metadata } = context;
 
         // Use preloaded data from RecordPreloader (Ring 0) for efficiency
@@ -126,12 +126,12 @@ export default class CustomValidator extends BaseObserver {
 }
 ```
 
-### Observer Context
+### Pipeline Context
 
-The `ObserverContext` provides complete access to the operation:
+The `PipelineContext` provides complete access to the operation:
 
 ```typescript
-interface ObserverContext {
+interface PipelineContext {
     system: SystemContext;           // Database, tenant, user context
     schema: Schema;                  // Full Schema object with validation
     schemaName: string;              // Schema name for logging
@@ -143,18 +143,18 @@ interface ObserverContext {
 }
 ```
 
-## Async Observers
+## Async Pipelines
 
 For operations that don't need to block the API response (external APIs, notifications, cache invalidation):
 
 ```typescript
-import { BaseAsyncObserver } from '@src/lib/observers/base-async-observer.js';
+import { BaseAsyncPipeline } from '@src/lib/pipeline/base-async-observer.js';
 
-export default class WebhookSender extends BaseAsyncObserver {
-    ring = ObserverRing.Integration;
+export default class WebhookSender extends BaseAsyncPipeline {
+    ring = PipelineRing.Integration;
     operations = ['create', 'update', 'delete'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         const { operation, schemaName, result } = context;
 
         // This executes asynchronously after database commit
@@ -166,7 +166,7 @@ export default class WebhookSender extends BaseAsyncObserver {
                 timestamp: new Date()
             });
         } catch (error) {
-            // Error logged automatically by BaseAsyncObserver
+            // Error logged automatically by BaseAsyncPipeline
             // API response already sent successfully
         }
     }
@@ -177,7 +177,7 @@ export default class WebhookSender extends BaseAsyncObserver {
 }
 ```
 
-### Async Observer Benefits
+### Async Pipeline Benefits
 - ✅ **Faster responses**: External operations don't block API response
 - ✅ **Error isolation**: Async failures logged via logger.warn(), don't affect committed data
 - ✅ **Timeout protection**: 10s default timeout for external service operations
@@ -190,16 +190,16 @@ export default class WebhookSender extends BaseAsyncObserver {
 All observers are automatically tracked with nanosecond precision:
 
 ```
-[TIME] Observer: JsonSchemaValidator 23.527ms { ring: 1, operation: "create" }
-[TIME] AsyncObserver: WebhookSender 156.789ms { ring: 8, status: "success" }
+[TIME] Pipeline: JsonSchemaValidator 23.527ms { ring: 1, operation: "create" }
+[TIME] AsyncPipeline: WebhookSender 156.789ms { ring: 8, status: "success" }
 ```
 
 ### Profiling Output Examples
 ```
-[TIME] Observer: RecordPreloader 1.291ms { ring: 0, operation: "update", schemaName: "users", status: "success" }
-[TIME] Observer: JsonSchemaValidator 0.090ms { ring: 1, operation: "update", schemaName: "users", status: "success" }
-[TIME] Observer: UpdateSqlObserver 3.257ms { ring: 5, operation: "update", schemaName: "users", status: "success" }
-[TIME] AsyncObserver: CacheInvalidator 1.625ms { ring: 8, operation: "update", status: "success" }
+[TIME] Pipeline: RecordPreloader 1.291ms { ring: 0, operation: "update", schemaName: "users", status: "success" }
+[TIME] Pipeline: JsonSchemaValidator 0.090ms { ring: 1, operation: "update", schemaName: "users", status: "success" }
+[TIME] Pipeline: UpdateSqlPipeline 3.257ms { ring: 5, operation: "update", schemaName: "users", status: "success" }
+[TIME] AsyncPipeline: CacheInvalidator 1.625ms { ring: 8, operation: "update", status: "success" }
 ```
 
 ### Performance Analysis Capabilities
@@ -208,16 +208,16 @@ All observers are automatically tracked with nanosecond precision:
 - **Schema compilation caching**: See JsonSchemaValidator performance improve with caching
 - **Database efficiency**: Monitor SQL operation timing and optimization opportunities
 
-## Observer Patterns
+## Pipeline Patterns
 
 ### Data Preparation Pattern (Ring 0)
 
 ```typescript
 export default class RecordPreloader extends BaseObserver {
-    ring = ObserverRing.DataPreparation;
+    ring = PipelineRing.DataPreparation;
     operations = ['update', 'delete', 'revert'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         const { system, schemaName, data } = context;
 
         // Preload existing records for efficient access by other observers
@@ -238,10 +238,10 @@ export default class RecordPreloader extends BaseObserver {
 
 ```typescript
 export default class JsonSchemaValidator extends BaseObserver {
-    ring = ObserverRing.InputValidation;
+    ring = PipelineRing.InputValidation;
     operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         const { schema, data } = context;
 
         for (const record of data) {
@@ -256,10 +256,10 @@ export default class JsonSchemaValidator extends BaseObserver {
 
 ```typescript
 export default class SoftDeleteProtector extends BaseObserver {
-    ring = ObserverRing.Security;
+    ring = PipelineRing.Security;
     operations = ['update', 'delete'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         const preloadedRecords = context.metadata.get('preloaded_records') || [];
 
         for (const record of preloadedRecords) {
@@ -271,37 +271,37 @@ export default class SoftDeleteProtector extends BaseObserver {
 }
 ```
 
-## Testing Observers
+## Testing Pipelines
 
 ### Unit Testing (No Database)
 
 ```typescript
-// spec/unit/observers/custom-validator.test.ts
+// spec/unit/pipeline/custom-validator.test.ts
 import { describe, test, expect } from 'vitest';
-import CustomValidator from '@src/observers/users/1/custom-validator.js';
-import { createMockObserverContext } from '@spec/helpers/observer-helpers.js';
+import CustomValidator from '@src/pipeline/users/1/custom-validator.js';
+import { createMockPipelineContext } from '@spec/helpers/observer-helpers.js';
 
-describe('CustomValidator Observer', () => {
+describe('CustomValidator Pipeline', () => {
     test('should validate user data correctly', async () => {
         const observer = new CustomValidator();
-        const context = createMockObserverContext({
+        const context = createMockPipelineContext({
             schemaName: 'users',
             operation: 'create',
             data: [{ email: 'test@example.com' }]
         });
 
-        await expect(observer.execute(context)).resolves.not.toThrow();
+        await expect(pipeline.execute(context)).resolves.not.toThrow();
     });
 
     test('should throw ValidationError for invalid data', async () => {
         const observer = new CustomValidator();
-        const context = createMockObserverContext({
+        const context = createMockPipelineContext({
             schemaName: 'users',
             operation: 'create',
             data: [{ email: 'invalid-email' }]
         });
 
-        await expect(observer.execute(context)).rejects.toThrow(ValidationError);
+        await expect(pipeline.execute(context)).rejects.toThrow(ValidationError);
     });
 });
 ```
@@ -309,11 +309,11 @@ describe('CustomValidator Observer', () => {
 ### Integration Testing (With Database)
 
 ```typescript
-// spec/integration/observers/observer-pipeline.test.ts
+// spec/integration/pipeline/observer-pipeline.test.ts
 import { describe, test, expect, beforeAll } from 'vitest';
 import { createTestContextWithFixture } from '@spec/helpers/test-tenant.js';
 
-describe('Observer Pipeline Integration', () => {
+describe('Pipeline Pipeline Integration', () => {
     let testContext: TestContextWithData;
 
     beforeAll(async () => {
@@ -357,31 +357,31 @@ The data integrity observer pipeline provides universal protection for all datab
 - **Read-only safety**: Frozen preloaded objects prevent accidental mutation
 - **Clean SQL transport**: Sql observers (Ring 5) handle pure database operations after validation
 
-## Observer Development Workflow
+## Pipeline Development Workflow
 
-### 1. Create Observer File
+### 1. Create Pipeline File
 ```bash
 # Create observer in appropriate directory
-src/observers/users/0/custom-validation.ts     # User schema, validation ring
-src/observers/all/7/audit-logger.ts            # All schemas, audit ring
+src/pipeline/users/0/custom-validation.ts     # User schema, validation ring
+src/pipeline/all/7/audit-logger.ts            # All schemas, audit ring
 ```
 
-### 2. Implement Observer Class
+### 2. Implement Pipeline Class
 ```typescript
-export default class CustomObserver extends BaseObserver {
-    ring = ObserverRing.InputValidation;
+export default class CustomPipeline extends BaseObserver {
+    ring = PipelineRing.InputValidation;
     operations = ['create', 'update'] as const;
 
-    async execute(context: ObserverContext): Promise<void> {
+    async execute(context: PipelineContext): Promise<void> {
         // Implementation
     }
 }
 ```
 
-### 3. Test Observer
+### 3. Test Pipeline
 ```bash
 # Unit test the observer logic
-npm run spec:one spec/unit/observers/custom-observer.test.ts
+npm run spec:one spec/unit/pipeline/custom-pipeline.test.ts
 
 # Integration test with database
 npm run spec:one spec/integration/observer-pipeline.test.ts
@@ -389,11 +389,11 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 
 ### 4. Verify Auto-Loading
 ```bash
-# Observer system loads new observer automatically
+# Pipeline system loads new observer automatically
 npm run start:dev
 
 # Look for observer loading logs:
-# "✅ Observer loaded: CustomObserver (ring 1, schema users)"
+# "✅ Pipeline loaded: CustomPipeline (ring 1, schema users)"
 ```
 
 ### 5. Test in Pipeline
@@ -404,7 +404,7 @@ npm run spec:sh spec/85-observer-integration/observer-startup-test.sh
 
 ## Best Practices
 
-### Observer Design
+### Pipeline Design
 - **Single Responsibility**: Each observer should have one clear purpose
 - **Ring Appropriateness**: Choose the right ring for your observer's function
 - **Error Handling**: Use appropriate error types (ValidationError, BusinessLogicError, SystemError)
@@ -419,15 +419,15 @@ npm run spec:sh spec/85-observer-integration/observer-startup-test.sh
 ### Testing Strategy
 - **Unit Tests First**: Test observer logic without database dependencies
 - **Integration Tests**: Verify observers work in complete pipeline
-- **Mock Context**: Use `createMockObserverContext()` for isolated testing
+- **Mock Context**: Use `createMockPipelineContext()` for isolated testing
 - **Real Database**: Use `createTestContextWithFixture()` for integration tests
 
 ### Performance Optimization
 - **Preloading**: Use RecordPreloader results to avoid duplicate queries
 - **Batch Operations**: Process multiple records efficiently
-- **Async When Possible**: Use BaseAsyncObserver for non-blocking operations
+- **Async When Possible**: Use BaseAsyncPipeline for non-blocking operations
 - **Caching**: Cache expensive computations when appropriate
 
 ---
 
-This guide provides comprehensive coverage of the Observer system. For additional examples and advanced patterns, see the existing observers in `src/observers/all/` and their corresponding unit tests in `spec/unit/observers/`.
+This guide provides comprehensive coverage of the Pipeline system. For additional examples and advanced patterns, see the existing observers in `src/pipeline/all/` and their corresponding unit tests in `spec/unit/pipeline/`.

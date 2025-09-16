@@ -13,4 +13,4 @@ Security tests focused on SQL injection prevention and database security.
 - PostgreSQL-specific injection vectors
 - Parameterized query validation
 - Database escape sequence testing
-- Observer pipeline SQL security
+- Pipeline pipeline SQL security

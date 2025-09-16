@@ -14,7 +14,7 @@
 ### Key Features
 - **Schema-First Development**: JSON-based data model definitions with JSON Schema validation
 - **Multi-Tenant Architecture**: Automatic tenant isolation with dedicated database instances
-- **Ring-Based Observer System**: Sophisticated event-driven business logic (0-9 execution rings)
+- **Ring-Based Pipeline System**: Sophisticated event-driven business logic (0-9 execution rings)
 - **Ultra-Fast Performance**: Hono framework with multi-runtime support (Node.js, Bun, Deno, Cloudflare Workers)
 - **RESTful API**: Automatic REST endpoint generation from schema definitions
 - **Comprehensive Testing**: Isolated test environments with shell script and TypeScript integration
@@ -25,10 +25,10 @@
   - **AJV**: High-performance JSON Schema validation
   - **PostgreSQL**: Multi-tenant database with advanced features
   - **TypeScript**: Full type safety and modern development patterns
-- **Observer System**: Ring-based execution model for predictable business logic flow
+- **Pipeline System**: Ring-based execution model for predictable business logic flow
 - **CLI Integration**: Complete management via monk-cli standalone tool
 
-### Ring-Based Observer Architecture
+### Ring-Based Pipeline Architecture
 **Execution Rings (0-9)**:
 - **Ring 0**: Input validation and sanitization
 - **Ring 2**: Business logic and rules enforcement
@@ -106,7 +106,7 @@ Excellent reference for:
 - **Modern TypeScript API Development**: Current best practices with ultra-fast frameworks
 - **Multi-Tenant Architecture**: Advanced tenant isolation and database routing patterns
 - **Schema-First Development**: JSON-driven development with automatic API generation
-- **Observer Pattern**: Ring-based event-driven architecture in TypeScript
+- **Pipeline Pattern**: Ring-based event-driven architecture in TypeScript
 - **High-Performance API Design**: Ultra-lightweight framework patterns and optimization techniques
 
 Essential example of modern, high-performance backend development combining cutting-edge TypeScript frameworks, schema-driven development, and sophisticated multi-tenant architecture for scalable SaaS platforms.
@@ -120,7 +120,7 @@ Essential example of modern, high-performance backend development combining cutt
 
 ### Development
 - **[docs/DEVELOPER.md](docs/DEVELOPER.md)** - Comprehensive developer guide and architecture
-- **[docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
+- **[docs/OBSERVERS.md](docs/OBSERVERS.md)** - Pipeline system development guide
 - **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
 - **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and common commands
 

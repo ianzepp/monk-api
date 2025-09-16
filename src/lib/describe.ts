@@ -69,7 +69,7 @@ export function isSystemField(fieldName: string): boolean {
  * - Consistent with system.database.* pattern
  * - Clean transaction management with run() pattern
  * - Schema-specific utilities and DDL generation
- * - Observer access for future deployment scenarios
+ * - Pipeline access for future deployment scenarios
  */
 export class Describe {
     constructor(private system: System) {}

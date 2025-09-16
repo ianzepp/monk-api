@@ -65,7 +65,7 @@ export interface SystemContextWithInfrastructure extends SystemContext {
     /** Database connection - always available for database operations */
     readonly db: any; // Avoid importing pg.Pool to prevent circular deps
 
-    /** Transaction context - set by SQL Observer when transactions needed */
+    /** Transaction context - set by SQL Pipeline when transactions needed */
     tx?: any; // Avoid importing pg.PoolClient to prevent circular deps
 
     /** Database instance for high-level operations */

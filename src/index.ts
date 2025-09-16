@@ -38,8 +38,8 @@ import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/lib/database-connection.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 
-// Observer preload
-import { ObserverLoader } from '@src/lib/observers/loader.js';
+// Pipeline preload
+import { PipelineLoader } from '@src/lib/pipeline/loader.js';
 
 // Middleware
 import * as middleware from '@src/lib/middleware/index.js';
@@ -220,10 +220,10 @@ const port = Number(process.env.PORT || 9001);
 // Initialize observer system
 logger.info('Preloading observer system');
 try {
-    await ObserverLoader.preloadObservers();
-    logger.info('Observer system ready');
+    await PipelineLoader.preloadPipelines();
+    logger.info('Pipeline system ready');
 } catch (error) {
-    console.error(`❌ Observer system initialization failed:`, error);
+    console.error(`❌ Pipeline system initialization failed:`, error);
     logger.warn('Continuing without observer system');
 }
 

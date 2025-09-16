@@ -13,4 +13,4 @@ Security tests for API endpoint protection and request/response security.
 - Describe API endpoint security
 - Bulk operation security validation
 - Request body injection testing
-- Observer security integration
+- Pipeline security integration
