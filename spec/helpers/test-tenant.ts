@@ -129,7 +129,9 @@ export async function createTestContext(tenant: TenantInfo, username: string = '
   };
 
   // Set up database context using DatabaseConnection (simulates JWT middleware)
-  DatabaseConnection.setDatabaseForRequest(mockContext as any, jwtPayload.database);
+  const db = DatabaseConnection.getPool(jwtPayload.database);
+  mockContext.set('database', db);
+  mockContext.set('databaseDomain', jwtPayload.database);
 
   const system = new System(mockContext as any);
   const database = system.database;

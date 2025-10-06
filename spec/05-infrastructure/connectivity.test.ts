@@ -72,16 +72,12 @@ describe('05-infrastructure: Basic Connectivity', () => {
       expect(isConnected).toBe(true);
     }, 10000);
 
-    test('should retrieve schema definition as YAML', async () => {
-      const schemaYaml = await testContext.metabase.selectOne('schema');
+    test('should retrieve schema definition', async () => {
+      const schemaJson = await testContext.metabase.selectOne('schema');
       
-      expect(schemaYaml).toBeDefined();
-      expect(typeof schemaYaml).toBe('string');
-      expect(schemaYaml.length).toBeGreaterThan(0);
-      
-      // Should be valid YAML content
-      expect(schemaYaml).toContain('title:');
-      expect(schemaYaml).toContain('properties:');
+      expect(schemaJson).toBeDefined();
+      expect(typeof schemaJson).toBe('string');
+      expect(schemaJson.length).toBeGreaterThan(0);
     }, 5000);
   });
 

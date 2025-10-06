@@ -155,7 +155,7 @@ describe('15-authentication: Basic Auth Flow', () => {
       const mockContext = {
         env: {
           JWT_SECRET: 'test-jwt-secret-for-auth-tests',
-          DATABASE_URL: 'postgresql://testuser@localhost:5432/test-db',
+          DATABASE_URL: 'postgresql://testuser@localhost:5432',
         },
         req: {
           header: (name: string) => `test-${Date.now()}`,
@@ -175,7 +175,9 @@ describe('15-authentication: Basic Auth Flow', () => {
       };
 
       // Set up database context (simulates JWT middleware)
-      DatabaseConnection.setDatabaseForRequest(mockContext as any, jwtPayload.database);
+      const db = DatabaseConnection.getPool(jwtPayload.database);
+      mockContext.set('database', db);
+      mockContext.set('databaseDomain', jwtPayload.database);
       
       // Create System instance (simulates authenticated request)
       const system = new System(mockContext as any);

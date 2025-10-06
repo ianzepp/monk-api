@@ -14,77 +14,47 @@ const { Pool, Client } = pg;
  * All other files must use these methods for database connections.
  */
 export class DatabaseConnection {
-    private static basePool: pg.Pool | null = null;
-    private static tenantPools = new Map<string, pg.Pool>();
+    private static databasePool = new Map<string, pg.Pool>();
 
-    /**
-     * Get DATABASE_URL from process.env with strict validation
-     * NO fallbacks, NO defaults - fail fast if not configured
-     */
-    private static getDatabaseURL(): string {
-        const databaseUrl = process.env.DATABASE_URL;
-        
-        if (!databaseUrl) {
-            throw new Error('DATABASE_URL not configured');
-        }
-
-        if (!databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('postgres://')) {
-            throw new Error(
-                `Invalid DATABASE_URL format: ${databaseUrl}. ` +
-                'Must start with postgresql:// or postgres://'
-            );
-        }
-
-        return databaseUrl;
+    static getMasterPool(): pg.Pool {
+        return this.getPool('monk', 10);
     }
 
-    /**
-     * Get the base database pool (for master/registry database)
-     * Creates exactly ONE pool for the entire application
-     */
-    static getBasePool(): pg.Pool {
-        if (!this.basePool) {
+    static getPool(databaseName: string, maxConnections: number = 5): pg.Pool {
+        if (!this.databasePool.has(databaseName)) {
             const databaseUrl = this.getDatabaseURL();
-            
-            this.basePool = new Pool(this.getPoolConfig(databaseUrl, 10));
 
-            logger.info('Base database pool created', { 
-                database: this.extractDatabaseName(databaseUrl) 
+            // Keep the user/pass & host/port, replace the rest
+            const url = new URL(databaseUrl);
+            url.pathname = '/' + databaseName;
+
+            // Pool config
+            const connectionString = url.toString();
+            const config = {
+                connectionString,
+                max: maxConnections,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 5000,
+                ssl: this.getSslConfig(connectionString)
+            };
+
+            // Create the pool
+            const databasePool = new Pool(config);
+
+            // Cache the pool
+            this.databasePool.set(databaseName, databasePool);
+            
+            // Done
+            logger.info('Database pool created', { 
+                tenant: databaseName,
+                database: databaseName
             });
         }
 
-        return this.basePool;
+        return this.databasePool.get(databaseName)!;
     }
 
-    /**
-     * Get a tenant-specific database pool
-     * Creates one pool per tenant database for efficiency
-     */
-    static getTenantPool(tenantName: string): pg.Pool {
-        if (!this.tenantPools.has(tenantName)) {
-            const baseDatabaseUrl = this.getDatabaseURL();
-            const url = new URL(baseDatabaseUrl);
-            url.pathname = `/${tenantName}`;
-            const tenantDatabaseUrl = url.toString();
-            
-            const pool = new Pool(this.getPoolConfig(tenantDatabaseUrl, 5));
-
-            this.tenantPools.set(tenantName, pool);
-            
-            logger.info('Tenant database pool created', { 
-                tenant: tenantName,
-                database: this.extractDatabaseName(tenantDatabaseUrl)
-            });
-        }
-
-        return this.tenantPools.get(tenantName)!;
-    }
-
-    /**
-     * Create a one-time Client connection (for operations that need direct control)
-     * Use sparingly - pools are preferred for performance
-     */
-    static createClient(databaseName?: string): pg.Client {
+    static getClient(databaseName: string): pg.Client {
         const baseDatabaseUrl = this.getDatabaseURL();
         let connectionString: string;
         
@@ -105,6 +75,54 @@ export class DatabaseConnection {
         });
     }
 
+    // Database management methods
+    static async createDB(databaseName: string) {
+        const db = this.getClient('postgres');
+
+        // Note: Database names cannot be parameterized, but we've sanitized the name
+        try {
+            await db.connect();
+            await db.query(`CREATE DATABASE "${databaseName}"`);
+        }
+        
+        finally {
+            await db.end();
+        }
+    }
+
+    static async deleteDB(databaseName: string) {
+        const db = this.getClient('postgres');
+
+        // Note: Database names cannot be parameterized, but we've sanitized the name
+        try {
+            await db.connect();
+            await db.query(`DROP DATABASE IF EXISTS "${databaseName}"`);
+        }
+        
+        finally {
+            await db.end();
+        }
+    }
+
+    // Private methods
+
+    private static getDatabaseURL(): string {
+        const databaseUrl = process.env.DATABASE_URL;
+        
+        if (!databaseUrl) {
+            throw new Error('DATABASE_URL not configured');
+        }
+
+        if (!databaseUrl.startsWith('postgresql://') && !databaseUrl.startsWith('postgres://')) {
+            throw new Error(
+                `Invalid DATABASE_URL format: ${databaseUrl}. ` +
+                'Must start with postgresql:// or postgres://'
+            );
+        }
+
+        return databaseUrl;
+    }
+
     /**
      * Get SSL configuration based on database URL
      */
@@ -113,59 +131,19 @@ export class DatabaseConnection {
     }
 
     /**
-     * Get standard pool configuration
-     */
-    private static getPoolConfig(connectionString: string, maxConnections: number) {
-        return {
-            connectionString,
-            max: maxConnections,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 5000,
-            ssl: this.getSslConfig(connectionString)
-        };
-    }
-
-
-
-    /**
-     * Extract database name from connection URL for logging
-     */
-    private static extractDatabaseName(databaseUrl: string): string {
-        try {
-            const url = new URL(databaseUrl);
-            return url.pathname.substring(1) || 'postgres';
-        } catch {
-            return 'unknown';
-        }
-    }
-
-    /**
      * Close all connections (for graceful shutdown)
      */
     static async closeAllConnections(): Promise<void> {
         const closePromises: Promise<void>[] = [];
 
-        if (this.basePool) {
-            closePromises.push(this.basePool.end());
-            this.basePool = null;
-        }
-
-        for (const [tenantName, pool] of this.tenantPools.entries()) {
+        for (const [tenantName, pool] of this.databasePool.entries()) {
             closePromises.push(pool.end());
         }
-        this.tenantPools.clear();
+
+        this.databasePool.clear();
 
         await Promise.all(closePromises);
         logger.info('All database connections closed');
-    }
-
-    /**
-     * Set database connection for Hono request context
-     */
-    static setDatabaseForRequest(c: any, tenantName: string): void {
-        const db = this.getTenantPool(tenantName);
-        c.set('database', db);
-        c.set('databaseDomain', tenantName);
     }
 
     /**
@@ -173,8 +151,8 @@ export class DatabaseConnection {
      */
     static async healthCheck(): Promise<{ success: boolean; error?: string }> {
         try {
-            const pool = this.getBasePool();
-            const client = await pool.connect();
+            const db = this.getMasterPool();
+            const client = await db.connect();
             await client.query('SELECT 1');
             client.release();
             return { success: true };

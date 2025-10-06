@@ -68,33 +68,33 @@ export class TenantService {
   // TENANT MANAGEMENT OPERATIONS
   // ==========================================
 
-  /**
-   * Get registry database pool (monk database)
-   */
-  private static getAuthPool(): pg.Pool {
-    return DatabaseConnection.getTenantPool('monk');
-  }
+  // /**
+  //  * Get registry database pool (monk database)
+  //  */
+  // private static getAuthPool(): pg.Pool {
+  //   return DatabaseConnection.getPool'monk');
+  // }
 
-  /**
-   * Create one-time client for registry database operations
-   */
-  private static createAuthClient(): pg.Client {
-    return DatabaseConnection.createClient('monk');
-  }
+  // /**
+  //  * Create one-time client for registry database operations
+  //  */
+  // private static createAuthClient(): pg.Client {
+  //   return DatabaseConnection.createClient('monk');
+  // }
 
-  /**
-   * Create one-time client for tenant database operations
-   */
-  private static createTenantClient(tenantName: string): pg.Client {
-    return DatabaseConnection.createClient(tenantName);
-  }
+  // /**
+  //  * Create one-time client for tenant database operations
+  //  */
+  // private static createTenantClient(tenantName: string): pg.Client {
+  //   return DatabaseConnection.createClient(tenantName);
+  // }
 
-  /**
-   * Create one-time client for postgres system database
-   */
-  private static createPostgresClient(): pg.Client {
-    return DatabaseConnection.createClient('postgres');
-  }
+  // /**
+  //  * Create one-time client for postgres system database
+  //  */
+  // private static createPostgresClient(): pg.Client {
+  //   return DatabaseConnection.createClient('postgres');
+  // }
 
   /**
    * Convert tenant name to hashed database identifier
@@ -125,19 +125,21 @@ export class TenantService {
    * Check if tenant already exists
    */
   static async tenantExists(tenantName: string): Promise<boolean> {
-    const client = this.createAuthClient();
+    const db = DatabaseConnection.getMasterPool()
     
     try {
-      await client.connect();
+      await db.connect();
       
-      const result = await client.query(
+      const result = await db.query(
         'SELECT COUNT(*) as count FROM tenant WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
         [tenantName]
       );
       
       return parseInt(result.rows[0].count) > 0;
-    } finally {
-      await client.end();
+    } 
+    
+    finally {
+      await db.end();
     }
   }
 
@@ -145,7 +147,7 @@ export class TenantService {
    * Check if database exists
    */
   static async databaseExists(databaseName: string): Promise<boolean> {
-    const client = this.createPostgresClient();
+    const client = DatabaseConnection.getClient('postgres');
     
     try {
       await client.connect();
@@ -454,7 +456,7 @@ export class TenantService {
     const { name, database } = tenantResult.rows[0];
 
     // Look up user in the tenant's database (using new auth field)
-    const tenantDb = DatabaseConnection.getTenantPool(database);
+    const tenantDb = DatabaseConnection.getPooldatabase);
     const userResult = await tenantDb.query(
       'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
       [username]
@@ -512,36 +514,6 @@ export class TenantService {
   // ==========================================
 
   /**
-   * Create PostgreSQL database
-   */
-  private static async createDatabase(databaseName: string): Promise<void> {
-    const client = this.createPostgresClient();
-    
-    try {
-      await client.connect();
-      // Note: Database names cannot be parameterized, but we've sanitized the name
-      await client.query(`CREATE DATABASE "${databaseName}"`);
-    } finally {
-      await client.end();
-    }
-  }
-
-  /**
-   * Drop PostgreSQL database
-   */
-  private static async dropDatabase(databaseName: string): Promise<void> {
-    const client = this.createPostgresClient();
-    
-    try {
-      await client.connect();
-      // Note: Database names cannot be parameterized, but we've sanitized the name
-      await client.query(`DROP DATABASE IF EXISTS "${databaseName}"`);
-    } finally {
-      await client.end();
-    }
-  }
-
-  /**
    * Initialize tenant database schema using sql/init-tenant.sql
    */
   private static async initializeTenantSchema(databaseName: string): Promise<void> {
@@ -574,8 +546,6 @@ export class TenantService {
     };
     
     // Set up database context for the tenant
-    DatabaseConnection.setDatabaseForRequest(mockContext as any, databaseName);
-    
     const metabase = new Metabase(mockContext as any);
     
     try {

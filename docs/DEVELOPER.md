@@ -326,7 +326,7 @@ monk data select account            # Lists from staging database
 ```
 
 ### **Multi-tenant Architecture**
-- **Auth Database**: `monk` contains tenant registry
+- **Registry Database**: `monk` contains tenant registry
 - **Tenant Databases**: `tenant_<hashed-name>` for each tenant
 - **JWT Routing**: Tokens contain tenant and database routing information
 - **Isolation**: Each tenant gets separate database and user management

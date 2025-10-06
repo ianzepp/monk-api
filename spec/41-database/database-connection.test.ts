@@ -8,7 +8,7 @@ describe('Direct Database Connection Test', () => {
     console.info(`🔍 DATABASE_URL: ${process.env.DATABASE_URL}`);
     
     // Test direct connection using DatabaseConnection
-    const testPool = DatabaseConnection.getTenantPool('local_test');
+    const testPool = DatabaseConnection.getPool'local_test');
     
     console.info(`🔍 Testing tenant pool for: local_test`);
     
@@ -67,7 +67,7 @@ describe('Direct Database Connection Test', () => {
   test('should test DatabaseConnection.getTenantPool method', async () => {
     // Test the actual method the main API uses
     try {
-      const pool = DatabaseConnection.getTenantPool('local_test');
+      const pool = DatabaseConnection.getPool'local_test');
       
       // Test query
       const client = await pool.connect();

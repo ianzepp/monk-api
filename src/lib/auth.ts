@@ -29,7 +29,7 @@ export class AuthService {
     // Get persistent registry database connection
     private static getAuthDatabase(): pg.Pool {
         // Use centralized database connection to monk database
-        return DatabaseConnection.getTenantPool('monk');
+        return DatabaseConnection.getMasterPool();
     }
 
     // Generate JWT token for user
@@ -75,7 +75,7 @@ export class AuthService {
         const { name, database } = tenantResult.rows[0];
 
         // Look up user in the tenant's database
-        const tenantDb = DatabaseConnection.getTenantPool(database);
+        const tenantDb = DatabaseConnection.getPool(database);
         const userResult = await tenantDb.query(
             'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
             [username]
@@ -156,7 +156,9 @@ export class AuthService {
             
             try {
                 // Set up database connection for the JWT database
-                DatabaseConnection.setDatabaseForRequest(c, payload.database);
+                const db = DatabaseConnection.getPool(payload.database);
+                c.set('database', db);
+                c.set('databaseDomain', payload.database);
 
                 // Create user object from JWT payload (for test mode)
                 const user = {

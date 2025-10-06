@@ -55,7 +55,7 @@ export default async function (context: Context): Promise<any> {
           
           try {
             // 3. Test database connection
-            const pool = DatabaseConnection.getTenantPool(tenant.database);
+            const pool = DatabaseConnection.getPooltenant.database);
             const client = await pool.connect();
             
             try {

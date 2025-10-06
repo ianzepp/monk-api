@@ -259,7 +259,7 @@ fi
 print_step "Checking if registry database exists..."
 
 # Check if registry database already exists
-if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
+if psql -lqt | cut -d'|' -f1 | grep -qx " monk " 2>/dev/null; then
     print_info "Registry database already exists"
     
     # Check if it has the required tables
