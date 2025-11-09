@@ -124,6 +124,11 @@ Essential example of modern, high-performance backend development combining cutt
 - **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
 - **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and common commands
 
+### Testing Status
+- **✅ Shell Tests**: Comprehensive end-to-end integration tests (`npm run spec`)
+- **🚧 TypeScript Tests**: Planned unit/integration tests via Vitest (`npm run spec:ts`)
+- **📋 Test Coverage**: Current shell tests provide complete API and workflow coverage
+
 ### API Reference
 - **[docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
 - **[docs/FILTER.md](docs/FILTER.md)** - Advanced filter system with 25+ operators

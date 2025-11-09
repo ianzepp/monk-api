@@ -91,7 +91,7 @@ src/observers/all/8/webhook-sender.ts          # Ring 8: All schemas, async inte
 
 ```typescript
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
-import { ObserverRing } from '@src/lib/observers/observer-ring.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/errors.js';
 import type { ObserverContext } from '@src/lib/observers/observer-context.js';
 
@@ -273,10 +273,10 @@ export default class SoftDeleteProtector extends BaseObserver {
 
 ## Testing Observers
 
-### Unit Testing (No Database)
+### Unit Testing (No Database) - Planned
 
 ```typescript
-// spec/unit/observers/custom-validator.test.ts
+// Future: spec/unit/observers/custom-validator.test.ts
 import { describe, test, expect } from 'vitest';
 import CustomValidator from '@src/observers/users/1/custom-validator.js';
 import { createMockObserverContext } from '@spec/helpers/observer-helpers.js';
@@ -306,10 +306,10 @@ describe('CustomValidator Observer', () => {
 });
 ```
 
-### Integration Testing (With Database)
+### Integration Testing (With Database) - Planned
 
 ```typescript
-// spec/integration/observers/observer-pipeline.test.ts
+// Future: spec/integration/observers/observer-pipeline.test.ts
 import { describe, test, expect, beforeAll } from 'vitest';
 import { createTestContextWithFixture } from '@spec/helpers/test-tenant.js';
 
@@ -381,10 +381,10 @@ export default class CustomObserver extends BaseObserver {
 ### 3. Test Observer
 ```bash
 # Unit test the observer logic
-npm run spec:one spec/unit/observers/custom-observer.test.ts
+npm run spec:ts spec/unit/observers/custom-observer.test.ts
 
 # Integration test with database
-npm run spec:one spec/integration/observer-pipeline.test.ts
+npm run spec:sh spec/integration/observer-pipeline.test.ts
 ```
 
 ### 4. Verify Auto-Loading

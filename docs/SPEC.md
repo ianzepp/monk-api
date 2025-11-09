@@ -2,23 +2,30 @@
 
 ## Overview
 
-The Monk API project employs a comprehensive two-tier testing strategy combining shell-based integration tests and TypeScript unit/integration tests via Vitest. This document provides complete specification for all testing processes and best practices.
+The Monk API project employs a shell-based integration testing strategy with planned TypeScript unit/integration tests via Vitest. This document provides complete specification for current testing processes and planned future enhancements.
+
+## Current Testing Status
+
+- **✅ Implemented**: Shell-based integration tests (*.test.sh) with comprehensive API coverage
+- **🚧 Planned**: TypeScript unit/integration tests (*.test.ts) via Vitest for faster isolated testing
+- **⚡ Ready**: Infrastructure (vitest.config.ts, test setup) prepared for future TypeScript tests
 
 ## Testing Architecture
 
-### Two Testing Frameworks
+### Testing Frameworks
 
-1. **Shell Integration Tests** (`spec/*.test.sh` files)
+#### **1. Shell Integration Tests** (`spec/*.test.sh` files) - ✅ Implemented
    - End-to-end CLI and API testing
    - Tenant isolation per test
    - Pattern-based test discovery
    - Real database operations
 
-2. **TypeScript Tests** (`spec/` directory)
+#### **2. TypeScript Tests** (`spec/` directory) - 🚧 Planned
    - Vitest framework for unit and integration tests
    - Direct class testing without HTTP overhead
    - Mock support for isolated unit testing
    - Real database support for integration testing
+   - **Status**: Infrastructure ready, implementation planned for future development
 
 ## Shell-Based Testing (`spec/*.test.sh` files)
 
@@ -164,9 +171,10 @@ spec/
 
 ### Writing TypeScript Tests
 
-#### Unit Test Pattern
+#### Unit Test Pattern (Planned)
 
 ```typescript
+// Future: TypeScript unit test structure
 import { describe, test, expect } from 'vitest';
 import { FilterWhere } from '@lib/filter-where.js';
 
@@ -185,9 +193,10 @@ describe('Filter Operators', () => {
 });
 ```
 
-#### Integration Test Pattern
+#### Integration Test Pattern (Planned)
 
 ```typescript
+// Future: TypeScript integration test structure
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { createTestTenant, createTestContext } from '@spec/helpers/test-tenant.js';
 
@@ -204,7 +213,7 @@ describe('Database Operations', () => {
     await ObserverLoader.preloadObservers();
 
     // Create schema
-    const schemaJson = JSON.parse(await readFile('test/schemas/account.json', 'utf-8'));
+    const schemaJson = JSON.parse(await readFile('fixtures/basic/schemas/account.json', 'utf-8'));
     await testContext.describe.createOne('account', schemaJson);
   });
 
@@ -246,12 +255,25 @@ Tests create necessary data using helper functions and utilities, focusing on:
 ## Performance Considerations
 
 ### Test Execution Speed
-To optimize test performance:
 
-- **Prefer Unit Tests**: Use TypeScript unit tests for pure logic validation (fastest execution)
+#### **Current Performance (Shell Tests)**
+- **Execution Speed**: Slower due to HTTP requests and database operations
+- **Isolation**: Excellent tenant isolation prevents test pollution
+- **Coverage**: Comprehensive end-to-end testing
+
+#### **Future Performance (TypeScript Tests)**
+- **Unit Test Speed**: Fast execution for pure logic validation
+- **Integration Test Speed**: Direct class testing without HTTP overhead
+- **Parallel Execution**: Vitest will support concurrent test execution for improved CI performance
+
+#### **Optimization Strategy**
+- **Current**: Shell tests provide comprehensive coverage with acceptable performance
+- **Future**: TypeScript unit tests will provide faster pure logic validation
+- **Hybrid Approach**: Combine both for comprehensive yet performant testing
+
+To optimize current test performance:
 - **Minimize Database Operations**: Only use integration tests when database interaction is required
 - **Clean Setup/Teardown**: Keep test setup and cleanup minimal and focused
-- **Parallel Execution**: Vitest supports concurrent test execution for improved CI performance
 
 ### CI/CD Optimization
 - Keep test datasets small and focused
@@ -259,9 +281,10 @@ To optimize test performance:
 - Leverage test result caching where possible
 - Monitor test execution times and optimize slow tests
 
-### Parallel Testing
-Vitest enables safe parallel test execution:
+### Parallel Testing (Planned)
+Vitest will enable safe parallel test execution:
 ```typescript
+// Future: Parallel test execution with Vitest
 describe.concurrent('Parallel Suite', () => {
   // Each test gets independent tenant isolation
   // No shared state or pollution
@@ -272,23 +295,25 @@ describe.concurrent('Parallel Suite', () => {
 
 ### Test Selection
 
-1. **Use Shell Tests For:**
+#### **1. Use Shell Tests For:** ✅ Currently Available
    - End-to-end CLI testing
    - Complex multi-step workflows
    - External tool integration
    - Production-like scenarios
 
-2. **Use TypeScript Unit Tests For:**
+#### **2. Use TypeScript Unit Tests For:** 🚧 Planned
    - Pure logic validation
    - Utility functions
    - Parser testing
    - No database required
+   - **Benefit**: Faster execution than shell tests
 
-3. **Use TypeScript Integration Tests For:**
+#### **3. Use TypeScript Integration Tests For:** 🚧 Planned
    - Database operations
    - Observer pipeline
    - API endpoints
    - Complex queries
+   - **Benefit**: Direct class testing without HTTP overhead
 
 
 ### Writing Effective Tests
@@ -365,10 +390,10 @@ npm run spec:ts spec/helpers/test-tenant.test.ts
 
 The Monk API testing infrastructure provides:
 
-1. **Two complementary test frameworks** for complete coverage (Shell and TypeScript)
-2. **Fast test execution** through optimized test patterns and parallel execution
+1. **Shell-based integration testing** for comprehensive end-to-end coverage ✅
+2. **Planned TypeScript unit/integration testing** for faster isolated testing 🚧
 3. **Comprehensive test isolation** via tenant-based testing
 4. **Robust debugging capabilities** with detailed error reporting
 5. **Developer-friendly** APIs and helper functions
 
-This testing architecture enables thorough validation of both API endpoints and internal logic while maintaining good performance characteristics. The combination of shell-based integration testing and TypeScript unit/integration testing provides comprehensive coverage suitable for enterprise-grade applications.
+This testing architecture currently enables thorough validation of API endpoints through shell-based integration testing. Future TypeScript unit/integration testing will provide faster isolated testing for internal logic validation, creating a comprehensive hybrid approach suitable for enterprise-grade applications.

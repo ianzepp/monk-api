@@ -10,7 +10,7 @@ Quick reference guide for running tests in the Monk API project.
 # Run all tests (recommended)
 npm run spec
 
-# Run TypeScript tests only
+# Run TypeScript tests only (planned feature)
 npm run spec:ts
 
 # Run shell tests only
@@ -19,12 +19,13 @@ npm run spec:sh
 
 ## Test Types
 
-### TypeScript Tests
+### TypeScript Tests 🚧 Planned
 - **Unit tests**: Fast tests with no database dependencies
 - **Integration tests**: Database operations and API endpoints
 - **Security tests**: SQL injection protection and API security
+- **Status**: Infrastructure ready, implementation planned
 
-### Shell Tests
+### Shell Tests ✅ Implemented
 - **End-to-end**: CLI and API testing with real database operations
 - **Integration**: Multi-step workflows and external tool testing
 
@@ -33,15 +34,15 @@ npm run spec:sh
 ```bash
 # By category
 npm run spec 15              # Authentication tests
-npm run spec:ts 44           # Filter system unit tests
+npm run spec:ts 44           # Filter system unit tests (planned)
 npm run spec:sh basic-auth   # Shell auth test
 
 # By pattern
-npm run spec:ts unit         # All unit tests
+npm run spec:ts unit         # All unit tests (planned)
 npm run spec:sh 15-20        # Auth and describe API tests
 
 # Individual files
-npm run spec:ts spec/44-filter/logical-operators.test.ts
+npm run spec:ts spec/44-filter/logical-operators.test.ts  # Planned
 npm run spec:sh spec/15-authentication/basic-auth.test.sh
 ```
 
@@ -59,8 +60,9 @@ Tests are organized by numbered series for easy categorization:
 
 ## Writing Tests
 
-### TypeScript Tests
+### TypeScript Tests (Planned)
 ```typescript
+// Future: TypeScript test structure
 import { describe, test, expect } from 'vitest';
 
 describe('My Feature', () => {
@@ -114,9 +116,10 @@ npm run autoinstall               # Reset configuration
 
 ## Performance Tips
 
-- **Run unit tests first**: `npm run spec:ts unit` for quick feedback
+- **Current**: Use shell tests with pattern matching for relevant tests only
+- **Future**: `npm run spec:ts unit` for quick feedback (planned)
 - **Pattern matching**: Use specific patterns to run relevant tests only
-- **Parallel execution**: TypeScript tests can run concurrently
+- **Parallel execution**: TypeScript tests will run concurrently (planned)
 
 ---
 

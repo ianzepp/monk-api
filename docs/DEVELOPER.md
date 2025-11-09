@@ -66,8 +66,8 @@ monk server use local                  # Switch to local server
 monk auth login local-test root         # Authenticate
 
 # Testing
-npm run spec                           # All tests (TypeScript → Shell)
-npm run spec:ts unit                   # Unit tests only
+npm run spec                           # All shell tests
+npm run spec:ts unit                   # Unit tests only (planned)
 npm run spec:sh 15                     # Authentication tests
 
 # Schema management
@@ -114,10 +114,11 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 > **📖 For complete observer development guide, see [docs/OBSERVERS.md](docs/OBSERVERS.md)**
 
 #### **Unified Test Suite** (`spec/`)
-- **Side-by-side Organization**: TypeScript (.test.ts) and Shell (.test.sh) tests co-located by functionality
-- **Three-tier Commands**: `npm run spec` (both), `npm run spec:ts` (TypeScript), `npm run spec:sh` (Shell)
+- **Current Organization**: Shell (.test.sh) tests provide comprehensive coverage
+- **Planned Enhancement**: TypeScript (.test.ts) tests will complement shell tests
+- **Command Structure**: `npm run spec` (shell tests), `npm run spec:ts` (TypeScript - planned), `npm run spec:sh` (Shell)
 - **Tenant Isolation**: Each test gets fresh tenant database
-- **Comprehensive Testing**: Isolated test environments with shell script and TypeScript integration
+- **Comprehensive Testing**: Current shell tests provide complete end-to-end coverage
 
 > **📖 For comprehensive testing guide, see [docs/TESTING.md](docs/TESTING.md)**
 
@@ -177,10 +178,10 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 npm run start:dev
 
 # Production build and start
-npm run compile && npm run start
+npm run build && npm run start
 
 # API-only development (port 9001)
-npm run api:dev
+npm run start:dev
 ```
 
 #### **Database Management**
@@ -262,8 +263,8 @@ npm run start:dev  # Observer system loads new observer automatically
 #### **Unified Test Commands**
 
 ```bash
-npm run spec [pattern]              # Complete coverage (TypeScript → Shell)
-npm run spec:ts [pattern]           # TypeScript tests only
+npm run spec [pattern]              # Complete coverage (Shell tests)
+npm run spec:ts [pattern]           # TypeScript tests only (planned)
 npm run spec:sh [pattern]           # Shell tests only
 
 # Examples
