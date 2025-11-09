@@ -47,11 +47,51 @@ server_stop
 server_start
 
 # Find all test.sh files and sort by name
-test_files=$(find spec -name "*.test.sh" -type f | sort)
+if [[ $# -gt 0 ]]; then
+    pattern="$1"
+    
+    # Check for range pattern (e.g., "10-39", "01-15")
+    if [[ "$pattern" =~ ^([0-9]{2})-([0-9]{2})$ ]]; then
+        start_range="${BASH_REMATCH[1]}"
+        end_range="${BASH_REMATCH[2]}"
+        
+        # Validate range (start <= end)
+        if [[ $start_range -le $end_range ]]; then
+            print_header "Running tests in range: $start_range-$end_range"
+            test_files=$(find spec -name "*.test.sh" -type f | \
+                grep -E "^spec/[0-9]{2}-" | \
+                awk -v start="$start_range" -v end="$end_range" '
+                {
+                    # Extract the directory number (characters 6-7 after "spec/")
+                    dir_num = substr($0, 6, 2)
+                    if(dir_num >= start && dir_num <= end) print
+                }' | sort)
+            
+            if [[ -z "$test_files" ]]; then
+                print_error "No test files found in range $start_range-$end_range"
+                server_stop
+                exit 1
+            fi
+        else
+            print_error "Invalid range: start ($start_range) must be <= end ($end_range)"
+            server_stop
+            exit 1
+        fi
+    else
+        # Regular pattern matching (existing behavior)
+        test_files=$(find spec -name "*.test.sh" -type f | grep -i "$pattern" | sort)
+        if [[ -z "$test_files" ]]; then
+            print_error "No test files matching pattern '$pattern' found"
+            server_stop
+            exit 1
+        fi
+    fi
+else
+    test_files=$(find spec -name "*.test.sh" -type f | sort)
+fi
 
 if [[ -z "$test_files" ]]; then
     print_error "No test files found in spec/ directory"
-    server_stop
     exit 1
 fi
 
@@ -75,7 +115,7 @@ while IFS= read -r test_file; do
         ((passed++))
     else
         print_error "FAILED: $test_name"
-        failed_tests+=("$test_name")
+        failed_tests+=("$test_file")
         ((failed++))
     fi
 done <<< "$test_files"
@@ -91,7 +131,9 @@ if [[ $failed -gt 0 ]]; then
     echo
     print_error "Failed tests:"
     for failed_test in "${failed_tests[@]}"; do
-        echo "  - $failed_test"
+        dir=$(dirname "$failed_test" | sed 's|spec/||')
+        name=$(basename "$failed_test" .test.sh)
+        echo "  - $dir/$name"
     done
     echo
     server_stop
