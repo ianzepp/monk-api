@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-# File API List Basic Test - SKIPPED
+# File API List Basic Test
 # Tests the POST /api/file/list endpoint with various directory paths to verify basic functionality
-# STATUS: DISABLED - File API implementation needs review
-
-echo "🚫 FILE API TEST DISABLED: list-basic.test.sh - File API implementation under review"
-exit 0
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
@@ -226,11 +222,25 @@ for field in "${system_fields[@]}"; do
     fi
 done
 
-# Test 7: Error cases
+# Test 7: Wildcard select-all
+print_step "Testing File list wildcard select-all with *"
+all_records=$(file_list "/data/account/*")
+all_record_count=$(echo "$all_records" | jq '.entries | length')
+if [[ "$all_record_count" -eq "$account_entries_count" ]]; then
+    print_success "Wildcard * returns the full account record set"
+else
+    test_fail "Wildcard * should return $account_entries_count records, got: $all_record_count"
+fi
+
+# Test 8: Partial wildcard on UUIDs is rejected
+record_prefix="${ACCOUNT_ID:0:8}"
+test_file_api_error "list" "/data/account/${record_prefix}*" "UUID_WILDCARD_NOT_SUPPORTED" "uuid prefix wildcard"
+
+# Test 9: Error cases
 test_file_api_error "list" "/data/nonexistent_schema/" "SCHEMA_NOT_FOUND" "non-existent schema listing"
 test_file_api_error "list" "/data/account/00000000-0000-0000-0000-000000000000/" "RECORD_NOT_FOUND" "non-existent record listing"
 
-# Test 8: Validate all entries have required FTP metadata
+# Test 10: Validate all entries have required FTP metadata
 print_step "Validating FTP metadata consistency across all entries"
 echo "$record_list" | jq '.entries[]' | while read -r entry; do
     entry_name=$(echo "$entry" | jq -r '.name')
@@ -251,5 +261,6 @@ echo "$record_list" | jq '.entries[]' | while read -r entry; do
         test_fail "Entry '$entry_name' has invalid timestamp: $entry_modified"
     fi
 done
+
 
 print_success "File API list functionality tests completed successfully"

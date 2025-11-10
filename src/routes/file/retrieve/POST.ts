@@ -77,37 +77,48 @@ export default withParams(async (context, { system, body }) => {
         contentType = 'application/json';
     }
 
-    // Process content with options
-    const processed = FileContentCalculator.processContent(content, {
-        format: options.format,
-        binaryMode: options.binary_mode,
-    });
-
-    // Handle partial content (resume support)
-    let finalContent = processed.content;
-    if (options.start_offset > 0) {
-        finalContent = finalContent.substring(options.start_offset);
-    }
-    if (options.max_bytes) {
-        finalContent = finalContent.substring(0, options.max_bytes);
-    }
-
-    const finalSize = FileContentCalculator.calculateSize(finalContent);
     const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
+
+    const canonicalString = typeof content === 'string' ? content : JSON.stringify(content);
+    const totalSize = FileContentCalculator.calculateSize(canonicalString);
+
+    let responseContent: any;
+    let transmittedString = canonicalString;
+    let canResume = false;
+
+    if (options.format === 'raw') {
+        const offset = Math.max(0, options.start_offset ?? 0);
+        const maxBytes = options.max_bytes ?? null;
+
+        if (offset > 0) {
+            transmittedString = transmittedString.substring(offset);
+        }
+        if (maxBytes !== null && maxBytes >= 0) {
+            transmittedString = transmittedString.substring(0, maxBytes);
+        }
+
+        canResume = transmittedString.length < canonicalString.length;
+        responseContent = transmittedString;
+    } else {
+        if ((options.start_offset ?? 0) > 0 || options.max_bytes !== undefined) {
+            throw HttpErrors.badRequest('start_offset and max_bytes are only supported with format "raw"', 'PARTIAL_READ_UNSUPPORTED');
+        }
+        responseContent = content;
+    }
 
     // Build response
     const response: FileRetrieveResponse = {
         success: true,
-        content: options.format === 'raw' ? finalContent : (finalContent ? JSON.parse(finalContent) : null),
+        content: responseContent,
         file_metadata: {
             path: request.path,
             type: 'file',
             permissions: permissionResult.permissions,
-            size: finalSize,
+            size: totalSize,
             modified_time: timestampInfo.formatted,
             content_type: contentType,
-            etag: FileContentCalculator.generateETag(processed.content),
-            can_resume: finalSize < processed.size,
+            etag: FileContentCalculator.generateETag(canonicalString),
+            can_resume: canResume,
         },
     };
 
@@ -116,7 +127,7 @@ export default withParams(async (context, { system, body }) => {
         schema: filePath.schema,
         recordId: filePath.record_id,
         fieldName: filePath.field_name,
-        contentSize: finalSize,
+        contentSize: options.format === 'raw' ? FileContentCalculator.calculateSize(transmittedString) : totalSize,
         format: options.format,
     });
 

@@ -6,6 +6,7 @@ import { FilePathParser } from '@src/lib/file-api/file-path-parser.js';
 import { FilePermissionValidator } from '@src/lib/file-api/file-permission-validator.js';
 import { FileTimestampFormatter } from '@src/lib/file-api/file-timestamp-formatter.js';
 import type { FileListRequest, FileListResponse, FileEntry } from '@src/lib/file-api/file-types.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { logger } from '@src/lib/logger.js';
 
 /**
@@ -50,7 +51,10 @@ export default withParams(async (context, { system, body }) => {
     // Validate permissions
     const permissionResult = await FilePermissionValidator.validate(system, filePath, permissionContext);
     if (!permissionResult.allowed) {
-        throw new Error(`Permission denied: ${permissionResult.reason}${permissionResult.details ? ' - ' + permissionResult.details : ''}`);
+        throw HttpErrors.forbidden(
+            `Permission denied: ${permissionResult.reason}${permissionResult.details ? ' - ' + permissionResult.details : ''}`,
+            'PERMISSION_DENIED'
+        );
     }
 
     const entries: FileEntry[] = [];
@@ -81,11 +85,38 @@ export default withParams(async (context, { system, body }) => {
             break;
 
         case 'record':
-            await handleRecordListing(system, filePath, entries);
+            if (filePath.has_wildcards) {
+                const recordPattern = filePath.record_id;
+
+                if (recordPattern === '*') {
+                    await handleSchemaListing(
+                        system,
+                        {
+                            ...filePath,
+                            type: 'schema',
+                            record_id: undefined,
+                            raw_path: `/data/${filePath.schema}`,
+                            normalized_path: `/data/${filePath.schema}`,
+                            has_wildcards: false,
+                        },
+                        options,
+                        entries
+                    );
+                } else if (containsWildcard(recordPattern)) {
+                    throw HttpErrors.badRequest(
+                        'Wildcard patterns on record identifiers are not supported (use "*" to select all records)',
+                        'UUID_WILDCARD_NOT_SUPPORTED'
+                    );
+                } else {
+                    throw HttpErrors.badRequest('Unsupported wildcard usage for record listing', 'WILDCARD_NOT_SUPPORTED');
+                }
+            } else {
+                await handleRecordListing(system, filePath, entries);
+            }
             break;
 
         default:
-            throw new Error(`Unsupported path type for listing: ${filePath.type}`);
+            throw HttpErrors.badRequest(`Unsupported path type for listing: ${filePath.type}`, 'UNSUPPORTED_LIST_PATH');
     }
 
     // Build standardized response
@@ -169,24 +200,6 @@ async function handleSchemaListing(system: any, filePath: any, options: any, ent
         }
     }
 
-    // Add ACL filtering for non-root users
-    if (!system.isRoot()) {
-        const user = system.getUser();
-        const userContext = [user.id, ...user.accessRead];
-        const aclFilter = {
-            $or: [
-                { access_read: { $any: userContext } },
-                { access_edit: { $any: userContext } },
-                { access_full: { $any: userContext } }
-            ],
-        };
-
-        if (filterData.where) {
-            filterData.where = { $and: [filterData.where, aclFilter] };
-        } else {
-            filterData.where = aclFilter;
-        }
-    }
 
     // Add sorting
     filterData.order = options.sort_by === 'date' ? `updated_at ${options.sort_order}` : `id ${options.sort_order}`;
@@ -221,17 +234,32 @@ async function handleSchemaListing(system: any, filePath: any, options: any, ent
     }
 }
 
+function containsWildcard(value: string | undefined): boolean {
+    if (!value) {
+        return false;
+    }
+    return /[\*\?\[\]\(\)]/.test(value);
+}
+
 async function handleRecordListing(system: any, filePath: any, entries: FileEntry[]): Promise<void> {
     const record = await system.database.selectOne(filePath.schema, {
         where: { id: filePath.record_id },
     });
 
     if (!record) {
-        throw new Error(`Record not found: ${filePath.record_id}`);
+        throw HttpErrors.notFound(`Record not found: ${filePath.record_id}`, 'RECORD_NOT_FOUND');
     }
 
-    const permissionResult = await FilePermissionValidator.validate(system, filePath,
-        FilePermissionValidator.buildContext(system, 'list'));
+    const permissionContext = FilePermissionValidator.buildContext(system, 'list');
+    permissionContext.path = filePath;
+    const permissionResult = await FilePermissionValidator.validate(system, filePath, permissionContext);
+
+    if (!permissionResult.allowed) {
+        throw HttpErrors.forbidden(
+            `Permission denied: ${permissionResult.reason}${permissionResult.details ? ' - ' + permissionResult.details : ''}`,
+            'PERMISSION_DENIED'
+        );
+    }
 
     // Add JSON file entry for the complete record
     entries.push({
