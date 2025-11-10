@@ -87,7 +87,7 @@ Tests are organized by numbered series for logical categorization:
 - **00-prerequisites**: System requirements and command availability
 - **01-basic**: Basic API functionality and tenant isolation
 - **02-server-config**: Server configuration and startup
-- **03-template-infrastructure**: Database template system
+- **03-template-infrastructure**: Database template system (see [FIXTURES.md](FIXTURES.md))
 - **05-infrastructure**: Core connectivity and database setup
 
 ### Security & Authentication (10-19)
@@ -127,7 +127,7 @@ Each test gets its own isolated tenant database:
 - **Complete Isolation**: Tests cannot interfere with each other
 - **Deferred Cleanup**: All databases cleaned up at end of test suite
 
-### Database Templates
+### Database Templates (see [FIXTURES.md](FIXTURES.md) for complete documentation)
 - **Basic Template**: Pre-populated with test data (accounts, contacts, users)
 - **Empty Template**: Fresh schema with no data
 - **Fast Cloning**: Template-based tests are faster than fresh setup

@@ -565,7 +565,8 @@ This guide provides everything needed to contribute effectively to the Monk API 
 
 - **🔍 API Development**: Start with [docs/API.md](docs/API.md) for endpoint patterns and examples
 - **👁️ Observer Development**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for complete observer guide
-- **🧪 Testing Strategy**: Review [docs/TEST.md](docs/TEST.md) for comprehensive testing approaches
+- **🧪 Testing Strategy: Review [docs/TEST.md](docs/TEST.md) for comprehensive testing approaches
+- **⚡ Fixtures System**: See [docs/FIXTURES.md](docs/FIXTURES.md) for template-based database cloning and 30x test acceleration
 - **🔧 Issues & Debugging**: Consult [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for systematic problem-solving
 - **📁 Advanced Features**: Explore [docs/37-file-api.md](docs/37-file-api.md) and [docs/33-find-api.md](docs/33-find-api.md) for specialized systems
 
