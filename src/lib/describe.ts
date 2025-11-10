@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import pg from 'pg';
+import type { DbContext, TxContext } from '@src/db/index.js';
 
 import type { System } from '@src/lib/system.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
@@ -78,7 +78,7 @@ export class Describe {
      * Create new schema from JSON content
      */
     async createOne(schemaName: string, jsonContent: any): Promise<any> {
-        return await this.run('create', schemaName, async (tx: pg.PoolClient) => {
+        return await this.run('create', schemaName, async tx => {
             const jsonSchema = this.parseJsonSchema(jsonContent);
             const tableName = jsonSchema.table || schemaName;
 
@@ -129,7 +129,7 @@ export class Describe {
      * Update existing schema from JSON content
      */
     async updateOne(schemaName: string, jsonContent: any): Promise<any> {
-        return await this.run('update', schemaName, async (tx: pg.PoolClient) => {
+        return await this.run('update', schemaName, async tx => {
             this.validateSchemaProtection(schemaName);
 
             const newJsonSchema = this.parseJsonSchema(jsonContent);
@@ -158,7 +158,7 @@ export class Describe {
      * Delete schema (soft delete)
      */
     async deleteOne(schemaName: string): Promise<any> {
-        return await this.run('delete', schemaName, async (tx: pg.PoolClient) => {
+        return await this.run('delete', schemaName, async tx => {
             this.validateSchemaProtection(schemaName);
 
             // Soft delete schema record
@@ -183,7 +183,7 @@ export class Describe {
      * Restore soft-deleted schema
      */
     async revertOne(schemaName: string): Promise<any> {
-        return await this.run('revert', schemaName, async (tx: pg.PoolClient) => {
+        return await this.run('revert', schemaName, async tx => {
             // TODO: Implementation - restore soft-deleted schema
             throw HttpErrors.internal('Describe.revertOne() not yet implemented', 'NOT_IMPLEMENTED');
         });
@@ -192,33 +192,32 @@ export class Describe {
     /**
      * Transaction management pattern (consistent with Database class)
      */
-    private async run(operation: string, schemaName: string, fn: (tx: pg.PoolClient) => Promise<any>): Promise<any> {
-        const db = this.system.db;
+    private async run(
+        operation: string,
+        schemaName: string,
+        fn: (tx: TxContext | DbContext) => Promise<any>
+    ): Promise<any> {
+        const executor: TxContext | DbContext = this.system.tx ?? this.system.db;
+        const inTransaction = Boolean(this.system.tx);
 
-        console.debug(`🔄 Starting describe operation: ${operation} on schema ${schemaName}`);
-
-        // Start transaction
-        const client = await db.connect();
-
-        if (!client) {
-            throw HttpErrors.internal('Unable to get database client', 'DATABASE_CONNECTION_ERROR');
-        }
+        console.debug(
+            `🔄 Describe operation starting`,
+            { operation, schemaName, inTransaction }
+        );
 
         try {
-            await client.query('BEGIN');
+            const result = await fn(executor);
 
-            const result = await fn(client);
-
-            await client.query('COMMIT');
-            console.debug(`✅ Describe operation completed: ${operation} on ${schemaName}`);
-
+            console.debug(`✅ Describe operation completed`, { operation, schemaName, inTransaction });
             return result;
         } catch (error) {
-            await client.query('ROLLBACK');
-            console.error(`💥 Describe operation failed: ${operation} on ${schemaName}`, error);
+            console.error(`💥 Describe operation failed`, {
+                operation,
+                schemaName,
+                inTransaction,
+                error: error instanceof Error ? error.message : String(error),
+            });
             throw error;
-        } finally {
-            client.release();
         }
     }
 
@@ -382,7 +381,7 @@ export class Describe {
     /**
      * Insert schema describe record
      */
-    private async insertSchemaRecord(tx: pg.PoolClient, schemaName: string, tableName: string, jsonSchema: JsonSchema, jsonChecksum: string): Promise<void> {
+    private async insertSchemaRecord(tx: TxContext, schemaName: string, tableName: string, jsonSchema: JsonSchema, jsonChecksum: string): Promise<void> {
         const fieldCount = Object.keys(jsonSchema.properties).length;
 
         const insertQuery = `
@@ -398,7 +397,7 @@ export class Describe {
     /**
      * Insert column describe records for schema properties
      */
-    private async insertColumnRecords(tx: pg.PoolClient, schemaName: string, jsonSchema: JsonSchema): Promise<void> {
+    private async insertColumnRecords(tx: TxContext, schemaName: string, jsonSchema: JsonSchema): Promise<void> {
         if (!jsonSchema.properties || Object.keys(jsonSchema.properties).length === 0) {
             return; // No properties to process
         }

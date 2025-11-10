@@ -1,4 +1,3 @@
-import pg from 'pg';
 import Ajv, { type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 

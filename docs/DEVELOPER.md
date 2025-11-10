@@ -493,9 +493,10 @@ npm run version:major
 #### **Adding New API Endpoints**
 ```typescript
 // src/routes/new-endpoint.ts
-import { withParams } from '@src/lib/route-helpers.js';
+import { withParams } from '@src/lib/api-helpers.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
-export default withParams(async (context, { system, schema, body }) => {
+export default withParams(async (context, { system, schema }) => {
     const result = await system.database.selectAny(schema!);
     setRouteResult(context, result);
 });
@@ -548,6 +549,7 @@ rm -rf ~/.config/monk/ && npm run autoinstall # Nuclear reset
 
 ### **Route Handler Deduplication** (August 2025)
 - **withParams() Pattern**: Pre-extracts common parameters (system, schema, recordId, body)
+- **withTransactionParams() Boundary**: Write routes wrap business logic in a request-level transaction so observers/services never manage transactions directly
 - **Content-Type Intelligence**: JSON/Binary body handling for future file upload support
 - **25-50% Boilerplate Reduction**: Route handlers focus on pure business logic
 - **Barrel Exports**: Clean organization with SchemaGet/RecordGet naming convention

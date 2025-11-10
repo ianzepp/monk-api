@@ -1,5 +1,4 @@
-import pg from 'pg';
-
+import type { DbContext, TxContext } from '@src/db/index.js';
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
 import { Describe } from '@src/lib/describe.js';
@@ -22,10 +21,10 @@ export class System implements SystemContextWithInfrastructure {
     public readonly correlationId: string;
 
     // Database context - always available for database operations
-    public readonly db: pg.Pool;
+    public readonly db: DbContext;
 
     // Transaction context - set by SQL Observer when transactions needed
-    public tx?: pg.PoolClient;
+    public tx?: TxContext;
 
     // System services
     public readonly database: Database;

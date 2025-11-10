@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import pg from 'pg';
+import type { DbContext, TxContext } from '@src/db/index.js';
 
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
@@ -41,7 +41,7 @@ export class Database {
      * Get transaction-aware database context
      * Uses transaction if available, otherwise uses database connection
      */
-    private get dbContext(): pg.Pool | pg.PoolClient {
+    private get dbContext(): DbContext | TxContext {
         return this.system.tx || this.system.db;
     }
 

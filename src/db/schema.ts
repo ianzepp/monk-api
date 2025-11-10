@@ -1,7 +1,7 @@
 // Base field interface shared by all tables
 export interface BaseFields {
     id: string;
-    domain: string | null; // Nullable - null means public/shared
+    domain?: string | null; // Nullable - null means public/shared
     access_read: string[]; // UUID arrays for ACL
     access_edit: string[];
     access_full: string[];
@@ -49,6 +49,6 @@ export type NewColumn = Omit<Column, 'id' | 'created_at' | 'updated_at'> & {
 
 // Table names as constants
 export const TABLE_NAMES = {
-    schemas: 'schemas',
+    schema: 'schemas',
     columns: 'columns',
 } as const;

@@ -1,5 +1,5 @@
-import pg from 'pg';
 import crypto from 'crypto';
+import type { DbContext, TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 
 // Cached schema entry
@@ -42,7 +42,7 @@ export class SchemaCache {
     /**
      * Get database URL for cache key generation
      */
-    private getDatabaseUrl(dtx: pg.Pool | pg.PoolClient): string {
+    private getDatabaseUrl(dtx: DbContext | TxContext): string {
         // Use connection string from the database context
         // Extract database name from the connection or use a simple identifier
         try {
@@ -58,7 +58,7 @@ export class SchemaCache {
     /**
      * Get or create database-specific cache
      */
-    private getDatabaseCache(dtx: pg.Pool | pg.PoolClient): DatabaseCache {
+    private getDatabaseCache(dtx: DbContext | TxContext): DatabaseCache {
         const databaseUrl = this.getDatabaseUrl(dtx);
 
         if (!this.databaseCaches.has(databaseUrl)) {
@@ -75,7 +75,7 @@ export class SchemaCache {
     /**
      * Load all schema checksums for a database
      */
-    private async loadSchemaChecksums(dtx: pg.Pool | pg.PoolClient): Promise<{ name: string; json_checksum: string; updated_at: string }[]> {
+    private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{ name: string; json_checksum: string; updated_at: string }[]> {
         const result = await dtx.query(`
             SELECT name, json_checksum, updated_at
             FROM schemas
@@ -88,7 +88,7 @@ export class SchemaCache {
     /**
      * Validate cache checksums for a database
      */
-    private async validateCacheChecksums(dtx: pg.Pool | pg.PoolClient, schemaNames?: string[]): Promise<void> {
+    private async validateCacheChecksums(dtx: DbContext | TxContext, schemaNames?: string[]): Promise<void> {
         const dbCache = this.getDatabaseCache(dtx);
         const now = Date.now();
 
@@ -147,7 +147,7 @@ export class SchemaCache {
     /**
      * Load full schema definition from database
      */
-    private async loadFullSchema(dtx: pg.Pool | pg.PoolClient, schemaName: string): Promise<any> {
+    private async loadFullSchema(dtx: DbContext | TxContext, schemaName: string): Promise<any> {
         const result = await dtx.query(
             `
             SELECT * FROM schemas

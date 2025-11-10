@@ -35,7 +35,7 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
 // Imports
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { checkDatabaseConnection, closeDatabaseConnection } from '@src/lib/database-connection.js';
+import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 
 // Observer preload
