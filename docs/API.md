@@ -1,646 +1,339 @@
 # API Documentation
 
+> **Complete API Reference for the Monk Platform**
+>
+> This document provides an executive overview of all available APIs with links to detailed documentation for each API section. For comprehensive implementation details, examples, and advanced usage patterns, refer to the individual API documentation linked below.
+
 ## Table of Contents
-1. [API Architecture](#api-architecture)
-2. [Endpoint Patterns](#endpoint-patterns)
-3. [Authentication](#authentication)
-4. [Data API](#data-api)
-5. [Describe API](#describe-api)
-6. [Root API](#root-api)
-7. [Common Development Tasks](#common-development-tasks)
 
-## API Architecture
+1. [API Architecture Overview](#api-architecture-overview)
+2. [Authentication & Security](#authentication--security)
+3. [Core API Sections](#core-api-sections)
+4. [API Quick Reference](#api-quick-reference)
+5. [Getting Started](#getting-started)
+6. [Integration Examples](#integration-examples)
+7. [Additional Resources](#additional-resources)
 
-### Path-Based Route Structure
+## API Architecture Overview
 
-Routes follow intuitive file organization where file path directly maps to URL path:
+The Monk platform provides a comprehensive suite of APIs organized into logical sections (30-39) that cover all aspects of data management, security, and system administration.
 
+### Key Architectural Principles
+- **Multi-tenant Architecture**: Each tenant gets isolated database and user management
+- **Observer Pipeline**: All operations pass through validation, security, audit, and integration layers
+- **RESTful Design**: Consistent endpoint patterns and HTTP methods
+- **JWT Authentication**: Secure token-based authentication with tenant isolation
+- **Soft Delete System**: Three-tier access pattern for data lifecycle management
+- **Enterprise Filtering**: 25+ operators for complex query patterns
+
+### Base URL Structure
 ```
-/routes/data/:schema/POST.ts        → POST /api/data/:schema
-/routes/data/:schema/:id/GET.ts     → GET /api/data/:schema/:id
-/routes/describe/:schema/PUT.ts         → PUT /api/describe/:schema
-/routes/auth/login/POST.ts          → POST /auth/login
-```
-
-### Modern Route Handler Pattern
-
-```typescript
-// NEW: Clean route handlers with parameter pre-extraction
-import { withParams } from '@src/lib/route-helpers.js';
-
-export default withParams(async (context, { system, schema, body }) => {
-    // Pure business logic - no boilerplate
-    const result = await system.database.createAll(schema!, body);
-    setRouteResult(context, result);
-});
+https://api.example.com/{api-section}/{resource}
 ```
 
-### Content-Type Aware Body Handling
-- **JSON requests**: `body` is parsed JSON object
-- **JSON requests**: `body` is parsed JSON object (for schema operations)
-- **Binary requests**: `body` is ArrayBuffer (ready for file uploads)
-- **Automatic detection**: Based on Content-Type header
-
-### Route Organization
-```bash
-# Barrel exports for clean organization
-src/routes/data/routes.ts     # SchemaGet, SchemaPost, RecordGet, RecordPut
-src/routes/describe/routes.ts     # SchemaGet, SchemaPost, SchemaPut, SchemaDelete
-src/routes/health/GET.ts      # Health check in proper file structure
-
-# Clean index.ts registration
-import * as dataRoutes from '@src/routes/data/routes.js';
-app.get('/api/data/:schema', dataRoutes.SchemaGet);
-app.get('/api/data/:schema/:id', dataRoutes.RecordGet);
-```
-
-## Endpoint Patterns
-
-### Consistent Array/Object Pattern
-
-```bash
-# Array endpoints (bulk operations)
-GET /api/data/:schema           → Returns: []
-POST /api/data/:schema          → Expects: [], Returns: []
-PUT /api/data/:schema           → Expects: [], Returns: []
-DELETE /api/data/:schema        → Expects: [], Returns: []
-
-# Object endpoints (single record)
-GET /api/data/:schema/:id       → Returns: {}
-PUT /api/data/:schema/:id       → Expects: {}, Returns: {}
-DELETE /api/data/:schema/:id    → Returns: {}
-```
-
-### CLI Command Mapping
-
-```bash
-# CLI automatically handles array/object conversion
-monk data create account        # Wraps {} in [] for API
-monk data select account          # Calls array endpoint
-monk data select account <id>      # Calls object endpoint
-monk data update account <id>   # Calls object endpoint
-```
-
-## Authentication
-
-### Multi-tenant Authentication
-- **Monk Main Database**: `monk_main` contains tenant registry
-- **Tenant Databases**: `tenant_12345678` for each tenant
-- **JWT Routing**: Tokens contain tenant and database routing information
-- **Isolation**: Each tenant gets separate database and user management
-
-### JWT Structure
-```typescript
-interface JWTPayload {
-    tenant: string;        // Tenant name
-    database: string;      // Full database name (tenant_12345678)
-    access: string;        // User access level
-    user: string;          // Username
-    exp: number;           // Expiration timestamp
+### Response Format
+All APIs return consistent JSON responses:
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "Operation completed successfully"
 }
 ```
 
-### Authentication Flow
-```bash
-# 1. Create tenant
-monk tenant create my-tenant
+## Authentication & Security
 
-# 2. Use tenant
-monk tenant use my-tenant
-
-# 3. Authenticate with tenant
-monk auth login my-tenant root
-
-# 4. Use authenticated endpoints
-monk data select schema
-```
-
-## Data API
-
-### Core CRUD Operations
-
-All data operations automatically run through the observer pipeline for validation, security, audit, and integration.
-
-#### Create Records
-```bash
-# Single record
-POST /api/data/:schema
-Content-Type: application/json
-Authorization: Bearer <jwt>
-
+### JWT Token Structure
+```json
 {
-  "name": "Test User",
-  "email": "test@example.com"
-}
-
-# Multiple records
-POST /api/data/:schema
-Content-Type: application/json
-Authorization: Bearer <jwt>
-
-[
-  {"name": "User 1", "email": "user1@example.com"},
-  {"name": "User 2", "email": "user2@example.com"}
-]
-```
-
-#### Read Records
-```bash
-# List all records (with filtering)
-GET /api/data/:schema?where={"status":"active"}&limit=10&order=["created_at desc"]
-
-# Get specific record
-GET /api/data/:schema/:id
-```
-
-#### Update Records
-```bash
-# Update specific record
-PUT /api/data/:schema/:id
-Content-Type: application/json
-
-{
-  "name": "Updated Name",
-  "email": "updated@example.com"
-}
-
-# Bulk update (with filtering)
-PUT /api/data/:schema?where={"status":"pending"}
-Content-Type: application/json
-
-{
-  "status": "active",
-  "updated_at": "2025-01-01T00:00:00Z"
+  "tenant": "tenant_name",
+  "database": "tenant_12345678",
+  "access": "user_access_level",
+  "user": "username",
+  "exp": 1234567890
 }
 ```
 
-#### Delete Records
+### Authentication Header
 ```bash
-# Soft delete specific record
-DELETE /api/data/:schema/:id
-
-# Bulk soft delete (with filtering)
-DELETE /api/data/:schema?where={"status":"inactive"}
+Authorization: Bearer <jwt_token>
 ```
 
-### Advanced Filtering
+### Required Permissions by API Section
+- **30-Auth API**: Public endpoints (login, whoami)
+- **31-Meta API**: `read_data`, `create_data`, `update_data`, `delete_data`
+- **32-Data API**: `create_data`, `read_data`, `update_data`, `delete_data`
+- **33-Find API**: `read_data` (with advanced filtering)
+- **35-Bulk API**: Corresponding permissions for each operation type
+- **37-File API**: File operation permissions mapped to data permissions
+- **38-ACLs API**: `admin` or `root` access level required
+- **39-Root API**: `root` access level required
 
-The data API supports complex filtering using the enterprise Filter system:
+## Core API Sections
 
+### [30-Auth API](30-auth-api.md)
+**Authentication and User Management**
+- User login and authentication
+- Session management
+- User profile operations
+- Public access endpoints
+
+### [31-Meta API](31-meta-api.md)
+**Schema Management and Metadata**
+- Schema creation and updates
+- Schema discovery and introspection
+- DDL generation and migration
+- Schema validation and constraints
+
+### [32-Data API](32-data-api.md)
+**Core CRUD Operations and Data Management**
+- Create, Read, Update, Delete operations
+- Relationship management (belongs_to, has_many, many_to_many)
+- Bulk operations and soft delete system
+- Advanced filtering and pagination
+
+### [33-Find API](33-find-api.md)
+**Advanced Search and Filtering**
+- Enterprise-grade search with 25+ operators
+- Complex logical expressions and nesting
+- Full-text search and text operations
+- Performance optimization and query planning
+
+### [35-Bulk API](35-bulk-api.md)
+**Transaction-Safe Bulk Operations**
+- Atomic transaction processing
+- Mixed operation types in single request
+- Multi-schema operations
+- Automatic rollback on failure
+
+### [37-File API](37-file-api.md)
+**Virtual File System Interface**
+- File-like operations on database records
+- Content type detection and conversion
+- Directory listing and browsing
+- Metadata access and access control
+
+### [38-ACLs API](38-acls-api.md)
+**Access Control Lists Management**
+- Record-level permission management
+- Four permission levels (read, edit, full, deny)
+- User and group-based access control
+- Bulk ACL operations with filtering
+
+### [39-Root API](39-root-api.md)
+**System Administration and Tenant Management**
+- Tenant lifecycle management
+- System health monitoring
+- Database provisioning and cleanup
+- Administrative operations and controls
+
+## API Quick Reference
+
+### Endpoint Patterns by Section
+
+| API Section | Base Pattern | Primary Operations |
+|-------------|--------------|-------------------|
+| 30-Auth | `/auth/*` | Login, whoami, profile |
+| 31-Meta | `/api/describe/:schema` | Schema CRUD operations |
+| 32-Data | `/api/data/:schema[/:id]` | Record CRUD operations |
+| 33-Find | `/api/find/:schema` | Advanced search and filtering |
+| 35-Bulk | `/api/bulk` | Transaction-safe bulk operations |
+| 37-File | `/api/file/*` | Virtual file system operations |
+| 38-ACLs | `/api/acls/:schema[/:record]` | Access control management |
+| 39-Root | `/api/root/tenant[/:name]` | Tenant administration |
+
+### Common HTTP Methods
+- **GET**: Retrieve data and metadata
+- **POST**: Create resources and execute operations
+- **PUT**: Update/replace existing resources
+- **DELETE**: Remove resources (soft delete by default)
+
+### Query Parameters
+- `?where={}`: Filter results (Find API, Data API)
+- `?limit=N`: Limit result count
+- `?order=["field desc"]`: Sort results
+- `?include_trashed=true`: Include soft-deleted records
+- `?force=true`: Override safety checks
+
+## Getting Started
+
+### 1. Authentication
 ```bash
-# Complex filtering example
-GET /api/data/documents
-Content-Type: application/json
-
+# Login to get JWT token
+POST /auth/login
 {
-  "where": {
-    "$and": [
-      {
-        "$or": [
-          { "access_read": { "$any": ["user-123", "group-456"] } },
-          { "access_edit": { "$any": ["user-123", "group-456"] } }
-        ]
-      },
-      { "access_deny": { "$nany": ["user-123", "group-456"] } },
-      { "status": { "$nin": ["archived", "deleted"] } },
-      { "created_at": { "$between": ["2024-01-01", "2024-12-31"] } }
-    ]
-  },
-  "order": ["created_at desc"],
-  "limit": 25
+  "tenant": "my_tenant",
+  "username": "admin",
+  "password": "secure_password"
+}
+
+# Response includes JWT token
+{
+  "success": true,
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
 
-### Soft Delete System
-
-Three-tier access pattern:
-- **📋 List Operations**: Hide trashed records (`GET /api/data/:schema`)
-- **🔍 Direct Access**: Allow ID retrieval (`GET /api/data/:schema/:id`)
-- **🔒 Update Operations**: Block modifications until restoration
-
-## Describe API
-
-### Schema Management
-
-The Describe API handles JSON schema definitions and DDL generation:
-
-#### Create Schema
-
-**Preferred: URL Name Pattern**
+### 2. Schema Creation
 ```bash
-POST /api/describe/:schema[?force=true]
-Content-Type: application/json
-Authorization: Bearer <jwt>
-
-# Schema name comes from URL, JSON can be template
+# Create a new schema
+POST /api/describe/users
+Authorization: Bearer <token>
 {
-  "title": "User Management",
-  "description": "User account information",
   "type": "object",
   "properties": {
-    "id": {
-      "type": "string",
-      "format": "uuid"
-    },
-    "name": {
-      "type": "string",
-      "minLength": 1
-    },
-    "email": {
-      "type": "string",
-      "format": "email"
-    }
+    "name": {"type": "string"},
+    "email": {"type": "string", "format": "email"}
   },
   "required": ["name", "email"]
 }
 ```
 
-**Legacy: JSON Name Pattern**
+### 3. Data Operations
 ```bash
-POST /api/describe
-Content-Type: application/json
-Authorization: Bearer <jwt>
-
-# Schema name comes from JSON title field
+# Create a record
+POST /api/data/users
+Authorization: Bearer <token>
 {
-  "name": "users",
-  "title": "User Management",
-  "description": "User account information",
-  "type": "object"
-  // ... rest of schema
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+
+# Query with filtering
+POST /api/find/users
+Authorization: Bearer <token>
+{
+  "where": {"status": "active"},
+  "limit": 10,
+  "order": ["created_at desc"]
 }
 ```
 
-**Conflict Resolution:**
-- URL name takes precedence when both patterns are used
-- Add `?force=true` to override JSON title conflicts
-- Without force, conflicts return 409 error
-
-#### List Schemas
+### 4. Bulk Operations
 ```bash
-GET /api/describe
-Authorization: Bearer <jwt>
-
-# Response: Array of schema names
-["users", "accounts", "products"]
-```
-
-#### Get Schema
-```bash
-GET /api/describe/:schema
-Authorization: Bearer <jwt>
-
-# Response: Complete JSON schema definition
-```
-
-#### Update Schema
-```bash
-PUT /api/describe/:schema
-Content-Type: application/json
-Authorization: Bearer <jwt>
-
-# Updated JSON schema definition
-# Automatically updates database DDL
-```
-
-#### Delete Schema
-```bash
-DELETE /api/describe/:schema
-Authorization: Bearer <jwt>
-
-# Soft deletes schema and associated table
-```
-
-### Schema Features
-- **JSON Schema Validation**: Complete JSON Schema support with AJV
-- **DDL Generation**: Automatic PostgreSQL table creation from schema
-- **Schema Caching**: 15x performance improvement with SHA256 checksums
-- **System Schema Protection**: Prevents modification of core system schemas
-
-## Root API
-
-### Localhost Development Only
-
-Authentication-free tenant management for UIX development, available only on localhost with `NODE_ENV=development`.
-
-#### Security Restrictions
-- **Environment**: Only available when `NODE_ENV=development`
-- **Network**: Only accessible from `localhost` or `127.0.0.1`
-- **Audit**: All operations logged with warnings for security awareness
-
-#### Tenant Management Endpoints (Phase 1 Complete)
-
-**Create Tenant:**
-```bash
-POST /api/root/tenant
-Content-Type: application/json
-
+# Multiple operations in transaction
+POST /api/bulk
+Authorization: Bearer <token>
 {
-  "name": "My Amazing App! 🚀",  # Unicode fully supported
-  "host": "localhost"        # Optional, defaults to localhost
-}
-
-# Response
-{
-  "success": true,
-  "tenant": "My Amazing App! 🚀",      # Original display name preserved
-  "database": "tenant_a1b2c3d4e5f6789a",    # SHA256 hash for safe DB identifier
-  "host": "localhost",
-  "created_at": "2025-08-28T20:03:03.033Z"
-}
-```
-
-**List All Tenants:**
-```bash
-GET /api/root/tenant?include_trashed=true&include_deleted=false
-
-# Response
-{
-  "success": true,
-  "tenants": [
+  "operations": [
     {
-      "name": "My Amazing App! 🚀",      # Unicode display name
-      "database": "tenant_a1b2c3d4e5f6789a",  # Hashed database identifier
-      "host": "localhost",
-      "status": "active",
-      "created_at": "2025-08-28T20:03:03.033Z",
-      "updated_at": "2025-08-28T20:03:03.033Z",
-      "trashed_at": null,
-      "deleted_at": null
-    }
-  ],
-  "count": 1
-}
-```
-
-**Show Individual Tenant:**
-```bash
-GET /api/root/tenant/my_ui_tenant
-
-# Response
-{
-  "success": true,
-  "tenant": {
-    "name": "my_ui_tenant",
-    "database": "my_ui_tenant",
-    "host": "localhost",
-    "status": "active",
-    "created_at": "2025-08-28T20:03:03.033Z",
-    "updated_at": "2025-08-28T20:03:03.033Z"
-  }
-}
-```
-
-**Health Check:**
-```bash
-GET /api/root/tenant/my_ui_tenant/health
-
-# Response
-{
-  "success": true,
-  "health": {
-    "tenant": "my_ui_tenant",
-    "timestamp": "2025-08-28T20:40:40.409Z",
-    "checks": {
-      "tenant_exists": true,
-      "database_exists": true,
-      "database_connection": true,
-      "schema_table_exists": true,
-      "users_table_exists": true,
-      "root_user_exists": true
+      "operation": "create-all",
+      "schema": "users",
+      "data": [{"name": "User 1"}, {"name": "User 2"}]
     },
-    "status": "healthy",
-    "errors": []
-  }
-}
-```
-
-**Soft Delete Tenant:**
-```bash
-DELETE /api/root/tenant/my_ui_tenant
-
-# Response
-{
-  "success": true,
-  "tenant": "my_ui_tenant",
-  "trashed": true,
-  "trashed_at": "2025-08-28T20:41:56.893Z"
-}
-```
-
-**Restore Tenant:**
-```bash
-PUT /api/root/tenant/my_ui_tenant
-
-# Response
-{
-  "success": true,
-  "tenant": "my_ui_tenant",
-  "restored": true,
-  "restored_at": "2025-08-28T20:42:03.733Z"
-}
-```
-
-**Hard Delete Tenant:**
-```bash
-DELETE /api/root/tenant/my_ui_tenant?force=true
-
-# Response
-{
-  "success": true,
-  "tenant": "my_ui_tenant",
-  "deleted": true,
-  "deleted_at": "2025-08-28T20:42:10.538Z"
-}
-```
-
-**List Tenants:**
-```bash
-GET /api/root/tenant                    # Active tenants only
-GET /api/root/tenant?include_trashed=true   # Include soft deleted
-GET /api/root/tenant?include_deleted=true   # Include hard deleted
-
-# Response
-{
-  "success": true,
-  "tenants": [
     {
-      "name": "my-tenant",
-      "database": "tenant_12345678",
-      "host": "localhost",
-      "created_at": "2025-08-26T04:42:15.283Z",
-      "updated_at": "2025-08-26T04:42:15.283Z",
-      "trashed_at": null,
-      "deleted_at": null,
-      "status": "active"
+      "operation": "update-all",
+      "schema": "accounts",
+      "where": {"status": "pending"},
+      "data": {"status": "active"}
     }
-  ],
-  "count": 1
+  ]
 }
 ```
 
-**Soft Delete Tenant (Trash):**
-```bash
-DELETE /api/root/tenant/my-tenant
+## Integration Examples
 
-# Response
-{
-  "success": true,
-  "tenant": "my-tenant",
-  "trashed": true,
-  "trashed_at": "2025-08-26T04:42:26.515Z"
-}
-```
-
-**Restore Tenant:**
-```bash
-PUT /api/root/tenant/my-tenant
-
-# Response
-{
-  "success": true,
-  "tenant": "my-tenant",
-  "restored": true,
-  "restored_at": "2025-08-26T04:42:44.372Z"
-}
-```
-
-#### UIX Development Workflow
+### JavaScript/Node.js
 ```javascript
-// No authentication required on localhost:
-
-// Create tenant for UI development
-const tenant = await fetch('http://localhost:9001/api/root/tenant', {
+const response = await fetch('https://api.example.com/api/data/users', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'ui-demo' })
-}).then(r => r.json());
-
-// List active tenants
-const tenants = await fetch('http://localhost:9001/api/root/tenant')
-  .then(r => r.json());
-
-// Soft delete when done (preserves data)
-await fetch('http://localhost:9001/api/root/tenant/ui-demo', {
-  method: 'DELETE'
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Jane Smith',
+    email: 'jane@example.com'
+  })
 });
 
-// Restore if needed
-await fetch('http://localhost:9001/api/root/tenant/ui-demo', {
-  method: 'PUT'
-});
+const result = await response.json();
 ```
 
-#### Tenant Lifecycle Management
-- **Create**: Instant tenant creation with database initialization and root user
-- **Show**: Individual tenant details with status information
-- **Health Check**: Comprehensive database connectivity and integrity checks
-- **Soft Delete**: Tenant hidden but database and data preserved (`trashed_at`)
-- **Restore**: Trashed tenants can be restored without data loss (clear `trashed_at`)
-- **Hard Delete**: Permanent removal with `?force=true` parameter (removes database and record)
-- **Update**: Endpoint exists but requires `TenantService.updateTenant()` implementation
+### Python
+```python
+import requests
 
-## Common Development Tasks
+headers = {
+    'Authorization': f'Bearer {token}',
+    'Content-Type': 'application/json'
+}
 
-### Adding New API Endpoints
+data = {
+    'where': {'status': 'active', 'age': {'$gte': 18}},
+    'limit': 50,
+    'order': ['created_at desc']
+}
 
-```bash
-# 1. Create route handler
-src/routes/new-endpoint.ts
+response = requests.post(
+    'https://api.example.com/api/find/users',
+    headers=headers,
+    json=data
+)
 
-# 2. Use middleware pattern (systemContextMiddleware provides system)
-export default withParams(async (context, { system, schema, body }) => {
-    // Pure business logic - no boilerplate
-    const result = await system.database.selectAny(schema!);
-    setRouteResult(context, result);
-});
-
-# 3. Register in main router with appropriate response middleware
-src/index.ts
-app.use('/api/new/*', responseJsonMiddleware);  // For JSON responses
-app.route('/api/new', newRouter);
+results = response.json()
 ```
 
-### Schema Development
-
+### cURL
 ```bash
-# 1. Create JSON schema
-tests/schemas/new-schema.json
+# Create schema
+curl -X POST https://api.example.com/api/describe/products \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "object", "properties": {"name": {"type": "string"}}}'
 
-# 2. Deploy for testing
-cat tests/schemas/new-schema.json | monk describe create schema
-
-# 3. Test CRUD operations
-echo '{"field": "value"}' | monk data create new-schema
-monk data select new-schema
+# Bulk operations
+curl -X POST https://api.example.com/api/bulk \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operations": [
+      {"operation": "create-all", "schema": "products", "data": [{"name": "Product 1"}]}
+    ]
+  }'
 ```
 
-### Testing API Endpoints
+## Additional Resources
 
+### Related Documentation
+- [DEVELOPER.md](DEVELOPER.md) - Development setup and architecture
+- [ERRORS.md](ERRORS.md) - Error handling and troubleshooting
+- [FILE.md](FILE.md) - File system interface details
+- [FILTER.md](FILTER.md) - Advanced filtering and query capabilities
+- [OBSERVERS.md](OBSERVERS.md) - Observer system integration
+- [TEST.md](TEST.md) - Testing framework and best practices
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
+
+### API Testing
+Each API section includes comprehensive test coverage. Test files are located in:
+```
+spec/{api-section}/
+├── README.md           # Test coverage details
+├── *.test.sh          # Individual test files
+└── test-helpers.sh    # Shared test utilities
+```
+
+### CLI Integration
+The platform includes CLI tools that wrap these APIs:
 ```bash
-# Health check
-curl http://localhost:9001/health
+# Authentication
+monk auth login my-tenant admin
 
-# Authenticated ping
-curl -H "Authorization: Bearer $(monk auth token)" \
-  http://localhost:9001/ping
+# Schema operations
+monk describe create users < users.json
 
 # Data operations
-curl -X POST http://localhost:9001/api/data/users \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(monk auth token)" \
-  -d '{"name": "Test User", "email": "test@example.com"}'
+monk data create users '{"name": "Test User"}'
 
-# Schema operations (preferred URL pattern)
-curl -X POST http://localhost:9001/api/describe/test-schema \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(monk auth token)" \
-  -d '{"title": "Test Schema", "type": "object", "properties": {"name": {"type": "string"}}}'
-
-# Schema operations (legacy pattern)
-curl -X POST http://localhost:9001/api/describe \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(monk auth token)" \
-  -d '{"name": "test-schema", "title": "Test Schema"}}'
+# Advanced queries
+monk data select users --where '{"status": "active"}' --limit 10
 ```
 
-### Error Handling
-
-The API uses consistent error response format:
-
-```json
-{
-  "success": false,
-  "error": {
-    "type": "ValidationError",
-    "message": "Invalid email format",
-    "field": "email",
-    "code": "VALIDATION_FAILED"
-  }
-}
-```
-
-### Rate Limiting and Security
-
-- **CORS**: Configured for cross-origin requests
-- **JWT Validation**: All authenticated endpoints require valid JWT
-- **SQL Injection Protection**: All queries use parameterized SQL
-- **Schema Validation**: All data validated against JSON Schema
-- **Soft Delete**: Automatic exclusion of deleted records
-- **Observer Pipeline**: Universal security, validation, and audit
-
-### Performance Optimizations
-
-- **Schema Caching**: 15x performance improvement with compiled validators
-- **Batch Operations**: Efficient bulk create/update/delete operations
-- **Observer Pipeline**: Single-pass execution with preloaded data
-- **Connection Pooling**: Per-tenant database connection management
-- **Parameterized Queries**: Optimized SQL with PostgreSQL parameter placeholders
+### Support and Community
+- **Issues**: Report bugs and feature requests via GitHub issues
+- **Discussions**: Join community discussions for questions and best practices
+- **Contributing**: See [DEVELOPER.md](DEVELOPER.md) for contribution guidelines
 
 ---
 
-This API documentation provides comprehensive coverage of all endpoints and patterns. For detailed examples of specific features, see:
-- [FILE.md](FILE.md) - FS middleware filesystem-like interface
-- [FILTER.md](FILTER.md) - Advanced filtering and query capabilities
-- [OBSERVERS.md](OBSERVERS.md) - Observer system integration
-- [TEST.md](TEST.md) - API endpoint testing strategies
+**Next Steps**: Choose an API section from the list above to explore detailed documentation, examples, and implementation guides for specific use cases.
