@@ -2,7 +2,7 @@
 
 Comprehensive guide for running tests in the Monk API project.
 
-> **📖 For complete technical specifications, architecture details, and implementation patterns, see [SPEC.md](SPEC.md)**
+> **📖 For complete technical specifications, architecture details, and implementation patterns, see this document**
 
 ## Quick Start
 
@@ -260,12 +260,83 @@ time npm run test 15-auth  # Uses fresh setup
 - **`TEST_QUIET`** - Set to "true" to suppress verbose output
 - **`NODE_ENV`** - Set to "test" for test configuration
 
+## Testing Architecture
+
+### Current Implementation
+- **Shell Integration Tests** (`spec/*.test.sh`) - ✅ Implemented
+  - End-to-end CLI and API testing
+  - Tenant isolation per test
+  - Real database operations
+  - Pattern-based test discovery
+
+### Future Plans
+- **TypeScript Tests** (`spec/*.test.ts`) - 🚧 Planned
+  - Vitest framework for unit and integration tests
+  - Direct class testing without HTTP overhead
+  - Mock support for isolated unit testing
+  - Parallel execution capabilities
+
+### Hybrid Testing Strategy
+The project is designed for a hybrid approach:
+- **Shell Tests**: Comprehensive end-to-end coverage (current)
+- **TypeScript Unit Tests**: Fast logic validation (planned)
+- **TypeScript Integration Tests**: Direct class testing (planned)
+
+## Test Categories by Purpose
+
+### When to Use Shell Tests ✅
+- End-to-end CLI testing
+- Complex multi-step workflows  
+- External tool integration
+- Production-like scenarios
+- API endpoint validation
+
+### When to Use TypeScript Tests 🚧 (Planned)
+- Pure logic validation
+- Utility functions
+- Parser testing
+- Database operations (without HTTP overhead)
+- Complex queries
+- Performance-critical unit testing
+
+## Performance Considerations
+
+### Current Performance (Shell Tests)
+- **Execution Speed**: Slower due to HTTP requests and database operations
+- **Isolation**: Excellent tenant isolation prevents test pollution
+- **Coverage**: Comprehensive end-to-end testing
+
+### Future Performance (TypeScript Tests)
+- **Unit Test Speed**: Fast execution for pure logic validation
+- **Integration Test Speed**: Direct class testing without HTTP overhead
+- **Parallel Execution**: Vitest will support concurrent test execution
+
+### Optimization Strategy
+- **Current**: Shell tests provide comprehensive coverage with acceptable performance
+- **Future**: TypeScript unit tests will provide faster pure logic validation
+- **Hybrid Approach**: Combine both for comprehensive yet performant testing
+
+To optimize current test performance:
+- **Template Usage**: Use template-based tests when possible (faster than fresh setup)
+- **Specific Selection**: Use pattern matching to run relevant tests only
+- **Quiet Mode**: Use `--quiet` in CI/CD environments
+
+## Future Enhancements
+
+### Planned Features
+1. **Enhanced Test Utilities**: Improved helper functions for common test patterns
+2. **Performance Benchmarking**: Track test execution trends and identify bottlenecks
+3. **Test Coverage Analytics**: Better insights into test coverage across different areas
+4. **Parallel Test Optimization**: Further optimize concurrent test execution
+5. **Enhanced Debugging Tools**: Better tooling for troubleshooting test failures
+
+### Long-term Vision
+- Comprehensive test pattern library
+- Advanced mocking and stubbing capabilities
+- Automated test maintenance and optimization
+- Integration with additional testing tools
+- Enhanced CI/CD pipeline integration
+
 ---
 
-**For complete documentation including:**
-- Detailed test architecture and implementation patterns
-- Advanced testing strategies and security considerations
-- Performance optimization and debugging techniques
-- Future enhancement plans
-
-**See [SPEC.md](SPEC.md) - Complete Test Specification**
+**This testing architecture currently enables thorough validation of API endpoints through shell-based integration testing. Future TypeScript unit/integration testing will provide faster isolated testing for internal logic validation, creating a comprehensive hybrid approach suitable for enterprise-grade applications.**

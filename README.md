@@ -146,4 +146,4 @@ Essential example of modern, high-performance backend development combining cutt
 - **[src/routes/root/PUBLIC.md](src/routes/root/PUBLIC.md)** - Root API (tenant management and system administration)
 
 ### Technical Specifications
-- **[docs/SPEC.md](docs/SPEC.md)** - Complete test specification and architecture
+- **[docs/TESTING.md](docs/TESTING.md)** - Complete testing strategies and patterns

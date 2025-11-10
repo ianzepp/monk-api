@@ -21,7 +21,7 @@
 - **🔧 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
 - **📁 [docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
 - **🔎 [docs/FILTER.md](docs/FILTER.md)** - Enterprise filter system with 25+ operators
-- **📊 [docs/SPEC.md](docs/SPEC.md)** - Complete test specification and template system
+- **🧪 [docs/TESTING.md](docs/TESTING.md)** - Complete testing strategies and patterns
 
 ---
 
