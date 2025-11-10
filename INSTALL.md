@@ -35,8 +35,10 @@ npm run autoinstall
 # Start development server
 npm run start:dev
 
-# Test connectivity
-# TODO: Test file doesn't exist - npm run test:sh spec/10-connection/basic-ping.test.sh
+# Test authentication
+curl -X POST http://localhost:9001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"tenant":"system","username":"root"}'
 ```
 
 The `autoinstall` script will:
@@ -238,11 +240,11 @@ Comprehensive test suite with isolated environments:
 npm run test:sh
 
 # Run specific test categories
-npm run test:sh 15        # Authentication tests
-npm run test:sh 20-30     # Describe and data API tests
+npm run test:sh 10        # Authentication tests
+npm run test:sh 31-32     # Meta and data API tests
 
 # Individual test
-# TODO: Test file doesn't exist - npm run test:sh spec/15-authentication/basic-auth.test.sh
+# npm run test:sh spec/10-auth/public-auth.test.sh
 ```
 
 ## Performance

@@ -298,8 +298,8 @@ curl -X POST https://api.example.com/api/bulk \
 ### Related Documentation
 - [DEVELOPER.md](DEVELOPER.md) - Development setup and architecture
 - [ERRORS.md](ERRORS.md) - Error handling and troubleshooting
-- [FILE.md](FILE.md) - File system interface details
-- [FILTER.md](FILTER.md) - Advanced filtering and query capabilities
+- [37-file-api.md](37-file-api.md) - File system interface details
+- [33-find-api.md](33-find-api.md) - Advanced filtering and query capabilities
 - [OBSERVERS.md](OBSERVERS.md) - Observer system integration
 - [TEST.md](TEST.md) - Testing framework and best practices
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions

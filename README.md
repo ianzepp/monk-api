@@ -20,28 +20,23 @@
 - **Comprehensive Testing**: Isolated test environments with shell script and TypeScript integration
 
 ### Technical Architecture
-- **Modern Framework Stack**:
-  - **Hono Web Framework**: Ultra-fast TypeScript-first web framework (~50KB)
-  - **AJV**: High-performance JSON Schema validation
-  - **PostgreSQL**: Multi-tenant database with advanced features
-  - **TypeScript**: Full type safety and modern development patterns
+- **Modern Framework Stack**: Hono (~50KB) + TypeScript + PostgreSQL + AJV
 - **Observer System**: Ring-based execution model for predictable business logic flow
 - **CLI Integration**: Complete management via monk-cli standalone tool
 
+**Detailed Architecture**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for comprehensive technical specifications
+
 ### Ring-Based Observer Architecture
-**Execution Rings (0-9)**:
-- **Ring 0**: Input validation and sanitization
-- **Ring 2**: Business logic and rules enforcement
-- **Ring 5**: Database execution (SQL operations)
-- **Ring 7**: Audit logging and change tracking
-- **Ring 8**: Webhooks and external integrations
+**Execution Rings (0-9)**: Input validation → Business logic → Database execution → Audit → Integrations
+
+**Complete Observer Guide**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for detailed ring system documentation
 
 ### Multi-Tenant Capabilities
-- **Database Isolation**: Each tenant receives dedicated PostgreSQL database (`tenant_12345678`)
-- **JWT-Based Routing**: Automatic tenant detection and database routing via JWT tokens
-- **Schema Independence**: Tenants can evolve schemas independently without interference
-- **Performance Optimization**: SHA256 caching provides 15x faster schema access
-- **Resource Efficiency**: Ultra-lightweight framework minimizes resource overhead per tenant
+- **Database Isolation**: Dedicated PostgreSQL per tenant with JWT-based routing
+- **Schema Independence**: Tenants evolve independently without interference
+- **Performance**: SHA256 caching provides 15x faster schema access
+
+**Multi-Tenant Architecture**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for detailed tenant management
 
 ### Schema-First Development
 ```json
@@ -67,25 +62,24 @@ PUT  /api/data/users/123  # Update specific user (object input)
 ```
 
 ### Development Features
-- **Hot Reload**: Development server with automatic TypeScript compilation and reload
+- **Hot Reload**: Development server with automatic TypeScript compilation
 - **CLI Management**: Complete API management via monk-cli tool
-- **Docker Support**: Complete containerization with development and production configurations
-- **Testing Framework**: Comprehensive test suite with both TypeScript and shell script coverage
-- **Multi-Runtime**: Support for Node.js, Bun, Deno, and Cloudflare Workers
+- **Testing**: Comprehensive test suite with shell script coverage
+- **Multi-Runtime**: Node.js, Bun, Deno, Cloudflare Workers support
+
+**Development Guide**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for complete development workflows
 
 ### Performance Optimizations
 - **Ultra-Lightweight**: ~50KB Hono framework vs traditional heavy frameworks
 - **Schema Caching**: 15x performance improvement with SHA256-based caching
-- **Raw SQL Performance**: Direct SQL execution without ORM overhead
-- **Multi-Runtime**: Deploy to fastest available JavaScript runtime
-- **Connection Pooling**: Efficient database connection management
+- **Raw SQL**: Direct execution without ORM overhead
+
+**Performance Details**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for optimization strategies
 
 ### Enterprise Features
-- **Security**: Built-in authentication, authorization, and JWT-based tenant routing
-- **Observability**: Comprehensive logging, error tracking, and audit trails
-- **Scalability**: Horizontal scaling through tenant distribution and lightweight architecture
-- **Testing**: Isolated test environments with comprehensive coverage
-- **Documentation**: Extensive developer documentation and implementation guides
+- **Security**: Built-in auth, JWT-based tenant routing, comprehensive audit trails
+- **Scalability**: Horizontal scaling through tenant distribution
+- **Documentation**: Extensive developer guides and implementation documentation
 
 ### Use Cases
 - **SaaS Application Backend**: Rapid development platform for multi-tenant SaaS applications
@@ -99,17 +93,23 @@ PUT  /api/data/users/123  # Update specific user (object input)
 - **TypeScript**: Type-safe development with modern language features
 - **PostgreSQL**: Advanced multi-tenant database architecture
 - **AJV**: High-performance JSON Schema validation
-- **JSON Schema**: Schema definition, validation, and automatic documentation
+
+**Complete Stack**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for detailed technology specifications
 
 ### Archive Value
-Excellent reference for:
-- **Modern TypeScript API Development**: Current best practices with ultra-fast frameworks
-- **Multi-Tenant Architecture**: Advanced tenant isolation and database routing patterns
-- **Schema-First Development**: JSON-driven development with automatic API generation
-- **Observer Pattern**: Ring-based event-driven architecture in TypeScript
-- **High-Performance API Design**: Ultra-lightweight framework patterns and optimization techniques
+Excellent reference for modern TypeScript API development, multi-tenant architecture, schema-first development, observer patterns, and high-performance API design.
 
-Essential example of modern, high-performance backend development combining cutting-edge TypeScript frameworks, schema-driven development, and sophisticated multi-tenant architecture for scalable SaaS platforms.
+---
+
+## Next Steps
+
+**🚀 Quick Start**: Follow the installation guide above to get Monk API running.
+
+**📚 Deep Dive**: For comprehensive technical documentation, architecture details, development workflows, and advanced features, see **[docs/DEVELOPER.md](docs/DEVELOPER.md)**.
+
+**🔍 API Reference**: For complete endpoint documentation and usage examples, see **[docs/API.md](docs/API.md)**.
+
+Happy coding! 🎯
 
 ---
 
@@ -125,25 +125,17 @@ Essential example of modern, high-performance backend development combining cutt
 - **[docs/TEST.md](docs/TEST.md)** - Testing guide and common commands
 
 ### Testing Status
-- **✅ Shell Tests**: Comprehensive end-to-end integration tests (`npm run test:sh`)
-- **🚧 TypeScript Tests**: Planned unit/integration tests via Vitest (`npm run test:ts`)
-- **📋 Test Coverage**: Current shell tests provide complete API and workflow coverage
+- **✅ Shell Tests**: Comprehensive end-to-end integration tests
+- **🚧 TypeScript Tests**: Planned unit tests (Vitest)
+- **📋 Coverage**: Complete API and workflow validation
+
+**Testing Guide**: See [docs/TEST.md](docs/TEST.md) for comprehensive testing strategies
 
 ### API Reference
 - **[docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
-- **[docs/FILTER.md](docs/FILTER.md)** - Advanced filter system with 25+ operators
-- **[docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
+- **[Live API Docs](src/routes/PUBLIC.md)** - Auto-generated API documentation
 
-#### Live API Documentation
-- **[src/routes/PUBLIC.md](src/routes/PUBLIC.md)** - Complete API overview and architecture
-- **[src/public/auth/PUBLIC.md](src/public/auth/PUBLIC.md)** - Public authentication API (login, refresh, register)
-- **[src/routes/auth/PUBLIC.md](src/routes/auth/PUBLIC.md)** - Protected auth API (user management, privilege escalation)
-- **[src/routes/data/PUBLIC.md](src/routes/data/PUBLIC.md)** - Data API (CRUD operations, soft delete, bulk operations)
-- **[src/routes/describe/PUBLIC.md](src/routes/describe/PUBLIC.md)** - Describe API (JSON schema management and validation)
-- **[src/routes/file/PUBLIC.md](src/routes/file/PUBLIC.md)** - File API (filesystem-like interface for data navigation)
-- **[src/routes/bulk/PUBLIC.md](src/routes/bulk/PUBLIC.md)** - Bulk API (batch operations across multiple schemas)
-- **[src/routes/find/PUBLIC.md](src/routes/find/PUBLIC.md)** - Find API (advanced search and filtering capabilities)
-- **[src/routes/root/PUBLIC.md](src/routes/root/PUBLIC.md)** - Root API (tenant management and system administration)
+**Complete API Documentation**: See [docs/API.md](docs/API.md) and [src/routes/PUBLIC.md](src/routes/PUBLIC.md) for detailed endpoint specifications
 
 ### Technical Specifications
 - **[docs/TEST.md](docs/TEST.md)** - Complete testing strategies and patterns

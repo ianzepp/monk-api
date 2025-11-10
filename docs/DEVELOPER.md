@@ -1,5 +1,11 @@
 # Monk API Developer Guide
 
+> **📖 This is the comprehensive developer guide for Monk API.**
+> 
+> For a quick project overview and getting started, see [README.md](../README.md).
+> 
+> This document provides detailed architecture, development workflows, and technical specifications for contributors and advanced users.
+
 ## Table of Contents
 
 1. [Quick Start](#1-quick-start)
@@ -14,14 +20,12 @@
 
 ## 📋 Complete Documentation Index
 
-- **🏗️ [DEVELOPER.md](DEVELOPER.md)** - This guide: Architecture, workflows, quick start
 - **🔍 [docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
 - **👁️ [docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
 - **🧪 [docs/TEST.md](docs/TEST.md)** - Comprehensive testing strategies and patterns
 - **🔧 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
-- **📁 [docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
-- **🔎 [docs/FILTER.md](docs/FILTER.md)** - Enterprise filter system with 25+ operators
-- **🧪 [docs/TEST.md](docs/TEST.md)** - Complete testing strategies and patterns
+
+**Project Overview**: See [README.md](../README.md) for executive summary and quick start guide.
 
 ---
 
@@ -47,7 +51,7 @@ npm run autoinstall
 npm run start:dev
 
 # 4. Verify installation
-# TODO: Test file doesn't exist - npm run test:sh spec/10-connection/basic-ping.test.sh
+npm run test:sh spec/01-basic/api-discovery.test.sh
 ```
 
 The `npm run autoinstall` script handles all setup steps automatically:
@@ -56,6 +60,8 @@ The `npm run autoinstall` script handles all setup steps automatically:
 - Configures local server in `~/.config/monk/server.json`
 - Creates test tenant (`local-test`) for development
 - Compiles TypeScript and verifies complete setup
+
+**Quick Start**: See [README.md](../README.md) for basic project overview and essential commands.
 
 ### Essential Commands
 
@@ -98,6 +104,8 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Multi-tenant**: JWT-based database routing with auth database validation
 - **High Performance**: Schema caching, bulk operations, selective ring execution, parameterized SQL
 - **Security**: SQL injection prevention, ACL enforcement, soft deletes, observer-based validation and audit
+
+**Project Overview**: See [README.md](../README.md) for executive summary and key features.
 
 #### **API Management**
 - **CLI Tool**: Available as standalone [monk-cli](https://github.com/ianzepp/monk-cli) project
@@ -157,14 +165,14 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Logical Operations**: Deep nesting with $and, $or, $not, $nand, $nor
 - **Performance**: 500+ parameters, 6+ nesting levels, complex ACL queries
 
-> **📖 For complete filter documentation, see [docs/FILTER.md](docs/FILTER.md)**
+> **📖 For complete filter documentation, see [docs/33-find-api.md](docs/33-find-api.md)**
 
-#### **FS Middleware** - Filesystem-like API Access
+#### **File API** - Filesystem-like Interface
 - **Path Structure**: `/data/users/user-123.json` → Complete record access
-- **Core Operations**: `POST /api/file/list`, `POST /api/file/store`, `POST /api/file/delete`
-- **Advanced Features**: Wildcard patterns, atomic transactions, caching
+- **Core Operations**: Virtual file system with list, store, delete operations
+- **Advanced Features**: Wildcard patterns, atomic transactions, pattern caching
 
-> **📖 For complete FS documentation, see [docs/FILE.md](docs/FILE.md)**
+> **📖 For complete file API documentation, see [docs/37-file-api.md](docs/37-file-api.md)**
 
 ---
 
@@ -559,6 +567,6 @@ This guide provides everything needed to contribute effectively to the Monk API 
 - **👁️ Observer Development**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for complete observer guide
 - **🧪 Testing Strategy**: Review [docs/TEST.md](docs/TEST.md) for comprehensive testing approaches
 - **🔧 Issues & Debugging**: Consult [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for systematic problem-solving
-- **📁 Advanced Features**: Explore [docs/FILE.md](docs/FILE.md) and [docs/FILTER.md](docs/FILTER.md) for specialized systems
+- **📁 Advanced Features**: Explore [docs/37-file-api.md](docs/37-file-api.md) and [docs/33-find-api.md](docs/33-find-api.md) for specialized systems
 
 Happy coding! 🚀
