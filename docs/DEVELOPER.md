@@ -47,7 +47,7 @@ npm run autoinstall
 npm run start:dev
 
 # 4. Verify installation
-npm run test:sh spec/10-connection/basic-ping.test.sh
+# TODO: Test file doesn't exist - npm run test:sh spec/10-connection/basic-ping.test.sh
 ```
 
 The `npm run autoinstall` script handles all setup steps automatically:
@@ -451,7 +451,7 @@ monk auth login local-test root
 npm run test:sh                        # All shell tests
 npm run test:ts unit                   # Unit tests only
 npm run test:sh 15                     # Auth tests
-npm run test:sh spec/path/test.test.sh # Single test
+npm run test:sh spec/01-basic/api-discovery.test.sh # Single test example
 
 # Schema management
 cat contacts.json | monk describe create schema

@@ -381,10 +381,12 @@ export default class CustomObserver extends BaseObserver {
 ### 3. Test Observer
 ```bash
 # Unit test the observer logic
-npm run test:ts spec/unit/observers/custom-observer.test.ts
+# TODO: Unit test file doesn't exist - npm run test:ts spec/unit/observers/custom-observer.test.ts
+# TODO: No direct observer unit tests exist - consider creating or use integration tests
 
 # Integration test with database
-npm run test:sh spec/integration/observer-pipeline.test.ts
+# TODO: Integration test file doesn't exist - npm run test:sh spec/integration/observer-pipeline.test.ts
+# TODO: No direct observer integration tests exist - use existing shell tests that exercise observer functionality
 ```
 
 ### 4. Verify Auto-Loading
@@ -399,7 +401,7 @@ npm run start:dev
 ### 5. Test in Pipeline
 ```bash
 # Test complete observer pipeline
-npm run test:sh spec/85-observer-integration/observer-startup-test.sh
+# TODO: Test file doesn't exist - npm run test:sh spec/85-observer-integration/observer-startup-test.sh
 ```
 
 ## Best Practices

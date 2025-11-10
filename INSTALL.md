@@ -36,7 +36,7 @@ npm run autoinstall
 npm run start:dev
 
 # Test connectivity
-npm run test:sh spec/10-connection/basic-ping.test.sh
+# TODO: Test file doesn't exist - npm run test:sh spec/10-connection/basic-ping.test.sh
 ```
 
 The `autoinstall` script will:
@@ -242,7 +242,7 @@ npm run test:sh 15        # Authentication tests
 npm run test:sh 20-30     # Describe and data API tests
 
 # Individual test
-npm run test:sh spec/15-authentication/basic-auth.test.sh
+# TODO: Test file doesn't exist - npm run test:sh spec/15-authentication/basic-auth.test.sh
 ```
 
 ## Performance

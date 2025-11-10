@@ -544,9 +544,14 @@ FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
 npm run test:ts unit/filter
 
 # Specific operator categories
-npm run test:ts spec/unit/filter/logical-operators.test.ts
-npm run test:ts spec/unit/filter/array-operators.test.ts
-npm run test:ts spec/unit/filter/complex-scenarios.test.ts
+# TODO: Unit test files don't exist - use shell tests instead:
+# TODO: npm run test:ts spec/unit/filter/logical-operators.test.ts
+# TODO: npm run test:ts spec/unit/filter/array-operators.test.ts  
+# TODO: npm run test:ts spec/unit/filter/complex-scenarios.test.ts
+# Use existing shell tests:
+npm run test:sh spec/44-filter/where-logical.test.sh    # Logical operators
+npm run test:sh spec/44-filter/where-arrays.test.sh     # Array operators
+npm run test:sh spec/44-filter/complex-01.test.sh       # Complex scenarios
 ```
 
 ### Real-World Scenarios

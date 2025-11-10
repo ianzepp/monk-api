@@ -44,8 +44,9 @@ psql -d monk_main -c "SELECT COUNT(*) FROM tenants;"   # Auth database
 psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schemas;" # Tenant database
 
 # Test Node.js database connections
-npm run test:ts spec/unit/database-connection-test.test.ts  # Direct connections (planned)
-npm run test:sh spec/05-infrastructure/connectivity.test.ts # Integration tests
+# TODO: Unit test file doesn't exist - npm run test:ts spec/unit/database-connection-test.test.ts  # Direct connections (planned)
+# TODO: Use existing shell test instead - npm run test:sh spec/01-basic/tenant-isolation.test.sh # Basic connectivity test
+# TODO: Test file doesn't exist - npm run test:sh spec/05-infrastructure/connectivity.test.ts # Integration tests
 ```
 
 ## Common Issues
@@ -62,7 +63,8 @@ npm run test:sh spec/05-infrastructure/connectivity.test.ts # Integration tests
 
 # Diagnostic Steps:
 psql -U $USER -d monk_main -c "SELECT current_user;"    # Should work
-npm run test:ts spec/unit/tenant-service-debug.test.ts     # May fail (planned)
+# TODO: Unit test file doesn't exist - npm run test:ts spec/unit/tenant-service-debug.test.ts     # May fail (planned)
+# TODO: Use existing shell test instead - npm run test:sh spec/42-tenant/tenant-deletion-denies.test.sh # Tenant-related test
 
 # Verify DATABASE_URL configuration
 cat ~/.config/monk/env.json | grep DATABASE_URL
@@ -88,7 +90,7 @@ ps aux | grep postgres
 #### Integration Tests Failing
 ```bash
 # Check observer system preloading
-npm run test:sh spec/05-infrastructure/connectivity.test.ts
+# TODO: Test file doesn't exist - npm run test:sh spec/05-infrastructure/connectivity.test.ts
 
 # Common issue: Observers not loaded
 # Solution: Add await ObserverLoader.preloadObservers() to test setup
@@ -103,10 +105,12 @@ npm run test:ts spec/unit/tenant-service-debug.test.ts
 #### Unit Tests vs Integration Tests
 ```bash
 # Unit tests should always work (no external dependencies)
-npm run test:ts unit                    # Should pass consistently
+# TODO: Unit test directory doesn't exist - npm run test:ts unit                    # Should pass consistently
+# TODO: Use existing shell tests instead - npm run test:sh spec/01-basic/ # Basic tests that should always pass
 
 # Integration tests require database and configuration
-npm run test:sh integration             # May fail with config issues
+# TODO: Integration test directory doesn't exist - npm run test:sh integration             # May fail with config issues
+# TODO: Use existing shell tests instead - npm run test:sh spec/31-meta-api/ # API tests that may fail with config issues
 
 # If unit tests fail → Code issue
 # If integration tests fail → Environment/config issue
@@ -165,8 +169,10 @@ npm run build                           # Compile observers
 npm run start:dev                       # Look for observer loading logs
 
 # Test observer system directly
-npm run test:ts unit/observers         # Unit test observers (planned)
-npm run test:sh spec/integration/observer-pipeline.test.ts
+# TODO: Unit test file doesn't exist - npm run test:ts unit/observers         # Unit test observers (planned)
+# TODO: Use existing shell test instead - npm run test:sh spec/90-examples/ # Look for observer examples
+# TODO: Integration test file doesn't exist - npm run test:sh spec/integration/observer-pipeline.test.ts
+# TODO: No direct observer integration tests exist - use existing shell tests that exercise observer functionality
 
 # Common observer issues:
 # - Missing observer files in src/observers/
@@ -184,7 +190,7 @@ git log --oneline --since="4 hours ago" # Recent changes
 
 # Test specific commits to isolate when issue started
 git checkout <commit-hash>              # Test earlier commit
-npm run test:sh spec/05-infrastructure/connectivity.test.ts
+# TODO: Test file doesn't exist - npm run test:sh spec/05-infrastructure/connectivity.test.ts
 
 # Common causes of "worked before" issues:
 # - External system updates (PostgreSQL, Node.js, OS packages)
@@ -229,8 +235,9 @@ echo "TenantService builds: postgresql://user@host:port/db"
 ### Filter System Debugging
 ```bash
 # Test filter operators systematically by category
-npm run test:ts unit/filter/logical-operators      # AND, OR, NOT operations (planned)
-npm run test:ts unit/filter/array-operators        # PostgreSQL arrays (planned)
+# TODO: Unit test files don't exist - npm run test:ts unit/filter/logical-operators      # AND, OR, NOT operations (planned)
+# TODO: Unit test files don't exist - npm run test:ts unit/filter/array-operators        # PostgreSQL arrays (planned)
+# TODO: Use existing shell tests instead - npm run test:sh spec/44-filter/complex-01.test.sh # Filter operations test
 npm run test:ts unit/filter/complex-scenarios      # Real-world patterns (planned)
 
 # Debug SQL generation
@@ -239,7 +246,8 @@ console.log('SQL:', whereClause);
 console.log('Params:', params);
 
 # Test specific operator combinations
-npm run test:ts spec/unit/filter/logical-operators.test.ts
+# TODO: Unit test file doesn't exist - npm run test:ts spec/unit/filter/logical-operators.test.ts
+# TODO: Use existing shell test instead - npm run test:sh spec/44-filter/where-logical.test.sh # Logical filter test
 ```
 
 ### FS middleware Debugging
@@ -255,7 +263,8 @@ curl -X POST http://localhost:9001/api/file/list \
   -d '{"path": "/", "file_options": {}}'
 
 # 3. Integration tests (requires database)
-npm run test:ts integration/file
+# TODO: Integration test directory doesn't exist - npm run test:ts integration/file
+# TODO: Use existing shell test instead - npm run test:sh spec/37-file-api/ # File API tests
 ```
 
 ### Observer System Debugging
@@ -268,8 +277,8 @@ npm run start:dev                       # Check observer loading logs
 # "✅ Observer loaded: ObserverName (ring N, schema X)"
 
 # Test individual observers
-npm run test:ts unit/observers         # Unit test observers (planned)
-npm run test:sh spec/integration/observer-pipeline.test.ts
+# TODO: Unit test file doesn't exist - npm run test:ts unit/observers         # Unit test observers (planned)
+# TODO: Integration test file doesn't exist - npm run test:sh spec/integration/observer-pipeline.test.ts
 
 # Debug observer execution in development
 # Look for execution timing logs:
@@ -290,7 +299,8 @@ node -e "
 "
 
 # Check observer pipeline execution
-npm run test:sh spec/integration/observer-pipeline.test.ts
+# TODO: Integration test file doesn't exist - npm run test:sh spec/integration/observer-pipeline.test.ts
+# TODO: No direct observer pipeline tests exist - use existing shell tests that exercise observer functionality
 ```
 
 ## Development Tips

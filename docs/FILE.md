@@ -421,19 +421,23 @@ File operations integrate with the ACL system:
 npm run test:ts unit/file
 
 # File operations unit tests
-npm run test:ts spec/unit/file/file-operations.test.ts
+# TODO: Unit test file doesn't exist - npm run test:ts spec/unit/file/file-operations.test.ts
+# TODO: Use existing shell test instead - npm run test:sh spec/37-file-api/delete-basic.test.sh # File operations test
 
-# Path parsing validation
-npm run test:ts spec/unit/file/file-path-parsing.test.ts
+# Path parsing validation  
+# TODO: Unit test file doesn't exist - npm run test:ts spec/unit/file/file-path-parsing.test.ts
+# TODO: Use existing shell test instead - npm run test:sh spec/37-file-api/list-basic.test.sh # File listing test
 ```
 
 ### Integration Testing
 ```bash
 # File endpoint integration tests (database required)
-npm run test:ts integration/file
+# TODO: Integration test directory doesn't exist - npm run test:ts integration/file
+# TODO: Use existing shell test instead - npm run test:sh spec/37-file-api/ # File API integration tests
 
 # HTTP integration testing
-npm run test:sh spec/integration/file/file-operations-integration.test.ts
+# TODO: Integration test file doesn't exist - npm run test:sh spec/integration/file/file-operations-integration.test.ts
+# TODO: Use existing shell test instead - npm run test:sh spec/37-file-api/store-basic.test.sh # File operations test
 ```
 
 ### Manual Testing Examples
