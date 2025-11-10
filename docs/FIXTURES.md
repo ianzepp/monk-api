@@ -53,7 +53,7 @@ fixtures/
 - `monk_template_empty` - Production-ready template
 
 **Tenant Registry:**
-Templates are registered in `monk_main.tenants` with `tenant_type='template'` for management and discovery.
+Templates are registered in `monk.tenants` with `tenant_type='template'` for management and discovery.
 
 ### System Flow
 
@@ -350,7 +350,7 @@ git ls-files -v | grep ^S
 time npm run fixtures:build basic
 
 # Monitor database sizes
-psql -d monk_main -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname LIKE 'monk_template_%'"
+psql -d monk -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname LIKE 'monk_template_%'"
 ```
 
 ## Troubleshooting
@@ -401,7 +401,7 @@ psql -d monk_template_basic -c "SELECT COUNT(*) FROM accounts"
 createdb test_clone -T monk_template_basic
 
 # Check tenant registry
-psql -d monk_main -c "SELECT name, database, tenant_type FROM tenants WHERE tenant_type = 'template'"
+psql -d monk -c "SELECT name, database, tenant_type FROM tenants WHERE tenant_type = 'template'"
 
 # Monitor connections
 psql -c "SELECT datname, numbackends FROM pg_stat_database WHERE datname LIKE 'monk_template_%' OR datname LIKE 'tenant_%'"
@@ -482,7 +482,7 @@ psql -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_datab
 | `npm run fixtures:deploy <template>` | Deploy to Neon | `npm run fixtures:deploy basic` |
 | `npm run test:cleanup` | Clean test databases | `npm run test:cleanup` |
 
-**Speed Improvement:** **30x faster** than fresh database creation  
-**Template Types:** `basic`, `basic_large`, `empty`, custom  
-**Protection:** Multi-layer lock system prevents accidental changes  
+**Speed Improvement:** **30x faster** than fresh database creation
+**Template Types:** `basic`, `basic_large`, `empty`, custom
+**Protection:** Multi-layer lock system prevents accidental changes
 **Cloud Ready:** Full Neon integration for serverless deployments

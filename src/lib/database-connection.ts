@@ -3,7 +3,7 @@ import { logger } from '@src/lib/logger.js';
 
 const { Pool, Client } = pg;
 
-export const MONK_DB_MAIN_NAME = 'monk_main';
+export const MONK_DB_MAIN_NAME = 'monk';
 export const MONK_DB_TENANT_PREFIX = 'tenant_';
 export const MONK_DB_TEST_PREFIX = 'test_';
 export const MONK_DB_TEST_TEMPLATE_PREFIX = 'test_template_';
@@ -43,10 +43,10 @@ export async function closeDatabaseConnection(): Promise<void> {
  * 2. Read process.env.DATABASE_URL
  * 3. Handle database connection configuration
  *
- * The DATABASE_URL should point to the "monk_main" database:
- * 1. For example: postgresql://<user>:<pass>@<host>:<port>/monk_main
+ * The DATABASE_URL should point to the "monk" database:
+ * 1. For example: postgresql://<user>:<pass>@<host>:<port>/monk
  * 2. This class will use the original DATABASE_URL for getMainPool()
- * 3. This class will replace "monk_main" with "tenant_#" for getTenantPool(database)
+ * 3. This class will replace "monk" with "tenant_#" for getTenantPool(database)
  *
  * All other files must use these methods for database connections.
  */

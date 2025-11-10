@@ -2,8 +2,8 @@
 -- This script creates the required tables for the monk database
 --
 -- Usage:
---   createdb monk_main
---   psql -d monk_main -f sql/init-monk-main.sql
+--   createdb monk
+--   psql -d monk -f sql/init-monk-main.sql
 --
 -- The main database serves as the central registry for multi-tenant operations,
 -- storing tenant configurations and routing information for domain-based authentication.
@@ -83,7 +83,7 @@ CREATE TABLE "requests" (
     "api" VARCHAR(20),                                -- Extracted API (auth, data, meta, file)
     "ip_address" INET,                                -- Client IP
     "user_agent" TEXT,                                -- Client info
-    
+
     -- Standard system fields for consistency
     "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
     "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL

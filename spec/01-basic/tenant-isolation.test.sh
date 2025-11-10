@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# Test Tenant Isolation 
+# Test Tenant Isolation
 # Verifies isolated test tenant creation and cleanup functionality
 
 # Source helpers
@@ -48,7 +48,7 @@ else
     print_error "Admin user authentication failed"
 fi
 
-# Test regular user  
+# Test regular user
 user_token=$(get_user_token "$tenant_name" "user")
 if [[ -n "$user_token" && "$user_token" != "null" ]]; then
     print_success "Regular user authentication successful"
@@ -58,10 +58,10 @@ fi
 
 # Test 5: Verify tenant appears in tenant registry
 print_step "Checking tenant registry"
-registry_check=$(psql -d monk_main -t -c "SELECT name FROM tenants WHERE name = '$tenant_name' AND trashed_at IS NULL" | xargs)
+registry_check=$(psql -d monk -t -c "SELECT name FROM tenants WHERE name = '$tenant_name' AND trashed_at IS NULL" | xargs)
 
 if [[ "$registry_check" == "$tenant_name" ]]; then
-    print_success "Tenant properly registered in monk_main"
+    print_success "Tenant properly registered in monk"
 else
     test_fail "Tenant not found in registry: expected '$tenant_name', got '$registry_check'"
 fi

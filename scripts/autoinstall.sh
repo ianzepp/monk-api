@@ -9,10 +9,10 @@ set -e
 #        scripts/autoinstall.sh [options]
 #
 # Options:
-#   --clean         Remove all Monk API databases (tenant_*, monk_template_*, monk_main, system)
+#   --clean         Remove all Monk API databases (tenant_*, monk_template_*, monk, system)
 #   --clean-node    Delete node_modules and reinstall dependencies
 #   --clean-dist    Delete dist/ directory and recompile TypeScript
-#   --clean-auth    Delete and recreate monk_main database
+#   --clean-auth    Delete and recreate monk database
 #   --force         Run all --clean-* operations for complete fresh install
 #   --help          Show this help message
 #
@@ -132,10 +132,10 @@ if [ "$SHOW_HELP" = true ]; then
     echo "       scripts/autoinstall.sh [options]"
     echo
     echo "Options:"
-    echo "  --clean         Remove all Monk API databases (tenant_*, monk_template_*, monk_main, system)"
+    echo "  --clean         Remove all Monk API databases (tenant_*, monk_template_*, monk, system)"
     echo "  --clean-node    Delete node_modules and reinstall dependencies"
     echo "  --clean-dist    Delete dist/ directory and recompile TypeScript"
-    echo "  --clean-auth    Delete and recreate monk_main database"
+    echo "  --clean-auth    Delete and recreate monk database"
     echo "  --force         Run all --clean-* operations for complete fresh install"
     echo "  --help, -h      Show this help message"
     echo
@@ -154,7 +154,7 @@ clean_monk_databases() {
 
     # Find databases matching Monk API patterns
     for db in $all_dbs; do
-        if [[ "$db" == tenant_* ]] || [[ "$db" == monk_template_* ]] || [[ "$db" == "monk_main" ]] || [[ "$db" == "system" ]]; then
+        if [[ "$db" == tenant_* ]] || [[ "$db" == monk_template_* ]] || [[ "$db" == "monk" ]] || [[ "$db" == "system" ]]; then
             monk_dbs+=("$db")
         fi
     done
@@ -413,9 +413,9 @@ print_header "Starting: Initialize Main Database"
 
 # Handle --clean-auth option
 if [ "$CLEAN_AUTH" = true ]; then
-    print_step "Clean main database requested - removing existing monk_main database..."
-    if psql -lqt | cut -d'|' -f1 | grep -qw "monk_main" 2>/dev/null; then
-        if dropdb monk_main 2>/dev/null; then
+    print_step "Clean main database requested - removing existing monk database..."
+    if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
+        if dropdb monk 2>/dev/null; then
             print_success "Existing main database removed"
         else
             handle_error "Main database removal" "Check PostgreSQL permissions for dropping databases"
@@ -428,19 +428,19 @@ fi
 print_step "Checking if main database exists..."
 
 # Check if main database already exists
-if psql -lqt | cut -d'|' -f1 | grep -qw "monk_main" 2>/dev/null; then
+if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
     print_info "Main database already exists"
 
     # Check if it has the required tables
-    if psql -d monk_main -c "SELECT 1 FROM tenant LIMIT 1;" >/dev/null 2>&1; then
+    if psql -d monk -c "SELECT 1 FROM tenants LIMIT 1;" >/dev/null 2>&1; then
         print_success "Main database properly initialized"
         # Show tenant count
-        tenant_count=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenant;" 2>/dev/null | xargs)
+        tenant_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenants;" 2>/dev/null | xargs)
         print_info "Existing tenants: $tenant_count"
     else
         print_warning "Main database exists but may need initialization"
         print_step "Re-initializing main database schema..."
-        if psql -d monk_main -f sql/init-monk-main.sql >/dev/null 2>&1; then
+        if psql -d monk -f sql/init-monk-main.sql >/dev/null 2>&1; then
             print_success "Main database schema updated"
         else
             handle_error "Main database schema initialization" "Check sql/init-monk-main.sql file exists and PostgreSQL permissions"
@@ -448,14 +448,14 @@ if psql -lqt | cut -d'|' -f1 | grep -qw "monk_main" 2>/dev/null; then
     fi
 else
     print_step "Creating main database..."
-    if createdb monk_main 2>/dev/null; then
+    if createdb monk 2>/dev/null; then
         print_success "Main database created"
     else
         handle_error "Main database creation" "Check PostgreSQL permissions and that createdb command is available"
     fi
 
     print_step "Initializing main database schema..."
-    if psql -d monk_main -f sql/init-monk-main.sql >/dev/null 2>&1; then
+    if psql -d monk -f sql/init-monk-main.sql >/dev/null 2>&1; then
         print_success "Main database schema initialized"
         print_info "Created tenant table with indexes and triggers"
         print_info "Added default system tenant"
@@ -526,7 +526,7 @@ print_success "Monk API setup completed successfully!"
 echo
 print_info "Environment ready for development:"
 print_info "• PostgreSQL: Connected and configured"
-print_info "• Main database (monk_main): Initialized with schema"
+print_info "• Main database (monk): Initialized with schema"
 print_info "• System tenant: Database created with test users"
 print_info "• TypeScript: Built and ready"
 print_info "• Local server: http://localhost:9001"
@@ -571,7 +571,7 @@ if [ -d "fixtures" ]; then
             fi
         fi
     done
-    
+
     if [ ${#fixture_templates[@]} -gt 0 ]; then
         print_info "Found ${#fixture_templates[@]} fixture templates available for building:"
         for template in "${fixture_templates[@]}"; do

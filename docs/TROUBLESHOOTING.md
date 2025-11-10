@@ -19,7 +19,7 @@ npm run build                           # Verify TypeScript compilation
 npm run test:ts unit                   # Test unit tests (planned)
 
 # Check basic connectivity
-psql -d monk_main -c "SELECT current_user;"   # Test direct PostgreSQL
+psql -d monk -c "SELECT current_user;"   # Test direct PostgreSQL
 curl http://localhost:9001/health               # Test HTTP API if running
 ```
 
@@ -40,7 +40,7 @@ node --version && npm --version        # Check runtime versions
 ```bash
 # Test database layers systematically
 psql -d postgres -c "SELECT version();"                    # PostgreSQL server
-psql -d monk_main -c "SELECT COUNT(*) FROM tenants;"   # Auth database
+psql -d monk -c "SELECT COUNT(*) FROM tenants;"   # Auth database
 psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schemas;" # Tenant database
 
 # Test Node.js database connections
@@ -62,7 +62,7 @@ psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schemas;" # Tenant datab
 # PostgreSQL 17.6+ defaults to SCRAM-SHA-256 which requires explicit passwords
 
 # Diagnostic Steps:
-psql -U $USER -d monk_main -c "SELECT current_user;"    # Should work
+psql -U $USER -d monk -c "SELECT current_user;"    # Should work
 # TODO: Unit test file doesn't exist - npm run test:ts spec/unit/tenant-service-debug.test.ts     # May fail (planned)
 # TODO: Use existing shell test instead - npm run test:sh spec/42-tenant/tenant-deletion-denies.test.sh # Tenant-related test
 
@@ -125,7 +125,7 @@ lsof -i :9001
 netstat -tlnp | grep 9001
 
 # Check database connectivity before server start
-psql -d monk_main -c "SELECT 1;"
+psql -d monk -c "SELECT 1;"
 
 # Check observer system
 npm run build                           # Ensure TypeScript compiled
@@ -288,7 +288,7 @@ npm run start:dev                       # Check observer loading logs
 ### Database Operations Debugging
 ```bash
 # Check database connections
-psql -d monk_main -c "SELECT current_user;"
+psql -d monk -c "SELECT current_user;"
 psql -d "monk-api\$local-test" -c "SELECT name FROM schemas;"
 
 # Test database operations manually
@@ -380,7 +380,7 @@ npm run autoinstall
 
 # Use appropriate debugging approach for each category
 npm run build                           # For compilation errors
-psql -d monk_main -c "SELECT 1;"   # For connection errors
+psql -d monk -c "SELECT 1;"   # For connection errors
 monk auth token                         # For authentication errors
 npm run test:ts unit/filter            # For validation errors (planned)
 npm run test:ts unit/observers         # For observer errors (planned)

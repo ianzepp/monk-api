@@ -218,7 +218,7 @@ npm run stop                    # Kill any existing server
 npm run start:bg                 # Start fresh server
 
 # Database connection issues
-psql -d monk_main -c "SELECT 1;"  # Test main database
+psql -d monk -c "SELECT 1;"  # Test main database
 npm run fixtures:build basic        # Rebuild templates
 
 # Test database pollution
@@ -232,7 +232,7 @@ npm run test:sh 01-basic/tenant-isolation.test.sh
 
 # Check test database state
 psql -d tenant_<hash> -c "\dt"  # List tables
-psql -d monk_main -c "SELECT * FROM tenants WHERE name LIKE 'test_%';"
+psql -d monk -c "SELECT * FROM tenants WHERE name LIKE 'test_%';"
 ```
 
 ### Performance Debugging
@@ -286,7 +286,7 @@ The project uses shell tests for comprehensive end-to-end coverage:
 
 ### When to Use Shell Tests ✅
 - End-to-end CLI testing
-- Complex multi-step workflows  
+- Complex multi-step workflows
 - External tool integration
 - Production-like scenarios
 - API endpoint validation

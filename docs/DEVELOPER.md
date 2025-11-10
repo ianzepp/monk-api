@@ -1,9 +1,9 @@
 # Monk API Developer Guide
 
 > **📖 This is the comprehensive developer guide for Monk API.**
-> 
+>
 > For a quick project overview and getting started, see [README.md](../README.md).
-> 
+>
 > This document provides detailed architecture, development workflows, and technical specifications for contributors and advanced users.
 
 ## Table of Contents
@@ -56,7 +56,7 @@ npm run test:sh spec/01-basic/api-discovery.test.sh
 
 The `npm run autoinstall` script handles all setup steps automatically:
 - Verifies PostgreSQL connectivity
-- Creates auth database (`monk_main`) with tenant table
+- Creates auth database (`monk`) with tenant table
 - Configures local server in `~/.config/monk/server.json`
 - Creates test tenant (`local-test`) for development
 - Compiles TypeScript and verifies complete setup
@@ -318,7 +318,7 @@ monk data select account            # Lists from staging database
 ```
 
 ### **Multi-tenant Architecture**
-- **Main Database**: `monk_main` contains tenant registry
+- **Main Database**: `monk` contains tenant registry
 - **Tenant Databases**: `tenant_12345678` for each tenant
 - **JWT Routing**: Tokens contain tenant and database routing information
 - **Isolation**: Each tenant gets separate database and user management
@@ -518,7 +518,7 @@ export default class UserValidator extends BaseObserver {
 ```bash
 # Check system health
 npm run compile                    # TypeScript compilation
-psql -d monk_main -c "SELECT 1;" # Database connectivity
+psql -d monk -c "SELECT 1;" # Database connectivity
 curl http://localhost:9001/health  # API server
 
 # Common fixes

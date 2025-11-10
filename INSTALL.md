@@ -90,10 +90,10 @@ Create and initialize the main database:
 
 ```bash
 # Create main database
-createdb monk_main
+createdb monk
 
 # Initialize schema
-psql -d monk_main -f sql/init-monk-main.sql
+psql -d monk -f sql/init-monk-main.sql
 ```
 
 ### 5. Create Development Tenant
@@ -139,7 +139,7 @@ curl -X POST http://localhost:9001/auth/login \
 Your development environment includes:
 
 - **Server**: http://localhost:9001
-- **Main Database**: `monk_main` (tenant registry)
+- **Main Database**: `monk` (tenant registry)
 - **System Tenant**: `system` database with test users
 - **Available Users**:
   - `root@system` - Full administrative privileges

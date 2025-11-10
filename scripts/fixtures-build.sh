@@ -137,7 +137,7 @@ if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_fi
 
         # Remove the tenant registry entry
         print_step "Cleaning tenant registry"
-        if psql -d monk_main -c "DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'" >/dev/null 2>&1; then
+        if psql -d monk -c "DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'" >/dev/null 2>&1; then
             print_success "Tenant registry cleaned"
         else
             print_warning "Failed to clean tenant registry (may not exist)"
@@ -148,7 +148,7 @@ if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_fi
         print_warning "Template database '$template_db_final' already exists"
         print_info "To rebuild, either use --force or manually clean up:"
         print_info "  dropdb '$template_db_final'"
-        print_info "  psql -d monk_main -c \"DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'\""
+        print_info "  psql -d monk -c \"DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'\""
         print_info "Or run: npm run fixtures:build -- --force $TEMPLATE_NAME"
         fail "Template database already exists"
     fi
@@ -289,7 +289,7 @@ template_update_sql="
     WHERE name = '$tenant_name'
 "
 
-psql -d monk_main -c "$template_update_sql"
+psql -d monk -c "$template_update_sql"
 print_success "Template registered: monk_$TEMPLATE_NAME → $template_db_final"
 
 # Step 7: Summary
@@ -303,7 +303,7 @@ print_success "Template ready for test cloning via PostgreSQL CREATE DATABASE WI
 
 # Verify template exists
 print_step "Verifying template registration"
-template_check=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenants WHERE name = 'monk_$TEMPLATE_NAME' AND tenant_type = 'template'" | xargs)
+template_check=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenants WHERE name = 'monk_$TEMPLATE_NAME' AND tenant_type = 'template'" | xargs)
 
 if [[ "$template_check" == "1" ]]; then
     print_success "Template successfully registered and ready for use"
