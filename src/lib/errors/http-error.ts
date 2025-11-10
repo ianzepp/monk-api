@@ -98,6 +98,18 @@ export class HttpErrors {
         return new HttpError(422, message, errorCode, details);
     }
     
+    static methodNotAllowed(message = 'Method not allowed', errorCode = 'METHOD_NOT_ALLOWED') {
+        return new HttpError(405, message, errorCode);
+    }
+    
+    static unsupportedMediaType(message: string, errorCode = 'UNSUPPORTED_MEDIA_TYPE', details?: Record<string, any>) {
+        return new HttpError(415, message, errorCode, details);
+    }
+    
+    static requestEntityTooLarge(message = 'Request entity too large', errorCode = 'REQUEST_ENTITY_TOO_LARGE', details?: Record<string, any>) {
+        return new HttpError(413, message, errorCode, details);
+    }
+    
     static internal(message = 'Internal server error', errorCode = 'INTERNAL_ERROR') {
         return new HttpError(500, message, errorCode);
     }
