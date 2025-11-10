@@ -192,7 +192,7 @@ cleanup_test_tenant() {
     psql -d monk_main -c "UPDATE tenants SET trashed_at = NOW() WHERE name = '$tenant_name'" >/dev/null 2>&1 || true
     
     # 2. Drop tenant database (removes all data)
-    if dropdb "$db_name" 2>/dev/null; then
+    if dropdb --force "$db_name" 2>/dev/null; then
         print_success "Dropped tenant database: $db_name"
     else
         print_warning "Could not drop database $db_name (may not exist)"
