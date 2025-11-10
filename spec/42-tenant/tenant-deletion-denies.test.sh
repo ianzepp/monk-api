@@ -23,6 +23,21 @@ TENANT_DB="$TEST_DATABASE_NAME"
 
 print_success "Created tenant: $TENANT_NAME"
 
+# Register the isolated tenant in the main tenants table so it can be managed via root API
+print_step "Registering isolated tenant in main tenants table"
+system_token=$(get_user_token "system" "root")
+
+# Insert the tenant record directly into the tenants table
+register_response=$(psql -d monk_main -c "INSERT INTO tenants (name, host, database, is_active, tenant_type, created_at, updated_at) VALUES ('$TENANT_NAME', 'localhost', '$TENANT_DB', true, 'normal', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)" 2>&1 || echo "INSERT_FAILED")
+
+if [[ "$register_response" == *"INSERT 0 1"* ]]; then
+    print_success "Tenant registered in main tenants table"
+elif [[ "$register_response" == *"already exists"* ]]; then
+    print_warning "Tenant already exists in main tenants table (this is OK)"
+else
+    print_warning "Tenant registration failed: $register_response"
+fi
+
 # Authenticate admin user
 JWT_TOKEN=$(get_user_token "$TENANT_NAME" "admin")
 if [[ -z "$JWT_TOKEN" || "$JWT_TOKEN" == "null" ]]; then

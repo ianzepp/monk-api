@@ -17,7 +17,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
 import { sign, verify } from 'hono/jwt';
-import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { DatabaseConnection, MONK_DB_MAIN_NAME } from '@src/lib/database-connection.js';
 import { Describe } from '@src/lib/describe.js';
 import pg from 'pg';
 
@@ -79,7 +79,7 @@ export class TenantService {
      * Create one-time client for auth database operations
      */
     private static createAuthClient(): pg.Client {
-        return DatabaseConnection.getClient('monk');
+        return DatabaseConnection.getClient(MONK_DB_MAIN_NAME);
     }
 
     /**
@@ -127,7 +127,7 @@ export class TenantService {
         try {
             await client.connect();
 
-            const result = await client.query('SELECT COUNT(*) as count FROM tenant WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL', [tenantName]);
+            const result = await client.query('SELECT COUNT(*) as count FROM tenants WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL', [tenantName]);
 
             return parseInt(result.rows[0].count) > 0;
         } finally {
@@ -226,7 +226,7 @@ export class TenantService {
         const authClient = this.createAuthClient();
         try {
             await authClient.connect();
-            await authClient.query('UPDATE tenant SET trashed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NULL', [tenantName]);
+            await authClient.query('UPDATE tenants SET trashed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NULL', [tenantName]);
         } finally {
             await authClient.end();
         }
@@ -241,7 +241,7 @@ export class TenantService {
         const authClient = this.createAuthClient();
         try {
             await authClient.connect();
-            const result = await authClient.query('UPDATE tenant SET trashed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NOT NULL', [tenantName]);
+            const result = await authClient.query('UPDATE tenants SET trashed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE name = $1 AND trashed_at IS NOT NULL', [tenantName]);
 
             if (result.rowCount === 0) {
                 throw new Error(`Tenant '${tenantName}' is not in trash or does not exist`);
@@ -273,7 +273,7 @@ export class TenantService {
 
             const result = await authClient.query(`
         SELECT name, database, host, created_at, updated_at, trashed_at, deleted_at
-        FROM tenant
+        FROM tenants
         ${whereClause}
         ORDER BY created_at DESC
       `);
@@ -310,7 +310,7 @@ export class TenantService {
         const authClient = this.createAuthClient();
         try {
             await authClient.connect();
-            await authClient.query('DELETE FROM tenant WHERE name = $1', [tenantName]);
+            await authClient.query('DELETE FROM tenants WHERE name = $1', [tenantName]);
         } catch (error) {
             if (!force) throw error;
             logger.warn(`Warning removing tenant record: ${error}`);
@@ -337,7 +337,7 @@ export class TenantService {
             await client.connect();
 
             const result = await client.query(
-                'SELECT id, name, host, database, created_at, updated_at, trashed_at, deleted_at FROM tenant WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
+                'SELECT id, name, host, database, created_at, updated_at, trashed_at, deleted_at FROM tenants WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
             );
 
             return result.rows.map(row => ({
@@ -363,7 +363,7 @@ export class TenantService {
         try {
             await client.connect();
 
-            const result = await client.query('SELECT id, name, host, database FROM tenant WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL', [tenantName]);
+            const result = await client.query('SELECT id, name, host, database FROM tenants WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL', [tenantName]);
 
             if (result.rows.length === 0) {
                 return null;
@@ -420,7 +420,7 @@ export class TenantService {
 
         // Look up tenant record to get database name
         const authDb = this.getAuthPool();
-        const tenantResult = await authDb.query('SELECT name, database FROM tenant WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
+        const tenantResult = await authDb.query('SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
 
         if (!tenantResult.rows || tenantResult.rows.length === 0) {
             return null; // Tenant not found or inactive
@@ -593,7 +593,7 @@ export class TenantService {
         try {
             await client.connect();
 
-            await client.query('INSERT INTO tenant (name, host, database) VALUES ($1, $2, $3)', [tenantName, host, databaseName]);
+            await client.query('INSERT INTO tenants (name, host, database) VALUES ($1, $2, $3)', [tenantName, host, databaseName]);
         } finally {
             await client.end();
         }
