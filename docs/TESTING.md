@@ -10,11 +10,8 @@ Comprehensive guide for running tests in the Monk API project.
 # Run all tests (recommended)
 npm run test
 
-# Run tests with minimal output
-npm run test -- --quiet
-
-# Clean up test databases without running tests
-npm run test:cleanup
+# Run TypeScript tests only (planned feature)
+npm run test:ts
 ```
 
 ## Available NPM Scripts
@@ -23,10 +20,8 @@ npm run test:cleanup
 - **`npm run test`** - Main test runner (finds and runs all `.test.sh` files)
 - **`npm run test:cleanup`** - Clean up all test databases without running tests
 
-### Legacy Aliases
-- **`npm run spec`** - Alias for `npm run test`
-- **`npm run spec:sh`** - Alias for `npm run test`
-- **`npm run spec:ts`** - TypeScript tests (Vitest - planned feature)
+### Future Scripts (Planned)
+- **`npm run test:ts`** - TypeScript tests (Vitest - planned feature)
 
 ## Test Selection
 
