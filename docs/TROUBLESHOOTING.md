@@ -378,4 +378,4 @@ npm run spec:ts unit/observers         # For observer errors (planned)
 
 ---
 
-This troubleshooting guide provides systematic approaches to diagnose and resolve common issues in the Monk API project. For component-specific details, refer to the specialized documentation files ([OBSERVERS.md](OBSERVERS.md), [TESTING.md](TESTING.md), etc.).
+This troubleshooting guide provides systematic approaches to diagnose and resolve common issues in the Monk API project. For component-specific details, refer to the specialized documentation files ([OBSERVERS.md](OBSERVERS.md), [TEST.md](TEST.md), etc.).

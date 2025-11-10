@@ -17,11 +17,11 @@
 - **🏗️ [DEVELOPER.md](DEVELOPER.md)** - This guide: Architecture, workflows, quick start
 - **🔍 [docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
 - **👁️ [docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
-- **🧪 [docs/TESTING.md](docs/TESTING.md)** - Comprehensive testing strategies and patterns
+- **🧪 [docs/TEST.md](docs/TEST.md)** - Comprehensive testing strategies and patterns
 - **🔧 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
 - **📁 [docs/FILE.md](docs/FILE.md)** - FS middleware filesystem-like interface
 - **🔎 [docs/FILTER.md](docs/FILTER.md)** - Enterprise filter system with 25+ operators
-- **🧪 [docs/TESTING.md](docs/TESTING.md)** - Complete testing strategies and patterns
+- **🧪 [docs/TEST.md](docs/TEST.md)** - Complete testing strategies and patterns
 
 ---
 
@@ -79,7 +79,7 @@ echo '{"name":"test"}' | monk data create users
 monk data select users
 ```
 
-> **📖 For detailed testing strategies, see [docs/TESTING.md](docs/TESTING.md)**
+> **📖 For detailed testing strategies, see [docs/TEST.md](docs/TEST.md)**
 
 ---
 
@@ -120,7 +120,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - **Tenant Isolation**: Each test gets fresh tenant database
 - **Comprehensive Testing**: Current shell tests provide complete end-to-end coverage
 
-> **📖 For comprehensive testing guide, see [docs/TESTING.md](docs/TESTING.md)**
+> **📖 For comprehensive testing guide, see [docs/TEST.md](docs/TEST.md)**
 
 ### Observer-Driven Architecture
 
@@ -283,7 +283,7 @@ npm run spec:ts unit                   # Fast unit tests
 npm run spec:sh basic-ping             # Basic connectivity test
 ```
 
-> **📖 For comprehensive testing guide, see [docs/TESTING.md](docs/TESTING.md)**
+> **📖 For comprehensive testing guide, see [docs/TEST.md](docs/TEST.md)**
 
 ---
 
@@ -557,7 +557,7 @@ This guide provides everything needed to contribute effectively to the Monk API 
 
 - **🔍 API Development**: Start with [docs/API.md](docs/API.md) for endpoint patterns and examples
 - **👁️ Observer Development**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for complete observer guide
-- **🧪 Testing Strategy**: Review [docs/TESTING.md](docs/TESTING.md) for comprehensive testing approaches
+- **🧪 Testing Strategy**: Review [docs/TEST.md](docs/TEST.md) for comprehensive testing approaches
 - **🔧 Issues & Debugging**: Consult [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for systematic problem-solving
 - **📁 Advanced Features**: Explore [docs/FILE.md](docs/FILE.md) and [docs/FILTER.md](docs/FILTER.md) for specialized systems
 

@@ -122,7 +122,7 @@ Essential example of modern, high-performance backend development combining cutt
 - **[docs/DEVELOPER.md](docs/DEVELOPER.md)** - Comprehensive developer guide and architecture
 - **[docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
 - **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
-- **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and common commands
+- **[docs/TEST.md](docs/TEST.md)** - Testing guide and common commands
 
 ### Testing Status
 - **✅ Shell Tests**: Comprehensive end-to-end integration tests (`npm run spec`)
@@ -146,4 +146,4 @@ Essential example of modern, high-performance backend development combining cutt
 - **[src/routes/root/PUBLIC.md](src/routes/root/PUBLIC.md)** - Root API (tenant management and system administration)
 
 ### Technical Specifications
-- **[docs/TESTING.md](docs/TESTING.md)** - Complete testing strategies and patterns
+- **[docs/TEST.md](docs/TEST.md)** - Complete testing strategies and patterns

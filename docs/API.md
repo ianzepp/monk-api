@@ -643,4 +643,4 @@ This API documentation provides comprehensive coverage of all endpoints and patt
 - [FILE.md](FILE.md) - FS middleware filesystem-like interface
 - [FILTER.md](FILTER.md) - Advanced filtering and query capabilities
 - [OBSERVERS.md](OBSERVERS.md) - Observer system integration
-- [TESTING.md](TESTING.md) - API endpoint testing strategies
+- [TEST.md](TEST.md) - API endpoint testing strategies
