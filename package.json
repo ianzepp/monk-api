@@ -18,6 +18,7 @@
         "fixtures:lock": "scripts/fixtures-lock.sh",
         "fixtures:deploy": "node vendors/neon/fixtures-deploy.js",
         "test": "scripts/test.sh \"$@\"",
+        "test:cleanup": "scripts/test-cleanup.sh",
         "spec": "scripts/test.sh \"$@\"",
         "spec:ts": "vitest run",
         "spec:sh": "scripts/test.sh \"$@\"",

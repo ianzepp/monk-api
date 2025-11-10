@@ -193,45 +193,14 @@ terminate_tenant_connections() {
     sleep 0.5
 }
 
-# Clean up test tenant and all associated data
+# Clean up test tenant and all associated data (deferred - does nothing)
 cleanup_test_tenant() {
     local tenant_name="$1"
     local db_name="$2"
     
-    if [[ -z "$tenant_name" || -z "$db_name" ]]; then
-        print_warning "Cleanup called without tenant/database names"
-        return 0
-    fi
-    
-    print_step "Cleaning up test tenant: $tenant_name"
-    
-    # 1. Remove from tenant registry (soft delete)
-    psql -d monk_main -c "UPDATE tenants SET trashed_at = NOW() WHERE name = '$tenant_name'" >/dev/null 2>&1 || true
-    
-    # 2. Terminate connections to tenant database before dropping
-    terminate_tenant_connections "$db_name"
-    
-    # 3. Drop tenant database (removes all data) with retry logic
-    local retry_count=0
-    local max_retries=3
-    while [ $retry_count -lt $max_retries ]; do
-        if dropdb "$db_name" 2>/dev/null; then
-            print_success "Dropped tenant database: $db_name"
-            break
-        else
-            retry_count=$((retry_count + 1))
-        if [ $retry_count -eq $max_retries ]; then
-            test_fail "Failed to cleanup database $db_name after $max_retries attempts"
-        else
-            sleep 1
-        fi
-        fi
-    done
-    
-    # 3. Clean up registry entry completely
-    psql -d monk_main -c "DELETE FROM tenants WHERE name = '$tenant_name'" >/dev/null 2>&1 || true
-    
-    print_success "Test tenant cleanup completed"
+    # Deferred cleanup - do nothing during test run
+    # All test databases will be cleaned up at the end of the test suite
+    return 0
 }
 
 # Setup trap for automatic cleanup on script exit
@@ -263,6 +232,73 @@ setup_isolated_test() {
     export TEST_DATABASE_NAME
     
     print_success "Isolated test environment ready"
+}
+
+# Mass cleanup of all test databases (called at end of test suite)
+cleanup_all_test_databases() {
+    print_step "Cleaning up all test databases and tenants"
+    
+    local cleanup_count=0
+    local error_count=0
+    
+    # Get all test tenant names from registry
+    local test_tenants=$(psql -d monk_main -t -c "SELECT name FROM tenants WHERE name LIKE 'test_%'" 2>/dev/null | xargs)
+    
+    if [[ -z "$test_tenants" ]]; then
+        print_success "No test tenants found to cleanup"
+        return 0
+    fi
+    
+    # Collect database names to drop first (before deleting registry)
+    local databases_to_drop=()
+    
+    # Process each test tenant to collect database names
+    for tenant_name in $test_tenants; do
+        if [[ -n "$tenant_name" ]]; then
+            # Get database name for this tenant
+            local db_name=$(psql -d monk_main -t -c "SELECT database FROM tenants WHERE name = '$tenant_name'" 2>/dev/null | xargs)
+            
+            if [[ -n "$db_name" ]]; then
+                databases_to_drop+=("$db_name")
+            fi
+        fi
+    done
+    
+    # Drop all databases first
+    for db_name in "${databases_to_drop[@]}"; do
+        if dropdb "$db_name" 2>/dev/null; then
+            print_success "Dropped test database: $db_name"
+            cleanup_count=$((cleanup_count + 1))
+        else
+            print_warning "Database $db_name has active connections - will retry"
+        fi
+    done
+    
+    # Then clean up tenant registry
+    psql -d monk_main -c "DELETE FROM tenants WHERE name LIKE 'test_%'" >/dev/null 2>&1 || true
+    
+    # Also clean up any orphaned test databases
+    local test_dbs=$(psql -l | grep "tenant_[a-f0-9]" | awk '{print $1}' | grep -E "tenant_[a-f0-9]{16}" || true)
+    
+    for db_name in $test_dbs; do
+        if [[ -n "$db_name" ]]; then
+            # Check if this is a test database (not a production one)
+            local tenant_count=$(psql -d monk_main -t -c "SELECT COUNT(*) FROM tenants WHERE database = '$db_name'" 2>/dev/null | xargs)
+            
+            if [[ "$tenant_count" == "0" ]]; then
+                # Second pass cleanup for databases with active connections
+                if dropdb "$db_name" 2>/dev/null; then
+                    print_success "Dropped test database (second pass): $db_name"
+                    cleanup_count=$((cleanup_count + 1))
+                else
+                    print_error "Failed to drop database: $db_name"
+                    error_count=$((error_count + 1))
+                fi
+            fi
+        fi
+    done
+    
+    print_success "Test database cleanup completed: $cleanup_count databases dropped, $error_count errors"
 }
 
 # Verify test tenant is working

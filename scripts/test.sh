@@ -99,6 +99,9 @@ fi
 test_count=$(echo "$test_files" | wc -l | xargs)
 print_header "Running $test_count test files"
 
+# Source test helper for cleanup function
+source "$(dirname "${BASH_SOURCE[0]}")/../spec/test-tenant-helper.sh"
+
 # Track results
 passed=0
 failed=0
@@ -125,6 +128,9 @@ echo
 print_header "Test Summary"
 echo "Total tests: $test_count"
 print_success "Passed: $passed"
+
+# Clean up all test databases at the end of the test suite
+cleanup_all_test_databases
 
 if [[ $failed -gt 0 ]]; then
     print_error "Failed: $failed"
