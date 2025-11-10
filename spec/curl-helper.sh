@@ -347,7 +347,7 @@ EOF
 
 # Wait for server to be ready
 wait_for_server() {
-    local max_attempts=30
+    local max_attempts=3
     local attempt=0
     
     print_step "Waiting for server to be ready..."
