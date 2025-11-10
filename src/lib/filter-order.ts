@@ -26,22 +26,11 @@ export class FilterOrder {
     constructor() {}
 
     /**
-     * Static method for quick ORDER BY clause generation with validation
-     * This is the authoritative entry point for all ORDER BY clause generation
+     * Static method for quick ORDER BY clause generation
      */
     static generate(orderData: any): string {
-        try {
-            // Validate the ORDER data before processing
-            FilterOrder.validateOrderData(orderData);
-            
-            const filterOrder = new FilterOrder();
-            return filterOrder.build(orderData);
-        } catch (error) {
-            logger.warn('FilterOrder validation failed', {
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
+        const filterOrder = new FilterOrder();
+        return filterOrder.build(orderData);
     }
 
     /**
@@ -157,24 +146,17 @@ export class FilterOrder {
      * Build ORDER BY clause from order data
      */
     build(orderData: any): string {
-        try {
-            this._orderInfo = [];
+        this._orderInfo = [];
 
-            // Parse order data into FilterOrderInfo
-            this.parseOrderData(orderData);
+        // Parse order data into FilterOrderInfo
+        this.parseOrderData(orderData);
 
-            // Build ORDER BY clause
-            return this.buildOrderClause();
-        } catch (error) {
-            logger.warn('FilterOrder build failed', {
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
+        // Build ORDER BY clause
+        return this.buildOrderClause();
     }
 
     /**
-     * Parse various order data formats with validation
+     * Parse various order data formats
      */
     private parseOrderData(orderData: any): void {
         if (!orderData) {
@@ -186,29 +168,23 @@ export class FilterOrder {
             this.parseOrderString(orderData);
         } else if (Array.isArray(orderData)) {
             // Handle array format: [{ column: 'name', sort: 'asc' }]
-            orderData.forEach((item, index) => {
-                if (!item) {
-                    throw HttpErrors.badRequest(`Order item at index ${index} cannot be null or undefined`, 'FILTER_NULL_ORDER_ITEM');
-                }
+            orderData.forEach(item => {
+                if (!item) return; // Skip null/undefined items
                 
                 if (typeof item === 'string') {
                     this.parseOrderString(item);
-                } else if (typeof item === 'object' && item.column && item.sort) {
-                    // Already validated, now process
+                } else if (item.column && item.sort) {
                     this._orderInfo.push({
-                        column: item.column, // No need to sanitize, already validated
+                        column: this.sanitizeColumnName(item.column),
                         sort: this.normalizeSortDirection(item.sort)
                     });
-                } else {
-                    throw HttpErrors.badRequest(`Invalid order item at index ${index}`, 'FILTER_INVALID_ORDER_ITEM');
                 }
             });
         } else if (typeof orderData === 'object') {
             // Handle object format: { name: 'asc', created_at: 'desc' }
             for (const [column, sort] of Object.entries(orderData)) {
-                // Already validated, now process
                 this._orderInfo.push({
-                    column, // No need to sanitize, already validated
+                    column: this.sanitizeColumnName(column),
                     sort: this.normalizeSortDirection(sort as string)
                 });
             }
@@ -223,11 +199,12 @@ export class FilterOrder {
         const column = parts[0];
         const sort = parts[1] || 'asc';
 
-        // Column and sort are already validated by validateOrderString
-        this._orderInfo.push({
-            column, // No need to sanitize, already validated
-            sort: this.normalizeSortDirection(sort)
-        });
+        if (column) {
+            this._orderInfo.push({
+                column: this.sanitizeColumnName(column),
+                sort: this.normalizeSortDirection(sort)
+            });
+        }
     }
 
     /**
@@ -244,6 +221,14 @@ export class FilterOrder {
         });
 
         return `ORDER BY ${orderClauses.join(', ')}`;
+    }
+
+    /**
+     * Sanitize column name to prevent injection
+     */
+    private sanitizeColumnName(column: string): string {
+        // Remove any non-alphanumeric characters except underscore
+        return column.replace(/[^a-zA-Z0-9_]/g, '');
     }
 
     /**
