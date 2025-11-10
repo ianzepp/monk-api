@@ -176,6 +176,23 @@ create_isolated_test_tenant() {
     echo "$tenant_name"
 }
 
+# Terminate connections to specific tenant database before cleanup
+terminate_tenant_connections() {
+    local db_name="$1"
+    
+    if [[ -z "$db_name" ]]; then
+        print_warning "No database name provided to terminate_tenant_connections"
+        return 0
+    fi
+    
+    # Terminate connections only to specific tenant database
+    # Exclude our own connection (pg_backend_pid)
+    psql -d monk_main -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$db_name' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
+    
+    # Small delay to allow termination to complete
+    sleep 0.5
+}
+
 # Clean up test tenant and all associated data
 cleanup_test_tenant() {
     local tenant_name="$1"
@@ -191,7 +208,10 @@ cleanup_test_tenant() {
     # 1. Remove from tenant registry (soft delete)
     psql -d monk_main -c "UPDATE tenants SET trashed_at = NOW() WHERE name = '$tenant_name'" >/dev/null 2>&1 || true
     
-    # 2. Drop tenant database (removes all data) with retry logic
+    # 2. Terminate connections to tenant database before dropping
+    terminate_tenant_connections "$db_name"
+    
+    # 3. Drop tenant database (removes all data) with retry logic
     local retry_count=0
     local max_retries=3
     while [ $retry_count -lt $max_retries ]; do
@@ -200,11 +220,11 @@ cleanup_test_tenant() {
             break
         else
             retry_count=$((retry_count + 1))
-            if [ $retry_count -eq $max_retries ]; then
-                print_warning "Could not drop database $db_name after $max_retries attempts (may not exist)"
-            else
-                sleep 1
-            fi
+        if [ $retry_count -eq $max_retries ]; then
+            test_fail "Failed to cleanup database $db_name after $max_retries attempts"
+        else
+            sleep 1
+        fi
         fi
     done
     
