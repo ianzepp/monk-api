@@ -2,7 +2,26 @@
 # Note: Removed set -e to handle test failures gracefully
 
 # Test script - finds and runs all test.sh files in spec/ directory serially
-# Usage: scripts/test.sh
+# Usage: scripts/test.sh [--quiet] [test-pattern]
+#   --quiet: Suppress normal output messages from test helper functions
+#   test-pattern: Pattern to match test files (e.g., "31-meta", "01-basic") [--quiet]
+
+# Parse command line arguments
+QUIET=false
+FILTERED_ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--quiet" ]]; then
+        QUIET=true
+    else
+        FILTERED_ARGS+=("$arg")
+    fi
+done
+
+# Export quiet flag for test helper functions
+export TEST_QUIET="$QUIET"
+
+# Use filtered arguments for test file matching
+set -- "${FILTERED_ARGS[@]}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,19 +31,27 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 print_header() {
-    echo -e "${BLUE}=== $1 ===${NC}"
+    if [[ "$QUIET" != "true" ]]; then
+        echo -e "${BLUE}=== $1 ===${NC}"
+    fi
 }
 
 print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    if [[ "$QUIET" != "true" ]]; then
+        echo -e "${GREEN}✓ $1${NC}"
+    fi
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
+    if [[ "$QUIET" != "true" ]]; then
+        echo -e "${YELLOW}⚠ $1${NC}"
+    fi
 }
 
 print_error() {
-    echo -e "${RED}✗ $1${NC}"
+    if [[ "$QUIET" != "true" ]]; then
+        echo -e "${RED}✗ $1${NC}"
+    fi
 }
 
 server_start() {
@@ -130,7 +157,12 @@ echo "Total tests: $test_count"
 print_success "Passed: $passed"
 
 # Clean up all test databases at the end of the test suite
-cleanup_all_test_databases
+if [[ "$QUIET" != "true" ]]; then
+    cleanup_all_test_databases
+else
+    # Quiet mode - suppress cleanup output
+    cleanup_all_test_databases >/dev/null 2>&1
+fi
 
 if [[ $failed -gt 0 ]]; then
     print_error "Failed: $failed"

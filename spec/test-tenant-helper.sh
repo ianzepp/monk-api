@@ -19,19 +19,27 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 print_step() {
-    echo -e "${BLUE}→ $1${NC}" >&2
+    if [[ "${TEST_QUIET}" != "true" ]]; then
+        echo -e "${BLUE}→ $1${NC}" >&2
+    fi
 }
 
 print_success() {
-    echo -e "${GREEN}✓ $1${NC}" >&2
+    if [[ "${TEST_QUIET}" != "true" ]]; then
+        echo -e "${GREEN}✓ $1${NC}" >&2
+    fi
 }
 
 print_error() {
-    echo -e "${RED}✗ $1${NC}" >&2
+    if [[ "${TEST_QUIET}" != "true" ]]; then
+        echo -e "${RED}✗ $1${NC}" >&2
+    fi
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}" >&2
+    if [[ "${TEST_QUIET}" != "true" ]]; then
+        echo -e "${YELLOW}⚠ $1${NC}" >&2
+    fi
 }
 
 # Load test environment from temp file (solves subshell variable scoping issues)
