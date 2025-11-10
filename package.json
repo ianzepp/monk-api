@@ -16,7 +16,7 @@
         "fixtures:build": "scripts/fixtures-build.sh",
         "fixtures:generate": "node scripts/fixtures-generate.js",
         "fixtures:lock": "scripts/fixtures-lock.sh",
-        "fixtures:deploy": "node vendors/neon/fixtures-deploy.js",
+
         "test:sh": "scripts/test-sh.sh \"$@\"",
         "test:ts": "scripts/test-ts.sh \"$@\"",
         "test:cleanup": "scripts/test-cleanup.sh",

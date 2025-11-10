@@ -14,7 +14,7 @@ The fixtures system is a sophisticated **template-based database cloning archite
 6. [Test Integration](#test-integration)
 7. [Performance Benefits](#performance-benefits)
 8. [Protection Mechanisms](#protection-mechanisms)
-9. [Neon Integration](#neon-integration)
+
 10. [Best Practices](#best-practices)
 11. [Troubleshooting](#troubleshooting)
 12. [Advanced Usage](#advanced-usage)
@@ -289,47 +289,6 @@ git update-index --skip-worktree fixtures/basic/data/*.json
 - Data structure validation
 - Relationship integrity checks
 
-## Neon Integration
-
-### Environment Setup
-
-```bash
-# Create Neon environment file
-cp .env .env.neon
-
-# Update with Neon credentials
-nano .env.neon
-
-# Switch to Neon environment
-ln -sf .env.neon .env
-```
-
-### Deployment Workflow
-
-```bash
-# 1. Ensure local template exists
-npm run fixtures:build basic
-
-# 2. Deploy to Neon
-npm run fixtures:deploy basic
-
-# 3. Verify deployment
-npm run fixtures:deploy basic --progress
-```
-
-### Remote Template Management
-
-**Connection Requirements:**
-- PostgreSQL 17 compatibility
-- SSL/TLS encryption
-- Connection pooling support
-- Database creation permissions
-
-**Deployment Features:**
-- **Progress tracking** with `--progress` flag
-- **Force deployment** with `--force` flag
-- **Connection validation** before deployment
-- **Error handling** with detailed messages
 
 ## Best Practices
 
