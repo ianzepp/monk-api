@@ -6,6 +6,10 @@ package-lock.json
 dist/
 build/
 
+# Worktree branches
+branches/
+rc-cleanup-*
+
 # Environment variables
 .env
 .env.local
@@ -69,4 +73,3 @@ spec/**/*.d.ts.map
 
 # Warp Code files
 WARP.md
-
