@@ -7,6 +7,7 @@
 ### Public Routes (No Authentication Required)
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
+| **Health Check** | `/health` | System health status and uptime |
 | **Public Auth** | `/auth/*` | Token acquisition (login, register, refresh) |
 | **Documentation** | `/docs/*` | Self-documenting API reference |
 
@@ -60,6 +61,8 @@ curl http://localhost:9001/
     "name": "Monk API (Hono)",
     "version": "2.0.0-rc2",
     "endpoints": {
+      "home": "/ (public)",
+      "health": "/health (public)",
       "public_auth": "/auth/* (public - token acquisition)",
       "docs": "/docs[/:api] (public)",
       "auth": "/api/auth/* (protected - user management)",
@@ -68,7 +71,7 @@ curl http://localhost:9001/
       "file": "/api/file/* (protected)",
       "bulk": "/api/bulk (protected)",
       "find": "/api/find/:schema (protected)",
-      "root": "/api/root/* (protected - requires root JWT)"
+      "root": "/api/root/* (restricted, requires sudo or localhost)"
     },
     "documentation": {
       "auth": ["/docs/auth", "/docs/public-auth"],
@@ -101,11 +104,12 @@ curl http://localhost:9001/
 
 ## Quick Start Workflow
 
-1. **Explore APIs**: `GET /` to discover available endpoints and documentation
-2. **Authentication**: Follow `/docs/public-auth` to obtain JWT tokens
-3. **Schema Setup**: Use `/docs/describe` to define your data structures
-4. **Data Operations**: Use `/docs/data` for standard CRUD operations
-5. **Advanced Features**: Explore `/docs/file`, `/docs/bulk`, `/docs/find` for sophisticated data access
+1. **Health Check**: `GET /health` to verify system status
+2. **Explore APIs**: `GET /` to discover available endpoints and documentation
+3. **Authentication**: Follow `/docs/public-auth` to obtain JWT tokens
+4. **Schema Setup**: Use `/docs/describe` to define your data structures
+5. **Data Operations**: Use `/docs/data` for standard CRUD operations
+6. **Advanced Features**: Explore `/docs/file`, `/docs/bulk`, `/docs/find` for sophisticated data access
 
 ## Response Format
 

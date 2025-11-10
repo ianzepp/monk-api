@@ -125,6 +125,16 @@ app.get('/', c => {
     return createSuccessResponse(c, response);
 });
 
+// Health check endpoint (public, no authentication required)
+app.get('/health', c => {
+    return createSuccessResponse(c, {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        version: packageJson.version,
+        uptime: process.uptime()
+    });
+});
+
 // Note: systemContextMiddleware only applied to protected routes that need it
 
 // Public routes (no authentication required)
