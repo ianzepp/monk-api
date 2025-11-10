@@ -24,7 +24,8 @@ export default class SoftDeleteProtector extends BaseObserver {
     readonly operations = ['update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schemaName, operation, data, metadata } = context;
+        const { operation, data, metadata } = context;
+        const schemaName = context.schema.name;
         
         // Use preloaded existing records to check trashed status
         const existingRecords = RecordPreloader.getPreloadedRecords(context);

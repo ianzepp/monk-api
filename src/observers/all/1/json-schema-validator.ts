@@ -24,7 +24,8 @@ export default class JsonSchemaValidator extends BaseObserver {
     readonly operations = ['create', 'update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schema, schemaName, operation, data, metadata } = context;
+        const { schema, operation, data, metadata } = context;
+        const schemaName = schema.name;
         
         let validatedCount = 0;
         let errorCount = 0;

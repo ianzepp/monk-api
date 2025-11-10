@@ -25,7 +25,8 @@ export default class UpdateMerger extends BaseObserver {
     readonly operations = ['update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schemaName, operation, data, metadata } = context;
+        const { system, operation, data, metadata } = context;
+        const schemaName = context.schema.name;
         
         if (!Array.isArray(data) || data.length === 0) {
             logger.info('No update data found for merging', { schemaName, operation });

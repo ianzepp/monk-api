@@ -40,7 +40,8 @@ export abstract class BaseObserver implements Observer {
     async executeTry(context: ObserverContext): Promise<void> {
         const startTime = process.hrtime.bigint();
         const observerName = this.constructor.name;
-        const { system, operation, schemaName } = context;
+        const { system, operation, schema } = context;
+        const schemaName = schema.name;
         
         try {
             // Execute with timeout protection

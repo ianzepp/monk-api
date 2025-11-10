@@ -39,7 +39,8 @@ export abstract class BaseAsyncObserver implements Observer {
     async executeTry(context: ObserverContext): Promise<void> {
         const startTime = process.hrtime.bigint();
         const observerName = this.constructor.name;
-        const { system, operation, schemaName } = context;
+        const { system, operation, schema } = context;
+        const schemaName = schema.name;
         
         // Execute asynchronously - don't block pipeline
         setImmediate(async () => {

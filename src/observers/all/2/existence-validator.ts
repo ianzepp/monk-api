@@ -22,7 +22,8 @@ export default class ExistenceValidator extends BaseObserver {
     readonly operations = ['update', 'delete', 'revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schemaName, operation, data, metadata } = context;
+        const { operation, data, metadata } = context;
+        const schemaName = context.schema.name;
         
         // Extract the record IDs we're trying to operate on
         const requestedIds = this.extractRecordIds(data, operation);

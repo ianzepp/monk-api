@@ -22,7 +22,8 @@ export default class SystemSchemaProtector extends BaseObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schema, schemaName, operation, metadata } = context;
+        const { schema, operation, metadata } = context;
+        const schemaName = schema.name;
 
         // Check if this is a system schema using Schema.isSystemSchema()
         if (schema.isSystemSchema()) {

@@ -6,7 +6,7 @@
  */
 
 import type { System } from '@src/lib/system.js';
-import { Schema, type SchemaName } from '@src/lib/schema.js';
+import { Schema } from '@src/lib/schema.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
 import { Logger } from '@src/lib/logger.js';
 import type { 
@@ -47,9 +47,7 @@ export class ObserverRunner {
         const startTime = Date.now();
         
         // Schema object already resolved by Database.runObserverPipeline()
-        const schemaName = schema.name;
-        
-        const context = this._createContext(system, operation, schemaName, schema, data, existing, filter);
+        const context = this._createContext(system, operation, schema, data, existing, filter);
         const stats: ObserverStats[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
@@ -90,7 +88,6 @@ export class ObserverRunner {
     private _createContext(
         system: System,
         operation: OperationType,
-        schemaName: string,
         schema: Schema,
         data: any[],
         existing?: any[],
@@ -99,7 +96,6 @@ export class ObserverRunner {
         return {
             system,
             operation,
-            schemaName,
             schema,
             data, // For create/update operations, or populated by ring 5 for select
             filter, // For select operations (rings 0-4), undefined for other operations
@@ -194,7 +190,7 @@ export class ObserverRunner {
         context: ObserverContext, 
         stats: ObserverStats[]
     ): Promise<boolean> {
-        const observers = ObserverLoader.getObservers(context.schemaName, ring);
+        const observers = ObserverLoader.getObservers(context.schema.name, ring);
         
         for (const observer of observers) {
             if (this._shouldExecuteObserver(observer, context)) {
@@ -263,7 +259,7 @@ export class ObserverRunner {
         return {
             observerName: observer.name || 'unnamed',
             ring: observer.ring,
-            schema: context.schemaName,
+            schema: context.schema.name,
             operation: context.operation,
             executionTimeMs: executionTime,
             success,

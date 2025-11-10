@@ -26,7 +26,8 @@ export default class RequiredFieldsValidator extends BaseObserver {
             return; // Skip null/undefined records
         }
 
-        const { operation, schemaName } = context;
+        const { operation, schema } = context;
+        const schemaName = schema.name;
         const requiredFields = this.getRequiredFields(schemaName, operation);
 
         for (const field of requiredFields) {

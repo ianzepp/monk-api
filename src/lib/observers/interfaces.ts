@@ -25,9 +25,6 @@ export interface ObserverContext {
     /** Database operation being performed */
     operation: OperationType;
 
-    /** Target schema name */
-    schemaName: string;
-
     /** Loaded Schema object with validation and metadata */
     schema: Schema;
 

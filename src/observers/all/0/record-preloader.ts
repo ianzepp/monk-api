@@ -21,7 +21,8 @@ export default class RecordPreloader extends BaseObserver {
     readonly operations = ['update', 'delete', 'revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schemaName, operation, data, metadata } = context;
+        const { system, operation, data, metadata } = context;
+        const schemaName = context.schema.name;
 
         // Extract record IDs that need existing data lookup
         const recordIds = this.extractRecordIds(data, operation);

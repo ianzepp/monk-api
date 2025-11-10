@@ -381,7 +381,7 @@ export class Describe {
     /**
      * Insert schema describe record
      */
-    private async insertSchemaRecord(tx: TxContext, schemaName: string, tableName: string, jsonSchema: JsonSchema, jsonChecksum: string): Promise<void> {
+    private async insertSchemaRecord(tx: TxContext | DbContext, schemaName: string, tableName: string, jsonSchema: JsonSchema, jsonChecksum: string): Promise<void> {
         const fieldCount = Object.keys(jsonSchema.properties).length;
 
         const insertQuery = `
@@ -397,7 +397,7 @@ export class Describe {
     /**
      * Insert column describe records for schema properties
      */
-    private async insertColumnRecords(tx: TxContext, schemaName: string, jsonSchema: JsonSchema): Promise<void> {
+    private async insertColumnRecords(tx: TxContext | DbContext, schemaName: string, jsonSchema: JsonSchema): Promise<void> {
         if (!jsonSchema.properties || Object.keys(jsonSchema.properties).length === 0) {
             return; // No properties to process
         }

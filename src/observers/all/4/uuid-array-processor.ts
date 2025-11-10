@@ -30,7 +30,8 @@ export default class UuidArrayProcessor extends BaseObserver {
     ];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schemaName, operation, data, metadata } = context;
+        const { operation, data, metadata } = context;
+        const schemaName = context.schema.name;
 
         let processedFields = 0;
         let processedRecords = 0;
