@@ -19,27 +19,25 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 print_step() {
-    if [[ "${TEST_QUIET}" != "true" ]]; then
-        echo -e "${BLUE}→ $1${NC}" >&2
-    fi
+    # Step messages (→) always shown by default
+    echo -e "${BLUE}→ $1${NC}" >&2
 }
 
 print_success() {
-    if [[ "${TEST_QUIET}" != "true" ]]; then
+    # Success messages (✓) only shown in verbose mode
+    if [[ "${TEST_VERBOSE:-false}" == "true" ]]; then
         echo -e "${GREEN}✓ $1${NC}" >&2
     fi
 }
 
 print_error() {
-    if [[ "${TEST_QUIET}" != "true" ]]; then
-        echo -e "${RED}✗ $1${NC}" >&2
-    fi
+    # Error messages (✗) always shown by default
+    echo -e "${RED}✗ $1${NC}" >&2
 }
 
 print_warning() {
-    if [[ "${TEST_QUIET}" != "true" ]]; then
-        echo -e "${YELLOW}⚠ $1${NC}" >&2
-    fi
+    # Warning messages (⚠) always shown by default
+    echo -e "${YELLOW}⚠ $1${NC}" >&2
 }
 
 # Load test environment from temp file (solves subshell variable scoping issues)

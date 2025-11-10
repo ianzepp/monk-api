@@ -366,7 +366,7 @@ npm run version:major
 ```
 
 Each version command automatically:
-1. **Pre-version validation**: Runs `npm run compile && npm run test:all`
+1. **Pre-version validation**: Runs `npm run build && npm run test:sh`
 2. **Version bump**: Updates `package.json` version and creates Git tag
 3. **Release automation**: Pushes commits/tags, creates GitHub release with auto-generated notes
 

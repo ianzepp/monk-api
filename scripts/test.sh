@@ -1,27 +1,14 @@
 #!/usr/bin/env bash
-# Note: Removed set -e to handle test failures gracefully
+# Unified Test Runner - Orchestrates TypeScript and Shell tests
+# Usage: scripts/test.sh [test-pattern]
+#   test-pattern: Pattern to match test files (e.g., "31-meta", "01-basic")
+# Environment Variables:
+#   TEST_VERBOSE: Set to "1" or "true" for detailed output messages
 
-# Test script - finds and runs all test.sh files in spec/ directory serially
-# Usage: scripts/test.sh [--quiet] [test-pattern]
-#   --quiet: Suppress normal output messages from test helper functions
-#   test-pattern: Pattern to match test files (e.g., "31-meta", "01-basic") [--quiet]
+# Check TEST_VERBOSE environment variable
+TEST_VERBOSE="${TEST_VERBOSE:-false}"
 
-# Parse command line arguments
-QUIET=false
-FILTERED_ARGS=()
-for arg in "$@"; do
-    if [[ "$arg" == "--quiet" ]]; then
-        QUIET=true
-    else
-        FILTERED_ARGS+=("$arg")
-    fi
-done
-
-# Export quiet flag for test helper functions
-export TEST_QUIET="$QUIET"
-
-# Use filtered arguments for test file matching
-set -- "${FILTERED_ARGS[@]}"
+# Preserve command line arguments for test file matching
 
 # Colors for output
 RED='\033[0;31m'
@@ -36,148 +23,97 @@ print_header() {
 }
 
 print_success() {
-    if [[ "$QUIET" != "true" ]]; then
+    # Success messages (✓) only shown in verbose mode
+    if [[ "$TEST_VERBOSE" == "true" ]] || [[ "$TEST_VERBOSE" == "1" ]]; then
         echo -e "${GREEN}✓ $1${NC}"
     fi
 }
 
 print_warning() {
-    if [[ "$QUIET" != "true" ]]; then
-        echo -e "${YELLOW}⚠ $1${NC}"
-    fi
+    # Warning messages (⚠) always shown by default
+    echo -e "${YELLOW}⚠ $1${NC}"
 }
 
 print_error() {
-    if [[ "$QUIET" != "true" ]]; then
-        echo -e "${RED}✗ $1${NC}"
-    fi
+    # Error messages (✗) always shown by default
+    echo -e "${RED}✗ $1${NC}"
 }
 
-server_start() {
-    print_header "Starting server"
-    npm run start:bg
-    print_success "Server starting, waiting 3 seconds.."
-    sleep 3
-}
+# Track overall results
+OVERALL_PASSED=0
+OVERALL_FAILED=0
+OVERALL_FAILED_TESTS=()
 
-server_stop() {
-    print_header "Stopping server (if running)"
-    npm run stop
-}
-
-# Run the build
-npm run build
-
-# Start the API server
-server_stop
-server_start
-
-# Find all test.sh files and sort by name
-if [[ $# -gt 0 ]]; then
-    pattern="$1"
+# Function to run TypeScript tests
+run_typescript_tests() {
+    print_header "TypeScript Tests"
     
-    # Check for range pattern (e.g., "10-39", "01-15")
-    if [[ "$pattern" =~ ^([0-9]{2})-([0-9]{2})$ ]]; then
-        start_range="${BASH_REMATCH[1]}"
-        end_range="${BASH_REMATCH[2]}"
+    # Check if TypeScript tests are implemented
+    if ! grep -q "🚧 TypeScript tests are planned" "$(dirname "${BASH_SOURCE[0]}")/test-ts.sh"; then
+        print_success "Running TypeScript tests..."
         
-        # Validate range (start <= end)
-        if [[ $start_range -le $end_range ]]; then
-            print_header "Running tests in range: $start_range-$end_range"
-            test_files=$(find spec -name "*.test.sh" -type f | \
-                grep -E "^spec/[0-9]{2}-" | \
-                awk -v start="$start_range" -v end="$end_range" '
-                {
-                    # Extract the directory number (characters 6-7 after "spec/")
-                    dir_num = substr($0, 6, 2)
-                    if(dir_num >= start && dir_num <= end) print
-                }' | sort)
-            
-            if [[ -z "$test_files" ]]; then
-                print_error "No test files found in range $start_range-$end_range"
-                server_stop
-                exit 1
-            fi
+        # Run TypeScript tests with the same arguments
+        if "$(dirname "${BASH_SOURCE[0]}")/test-ts.sh" "$@"; then
+            print_success "TypeScript tests passed"
+            ((OVERALL_PASSED++))
         else
-            print_error "Invalid range: start ($start_range) must be <= end ($end_range)"
-            server_stop
-            exit 1
+            print_error "TypeScript tests failed"
+            ((OVERALL_FAILED++))
+            OVERALL_FAILED_TESTS+=("TypeScript Tests")
         fi
     else
-        # Regular pattern matching (existing behavior)
-        test_files=$(find spec -name "*.test.sh" -type f | grep -i "$pattern" | sort)
-        if [[ -z "$test_files" ]]; then
-            print_error "No test files matching pattern '$pattern' found"
-            server_stop
-            exit 1
-        fi
+        print_warning "TypeScript tests not yet implemented - skipping"
     fi
-else
-    test_files=$(find spec -name "*.test.sh" -type f | sort)
-fi
+}
 
-if [[ -z "$test_files" ]]; then
-    print_error "No test files found in spec/ directory"
+# Function to run Shell tests
+run_shell_tests() {
+    print_header "Shell Integration Tests"
+    
+    # Run shell tests with the same arguments
+    if "$(dirname "${BASH_SOURCE[0]}")/test-sh.sh" "$@"; then
+        print_success "Shell tests passed"
+        ((OVERALL_PASSED++))
+    else
+        print_error "Shell tests failed"
+        ((OVERALL_FAILED++))
+        OVERALL_FAILED_TESTS+=("Shell Tests")
+    fi
+}
+
+# Main execution
+print_header "Monk API Test Suite"
+
+echo
+print_success "Building project..."
+if ! npm run build; then
+    print_error "Build failed - aborting tests"
     exit 1
 fi
 
-# Count total tests
-test_count=$(echo "$test_files" | wc -l | xargs)
-print_header "Running $test_count test files"
-
-# Source test helper for cleanup function
-source "$(dirname "${BASH_SOURCE[0]}")/../spec/test-tenant-helper.sh"
-
-# Track results
-passed=0
-failed=0
-failed_tests=()
-
-# Run each test serially
-while IFS= read -r test_file; do
-    test_name=$(basename "$test_file" .test.sh)
-    echo
-    print_header "Running: $test_file"
-
-    if bash "$test_file"; then
-        print_success "PASSED: $test_name"
-        ((passed++))
-    else
-        print_error "FAILED: $test_name"
-        failed_tests+=("$test_file")
-        ((failed++))
-    fi
-done <<< "$test_files"
-
-# Summary
 echo
-print_header "Test Summary"
-echo "Total tests: $test_count"
-print_success "Passed: $passed"
+run_typescript_tests
 
-# Clean up all test databases at the end of the test suite
-if [[ "$QUIET" != "true" ]]; then
-    cleanup_all_test_databases
-else
-    # Quiet mode - suppress cleanup output
-    cleanup_all_test_databases >/dev/null 2>&1
-fi
+echo
+run_shell_tests
 
-if [[ $failed -gt 0 ]]; then
-    print_error "Failed: $failed"
+# Final summary
+echo
+print_header "Test Suite Summary"
+echo "Test suites run: $((OVERALL_PASSED + OVERALL_FAILED))"
+print_success "Passed: $OVERALL_PASSED"
+
+if [[ $OVERALL_FAILED -gt 0 ]]; then
+    print_error "Failed: $OVERALL_FAILED"
     echo
-    print_error "Failed tests:"
-    for failed_test in "${failed_tests[@]}"; do
-        dir=$(dirname "$failed_test" | sed 's|spec/||')
-        name=$(basename "$failed_test" .test.sh)
-        echo "  - $dir/$name"
+    print_error "Failed test suites:"
+    for failed_suite in "${OVERALL_FAILED_TESTS[@]}"; do
+        echo "  - $failed_suite"
     done
     echo
-    server_stop
     exit 1
 else
     echo
-    server_stop
-    print_success "All tests passed!"
+    print_success "All test suites passed!"
     exit 0
 fi

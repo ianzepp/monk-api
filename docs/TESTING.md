@@ -7,56 +7,64 @@ Comprehensive guide for running tests in the Monk API project.
 ## Quick Start
 
 ```bash
-# Run all tests (recommended)
-npm run test
+# Run only shell-based integration tests
+npm run test:sh
 
-# Run TypeScript tests only (planned feature)
+# Run only TypeScript unit tests (planned)
 npm run test:ts
+
+# Run tests with detailed output
+TEST_VERBOSE=1 npm run test:sh
+
+# Clean up test databases without running tests
+npm run test:cleanup
 ```
 
 ## Available NPM Scripts
 
-### Test Execution
-- **`npm run test`** - Main test runner (finds and runs all `.test.sh` files)
+### Test Execution Scripts
+- **`npm run test:sh`** - Shell-based integration tests only
+- **`npm run test:ts`** - TypeScript unit tests only (planned)
 - **`npm run test:cleanup`** - Clean up all test databases without running tests
 
-### Future Scripts (Planned)
-- **`npm run test:ts`** - TypeScript tests (Vitest - planned feature)
+### Test Execution
+Tests are run individually using either `npm run test:sh` for shell integration tests or `npm run test:ts` for TypeScript unit tests (planned). Shell tests provide end-to-end API testing with real database operations.
 
 ## Test Selection
 
 ### Pattern Matching
 ```bash
-# Run specific test category
-npm run test 31-meta          # All meta API tests
-npm run test 01-basic          # Basic functionality tests
-npm run test 32-data           # Data API tests
+# Run specific test category (Shell only)
+npm run test:sh 31-meta       # All meta API shell tests
+npm run test:sh 01-basic       # Basic functionality shell tests
+npm run test:sh 32-data        # Data API tests
 
 # Run specific test file
-npm run test 31-meta-api/select-schema.test.sh
+npm run test:sh 31-meta-api/select-schema.test.sh
 
 # Wildcard matching
-npm run test meta              # Matches any test with "meta" in path
-npm run test auth              # Matches any test with "auth" in path
+npm run test:sh meta           # Matches any test with "meta" in path
+npm run test:sh auth           # Matches any test with "auth" in path
 ```
 
 ### Range Selection
 ```bash
-# Run tests in numeric range (inclusive)
-npm run test 10-15           # Tests 10, 11, 12, 13, 14, 15
-npm run test 01-05           # Tests 01, 02, 03, 04, 05
-npm run test 30-39           # All 30-series tests
+# Run shell tests in numeric range
+npm run test:sh 10-15         # Shell tests 10, 11, 12, 13, 14, 15
+npm run test:sh 01-05         # Tests 01, 02, 03, 04, 05
+npm run test:sh 30-39         # All 30-series tests
 ```
 
 ## Command Line Options
 
-### --quiet Flag
-Suppresses verbose output from test helper functions while preserving essential information:
+### TEST_VERBOSE Environment Variable
+Shows detailed success messages (✓) from test helper functions. Default mode shows only headers, warnings, and errors:
 
 ```bash
-# Quiet mode - shows test headers and results only
-npm run test -- --quiet 31-meta
-npm run test:cleanup -- --quiet
+# Verbose mode - shows all output including success messages
+TEST_VERBOSE=1 npm run test:sh 31-meta
+TEST_VERBOSE=true npm run test:sh 31-meta
+TEST_VERBOSE=1 npm run test:cleanup
 ```
 
 **What gets silenced in quiet mode:**
@@ -126,14 +134,11 @@ Each test gets its own isolated tenant database:
 
 ### Cleanup Process
 ```bash
-# Automatic cleanup (runs after all tests complete)
-npm run test 31-meta
-
 # Manual cleanup
 npm run test:cleanup
 
-# Quiet cleanup
-npm run test:cleanup -- --quiet
+# Verbose cleanup
+TEST_VERBOSE=1 npm run test:cleanup
 ```
 
 ## Test Helper Functions
@@ -196,7 +201,7 @@ generate_simple_schema "Test Schema" '["name", "email"]'
 ### Performance Considerations
 - **Template Usage**: Use template-based tests when possible (faster)
 - **Specific Selection**: Use pattern matching to run relevant tests only
-- **Quiet Mode**: Use `--quiet` in CI/CD environments
+- **Default Mode**: Use default output in CI/CD environments (clean output)
 
 ### Error Handling
 - **Graceful Failures**: Tests should fail with clear error messages
@@ -223,7 +228,7 @@ npm run test:cleanup              # Clean up all test databases
 ### Debug Mode
 ```bash
 # Run single test with full output
-npm run test 01-basic/tenant-isolation.test.sh
+npm run test:sh 01-basic/tenant-isolation.test.sh
 
 # Check test database state
 psql -d tenant_<hash> -c "\dt"  # List tables
@@ -233,11 +238,11 @@ psql -d monk_main -c "SELECT * FROM tenants WHERE name LIKE 'test_%';"
 ### Performance Debugging
 ```bash
 # Time specific test categories
-time npm run test 31-meta
+time npm run test:sh 31-meta
 
 # Compare template vs fresh setup
-time npm run test 32-data  # Uses templates
-time npm run test 15-auth  # Uses fresh setup
+time npm run test:sh 32-data  # Uses templates
+time npm run test:sh 15-auth  # Uses fresh setup
 ```
 
 ## CI/CD Integration
@@ -247,12 +252,12 @@ time npm run test 15-auth  # Uses fresh setup
 - name: Run Tests
   run: |
     npm run build
-    npm run test -- --quiet 31-meta
-    npm run test:cleanup -- --quiet
+    npm run test:sh -- 31-meta
+    npm run test:cleanup
 ```
 
 ### Environment Variables
-- **`TEST_QUIET`** - Set to "true" to suppress verbose output
+- **`TEST_VERBOSE`** - Set to "1" or "true" to show detailed success messages (✓)
 - **`NODE_ENV`** - Set to "test" for test configuration
 
 ## Testing Architecture
@@ -271,8 +276,8 @@ time npm run test 15-auth  # Uses fresh setup
   - Mock support for isolated unit testing
   - Parallel execution capabilities
 
-### Hybrid Testing Strategy
-The project is designed for a hybrid approach:
+### Testing Strategy
+The project uses shell tests for comprehensive end-to-end coverage:
 - **Shell Tests**: Comprehensive end-to-end coverage (current)
 - **TypeScript Unit Tests**: Fast logic validation (planned)
 - **TypeScript Integration Tests**: Direct class testing (planned)
@@ -314,7 +319,7 @@ The project is designed for a hybrid approach:
 To optimize current test performance:
 - **Template Usage**: Use template-based tests when possible (faster than fresh setup)
 - **Specific Selection**: Use pattern matching to run relevant tests only
-- **Quiet Mode**: Use `--quiet` in CI/CD environments
+- **Default Mode**: Use default output in CI/CD environments (clean output)
 
 ## Future Enhancements
 

@@ -24,7 +24,10 @@ print_step() {
 }
 
 print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    # Success messages (✓) only shown in verbose mode
+    if [[ "${TEST_VERBOSE:-false}" == "true" ]]; then
+        echo -e "${GREEN}✓ $1${NC}"
+    fi
 }
 
 print_error() {

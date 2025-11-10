@@ -234,15 +234,15 @@ export default class EmailValidator extends BaseObserver {
 Comprehensive test suite with isolated environments:
 
 ```bash
-# Run all tests
-npm run test:all
+# Run all shell tests
+npm run test:sh
 
 # Run specific test categories
-npm run test:all 15        # Authentication tests
-npm run test:all 20-30     # Describe and data API tests
+npm run test:sh 15        # Authentication tests
+npm run test:sh 20-30     # Describe and data API tests
 
 # Individual test
-npm run spec:sh spec/15-authentication/basic-auth.test.sh
+npm run test:sh spec/15-authentication/basic-auth.test.sh
 ```
 
 ## Performance
