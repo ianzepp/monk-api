@@ -2,7 +2,7 @@
  * File API Route Barrel Export
  *
  * Clean route organization for FS filesystem-like interface:
- * @see docs/FILE.md
+ * @see docs/37-file-api.md
  */
 
 export { default as ListPost } from './list/POST.js';

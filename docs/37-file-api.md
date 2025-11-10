@@ -15,8 +15,9 @@
 7. [Metadata and Access Control](#metadata-and-access-control)
 8. [Content Type Handling](#content-type-handling)
 9. [Error Handling](#error-handling)
-10. [Testing](#testing)
-11. [Common Use Cases](#common-use-cases)
+10. [Performance Optimization](#performance-optimization)
+11. [Testing](#testing)
+12. [Common Use Cases](#common-use-cases)
 
 ## Overview
 
@@ -150,7 +151,7 @@ Authorization: Bearer <jwt>
 
 ### POST /api/file/stat
 
-Gets detailed metadata for files and directories.
+Gets detailed metadata for files and directories with enhanced schema introspection for FTP STAT command integration.
 
 ```bash
 POST /api/file/stat
@@ -183,10 +184,59 @@ Authorization: Bearer <jwt>
     "schema_info": {
       "name": "users",
       "type": "object",
-      "description": "User management schema"
+      "description": "User management schema",
+      "record_count": 150,
+      "field_definitions": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "constraints": "min 1 chars, max 100 chars",
+          "description": "User display name"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "constraints": "email format",
+          "description": "Login identifier"
+        },
+        {
+          "name": "role",
+          "type": "string",
+          "required": true,
+          "constraints": "user|admin|moderator",
+          "description": "Access level"
+        }
+      ]
     }
   }
 }
+```
+
+**Enhanced Schema Introspection Features:**
+- **Field Definitions**: Complete field structure from cached JSON Schema
+- **Type Information**: Field types, required status, validation constraints
+- **Human-Readable Constraints**: Min/max length, format rules, enum values
+- **Performance Optimized**: Uses existing SchemaCache (no database queries)
+- **FTP STAT Integration**: Full schema context available for automated operations
+
+**FTP STAT Command Output Format:**
+```
+213-File status: /data/users
+213-Type: directory (User management schema)
+213-Schema: users
+213-Record count: 150
+213-
+213-Required Fields:
+213-  name (string, min 1 chars, max 100 chars) - User display name
+213-  email (string, email format) - Login identifier
+213-  role (string, user|admin|moderator) - Access level
+213-
+213-Permissions: rwx
+213-Size: 0 bytes across 150 entries
+213-Modified: Jan 1 2025 12:00:00
+213 End of status information
 ```
 
 ## File System Structure
@@ -241,7 +291,7 @@ Create new database records through file storage:
 ```
 
 ### Record Updates
-Update existing records with file semantics:
+Update existing records with file semantics, including field-level updates and append mode:
 
 ```json
 {
@@ -258,8 +308,47 @@ Update existing records with file semantics:
 }
 ```
 
+**Field-Level Updates:**
+```json
+{
+  "path": "/data/users/user_123/email",
+  "content": "newemail@example.com",
+  "file_options": {
+    "atomic": true
+  }
+}
+```
+
+**Append Mode for String Fields:**
+```json
+{
+  "path": "/data/users/user_123/description",
+  "content": " - Additional information",
+  "file_options": {
+    "append_mode": true
+  }
+}
+```
+
+**Transaction Management:**
+All store operations support atomic transactions with automatic rollback:
+
+```json
+{
+  "path": "/data/accounts/new-account.json",
+  "content": {"name": "New Account", "email": "account@example.com"},
+  "file_options": {
+    "atomic": true,
+    "validate_schema": true
+  },
+  "metadata": {
+    "transaction_id": "file-store-1703123456789-abc123"
+  }
+}
+```
+
 ### Binary File Support
-Store binary data with appropriate content types:
+Store binary data with appropriate content types and encoding:
 
 ```json
 {
@@ -267,15 +356,23 @@ Store binary data with appropriate content types:
   "content": "JVBERi0xLjQKJcOkw7zDtsO8CjIgMCBvYmoKPDwKL0xlbmd0aCAzIDAgUgovRmlsdGVyIC9GbGF0ZURlY29kZQo+PgpzdHJlYW0KeJzLSMxLLUmNzNFLzs8rzi9KycxLt4IDAIvJBw4KZW5kc3RyZWFtCmVuZG9iago=",
   "file_options": {
     "content_type": "application/pdf",
-    "encoding": "base64"
+    "encoding": "base64",
+    "binary_mode": true
   }
 }
 ```
 
+**Content Processing Features:**
+- **Automatic Detection**: Content type based on file extension and content analysis
+- **Format Conversion**: JSON to CSV, raw text processing
+- **String Operations**: Append mode for text fields
+- **Binary Handling**: Base64 encoding/decoding with size optimization
+- **Resume Support**: Partial content retrieval for large files
+
 ## Directory Operations
 
 ### Directory Listing
-List contents of schema directories:
+List contents of schema directories with advanced wildcard pattern support and performance optimization:
 
 ```bash
 POST /api/file/list
@@ -287,7 +384,9 @@ Authorization: Bearer <jwt>
   "file_options": {
     "recursive": false,
     "include_hidden": false,
-    "sort_by": "name"
+    "sort_by": "name",
+    "pattern_optimization": true,
+    "use_pattern_cache": true
   }
 }
 ```
@@ -303,27 +402,106 @@ Authorization: Bearer <jwt>
         "name": "index.json",
         "type": "file",
         "size": 1024,
-        "modified_at": "2025-01-01T00:00:00.000Z"
+        "modified_at": "2025-01-01T00:00:00.000Z",
+        "file_permissions": "rwx",
+        "file_type": "f",
+        "api_context": {
+          "schema": "users",
+          "access_level": "read"
+        }
       },
       {
         "name": "user_123.json",
         "type": "file", 
         "size": 256,
-        "modified_at": "2025-01-01T12:00:00.000Z"
+        "modified_at": "2025-01-01T12:00:00.000Z",
+        "file_permissions": "rwx",
+        "file_type": "f",
+        "api_context": {
+          "schema": "users",
+          "record_id": "user_123",
+          "access_level": "full"
+        }
       },
       {
         "name": "user_456.json",
         "type": "file",
         "size": 256,
-        "modified_at": "2025-01-01T11:00:00.000Z"
+        "modified_at": "2025-01-01T11:00:00.000Z",
+        "file_permissions": "rwx",
+        "file_type": "f",
+        "api_context": {
+          "schema": "users",
+          "record_id": "user_456",
+          "access_level": "full"
+        }
       }
     ],
     "total_count": 150,
     "page": 1,
-    "page_size": 50
+    "page_size": 50,
+    "file_metadata": {
+      "path": "/data/users",
+      "type": "directory",
+      "permissions": "rwx",
+      "size": 0,
+      "modified_time": "20250101120000"
+    },
+    "pattern_info": {
+      "complexity": "simple",
+      "cache_hit": true,
+      "query_time_ms": 45.67
+    }
   }
 }
 ```
+
+**Advanced Wildcard Pattern Support:**
+
+The File API supports sophisticated wildcard patterns for complex queries:
+
+```bash
+# Multiple wildcards
+{
+  "path": "/data/accounts/*admin*/department/eng*/"
+}
+
+# Alternative patterns  
+{
+  "path": "/data/orders/status/(pending|active|shipped)/"
+}
+
+# Range patterns
+{
+  "path": "/data/logs/2024-[01-12]*/level/error/"
+}
+
+# Cross-schema patterns
+{
+  "path": "/data/*/recent_activity/"
+}
+```
+
+**Pattern Translation Example:**
+```bash
+# File Path: /data/accounts/*admin*/department/*eng*/created/2024-*
+# Translates to Filter:
+{
+  "where": {
+    "$and": [
+      { "id": { "$like": "%admin%" } },
+      { "department": { "$like": "%eng%" } },
+      { "created_at": { "$like": "2024-%" } }
+    ]
+  }
+}
+```
+
+**Performance Optimization:**
+- **Pattern Caching**: Automatic caching of translated patterns with LRU eviction
+- **Query Optimization**: Converts complex patterns to index-friendly operations
+- **Cross-Schema Batching**: Combines multiple schema operations efficiently
+- **Cache Statistics**: Hit/miss rates, memory usage, performance metrics
 
 ### Recursive Listing
 Get complete directory tree structure:
@@ -354,7 +532,7 @@ Access detailed metadata for any file or directory:
 ```
 
 ### Access Level Integration
-The File API respects database access control through file semantics:
+The File API respects database access control through file semantics with comprehensive permission validation:
 
 ```json
 {
@@ -378,6 +556,25 @@ The File API respects database access control through file semantics:
   }
 }
 ```
+
+**Permission Requirements Matrix:**
+
+| Operation | Required Permission | Special Conditions |
+|-----------|-------------------|-------------------|
+| Record creation | `create_data` | Any schema access allowed |
+| Record updates | `update_data` | Requires `access_edit` or `access_full` |
+| Record deletion | `delete_data` | Requires `access_full` permission |
+| Field operations | `update_data` | Requires `access_edit` or `access_full` |
+| Schema listing | `read_data` | Schema-level read permission |
+| Cross-tenant | Blocked | Automatic blocking for security |
+| Dangerous operations | `delete_data` | Requires `force: true` flag |
+
+**Security Features:**
+- **Root Override**: Root accounts bypass permission checks
+- **ACL Integration**: Full ACL system integration with file semantics
+- **Cross-tenant Protection**: Automatic blocking of cross-tenant operations
+- **Dangerous Operation Protection**: Requires explicit `force: true` for destructive operations
+- **Permission Caching**: Efficient permission validation with caching
 
 ## Content Type Handling
 
@@ -478,6 +675,99 @@ Convert between different formats on retrieval:
 }
 ```
 
+## Performance Optimization
+
+### Pattern Caching System
+
+The File API includes a high-performance pattern caching system (`PatternCache`) that optimizes wildcard pattern translation:
+
+```json
+{
+  "file_options": {
+    "use_pattern_cache": true,
+    "pattern_optimization": true,
+    "cross_schema_limit": 100
+  },
+  "performance_hints": {
+    "expected_result_count": 50,
+    "priority": "speed",
+    "timeout_ms": 15000
+  }
+}
+```
+
+**Cache Features:**
+- **Automatic Caching**: SHA256-based pattern hashing with LRU eviction
+- **Schema-Aware Invalidation**: Cache invalidation when schema data changes
+- **Memory Management**: Configurable size limits (default: 1000 patterns)
+- **Performance Metrics**: Hit/miss rates, memory usage, time savings
+
+**Cache Statistics:**
+```json
+{
+  "cache_stats": {
+    "total_entries": 847,
+    "hit_count": 12450,
+    "miss_count": 234,
+    "hit_rate": 98.1,
+    "memory_usage_bytes": 2048576,
+    "top_patterns": [
+      {
+        "pattern": "/data/users/admin*",
+        "hit_count": 3420,
+        "estimated_savings_ms": 68400
+      }
+    ]
+  }
+}
+```
+
+### Response Format Details
+
+**STORE Response Structure:**
+```json
+{
+  "success": true,
+  "operation": "create",
+  "result": {
+    "record_id": "account-123",
+    "field_name": "email",
+    "created": true,
+    "updated": false,
+    "validation_passed": true
+  },
+  "file_metadata": {
+    "path": "/data/accounts/account-123.json",
+    "type": "file",
+    "permissions": "rwx",
+    "size": 256,
+    "modified_time": "20250101120000",
+    "content_type": "application/json",
+    "etag": "abc123def456"
+  },
+  "transaction_info": {
+    "transaction_id": "file-store-1703123456789-abc123",
+    "can_rollback": false,
+    "timeout_ms": 30000
+  }
+}
+```
+
+**LIST Response with Pattern Info:**
+```json
+{
+  "success": true,
+  "entries": [...],
+  "pattern_info": {
+    "complexity": "complex",
+    "cache_hit": true,
+    "query_time_ms": 45.67,
+    "optimization_applied": ["index_usage", "query_caching"],
+    "estimated_cost": 25
+  }
+}
+```
+
 ## Testing
 
 The File API includes comprehensive test coverage for all file operations. Test files include:
@@ -491,7 +781,25 @@ The File API includes comprehensive test coverage for all file operations. Test 
 - **modify-time-basic.test.sh** - File modification time operations
 - **stat-access-levels.test.sh** - Access control and permission testing
 
-**Note**: File API tests are currently disabled pending implementation review.
+**Current Test Status**: File API tests are currently disabled pending implementation review. The tests exit early with status code 0 and display: "🚫 FILE API TEST DISABLED: [test-name].test.sh - File API implementation under review"
+
+**Test Implementation Gaps:**
+1. **Schema Validation**: TODO comment in store/POST.ts line 85 - validation not fully implemented
+2. **Wildcard Pattern Tests**: Advanced pattern matching needs test coverage
+3. **Performance Benchmarks**: Cache hit/miss rates, query optimization tests
+4. **Transaction Rollback**: Automatic rollback scenarios need testing
+5. **Cross-tenant Protection**: Security boundary validation tests
+
+**Running File API Tests:**
+```bash
+# Run individual file API tests (currently disabled)
+npm run test:sh spec/37-file-api/store-basic.test.sh
+npm run test:sh spec/37-file-api/list-basic.test.sh
+npm run test:sh spec/37-file-api/stat-basic.test.sh
+
+# Run all file API tests
+npm run test:sh spec/37-file-api/
+```
 
 ## Common Use Cases
 
