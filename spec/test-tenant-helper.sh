@@ -191,12 +191,22 @@ cleanup_test_tenant() {
     # 1. Remove from tenant registry (soft delete)
     psql -d monk_main -c "UPDATE tenants SET trashed_at = NOW() WHERE name = '$tenant_name'" >/dev/null 2>&1 || true
     
-    # 2. Drop tenant database (removes all data)
-    if dropdb --force "$db_name" 2>/dev/null; then
-        print_success "Dropped tenant database: $db_name"
-    else
-        print_warning "Could not drop database $db_name (may not exist)"
-    fi
+    # 2. Drop tenant database (removes all data) with retry logic
+    local retry_count=0
+    local max_retries=3
+    while [ $retry_count -lt $max_retries ]; do
+        if dropdb "$db_name" 2>/dev/null; then
+            print_success "Dropped tenant database: $db_name"
+            break
+        else
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -eq $max_retries ]; then
+                print_warning "Could not drop database $db_name after $max_retries attempts (may not exist)"
+            else
+                sleep 1
+            fi
+        fi
+    done
     
     # 3. Clean up registry entry completely
     psql -d monk_main -c "DELETE FROM tenants WHERE name = '$tenant_name'" >/dev/null 2>&1 || true

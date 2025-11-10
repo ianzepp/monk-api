@@ -26,6 +26,9 @@ setup_test_with_template() {
         test_fail "Template cloning failed - fixtures template required for this test"
     fi
 
+    # Setup automatic cleanup for transient tenant database
+    setup_test_cleanup_trap "$tenant_name" "$TEST_DATABASE_NAME"
+
     print_success "Test tenant cloned from template"
     echo "$tenant_name"
 }
