@@ -12,7 +12,8 @@
 4. [API Quick Reference](#api-quick-reference)
 5. [Getting Started](#getting-started)
 6. [Integration Examples](#integration-examples)
-7. [Additional Resources](#additional-resources)
+7. [Error Handling and HTTP Status Codes](#error-handling-and-http-status-codes)
+8. [Additional Resources](#additional-resources)
 
 ## API Architecture Overview
 
@@ -293,47 +294,206 @@ curl -X POST https://api.example.com/api/bulk \
   }'
 ```
 
+## Error Handling and HTTP Status Codes
+
+### Error Response Format
+
+All API endpoints return consistent error responses following this standardized format:
+
+```json
+{
+  "success": false,
+  "error": "Human-readable error message",
+  "error_code": "MACHINE_READABLE_ERROR_CODE",
+  "data": {
+    // Optional additional error context
+  }
+}
+```
+
+#### Response Fields
+
+**`success`**
+- **Type**: `boolean`
+- **Value**: Always `false` for error responses
+- **Purpose**: Distinguishes error responses from successful responses
+
+**`error`**
+- **Type**: `string`
+- **Purpose**: Human-readable error message intended for display to end users
+- **Language**: English
+- **Format**: Clear, actionable description of what went wrong
+
+**`error_code`**
+- **Type**: `string`
+- **Purpose**: Machine-readable error identifier for programmatic handling
+- **Format**: `SUBJECT_FIRST` naming convention (e.g., `SCHEMA_NOT_FOUND`, `TENANT_MISSING`)
+- **Stability**: Error codes are stable across API versions for reliable client handling
+
+**`data`** (Optional)
+- **Type**: `object`
+- **Purpose**: Additional structured error context when relevant
+- **Contents**: May include validation details, conflicting values, or other contextual information
+- **Development Mode**: In `NODE_ENV=development`, includes additional debugging information such as stack traces
+
+### HTTP Status Codes
+
+Error responses use appropriate HTTP status codes that correspond to the type of error:
+
+| Status Code | Category | Description | Common Error Codes |
+|-------------|----------|-------------|-------------------|
+| `400` | Bad Request | Client error - invalid input, missing required fields, malformed requests | `VALIDATION_ERROR`, `JSON_PARSE_ERROR`, `MISSING_CONTENT_TYPE`, `SCHEMA_ERROR` |
+| `401` | Unauthorized | Authentication required or failed | `UNAUTHORIZED`, `TOKEN_EXPIRED` |
+| `403` | Forbidden | Access denied - insufficient permissions for the requested operation | `FORBIDDEN`, `SCHEMA_PROTECTED`, `ACCESS_DENIED` |
+| `404` | Not Found | Requested resource does not exist | `NOT_FOUND`, `SCHEMA_NOT_FOUND`, `RECORD_NOT_FOUND` |
+| `405` | Method Not Allowed | HTTP method not supported for this endpoint | `UNSUPPORTED_METHOD` |
+| `409` | Conflict | Request conflicts with current resource state | `CONFLICT`, `DEPENDENCY_ERROR` |
+| `413` | Request Entity Too Large | Request body exceeds size limit | `REQUEST_BODY_TOO_LARGE` |
+| `415` | Unsupported Media Type | Content-Type not supported | `UNSUPPORTED_CONTENT_TYPE` |
+| `422` | Unprocessable Entity | Request is well-formed but semantically invalid | `UNPROCESSABLE_ENTITY` |
+| `500` | Internal Server Error | Unexpected server error or system failure | `INTERNAL_ERROR`, `DATABASE_ERROR` |
+
+### Error Code Reference
+
+#### Schema Management Errors
+| Error Code | Description | HTTP Status |
+|------------|-------------|-------------|
+| `SCHEMA_NOT_FOUND` | Requested schema does not exist | 404 |
+| `SCHEMA_PROTECTED` | Cannot modify system-protected schema | 403 |
+| `SCHEMA_INVALID_FORMAT` | Schema definition has invalid format | 400 |
+| `SCHEMA_MISSING_FIELDS` | Schema missing required fields (title, properties) | 400 |
+| `SCHEMA_EXISTS` | Schema already exists (conflict) | 409 |
+
+#### Authentication & Authorization Errors
+| Error Code | Description | HTTP Status |
+|------------|-------------|-------------|
+| `UNAUTHORIZED` | Missing or invalid authentication | 401 |
+| `TOKEN_EXPIRED` | JWT token has expired | 401 |
+| `FORBIDDEN` | Insufficient permissions for operation | 403 |
+| `ACCESS_DENIED` | Access denied to resource | 403 |
+| `TENANT_MISSING` | Tenant not found or invalid | 401 |
+| `USERNAME_MISSING` | Username not provided | 401 |
+
+#### Request Validation Errors
+| Error Code | Description | HTTP Status |
+|------------|-------------|-------------|
+| `VALIDATION_ERROR` | General validation failure | 400 |
+| `JSON_PARSE_ERROR` | Invalid JSON format in request body | 400 |
+| `MISSING_CONTENT_TYPE` | Content-Type header missing for POST/PUT/PATCH | 400 |
+| `UNSUPPORTED_CONTENT_TYPE` | Content-Type not supported | 415 |
+| `REQUEST_BODY_TOO_LARGE` | Request body exceeds 10MB limit | 413 |
+| `UNSUPPORTED_METHOD` | HTTP method not supported | 405 |
+| `INVALID_REQUEST_BODY` | Request body format is invalid | 400 |
+
+#### Data Operation Errors
+| Error Code | Description | HTTP Status |
+|------------|-------------|-------------|
+| `RECORD_NOT_FOUND` | Requested record does not exist | 404 |
+| `RECORD_ALREADY_EXISTS` | Record already exists (unique constraint) | 409 |
+| `DEPENDENCY_ERROR` | Operation conflicts with existing dependencies | 409 |
+| `DATABASE_ERROR` | Database operation failed | 500 |
+
+### Error Code Naming Convention
+
+Error codes follow a consistent `SUBJECT_FIRST` pattern for logical grouping and easy filtering:
+
+- **Schema errors**: `SCHEMA_NOT_FOUND`, `SCHEMA_PROTECTED`, `SCHEMA_INVALID_FORMAT`
+- **Record errors**: `RECORD_NOT_FOUND`, `RECORD_ALREADY_EXISTS`
+- **Authentication errors**: `TENANT_MISSING`, `USERNAME_MISSING`, `TOKEN_EXPIRED`
+- **Permission errors**: `ACCESS_DENIED`, `OPERATION_FORBIDDEN`
+- **Request errors**: `JSON_PARSE_ERROR`, `MISSING_CONTENT_TYPE`, `UNSUPPORTED_METHOD`
+
+This convention enables:
+- **Logical grouping**: All schema-related errors start with `SCHEMA_*`
+- **Easy filtering**: Client code can check `errorCode.startsWith('SCHEMA_')`
+- **Consistent sorting**: Related errors group together alphabetically
+
+### Environment-Specific Behavior
+
+#### Production Mode
+- Error messages are sanitized and generic
+- No sensitive system information exposed
+- Stack traces omitted from response
+
+#### Development Mode (`NODE_ENV=development`)
+- Detailed error information included in `data` field
+- Stack traces provided for debugging
+- Additional context about error source and cause
+- JSON parsing errors include line, column, and position information
+
+### Client Error Handling Best Practices
+
+Clients should handle errors by:
+
+1. **Check HTTP status code** for error category
+2. **Use `error_code`** for specific error handling logic
+3. **Display `error` message** to users when appropriate
+4. **Process `data` field** for additional context when present
+5. **Implement retry logic** for transient errors (5xx status codes)
+6. **Log errors** with correlation IDs for debugging
+
+### Example Error Handling Code
+
+```javascript
+try {
+  const response = await fetch('/api/describe/users', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(schemaData)
+  });
+  
+  const result = await response.json();
+  
+  if (!result.success) {
+    // Handle specific error codes
+    switch (result.error_code) {
+      case 'SCHEMA_NOT_FOUND':
+        console.error('Schema does not exist:', result.error);
+        break;
+      case 'JSON_PARSE_ERROR':
+        console.error('Invalid JSON:', result.data?.details);
+        console.error('Position:', result.data?.position);
+        break;
+      case 'SCHEMA_PROTECTED':
+        console.error('Cannot modify protected schema:', result.error);
+        break;
+      default:
+        console.error('API Error:', result.error, result.error_code);
+    }
+  }
+} catch (error) {
+  console.error('Network or parsing error:', error);
+}
+```
+
 ## Additional Resources
+
+### API Testing
+- **Test Suite**: Comprehensive test coverage with 200+ test cases
+- **Test Patterns**: See [spec/](../spec/) directory for test examples
+- **Test Execution**: `npm run test:sh` for shell tests, `npm run test:ts` for TypeScript tests
+- **Coverage**: All API endpoints have corresponding test specifications
+
+### CLI Integration
+- **Authentication**: `monk auth login` for token acquisition
+- **Schema Management**: `monk describe create users` for schema creation
+- **Data Operations**: `monk data create users '{"name": "John"}'` for record creation
+- **Bulk Operations**: `monk bulk create users data.json` for batch processing
+- **File Operations**: `monk file store local-file.txt remote-path.txt` for file management
+
+### Support and Community
+- **GitHub Issues**: Report bugs and request features
+- **Documentation**: Comprehensive guides and examples
+- **Community**: Join discussions and share experiences
 
 ### Related Documentation
 - [DEVELOPER.md](DEVELOPER.md) - Development setup and architecture
-- [ERRORS.md](ERRORS.md) - Error handling and troubleshooting
 - [37-file-api.md](37-file-api.md) - File system interface details
 - [33-find-api.md](33-find-api.md) - Advanced filtering and query capabilities
 - [OBSERVERS.md](OBSERVERS.md) - Observer system integration
+- [FIXTURES.md](FIXTURES.md) - Template-based database cloning system for testing
 - [TEST.md](TEST.md) - Testing framework and best practices
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
-
-### API Testing
-Each API section includes comprehensive test coverage. Test files are located in:
-```
-spec/{api-section}/
-├── README.md           # Test coverage details
-├── *.test.sh          # Individual test files
-└── test-helpers.sh    # Shared test utilities
-```
-
-### CLI Integration
-The platform includes CLI tools that wrap these APIs:
-```bash
-# Authentication
-monk auth login my-tenant admin
-
-# Schema operations
-monk describe create users < users.json
-
-# Data operations
-monk data create users '{"name": "Test User"}'
-
-# Advanced queries
-monk data select users --where '{"status": "active"}' --limit 10
-```
-
-### Support and Community
-- **Issues**: Report bugs and feature requests via GitHub issues
-- **Discussions**: Join community discussions for questions and best practices
-- **Contributing**: See [DEVELOPER.md](DEVELOPER.md) for contribution guidelines
-
----
-
-**Next Steps**: Choose an API section from the list above to explore detailed documentation, examples, and implementation guides for specific use cases.
