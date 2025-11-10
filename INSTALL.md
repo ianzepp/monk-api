@@ -36,7 +36,7 @@ npm run autoinstall
 npm run start:dev
 
 # Test connectivity
-npm run spec:sh spec/10-connection/basic-ping.test.sh
+npm run test:sh spec/10-connection/basic-ping.test.sh
 ```
 
 The `autoinstall` script will:

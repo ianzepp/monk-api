@@ -16,7 +16,7 @@ When issues arise, follow this systematic approach based on recent debugging exp
 # Determine if issue is environmental or code-related
 git status                              # Check for uncommitted changes
 npm run build                           # Verify TypeScript compilation
-npm run spec:ts unit                   # Test unit tests (planned)
+npm run test:ts unit                   # Test unit tests (planned)
 
 # Check basic connectivity
 psql -d monk_main -c "SELECT current_user;"   # Test direct PostgreSQL
@@ -44,8 +44,8 @@ psql -d monk_main -c "SELECT COUNT(*) FROM tenants;"   # Auth database
 psql -d "monk-api\$local-test" -c "SELECT COUNT(*) FROM schemas;" # Tenant database
 
 # Test Node.js database connections
-npm run spec:ts spec/unit/database-connection-test.test.ts  # Direct connections (planned)
-npm run spec:sh spec/05-infrastructure/connectivity.test.ts # Integration tests
+npm run test:ts spec/unit/database-connection-test.test.ts  # Direct connections (planned)
+npm run test:sh spec/05-infrastructure/connectivity.test.ts # Integration tests
 ```
 
 ## Common Issues
@@ -62,7 +62,7 @@ npm run spec:sh spec/05-infrastructure/connectivity.test.ts # Integration tests
 
 # Diagnostic Steps:
 psql -U $USER -d monk_main -c "SELECT current_user;"    # Should work
-npm run spec:ts spec/unit/tenant-service-debug.test.ts     # May fail (planned)
+npm run test:ts spec/unit/tenant-service-debug.test.ts     # May fail (planned)
 
 # Verify DATABASE_URL configuration
 cat ~/.config/monk/env.json | grep DATABASE_URL
@@ -88,13 +88,13 @@ ps aux | grep postgres
 #### Integration Tests Failing
 ```bash
 # Check observer system preloading
-npm run spec:sh spec/05-infrastructure/connectivity.test.ts
+npm run test:sh spec/05-infrastructure/connectivity.test.ts
 
 # Common issue: Observers not loaded
 # Solution: Add await ObserverLoader.preloadObservers() to test setup
 
 # Check test tenant creation
-npm run spec:ts spec/unit/tenant-service-debug.test.ts
+npm run test:ts spec/unit/tenant-service-debug.test.ts
 
 # Environment isolation issues
 # Each test creates fresh tenant - verify cleanup working
@@ -103,10 +103,10 @@ npm run spec:ts spec/unit/tenant-service-debug.test.ts
 #### Unit Tests vs Integration Tests
 ```bash
 # Unit tests should always work (no external dependencies)
-npm run spec:all unit                   # Should pass consistently
+npm run test:ts unit                    # Should pass consistently
 
 # Integration tests require database and configuration
-npm run spec:all integration            # May fail with config issues
+npm run test:sh integration             # May fail with config issues
 
 # If unit tests fail → Code issue
 # If integration tests fail → Environment/config issue
@@ -165,8 +165,8 @@ npm run build                           # Compile observers
 npm run start:dev                       # Look for observer loading logs
 
 # Test observer system directly
-npm run spec:ts unit/observers         # Unit test observers (planned)
-npm run spec:sh spec/integration/observer-pipeline.test.ts
+npm run test:ts unit/observers         # Unit test observers (planned)
+npm run test:sh spec/integration/observer-pipeline.test.ts
 
 # Common observer issues:
 # - Missing observer files in src/observers/
@@ -184,7 +184,7 @@ git log --oneline --since="4 hours ago" # Recent changes
 
 # Test specific commits to isolate when issue started
 git checkout <commit-hash>              # Test earlier commit
-npm run spec:one spec/05-infrastructure/connectivity.test.ts
+npm run test:sh spec/05-infrastructure/connectivity.test.ts
 
 # Common causes of "worked before" issues:
 # - External system updates (PostgreSQL, Node.js, OS packages)
@@ -203,8 +203,8 @@ npm run spec:one spec/05-infrastructure/connectivity.test.ts
 
 # Test each layer independently
 curl http://localhost:9001/health       # HTTP layer
-npm run spec:ts unit                   # Code logic layer (planned)
-npm run spec:sh spec/unit/database-connection-test.ts # Database layer (planned)
+npm run test:ts unit                   # Code logic layer (planned)
+npm run test:sh spec/unit/database-connection-test.ts # Database layer (planned)
 ```
 
 ### Database Connection Debugging
@@ -229,9 +229,9 @@ echo "TenantService builds: postgresql://user@host:port/db"
 ### Filter System Debugging
 ```bash
 # Test filter operators systematically by category
-npm run spec:ts unit/filter/logical-operators      # AND, OR, NOT operations (planned)
-npm run spec:ts unit/filter/array-operators        # PostgreSQL arrays (planned)
-npm run spec:ts unit/filter/complex-scenarios      # Real-world patterns (planned)
+npm run test:ts unit/filter/logical-operators      # AND, OR, NOT operations (planned)
+npm run test:ts unit/filter/array-operators        # PostgreSQL arrays (planned)
+npm run test:ts unit/filter/complex-scenarios      # Real-world patterns (planned)
 
 # Debug SQL generation
 const { whereClause, params } = FilterWhere.generate({ complex: 'filter' });
@@ -239,14 +239,14 @@ console.log('SQL:', whereClause);
 console.log('Params:', params);
 
 # Test specific operator combinations
-npm run spec:ts spec/unit/filter/logical-operators.test.ts
+npm run test:ts spec/unit/filter/logical-operators.test.ts
 ```
 
 ### FS middleware Debugging
 ```bash
 # Test FS endpoints systematically
 # 1. Unit tests (path parsing, utilities)
-npm run spec:ts unit/file
+npm run test:ts unit/file
 
 # 2. Direct HTTP endpoint testing
 TOKEN=$(monk auth token)
@@ -255,7 +255,7 @@ curl -X POST http://localhost:9001/api/file/list \
   -d '{"path": "/", "file_options": {}}'
 
 # 3. Integration tests (requires database)
-npm run spec:ts integration/file
+npm run test:ts integration/file
 ```
 
 ### Observer System Debugging
@@ -268,8 +268,8 @@ npm run start:dev                       # Check observer loading logs
 # "✅ Observer loaded: ObserverName (ring N, schema X)"
 
 # Test individual observers
-npm run spec:ts unit/observers         # Unit test observers (planned)
-npm run spec:sh spec/integration/observer-pipeline.test.ts
+npm run test:ts unit/observers         # Unit test observers (planned)
+npm run test:sh spec/integration/observer-pipeline.test.ts
 
 # Debug observer execution in development
 # Look for execution timing logs:
@@ -290,7 +290,7 @@ node -e "
 "
 
 # Check observer pipeline execution
-npm run spec:one spec/integration/observer-pipeline.test.ts
+npm run test:sh spec/integration/observer-pipeline.test.ts
 ```
 
 ## Development Tips
@@ -340,7 +340,7 @@ npm run spec:one spec/integration/observer-pipeline.test.ts
 npm run start:dev                       # Watch for timing logs
 
 # Test with integration tests
-npm run spec:ts integration             # Run integration test suite (planned)
+npm run test:ts integration             # Run integration test suite (planned)
 
 # Database query analysis
 # Enable PostgreSQL query logging if needed
@@ -372,8 +372,8 @@ npm run autoinstall
 npm run build                           # For compilation errors
 psql -d monk_main -c "SELECT 1;"   # For connection errors
 monk auth token                         # For authentication errors
-npm run spec:ts unit/filter            # For validation errors (planned)
-npm run spec:ts unit/observers         # For observer errors (planned)
+npm run test:ts unit/filter            # For validation errors (planned)
+npm run test:ts unit/observers         # For observer errors (planned)
 ```
 
 ---

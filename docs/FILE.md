@@ -418,22 +418,22 @@ File operations integrate with the ACL system:
 ### Unit Testing
 ```bash
 # File middleware unit tests
-npm run spec:all unit/file
+npm run test:ts unit/file
 
 # File operations unit tests
-npm run spec:one spec/unit/file/file-operations.test.ts
+npm run test:ts spec/unit/file/file-operations.test.ts
 
 # Path parsing validation
-npm run spec:one spec/unit/file/file-path-parsing.test.ts
+npm run test:ts spec/unit/file/file-path-parsing.test.ts
 ```
 
 ### Integration Testing
 ```bash
 # File endpoint integration tests (database required)
-npm run spec:all integration/file
+npm run test:ts integration/file
 
 # HTTP integration testing
-npm run spec:one spec/integration/file/file-operations-integration.test.ts
+npm run test:sh spec/integration/file/file-operations-integration.test.ts
 ```
 
 ### Manual Testing Examples

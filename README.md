@@ -125,8 +125,8 @@ Essential example of modern, high-performance backend development combining cutt
 - **[docs/TEST.md](docs/TEST.md)** - Testing guide and common commands
 
 ### Testing Status
-- **✅ Shell Tests**: Comprehensive end-to-end integration tests (`npm run spec`)
-- **🚧 TypeScript Tests**: Planned unit/integration tests via Vitest (`npm run spec:ts`)
+- **✅ Shell Tests**: Comprehensive end-to-end integration tests (`npm run test:sh`)
+- **🚧 TypeScript Tests**: Planned unit/integration tests via Vitest (`npm run test:ts`)
 - **📋 Test Coverage**: Current shell tests provide complete API and workflow coverage
 
 ### API Reference

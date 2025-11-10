@@ -541,12 +541,12 @@ FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
 ### Unit Testing
 ```bash
 # All Filter operator tests (162 tests)
-npm run spec:all unit/filter
+npm run test:ts unit/filter
 
 # Specific operator categories
-npm run spec:one spec/unit/filter/logical-operators.test.ts
-npm run spec:one spec/unit/filter/array-operators.test.ts
-npm run spec:one spec/unit/filter/complex-scenarios.test.ts
+npm run test:ts spec/unit/filter/logical-operators.test.ts
+npm run test:ts spec/unit/filter/array-operators.test.ts
+npm run test:ts spec/unit/filter/complex-scenarios.test.ts
 ```
 
 ### Real-World Scenarios

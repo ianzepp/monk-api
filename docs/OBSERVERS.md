@@ -381,10 +381,10 @@ export default class CustomObserver extends BaseObserver {
 ### 3. Test Observer
 ```bash
 # Unit test the observer logic
-npm run spec:ts spec/unit/observers/custom-observer.test.ts
+npm run test:ts spec/unit/observers/custom-observer.test.ts
 
 # Integration test with database
-npm run spec:sh spec/integration/observer-pipeline.test.ts
+npm run test:sh spec/integration/observer-pipeline.test.ts
 ```
 
 ### 4. Verify Auto-Loading
@@ -399,7 +399,7 @@ npm run start:dev
 ### 5. Test in Pipeline
 ```bash
 # Test complete observer pipeline
-npm run spec:sh spec/85-observer-integration/observer-startup-test.sh
+npm run test:sh spec/85-observer-integration/observer-startup-test.sh
 ```
 
 ## Best Practices

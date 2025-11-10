@@ -47,7 +47,7 @@ npm run autoinstall
 npm run start:dev
 
 # 4. Verify installation
-npm run spec:sh spec/10-connection/basic-ping.test.sh
+npm run test:sh spec/10-connection/basic-ping.test.sh
 ```
 
 The `npm run autoinstall` script handles all setup steps automatically:
@@ -66,9 +66,9 @@ monk server use local                  # Switch to local server
 monk auth login local-test root         # Authenticate
 
 # Testing
-npm run spec                           # All shell tests
-npm run spec:ts unit                   # Unit tests only (planned)
-npm run spec:sh 15                     # Authentication tests
+npm run test:sh                        # All shell tests
+npm run test:ts unit                   # Unit tests only (planned)
+npm run test:sh 15                     # Authentication tests
 
 # Schema management
 cat contacts.json | monk describe create schema
@@ -116,7 +116,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 #### **Unified Test Suite** (`spec/`)
 - **Current Organization**: Shell (.test.sh) tests provide comprehensive coverage
 - **Planned Enhancement**: TypeScript (.test.ts) tests will complement shell tests
-- **Command Structure**: `npm run spec` (shell tests), `npm run spec:ts` (TypeScript - planned), `npm run spec:sh` (Shell)
+- **Command Structure**: `npm run test:sh` (shell tests), `npm run test:ts` (TypeScript - planned), `npm run test:sh` (Shell)
 - **Tenant Isolation**: Each test gets fresh tenant database
 - **Comprehensive Testing**: Current shell tests provide complete end-to-end coverage
 
@@ -263,14 +263,14 @@ npm run start:dev  # Observer system loads new observer automatically
 #### **Unified Test Commands**
 
 ```bash
-npm run spec [pattern]              # Complete coverage (Shell tests)
-npm run spec:ts [pattern]           # TypeScript tests only (planned)
-npm run spec:sh [pattern]           # Shell tests only
+npm run test:sh [pattern]           # Shell tests only
+npm run test:ts [pattern]           # TypeScript tests only (planned)
+npm run test:sh [pattern]           # Shell tests only (duplicate)
 
 # Examples
-npm run spec 15                     # All auth tests
-npm run spec:ts unit/filter         # Filter unit tests
-npm run spec:sh observer-startup    # Observer integration test
+npm run test:sh 15                  # All auth tests
+npm run test:ts unit/filter         # Filter unit tests
+npm run test:sh observer-startup    # Observer integration test
 ```
 
 #### **Testing Development**
@@ -279,8 +279,8 @@ Run tests for validation and development:
 
 ```bash
 # Quick validation
-npm run spec:ts unit                   # Fast unit tests
-npm run spec:sh basic-ping             # Basic connectivity test
+npm run test:ts unit                   # Fast unit tests
+npm run test:sh basic-ping             # Basic connectivity test
 ```
 
 > **📖 For comprehensive testing guide, see [docs/TEST.md](docs/TEST.md)**
@@ -448,10 +448,10 @@ monk server use local
 monk auth login local-test root
 
 # Testing
-npm run spec                           # All tests
-npm run spec:ts unit                   # Unit tests only
-npm run spec:sh 15                     # Auth tests
-npm run spec:one spec/path/test.test.ts # Single test
+npm run test:sh                        # All shell tests
+npm run test:ts unit                   # Unit tests only
+npm run test:sh 15                     # Auth tests
+npm run test:sh spec/path/test.test.sh # Single test
 
 # Schema management
 cat contacts.json | monk describe create schema
@@ -464,8 +464,8 @@ monk data select contacts <id>
 
 # Observer development
 # Create: src/observers/schema/ring/observer.ts
-# Test: npm run spec:ts unit/observers
-# Integration: npm run spec:sh observer-startup-test.sh
+# Test: npm run test:ts unit/observers
+# Integration: npm run test:sh observer-startup-test.sh
 
 # Releases
 npm run version:patch
