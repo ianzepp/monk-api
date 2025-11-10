@@ -26,9 +26,8 @@ GREEN='\033[0;32m'
 NC='\033[0m'
 
 print_header() {
-    if [[ "$QUIET" != "true" ]]; then
-        echo -e "${BLUE}=== $1 ===${NC}"
-    fi
+    # Always show test headers, even in quiet mode
+    echo -e "${BLUE}=== $1 ===${NC}"
 }
 
 print_header "Test Database Cleanup"
