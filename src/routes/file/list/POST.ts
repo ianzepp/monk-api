@@ -69,6 +69,8 @@ export default withParams(async (context, { system, body }) => {
             break;
 
         case 'data':
+        case 'describe': {
+            const namespace = filePath.type;
             const schemas = await system.database.selectAny('schemas');
             for (const schemaRecord of schemas) {
                 // Skip system schemas unless user is root
@@ -76,9 +78,10 @@ export default withParams(async (context, { system, body }) => {
                     continue;
                 }
 
-                entries.push(createSchemaEntry(schemaRecord));
+                entries.push(createSchemaEntry(schemaRecord, namespace));
             }
             break;
+        }
 
         case 'schema':
             await handleSchemaListing(system, filePath, options, entries);
@@ -160,14 +163,16 @@ function createRootEntry(name: 'data' | 'describe'): FileEntry {
     };
 }
 
-function createSchemaEntry(schemaRecord: any): FileEntry {
+function createSchemaEntry(schemaRecord: any, namespace: 'data' | 'describe'): FileEntry {
+    const pathPrefix = namespace === 'data' ? '/data' : '/describe';
+
     return {
         name: schemaRecord.name,
         file_type: 'd',
         file_size: 0,
         file_permissions: 'rwx', // TODO: Calculate from ACL
         file_modified: FileTimestampFormatter.format(schemaRecord.updated_at || schemaRecord.created_at),
-        path: `/data/${schemaRecord.name}/`,
+        path: `${pathPrefix}/${schemaRecord.name}/`,
         api_context: {
             schema: schemaRecord.name,
             access_level: 'read', // TODO: Calculate from user permissions
