@@ -5,6 +5,14 @@ Public authentication endpoints for token acquisition and account management. Th
 ## Base Path
 All public authentication routes are prefixed with `/auth`
 
+## Endpoint Summary
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | [`/auth/login`](#post-authlogin) | Authenticate against an existing tenant and issue a JWT token. |
+| POST | [`/auth/refresh`](#post-authrefresh) | Exchange an existing token for a fresh one with the same scope. |
+| POST | [`/auth/register`](#post-authregister) | Provision a new tenant from the default template and return an initial token. |
+
 ## Content Type
 - **Request**: `application/json`
 - **Response**: `application/json`
@@ -16,7 +24,7 @@ Public auth routes do not require authentication - they are used to obtain token
 
 ## POST /auth/login
 
-Authenticate a user and receive JWT tokens for API access.
+Authenticate a user against an existing tenant and receive a fresh JWT token scoped to that tenant. The login route validates the credentials, resolves tenant routing metadata, and issues the token that enables access to protected `/api/*` routes.
 
 ### Request Body
 ```json
@@ -56,7 +64,7 @@ Authenticate a user and receive JWT tokens for API access.
 
 ## POST /auth/refresh
 
-Refresh an expired JWT token using the existing token.
+Exchange an existing JWT token (even if expired) for a new token while preserving the original tenant, user, and access scope. The refresh route validates signature integrity, re-hydrates the user context, and re-issues a token with a new expiration window.
 
 ### Request Body
 ```json
@@ -87,7 +95,7 @@ Refresh an expired JWT token using the existing token.
 
 ## POST /auth/register
 
-Register a new user account (placeholder implementation).
+Create an empty tenant (cloned from the default template) and bootstrap a full-access user. A JWT token for the new user is returned so the caller can immediately interact with protected APIs.
 
 ### Request Body
 ```json
@@ -97,13 +105,29 @@ Register a new user account (placeholder implementation).
 }
 ```
 
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "tenant": "string",     // Tenant name that was provisioned
+    "database": "string",   // Backing database the tenant maps to
+    "username": "string",   // Auth identifier for the newly created user
+    "token": "string",      // JWT token for immediate access
+    "expires_in": 86400     // Token lifetime in seconds (24h)
+  }
+}
+```
+
 ### Error Responses
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `TENANT_MISSING` | "Tenant is required" | Missing tenant field |
 | 400 | `USERNAME_MISSING` | "Username is required" | Missing username field |
-| 403 | `UNIMPLEMENTED` | "Tenant self-registration is not yet implemented" | Feature not available |
+| 404 | `TEMPLATE_NOT_FOUND` | "Template 'empty' not found" | Default template missing |
+| 409 | `TENANT_EXISTS` | "Tenant '<name>' already exists" | Tenant name already registered |
+| 500 | `TEMPLATE_CLONE_FAILED` | "Failed to clone template database: ..." | Template cloning failed |
 
 ---
 
