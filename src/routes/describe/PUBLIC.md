@@ -9,6 +9,7 @@ All Describe API routes are prefixed with `/api/describe`
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | [`/api/describe`](#get-apidescribe) | List all available schema names in the current tenant. |
 | POST | [`/api/describe/:schema`](#post-apidescribeschema) | Create a new JSON Schema and generate its backing database table. |
 | GET | [`/api/describe/:schema`](#get-apidescribeschema) | Retrieve the latest schema definition exactly as stored. |
 | PUT | [`/api/describe/:schema`](#put-apidescribeschema) | Update a schema and apply matching database migrations. |
@@ -20,6 +21,37 @@ All Describe API routes are prefixed with `/api/describe`
 
 ## Authentication Required
 Requires valid JWT token in Authorization header: `Bearer <token>`
+
+---
+
+## GET /api/describe
+
+List all available schema names in the current tenant. Use this endpoint to discover what schemas exist before querying their definitions or data.
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    "users",
+    "products",
+    "orders",
+    "customers"
+  ]
+}
+```
+
+### Error Responses
+
+| Status | Error Code | Message | Condition |
+|--------|------------|---------|-----------|
+| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Authentication failure |
+
+### Example
+```bash
+curl -X GET http://localhost:9001/api/describe \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
 
 ---
 

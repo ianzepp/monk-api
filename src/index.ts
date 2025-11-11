@@ -179,6 +179,7 @@ app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
 app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
 
 // 31-describe-api: Describe API routes
+app.get('/api/describe', describeRoutes.SchemaList); // Lists all schemas
 app.post('/api/describe/:schema', describeRoutes.SchemaPost); // Create schema (with URL name)
 app.get('/api/describe/:schema', describeRoutes.SchemaGet); // Get schema
 app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema
