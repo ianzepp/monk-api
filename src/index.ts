@@ -98,6 +98,7 @@ app.get('/', c => {
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
             home: '/ (public)',
+            health: '/health (public)',
             public_auth: '/auth/* (public - token acquisition)',
             docs: '/docs[/:api] (public)',
             auth: '/api/auth/* (protected - user management)',
