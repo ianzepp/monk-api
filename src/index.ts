@@ -145,7 +145,6 @@ app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 // Public auth routes (token acquisition)
 app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
-app.post('/auth/register-demo', publicAuthRoutes.RegisterDemoPost); // POST /auth/register-demo
 app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
 
 // Public docs routes
