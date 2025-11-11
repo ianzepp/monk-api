@@ -97,18 +97,31 @@ app.get('/', c => {
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
-            home: '/ (public)',
-            health: '/health (public)',
-            public_auth: '/auth/* (public - token acquisition)',
-            docs: '/docs[/:api] (public)',
-            auth: '/api/auth/* (protected - user management)',
-            describe: '/api/describe/:schema (protected)',
-            data: '/api/data/:schema[/:record] (protected)',
-            find: '/api/find/:schema (protected)',
-            bulk: '/api/bulk (protected)',
-            file: '/api/file/* (protected)',
-            acls: '/api/acls/:schema/:record (protected)',
-            root: '/api/root/* (restricted, requires sudo or localhost)',
+            home: ['/'],
+            health: ['/health'],
+            public_auth: ['/auth/login', '/auth/register', '/auth/refresh'],
+            docs: ['/README.md', '/docs/:api'],
+            auth: ['/api/auth/whoami', '/api/auth/sudo'],
+            describe: ['/api/describe/:schema'],
+            data: [
+                '/api/data/:schema',
+                '/api/data/:schema/:record',
+                '/api/data/:schema/:record/:relationship',
+                '/api/data/:schema/:record/:relationship/:child'
+            ],
+            find: ['/api/find/:schema'],
+            bulk: ['/api/bulk'],
+            file: [
+                '/api/file/list',
+                '/api/file/retrieve',
+                '/api/file/store',
+                '/api/file/stat',
+                '/api/file/delete',
+                '/api/file/size',
+                '/api/file/modify-time'
+            ],
+            acls: ['/api/acls/:schema/:record'],
+            root: ['/api/root/*']
         },
         documentation: {
             home: ['/README.md'],
