@@ -97,11 +97,15 @@ app.get('/', c => {
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
-            home: ['/'],
-            health: ['/health'],
-            public_auth: ['/auth/login', '/auth/register', '/auth/refresh'],
+            home: ['/', '/health'],
             docs: ['/README.md', '/docs/:api'],
-            auth: ['/api/auth/whoami', '/api/auth/sudo'],
+            auth: [
+                '/auth/login',
+                '/auth/register',
+                '/auth/refresh',
+                '/api/auth/whoami',
+                '/api/auth/sudo'
+            ],
             describe: ['/api/describe/:schema'],
             data: [
                 '/api/data/:schema',
