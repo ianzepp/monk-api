@@ -15,6 +15,18 @@ The File API provides a filesystem-like interface for accessing data and metadat
 ## Base Path
 All File API routes are prefixed with `/api/file`
 
+## Endpoint Summary
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | [`/api/file/list`](#post-apifilelist) | List directories/files with wildcard and pagination support. |
+| POST | [`/api/file/retrieve`](#post-apifileretrieve) | Read records, fields, or metadata using filesystem-style paths. |
+| POST | [`/api/file/store`](#post-apifilestore) | Upsert records or fields by writing to a virtual file. |
+| POST | [`/api/file/stat`](#post-apifilestat) | Inspect metadata (size, timestamps, schema info) for any entry. |
+| POST | [`/api/file/delete`](#post-apifiledelete) | Delete records, fields, or schemas through file semantics. |
+| POST | [`/api/file/size`](#post-apifilesize) | Calculate aggregated storage footprint for directories or files. |
+| POST | [`/api/file/modify-time`](#post-apifilemodify-time) | Retrieve or update modified timestamps to sync external tools. |
+
 ## Content Type
 - **Request**: `application/json`
 - **Response**: `application/json`
@@ -60,7 +72,7 @@ The File API maps database concepts to filesystem paths for intuitive navigation
 
 ## POST /api/file/list
 
-Directory listing with advanced wildcard support and performance optimization.
+Traverse schemas, records, or fields as if they were directories. This endpoint powers file-browser experiences with wildcard globbing, recursive traversal, and ACL-aware filtering so users only see entries they can access.
 
 ### Request Body
 ```json
@@ -148,7 +160,7 @@ The File API supports advanced pattern matching:
 
 ## POST /api/file/retrieve
 
-File content retrieval with resume support and multiple formats.
+Read records, individual fields, or metadata blobs through their filesystem paths. The endpoint supports byte-range style offsets for resume operations, optional binary mode, and emits consistent metadata (ETag, modified time) for caching clients.
 
 ### Request Body
 ```json
@@ -212,7 +224,7 @@ File content retrieval with resume support and multiple formats.
 
 ## POST /api/file/store
 
-Atomic file storage with transaction management and schema validation.
+Write data back through the filesystem abstraction—either creating new records (`*.json`) or updating specific fields (`/field`). The call wraps writes in a transaction, enforces schema validation, and exposes options such as append mode or binary payloads for specialized clients.
 
 ### Request Body
 
@@ -283,7 +295,7 @@ Atomic file storage with transaction management and schema validation.
 
 ## POST /api/file/stat
 
-Detailed file and directory status information with schema introspection.
+Inspect any virtual path to learn its type, size, timestamps, permissions, and optional schema metadata. Think of it as `stat` for the Monk filesystem—it tells clients whether a path is a directory, record JSON, or individual field before they attempt other operations.
 
 ### Request Body
 ```json
@@ -362,7 +374,7 @@ Detailed file and directory status information with schema introspection.
 
 ## POST /api/file/delete
 
-Safe deletion with soft-delete support and comprehensive safety checks.
+Delete records, directories, or individual fields using familiar filesystem semantics. The API enforces safety checks (max deletions, empty directories) and supports soft vs. permanent deletes so administrators can script cleanup jobs with confidence.
 
 ### Request Body
 ```json
@@ -425,7 +437,7 @@ Safe deletion with soft-delete support and comprehensive safety checks.
 
 ## POST /api/file/size
 
-Lightweight file size query for optimal performance.
+Quickly calculate the storage footprint of any path without fetching the underlying content. Useful for quota enforcement, UI progress bars, or deciding whether to stream vs. download a resource.
 
 ### Request Body
 ```json
@@ -468,7 +480,7 @@ Lightweight file size query for optimal performance.
 
 ## POST /api/file/modify-time
 
-File modification timestamp query in filesystem format.
+Read (or in advanced workflows, override) the modified timestamp for any entry using FTP-friendly formatting. Integrations like FTP servers and sync tools rely on this endpoint to keep remote directory listings in sync with Monk’s data.
 
 ### Request Body
 ```json

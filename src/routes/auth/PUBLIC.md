@@ -5,6 +5,13 @@ The Protected Auth API provides authenticated user account management and privil
 ## Base Path
 All protected Auth API routes are prefixed with `/api/auth`
 
+## Endpoint Summary
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | [`/api/auth/whoami`](#get-apiauthwhoami) | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
+| POST | [`/api/auth/sudo`](#post-apiauthsudo) | Exchange a standard user token for a short-lived root token after auditing the request. |
+
 ## Content Type
 - **Request**: `application/json`
 - **Response**: `application/json`
@@ -16,7 +23,7 @@ All endpoints require valid JWT token in Authorization header: `Bearer <token>`
 
 ## GET /api/auth/whoami
 
-Get current authenticated user information and account details.
+Return the fully hydrated user identity for the active JWT, including tenant metadata, ACL lists, and record status flags. Clients typically call this at startup to confirm the token is valid, discover the backing database, and personalize UI according to the access arrays.
 
 ### Request Body
 None - GET request with no body.
@@ -51,7 +58,7 @@ None - GET request with no body.
 
 ## POST /api/auth/sudo
 
-Escalate user privileges to root level for administrative operations. Generates short-lived root JWT token.
+Perform just-in-time privilege escalation for administrators who need to call `/api/root/*`. The endpoint verifies the caller’s base access level, logs the provided reason for audit tracking, and issues a 15-minute root token tied to the originating user.
 
 ### Request Body
 ```json

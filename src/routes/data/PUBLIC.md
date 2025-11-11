@@ -13,6 +13,24 @@ All Data API routes are prefixed with `/api/data`
 All Data API routes require authentication via JWT token in the Authorization header.
 - **Header**: `Authorization: Bearer <jwt_token>`
 
+## Endpoint Summary
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | [`/api/data/:schema`](#post-apidataschema) | Bulk-insert records into a schema while running the full observer pipeline. |
+| GET | [`/api/data/:schema`](#get-apidataschema) | Query collections with filtering, pagination, and soft-delete aware options. |
+| PUT | [`/api/data/:schema`](#put-apidataschema) | Apply updates or patches to all records matching a filter in one request. |
+| DELETE | [`/api/data/:schema`](#delete-apidataschema) | Soft-delete or permanently remove many records based on filter criteria. |
+| GET | [`/api/data/:schema/:id`](#get-apidataschemaid) | Retrieve a single record (optionally including trashed metadata) by its UUID. |
+| PUT | [`/api/data/:schema/:id`](#put-apidataschemaid) | Replace or patch one record while preserving audit metadata. |
+| DELETE | [`/api/data/:schema/:id`](#delete-apidataschemaid) | Soft-delete, permanently delete, or revert a specific record. |
+| GET | [`/api/data/:schema/:record/:relationship`](#get-apidataschemarecordrelationship) | List related child records for a relationship field. |
+| POST | [`/api/data/:schema/:record/:relationship`](#post-apidataschemarecordrelationship) | Create or attach related child records for the parent. |
+| DELETE | [`/api/data/:schema/:record/:relationship`](#delete-apidataschemarecordrelationship) | Remove or detach multiple related records from the parent. |
+| GET | [`/api/data/:schema/:record/:relationship/:child`](#get-apidataschemarecordrelationshipchild) | Fetch a specific related child record by ID. |
+| PUT | [`/api/data/:schema/:record/:relationship/:child`](#put-apidataschemarecordrelationshipchild) | Update a related child record in-place through the relationship route. |
+| DELETE | [`/api/data/:schema/:record/:relationship/:child`](#delete-apidataschemarecordrelationshipchild) | Delete or detach a specific related child record. |
+
 ## Query Parameters
 
 ### Global Query Parameters
@@ -24,7 +42,7 @@ All Data API routes require authentication via JWT token in the Authorization he
 
 ## POST /api/data/:schema
 
-Create multiple records in the specified schema.
+Create one or more records in the specified schema while automatically invoking the observer rings for validation, security, and enrichment. The request executes inside a transaction, ensuring every record is either persisted together or the entire batch rolls back if a single record fails.
 
 ### Request Body
 Always expects an array of record objects:
@@ -84,7 +102,7 @@ Always expects an array of record objects:
 
 ## GET /api/data/:schema
 
-Retrieve all records from the specified schema.
+Query the schema with flexible filtering, sorting, and pagination controls. This endpoint backs list views, exports, and analytics screens by letting clients decide which fields to select, whether to include trashed rows, and how to order the results.
 
 ### Query Parameters
 - `include_trashed=true` - Include soft-deleted records
@@ -123,7 +141,7 @@ None - GET request with no body.
 
 ## PUT /api/data/:schema
 
-Update multiple records in the specified schema. Records must include `id` fields to identify which records to update.
+Apply updates to every record in the payload, using the provided `id` fields to target rows. Use this endpoint for bulk edits, schema migrations, or cross-record data fixes—observers ensure validation and audit hooks run for each updated record, and omitting an `id` immediately rejects the request.
 
 ### Query Parameters
 - `include_trashed=true` - When combined with PATCH method, performs revert operation
@@ -181,7 +199,7 @@ PATCH /api/data/users?include_trashed=true
 
 ## DELETE /api/data/:schema
 
-Soft delete or permanently delete multiple records in the specified schema.
+Remove many records at once—either by moving them to the trash (default) or, for root users, permanently erasing them with `permanent=true`. The operation accepts a list of IDs or filter criteria, making it ideal for scheduled cleanups or administrator-driven maintenance tasks.
 
 ### Query Parameters
 - `permanent=true` - Perform permanent delete (requires root access)
@@ -252,7 +270,7 @@ Always expects an array of record objects with `id` fields:
 
 ## GET /api/data/:schema/:id
 
-Retrieve a single record by ID from the specified schema.
+Fetch a single record by UUID, including system metadata and optional trashed/permanent states. Ideal for detail pages or edit forms that need the authoritative row straight from the tenant database.
 
 ### Query Parameters
 - `include_trashed=true` - Include soft-deleted records
@@ -290,7 +308,7 @@ None - GET request with no body.
 
 ## PUT /api/data/:schema/:id
 
-Update a single record by ID in the specified schema.
+Perform a full replacement or partial patch against a single record. The operation enforces schema validation, applies observers, and returns the updated record so clients can refresh their view without issuing a follow-up GET.
 
 ### Query Parameters
 - `include_trashed=true` - When combined with PATCH method, performs revert operation
@@ -339,7 +357,7 @@ PATCH /api/data/users/550e8400-e29b-41d4-a716-446655440000?include_trashed=true
 
 ## DELETE /api/data/:schema/:id
 
-Soft delete or permanently delete a single record by ID.
+Delete an individual record, defaulting to a reversible soft delete while supporting permanent removal for root users. Use this when handling record-specific actions in the UI; the response echoes the record metadata so you can update local caches immediately.
 
 ### Query Parameters
 - `permanent=true` - Perform permanent delete (requires root access)
@@ -548,7 +566,7 @@ All relationship routes follow the pattern `/api/data/:parent_schema/:parent_id/
 
 ## GET /api/data/:schema/:record/:relationship
 
-Retrieve all child records belonging to a parent record through a named relationship.
+List every child record tied to the specified parent through a relationship defined in JSON Schema extensions. The route automatically applies the parent filter, enforces ACL inheritance, and supports the same trashed/deleted flags as top-level queries.
 
 ### Path Parameters
 - `:schema` - Parent schema name
@@ -599,7 +617,7 @@ Returns all comments belonging to post "post-123".
 
 ## POST /api/data/:schema/:record/:relationship
 
-Create a new child record with the parent relationship automatically established.
+Create new child records that automatically inherit the parent foreign key and observer context. This route keeps relationship logic server-side—clients only send the child payload, and the API links it to the parent atomically.
 
 ### Path Parameters
 - `:schema` - Parent schema name
@@ -642,7 +660,7 @@ Creates a new comment for post "post-123" with `post_id` automatically set.
 
 ## DELETE /api/data/:schema/:record/:relationship
 
-Delete all child records belonging to a parent record through the specified relationship.
+Remove or detach multiple child records for a given parent relationship in one request. Combine it with query filters to target only a subset of children (for example, orphaning draft comments while leaving published ones untouched).
 
 ### Path Parameters
 - `:schema` - Parent schema name  
@@ -683,7 +701,7 @@ Soft deletes all comments belonging to post "post-123".
 
 ## GET /api/data/:schema/:record/:relationship/:child
 
-Retrieve a specific child record, verifying it belongs to the specified parent.
+Fetch a specific child resource while guaranteeing it belongs to the parent referenced in the URL. This prevents leaking related records between parents and exposes trashed/permanent flags for child-level recovery flows.
 
 ### Path Parameters
 - `:schema` - Parent schema name
@@ -721,7 +739,7 @@ Returns comment "comment-1" if it belongs to post "post-123".
 
 ## PUT /api/data/:schema/:record/:relationship/:child
 
-Update a specific child record, verifying it belongs to the specified parent.
+Modify a child resource in place while preserving the parent relationship. The server prevents reassignment to a different parent and ensures only allowed fields per the relationship schema are updated.
 
 ### Path Parameters
 - `:schema` - Parent schema name
@@ -765,7 +783,7 @@ Updates comment "comment-1" while preserving its relationship to post "post-123"
 
 ## DELETE /api/data/:schema/:record/:relationship/:child
 
-Delete a specific child record, verifying it belongs to the specified parent.
+Soft-delete or permanently remove an individual child while ensuring it belongs to the provided parent. Useful for UI actions that remove a single attachment/comment without touching the rest of the relationship set.
 
 ### Path Parameters
 - `:schema` - Parent schema name

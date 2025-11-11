@@ -17,18 +17,20 @@ All ACLs API operations require:
 - Admin or root level privileges
 - Target record must exist in the specified schema
 
-## API Endpoints
+## Endpoint Summary
 
-| Endpoint | Method | Description | Purpose |
-|----------|--------|-------------|---------|
-| `/api/acls/:schema/:record` | GET | Get ACL lists | View current permissions |
-| `/api/acls/:schema/:record` | POST | Merge ACL entries | Add users to access lists |
-| `/api/acls/:schema/:record` | PUT | Replace ACL lists | Set complete new permissions |
-| `/api/acls/:schema/:record` | DELETE | Clear all ACLs | Return to default permissions |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | [`/api/acls/:schema/:record`](#get-apiaclsschemarecord) | Retrieve the effective ACL arrays for a specific record. |
+| POST | [`/api/acls/:schema/:record`](#post-apiaclsschemarecord) | Merge additional user IDs into the existing ACL arrays. |
+| PUT | [`/api/acls/:schema/:record`](#put-apiaclsschemarecord) | Replace all ACL arrays in a single operation, overwriting prior values. |
+| DELETE | [`/api/acls/:schema/:record`](#delete-apiaclsschemarecord) | Reset all ACL arrays so the record falls back to role-based defaults. |
 
-## Examples
+## GET /api/acls/:schema/:record
 
-### Get Current ACL Lists
+Return the explicit ACL arrays for a record so clients can display or audit who can read, edit, fully manage, or is denied access. The response mirrors the exact lists stored alongside the record, making it easy to compare with default role-based permissions.
+
+### Example
 
 ```bash
 curl -X GET http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-426614174000 \
@@ -52,7 +54,11 @@ curl -X GET http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266141
 }
 ```
 
-### Merge New Users into Access Lists
+## POST /api/acls/:schema/:record
+
+Merge one or more user IDs into the ACL arrays without disturbing existing entries. Use this endpoint to append additional readers, editors, or deny rules while preserving the rest of the lists.
+
+### Example
 
 ```bash
 curl -X POST http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-426614174000 \
@@ -64,7 +70,11 @@ curl -X POST http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-426614
   }'
 ```
 
-### Replace All Access Lists
+## PUT /api/acls/:schema/:record
+
+Replace the entire set of ACL arrays in a single request. This is useful when syncing permissions from another system or when you need to ensure the record matches an authoritative list without stale entries lingering.
+
+### Example
 
 ```bash
 curl -X PUT http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-426614174000 \
@@ -78,7 +88,11 @@ curl -X PUT http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266141
   }'
 ```
 
-### Clear All ACLs (Return to Default)
+## DELETE /api/acls/:schema/:record
+
+Clear every ACL array so the record reverts to the schema's default role permissions. This is the fastest way to undo manual ACL tweaks and let the standard access tiers govern the record again.
+
+### Example
 
 ```bash
 curl -X DELETE http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-426614174000 \
