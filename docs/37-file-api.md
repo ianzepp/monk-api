@@ -89,9 +89,17 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
 }
 ```
 
+**Sorting Options**:
+- `sort_by`: Sort field - `name` (default), `size`, `time`, or `type`
+  - `name`: Alphabetical by entry name (case-insensitive)
+  - `size`: By file size in bytes (directories are size 0)
+  - `time`: By modification timestamp
+  - `type`: Directories first, then files
+- `sort_order`: Sort direction - `asc` (default) or `desc`
+
 Set `pattern_optimization` and `use_pattern_cache` to `true` (default) to reuse wildcard translations on schema directories. `cross_schema_limit` caps the number of records returned when a schema wildcard spans multiple schemas.
 
-> Listings currently honour `sort_by` (use `name` for the default `id` ordering or `date` to sort by `updated_at`), `sort_order` (`asc`/`desc`), `cross_schema_limit`, and `show_hidden`. When `show_hidden` is `false` (default), record JSON files exclude ACL fields (`access_*`) and timestamp fields (`created_at`, `updated_at`, `trashed_at`, `deleted_at`) from the response; the `id` field is always included. Flags such as `pattern_optimization` and `use_pattern_cache` are reserved and have no effect yet; directory responses stay flat.
+> Listings fully support `sort_by` and `sort_order` for all entry types, `cross_schema_limit`, and `show_hidden`. When `show_hidden` is `false` (default), record JSON files exclude ACL fields (`access_*`) and timestamp fields (`created_at`, `updated_at`, `trashed_at`, `deleted_at`) from the response; the `id` field is always included. Flags such as `pattern_optimization` and `use_pattern_cache` are reserved and have no effect yet; directory responses stay flat.
 
 **Response**
 ```json

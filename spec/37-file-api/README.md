@@ -14,6 +14,7 @@ Comprehensive test suite for the File API covering virtual file system operation
 ### Advanced Features
 - **retrieve-show-hidden.test.sh** - Hidden field filtering for record retrieval (`show_hidden` option)
 - **list-show-hidden.test.sh** - Hidden field filtering for directory listings and file sizes
+- **list-sorting.test.sh** - Comprehensive sorting tests (by name, size, time, type with asc/desc order)
 
 ## Test Environment
 

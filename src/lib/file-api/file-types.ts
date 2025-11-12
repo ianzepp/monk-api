@@ -83,7 +83,7 @@ export interface FileListRequest {
         long_format?: boolean;
         recursive?: boolean;
         max_depth?: number;
-        sort_by?: 'name' | 'date' | 'size';
+        sort_by?: 'name' | 'size' | 'time' | 'type';
         sort_order?: 'asc' | 'desc';
         pattern_optimization?: boolean;
         cross_schema_limit?: number;

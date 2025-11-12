@@ -1,6 +1,7 @@
 import { FileTimestampFormatter } from '@src/lib/file-api/file-timestamp-formatter.js';
 import { FileContentCalculator } from '@src/lib/file-api/file-content-calculator.js';
 import { filterRecordFields } from '@src/lib/file-api/file-record-filter.js';
+import { sortFileEntries } from '@src/lib/file-api/file-entry-sorter.js';
 import type {
     FileEntry,
     FileListRequest,
@@ -99,15 +100,15 @@ export class FileOperationService {
 
         switch (filePath.type) {
             case 'root':
-                return this.listRoot();
+                return this.listRoot(options);
             case 'data':
             case 'describe':
-                return this.listSchemas(filePath.type);
+                return this.listSchemas(filePath.type, options);
             case 'schema':
                 if (filePath.has_wildcards) {
                     if (filePath.schema === '*') {
                         const namespace = filePath.raw_path.startsWith('/describe') ? 'describe' : 'data';
-                        return this.listSchemas(namespace as 'data' | 'describe');
+                        return this.listSchemas(namespace as 'data' | 'describe', options);
                     }
                     throw HttpErrors.badRequest('Schema wildcards must use "*" to match all schemas', 'SCHEMA_WILDCARD_NOT_SUPPORTED');
                 }
@@ -418,23 +419,30 @@ export class FileOperationService {
         };
     }
 
-    private listRoot(): ListResult {
+    private listRoot(options: FileListRequest['file_options'] = {}): ListResult {
         const timestamp = FileTimestampFormatter.current();
+        const entries = [
+            this.buildDirectoryEntry('data', '/data/', timestamp),
+            this.buildDirectoryEntry('describe', '/describe/', timestamp),
+        ];
+        
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
+        
         return {
-            entries: [
-                this.buildDirectoryEntry('data', '/data/', timestamp),
-                this.buildDirectoryEntry('describe', '/describe/', timestamp),
-            ],
+            entries,
             metadata: this.buildFileMetadata('/', 'directory', this.directoryPermissions(), 0, timestamp),
         };
     }
 
-    private async listSchemas(namespace: 'data' | 'describe'): Promise<ListResult> {
+    private async listSchemas(namespace: 'data' | 'describe', options: FileListRequest['file_options'] = {}): Promise<ListResult> {
         const schemas = await this.system.database.selectAny('schemas', { order: 'name asc' });
         const timestamp = FileTimestampFormatter.current();
         const entries = schemas.map((schema: any) => ({
             name: schema.name,
-            file_type: 'd',
+            file_type: 'd' as const,
             file_size: 0,
             file_permissions: this.directoryPermissions(),
             file_modified: FileTimestampFormatter.format(schema.updated_at || schema.created_at || timestamp),
@@ -445,6 +453,11 @@ export class FileOperationService {
             },
         }));
 
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
+
         return {
             entries,
             metadata: this.buildFileMetadata(`/${namespace}`, 'directory', this.directoryPermissions(), 0, timestamp),
@@ -452,9 +465,11 @@ export class FileOperationService {
     }
 
     private async listSchemaRecords(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const sortOrder = options?.sort_order === 'desc' ? 'desc' : 'asc';
-        const sortBy = options?.sort_by === 'date' ? 'updated_at' : 'id';
-        const filter: Record<string, any> = { order: `${sortBy} ${sortOrder}` };
+        // For database query, use time-based sorting if requested, otherwise sort by ID
+        // Final sorting will be applied to file entries after mapping
+        const dbSortBy = (options?.sort_by === 'time') ? 'updated_at' : 'id';
+        const dbSortOrder = options?.sort_order === 'desc' ? 'desc' : 'asc';
+        const filter: Record<string, any> = { order: `${dbSortBy} ${dbSortOrder}` };
         if (options?.cross_schema_limit) {
             filter.limit = options.cross_schema_limit;
         }
@@ -478,6 +493,11 @@ export class FileOperationService {
                 },
             };
         });
+
+        // Apply client-side sorting for name/size/type (database sorting only handles time)
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
 
         return {
             entries,
@@ -531,6 +551,11 @@ export class FileOperationService {
                 },
             });
         }
+
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
 
         return {
             entries,
