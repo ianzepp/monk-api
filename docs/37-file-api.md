@@ -25,6 +25,8 @@ Key properties:
 - Wildcard patterns (`*`, `?`, bracket ranges, simple alternatives) are supported for directory listings.
 - The API reuses Monk authentication and ACL rules; the caller must supply a valid JWT.
 
+> TODO: The File API refactor is still in flight. Check the inline TODOs below for features that are documented but not yet fully wired up (list options, size aggregation, modify-time updates, etc.).
+
 ## Authentication
 
 All endpoints require the standard Monk bearer token:
@@ -55,6 +57,8 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
 - `/data/users/*` → every record directory within the `users` schema
 - `/data/*admin*/` → schema directories that contain `admin` in their name
 
+> TODO: Record identifiers only honor the literal `*` wildcard right now. Pattern alternatives (`(a|b)`) and ranges (`[01-12]`) described elsewhere are not implemented for record segments yet.
+
 **Request**
 ```json
 {
@@ -68,6 +72,8 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
 ```
 
 Set `pattern_optimization` and `use_pattern_cache` to `true` (default) to reuse wildcard translations on schema directories. `cross_schema_limit` caps the number of records returned when a schema wildcard spans multiple schemas.
+
+> TODO: `show_hidden`, `sort_by`, and related `file_options` are not yet wired into the implementation. Listings remain flat (non-recursive) with system fields hidden regardless of the flags. Treat the options as forward-looking for now.
 
 **Response**
 ```json
@@ -279,6 +285,8 @@ Return the byte size of a record snapshot or a field.
 }
 ```
 
+> TODO: Aggregated directory sizing is not available yet. The handler accepts only record JSON files or individual field paths and returns a single-file byte count.
+
 **Response**
 ```json
 {
@@ -305,6 +313,8 @@ Return the FTP-style modification timestamp for any path.
   "path": "/data/users/user-1.json"
 }
 ```
+
+> TODO: This endpoint is currently read-only. The MDTM-style `modified_time` is reported from record metadata; clients cannot set or override timestamps yet.
 
 **Response**
 ```json
