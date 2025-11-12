@@ -22,10 +22,10 @@ Key properties:
 
 - Requests always use `POST` with a JSON body that contains a `path`.
 - Responses include a `file_metadata` object that mirrors filesystem attributes (type, permissions, modified time, etc.).
-- Wildcard patterns (`*`, `?`, bracket ranges, simple alternatives) are supported for directory listings.
+- Limited wildcard support is available for directory listings. Schema and record segments recognise the literal `*` today; other pattern tokens (`?`, ranges, alternatives) remain reserved for future expansion.
 - The API reuses Monk authentication and ACL rules; the caller must supply a valid JWT.
 
-> TODO: The File API refactor is still in flight. Check the inline TODOs below for features that are documented but not yet fully wired up (list options, size aggregation, modify-time updates, etc.).
+> The File API refactor is now complete and exercised by the shell specs under `spec/37-file-api/`. Notes below call out the few roadmap options that remain placeholders (hidden entries, wildcard deletes, aggregated sizing).
 
 ## Authentication
 
@@ -73,7 +73,7 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
 
 Set `pattern_optimization` and `use_pattern_cache` to `true` (default) to reuse wildcard translations on schema directories. `cross_schema_limit` caps the number of records returned when a schema wildcard spans multiple schemas.
 
-> TODO: `show_hidden`, `sort_by`, and related `file_options` are not yet wired into the implementation. Listings remain flat (non-recursive) with system fields hidden regardless of the flags. Treat the options as forward-looking for now.
+> Listings currently honour `sort_by` (use `name` for the default `id` ordering or `date` to sort by `updated_at`), `sort_order` (`asc`/`desc`), and `cross_schema_limit`. Flags such as `show_hidden`, `pattern_optimization`, and `use_pattern_cache` are reserved and have no effect yet; directory responses stay flat with system fields hidden by default.
 
 **Response**
 ```json
@@ -203,20 +203,15 @@ Field updates accept plain strings or JSON-serialisable values. If `append_mode`
 
 Delete a record or clear a field.
 
-- `/data/<schema>/<record>` or `/data/<schema>/<record>.json` removes the record (`permanent` toggle controls hard vs soft delete).
-- `/data/<schema>/<record>/<field>` nulls the field value.
+- `/data/<schema>/<record>` or `/data/<schema>/<record>.json` removes the record via soft delete.
+- `/data/<schema>/<record>/<field>` sets the field value to `null`.
 
-Wildcard paths are supported. When you request `/data/users/user-*`, every matching record is deleted after ACL checks, subject to `max_deletions` safeguards.
-
-> TODO: The current implementation only supports single-record or field soft deletes. Wildcard expansion and `permanent: true` are still planned.
+Wildcard expansion and the `permanent` flag are not implemented yet; delete operations currently target a single record or field per request.
 
 **Request**
 ```json
 {
-  "path": "/data/users/user-2",
-  "file_options": {
-    "permanent": false
-  }
+  "path": "/data/users/user-2"
 }
 ```
 
@@ -231,11 +226,11 @@ Wildcard paths are supported. When you request `/data/users/user-*`, every match
     "records_affected": ["user-2"]
   },
   "file_metadata": {
-    "can_restore": true,
-    "restore_deadline": "2025-03-12T00:00:00.000Z"
+    "can_restore": true
   }
 }
 ```
+Field deletions respond with `operation: "field_delete"`, include `fields_cleared`, and reuse the same response envelope.
 
 ### POST /api/file/stat
 
@@ -364,4 +359,4 @@ Common error codes include:
 
 ## Testing Status
 
-Shell specs under `spec/37-file-api/` currently short-circuit while the API is modernised. Re-enable them once the implementation and documentation stay aligned.
+Shell specs under `spec/37-file-api/` now exercise the live File API implementation: list (including root and schema coverage), retrieve (JSON and raw modes), stat/size/modify-time, store/update flows, and record/field deletes. Use `npm run test:sh spec/37-file-api/<name>.test.sh` to run individual scenarios or the entire directory for a full sweep.
