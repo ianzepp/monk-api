@@ -1,3 +1,5 @@
+import type { FilterData } from '@src/lib/filter-types.js';
+
 /**
  * Shared types and interfaces for File API system
  *
@@ -88,6 +90,7 @@ export interface FileListRequest {
         pattern_optimization?: boolean;
         cross_schema_limit?: number;
         use_pattern_cache?: boolean;
+        where?: FilterData['where'];
     };
 }
 

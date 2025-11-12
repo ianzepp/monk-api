@@ -97,9 +97,9 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
   - `type`: Directories first, then files
 - `sort_order`: Sort direction - `asc` (default) or `desc`
 
-Set `pattern_optimization` and `use_pattern_cache` to `true` (default) to reuse wildcard translations on schema directories. `cross_schema_limit` caps the number of records returned when a schema wildcard spans multiple schemas.
+Set `pattern_optimization` and `use_pattern_cache` to `true` (default) to reuse wildcard translations on schema directories. `cross_schema_limit` caps the number of records returned when a schema wildcard spans multiple schemas. Use `where` to supply a [Find API](33-find-api.md) WHERE clause that filters record `.json` entries based on their content before they are included in listings.
 
-> Listings fully support `sort_by` and `sort_order` for all entry types, `cross_schema_limit`, and `show_hidden`. When `show_hidden` is `false` (default), record JSON files exclude ACL fields (`access_*`) and timestamp fields (`created_at`, `updated_at`, `trashed_at`, `deleted_at`) from the response; the `id` field is always included. Flags such as `pattern_optimization` and `use_pattern_cache` are reserved and have no effect yet; directory responses stay flat.
+> Listings fully support `sort_by` and `sort_order` for all entry types, `cross_schema_limit`, `where`, and `show_hidden`. When `show_hidden` is `false` (default), record JSON files exclude ACL fields (`access_*`) and timestamp fields (`created_at`, `updated_at`, `trashed_at`, `deleted_at`) from the response; the `id` field is always included. Flags such as `pattern_optimization` and `use_pattern_cache` are reserved and have no effect yet; directory responses stay flat.
 
 **Response**
 ```json
@@ -132,7 +132,7 @@ Set `pattern_optimization` and `use_pattern_cache` to `true` (default) to reuse 
 }
 ```
 
-Record directories return both the `<record>.json` snapshot and one entry per non-system field (system fields such as `id`, `created_at`, `updated_at`, `trashed_at`, and `deleted_at` are hidden by default).
+Record directories return both the `<record>.json` snapshot and one entry per non-system field (system fields such as `id`, `created_at`, `updated_at`, `trashed_at`, and `deleted_at` are hidden by default). When a `where` clause is provided, it is evaluated through the Database Filter system just like `/api/find/:schema`. Schema listings only include record directories whose JSON snapshots satisfy the condition. Directory entries (`file_type: "d"`) themselves are never filtered out, but a record directory whose snapshot does not match returns an empty `entries` array while still providing metadata about the directory.
 
 ### POST /api/file/retrieve
 

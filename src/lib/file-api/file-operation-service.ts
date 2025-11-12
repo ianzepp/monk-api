@@ -20,6 +20,8 @@ import { FilePathParser } from '@src/lib/file-api/file-path-parser.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { isSystemField } from '@src/lib/describe.js';
+import type { FilterData } from '@src/lib/filter-types.js';
+
 
 interface ListResult {
     entries: FileEntry[];
@@ -469,9 +471,12 @@ export class FileOperationService {
         // Final sorting will be applied to file entries after mapping
         const dbSortBy = (options?.sort_by === 'time') ? 'updated_at' : 'id';
         const dbSortOrder = options?.sort_order === 'desc' ? 'desc' : 'asc';
-        const filter: Record<string, any> = { order: `${dbSortBy} ${dbSortOrder}` };
+        const filter: FilterData = { order: `${dbSortBy} ${dbSortOrder}` };
         if (options?.cross_schema_limit) {
             filter.limit = options.cross_schema_limit;
+        }
+        if (options?.where !== undefined) {
+            filter.where = options.where;
         }
 
         const records = await this.system.database.selectAny(filePath.schema!, filter);
@@ -506,7 +511,33 @@ export class FileOperationService {
     }
 
     private async listRecordFields(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const record = await this.requireRecord(filePath.schema!, filePath.record_id!);
+        const recordWhere = this.composeRecordWhere(filePath.record_id!, options?.where);
+        const record = await this.system.database.selectOne(filePath.schema!, { where: recordWhere });
+
+        if (!record) {
+            if (options?.where) {
+                const existingRecord = await this.system.database.selectOne(filePath.schema!, { where: { id: filePath.record_id! } });
+                if (!existingRecord) {
+                    throw HttpErrors.notFound(`Record not found: ${filePath.record_id}`, 'RECORD_NOT_FOUND');
+                }
+
+                const fallbackTimestamp = FileTimestampFormatter.getBestTimestamp(existingRecord);
+                const fallbackPermissions = this.derivePermissions(existingRecord);
+                return {
+                    entries: [],
+                    metadata: this.buildFileMetadata(
+                        `/data/${filePath.schema}/${filePath.record_id}`,
+                        'directory',
+                        fallbackPermissions.permissions,
+                        0,
+                        fallbackTimestamp.formatted
+                    ),
+                };
+            }
+
+            throw HttpErrors.notFound(`Record not found: ${filePath.record_id}`, 'RECORD_NOT_FOUND');
+        }
+
         const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
         const perms = this.derivePermissions(record);
         const showHidden = options?.show_hidden ?? false;
@@ -722,6 +753,23 @@ export class FileOperationService {
                     formatted: FileTimestampFormatter.current(),
                 };
         }
+    }
+
+    private composeRecordWhere(recordId: string, whereClause?: FilterData['where']): any {
+        if (!whereClause) {
+            return { id: recordId };
+        }
+
+        if (typeof whereClause === 'object' && whereClause !== null && Object.keys(whereClause).length === 0) {
+            return { id: recordId };
+        }
+
+        return {
+            $and: [
+                { id: recordId },
+                whereClause,
+            ],
+        };
     }
 
     private buildDirectoryEntry(name: string, path: string, timestamp: string): FileEntry {
