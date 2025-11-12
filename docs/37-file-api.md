@@ -208,6 +208,8 @@ Delete a record or clear a field.
 
 Wildcard paths are supported. When you request `/data/users/user-*`, every matching record is deleted after ACL checks, subject to `max_deletions` safeguards.
 
+> TODO: The current implementation only supports single-record or field soft deletes. Wildcard expansion and `permanent: true` are still planned.
+
 **Request**
 ```json
 {
