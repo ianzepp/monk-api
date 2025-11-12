@@ -6,6 +6,7 @@
  */
 
 // Schema management operations
+export { default as SchemaList } from '@src/routes/describe/GET.js';
 export { default as SchemaGet } from '@src/routes/describe/:schema/GET.js';
 export { default as SchemaPost } from '@src/routes/describe/:schema/POST.js';
 export { default as SchemaPut } from '@src/routes/describe/:schema/PUT.js';

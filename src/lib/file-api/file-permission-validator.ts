@@ -16,7 +16,12 @@ import type { FilePath, FilePermissionResult, FilePermissionContext, FilePermiss
  * - Write: `FilePermissionValidator.validate(system, path, { operation: 'store' })`
  * - Delete: `FilePermissionValidator.validate(system, path, { operation: 'delete' })`
  */
+
+const ensureArray = (value: unknown): string[] => (Array.isArray(value) ? (value as string[]) : []);
+
 export class FilePermissionValidator {
+
+
     /**
      * Validate user permissions for file operation
      * This is the authoritative entry point for all File permission validation
@@ -50,14 +55,27 @@ export class FilePermissionValidator {
      * Build permission context from system
      */
     static buildContext(system: any, operation: FileOperationType): FilePermissionContext {
-        const user = system.getUser();
+        const user = system?.getUser?.();
+        if (!user) {
+            throw HttpErrors.unauthorized('Authentication required for File API operations', 'TOKEN_INVALID');
+        }
+
+        const toArray = (value: unknown): string[] => (Array.isArray(value) ? value : []);
+        const userGroups = Array.from(
+            new Set([
+                ...toArray(user.accessRead),
+                ...toArray(user.accessEdit),
+                ...toArray(user.accessFull),
+            ])
+        );
+
         return {
             user_id: user.id,
-            user_groups: user.accessRead || [],
-            user_role: user.role || 'read', // Default to read if role not specified
-            is_root: system.isRoot(),
+            user_groups: userGroups,
+            user_role: typeof user.role === 'string' ? user.role : 'read',
+            is_root: typeof system?.isRoot === 'function' ? system.isRoot() : false,
             operation,
-            path: {} as FilePath, // Will be set by caller
+            path: {} as FilePath, // caller assigns actual path reference
         };
     }
 
@@ -221,13 +239,18 @@ export class FilePermissionValidator {
      * Calculate record permissions based on ACL arrays
      */
     private static calculateRecordPermissions(context: FilePermissionContext, record: any): { permissions: FilePermissions; access_level: AccessLevel } {
-        const userContext = [context.user_id, ...context.user_groups];
+        const userGroups = ensureArray(context.user_groups);
+        const userContext = [context.user_id, ...userGroups];
 
-        // Check access levels
-        const hasRead = record.access_read?.some((id: string) => userContext.includes(id)) || false;
-        const hasEdit = record.access_edit?.some((id: string) => userContext.includes(id)) || false;
-        const hasFull = record.access_full?.some((id: string) => userContext.includes(id)) || false;
-        const isDenied = record.access_deny?.some((id: string) => userContext.includes(id)) || false;
+        const accessRead = ensureArray(record.access_read);
+        const accessEdit = ensureArray(record.access_edit);
+        const accessFull = ensureArray(record.access_full);
+        const accessDeny = ensureArray(record.access_deny);
+
+        const hasRead = accessRead.some(id => userContext.includes(id));
+        const hasEdit = accessEdit.some(id => userContext.includes(id));
+        const hasFull = accessFull.some(id => userContext.includes(id));
+        const isDenied = accessDeny.some(id => userContext.includes(id));
 
         if (isDenied) {
             return { permissions: '---', access_level: 'none' };
@@ -247,13 +270,8 @@ export class FilePermissionValidator {
 
         // Check if all ACL arrays are empty - if so, ACL system is not yet configured
         // and we should be permissive rather than restrictive
-        const aclArrays = [
-            record.access_read || [],
-            record.access_edit || [],
-            record.access_full || [],
-            record.access_deny || []
-        ];
-        const allAclsEmpty = aclArrays.every(arr => Array.isArray(arr) && arr.length === 0);
+        const aclArrays = [accessRead, accessEdit, accessFull, accessDeny];
+        const allAclsEmpty = aclArrays.every(arr => arr.length === 0);
 
         if (allAclsEmpty) {
             // ACL system not configured - provide default access based on user's role

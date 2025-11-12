@@ -5,6 +5,12 @@ The Find API provides advanced search and filtering capabilities for records acr
 ## Base Path
 All Find API operations use: `POST /api/find/:schema`
 
+## Endpoint Summary
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | [`/api/find/:schema`](#post-apifindschema) | Run complex filtered, sorted, and paginated queries with advanced operators. |
+
 ## Content Type
 - **Request**: `application/json`
 - **Response**: `application/json`
@@ -16,7 +22,7 @@ Requires valid JWT token in Authorization header: `Bearer <token>`
 
 ## POST /api/find/:schema
 
-Execute advanced search queries against a specific schema with complex filtering and sorting capabilities.
+Run rich search queries with boolean logic, nested filters, ordering, pagination, and projection control. This is the preferred endpoint when Data API filtering is insufficient or when you need analytics-style queries without writing SQL.
 
 ### Request Body
 ```json

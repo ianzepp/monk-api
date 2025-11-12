@@ -97,17 +97,35 @@ app.get('/', c => {
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
-            home: '/ (public)',
-            public_auth: '/auth/* (public - token acquisition)',
-            docs: '/docs[/:api] (public)',
-            auth: '/api/auth/* (protected - user management)',
-            describe: '/api/describe/:schema (protected)',
-            data: '/api/data/:schema[/:record] (protected)',
-            find: '/api/find/:schema (protected)',
-            bulk: '/api/bulk (protected)',
-            file: '/api/file/* (protected)',
-            acls: '/api/acls/:schema/:record (protected)',
-            root: '/api/root/* (restricted, requires sudo or localhost)',
+            home: ['/', '/health'],
+            docs: ['/README.md', '/docs/:api'],
+            auth: [
+                '/auth/login',
+                '/auth/register',
+                '/auth/refresh',
+                '/api/auth/whoami',
+                '/api/auth/sudo'
+            ],
+            describe: ['/api/describe/:schema'],
+            data: [
+                '/api/data/:schema',
+                '/api/data/:schema/:record',
+                '/api/data/:schema/:record/:relationship',
+                '/api/data/:schema/:record/:relationship/:child'
+            ],
+            find: ['/api/find/:schema'],
+            bulk: ['/api/bulk'],
+            file: [
+                '/api/file/list',
+                '/api/file/retrieve',
+                '/api/file/store',
+                '/api/file/stat',
+                '/api/file/delete',
+                '/api/file/size',
+                '/api/file/modify-time'
+            ],
+            acls: ['/api/acls/:schema/:record'],
+            root: ['/api/root/*']
         },
         documentation: {
             home: ['/README.md'],
@@ -144,7 +162,6 @@ app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 // Public auth routes (token acquisition)
 app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
-app.post('/auth/register-demo', publicAuthRoutes.RegisterDemoPost); // POST /auth/register-demo
 app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
 
 // Public docs routes
@@ -162,6 +179,7 @@ app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
 app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
 
 // 31-describe-api: Describe API routes
+app.get('/api/describe', describeRoutes.SchemaList); // Lists all schemas
 app.post('/api/describe/:schema', describeRoutes.SchemaPost); // Create schema (with URL name)
 app.get('/api/describe/:schema', describeRoutes.SchemaGet); // Get schema
 app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema

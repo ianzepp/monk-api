@@ -49,19 +49,23 @@ curl -X GET http://localhost:9001/api/root/tenant \
   -H "Authorization: Bearer ROOT_JWT_TOKEN"
 ```
 
-## Available Endpoints
+## Endpoint Summary
 
-| Endpoint | Method | Description | Purpose |
-|----------|--------|-------------|---------|
-| `/api/root/tenant` | GET | List all tenants | Tenant discovery and monitoring |
-| `/api/root/tenant` | POST | Create new tenant | Tenant provisioning |
-| `/api/root/tenant/:name` | GET | Get tenant details | Tenant inspection |
-| `/api/root/tenant/:name` | DELETE | Delete tenant | Tenant cleanup |
-| `/api/root/tenant/:name/health` | GET | Tenant health check | System monitoring |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | [`/api/root/tenant`](#get-apiroottenant) | Enumerate every tenant registered in the platform. |
+| POST | [`/api/root/tenant`](#post-apiroottenant) | Provision a brand-new tenant and backing database. |
+| GET | [`/api/root/tenant/:name`](#get-apiroottenantname) | Inspect metadata for a single tenant. |
+| DELETE | [`/api/root/tenant/:name`](#delete-apiroottenantname) | Deactivate and remove a tenant (soft delete). |
+| GET | [`/api/root/tenant/:name/health`](#get-apiroottenantnamehealth) | Run diagnostics against an individual tenant. |
 
 ## Tenant Management
 
-### List All Tenants
+### GET /api/root/tenant
+
+List every tenant known to the control plane, including routing metadata and activation state. Use this to power admin consoles or monitoring tools that need to enumerate all environments.
+
+#### Example
 ```bash
 curl -X GET http://localhost:9001/api/root/tenant \
   -H "Authorization: Bearer ROOT_JWT_TOKEN"
@@ -83,7 +87,11 @@ curl -X GET http://localhost:9001/api/root/tenant \
 }
 ```
 
-### Create New Tenant
+### POST /api/root/tenant
+
+Provision a brand-new tenant by cloning the requested template (or the default) and registering it in the control database. The response includes the hashed database name so operators can immediately connect or seed data.
+
+#### Example
 ```bash
 curl -X POST http://localhost:9001/api/root/tenant \
   -H "Authorization: Bearer ROOT_JWT_TOKEN" \
@@ -104,7 +112,57 @@ curl -X POST http://localhost:9001/api/root/tenant \
 }
 ```
 
-### Tenant Health Check
+### GET /api/root/tenant/:name
+
+Inspect a specific tenant to view database routing, status flags, creation metadata, and optional tags. This is useful when troubleshooting a single customer environment.
+
+#### Example
+```bash
+curl -X GET http://localhost:9001/api/root/tenant/acme-corp \
+  -H "Authorization: Bearer ROOT_JWT_TOKEN"
+
+# Response
+{
+  "success": true,
+  "data": {
+    "tenant": {
+      "name": "acme-corp",
+      "database": "tenant_a1b2c3d4",
+      "host": "localhost",
+      "is_active": true,
+      "created_at": "2024-01-15T10:30:00Z",
+      "schema_count": 15,
+      "last_activity": "2024-01-15T14:30:00Z"
+    }
+  }
+}
+```
+
+### DELETE /api/root/tenant/:name
+
+Deactivate (soft-delete) a tenant so it no longer appears in public listings or accepts new traffic. Deletion can also trigger background cleanup jobs depending on deployment policy.
+
+#### Example
+```bash
+curl -X DELETE http://localhost:9001/api/root/tenant/acme-corp \
+  -H "Authorization: Bearer ROOT_JWT_TOKEN"
+
+# Response
+{
+  "success": true,
+  "data": {
+    "tenant": "acme-corp",
+    "deleted": true,
+    "mode": "soft"
+  }
+}
+```
+
+### GET /api/root/tenant/:name/health
+
+Run a tenant-specific health check that verifies database connectivity, schema counts, and recent activity. Administrators can embed this endpoint into monitoring dashboards for early warning signals.
+
+#### Example
 ```bash
 curl -X GET http://localhost:9001/api/root/tenant/acme-corp/health \
   -H "Authorization: Bearer ROOT_JWT_TOKEN"

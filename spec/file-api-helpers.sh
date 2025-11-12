@@ -22,8 +22,13 @@ file_api_post() {
     local response=$(auth_post "api/file/$endpoint" "$data" "$@")
     assert_success "$response"
     
-    # Extract data field from File API response
-    extract_data "$response"
+    # Extract data field when present, fallback to full response for path-first API
+    local extracted=$(extract_data "$response")
+    if [[ "$extracted" == "null" ]]; then
+        echo "$response"
+    else
+        echo "$extracted"
+    fi
 }
 
 # Specific File API endpoint helpers
@@ -109,13 +114,11 @@ test_file_api_error() {
     assert_error "$response"
     
     if [[ -n "$expected_error_code" ]]; then
-        local error_data=$(extract_data "$response" 2>/dev/null || echo "$response")
-        local actual_code=$(echo "$error_data" | jq -r '.error_code // .error // empty')
-        
+        local actual_code=$(echo "$response" | jq -r '.error_code // .error // empty')
         if [[ "$actual_code" == "$expected_error_code" ]]; then
             print_success "$description - error code: $actual_code"
         else
-            print_warning "$description - expected: $expected_error_code, got: $actual_code"
+            test_fail "$description - expected error code $expected_error_code, got: $actual_code"
         fi
     else
         print_success "$description properly returns error"

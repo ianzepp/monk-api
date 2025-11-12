@@ -5,6 +5,16 @@ The Describe API provides schema definition and management capabilities for the 
 ## Base Path
 All Describe API routes are prefixed with `/api/describe`
 
+## Endpoint Summary
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | [`/api/describe`](#get-apidescribe) | List all available schema names in the current tenant. |
+| POST | [`/api/describe/:schema`](#post-apidescribeschema) | Create a new JSON Schema and generate its backing database table. |
+| GET | [`/api/describe/:schema`](#get-apidescribeschema) | Retrieve the latest schema definition exactly as stored. |
+| PUT | [`/api/describe/:schema`](#put-apidescribeschema) | Update a schema and apply matching database migrations. |
+| DELETE | [`/api/describe/:schema`](#delete-apidescribeschema) | Soft-delete a schema definition so it can be restored later. |
+
 ## Content Type
 - **Request**: `application/json`
 - **Response**: `application/json`
@@ -14,9 +24,40 @@ Requires valid JWT token in Authorization header: `Bearer <token>`
 
 ---
 
+## GET /api/describe
+
+List all available schema names in the current tenant. Use this endpoint to discover what schemas exist before querying their definitions or data.
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    "users",
+    "products",
+    "orders",
+    "customers"
+  ]
+}
+```
+
+### Error Responses
+
+| Status | Error Code | Message | Condition |
+|--------|------------|---------|-----------|
+| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Authentication failure |
+
+### Example
+```bash
+curl -X GET http://localhost:9001/api/describe \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+---
+
 ## POST /api/describe/:schema
 
-Create a new schema definition with automatic table generation.
+Publish a new JSON Schema definition and let Monk automatically create the corresponding PostgreSQL table. The route validates the schema, enforces naming consistency, and seeds the describe cache for immediate use by the Data and File APIs.
 
 ### URL Parameters
 - **schema**: Schema name (must match JSON title or use ?force=true)
@@ -84,7 +125,7 @@ Create a new schema definition with automatic table generation.
 
 ## GET /api/describe/:schema
 
-Retrieve an existing schema definition.
+Return the authoritative JSON Schema currently backing a schema. Use this endpoint to power design tools, generate forms, or confirm whether fields exist before writing data.
 
 ### URL Parameters
 - **schema**: Schema name to retrieve
@@ -117,7 +158,7 @@ Retrieve an existing schema definition.
 
 ## PUT /api/describe/:schema
 
-Update an existing schema definition. Changes are applied to both the schema describe and underlying database table structure.
+Modify an existing schema and let the platform handle synchronized DDL changes. Whether you add fields, adjust constraints, or tweak metadata, the Describe service applies migrations safely and updates cache entries used by runtime validators.
 
 ### URL Parameters
 - **schema**: Schema name to update
@@ -161,7 +202,7 @@ Update an existing schema definition. Changes are applied to both the schema des
 
 ## DELETE /api/describe/:schema
 
-Soft delete a schema definition. The schema is marked as deleted but can be restored.
+Soft-delete a schema definition so dependent data can no longer be mutated, while still allowing restoration if needed. Only system administrators should perform this operation because downstream routes will immediately block the schema once deleted.
 
 ### URL Parameters
 - **schema**: Schema name to delete

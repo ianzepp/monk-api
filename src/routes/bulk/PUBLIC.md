@@ -5,6 +5,12 @@ The Bulk API enables batch operations across multiple schemas and records in a s
 ## Base Path
 All Bulk API operations use: `POST /api/bulk`
 
+## Endpoint Summary
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | [`/api/bulk`](#post-apibulk) | Execute multiple schema operations in a single transaction-safe request. |
+
 ## Content Type
 - **Request**: `application/json`
 - **Response**: `application/json`
@@ -16,7 +22,7 @@ Requires valid JWT token in Authorization header: `Bearer <token>`
 
 ## POST /api/bulk
 
-Execute multiple operations across different schemas in a single atomic request.
+Submit an ordered list of operations—spanning schemas, CRUD actions, and ACL updates—and have the platform execute them inside a single observer-aware transaction. The endpoint batches validation, enforces dependencies, and returns a per-operation result array so clients know exactly which step succeeded or failed.
 
 ### Request Body
 ```json
