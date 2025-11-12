@@ -98,6 +98,7 @@ export interface FileRetrieveRequest {
         start_offset?: number;
         max_bytes?: number;
         format?: 'json' | 'raw';
+        show_hidden?: boolean;
     };
 }
 

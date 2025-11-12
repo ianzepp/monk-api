@@ -5,16 +5,15 @@ Comprehensive test suite for the File API covering virtual file system operation
 ## Test Coverage
 
 ### Core File Operations
-- **store-basic.test.sh** - File storage and record creation via file interface
-- **retrieve-basic.test.sh** - File retrieval and content access
-- **stat-basic.test.sh** - File and directory metadata operations
-- **list-basic.test.sh** - Directory listing and browsing
-- **delete-basic.test.sh** - File deletion and cleanup operations
+- **store-update-record.test.sh** - File storage and record creation/update via file interface
+- **retrieve-field-raw.test.sh** - File retrieval for records and field content (JSON and raw modes)
+- **stat-size-modify.test.sh** - File metadata, size calculation, and modification time operations
+- **list-root-schema.test.sh** - Directory listing and browsing (root, schemas, records)
+- **delete-record-soft.test.sh** - File deletion (soft delete) and cleanup operations
 
 ### Advanced Features
-- **size-basic.test.sh** - File size calculation and storage information
-- **modify-time-basic.test.sh** - File modification time operations
-- **stat-access-levels.test.sh** - Access control and permission validation
+- **retrieve-show-hidden.test.sh** - Hidden field filtering for record retrieval (`show_hidden` option)
+- **list-show-hidden.test.sh** - Hidden field filtering for directory listings and file sizes
 
 ## Test Environment
 
@@ -45,9 +44,9 @@ Tests run against a dedicated test tenant with pre-configured schemas:
 
 ### Directory Operations
 - Directory listing with pagination
-- Recursive directory browsing
+- Recursive directory browsing (planned)
 - File type filtering and sorting
-- Hidden file inclusion options
+- Hidden file inclusion options (`show_hidden` controls system field visibility)
 
 ### Access Control
 - Permission validation for read/write operations
@@ -57,20 +56,20 @@ Tests run against a dedicated test tenant with pre-configured schemas:
 
 ## Test Status
 
-**⚠️ IMPORTANT**: File API tests are currently disabled pending implementation review. All test files include early exit with status message indicating the implementation is under review.
+**✅ File API tests are fully implemented and passing.** All core operations and advanced features have comprehensive test coverage.
 
 ## Running Tests
 
-Individual test files can be run directly (currently will exit with skip message):
+Individual test files can be run directly:
 ```bash
-./spec/37-file-api/store-basic.test.sh
-./spec/37-file-api/retrieve-basic.test.sh
-./spec/37-file-api/stat-basic.test.sh
+npm run test:sh spec/37-file-api/retrieve-show-hidden.test.sh
+npm run test:sh spec/37-file-api/stat-size-modify.test.sh
+npm run test:sh spec/37-file-api/list-root-schema.test.sh
 ```
 
 Or run the complete test suite:
 ```bash
-cd spec/37-file-api && for test in *.test.sh; do ./"$test"; done
+npm run test:sh 37-file-api
 ```
 
-**Note**: Tests will currently exit with "FILE API TEST DISABLED" message until implementation review is complete.
+All tests use the `basic` fixture template for fast, isolated testing with pre-populated data.

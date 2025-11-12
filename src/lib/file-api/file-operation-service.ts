@@ -1,5 +1,6 @@
 import { FileTimestampFormatter } from '@src/lib/file-api/file-timestamp-formatter.js';
 import { FileContentCalculator } from '@src/lib/file-api/file-content-calculator.js';
+import { filterRecordFields } from '@src/lib/file-api/file-record-filter.js';
 import type {
     FileEntry,
     FileListRequest,
@@ -128,7 +129,7 @@ export class FileOperationService {
                         'UUID_WILDCARD_NOT_SUPPORTED'
                     );
                 }
-                return this.listRecordFields(filePath);
+                return this.listRecordFields(filePath, options);
             default:
                 throw HttpErrors.badRequest(`Unsupported list path type: ${filePath.type}`, 'UNSUPPORTED_LIST_PATH');
         }
@@ -148,6 +149,7 @@ export class FileOperationService {
         const record = await this.requireRecord(filePath.schema!, filePath.record_id!);
         const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
         const perms = this.derivePermissions(record);
+        const showHidden = options.show_hidden ?? false;
 
         if (filePath.type === 'field') {
             if (!(filePath.field_name! in record)) {
@@ -184,7 +186,9 @@ export class FileOperationService {
             };
         }
 
-        const canonicalString = JSON.stringify(record);
+        // Filter record based on show_hidden option
+        const filteredRecord = filterRecordFields(record, showHidden);
+        const canonicalString = JSON.stringify(filteredRecord);
         const size = FileContentCalculator.calculateSize(canonicalString);
 
         if (options.format === 'raw') {
@@ -204,7 +208,7 @@ export class FileOperationService {
         }
 
         return {
-            content: record,
+            content: filteredRecord,
             metadata: this.buildFileMetadata(path, 'file', perms.permissions, size, timestampInfo.formatted, {
                 content_type: 'application/json',
                 etag: FileContentCalculator.generateETag(canonicalString),
@@ -382,7 +386,9 @@ export class FileOperationService {
             throw HttpErrors.badRequest('SIZE command only supports record and field files', 'INVALID_SIZE_PATH');
         }
 
-        const retrieve = await this.retrieve(path, { format: 'raw' });
+        // Always use show_hidden=false for consistent file size reporting
+        // File size should represent user data, not infrastructure metadata
+        const retrieve = await this.retrieve(path, { format: 'raw', show_hidden: false });
         const size = FileContentCalculator.calculateSize(retrieve.content);
         return {
             size,
@@ -479,16 +485,20 @@ export class FileOperationService {
         };
     }
 
-    private async listRecordFields(filePath: FilePath): Promise<ListResult> {
+    private async listRecordFields(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
         const record = await this.requireRecord(filePath.schema!, filePath.record_id!);
         const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
         const perms = this.derivePermissions(record);
+        const showHidden = options?.show_hidden ?? false;
+
+        // Filter record for .json file size calculation
+        const filteredRecord = filterRecordFields(record, showHidden);
 
         const entries: FileEntry[] = [
             {
                 name: `${filePath.record_id}.json`,
                 file_type: 'f',
-                file_size: FileContentCalculator.calculateRecordSize(record),
+                file_size: FileContentCalculator.calculateRecordSize(filteredRecord),
                 file_permissions: perms.permissions,
                 file_modified: timestampInfo.formatted,
                 path: `/data/${filePath.schema}/${filePath.record_id}.json`,
@@ -582,7 +592,10 @@ export class FileOperationService {
         const perms = this.derivePermissions(record);
 
         if (filePath.is_json_file) {
-            const canonicalString = JSON.stringify(record);
+            // Always filter system fields for consistent file size reporting
+            // The "file" is the user data, not the infrastructure metadata
+            const filteredRecord = filterRecordFields(record, false);
+            const canonicalString = JSON.stringify(filteredRecord);
             return {
                 metadata: this.buildFileMetadata(filePath.normalized_path, 'file', perms.permissions, FileContentCalculator.calculateSize(canonicalString), timestampInfo.formatted, {
                     created_time: FileTimestampFormatter.format(record.created_at),

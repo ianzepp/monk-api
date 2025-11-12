@@ -27,6 +27,24 @@ Key properties:
 
 > The File API refactor is now complete and exercised by the shell specs under `spec/37-file-api/`. Notes below call out the few roadmap options that remain placeholders (hidden entries, wildcard deletes, aggregated sizing).
 
+## System Fields and File Sizes
+
+The File API distinguishes between **user data** and **system metadata**:
+
+- **User data**: The `id` field plus any schema-defined fields (e.g., `name`, `email`, `status`)
+- **System metadata**: Infrastructure fields (`access_*`, `created_at`, `updated_at`, `trashed_at`, `deleted_at`)
+
+**For `stat` and `size` operations**, file sizes always reflect user data only. System metadata is excluded to ensure:
+- **Stability**: File sizes don't change when ACLs are updated or timestamps shift
+- **Consistency**: The reported size matches what users see by default
+- **Semantics**: The "file" represents user data, not infrastructure
+
+**For `retrieve` and `list` operations**, the `show_hidden` option controls visibility:
+- `show_hidden: false` (default) — Returns only user data
+- `show_hidden: true` — Includes system metadata fields
+
+This approach mirrors real filesystems where `stat` reports intrinsic file properties independent of view options.
+
 ## Authentication
 
 All endpoints require the standard Monk bearer token:
@@ -73,7 +91,7 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
 
 Set `pattern_optimization` and `use_pattern_cache` to `true` (default) to reuse wildcard translations on schema directories. `cross_schema_limit` caps the number of records returned when a schema wildcard spans multiple schemas.
 
-> Listings currently honour `sort_by` (use `name` for the default `id` ordering or `date` to sort by `updated_at`), `sort_order` (`asc`/`desc`), and `cross_schema_limit`. Flags such as `show_hidden`, `pattern_optimization`, and `use_pattern_cache` are reserved and have no effect yet; directory responses stay flat with system fields hidden by default.
+> Listings currently honour `sort_by` (use `name` for the default `id` ordering or `date` to sort by `updated_at`), `sort_order` (`asc`/`desc`), `cross_schema_limit`, and `show_hidden`. When `show_hidden` is `false` (default), record JSON files exclude ACL fields (`access_*`) and timestamp fields (`created_at`, `updated_at`, `trashed_at`, `deleted_at`) from the response; the `id` field is always included. Flags such as `pattern_optimization` and `use_pattern_cache` are reserved and have no effect yet; directory responses stay flat.
 
 **Response**
 ```json
@@ -119,12 +137,13 @@ Fetch the content behind a record JSON file or a specific field.
   "file_options": {
     "format": "json",
     "start_offset": 0,
-    "max_bytes": 65536
+    "max_bytes": 65536,
+    "show_hidden": false
   }
 }
 ```
 
-`path` may also be `/data/users/user-1/email` for a single field. `format` accepts `json` (default) or `raw`. The `start_offset` and `max_bytes` options apply only when `format` is `raw`.
+`path` may also be `/data/users/user-1/email` for a single field. `format` accepts `json` (default) or `raw`. The `start_offset` and `max_bytes` options apply only when `format` is `raw`. When `show_hidden` is `false` (default), record JSON responses exclude ACL fields (`access_*`) and timestamp fields (`created_at`, `updated_at`, `trashed_at`, `deleted_at`); the `id` field is always included.
 
 **Response**
 ```json
@@ -271,6 +290,8 @@ Return metadata for any supported path.
 
 Directory responses include `children_count` and best-effort schema information when available.
 
+> **Note on file sizes**: The `size` field always reports the size of user data (excluding system fields like `access_*` and timestamps). This ensures consistent size reporting regardless of ACL or timestamp changes. The reported size matches what users see by default when retrieving content.
+
 ### POST /api/file/size
 
 Return the byte size of a record snapshot or a field.
@@ -299,6 +320,8 @@ Return the byte size of a record snapshot or a field.
   }
 }
 ```
+
+> **Note on size calculation**: File sizes always exclude system fields (`access_*`, `created_at`, `updated_at`, `trashed_at`, `deleted_at`) to provide stable, consistent size reporting. The size represents the actual user data content, not infrastructure metadata. This matches the default view users see when retrieving files.
 
 ### POST /api/file/modify-time
 
