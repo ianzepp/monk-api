@@ -12,25 +12,21 @@ print_step "Testing self-documenting API endpoints"
 # Simple setup for documentation testing
 setup_test_basic
 
-# Test public auth documentation
-print_step "Testing GET /docs/public-auth"
-public_auth_docs=$(api_get "docs/public-auth")
-
-# Verify it's markdown content
-if echo "$public_auth_docs" | grep -q "# Public Authentication API"; then
-    print_success "Public auth documentation retrieved"
-else
-    test_fail "Public auth documentation invalid or missing"
-fi
-
-# Test protected auth documentation  
+# Test auth documentation (merged public + protected)
 print_step "Testing GET /docs/auth"
 auth_docs=$(api_get "docs/auth")
 
-if echo "$auth_docs" | grep -q "# Protected Auth API"; then
-    print_success "Protected auth documentation retrieved"
+if echo "$auth_docs" | grep -q "# Auth API"; then
+    print_success "Auth documentation retrieved"
 else
-    test_fail "Protected auth documentation invalid or missing"
+    test_fail "Auth documentation invalid or missing"
+fi
+
+# Verify it contains both public and protected sections
+if echo "$auth_docs" | grep -q "POST /auth/login" && echo "$auth_docs" | grep -q "POST /api/auth/sudo"; then
+    print_success "Auth documentation contains both public and protected endpoints"
+else
+    test_fail "Auth documentation missing public or protected sections"
 fi
 
 # Test data API documentation
@@ -53,14 +49,14 @@ else
     test_fail "File API documentation invalid or missing"
 fi
 
-# Test root API documentation
-print_step "Testing GET /docs/root"
-root_docs=$(api_get "docs/root")
+# Test sudo API documentation
+print_step "Testing GET /docs/sudo"
+sudo_docs=$(api_get "docs/sudo")
 
-if echo "$root_docs" | grep -q "# Root API"; then
-    print_success "Root API documentation retrieved"
+if echo "$sudo_docs" | grep -q "# Sudo API"; then
+    print_success "Sudo API documentation retrieved"
 else
-    test_fail "Root API documentation invalid or missing"
+    test_fail "Sudo API documentation invalid or missing"
 fi
 
 # Test invalid API documentation

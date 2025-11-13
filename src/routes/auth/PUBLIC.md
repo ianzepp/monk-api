@@ -470,6 +470,6 @@ All error responses follow the standardized format documented in the main error 
 
 - **Data Operations**: `/docs/data` - Working with schema-backed data
 - **Describe Operations**: `/docs/describe` - Managing JSON Schemas
-- **Administrative Operations**: `/docs/root` - Root API requiring elevated privileges
+- **Sudo Operations**: `/docs/sudo` - User management requiring sudo tokens
 
 The Auth API provides both the public token issuance flows and the protected account management capabilities required to access every other part of the Monk platform.

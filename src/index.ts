@@ -132,7 +132,7 @@ app.get('/', c => {
         },
         documentation: {
             home: ['/README.md'],
-            auth: ['/docs/auth', '/docs/public-auth'],
+            auth: ['/docs/auth'],
             describe: ['/docs/describe'],
             data: ['/docs/data'],
             find: ['/docs/find'],
