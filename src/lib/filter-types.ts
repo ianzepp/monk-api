@@ -32,12 +32,12 @@ export enum FilterOp {
     ANY = '$any', // Array overlap: access_read && ARRAY[user_id, group_id]
     ALL = '$all', // Array contains: tags @> ARRAY['feature', 'backend']
     NANY = '$nany', // NOT array overlap: NOT (access_deny && ARRAY[user_id])
-    NALL = '$nall', // NOT array contains: NOT (permissions @> ARRAY['admin'])
+    NALL = '$nall', // NOT array contains: NOT (permissions @> ARRAY['editor'])
     SIZE = '$size', // Array size: array_length(tags, 1) = 3
 
     // Logical operators (CRITICAL for FS wildcards)
     AND = '$and', // Explicit AND: { $and: [condition1, condition2] }
-    OR = '$or', // OR conditions: { $or: [{ role: 'admin' }, { role: 'mod' }] }
+    OR = '$or', // OR conditions: { $or: [{ access: 'root' }, { access: 'full' }] }
     NOT = '$not', // NOT condition: { $not: { status: 'banned' } }
     NAND = '$nand', // NAND operations
     NOR = '$nor', // NOR operations

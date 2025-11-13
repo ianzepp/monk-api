@@ -51,7 +51,7 @@ export default async function (context: Context) {
         template_name: 'empty',
         tenant_name: tenant,
         username: username,
-        user_access: 'full',
+        user_access: 'root',
         naming_mode: serverMode,
         database: database,
         description: description,

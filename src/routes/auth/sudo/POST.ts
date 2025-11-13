@@ -18,9 +18,9 @@ export default async function (context: Context) {
         throw HttpErrors.unauthorized('Valid user JWT required for privilege escalation', 'USER_JWT_REQUIRED');
     }
     
-    // Validate user can escalate privileges
-    if (user.access !== 'admin' && user.access !== 'root') {
-        throw HttpErrors.forbidden('Insufficient privileges for sudo - admin or root access required', 'SUDO_ACCESS_DENIED');
+    // Validate user can escalate privileges (only root users)
+    if (user.access !== 'root') {
+        throw HttpErrors.forbidden('Insufficient privileges for sudo - root access required', 'SUDO_ACCESS_DENIED');
     }
     
     // Extract optional reason for audit trail
@@ -45,19 +45,20 @@ export default async function (context: Context) {
         elevation_reason: reason
     };
     
-    // Generate short-lived root token directly
+    // Generate short-lived sudo token
     const payload: JWTPayload = {
         sub: rootUser.id,
         user_id: rootUser.user_id,
         tenant: rootUser.tenant,
         database: rootUser.database,
-        access: rootUser.access,
+        access: 'root',
         access_read: rootUser.access_read || [],
         access_edit: rootUser.access_edit || [],
         access_full: rootUser.access_full || [],
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 900, // 15 minutes
-        // Elevation metadata
+        // Sudo elevation metadata
+        is_sudo: true,
         elevated_from: rootUser.elevated_from,
         elevated_at: rootUser.elevated_at,
         elevation_reason: rootUser.elevation_reason

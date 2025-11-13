@@ -22,7 +22,7 @@ export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterO
  * Quick Examples:
  * - Basic: `{ name: { $ilike: "john%" }, status: "active" }`
  * - ACL: `{ access_read: { $any: ["user-123", "group-456"] } }`
- * - Logic: `{ $and: [{ $or: [{ role: "admin" }, { verified: true }] }] }`
+ * - Logic: `{ $and: [{ $or: [{ access: "root" }, { verified: true }] }] }`
  *
  * Architecture: Filter → FilterWhere → FilterOrder → SQL generation
  * Integration: Observer pipeline, soft delete filtering, schema validation

@@ -58,7 +58,7 @@ export class DatabaseTemplate {
      * @returns Promise<TemplateCloneResult> - New tenant credentials
      */
     static async cloneTemplate(options: TemplateCloneOptions): Promise<TemplateCloneResult> {
-        const { template_name, user_access = 'full' } = options;
+        const { template_name, user_access = 'root' } = options;
 
         // Get main database connection for tenant registry operations
         const mainPool = DatabaseConnection.getMainPool();
