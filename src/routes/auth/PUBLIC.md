@@ -15,7 +15,7 @@ The Auth API covers both **public token acquisition routes** and **protected use
 | POST | [`/auth/register`](#post-authregister) | Public | Provision a new tenant from the default template and return an initial token. |
 | GET | [`/auth/tenants`](#get-authtenants) | Public | List available tenants (personal mode only). |
 | GET | [`/api/auth/whoami`](#get-apiauthwhoami) | Protected | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
-| POST | [`/api/auth/sudo`](#post-apiauthsudo) | Protected | Exchange a standard user token for a short-lived root token after auditing the request. |
+| POST | [`/api/auth/sudo`](#post-apiauthsudo) | Protected | Get short-lived sudo token for dangerous operations (user management). |
 
 ## Content Type
 - **Request**: `application/json`
@@ -388,8 +388,8 @@ Perform just-in-time privilege escalation for administrators who need to call `/
     "token_type": "Bearer",
     "access_level": "root",
     "warning": "Root token expires in 15 minutes",
-    "elevated_from": "admin",
-    "reason": "Tenant administration"
+    "elevated_from": "root",
+    "reason": "User management operation"
   }
 }
 ```
@@ -399,44 +399,53 @@ Perform just-in-time privilege escalation for administrators who need to call `/
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 401 | `USER_JWT_REQUIRED` | "Valid user JWT required for privilege escalation" | No valid user JWT |
-| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo" | User lacks admin/root access |
+| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo - root access required" | User lacks root access |
 
 ---
 
-## Privilege Escalation Model
+## Sudo Access Model
 
 ### Access Level Requirements
-- **sudo endpoint**: Requires `admin` or `root` base access level
-- **Root operations**: Generated root token required for `/api/root/*` endpoints
-- **Time limits**: Root tokens expire after 15 minutes for security
+- **sudo endpoint**: Requires `access='root'` base level
+- **Sudo operations**: Short-lived sudo token required for `/api/sudo/*` endpoints
+- **Time limits**: Sudo tokens expire after 15 minutes for security
+- **Tenant-scoped**: All sudo operations are within the user's own tenant
+
+### Access Levels
+- `deny` - No access
+- `read` - Read-only data access
+- `edit` - Can modify data
+- `full` - Can modify data and manage ACLs on records
+- `root` - Can request sudo tokens for dangerous operations (user management)
 
 ### Token Management Strategy
 ```javascript
 // Client should maintain separate tokens:
-localStorage.setItem('user_token', userJwt);        // Long-lived (1 hour)
-sessionStorage.setItem('root_token', rootJwt);     // Short-lived (15 minutes)
-localStorage.setItem('refresh_token', refreshJwt); // Very long-lived (30 days)
+localStorage.setItem('user_token', rootJwt);       // Long-lived root JWT (1 hour)
+sessionStorage.setItem('sudo_token', sudoJwt);     // Short-lived sudo token (15 minutes)
 
 // Use appropriate token for different operations:
 const userHeaders = { 'Authorization': `Bearer ${userToken}` };    // Normal operations
-const rootHeaders = { 'Authorization': `Bearer ${rootToken}` };    // Administrative operations
+const sudoHeaders = { 'Authorization': `Bearer ${sudoToken}` };    // User management
 ```
 
 ### Sudo Workflow Example
 ```bash
-# 1. Normal user operations with user JWT
-curl -X GET http://localhost:9001/api/auth/whoami \
-  -H "Authorization: Bearer USER_JWT_TOKEN"
-
-# 2. Request elevated privileges when needed
-curl -X POST http://localhost:9001/api/auth/sudo \
-  -H "Authorization: Bearer USER_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"reason": "Tenant administration tasks"}'
-
-# 3. Use root JWT for administrative operations
-curl -X GET http://localhost:9001/api/root/tenant \
+# 1. Normal operations with root JWT
+curl -X GET http://localhost:9001/api/data/accounts \
   -H "Authorization: Bearer ROOT_JWT_TOKEN"
+
+# 2. Request sudo token for user management
+curl -X POST http://localhost:9001/api/auth/sudo \
+  -H "Authorization: Bearer ROOT_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Creating new team member account"}'
+
+# 3. Use sudo JWT for user management
+curl -X POST http://localhost:9001/api/sudo/users \
+  -H "Authorization: Bearer SUDO_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "auth": "john@example.com", "access": "full"}'
 ```
 
 ## Security Model
