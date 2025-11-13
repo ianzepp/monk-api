@@ -18,11 +18,12 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * - tenant (required): User-facing tenant name
  * - username (optional): Username for the tenant admin. Defaults to 'root' in personal mode, required in enterprise mode
  * - database (optional): Custom database name (personal mode only). Defaults to sanitized tenant name
+ * - description (optional): Human-readable description of the tenant
  *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username, database } = await context.req.json();
+    const { tenant, username, database, description } = await context.req.json();
 
     // Input validation
     if (!tenant) {
@@ -53,6 +54,7 @@ export default async function (context: Context) {
         user_access: 'full',
         naming_mode: serverMode,
         database: database,
+        description: description,
     });
 
     // Generate JWT token for the new user

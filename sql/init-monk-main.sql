@@ -15,6 +15,7 @@ CREATE TABLE "tenants" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "name" VARCHAR(255) NOT NULL UNIQUE,          -- Unique tenants identifier
     "database" VARCHAR(255) NOT NULL,             -- Target database name (direct tenant name)
+    "description" TEXT,                           -- Optional tenant description
     "host" VARCHAR(255) DEFAULT 'localhost',      -- Database host (future multi-host support)
     "is_active" BOOLEAN DEFAULT true,             -- Enable/disable tenants access
     "tenant_type" VARCHAR(20) DEFAULT 'normal', -- Tenant type: 'normal' or 'template'
@@ -41,6 +42,7 @@ COMMENT ON TABLE "tenants" IS 'Registry of multi-tenant databases for domain-bas
 COMMENT ON COLUMN "tenants"."id" IS 'UUID primary key for tenant record';
 COMMENT ON COLUMN "tenants"."name" IS 'Unique tenant identifier used in authentication';
 COMMENT ON COLUMN "tenants"."database" IS 'PostgreSQL database name containing tenant data (direct tenants name)';
+COMMENT ON COLUMN "tenants"."description" IS 'Optional human-readable description of the tenant';
 COMMENT ON COLUMN "tenants"."host" IS 'Database host for future distributed deployment support';
 COMMENT ON COLUMN "tenants"."is_active" IS 'Whether tenant is enabled for authentication';
 COMMENT ON COLUMN "tenants"."tenant_type" IS 'Tenant type: normal (regular tenant) or template (fixture template for cloning)';

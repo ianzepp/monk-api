@@ -110,8 +110,9 @@ Create an empty tenant (cloned from the default template) and bootstrap a full-a
   "username": "string",      // Optional: Desired username
                              //           Required when server is in enterprise mode
                              //           Defaults to 'root' when server is in personal mode
-  "database": "string"       // Optional: Custom database name (only when server is in personal mode)
+  "database": "string",      // Optional: Custom database name (only when server is in personal mode)
                              //           Defaults to sanitized tenant name if not provided
+  "description": "string"    // Optional: Human-readable description of the tenant
 }
 ```
 
@@ -154,13 +155,24 @@ POST /auth/register
 # Results: username = "root", database = "tenant_monk_irc"
 ```
 
+**Personal Mode Server (with description):**
+```bash
+POST /auth/register
+{
+  "tenant": "monk-irc",
+  "description": "IRC bridge for Slack integration"
+}
+# Results: username = "root", database = "tenant_monk_irc"
+```
+
 **Personal Mode Server (custom database):**
 ```bash
 POST /auth/register
 {
   "tenant": "monk-irc",
   "username": "admin",
-  "database": "my-irc-bridge"
+  "database": "my-irc-bridge",
+  "description": "IRC bridge for Slack integration"
 }
 # Results: username = "admin", database = "tenant_my_irc_bridge"
 ```

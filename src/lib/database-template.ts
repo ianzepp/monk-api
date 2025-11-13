@@ -17,6 +17,7 @@ export interface TemplateCloneOptions {
     user_access?: string; // Default: 'full'
     naming_mode?: 'enterprise' | 'personal'; // Database naming mode (default: enterprise or from env)
     database?: string; // Custom database name (personal mode only, defaults to sanitized tenant_name)
+    description?: string; // Optional tenant description
     // Future extensibility:
     // email?: string;
     // company?: string;
@@ -144,13 +145,13 @@ export class DatabaseTemplate {
                 throw HttpErrors.internal(`Failed to clone template database: ${error}`, 'TEMPLATE_CLONE_FAILED');
             }
 
-            // 8. Register tenant in main database with naming mode
+            // 8. Register tenant in main database with naming mode and description
             await mainPool.query(
                 `
-                INSERT INTO tenants (name, database, host, is_active, tenant_type, naming_mode)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO tenants (name, database, description, host, is_active, tenant_type, naming_mode)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
             `,
-                [tenantName, databaseName, 'localhost', true, 'normal', namingMode]
+                [tenantName, databaseName, options.description || null, 'localhost', true, 'normal', namingMode]
             );
 
             // 9. Add custom user to cloned database
