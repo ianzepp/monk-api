@@ -159,6 +159,13 @@ export class DatabaseConnection {
             return;
         }
 
+        // Check for reserved PostgreSQL database names
+        const reservedNames = ['postgres', 'template0', 'template1', 'monk'];
+        if (reservedNames.includes(databaseName)) {
+            throw new Error(`Reserved database name "${databaseName}"`);
+        }
+
+        // Check for proper prefix (tenant_, test_, or test_template_)
         if (
             !databaseName.startsWith(MONK_DB_TENANT_PREFIX) &&
             !databaseName.startsWith(MONK_DB_TEST_PREFIX) &&

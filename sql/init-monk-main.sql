@@ -18,6 +18,7 @@ CREATE TABLE "tenants" (
     "host" VARCHAR(255) DEFAULT 'localhost',      -- Database host (future multi-host support)
     "is_active" BOOLEAN DEFAULT true,             -- Enable/disable tenants access
     "tenant_type" VARCHAR(20) DEFAULT 'normal', -- Tenant type: 'normal' or 'template'
+    "naming_mode" VARCHAR(20) DEFAULT 'enterprise' CHECK ("naming_mode" IN ('enterprise', 'personal')), -- Database naming mode
     "access_read" uuid[] DEFAULT '{}'::uuid[],    -- ACL read access
     "access_edit" uuid[] DEFAULT '{}'::uuid[],    -- ACL edit access
     "access_full" uuid[] DEFAULT '{}'::uuid[],    -- ACL full access
@@ -43,6 +44,7 @@ COMMENT ON COLUMN "tenants"."database" IS 'PostgreSQL database name containing t
 COMMENT ON COLUMN "tenants"."host" IS 'Database host for future distributed deployment support';
 COMMENT ON COLUMN "tenants"."is_active" IS 'Whether tenant is enabled for authentication';
 COMMENT ON COLUMN "tenants"."tenant_type" IS 'Tenant type: normal (regular tenant) or template (fixture template for cloning)';
+COMMENT ON COLUMN "tenants"."naming_mode" IS 'Database naming mode: enterprise (SHA256 hash) or personal (custom name)';
 COMMENT ON COLUMN "tenants"."access_read" IS 'UUID array for read access control';
 COMMENT ON COLUMN "tenants"."access_edit" IS 'UUID array for edit access control';
 COMMENT ON COLUMN "tenants"."access_full" IS 'UUID array for full access control';

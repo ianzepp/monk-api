@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from './database-connection.js';
-import { DatabaseNaming } from './database-naming.js';
+import { DatabaseNaming, TenantNamingMode } from './database-naming.js';
 
 const execAsync = promisify(exec);
 
@@ -15,6 +15,8 @@ export interface TemplateCloneOptions {
     tenant_name?: string; // Optional - will be generated if not provided
     username: string;
     user_access?: string; // Default: 'full'
+    naming_mode?: 'enterprise' | 'personal'; // Database naming mode (default: enterprise or from env)
+    database_name?: string; // Custom database name (personal mode only)
     // Future extensibility:
     // email?: string;
     // company?: string;
@@ -88,33 +90,62 @@ export class DatabaseTemplate {
                 tenantName = `demo_${timestamp}_${random}`;
             }
 
-            // 3. Generate hashed database name (matching TenantService logic)
-            const databaseName = this.hashTenantName(tenantName);
+            // 3. Determine naming mode
+            const defaultMode = (process.env.TENANT_NAMING_MODE || 'enterprise') as 'enterprise' | 'personal';
+            const namingMode = options.naming_mode || defaultMode;
+            const mode =
+                namingMode === 'personal' ? TenantNamingMode.PERSONAL : TenantNamingMode.ENTERPRISE;
 
-            // 4. Check if tenant name already exists
-            const existingCheck = await mainPool.query('SELECT COUNT(*) FROM tenants WHERE name = $1', [tenantName]);
+            // 4. Generate database name
+            let databaseName: string;
+
+            if (mode === TenantNamingMode.PERSONAL && options.database_name) {
+                // Personal mode with explicit database name
+                databaseName = DatabaseNaming.generateDatabaseName(options.database_name, mode);
+            } else {
+                // Generate from tenant name (works for both modes)
+                databaseName = DatabaseNaming.generateDatabaseName(tenantName, mode);
+            }
+
+            // 5. Check if tenant name already exists
+            const existingCheck = await mainPool.query('SELECT COUNT(*) FROM tenants WHERE name = $1', [
+                tenantName,
+            ]);
 
             if (existingCheck.rows[0].count > 0) {
                 throw HttpErrors.conflict(`Tenant '${tenantName}' already exists`, 'TENANT_EXISTS');
             }
 
-            // 5. Clone template database using createdb command (same as test helpers)
+            // 6. Check if database already exists (critical for personal mode)
+            const dbExistsCheck = await mainPool.query(
+                'SELECT COUNT(*) FROM pg_database WHERE datname = $1',
+                [databaseName]
+            );
+
+            if (dbExistsCheck.rows[0].count > 0) {
+                throw HttpErrors.conflict(
+                    `Database '${databaseName}' already exists`,
+                    'DATABASE_EXISTS'
+                );
+            }
+
+            // 7. Clone template database using createdb command (same as test helpers)
             try {
                 await execAsync(`createdb "${databaseName}" -T "${templateDatabase}"`);
             } catch (error) {
                 throw HttpErrors.internal(`Failed to clone template database: ${error}`, 'TEMPLATE_CLONE_FAILED');
             }
 
-            // 6. Register tenant in main database
+            // 8. Register tenant in main database with naming mode
             await mainPool.query(
                 `
-                INSERT INTO tenants (name, database, host, is_active, tenant_type)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO tenants (name, database, host, is_active, tenant_type, naming_mode)
+                VALUES ($1, $2, $3, $4, $5, $6)
             `,
-                [tenantName, databaseName, 'localhost', true, 'normal']
+                [tenantName, databaseName, 'localhost', true, 'normal', namingMode]
             );
 
-            // 7. Add custom user to cloned database
+            // 9. Add custom user to cloned database
             const tenantPool = DatabaseConnection.getTenantPool(databaseName);
 
             const userResult = await tenantPool.query(

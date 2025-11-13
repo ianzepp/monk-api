@@ -93,10 +93,80 @@ describe('DatabaseNaming', () => {
         });
 
         describe('PERSONAL mode', () => {
-            it('should throw error (not yet implemented)', () => {
-                expect(() => {
-                    DatabaseNaming.generateDatabaseName('test', TenantNamingMode.PERSONAL);
-                }).toThrow('PERSONAL naming mode not yet implemented');
+            it('should add tenant_ prefix', () => {
+                const result = DatabaseNaming.generateDatabaseName('monk-irc', TenantNamingMode.PERSONAL);
+                expect(result).toBe('tenant_monk_irc');
+            });
+
+            it('should sanitize special characters to underscores', () => {
+                const testCases = [
+                    { input: 'My Company', expected: 'tenant_my_company' },
+                    { input: 'test-db', expected: 'tenant_test_db' },
+                    { input: 'app@2024', expected: 'tenant_app_2024' },
+                    { input: 'café-app', expected: 'tenant_caf_app' }, // Non-ASCII removed
+                ];
+
+                testCases.forEach(({ input, expected }) => {
+                    const result = DatabaseNaming.generateDatabaseName(input, TenantNamingMode.PERSONAL);
+                    expect(result).toBe(expected);
+                });
+            });
+
+            it('should convert to lowercase', () => {
+                const result = DatabaseNaming.generateDatabaseName('MyCompany', TenantNamingMode.PERSONAL);
+                expect(result).toBe('tenant_mycompany');
+            });
+
+            it('should collapse multiple underscores', () => {
+                const result = DatabaseNaming.generateDatabaseName('my___company', TenantNamingMode.PERSONAL);
+                expect(result).toBe('tenant_my_company');
+            });
+
+            it('should remove leading and trailing underscores', () => {
+                const testCases = [
+                    { input: '_mycompany_', expected: 'tenant_mycompany' },
+                    { input: '___test___', expected: 'tenant_test' },
+                ];
+
+                testCases.forEach(({ input, expected }) => {
+                    const result = DatabaseNaming.generateDatabaseName(input, TenantNamingMode.PERSONAL);
+                    expect(result).toBe(expected);
+                });
+            });
+
+            it('should handle names that already start with tenant_', () => {
+                const result = DatabaseNaming.generateDatabaseName('tenant_mydb', TenantNamingMode.PERSONAL);
+                expect(result).toBe('tenant_mydb');
+            });
+
+            it('should trim whitespace', () => {
+                const result = DatabaseNaming.generateDatabaseName('  monk-irc  ', TenantNamingMode.PERSONAL);
+                expect(result).toBe('tenant_monk_irc');
+            });
+
+            it('should handle emojis by replacing with underscores', () => {
+                const result = DatabaseNaming.generateDatabaseName('🚀rocket', TenantNamingMode.PERSONAL);
+                expect(result).toBe('tenant_rocket'); // Emoji replaced, leading underscore removed
+            });
+
+            it('should produce different results than enterprise mode', () => {
+                const name = 'test';
+                const enterprise = DatabaseNaming.generateDatabaseName(name, TenantNamingMode.ENTERPRISE);
+                const personal = DatabaseNaming.generateDatabaseName(name, TenantNamingMode.PERSONAL);
+                expect(enterprise).not.toBe(personal);
+                expect(personal).toBe('tenant_test');
+            });
+
+            it('should handle real-world example: monk-irc', () => {
+                const result = DatabaseNaming.generateDatabaseName('monk-irc', TenantNamingMode.PERSONAL);
+                expect(result).toBe('tenant_monk_irc');
+            });
+
+            it('should be consistent for same input', () => {
+                const name = 'my-app';
+                const result1 = DatabaseNaming.generateDatabaseName(name, TenantNamingMode.PERSONAL);
+                const result2 = DatabaseNaming.generateDatabaseName(name, TenantNamingMode.PERSONAL);
+                expect(result1).toBe(result2);
             });
         });
     });
