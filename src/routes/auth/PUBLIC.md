@@ -13,6 +13,7 @@ The Auth API covers both **public token acquisition routes** and **protected use
 | POST | [`/auth/login`](#post-authlogin) | Public | Authenticate against an existing tenant and issue a JWT token. |
 | POST | [`/auth/refresh`](#post-authrefresh) | Public | Exchange an existing token for a fresh one with the same scope. |
 | POST | [`/auth/register`](#post-authregister) | Public | Provision a new tenant from the default template and return an initial token. |
+| GET | [`/auth/tenants`](#get-authtenants) | Public | List available tenants (personal mode only). |
 | GET | [`/api/auth/whoami`](#get-apiauthwhoami) | Protected | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
 | POST | [`/api/auth/sudo`](#post-apiauthsudo) | Protected | Exchange a standard user token for a short-lived root token after auditing the request. |
 
@@ -202,6 +203,72 @@ POST /auth/register
 | 409 | `TENANT_EXISTS` | "Tenant '<name>' already exists" | Tenant name already registered |
 | 409 | `DATABASE_EXISTS` | "Database '<name>' already exists" | Database name collision (personal mode) |
 | 500 | `TEMPLATE_CLONE_FAILED` | "Failed to clone template database: ..." | Template cloning failed |
+
+---
+
+### GET /auth/tenants
+
+List all available tenants (personal mode only). This endpoint provides tenant discovery for personal PaaS deployments where a single administrator manages multiple tenants.
+
+**Security Note**: This endpoint is only available when the server is running in `TENANT_NAMING_MODE=personal`. In enterprise mode, it returns a 403 error to prevent tenant enumeration in multi-tenant SaaS environments.
+
+#### Request Body
+None - GET request with no body.
+
+#### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "name": "monk-irc",
+      "description": "IRC bridge for Slack integration"
+    },
+    {
+      "name": "my-app",
+      "description": null
+    },
+    {
+      "name": "test-tenant",
+      "description": "Testing environment"
+    }
+  ]
+}
+```
+
+#### Response Fields
+- **name** (string): The tenant identifier used for login
+- **description** (string|null): Optional human-readable description
+
+#### Filtering
+The endpoint automatically filters:
+- Only returns active tenants (`is_active = true`)
+- Excludes template tenants (`tenant_type = 'normal'`)
+- Excludes soft-deleted tenants (`trashed_at IS NULL`)
+- Excludes hard-deleted tenants (`deleted_at IS NULL`)
+- Results are sorted alphabetically by name
+
+#### Error Responses
+
+| Status | Error Code | Message | Condition |
+|--------|------------|---------|-----------|
+| 403 | `TENANT_LIST_NOT_AVAILABLE` | "Tenant listing is only available in personal mode" | Server is in enterprise mode |
+
+#### Example Usage
+
+```bash
+# List all tenants (personal mode server)
+curl -X GET http://localhost:9001/auth/tenants
+
+# Use with jq to extract tenant names
+curl -X GET http://localhost:9001/auth/tenants | jq -r '.data[].name'
+```
+
+#### Use Cases
+- **Tenant discovery**: List available tenants before login
+- **Admin tools**: Build management interfaces for personal PaaS
+- **CLI integration**: Provide autocomplete for tenant selection
+- **Documentation**: Generate tenant inventory
 
 ---
 
