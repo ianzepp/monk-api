@@ -12,22 +12,26 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  *
  * Request body:
  * - tenant (required): User-facing tenant name
- * - username (required): Username for the tenant admin
+ * - username (optional): Username for the tenant admin. Defaults to 'root' in personal mode, required in enterprise mode
  * - naming_mode (optional): 'enterprise' (hash) or 'personal' (custom name). Defaults to TENANT_NAMING_MODE env var
- * - database_name (optional): Custom database name (personal mode only). If not provided, tenant name is used
+ * - database (optional): Custom database name (personal mode only). Defaults to sanitized tenant name
  *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username, naming_mode, database_name } = await context.req.json();
+    const { tenant, username, naming_mode, database } = await context.req.json();
 
     // Input validation
     if (!tenant) {
         throw HttpErrors.badRequest('Tenant is required', 'TENANT_MISSING');
     }
 
-    if (!username) {
-        throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
+    // Username is required in enterprise mode, optional in personal mode (defaults to 'root')
+    const defaultMode = (process.env.TENANT_NAMING_MODE || 'enterprise') as 'enterprise' | 'personal';
+    const effectiveMode = naming_mode || defaultMode;
+    
+    if (!username && effectiveMode !== 'personal') {
+        throw HttpErrors.badRequest('Username is required in enterprise mode', 'USERNAME_MISSING');
     }
 
     // Validate naming_mode if provided
@@ -38,11 +42,11 @@ export default async function (context: Context) {
         );
     }
 
-    // Validate database_name only allowed in personal mode
-    if (database_name && naming_mode !== 'personal') {
+    // Validate database only allowed in personal mode
+    if (database && effectiveMode !== 'personal') {
         throw HttpErrors.badRequest(
-            'database_name can only be specified in personal naming mode',
-            'DATABASE_NAME_NOT_ALLOWED'
+            'database parameter can only be specified in personal naming mode',
+            'DATABASE_NOT_ALLOWED'
         );
     }
 
@@ -53,7 +57,7 @@ export default async function (context: Context) {
         username: username,
         user_access: 'full',
         naming_mode: naming_mode,
-        database_name: database_name,
+        database: database,
     });
 
     // Generate JWT token for the new user

@@ -107,11 +107,13 @@ The API server administrator can configure the database naming mode via the `TEN
 ```json
 {
   "tenant": "string",        // Required: Tenant identifier
-  "username": "string",      // Required: Desired username
+  "username": "string",      // Optional: Desired username
+                             //           Required in enterprise mode
+                             //           Defaults to 'root' in personal mode
   "naming_mode": "string",   // Optional: "enterprise" (hash) or "personal" (custom name)
                              //           Defaults to server's TENANT_NAMING_MODE setting
-  "database_name": "string"  // Optional: Custom database name (personal mode only)
-                             //           If not provided, tenant name is used
+  "database": "string"       // Optional: Custom database name (personal mode only)
+                             //           Defaults to sanitized tenant name
 }
 ```
 
@@ -129,7 +131,11 @@ The API server administrator can configure the database naming mode via the `TEN
 - Stricter validation (alphanumeric, hyphens, underscores, spaces only)
 - Requires uniqueness checks (collisions return 409 error)
 
-**Note**: The `naming_mode` and `database_name` parameters are only effective when the server administrator has configured `TENANT_NAMING_MODE=personal` or allows per-request mode selection. Contact your API administrator to determine the available configuration.
+**Personal Mode Defaults**:
+- If `username` is not provided, defaults to `'root'`
+- If `database` is not provided, uses the sanitized `tenant` name (e.g., "monk-irc" → "tenant_monk_irc")
+
+**Note**: The `naming_mode` and `database` parameters are only effective when the server administrator has configured `TENANT_NAMING_MODE=personal` or allows per-request mode selection. Contact your API administrator to determine the available configuration.
 
 #### Success Response (200)
 ```json
@@ -150,9 +156,9 @@ The API server administrator can configure the database naming mode via the `TEN
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `TENANT_MISSING` | "Tenant is required" | Missing tenant field |
-| 400 | `USERNAME_MISSING` | "Username is required" | Missing username field |
+| 400 | `USERNAME_MISSING` | "Username is required in enterprise mode" | Missing username in enterprise mode |
 | 400 | `INVALID_NAMING_MODE` | "Invalid naming_mode. Must be 'enterprise' or 'personal'" | Invalid naming_mode value |
-| 400 | `DATABASE_NAME_NOT_ALLOWED` | "database_name can only be specified in personal naming mode" | database_name provided without personal mode |
+| 400 | `DATABASE_NOT_ALLOWED` | "database parameter can only be specified in personal naming mode" | database provided without personal mode |
 | 404 | `TEMPLATE_NOT_FOUND` | "Template 'empty' not found" | Default template missing |
 | 409 | `TENANT_EXISTS` | "Tenant '<name>' already exists" | Tenant name already registered |
 | 409 | `DATABASE_EXISTS` | "Database '<name>' already exists" | Database name collision (personal mode) |

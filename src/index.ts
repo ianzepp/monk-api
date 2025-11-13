@@ -69,6 +69,7 @@ import AggregateSchemaPost from '@src/routes/aggregate/:schema/POST.js'; // POST
 logger.info('Checking database connection:');
 logger.info('- NODE_ENV:', process.env.NODE_ENV);
 logger.info('- DATABASE_URL:', process.env.DATABASE_URL);
+logger.info('- TENANT_NAMING_MODE:', process.env.TENANT_NAMING_MODE || 'default (enterprise)');
 checkDatabaseConnection();
 
 // Create Hono app

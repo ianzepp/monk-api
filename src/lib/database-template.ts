@@ -13,10 +13,10 @@ const execAsync = promisify(exec);
 export interface TemplateCloneOptions {
     template_name: string;
     tenant_name?: string; // Optional - will be generated if not provided
-    username: string;
+    username?: string; // Optional - defaults to 'root' in personal mode
     user_access?: string; // Default: 'full'
     naming_mode?: 'enterprise' | 'personal'; // Database naming mode (default: enterprise or from env)
-    database_name?: string; // Custom database name (personal mode only)
+    database?: string; // Custom database name (personal mode only, defaults to sanitized tenant_name)
     // Future extensibility:
     // email?: string;
     // company?: string;
@@ -57,7 +57,7 @@ export class DatabaseTemplate {
      * @returns Promise<TemplateCloneResult> - New tenant credentials
      */
     static async cloneTemplate(options: TemplateCloneOptions): Promise<TemplateCloneResult> {
-        const { template_name, username, user_access = 'full' } = options;
+        const { template_name, user_access = 'full' } = options;
 
         // Get main database connection for tenant registry operations
         const mainPool = DatabaseConnection.getMainPool();
@@ -96,14 +96,22 @@ export class DatabaseTemplate {
             const mode =
                 namingMode === 'personal' ? TenantNamingMode.PERSONAL : TenantNamingMode.ENTERPRISE;
 
+            // 3a. Set default username for personal mode
+            const username = options.username || (mode === TenantNamingMode.PERSONAL ? 'root' : undefined);
+
+            if (!username) {
+                throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
+            }
+
             // 4. Generate database name
             let databaseName: string;
 
-            if (mode === TenantNamingMode.PERSONAL && options.database_name) {
+            if (mode === TenantNamingMode.PERSONAL && options.database) {
                 // Personal mode with explicit database name
-                databaseName = DatabaseNaming.generateDatabaseName(options.database_name, mode);
+                databaseName = DatabaseNaming.generateDatabaseName(options.database, mode);
             } else {
                 // Generate from tenant name (works for both modes)
+                // In personal mode, if database not specified, uses sanitized tenant name
                 databaseName = DatabaseNaming.generateDatabaseName(tenantName, mode);
             }
 
