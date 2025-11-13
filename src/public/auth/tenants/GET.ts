@@ -30,8 +30,7 @@ export default async function (context: Context) {
     // Get main database connection
     const mainPool = DatabaseConnection.getMainPool();
 
-    // Query active tenants (excluding templates and trashed)
-    // Limit to 10, oldest first by created_at
+    // Query all active tenants (excluding templates and trashed)
     const result = await mainPool.query(
         `
         SELECT name, database, description
@@ -40,8 +39,7 @@ export default async function (context: Context) {
           AND is_active = true
           AND trashed_at IS NULL
           AND deleted_at IS NULL
-        ORDER BY created_at ASC
-        LIMIT 10
+        ORDER BY name ASC
         `
     );
 
@@ -52,14 +50,15 @@ export default async function (context: Context) {
                 // Get connection to tenant database
                 const tenantPool = DatabaseConnection.getTenantPool(row.database);
 
-                // Query active users (non-deleted)
+                // Query active users (non-deleted), limit to 10, oldest first
                 const usersResult = await tenantPool.query(
                     `
                     SELECT auth
                     FROM users
                     WHERE deleted_at IS NULL
                       AND trashed_at IS NULL
-                    ORDER BY auth ASC
+                    ORDER BY created_at ASC
+                    LIMIT 10
                     `
                 );
 

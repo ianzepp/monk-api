@@ -250,9 +250,9 @@ The endpoint automatically filters:
 - Excludes template tenants (`tenant_type = 'normal'`)
 - Excludes soft-deleted tenants (`trashed_at IS NULL`)
 - Excludes hard-deleted tenants (`deleted_at IS NULL`)
-- Limited to 10 tenants maximum
-- Results are sorted by creation date (oldest first)
-- Users array includes only active, non-deleted users per tenant
+- Tenants sorted alphabetically by name
+- Users array: Limited to 10 users per tenant, sorted by creation date (oldest first)
+- Users array includes only active, non-deleted users
 
 #### Error Responses
 
