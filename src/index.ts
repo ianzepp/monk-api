@@ -105,6 +105,7 @@ app.get('/', c => {
                 '/auth/login',
                 '/auth/register',
                 '/auth/refresh',
+                '/auth/tenants',
                 '/api/auth/whoami',
                 '/api/auth/sudo'
             ],
@@ -167,6 +168,7 @@ app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
 app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
+app.get('/auth/tenants', publicAuthRoutes.TenantsGet); // GET /auth/tenants
 
 // Public docs routes
 app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
