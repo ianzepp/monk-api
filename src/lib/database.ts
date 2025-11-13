@@ -3,7 +3,7 @@ import type { DbContext, TxContext } from '@src/db/index.js';
 
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
-import { Filter } from '@src/lib/filter.js';
+import { Filter, type AggregateSpec } from '@src/lib/filter.js';
 import type { FilterData } from '@src/lib/filter-types.js';
 import type { FilterWhereOptions } from '@src/lib/filter-types.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
@@ -75,6 +75,45 @@ export class Database {
         const result = await this.execute(query, params);
 
         return parseInt(result.rows[0].count as string);
+    }
+
+    /**
+     * Aggregate data with optional GROUP BY
+     * 
+     * Executes aggregation queries (SUM, AVG, MIN, MAX, COUNT) with optional grouping.
+     * Supports filtering via where clause and respects soft delete settings.
+     * 
+     * @param schemaName - Schema to aggregate
+     * @param filterData - Filter conditions (where clause)
+     * @param aggregations - Aggregation specifications (e.g., {total: {$count: '*'}})
+     * @param groupBy - Optional columns to group by
+     * @param options - Soft delete and context options
+     * @returns Array of aggregation results
+     */
+    async aggregate(
+        schemaName: SchemaName,
+        filterData: FilterData = {},
+        aggregations: AggregateSpec,
+        groupBy?: string[],
+        options: SelectOptions = {}
+    ): Promise<any[]> {
+        const schema = await this.toSchema(schemaName);
+        
+        // Apply context-based soft delete defaults
+        const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
+        const mergedOptions = { ...defaultOptions, ...options };
+        
+        // Create filter and apply WHERE conditions
+        const filter = new Filter(schema.table)
+            .assign(filterData)
+            .withSoftDeleteOptions(mergedOptions);
+        
+        // Generate aggregation SQL
+        const { query, params } = filter.toAggregateSQL(aggregations, groupBy);
+        const result = await this.execute(query, params);
+        
+        // Convert PostgreSQL string types back to proper JSON types
+        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
 
     async selectAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {

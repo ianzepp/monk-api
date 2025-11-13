@@ -63,6 +63,7 @@ import { rootRouter } from '@src/routes/root/index.js';
 // Special protected endpoints
 import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
 import FindSchemaPost from '@src/routes/find/:schema/POST.js'; // POST /api/find/:schema
+import AggregateSchemaPost from '@src/routes/aggregate/:schema/POST.js'; // POST /api/aggregate/:schema
 
 // Check database connection before doing anything else
 logger.info('Checking database connection:');
@@ -114,6 +115,7 @@ app.get('/', c => {
                 '/api/data/:schema/:record/:relationship/:child'
             ],
             find: ['/api/find/:schema'],
+            aggregate: ['/api/aggregate/:schema'],
             bulk: ['/api/bulk'],
             file: [
                 '/api/file/list',
@@ -133,6 +135,7 @@ app.get('/', c => {
             describe: ['/docs/describe'],
             data: ['/docs/data'],
             find: ['/docs/find'],
+            aggregate: ['/docs/aggregate'],
             bulk: ['/docs/bulk'],
             file: ['/docs/file'],
             acls: ['/docs/acls'],
@@ -204,6 +207,9 @@ app.delete('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRe
 
 // 33-find-api: Find API routes
 app.post('/api/find/:schema', FindSchemaPost);
+
+// 34-aggregate-api: Aggregate API routes
+app.post('/api/aggregate/:schema', AggregateSchemaPost);
 
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);

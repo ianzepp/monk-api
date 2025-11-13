@@ -96,4 +96,33 @@ export interface FilterData {
     lookups?: any;
     related?: any;
     options?: any;
+    count?: boolean;  // Include total count in response
+    includeTotal?: boolean;  // Alias for count
+}
+
+/**
+ * Aggregation function types
+ */
+export type AggregateFunction = 
+    | { $count: string | '*' }
+    | { $sum: string }
+    | { $avg: string }
+    | { $min: string }
+    | { $max: string }
+    | { $distinct: string };  // COUNT(DISTINCT field)
+
+/**
+ * Aggregation specification for aggregate queries
+ */
+export interface AggregateSpec {
+    [key: string]: AggregateFunction;
+}
+
+/**
+ * Filter data for aggregation queries
+ */
+export interface AggregateData {
+    where?: any;
+    aggregate: AggregateSpec;
+    groupBy?: string[];
 }
