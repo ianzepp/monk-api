@@ -101,13 +101,35 @@ Exchange an existing JWT token (even if expired) for a new token while preservin
 
 Create an empty tenant (cloned from the default template) and bootstrap a full-access user. A JWT token for the new user is returned so the caller can immediately interact with protected APIs.
 
+The API server administrator can configure the database naming mode via the `TENANT_NAMING_MODE` environment variable. When running in `personal` mode, clients may optionally specify a custom database name.
+
 #### Request Body
 ```json
 {
-  "tenant": "string",     // Required: Tenant identifier
-  "username": "string"    // Required: Desired username
+  "tenant": "string",        // Required: Tenant identifier
+  "username": "string",      // Required: Desired username
+  "naming_mode": "string",   // Optional: "enterprise" (hash) or "personal" (custom name)
+                             //           Defaults to server's TENANT_NAMING_MODE setting
+  "database_name": "string"  // Optional: Custom database name (personal mode only)
+                             //           If not provided, tenant name is used
 }
 ```
+
+#### Naming Modes
+
+**Enterprise Mode (Default)**
+- Database names are SHA256 hashes (e.g., "tenant_a1b2c3d4e5f6789a")
+- Prevents collisions, opaque naming
+- Any Unicode characters allowed in tenant name
+- Most secure for multi-tenant deployments
+
+**Personal Mode**
+- Database names are human-readable (e.g., "monk-irc" → "tenant_monk_irc")
+- Useful for personal PaaS deployments where you manage tenant names
+- Stricter validation (alphanumeric, hyphens, underscores, spaces only)
+- Requires uniqueness checks (collisions return 409 error)
+
+**Note**: The `naming_mode` and `database_name` parameters are only effective when the server administrator has configured `TENANT_NAMING_MODE=personal` or allows per-request mode selection. Contact your API administrator to determine the available configuration.
 
 #### Success Response (200)
 ```json
@@ -129,8 +151,11 @@ Create an empty tenant (cloned from the default template) and bootstrap a full-a
 |--------|------------|---------|-----------|
 | 400 | `TENANT_MISSING` | "Tenant is required" | Missing tenant field |
 | 400 | `USERNAME_MISSING` | "Username is required" | Missing username field |
+| 400 | `INVALID_NAMING_MODE` | "Invalid naming_mode. Must be 'enterprise' or 'personal'" | Invalid naming_mode value |
+| 400 | `DATABASE_NAME_NOT_ALLOWED` | "database_name can only be specified in personal naming mode" | database_name provided without personal mode |
 | 404 | `TEMPLATE_NOT_FOUND` | "Template 'empty' not found" | Default template missing |
 | 409 | `TENANT_EXISTS` | "Tenant '<name>' already exists" | Tenant name already registered |
+| 409 | `DATABASE_EXISTS` | "Database '<name>' already exists" | Database name collision (personal mode) |
 | 500 | `TEMPLATE_CLONE_FAILED` | "Failed to clone template database: ..." | Template cloning failed |
 
 ---
