@@ -154,18 +154,31 @@ export class DatabaseTemplate {
                 [tenantName, databaseName, options.description || null, 'localhost', true, 'normal', namingMode]
             );
 
-            // 9. Add custom user to cloned database
+            // 9. Add custom user to cloned database (or use existing if username exists)
             const tenantPool = DatabaseConnection.getTenantPool(databaseName);
 
-            const userResult = await tenantPool.query(
-                `
-                INSERT INTO users (name, auth, access, access_read, access_edit, access_full, access_deny)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING *
-            `,
-                [`Demo User (${username})`, username, user_access, '{}', '{}', '{}', '{}']
+            // Check if user already exists (e.g., root user in template)
+            const existingUserCheck = await tenantPool.query(
+                'SELECT * FROM users WHERE auth = $1 AND deleted_at IS NULL',
+                [username]
             );
-            const newUser = userResult.rows[0];
+
+            let newUser;
+            if (existingUserCheck.rows.length > 0) {
+                // User already exists in template - use it
+                newUser = existingUserCheck.rows[0];
+            } else {
+                // Create new user
+                const userResult = await tenantPool.query(
+                    `
+                    INSERT INTO users (name, auth, access, access_read, access_edit, access_full, access_deny)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    RETURNING *
+                `,
+                    [`Demo User (${username})`, username, user_access, '{}', '{}', '{}', '{}']
+                );
+                newUser = userResult.rows[0];
+            }
 
             return {
                 tenant: tenantName,
