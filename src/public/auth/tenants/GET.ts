@@ -3,17 +3,17 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 /**
- * GET /auth/tenants - List available tenants (personal mode only)
+ * GET /auth/tenants - List available tenants with users (personal mode only)
  *
- * Returns a list of all tenant names and descriptions from the main database.
- * This endpoint is only available when the server is running in personal mode
- * (TENANT_NAMING_MODE=personal). It's useful for discovery in personal PaaS
- * deployments where users may manage multiple tenants.
+ * Returns a list of all tenant names, descriptions, and available usernames from
+ * each tenant database. This endpoint is only available when the server is running
+ * in personal mode (TENANT_NAMING_MODE=personal). It's useful for discovery in
+ * personal PaaS deployments where users may manage multiple tenants.
  *
  * In enterprise mode, this endpoint returns a 403 error for security reasons
  * (tenant discovery should not be exposed in multi-tenant SaaS environments).
  *
- * @returns Array of tenant objects with name and description
+ * @returns Array of tenant objects with name, description, and users array
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
@@ -30,27 +30,60 @@ export default async function (context: Context) {
     // Get main database connection
     const mainPool = DatabaseConnection.getMainPool();
 
-    // Query all active tenants (excluding templates and trashed)
+    // Query active tenants (excluding templates and trashed)
+    // Limit to 10, oldest first by created_at
     const result = await mainPool.query(
         `
-        SELECT name, description
+        SELECT name, database, description
         FROM tenants
         WHERE tenant_type = 'normal'
           AND is_active = true
           AND trashed_at IS NULL
           AND deleted_at IS NULL
-        ORDER BY name ASC
+        ORDER BY created_at ASC
+        LIMIT 10
         `
     );
 
-    // Map to clean response format
-    const tenants = result.rows.map((row) => ({
-        name: row.name,
-        description: row.description || null,
-    }));
+    // For each tenant, fetch available usernames from their database
+    const tenantsWithUsers = await Promise.all(
+        result.rows.map(async (row) => {
+            try {
+                // Get connection to tenant database
+                const tenantPool = DatabaseConnection.getTenantPool(row.database);
+
+                // Query active users (non-deleted)
+                const usersResult = await tenantPool.query(
+                    `
+                    SELECT auth
+                    FROM users
+                    WHERE deleted_at IS NULL
+                      AND trashed_at IS NULL
+                    ORDER BY auth ASC
+                    `
+                );
+
+                // Extract usernames
+                const users = usersResult.rows.map((userRow) => userRow.auth);
+
+                return {
+                    name: row.name,
+                    description: row.description || null,
+                    users: users,
+                };
+            } catch (error) {
+                // If tenant database is unreachable, return empty users array
+                return {
+                    name: row.name,
+                    description: row.description || null,
+                    users: [],
+                };
+            }
+        })
+    );
 
     return context.json({
         success: true,
-        data: tenants,
+        data: tenantsWithUsers,
     });
 }

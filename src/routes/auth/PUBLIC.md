@@ -222,15 +222,18 @@ None - GET request with no body.
   "data": [
     {
       "name": "monk-irc",
-      "description": "IRC bridge for Slack integration"
+      "description": "IRC bridge for Slack integration",
+      "users": ["root", "admin"]
     },
     {
       "name": "my-app",
-      "description": null
+      "description": null,
+      "users": ["root"]
     },
     {
       "name": "test-tenant",
-      "description": "Testing environment"
+      "description": "Testing environment",
+      "users": ["root", "testuser"]
     }
   ]
 }
@@ -239,6 +242,7 @@ None - GET request with no body.
 #### Response Fields
 - **name** (string): The tenant identifier used for login
 - **description** (string|null): Optional human-readable description
+- **users** (string[]): Array of available usernames for login (sorted alphabetically)
 
 #### Filtering
 The endpoint automatically filters:
@@ -246,7 +250,9 @@ The endpoint automatically filters:
 - Excludes template tenants (`tenant_type = 'normal'`)
 - Excludes soft-deleted tenants (`trashed_at IS NULL`)
 - Excludes hard-deleted tenants (`deleted_at IS NULL`)
-- Results are sorted alphabetically by name
+- Limited to 10 tenants maximum
+- Results are sorted by creation date (oldest first)
+- Users array includes only active, non-deleted users per tenant
 
 #### Error Responses
 
