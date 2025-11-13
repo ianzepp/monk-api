@@ -10,8 +10,11 @@ Comprehensive guide for running tests in the Monk API project.
 # Run only shell-based integration tests
 npm run test:sh
 
-# Run only TypeScript unit tests (planned)
+# Run only TypeScript unit tests
 npm run test:ts
+
+# Run specific TypeScript test category
+npm run test:ts 05        # Infrastructure tests
 
 # Run tests with detailed output
 TEST_VERBOSE=1 npm run test:sh
@@ -24,11 +27,11 @@ npm run test:cleanup
 
 ### Test Execution Scripts
 - **`npm run test:sh`** - Shell-based integration tests only
-- **`npm run test:ts`** - TypeScript unit tests only (planned)
+- **`npm run test:ts [pattern]`** - TypeScript unit tests (supports number patterns like `05` or ranges like `05-10`)
 - **`npm run test:cleanup`** - Clean up all test databases without running tests
 
 ### Test Execution
-Tests are run individually using either `npm run test:sh` for shell integration tests or `npm run test:ts` for TypeScript unit tests (planned). Shell tests provide end-to-end API testing with real database operations.
+Tests are run individually using either `npm run test:sh` for shell integration tests or `npm run test:ts` for TypeScript unit tests. Shell tests provide end-to-end API testing with real database operations, while TypeScript tests provide fast unit testing of core infrastructure components.
 
 ## Test Selection
 
@@ -277,10 +280,10 @@ time npm run test:sh 15-auth  # Uses fresh setup
   - Parallel execution capabilities
 
 ### Testing Strategy
-The project uses shell tests for comprehensive end-to-end coverage:
-- **Shell Tests**: Comprehensive end-to-end coverage (current)
-- **TypeScript Unit Tests**: Fast logic validation (planned)
-- **TypeScript Integration Tests**: Direct class testing (planned)
+The project uses both shell and TypeScript tests:
+- **Shell Tests**: Comprehensive end-to-end API coverage
+- **TypeScript Unit Tests**: Fast logic validation for infrastructure components
+- **TypeScript Integration Tests**: Direct class testing (expanding)
 
 ## Test Categories by Purpose
 

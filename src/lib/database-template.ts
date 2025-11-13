@@ -1,8 +1,9 @@
-import crypto from 'crypto';
+import { randomBytes } from 'crypto';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from './database-connection.js';
+import { DatabaseNaming } from './database-naming.js';
 
 const execAsync = promisify(exec);
 
@@ -83,7 +84,7 @@ export class DatabaseTemplate {
 
             if (!tenantName) {
                 const timestamp = Date.now();
-                const random = crypto.randomBytes(4).toString('hex');
+                const random = randomBytes(4).toString('hex');
                 tenantName = `demo_${timestamp}_${random}`;
             }
 
@@ -150,9 +151,10 @@ export class DatabaseTemplate {
     /**
      * Generate tenant database name using production hashing logic
      * (matches TenantService.tenantNameToDatabase())
+     *
+     * @deprecated Use DatabaseNaming.generateDatabaseName() instead
      */
     private static hashTenantName(tenantName: string): string {
-        const hash = crypto.createHash('sha256').update(tenantName).digest('hex').substring(0, 16);
-        return `tenant_${hash}`;
+        return DatabaseNaming.generateDatabaseName(tenantName);
     }
 }
