@@ -101,41 +101,69 @@ Exchange an existing JWT token (even if expired) for a new token while preservin
 
 Create an empty tenant (cloned from the default template) and bootstrap a full-access user. A JWT token for the new user is returned so the caller can immediately interact with protected APIs.
 
-The API server administrator can configure the database naming mode via the `TENANT_NAMING_MODE` environment variable. When running in `personal` mode, clients may optionally specify a custom database name.
+**Note**: The API server administrator controls the database naming mode via the `TENANT_NAMING_MODE` environment variable. This is not client-configurable for security reasons.
 
 #### Request Body
 ```json
 {
   "tenant": "string",        // Required: Tenant identifier
   "username": "string",      // Optional: Desired username
-                             //           Required in enterprise mode
-                             //           Defaults to 'root' in personal mode
-  "naming_mode": "string",   // Optional: "enterprise" (hash) or "personal" (custom name)
-                             //           Defaults to server's TENANT_NAMING_MODE setting
-  "database": "string"       // Optional: Custom database name (personal mode only)
-                             //           Defaults to sanitized tenant name
+                             //           Required when server is in enterprise mode
+                             //           Defaults to 'root' when server is in personal mode
+  "database": "string"       // Optional: Custom database name (only when server is in personal mode)
+                             //           Defaults to sanitized tenant name if not provided
 }
 ```
 
-#### Naming Modes
+#### Server Naming Modes
 
-**Enterprise Mode (Default)**
+The server administrator configures the database naming strategy via the `TENANT_NAMING_MODE` environment variable:
+
+**Enterprise Mode (Default - `TENANT_NAMING_MODE=enterprise`)**
 - Database names are SHA256 hashes (e.g., "tenant_a1b2c3d4e5f6789a")
 - Prevents collisions, opaque naming
 - Any Unicode characters allowed in tenant name
-- Most secure for multi-tenant deployments
+- Most secure for multi-tenant SaaS deployments
+- `username` parameter is **required**
 
-**Personal Mode**
+**Personal Mode (`TENANT_NAMING_MODE=personal`)**
 - Database names are human-readable (e.g., "monk-irc" → "tenant_monk_irc")
-- Useful for personal PaaS deployments where you manage tenant names
-- Stricter validation (alphanumeric, hyphens, underscores, spaces only)
-- Requires uniqueness checks (collisions return 409 error)
+- Useful for personal PaaS deployments where you control all tenants
+- `username` parameter is **optional** (defaults to `'root'`)
+- `database` parameter is **optional** (defaults to sanitized `tenant` name)
+- Stricter tenant name validation (alphanumeric, hyphens, underscores, spaces only)
 
-**Personal Mode Defaults**:
-- If `username` is not provided, defaults to `'root'`
-- If `database` is not provided, uses the sanitized `tenant` name (e.g., "monk-irc" → "tenant_monk_irc")
+#### Example Usage
 
-**Note**: The `naming_mode` and `database` parameters are only effective when the server administrator has configured `TENANT_NAMING_MODE=personal` or allows per-request mode selection. Contact your API administrator to determine the available configuration.
+**Enterprise Mode Server:**
+```bash
+POST /auth/register
+{
+  "tenant": "acme-corp",
+  "username": "admin"
+}
+# Results: database = "tenant_a1b2c3d4e5f6789a" (hash)
+```
+
+**Personal Mode Server (minimal):**
+```bash
+POST /auth/register
+{
+  "tenant": "monk-irc"
+}
+# Results: username = "root", database = "tenant_monk_irc"
+```
+
+**Personal Mode Server (custom database):**
+```bash
+POST /auth/register
+{
+  "tenant": "monk-irc",
+  "username": "admin",
+  "database": "my-irc-bridge"
+}
+# Results: username = "admin", database = "tenant_my_irc_bridge"
+```
 
 #### Success Response (200)
 ```json
@@ -156,9 +184,8 @@ The API server administrator can configure the database naming mode via the `TEN
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `TENANT_MISSING` | "Tenant is required" | Missing tenant field |
-| 400 | `USERNAME_MISSING` | "Username is required in enterprise mode" | Missing username in enterprise mode |
-| 400 | `INVALID_NAMING_MODE` | "Invalid naming_mode. Must be 'enterprise' or 'personal'" | Invalid naming_mode value |
-| 400 | `DATABASE_NOT_ALLOWED` | "database parameter can only be specified in personal naming mode" | database provided without personal mode |
+| 400 | `USERNAME_MISSING` | "Username is required" | Missing username when server is in enterprise mode |
+| 400 | `DATABASE_NOT_ALLOWED` | "database parameter can only be specified when server is in personal mode" | database provided when server is in enterprise mode |
 | 404 | `TEMPLATE_NOT_FOUND` | "Template 'empty' not found" | Default template missing |
 | 409 | `TENANT_EXISTS` | "Tenant '<name>' already exists" | Tenant name already registered |
 | 409 | `DATABASE_EXISTS` | "Database '<name>' already exists" | Database name collision (personal mode) |
