@@ -10,18 +10,40 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * Creates a new tenant from the 'empty' template with a user-specified tenant name.
  * Returns a JWT token for immediate access to the new tenant.
  *
+ * The server's TENANT_NAMING_MODE environment variable controls the database naming strategy:
+ * - enterprise mode: Database names are SHA256 hashes, username required
+ * - personal mode: Database names are human-readable, username defaults to 'root'
+ *
+ * Request body:
+ * - tenant (required): User-facing tenant name
+ * - username (optional): Username for the tenant admin. Defaults to 'root' in personal mode, required in enterprise mode
+ * - database (optional): Custom database name (personal mode only). Defaults to sanitized tenant name
+ * - description (optional): Human-readable description of the tenant
+ *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username } = await context.req.json();
+    const { tenant, username, database, description } = await context.req.json();
 
     // Input validation
     if (!tenant) {
         throw HttpErrors.badRequest('Tenant is required', 'TENANT_MISSING');
     }
 
-    if (!username) {
+    // Determine mode from server configuration (not client-controlled)
+    const serverMode = (process.env.TENANT_NAMING_MODE || 'enterprise') as 'enterprise' | 'personal';
+    
+    // Username is required in enterprise mode, optional in personal mode (defaults to 'root')
+    if (!username && serverMode !== 'personal') {
         throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
+    }
+
+    // Validate database only allowed in personal mode
+    if (database && serverMode !== 'personal') {
+        throw HttpErrors.badRequest(
+            'database parameter can only be specified when server is in personal mode',
+            'DATABASE_NOT_ALLOWED'
+        );
     }
 
     // Clone empty template with user-provided tenant name
@@ -29,7 +51,10 @@ export default async function (context: Context) {
         template_name: 'empty',
         tenant_name: tenant,
         username: username,
-        user_access: 'full',
+        user_access: 'root',
+        naming_mode: serverMode,
+        database: database,
+        description: description,
     });
 
     // Generate JWT token for the new user

@@ -1,12 +1,12 @@
 import { FilterWhere } from '@src/lib/filter-where.js';
 import { FilterOrder } from '@src/lib/filter-order.js';
-import { FilterOp, type FilterWhereInfo, type FilterWhereOptions, type FilterData, type ConditionNode, type FilterOrderInfo } from '@src/lib/filter-types.js';
+import { FilterOp, type FilterWhereInfo, type FilterWhereOptions, type FilterData, type ConditionNode, type FilterOrderInfo, type AggregateSpec, type AggregateFunction } from '@src/lib/filter-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { logger } from '@src/lib/logger.js';
 import type { SystemContext } from '@src/lib/system-context-types.js';
 
 // Re-export types for convenience
-export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterOrderInfo, ConditionNode } from '@src/lib/filter-types.js';
+export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterOrderInfo, ConditionNode, AggregateSpec, AggregateFunction } from '@src/lib/filter-types.js';
 
 /**
  * Filter - Enterprise-Grade Database Query Builder
@@ -22,7 +22,7 @@ export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterO
  * Quick Examples:
  * - Basic: `{ name: { $ilike: "john%" }, status: "active" }`
  * - ACL: `{ access_read: { $any: ["user-123", "group-456"] } }`
- * - Logic: `{ $and: [{ $or: [{ role: "admin" }, { verified: true }] }] }`
+ * - Logic: `{ $and: [{ $or: [{ access: "root" }, { verified: true }] }] }`
  *
  * Architecture: Filter → FilterWhere → FilterOrder → SQL generation
  * Integration: Observer pipeline, soft delete filtering, schema validation
@@ -500,6 +500,137 @@ export class Filter {
             });
             throw error;
         }
+    }
+
+    /**
+     * Generate aggregation query with parameters
+     *
+     * Returns an aggregation query (SUM, AVG, MIN, MAX, COUNT) with optional GROUP BY.
+     * Useful for analytics, dashboards, and statistical queries.
+     */
+    toAggregateSQL(aggregations: AggregateSpec, groupBy?: string[]): { query: string; params: any[] } {
+        try {
+            // Build aggregation SELECT clause
+            const aggregateClause = this.buildAggregateClause(aggregations);
+            
+            // Build GROUP BY clause if provided
+            const groupByClause = this.buildGroupByClause(groupBy);
+            
+            // Get WHERE clause with parameters
+            const { whereClause, params } = this.toWhereSQL();
+            
+            // Build complete query
+            const selectParts: string[] = [];
+            
+            // Add GROUP BY columns to SELECT
+            if (groupBy && groupBy.length > 0) {
+                selectParts.push(...groupBy.map(col => `"${this.sanitizeColumnName(col)}"`));
+            }
+            
+            // Add aggregations to SELECT
+            selectParts.push(aggregateClause);
+            
+            const query = [
+                `SELECT ${selectParts.join(', ')}`,
+                `FROM "${this._tableName}"`,
+                whereClause ? `WHERE ${whereClause}` : '',
+                groupByClause
+            ].filter(Boolean).join(' ');
+
+            logger.debug('Aggregation query generated successfully', {
+                tableName: this._tableName,
+                aggregationCount: Object.keys(aggregations).length,
+                groupByColumns: groupBy?.length || 0,
+                paramCount: params.length
+            });
+
+            return { query, params };
+        } catch (error) {
+            logger.warn('Aggregation query generation failed', {
+                tableName: this._tableName,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Build aggregation SELECT clause from AggregateSpec
+     */
+    private buildAggregateClause(aggregations: AggregateSpec): string {
+        const aggregateParts: string[] = [];
+        
+        for (const [alias, aggFunc] of Object.entries(aggregations)) {
+            // Validate alias
+            const sanitizedAlias = this.sanitizeColumnName(alias);
+            
+            // Extract function and field
+            if ('$count' in aggFunc) {
+                const field = aggFunc.$count;
+                if (field === '*') {
+                    aggregateParts.push(`COUNT(*) as "${sanitizedAlias}"`);
+                } else {
+                    const sanitizedField = this.sanitizeColumnName(field);
+                    aggregateParts.push(`COUNT("${sanitizedField}") as "${sanitizedAlias}"`);
+                }
+            } else if ('$sum' in aggFunc) {
+                const sanitizedField = this.sanitizeColumnName(aggFunc.$sum);
+                aggregateParts.push(`SUM("${sanitizedField}") as "${sanitizedAlias}"`);
+            } else if ('$avg' in aggFunc) {
+                const sanitizedField = this.sanitizeColumnName(aggFunc.$avg);
+                aggregateParts.push(`AVG("${sanitizedField}") as "${sanitizedAlias}"`);
+            } else if ('$min' in aggFunc) {
+                const sanitizedField = this.sanitizeColumnName(aggFunc.$min);
+                aggregateParts.push(`MIN("${sanitizedField}") as "${sanitizedAlias}"`);
+            } else if ('$max' in aggFunc) {
+                const sanitizedField = this.sanitizeColumnName(aggFunc.$max);
+                aggregateParts.push(`MAX("${sanitizedField}") as "${sanitizedAlias}"`);
+            } else if ('$distinct' in aggFunc) {
+                const sanitizedField = this.sanitizeColumnName(aggFunc.$distinct);
+                aggregateParts.push(`COUNT(DISTINCT "${sanitizedField}") as "${sanitizedAlias}"`);
+            } else {
+                throw HttpErrors.badRequest(`Unknown aggregation function for alias '${alias}'`, 'FILTER_INVALID_AGGREGATION');
+            }
+        }
+        
+        if (aggregateParts.length === 0) {
+            throw HttpErrors.badRequest('At least one aggregation function required', 'FILTER_NO_AGGREGATIONS');
+        }
+        
+        return aggregateParts.join(', ');
+    }
+
+    /**
+     * Build GROUP BY clause with proper escaping
+     */
+    private buildGroupByClause(groupBy?: string[]): string {
+        if (!groupBy || groupBy.length === 0) {
+            return '';
+        }
+        
+        // Validate and sanitize column names
+        const sanitizedColumns = groupBy.map(col => {
+            const sanitized = this.sanitizeColumnName(col);
+            return `"${sanitized}"`;
+        });
+        
+        return `GROUP BY ${sanitizedColumns.join(', ')}`;
+    }
+
+    /**
+     * Sanitize column name to prevent SQL injection
+     */
+    private sanitizeColumnName(column: string): string {
+        if (!column || typeof column !== 'string') {
+            throw HttpErrors.badRequest('Column name must be a non-empty string', 'FILTER_INVALID_COLUMN');
+        }
+        
+        // Allow alphanumeric and underscore only
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
+            throw HttpErrors.badRequest(`Invalid column name format: ${column}`, 'FILTER_INVALID_COLUMN_FORMAT');
+        }
+        
+        return column;
     }
 
     /**

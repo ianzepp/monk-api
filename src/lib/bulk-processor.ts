@@ -13,6 +13,7 @@ export enum BulkOperationType {
     Select404 = 'select-404',
     SelectMax = 'select-max',
     Count = 'count',
+    Aggregate = 'aggregate',
     
     // Write operations
     Create = 'create',
@@ -50,6 +51,9 @@ export interface BulkOperation {
     filter?: any;
     id?: string;
     message?: string;
+    aggregate?: Record<string, any>;
+    groupBy?: string[] | string;
+    where?: any;
     result?: any; // Populated after execution
 }
 
@@ -140,25 +144,158 @@ export class BulkProcessor {
             BulkOperationType.AccessOne, BulkOperationType.Access404
         ];
 
-        if (requiresId.includes(op.operation) && !op.id) {
-            throw HttpErrors.badRequest(
-                `Operation at index ${index} (${op.operation}) requires id field`, 
-                'OPERATION_MISSING_ID'
-            );
+        if (requiresId.includes(op.operation)) {
+            if (typeof op.id !== 'string' || op.id.trim().length === 0) {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) requires id field`,
+                    'OPERATION_MISSING_ID'
+                );
+            }
         }
 
         // Operations requiring data
         const requiresData = [
-            BulkOperationType.Create, BulkOperationType.CreateOne, BulkOperationType.CreateAll,
-            BulkOperationType.Update, BulkOperationType.UpdateOne, BulkOperationType.UpdateAll,
-            BulkOperationType.Access, BulkOperationType.AccessOne, BulkOperationType.AccessAll
+            BulkOperationType.Create,
+            BulkOperationType.CreateOne,
+            BulkOperationType.CreateAll,
+            BulkOperationType.Update,
+            BulkOperationType.UpdateOne,
+            BulkOperationType.UpdateAll,
+            BulkOperationType.UpdateAny,
+            BulkOperationType.Update404,
+            BulkOperationType.DeleteAll,
+            BulkOperationType.Access,
+            BulkOperationType.AccessOne,
+            BulkOperationType.AccessAll,
+            BulkOperationType.AccessAny,
+            BulkOperationType.Access404
         ];
 
-        if (requiresData.includes(op.operation) && !op.data) {
+        if (requiresData.includes(op.operation) && (op.data === undefined || op.data === null)) {
             throw HttpErrors.badRequest(
-                `Operation at index ${index} (${op.operation}) requires data field`, 
+                `Operation at index ${index} (${op.operation}) requires data field`,
                 'OPERATION_MISSING_DATA'
             );
+        }
+
+        const arrayDataOperations = [
+            BulkOperationType.CreateAll,
+            BulkOperationType.UpdateAll,
+            BulkOperationType.DeleteAll,
+            BulkOperationType.AccessAll
+        ];
+
+        if (arrayDataOperations.includes(op.operation)) {
+            if (!Array.isArray(op.data)) {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) requires data to be an array`,
+                    'OPERATION_INVALID_DATA'
+                );
+            }
+
+            for (let itemIndex = 0; itemIndex < op.data.length; itemIndex++) {
+                const item = op.data[itemIndex];
+                if (typeof item !== 'object' || item === null) {
+                    throw HttpErrors.badRequest(
+                        `Operation at index ${index} (${op.operation}) requires each array item to be an object`,
+                        'OPERATION_INVALID_DATA'
+                    );
+                }
+
+                const requiresItemId = [
+                    BulkOperationType.UpdateAll,
+                    BulkOperationType.DeleteAll,
+                    BulkOperationType.AccessAll
+                ];
+                if (requiresItemId.includes(op.operation)) {
+                    if (typeof (item as any).id !== 'string' || (item as any).id.trim().length === 0) {
+                        throw HttpErrors.badRequest(
+                            `Operation at index ${index} (${op.operation}) requires each array item to include an id`,
+                            'OPERATION_MISSING_ID'
+                        );
+                    }
+                }
+            }
+        }
+
+        const objectDataOperations = [
+            BulkOperationType.Create,
+            BulkOperationType.CreateOne,
+            BulkOperationType.Update,
+            BulkOperationType.UpdateOne,
+            BulkOperationType.UpdateAny,
+            BulkOperationType.Update404,
+            BulkOperationType.Access,
+            BulkOperationType.AccessOne,
+            BulkOperationType.AccessAny,
+            BulkOperationType.Access404
+        ];
+
+        if (objectDataOperations.includes(op.operation)) {
+            if (typeof op.data !== 'object' || Array.isArray(op.data) || op.data === null) {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) requires data to be an object`,
+                    'OPERATION_INVALID_DATA'
+                );
+            }
+        }
+
+        const requiresFilter = [
+            BulkOperationType.UpdateAny,
+            BulkOperationType.DeleteAny,
+            BulkOperationType.AccessAny
+        ];
+
+        if (requiresFilter.includes(op.operation)) {
+            if (typeof op.filter !== 'object' || op.filter === null) {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) requires filter to be an object`,
+                    'OPERATION_MISSING_FILTER'
+                );
+            }
+        }
+
+        const disallowFilter = [
+            BulkOperationType.UpdateAll,
+            BulkOperationType.DeleteAll,
+            BulkOperationType.AccessAll
+        ];
+
+        if (disallowFilter.includes(op.operation) && op.filter !== undefined && op.filter !== null) {
+            throw HttpErrors.badRequest(
+                `Operation at index ${index} (${op.operation}) does not support filter; use update-any/delete-any/access-any instead`,
+                'OPERATION_INVALID_FILTER'
+            );
+        }
+
+        if (op.operation === BulkOperationType.Aggregate) {
+            if (typeof op.aggregate !== 'object' || op.aggregate === null || Array.isArray(op.aggregate)) {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) requires aggregate to be an object`,
+                    'OPERATION_MISSING_AGGREGATE'
+                );
+            }
+
+            if (Object.keys(op.aggregate).length === 0) {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) requires aggregate to include at least one aggregation`,
+                    'OPERATION_MISSING_AGGREGATE'
+                );
+            }
+
+            if (op.data !== undefined) {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) does not use data; remove data and use aggregate/groupBy/filter fields`,
+                    'OPERATION_INVALID_DATA'
+                );
+            }
+
+            if (op.groupBy !== undefined && !Array.isArray(op.groupBy) && typeof op.groupBy !== 'string') {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) requires groupBy to be a string or array of strings`,
+                    'OPERATION_INVALID_GROUP_BY'
+                );
+            }
         }
     }
 
@@ -213,6 +350,21 @@ export class BulkProcessor {
                 
             case BulkOperationType.Count:
                 return await this.system.database.count(schemaName, filter);
+
+            case BulkOperationType.Aggregate: {
+                const aggregateFilter = filter || (op.where ? { where: op.where } : {});
+                const groupBy = Array.isArray(op.groupBy)
+                    ? op.groupBy
+                    : typeof op.groupBy === 'string'
+                        ? [op.groupBy]
+                        : undefined;
+                return await this.system.database.aggregate(
+                    schemaName,
+                    aggregateFilter,
+                    op.aggregate!,
+                    groupBy
+                );
+            }
 
             // Write operations
             case BulkOperationType.Create:

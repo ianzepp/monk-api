@@ -20,10 +20,11 @@ export interface JWTPayload {
     access_full: string[];
     iat: number;
     exp: number;
-    // Privilege elevation metadata (optional)
-    elevated_from?: string;
-    elevated_at?: string;
-    elevation_reason?: string;
+    // Sudo elevation metadata (optional)
+    is_sudo?: boolean; // True if this is a short-lived sudo token
+    elevated_from?: string; // Original access level before sudo
+    elevated_at?: string; // When sudo was granted
+    elevation_reason?: string; // Why sudo was requested
     [key: string]: any;
 }
 

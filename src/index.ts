@@ -58,16 +58,18 @@ import * as dataRoutes from '@src/routes/data/routes.js';
 import * as describeRoutes from '@src/routes/describe/routes.js';
 import * as fileRoutes from '@src/routes/file/routes.js';
 import * as aclsRoutes from '@src/routes/acls/routes.js';
-import { rootRouter } from '@src/routes/root/index.js';
+import { sudoRouter } from '@src/routes/sudo/index.js';
 
 // Special protected endpoints
 import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
 import FindSchemaPost from '@src/routes/find/:schema/POST.js'; // POST /api/find/:schema
+import AggregateSchemaPost from '@src/routes/aggregate/:schema/POST.js'; // POST /api/aggregate/:schema
 
 // Check database connection before doing anything else
 logger.info('Checking database connection:');
 logger.info('- NODE_ENV:', process.env.NODE_ENV);
 logger.info('- DATABASE_URL:', process.env.DATABASE_URL);
+logger.info('- TENANT_NAMING_MODE:', process.env.TENANT_NAMING_MODE || 'default (enterprise)');
 checkDatabaseConnection();
 
 // Create Hono app
@@ -103,6 +105,7 @@ app.get('/', c => {
                 '/auth/login',
                 '/auth/register',
                 '/auth/refresh',
+                '/auth/tenants',
                 '/api/auth/whoami',
                 '/api/auth/sudo'
             ],
@@ -114,6 +117,7 @@ app.get('/', c => {
                 '/api/data/:schema/:record/:relationship/:child'
             ],
             find: ['/api/find/:schema'],
+            aggregate: ['/api/aggregate/:schema'],
             bulk: ['/api/bulk'],
             file: [
                 '/api/file/list',
@@ -125,18 +129,19 @@ app.get('/', c => {
                 '/api/file/modify-time'
             ],
             acls: ['/api/acls/:schema/:record'],
-            root: ['/api/root/*']
+            sudo: ['/api/sudo/*']
         },
         documentation: {
             home: ['/README.md'],
-            auth: ['/docs/auth', '/docs/public-auth'],
+            auth: ['/docs/auth'],
             describe: ['/docs/describe'],
             data: ['/docs/data'],
             find: ['/docs/find'],
+            aggregate: ['/docs/aggregate'],
             bulk: ['/docs/bulk'],
             file: ['/docs/file'],
             acls: ['/docs/acls'],
-            root: ['/docs/root'],
+            sudo: ['/docs/sudo'],
         },
     };
 
@@ -163,6 +168,7 @@ app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
 app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
+app.get('/auth/tenants', publicAuthRoutes.TenantsGet); // GET /auth/tenants
 
 // Public docs routes
 app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
@@ -205,6 +211,9 @@ app.delete('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRe
 // 33-find-api: Find API routes
 app.post('/api/find/:schema', FindSchemaPost);
 
+// 34-aggregate-api: Aggregate API routes
+app.post('/api/aggregate/:schema', AggregateSchemaPost);
+
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);
 
@@ -223,9 +232,9 @@ app.post('/api/acls/:schema/:record', aclsRoutes.RecordAclPost); // Merge acls f
 app.put('/api/acls/:schema/:record', aclsRoutes.RecordAclPut); // Replace acls for a single record
 app.delete('/api/acls/:schema/:record', aclsRoutes.RecordAclDelete); // Delete acls for a single record
 
-// 39-root-api: Root API routes (require elevated root access)
-app.use('/api/root/*', middleware.rootAccessMiddleware);
-app.route('/api/root', rootRouter);
+// 39-sudo-api: Sudo API routes (require sudo token from /api/auth/sudo)
+app.use('/api/sudo/*', middleware.sudoAccessMiddleware);
+app.route('/api/sudo', sudoRouter);
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

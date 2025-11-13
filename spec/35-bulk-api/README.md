@@ -8,6 +8,7 @@ Comprehensive test suite for the Bulk API covering transaction safety, rollback 
 - **create-accounts-simple.test.sh** - Basic bulk creation with multiple records
 - **rollback-check.test.sh** - Transaction rollback on validation failures
 - **rollback-mixed-operations.test.sh** - Mixed operation rollback across schemas
+- **update-and-aggregate.test.sh** - Validation coverage for update variants and aggregate helper
 
 ## Test Environment
 

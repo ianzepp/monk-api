@@ -1,5 +1,7 @@
 import { FileTimestampFormatter } from '@src/lib/file-api/file-timestamp-formatter.js';
 import { FileContentCalculator } from '@src/lib/file-api/file-content-calculator.js';
+import { filterRecordFields } from '@src/lib/file-api/file-record-filter.js';
+import { sortFileEntries } from '@src/lib/file-api/file-entry-sorter.js';
 import type {
     FileEntry,
     FileListRequest,
@@ -18,6 +20,8 @@ import { FilePathParser } from '@src/lib/file-api/file-path-parser.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { isSystemField } from '@src/lib/describe.js';
+import type { FilterData } from '@src/lib/filter-types.js';
+
 
 interface ListResult {
     entries: FileEntry[];
@@ -98,15 +102,15 @@ export class FileOperationService {
 
         switch (filePath.type) {
             case 'root':
-                return this.listRoot();
+                return this.listRoot(options);
             case 'data':
             case 'describe':
-                return this.listSchemas(filePath.type);
+                return this.listSchemas(filePath.type, options);
             case 'schema':
                 if (filePath.has_wildcards) {
                     if (filePath.schema === '*') {
                         const namespace = filePath.raw_path.startsWith('/describe') ? 'describe' : 'data';
-                        return this.listSchemas(namespace as 'data' | 'describe');
+                        return this.listSchemas(namespace as 'data' | 'describe', options);
                     }
                     throw HttpErrors.badRequest('Schema wildcards must use "*" to match all schemas', 'SCHEMA_WILDCARD_NOT_SUPPORTED');
                 }
@@ -128,7 +132,7 @@ export class FileOperationService {
                         'UUID_WILDCARD_NOT_SUPPORTED'
                     );
                 }
-                return this.listRecordFields(filePath);
+                return this.listRecordFields(filePath, options);
             default:
                 throw HttpErrors.badRequest(`Unsupported list path type: ${filePath.type}`, 'UNSUPPORTED_LIST_PATH');
         }
@@ -148,6 +152,7 @@ export class FileOperationService {
         const record = await this.requireRecord(filePath.schema!, filePath.record_id!);
         const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
         const perms = this.derivePermissions(record);
+        const showHidden = options.show_hidden ?? false;
 
         if (filePath.type === 'field') {
             if (!(filePath.field_name! in record)) {
@@ -184,7 +189,9 @@ export class FileOperationService {
             };
         }
 
-        const canonicalString = JSON.stringify(record);
+        // Filter record based on show_hidden option
+        const filteredRecord = filterRecordFields(record, showHidden);
+        const canonicalString = JSON.stringify(filteredRecord);
         const size = FileContentCalculator.calculateSize(canonicalString);
 
         if (options.format === 'raw') {
@@ -204,7 +211,7 @@ export class FileOperationService {
         }
 
         return {
-            content: record,
+            content: filteredRecord,
             metadata: this.buildFileMetadata(path, 'file', perms.permissions, size, timestampInfo.formatted, {
                 content_type: 'application/json',
                 etag: FileContentCalculator.generateETag(canonicalString),
@@ -382,7 +389,9 @@ export class FileOperationService {
             throw HttpErrors.badRequest('SIZE command only supports record and field files', 'INVALID_SIZE_PATH');
         }
 
-        const retrieve = await this.retrieve(path, { format: 'raw' });
+        // Always use show_hidden=false for consistent file size reporting
+        // File size should represent user data, not infrastructure metadata
+        const retrieve = await this.retrieve(path, { format: 'raw', show_hidden: false });
         const size = FileContentCalculator.calculateSize(retrieve.content);
         return {
             size,
@@ -412,23 +421,30 @@ export class FileOperationService {
         };
     }
 
-    private listRoot(): ListResult {
+    private listRoot(options: FileListRequest['file_options'] = {}): ListResult {
         const timestamp = FileTimestampFormatter.current();
+        const entries = [
+            this.buildDirectoryEntry('data', '/data/', timestamp),
+            this.buildDirectoryEntry('describe', '/describe/', timestamp),
+        ];
+        
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
+        
         return {
-            entries: [
-                this.buildDirectoryEntry('data', '/data/', timestamp),
-                this.buildDirectoryEntry('describe', '/describe/', timestamp),
-            ],
+            entries,
             metadata: this.buildFileMetadata('/', 'directory', this.directoryPermissions(), 0, timestamp),
         };
     }
 
-    private async listSchemas(namespace: 'data' | 'describe'): Promise<ListResult> {
+    private async listSchemas(namespace: 'data' | 'describe', options: FileListRequest['file_options'] = {}): Promise<ListResult> {
         const schemas = await this.system.database.selectAny('schemas', { order: 'name asc' });
         const timestamp = FileTimestampFormatter.current();
         const entries = schemas.map((schema: any) => ({
             name: schema.name,
-            file_type: 'd',
+            file_type: 'd' as const,
             file_size: 0,
             file_permissions: this.directoryPermissions(),
             file_modified: FileTimestampFormatter.format(schema.updated_at || schema.created_at || timestamp),
@@ -439,6 +455,11 @@ export class FileOperationService {
             },
         }));
 
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
+
         return {
             entries,
             metadata: this.buildFileMetadata(`/${namespace}`, 'directory', this.directoryPermissions(), 0, timestamp),
@@ -446,11 +467,16 @@ export class FileOperationService {
     }
 
     private async listSchemaRecords(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const sortOrder = options?.sort_order === 'desc' ? 'desc' : 'asc';
-        const sortBy = options?.sort_by === 'date' ? 'updated_at' : 'id';
-        const filter: Record<string, any> = { order: `${sortBy} ${sortOrder}` };
+        // For database query, use time-based sorting if requested, otherwise sort by ID
+        // Final sorting will be applied to file entries after mapping
+        const dbSortBy = (options?.sort_by === 'time') ? 'updated_at' : 'id';
+        const dbSortOrder = options?.sort_order === 'desc' ? 'desc' : 'asc';
+        const filter: FilterData = { order: `${dbSortBy} ${dbSortOrder}` };
         if (options?.cross_schema_limit) {
             filter.limit = options.cross_schema_limit;
+        }
+        if (options?.where !== undefined) {
+            filter.where = options.where;
         }
 
         const records = await this.system.database.selectAny(filePath.schema!, filter);
@@ -473,22 +499,57 @@ export class FileOperationService {
             };
         });
 
+        // Apply client-side sorting for name/size/type (database sorting only handles time)
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
+
         return {
             entries,
             metadata: this.buildFileMetadata(`/data/${filePath.schema}`, 'directory', this.directoryPermissions(), 0, FileTimestampFormatter.current()),
         };
     }
 
-    private async listRecordFields(filePath: FilePath): Promise<ListResult> {
-        const record = await this.requireRecord(filePath.schema!, filePath.record_id!);
+    private async listRecordFields(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
+        const recordWhere = this.composeRecordWhere(filePath.record_id!, options?.where);
+        const record = await this.system.database.selectOne(filePath.schema!, { where: recordWhere });
+
+        if (!record) {
+            if (options?.where) {
+                const existingRecord = await this.system.database.selectOne(filePath.schema!, { where: { id: filePath.record_id! } });
+                if (!existingRecord) {
+                    throw HttpErrors.notFound(`Record not found: ${filePath.record_id}`, 'RECORD_NOT_FOUND');
+                }
+
+                const fallbackTimestamp = FileTimestampFormatter.getBestTimestamp(existingRecord);
+                const fallbackPermissions = this.derivePermissions(existingRecord);
+                return {
+                    entries: [],
+                    metadata: this.buildFileMetadata(
+                        `/data/${filePath.schema}/${filePath.record_id}`,
+                        'directory',
+                        fallbackPermissions.permissions,
+                        0,
+                        fallbackTimestamp.formatted
+                    ),
+                };
+            }
+
+            throw HttpErrors.notFound(`Record not found: ${filePath.record_id}`, 'RECORD_NOT_FOUND');
+        }
+
         const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
         const perms = this.derivePermissions(record);
+        const showHidden = options?.show_hidden ?? false;
+
+        // Filter record for .json file size calculation
+        const filteredRecord = filterRecordFields(record, showHidden);
 
         const entries: FileEntry[] = [
             {
                 name: `${filePath.record_id}.json`,
                 file_type: 'f',
-                file_size: FileContentCalculator.calculateRecordSize(record),
+                file_size: FileContentCalculator.calculateRecordSize(filteredRecord),
                 file_permissions: perms.permissions,
                 file_modified: timestampInfo.formatted,
                 path: `/data/${filePath.schema}/${filePath.record_id}.json`,
@@ -521,6 +582,11 @@ export class FileOperationService {
                 },
             });
         }
+
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
 
         return {
             entries,
@@ -582,7 +648,10 @@ export class FileOperationService {
         const perms = this.derivePermissions(record);
 
         if (filePath.is_json_file) {
-            const canonicalString = JSON.stringify(record);
+            // Always filter system fields for consistent file size reporting
+            // The "file" is the user data, not the infrastructure metadata
+            const filteredRecord = filterRecordFields(record, false);
+            const canonicalString = JSON.stringify(filteredRecord);
             return {
                 metadata: this.buildFileMetadata(filePath.normalized_path, 'file', perms.permissions, FileContentCalculator.calculateSize(canonicalString), timestampInfo.formatted, {
                     created_time: FileTimestampFormatter.format(record.created_at),
@@ -684,6 +753,23 @@ export class FileOperationService {
                     formatted: FileTimestampFormatter.current(),
                 };
         }
+    }
+
+    private composeRecordWhere(recordId: string, whereClause?: FilterData['where']): any {
+        if (!whereClause) {
+            return { id: recordId };
+        }
+
+        if (typeof whereClause === 'object' && whereClause !== null && Object.keys(whereClause).length === 0) {
+            return { id: recordId };
+        }
+
+        return {
+            $and: [
+                { id: recordId },
+                whereClause,
+            ],
+        };
     }
 
     private buildDirectoryEntry(name: string, path: string, timestamp: string): FileEntry {

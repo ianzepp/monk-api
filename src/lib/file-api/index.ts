@@ -9,6 +9,8 @@ export { FilePathParser } from './file-path-parser.js';
 export { FilePermissionValidator } from './file-permission-validator.js';
 export { FileTimestampFormatter } from './file-timestamp-formatter.js';
 export { FileContentCalculator } from './file-content-calculator.js';
+export { filterRecordFields, isHiddenField, getVisibleFieldNames } from './file-record-filter.js';
+export { sortFileEntries } from './file-entry-sorter.js';
 
 export type {
     // Core types

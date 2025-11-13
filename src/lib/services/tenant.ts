@@ -15,9 +15,9 @@
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createHash } from 'crypto';
 import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection, MONK_DB_MAIN_NAME } from '@src/lib/database-connection.js';
+import { DatabaseNaming } from '@src/lib/database-naming.js';
 import { Describe } from '@src/lib/describe.js';
 import pg from 'pg';
 
@@ -106,16 +106,11 @@ export class TenantService {
      *   "My Cool App" → "tenant_a1b2c3d4e5f6789a" (16-char hash with prefix)
      *   "测试应用" → "tenant_f9e8d7c6b5a49382" (16-char hash with prefix)
      *   "🚀 Rocket" → "tenant_d4c9b8a7f6e51203" (16-char hash with prefix)
+     *
+     * @deprecated Use DatabaseNaming.generateDatabaseName() instead
      */
     static tenantNameToDatabase(tenantName: string): string {
-        // Normalize Unicode for consistent hashing
-        const normalizedName = tenantName.trim().normalize('NFC');
-
-        // Generate SHA256 hash and take first 16 characters
-        const hash = createHash('sha256').update(normalizedName, 'utf8').digest('hex').substring(0, 16);
-
-        // Add prefix to distinguish from test databases (which use test_*)
-        return `tenant_${hash}`;
+        return DatabaseNaming.generateDatabaseName(tenantName);
     }
 
     /**

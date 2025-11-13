@@ -19,6 +19,18 @@ export async function responseJsonMiddleware(context: Context, next: Next) {
     const routeResult = context.get('routeResult');
     
     if (routeResult !== undefined && !context.res.body) {
+        // Check if total count was requested (for pagination)
+        const routeTotal = context.get('routeTotal');
+        
+        if (routeTotal !== undefined) {
+            // Include total count in response
+            return context.json({ 
+                success: true, 
+                data: routeResult,
+                total: routeTotal
+            }, 200);
+        }
+        
         return createSuccessResponse(context, routeResult);
     }
 }

@@ -1,3 +1,5 @@
+import type { FilterData } from '@src/lib/filter-types.js';
+
 /**
  * Shared types and interfaces for File API system
  *
@@ -83,11 +85,12 @@ export interface FileListRequest {
         long_format?: boolean;
         recursive?: boolean;
         max_depth?: number;
-        sort_by?: 'name' | 'date' | 'size';
+        sort_by?: 'name' | 'size' | 'time' | 'type';
         sort_order?: 'asc' | 'desc';
         pattern_optimization?: boolean;
         cross_schema_limit?: number;
         use_pattern_cache?: boolean;
+        where?: FilterData['where'];
     };
 }
 
@@ -98,6 +101,7 @@ export interface FileRetrieveRequest {
         start_offset?: number;
         max_bytes?: number;
         format?: 'json' | 'raw';
+        show_hidden?: boolean;
     };
 }
 

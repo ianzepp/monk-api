@@ -13,8 +13,9 @@ The Auth API covers both **public token acquisition routes** and **protected use
 | POST | [`/auth/login`](#post-authlogin) | Public | Authenticate against an existing tenant and issue a JWT token. |
 | POST | [`/auth/refresh`](#post-authrefresh) | Public | Exchange an existing token for a fresh one with the same scope. |
 | POST | [`/auth/register`](#post-authregister) | Public | Provision a new tenant from the default template and return an initial token. |
+| GET | [`/auth/tenants`](#get-authtenants) | Public | List available tenants (personal mode only). |
 | GET | [`/api/auth/whoami`](#get-apiauthwhoami) | Protected | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
-| POST | [`/api/auth/sudo`](#post-apiauthsudo) | Protected | Exchange a standard user token for a short-lived root token after auditing the request. |
+| POST | [`/api/auth/sudo`](#post-apiauthsudo) | Protected | Get short-lived sudo token for dangerous operations (user management). |
 
 ## Content Type
 - **Request**: `application/json`
@@ -101,12 +102,80 @@ Exchange an existing JWT token (even if expired) for a new token while preservin
 
 Create an empty tenant (cloned from the default template) and bootstrap a full-access user. A JWT token for the new user is returned so the caller can immediately interact with protected APIs.
 
+**Note**: The API server administrator controls the database naming mode via the `TENANT_NAMING_MODE` environment variable. This is not client-configurable for security reasons.
+
 #### Request Body
 ```json
 {
-  "tenant": "string",     // Required: Tenant identifier
-  "username": "string"    // Required: Desired username
+  "tenant": "string",        // Required: Tenant identifier
+  "username": "string",      // Optional: Desired username
+                             //           Required when server is in enterprise mode
+                             //           Defaults to 'root' when server is in personal mode
+  "database": "string",      // Optional: Custom database name (only when server is in personal mode)
+                             //           Defaults to sanitized tenant name if not provided
+  "description": "string"    // Optional: Human-readable description of the tenant
 }
+```
+
+#### Server Naming Modes
+
+The server administrator configures the database naming strategy via the `TENANT_NAMING_MODE` environment variable:
+
+**Enterprise Mode (Default - `TENANT_NAMING_MODE=enterprise`)**
+- Database names are SHA256 hashes (e.g., "tenant_a1b2c3d4e5f6789a")
+- Prevents collisions, opaque naming
+- Any Unicode characters allowed in tenant name
+- Most secure for multi-tenant SaaS deployments
+- `username` parameter is **required**
+
+**Personal Mode (`TENANT_NAMING_MODE=personal`)**
+- Database names are human-readable (e.g., "monk-irc" → "tenant_monk_irc")
+- Useful for personal PaaS deployments where you control all tenants
+- `username` parameter is **optional** (defaults to `'root'`)
+- `database` parameter is **optional** (defaults to sanitized `tenant` name)
+- Stricter tenant name validation (alphanumeric, hyphens, underscores, spaces only)
+
+#### Example Usage
+
+**Enterprise Mode Server:**
+```bash
+POST /auth/register
+{
+  "tenant": "acme-corp",
+  "username": "admin"
+}
+# Results: database = "tenant_a1b2c3d4e5f6789a" (hash)
+```
+
+**Personal Mode Server (minimal):**
+```bash
+POST /auth/register
+{
+  "tenant": "monk-irc"
+}
+# Results: username = "root", database = "tenant_monk_irc"
+```
+
+**Personal Mode Server (with description):**
+```bash
+POST /auth/register
+{
+  "tenant": "monk-irc",
+  "description": "IRC bridge for Slack integration"
+}
+# Results: username = "root", database = "tenant_monk_irc"
+```
+
+**Personal Mode Server (custom database):**
+```bash
+POST /auth/register
+{
+  "tenant": "monk-irc",
+  "username": "admin",
+  "database": "my-irc-bridge",
+  "description": "IRC bridge for Slack integration"
+}
+# Results: username = "admin", database = "tenant_my_irc_bridge"
 ```
 
 #### Success Response (200)
@@ -128,10 +197,84 @@ Create an empty tenant (cloned from the default template) and bootstrap a full-a
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `TENANT_MISSING` | "Tenant is required" | Missing tenant field |
-| 400 | `USERNAME_MISSING` | "Username is required" | Missing username field |
+| 400 | `USERNAME_MISSING` | "Username is required" | Missing username when server is in enterprise mode |
+| 400 | `DATABASE_NOT_ALLOWED` | "database parameter can only be specified when server is in personal mode" | database provided when server is in enterprise mode |
 | 404 | `TEMPLATE_NOT_FOUND` | "Template 'empty' not found" | Default template missing |
 | 409 | `TENANT_EXISTS` | "Tenant '<name>' already exists" | Tenant name already registered |
+| 409 | `DATABASE_EXISTS` | "Database '<name>' already exists" | Database name collision (personal mode) |
 | 500 | `TEMPLATE_CLONE_FAILED` | "Failed to clone template database: ..." | Template cloning failed |
+
+---
+
+### GET /auth/tenants
+
+List all available tenants (personal mode only). This endpoint provides tenant discovery for personal PaaS deployments where a single administrator manages multiple tenants.
+
+**Security Note**: This endpoint is only available when the server is running in `TENANT_NAMING_MODE=personal`. In enterprise mode, it returns a 403 error to prevent tenant enumeration in multi-tenant SaaS environments.
+
+#### Request Body
+None - GET request with no body.
+
+#### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "name": "monk-irc",
+      "description": "IRC bridge for Slack integration",
+      "users": ["root", "admin"]
+    },
+    {
+      "name": "my-app",
+      "description": null,
+      "users": ["root"]
+    },
+    {
+      "name": "test-tenant",
+      "description": "Testing environment",
+      "users": ["root", "testuser"]
+    }
+  ]
+}
+```
+
+#### Response Fields
+- **name** (string): The tenant identifier used for login
+- **description** (string|null): Optional human-readable description
+- **users** (string[]): Array of available usernames for login (sorted alphabetically)
+
+#### Filtering
+The endpoint automatically filters:
+- Only returns active tenants (`is_active = true`)
+- Excludes template tenants (`tenant_type = 'normal'`)
+- Excludes soft-deleted tenants (`trashed_at IS NULL`)
+- Excludes hard-deleted tenants (`deleted_at IS NULL`)
+- Tenants sorted alphabetically by name
+- Users array: Limited to 10 users per tenant, sorted by creation date (oldest first)
+- Users array includes only active, non-deleted users
+
+#### Error Responses
+
+| Status | Error Code | Message | Condition |
+|--------|------------|---------|-----------|
+| 403 | `TENANT_LIST_NOT_AVAILABLE` | "Tenant listing is only available in personal mode" | Server is in enterprise mode |
+
+#### Example Usage
+
+```bash
+# List all tenants (personal mode server)
+curl -X GET http://localhost:9001/auth/tenants
+
+# Use with jq to extract tenant names
+curl -X GET http://localhost:9001/auth/tenants | jq -r '.data[].name'
+```
+
+#### Use Cases
+- **Tenant discovery**: List available tenants before login
+- **Admin tools**: Build management interfaces for personal PaaS
+- **CLI integration**: Provide autocomplete for tenant selection
+- **Documentation**: Generate tenant inventory
 
 ---
 
@@ -251,8 +394,8 @@ Perform just-in-time privilege escalation for administrators who need to call `/
     "token_type": "Bearer",
     "access_level": "root",
     "warning": "Root token expires in 15 minutes",
-    "elevated_from": "admin",
-    "reason": "Tenant administration"
+    "elevated_from": "root",
+    "reason": "User management operation"
   }
 }
 ```
@@ -262,44 +405,53 @@ Perform just-in-time privilege escalation for administrators who need to call `/
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 401 | `USER_JWT_REQUIRED` | "Valid user JWT required for privilege escalation" | No valid user JWT |
-| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo" | User lacks admin/root access |
+| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo - root access required" | User lacks root access |
 
 ---
 
-## Privilege Escalation Model
+## Sudo Access Model
 
 ### Access Level Requirements
-- **sudo endpoint**: Requires `admin` or `root` base access level
-- **Root operations**: Generated root token required for `/api/root/*` endpoints
-- **Time limits**: Root tokens expire after 15 minutes for security
+- **sudo endpoint**: Requires `access='root'` base level
+- **Sudo operations**: Short-lived sudo token required for `/api/sudo/*` endpoints
+- **Time limits**: Sudo tokens expire after 15 minutes for security
+- **Tenant-scoped**: All sudo operations are within the user's own tenant
+
+### Access Levels
+- `deny` - No access
+- `read` - Read-only data access
+- `edit` - Can modify data
+- `full` - Can modify data and manage ACLs on records
+- `root` - Can request sudo tokens for dangerous operations (user management)
 
 ### Token Management Strategy
 ```javascript
 // Client should maintain separate tokens:
-localStorage.setItem('user_token', userJwt);        // Long-lived (1 hour)
-sessionStorage.setItem('root_token', rootJwt);     // Short-lived (15 minutes)
-localStorage.setItem('refresh_token', refreshJwt); // Very long-lived (30 days)
+localStorage.setItem('user_token', rootJwt);       // Long-lived root JWT (1 hour)
+sessionStorage.setItem('sudo_token', sudoJwt);     // Short-lived sudo token (15 minutes)
 
 // Use appropriate token for different operations:
 const userHeaders = { 'Authorization': `Bearer ${userToken}` };    // Normal operations
-const rootHeaders = { 'Authorization': `Bearer ${rootToken}` };    // Administrative operations
+const sudoHeaders = { 'Authorization': `Bearer ${sudoToken}` };    // User management
 ```
 
 ### Sudo Workflow Example
 ```bash
-# 1. Normal user operations with user JWT
-curl -X GET http://localhost:9001/api/auth/whoami \
-  -H "Authorization: Bearer USER_JWT_TOKEN"
-
-# 2. Request elevated privileges when needed
-curl -X POST http://localhost:9001/api/auth/sudo \
-  -H "Authorization: Bearer USER_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"reason": "Tenant administration tasks"}'
-
-# 3. Use root JWT for administrative operations
-curl -X GET http://localhost:9001/api/root/tenant \
+# 1. Normal operations with root JWT
+curl -X GET http://localhost:9001/api/data/accounts \
   -H "Authorization: Bearer ROOT_JWT_TOKEN"
+
+# 2. Request sudo token for user management
+curl -X POST http://localhost:9001/api/auth/sudo \
+  -H "Authorization: Bearer ROOT_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Creating new team member account"}'
+
+# 3. Use sudo JWT for user management
+curl -X POST http://localhost:9001/api/sudo/users \
+  -H "Authorization: Bearer SUDO_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "auth": "john@example.com", "access": "full"}'
 ```
 
 ## Security Model
@@ -324,6 +476,6 @@ All error responses follow the standardized format documented in the main error 
 
 - **Data Operations**: `/docs/data` - Working with schema-backed data
 - **Describe Operations**: `/docs/describe` - Managing JSON Schemas
-- **Administrative Operations**: `/docs/root` - Root API requiring elevated privileges
+- **Sudo Operations**: `/docs/sudo` - User management requiring sudo tokens
 
 The Auth API provides both the public token issuance flows and the protected account management capabilities required to access every other part of the Monk platform.
