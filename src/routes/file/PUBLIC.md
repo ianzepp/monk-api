@@ -1,16 +1,23 @@
 # File API Routes
 
-The File API provides a filesystem-like interface for accessing data and metadata records, transforming the traditional REST approach into intuitive path-based operations. This abstraction makes it possible to interact with schemas, records, and fields as if they were directories and files in a traditional filesystem.
+The File API provides a filesystem-like interface for accessing data records and schema definitions, transforming the traditional REST approach into intuitive path-based operations. This abstraction makes it possible to interact with schemas, records, fields, and schema properties as if they were directories and files in a traditional filesystem.
 
 ## Recent Improvements
 
-**Architecture Refactoring (Latest)**: The File API has been refactored to follow modern design patterns with:
+**Property Decomposition (Latest)**: The File API now supports granular property-level access:
+- **No .json Files**: Records are pure directories containing individual field files
+- **Property Decomposition**: Both `/data` and `/describe` support unlimited path depth
+- **Schema Management**: Update individual schema properties without loading entire definitions
+- **Long Format**: Eliminate N+1 query problems with inline extended metadata
+- **Schema Cache**: Trust-based caching with explicit invalidation for performance
+- **FUSE Ready**: Optimized for filesystem implementations (FUSE, FTP, WebDAV)
+
+**Architecture Refactoring**: The File API follows modern design patterns with:
 - **Unified Components**: Shared path parsing, permission validation, and utilities
 - **Transaction Integration**: Proper database transaction support using `withTransactionParams()`
 - **Standardized Errors**: Consistent HttpErrors with FTP-compatible error codes
 - **Optional Parameters**: All `file_options` are now optional with sensible defaults
-- **Performance**: Removed timing metrics for cleaner, faster responses
-- **Breaking Changes**: Response formats standardized (acceptable since no current clients)
+- **Performance**: Schema caching and long_format optimization for FUSE filesystems
 
 ## Base Path
 All File API routes are prefixed with `/api/file`
@@ -20,12 +27,12 @@ All File API routes are prefixed with `/api/file`
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | [`/api/file/list`](#post-apifilelist) | List directories/files with wildcard and pagination support. |
-| POST | [`/api/file/retrieve`](#post-apifileretrieve) | Read records, fields, or metadata using filesystem-style paths. |
-| POST | [`/api/file/store`](#post-apifilestore) | Upsert records or fields by writing to a virtual file. |
+| POST | [`/api/file/retrieve`](#post-apifileretrieve) | Read records, fields, or schema properties using filesystem-style paths. |
+| POST | [`/api/file/store`](#post-apifilestore) | Upsert records, fields, or schema properties by writing to a virtual file. |
 | POST | [`/api/file/stat`](#post-apifilestat) | Inspect metadata (size, timestamps, schema info) for any entry. |
-| POST | [`/api/file/delete`](#post-apifiledelete) | Delete records, fields, or schemas through file semantics. |
-| POST | [`/api/file/size`](#post-apifilesize) | Calculate aggregated storage footprint for directories or files. |
-| POST | [`/api/file/modify-time`](#post-apifilemodify-time) | Retrieve or update modified timestamps to sync external tools. |
+| POST | [`/api/file/delete`](#post-apifiledelete) | Delete records or fields through file semantics. |
+| POST | [`/api/file/size`](#post-apifilesize) | Calculate storage footprint for fields or properties. |
+| POST | [`/api/file/modify-time`](#post-apifilemodify-time) | Retrieve modified timestamps for caching and sync tools. |
 
 ## Content Type
 - **Request**: `application/json`
@@ -42,37 +49,44 @@ The File API maps database concepts to filesystem paths for intuitive navigation
 ### Path Structure
 
 ```
-/                          → Root directory
-/data/                     → List all schemas
-/describe/                     → Schema definitions
-/data/users/               → List all user records
-/data/users/user-123/      → List record fields + .json file
-/data/users/user-123.json  → Complete user record as JSON
-/data/users/user-123/email → Individual field access
+/                                      → Root directory
+/data/                                 → Data namespace (tenant records)
+/data/users/                           → All user records
+/data/users/user-123/                  → Record directory (fields)
+/data/users/user-123/email             → Individual field (text)
+/data/users/user-123/metadata          → Complex field (JSON)
+/describe/                             → Schema definitions namespace
+/describe/users/                       → Field definitions for users schema
+/describe/users/email/                 → Properties of email field
+/describe/users/email/maxLength        → Individual property value
+/describe/users/email/pattern          → Validation regex pattern
+/describe/users/metadata/properties/tags/type  → Nested property (unlimited depth)
 ```
 
 ### File System Mapping
 
 | Path Type | Example | Description |
 |-----------|---------|-------------|
-| **Root** | `/` | Shows available namespaces (`data`, `meta`) |
-| **Schema Directory** | `/data/users/` | Lists all records in the schema |
-| **Record Directory** | `/data/users/user-123/` | Shows individual fields + JSON file |
-| **Record File** | `/data/users/user-123.json` | Complete record as JSON file |
+| **Root** | `/` | Shows available namespaces (`data`, `describe`) |
+| **Data Schema** | `/data/users/` | Lists all records in the schema |
+| **Record Directory** | `/data/users/user-123/` | Shows individual field files |
 | **Field File** | `/data/users/user-123/email` | Individual field value |
+| **Describe Schema** | `/describe/users/` | Lists field definitions |
+| **Field Definition** | `/describe/users/email/` | Shows field properties |
+| **Property File** | `/describe/users/email/maxLength` | Individual property value |
 
 ### Access Patterns
 
-- **Directory Operations**: Use `list` to browse schemas, records, and fields
-- **File Operations**: Use `retrieve` to get complete records or individual field values
-- **Write Operations**: Use `store` to create/update records or modify individual fields
+- **Directory Operations**: Use `list` to browse schemas, records, fields, and properties
+- **File Operations**: Use `retrieve` to get field values or property values
+- **Write Operations**: Use `store` to create/update records, fields, or schema properties
 - **Metadata Operations**: Use `stat` to get detailed information about any path
 
 ---
 
 ## POST /api/file/list
 
-Traverse schemas, records, or fields as if they were directories. This endpoint powers file-browser experiences with wildcard globbing, recursive traversal, and ACL-aware filtering so users only see entries they can access.
+Traverse schemas, records, fields, or schema properties as if they were directories. This endpoint powers file-browser experiences with wildcard globbing, ACL-aware filtering, and performance optimizations for FUSE filesystems.
 
 ### Request Body
 ```json
@@ -80,11 +94,10 @@ Traverse schemas, records, or fields as if they were directories. This endpoint 
   "path": "/data/users/",
   "file_options": {
     "show_hidden": false,
-    "long_format": true,
-    "recursive": false,
-    "max_depth": 3,
+    "long_format": false,
     "sort_by": "name",
     "sort_order": "asc",
+    "where": null,
     "pattern_optimization": true,
     "cross_schema_limit": 100,
     "use_pattern_cache": true
@@ -92,24 +105,31 @@ Traverse schemas, records, or fields as if they were directories. This endpoint 
 }
 ```
 
-**Note**: All `file_options` are optional with sensible defaults. The `performance_hints` section has been removed as performance metrics are no longer collected for simplicity.
+**Key Options**:
+- **`long_format`**: Include extended metadata inline (eliminates N+1 queries)
+  - Adds: `created_time`, `content_type`, `etag`, `soft_deleted`, `field_count`
+  - Critical for FUSE: `ls -l` with 1000 files = 1 query instead of 1001
+- `show_hidden`: Include system metadata fields (default: `false`)
+- `sort_by`: Sort by `name` (default), `size`, `time`, or `type`
+- `sort_order`: Direction - `asc` (default) or `desc`
+- `where`: Filter records using [Find API](../../docs/33-find-api.md) WHERE clause
+
+**Note**: All `file_options` are optional with sensible defaults.
 
 ### Wildcard Support
 
-The File API supports advanced pattern matching:
+The File API supports pattern matching:
 
 ```json
 {
-  "path": "/data/users/*admin*/department/eng*/"
+  "path": "/data/users/*admin*/"
 }
 ```
 
 **Supported Patterns:**
 - `*` - Match any characters
-- `?` - Match single character
-- `(admin|mod)` - Alternative patterns
-- `[01-12]` - Range patterns
-- `/data/*/recent_activity/` - Cross-schema patterns
+- Schema and record wildcards supported
+- Cross-schema patterns: `/data/*/recent_activity/`
 
 ### Success Response (200)
 ```json
@@ -127,7 +147,13 @@ The File API supports advanced pattern matching:
         "schema": "users",
         "record_id": "user-123",
         "access_level": "full"
-      }
+      },
+      // Extended metadata (when long_format: true)
+      "created_time": "20241130100000",
+      "content_type": "application/json",
+      "etag": "abc123def456",
+      "soft_deleted": false,
+      "field_count": 5
     }
   ],
   "total": 1,
@@ -142,11 +168,9 @@ The File API supports advanced pattern matching:
 }
 ```
 
-**Note**: The response has been simplified to remove performance metrics (`pattern_info`, `performance_metrics`) for cleaner API design. The core functionality remains the same.
-
 ### File Types
-- `d` - Directory (schema, record directory)
-- `f` - File (record JSON, individual field)
+- `d` - Directory (schema, record, field definition)
+- `f` - File (field value, property value)
 - `l` - Link (symbolic links, if supported)
 
 ### File Permissions
@@ -160,62 +184,66 @@ The File API supports advanced pattern matching:
 
 ## POST /api/file/retrieve
 
-Read records, individual fields, or metadata blobs through their filesystem paths. The endpoint supports byte-range style offsets for resume operations, optional binary mode, and emits consistent metadata (ETag, modified time) for caching clients.
+Read field values or schema property values through filesystem paths. The endpoint supports byte-range offsets for large files, multiple formats, and emits consistent metadata (ETag, modified time) for caching clients.
 
 ### Request Body
 ```json
 {
-  "path": "/data/users/user-123.json",
+  "path": "/data/users/user-123/email",
   "file_options": {
-    "binary_mode": false,
+    "format": "json",
     "start_offset": 0,
     "max_bytes": 1000000,
-    "format": "json"
+    "show_hidden": false
   }
 }
 ```
 
-**Note**: All `file_options` are optional. Defaults: `binary_mode: false`, `start_offset: 0`, `format: "json"`.
+**Supported Paths**:
+- **Data**: `/data/<schema>/<record>/<field>` - Field values
+- **Describe**: `/describe/<schema>/<field>/<property>` - Property values
+- **Nested**: `/describe/<schema>/<field>/<prop>/<subprop>` - Unlimited depth
 
-### Supported Formats
+**Supported Formats**:
 - `json` - Structured JSON (default)
-- `raw` - Raw string content
+- `raw` - Raw string content (supports `start_offset` and `max_bytes`)
+
+**Note**: All `file_options` are optional. Defaults: `format: "json"`, `start_offset: 0`.
 
 ### Success Response (200)
 
-#### Complete Record Retrieval
+#### Field Value Retrieval
 ```json
 {
   "success": true,
-  "content": {
-    "id": "user-123",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "department": "Engineering",
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T11:00:00Z"
-  },
+  "content": "john@example.com",
   "file_metadata": {
-    "size": 256,
+    "path": "/data/users/user-123/email",
+    "type": "file",
+    "permissions": "r--",
+    "size": 17,
     "modified_time": "20241201120000",
-    "content_type": "application/json",
-    "can_resume": false,
-    "etag": "abc123def456"
+    "content_type": "text/plain",
+    "etag": "abc123",
+    "can_resume": false
   }
 }
 ```
 
-#### Individual Field Retrieval
+#### Schema Property Retrieval
 ```json
 {
-  "path": "/data/users/user-123/email",
-  "content": "john@example.com",
+  "success": true,
+  "content": 255,
   "file_metadata": {
-    "size": 16,
+    "path": "/describe/users/email/maxLength",
+    "type": "file",
+    "permissions": "r--",
+    "size": 3,
     "modified_time": "20241201120000",
-    "content_type": "text/plain",
-    "can_resume": false,
-    "etag": "def456ghi789"
+    "content_type": "application/json",
+    "etag": "def456",
+    "can_resume": false
   }
 }
 ```
@@ -224,103 +252,131 @@ Read records, individual fields, or metadata blobs through their filesystem path
 
 ## POST /api/file/store
 
-Write data back through the filesystem abstraction—either creating new records (`*.json`) or updating specific fields (`/field`). The call wraps writes in a transaction, enforces schema validation, and exposes options such as append mode or binary payloads for specialized clients.
+Create or update data or schema definitions using filesystem semantics. Supports field-level updates for records and property-level updates for schema definitions.
 
 ### Request Body
 
-#### Complete Record Storage
+#### Data: Field-Level Update
 ```json
 {
-  "path": "/data/users/new-user.json",
+  "path": "/data/users/user-2/email",
+  "content": "user2@example.com",
+  "file_options": {
+    "overwrite": true,
+    "append_mode": false,
+    "validate_schema": true
+  }
+}
+```
+
+#### Data: Record Creation (Directory Path)
+```json
+{
+  "path": "/data/users/user-3",
   "content": {
     "name": "Jane Smith",
     "email": "jane@example.com",
     "department": "Marketing"
   },
   "file_options": {
-    "binary_mode": false,
     "overwrite": true,
-    "append_mode": false,
-    "create_path": false,
-    "atomic": true,
     "validate_schema": true
   }
 }
 ```
 
-**Note**: All `file_options` are optional. Defaults: `binary_mode: false`, `overwrite: true`, `append_mode: false`, `create_path: false`, `atomic: true`, `validate_schema: true`. The `metadata` section has been removed as it's handled automatically.
-
-#### Field-Level Update
+#### Describe: Property Update (Root Only)
 ```json
 {
-  "path": "/data/users/user-123/department",
-  "content": "Senior Engineering",
+  "path": "/describe/users/email/maxLength",
+  "content": 500,
   "file_options": {
-    "binary_mode": false,
-    "overwrite": true,
-    "append_mode": false,
-    "atomic": true
+    "overwrite": true
   }
 }
 ```
 
-**Note**: Field-level updates support the same options as record storage.
+#### Describe: Field Definition Creation (Root Only)
+```json
+{
+  "path": "/describe/users/phone",
+  "content": {
+    "type": "string",
+    "pattern": "^\\+?[1-9]\\d{1,14}$",
+    "description": "International phone number"
+  },
+  "file_options": {
+    "overwrite": true
+  }
+}
+```
+
+**Describe Path Requirements**:
+- Only root users can modify schema definitions
+- Updates are atomic and invalidate schema cache
+- Full JSON Schema validation is performed after updates
+- Supports unlimited nesting depth for properties
+
+**Note**: All `file_options` are optional. Defaults: `overwrite: true`, `append_mode: false`, `validate_schema: true`.
 
 ### Success Response (201)
 ```json
 {
   "success": true,
-  "operation": "create",
+  "operation": "field_update",
   "result": {
-    "record_id": "user-456",
-    "created": true,
-    "updated": false,
+    "record_id": "user-2",
+    "field_name": "email",
+    "created": false,
+    "updated": true,
     "validation_passed": true
   },
   "file_metadata": {
-    "path": "/data/users/user-456.json",
+    "path": "/data/users/user-2/email",
     "type": "file",
-    "permissions": "rwx",
-    "size": 256,
+    "permissions": "rw-",
+    "size": 17,
     "modified_time": "20241201120000",
-    "content_type": "application/json",
-    "etag": "xyz789abc123"
+    "content_type": "text/plain",
+    "etag": "def456"
   }
 }
 ```
-
-**Note**: The response has been simplified with standardized `file_metadata` structure. Transaction management is now handled automatically by the database layer.
 
 ---
 
 ## POST /api/file/stat
 
-Inspect any virtual path to learn its type, size, timestamps, permissions, and optional schema metadata. Think of it as `stat` for the Monk filesystem—it tells clients whether a path is a directory, record JSON, or individual field before they attempt other operations.
+Inspect any virtual path to learn its type, size, timestamps, permissions, and optional schema metadata. Think of it as `stat` for the Monk filesystem.
 
 ### Request Body
 ```json
 {
-  "path": "/data/users/user-123.json"
+  "path": "/data/users/user-123/email"
 }
 ```
 
 ### Success Response (200)
 
-#### File Status
+#### Field Status
 ```json
 {
   "success": true,
-  "path": "/data/users/user-123.json",
-  "type": "file",
-  "permissions": "rwx",
-  "size": 256,
-  "modified_time": "20241201120000",
-  "created_time": "20241201100000",
-  "access_time": "20241201130000",
+  "file_metadata": {
+    "path": "/data/users/user-123/email",
+    "type": "file",
+    "permissions": "rwx",
+    "size": 17,
+    "modified_time": "20241201120000",
+    "created_time": "20241201100000",
+    "access_time": "20241201130000",
+    "content_type": "text/plain",
+    "etag": "abc123"
+  },
   "record_info": {
     "schema": "users",
     "record_id": "user-123",
-    "field_count": 5,
+    "field_name": "email",
     "soft_deleted": false,
     "access_permissions": ["read", "edit", "full"]
   }
@@ -331,39 +387,29 @@ Inspect any virtual path to learn its type, size, timestamps, permissions, and o
 ```json
 {
   "success": true,
-  "path": "/data/users/",
-  "type": "directory",
-  "permissions": "rwx",
-  "size": 0,
-  "modified_time": "20241201120000",
-  "created_time": "20241201100000",
-  "access_time": "20241201130000",
+  "file_metadata": {
+    "path": "/describe/users/",
+    "type": "directory",
+    "permissions": "r-x",
+    "size": 0,
+    "modified_time": "20241201120000"
+  },
   "record_info": {
     "schema": "users",
     "soft_deleted": false,
-    "access_permissions": ["read", "edit"]
+    "access_permissions": ["read"]
   },
-  "children_count": 247,
-  "total_size": 0,
+  "children_count": 8,
   "schema_info": {
     "description": "User management and authentication",
     "record_count": 247,
-    "recent_changes": 15,
-    "last_modified": "2024-12-01T11:30:00Z",
     "field_definitions": [
-      {
-        "name": "name",
-        "type": "string",
-        "required": true,
-        "constraints": "min 1 chars, max 100 chars",
-        "description": "User display name"
-      },
       {
         "name": "email",
         "type": "string",
         "required": true,
-        "constraints": "email format",
-        "description": "Login identifier"
+        "constraints": "max 255 chars, email format",
+        "description": "User email address"
       }
     ]
   }
@@ -374,7 +420,7 @@ Inspect any virtual path to learn its type, size, timestamps, permissions, and o
 
 ## POST /api/file/delete
 
-Delete records, directories, or individual fields using familiar filesystem semantics. The API enforces safety checks (max deletions, empty directories) and supports soft vs. permanent deletes so administrators can script cleanup jobs with confidence.
+Delete records or clear fields using filesystem semantics. The API enforces safety checks and supports soft deletes.
 
 ### Request Body
 ```json
@@ -383,8 +429,7 @@ Delete records, directories, or individual fields using familiar filesystem sema
   "file_options": {
     "recursive": false,
     "force": false,
-    "permanent": false,
-    "atomic": true
+    "permanent": false
   },
   "safety_checks": {
     "require_empty": false,
@@ -393,11 +438,16 @@ Delete records, directories, or individual fields using familiar filesystem sema
 }
 ```
 
-**Note**: All `file_options` and `safety_checks` are optional. Defaults: `recursive: false`, `force: false`, `permanent: false`, `atomic: true`, `max_deletions: 100`. The `metadata` section has been simplified.
+**Supported Paths**:
+- `/data/<schema>/<record>` - Soft delete record
+- `/data/<schema>/<record>/<field>` - Set field to `null`
+
+**Not Supported**:
+- `/describe` paths (schema modifications through Data API only)
+
+**Note**: All `file_options` and `safety_checks` are optional. Defaults: `recursive: false`, `force: false`, `permanent: false`.
 
 ### Success Response (200)
-
-#### Soft Delete Response
 ```json
 {
   "success": true,
@@ -414,35 +464,16 @@ Delete records, directories, or individual fields using familiar filesystem sema
 }
 ```
 
-**Note**: Response simplified to remove `skipped` array for cleaner structure.
-
-#### Field Deletion Response
-```json
-{
-  "success": true,
-  "operation": "field_delete",
-  "results": {
-    "deleted_count": 1,
-    "paths": ["/data/users/user-123/temp_field"],
-    "records_affected": ["user-123"],
-    "fields_cleared": ["temp_field"]
-  },
-  "file_metadata": {
-    "can_restore": false
-  }
-}
-```
-
 ---
 
 ## POST /api/file/size
 
-Quickly calculate the storage footprint of any path without fetching the underlying content. Useful for quota enforcement, UI progress bars, or deciding whether to stream vs. download a resource.
+Calculate the storage footprint of a field or property without fetching content. Useful for quota enforcement and UI progress bars.
 
 ### Request Body
 ```json
 {
-  "path": "/data/users/user-123.json"
+  "path": "/data/users/user-123/email"
 }
 ```
 
@@ -450,42 +481,28 @@ Quickly calculate the storage footprint of any path without fetching the underly
 ```json
 {
   "success": true,
-  "size": 256,
+  "size": 17,
   "file_metadata": {
-    "path": "/data/users/user-123.json",
+    "path": "/data/users/user-123/email",
     "type": "file",
     "permissions": "rw-",
-    "size": 256,
+    "size": 17,
     "modified_time": "20241201120000",
-    "content_type": "application/json"
+    "content_type": "text/plain"
   }
 }
 ```
-
-**Note**: Response now uses standardized `file_metadata` structure instead of `content_info`.
-
-### Error Response (400)
-```json
-{
-  "success": false,
-  "error": "NOT_A_FILE",
-  "error_code": "NOT_A_FILE",
-  "message": "SIZE command only works on files, not directories"
-}
-```
-
-**Note**: Error responses now use standardized HttpErrors format with descriptive error codes suitable for FTP protocol translation.
 
 ---
 
 ## POST /api/file/modify-time
 
-Read (or in advanced workflows, override) the modified timestamp for any entry using FTP-friendly formatting. Integrations like FTP servers and sync tools rely on this endpoint to keep remote directory listings in sync with Monk’s data.
+Read the modified timestamp for any entry using FTP-friendly formatting. Integrations like FTP servers and sync tools rely on this endpoint.
 
 ### Request Body
 ```json
 {
-  "path": "/data/users/user-123.json"
+  "path": "/data/users/user-123/email"
 }
 ```
 
@@ -495,10 +512,10 @@ Read (or in advanced workflows, override) the modified timestamp for any entry u
   "success": true,
   "modified_time": "20241201120000",
   "file_metadata": {
-    "path": "/data/users/user-123.json",
+    "path": "/data/users/user-123/email",
     "type": "file",
     "permissions": "rw-",
-    "size": 0,
+    "size": 17,
     "modified_time": "20241201120000"
   },
   "timestamp_info": {
@@ -509,7 +526,42 @@ Read (or in advanced workflows, override) the modified timestamp for any entry u
 }
 ```
 
-**Note**: Response now includes standardized `file_metadata` structure for consistency across all File API endpoints.
+---
+
+## Performance Optimizations
+
+### Long Format Listings
+
+Eliminate N+1 query problems with `long_format: true`:
+
+```json
+{
+  "path": "/data/users/",
+  "file_options": {
+    "long_format": true
+  }
+}
+```
+
+**Performance Impact**:
+- Without: `ls -l` with 1000 files = 1 list + 1000 stat queries
+- With: `ls -l` with 1000 files = 1 list query
+
+Each entry includes:
+- `created_time` - Creation timestamp
+- `content_type` - MIME type
+- `etag` - Content hash
+- `soft_deleted` - Deletion status
+- `field_count` - Number of fields/properties
+
+Critical for FUSE filesystem implementations.
+
+### Schema Cache
+
+Schema definitions are cached in memory:
+- Automatic invalidation on updates via `/describe` store operations
+- No time-based expiry - trust-based caching
+- Per-database isolation for multi-tenant architecture
 
 ---
 
@@ -523,11 +575,13 @@ Read (or in advanced workflows, override) the modified timestamp for any entry u
 | **Read** | View records and fields | `r--` |
 | **Edit** | Read and modify records | `rw-` |
 | **Full** | Complete access including delete | `rwx` |
+| **Root** | Schema modifications (` /describe` writes) | `rwx` |
 
 ### Access Control
 - All endpoints validate JWT tokens and user permissions
 - Record-level ACL enforcement through `access_read`, `access_edit`, `access_full` arrays
 - Field-level operations inherit record permissions
+- `/describe` write operations require root access
 - Soft delete operations require `access_edit` or `access_full`
 - Permanent delete operations require `access_full`
 
@@ -541,25 +595,23 @@ Read (or in advanced workflows, override) the modified timestamp for any entry u
   "success": false,
   "error": "PERMISSION_DENIED",
   "error_code": "PERMISSION_DENIED",
-  "message": "User lacks edit permission for record deletion"
+  "message": "Only root users can modify schema definitions"
 }
 ```
-
-**Note**: Error responses now use standardized HttpErrors format. Error codes are descriptive and suitable for FTP protocol translation.
 
 ### Common Error Codes
 
 | Status | Error Code | Description |
 |--------|------------|-------------|
 | 401 | `TOKEN_INVALID` | Invalid or expired JWT token |
-| 403 | `PERMISSION_DENIED` | Insufficient access permissions |
+| 403 | `PERMISSION_DENIED` | Insufficient access permissions (or not root for `/describe` writes) |
 | 404 | `RECORD_NOT_FOUND` | Record or field does not exist |
 | 404 | `SCHEMA_NOT_FOUND` | Invalid schema name |
-| 404 | `FIELD_NOT_FOUND` | Field does not exist in record |
+| 404 | `FIELD_NOT_FOUND` | Field does not exist in record or schema definition |
 | 400 | `INVALID_PATH` | Malformed filesystem path |
 | 400 | `NOT_A_FILE` | Operation requires file, not directory |
+| 400 | `NOT_A_DIRECTORY` | Operation requires directory, not file |
 | 400 | `WILDCARDS_NOT_ALLOWED` | Wildcards not supported for operation |
-| 400 | `CROSS_SCHEMA_REQUIRES_FORCE` | Cross-schema operations require force flag |
 | 409 | `RECORD_EXISTS` | Record already exists and overwrite disabled |
 
 ---
@@ -569,11 +621,12 @@ Read (or in advanced workflows, override) the modified timestamp for any entry u
 ### When to Use File API vs Data API
 
 **Use File API when:**
-- Building filesystem-like interfaces or FTP servers
+- Building FUSE filesystems, FTP servers, or WebDAV interfaces
 - Need hierarchical navigation of data
 - Working with individual fields frequently
-- Implementing file-based workflows
+- Managing schema definitions granularly
 - Building tools that benefit from path-based addressing
+- Implementing package managers or file-based workflows
 
 **Use Data API when:**
 - Building traditional web applications
@@ -583,19 +636,38 @@ Read (or in advanced workflows, override) the modified timestamp for any entry u
 
 ### Common Workflows
 
-#### 1. Browsing Data Structure
+#### 1. Granular Schema Management
 ```javascript
-// Start from root
-const root = await fetch('/api/file/list', {
+// Update email field max length
+await fetch('/api/file/store', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer token',
+    'Authorization': 'Bearer root_token',
     'Content-Type': 'application/json'
   },
-  body: JSON.stringify({ path: '/' })
+  body: JSON.stringify({
+    path: '/describe/users/email/maxLength',
+    content: 500
+  })
 });
 
-// Browse schemas
+// Add validation pattern
+await fetch('/api/file/store', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer root_token',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    path: '/describe/users/email/pattern',
+    content: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'
+  })
+});
+```
+
+#### 2. Browsing Data Structure
+```javascript
+// List all schemas
 const schemas = await fetch('/api/file/list', {
   method: 'POST',
   headers: {
@@ -605,33 +677,23 @@ const schemas = await fetch('/api/file/list', {
   body: JSON.stringify({ path: '/data/' })
 });
 
-// Browse records in a schema
+// List records with long format (no N+1 queries)
 const users = await fetch('/api/file/list', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer token',
     'Content-Type': 'application/json'
   },
-  body: JSON.stringify({ path: '/data/users/' })
+  body: JSON.stringify({
+    path: '/data/users/',
+    file_options: { long_format: true }
+  })
 });
 ```
 
-#### 2. Record Manipulation
+#### 3. Field-Level Updates
 ```javascript
-// Get complete record
-const user = await fetch('/api/file/retrieve', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer token',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    path: '/data/users/user-123.json',
-    file_options: { format: 'json' }
-  })
-});
-
-// Update specific field
+// Update individual field
 await fetch('/api/file/store', {
   method: 'POST',
   headers: {
@@ -640,48 +702,11 @@ await fetch('/api/file/store', {
   },
   body: JSON.stringify({
     path: '/data/users/user-123/email',
-    content: 'newemail@example.com',
-    file_options: { atomic: true }
-  })
-});
-```
-
-#### 3. Advanced Pattern Matching
-```javascript
-// Find all admin users in engineering departments
-const results = await fetch('/api/file/list', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer token',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    path: '/data/users/*admin*/department/eng*/',
-    file_options: {
-      pattern_optimization: true,
-      use_pattern_cache: true
-    }
-  })
-});
-```
-
-#### 4. Batch Operations with Transactions
-```javascript
-// Create multiple records atomically
-const transaction = await fetch('/api/file/store', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer token',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    path: '/data/users/batch-user-1.json',
-    content: { name: 'User 1', email: 'user1@example.com' },
-    file_options: { atomic: true }
+    content: 'newemail@example.com'
   })
 });
 
-// Use same transaction for related operations
+// Create complete record (directory path)
 await fetch('/api/file/store', {
   method: 'POST',
   headers: {
@@ -689,11 +714,11 @@ await fetch('/api/file/store', {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    path: '/data/users/batch-user-2.json',
-    content: { name: 'User 2', email: 'user2@example.com' },
-    file_options: { atomic: true },
-    metadata: {
-      transaction_id: transaction.transaction_info.transaction_id
+    path: '/data/users/user-456',
+    content: {
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      department: 'Engineering'
     }
   })
 });
@@ -701,12 +726,10 @@ await fetch('/api/file/store', {
 
 ### Integration Examples
 
-#### FTP Server Integration
-The File API is designed to work seamlessly with FTP servers:
-
+#### FUSE Filesystem Integration
 ```javascript
-// FTP LIST command
-ftpServer.on('LIST', async (path, callback) => {
+// FUSE readdir with long_format to pre-populate cache
+fuseServer.on('readdir', async (path, callback) => {
   const response = await fetch('/api/file/list', {
     method: 'POST',
     body: JSON.stringify({
@@ -715,49 +738,51 @@ ftpServer.on('LIST', async (path, callback) => {
     })
   });
 
-  const listing = response.entries.map(entry =>
-    `${entry.file_permissions} ${entry.file_size} ${entry.file_modified} ${entry.name}`
-  );
+  const entries = response.entries.map(entry => ({
+    name: entry.name,
+    mode: parsePermissions(entry.file_permissions, entry.file_type),
+    size: entry.file_size,
+    mtime: parseTimestamp(entry.file_modified),
+    ctime: parseTimestamp(entry.created_time) // From long_format
+  }));
 
-  callback(listing.join('\n'));
-});
+  // Pre-populate stat cache to avoid N+1 queries
+  for (const entry of response.entries) {
+    cache.set(entry.path, {
+      size: entry.file_size,
+      mtime: entry.file_modified,
+      etag: entry.etag  // From long_format
+    });
+  }
 
-// FTP RETR command
-ftpServer.on('RETR', async (path, callback) => {
-  const response = await fetch('/api/file/retrieve', {
-    method: 'POST',
-    body: JSON.stringify({
-      path: path,
-      file_options: { format: 'raw' }
-    })
-  });
-
-  callback(response.content);
+  callback(entries);
 });
 ```
 
-#### Web File Manager
-```html
-<!-- File browser interface -->
-<div id="file-browser">
-  <div class="path-breadcrumb">/data/users/</div>
-  <div class="file-list">
-    <!-- Dynamically populated from /api/file/list -->
-  </div>
-</div>
+#### Package Manager via FUSE
+```bash
+# Mount Monk as filesystem
+monk-fuse mount /mnt/monk
 
-<script>
-async function loadDirectory(path) {
-  const response = await fetch('/api/file/list', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path })
-  });
+# Browse packages
+ls /mnt/monk/data/packages/
+# express-4.18.2/  lodash-4.17.21/  react-18.2.0/
 
-  const data = await response.json();
-  displayFiles(data.entries);
-}
-</script>
+# Read package metadata
+cat /mnt/monk/data/packages/express-4.18.2/version
+# 4.18.2
+
+# Update package version
+echo "4.18.3" > /mnt/monk/data/packages/express-4.18.2/version
+
+# Browse schema constraints (root only)
+ls /mnt/monk/describe/packages/version/
+# type  maxLength  pattern  description
+
+# Update schema constraint (root only)
+echo "100" > /mnt/monk/describe/packages/version/maxLength
 ```
 
-The File API provides a powerful and intuitive interface for accessing structured data through filesystem metaphors, making it ideal for building file-based tools, FTP servers, and hierarchical data browsers while maintaining full compatibility with the underlying database structure and access control systems.
+---
+
+The File API provides a powerful and intuitive interface for accessing structured data through filesystem metaphors, making it ideal for building FUSE filesystems, FTP servers, package managers, and hierarchical data browsers while maintaining full compatibility with the underlying database structure and access control systems.
