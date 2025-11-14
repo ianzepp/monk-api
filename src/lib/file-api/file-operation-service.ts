@@ -255,8 +255,8 @@ export class FileOperationService {
             allowWildcards: false,
         });
 
-        if (filePath.type !== 'record' && filePath.type !== 'field') {
-            throw HttpErrors.badRequest('Store only supports record and field paths', 'INVALID_STORE_PATH');
+        if (filePath.type !== 'record' && filePath.type !== 'field' && filePath.type !== 'property') {
+            throw HttpErrors.badRequest('Store only supports record, field, and property paths', 'INVALID_STORE_PATH');
         }
 
         const normalizedOptions = {
@@ -266,6 +266,12 @@ export class FileOperationService {
             ...options,
         };
 
+        // Route /describe namespace to schema definition handlers
+        if (path.startsWith('/describe/')) {
+            return this.storeDescribe(filePath, content, normalizedOptions);
+        }
+
+        // Handle /data namespace paths
         if (filePath.type === 'field') {
             const record = await this.requireRecord(filePath.schema!, filePath.record_id!);
             const fieldName = filePath.field_name!;
@@ -329,6 +335,115 @@ export class FileOperationService {
                 content_type: 'application/json',
                 etag: FileContentCalculator.generateETag(canonicalString),
             }),
+        };
+    }
+
+    /**
+     * Handle store operations for /describe namespace (schema definitions)
+     */
+    private async storeDescribe(filePath: FilePath, content: any, options: any): Promise<StoreResult> {
+        // Ensure user has permission to modify schemas
+        if (!this.system.isRoot()) {
+            throw HttpErrors.forbidden('Only root users can modify schema definitions', 'PERMISSION_DENIED');
+        }
+
+        // Load schema using cache
+        const { SchemaCache } = await import('@src/lib/schema-cache.js');
+        const cache = SchemaCache.getInstance();
+        const schema = await cache.getSchema(this.system, filePath.schema!);
+
+        if (!schema.definition || !schema.definition.properties) {
+            throw HttpErrors.internal('Schema definition is invalid or missing properties', 'SCHEMA_INVALID');
+        }
+
+        let operation: 'create' | 'update' | 'field_update';
+        let updatedDefinition = { ...schema.definition };
+
+        // type === 'record' in /describe means field definition (/describe/accounts/email)
+        if (filePath.type === 'record') {
+            const fieldName = filePath.record_id!;
+            const fieldExists = !!updatedDefinition.properties[fieldName];
+
+            if (typeof content !== 'object' || content === null) {
+                throw HttpErrors.badRequest('Field definition must be a JSON object', 'INVALID_FIELD_DEFINITION');
+            }
+
+            updatedDefinition.properties[fieldName] = content;
+            operation = fieldExists ? 'update' : 'create';
+        }
+        // type === 'field' in /describe means field property (/describe/accounts/email/maxLength)
+        else if (filePath.type === 'field') {
+            const fieldName = filePath.record_id!;
+            const propertyName = filePath.field_name!;
+
+            if (!updatedDefinition.properties[fieldName]) {
+                throw HttpErrors.notFound(`Field '${fieldName}' not found in schema '${filePath.schema}'`, 'FIELD_NOT_FOUND');
+            }
+
+            updatedDefinition.properties[fieldName][propertyName] = content;
+            operation = 'field_update';
+        }
+        // type === 'property' in /describe means nested property (/describe/accounts/email/validation/pattern)
+        else if (filePath.type === 'property') {
+            const fieldName = filePath.record_id!;
+            const propertyName = filePath.field_name!;
+            const propertyPath = filePath.property_path!;
+
+            if (!updatedDefinition.properties[fieldName]) {
+                throw HttpErrors.notFound(`Field '${fieldName}' not found in schema '${filePath.schema}'`, 'FIELD_NOT_FOUND');
+            }
+
+            // Navigate to the nested property and update it
+            let target = updatedDefinition.properties[fieldName];
+            if (!target[propertyName]) {
+                target[propertyName] = {};
+            }
+            target = target[propertyName];
+
+            // Navigate through property path
+            for (let i = 0; i < propertyPath.length - 1; i++) {
+                if (!target[propertyPath[i]]) {
+                    target[propertyPath[i]] = {};
+                }
+                target = target[propertyPath[i]];
+            }
+
+            // Set the final property value
+            const finalKey = propertyPath[propertyPath.length - 1];
+            target[finalKey] = content;
+            operation = 'field_update';
+        } else {
+            throw HttpErrors.badRequest('Invalid path type for /describe store operation', 'INVALID_PATH_TYPE');
+        }
+
+        // Update schema definition through describe.ts (which handles cache invalidation)
+        const { Describe } = await import('@src/lib/describe.js');
+        const describe = new Describe(this.system as any);
+        await describe.updateOne(filePath.schema!, updatedDefinition);
+
+        // Build response metadata
+        const timestamp = FileTimestampFormatter.format(schema.updated_at || new Date().toISOString());
+        const canonicalContent = typeof content === 'string' ? content : JSON.stringify(content);
+        const size = FileContentCalculator.calculateSize(canonicalContent);
+
+        return {
+            operation,
+            recordId: filePath.record_id!,
+            fieldName: filePath.field_name,
+            created: operation === 'create',
+            updated: operation !== 'create',
+            validationPassed: true,
+            metadata: this.buildFileMetadata(
+                filePath.normalized_path,
+                'file',
+                'rwx',
+                size,
+                timestamp,
+                {
+                    content_type: FileContentCalculator.detectContentType(content, filePath.field_name || filePath.record_id!),
+                    etag: FileContentCalculator.generateETag(canonicalContent),
+                }
+            ),
         };
     }
 
