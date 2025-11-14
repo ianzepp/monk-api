@@ -2,9 +2,29 @@
 
 This document describes how to run monk-api as a background service using PM2.
 
+## Prerequisites
+
+Before starting, create `.env.production` with required variables:
+
+```bash
+# Copy from example
+cp .env.example .env.production
+
+# Edit with your production settings
+# DATABASE_URL=postgresql://user:password@localhost:5432/monk
+# PORT=8000
+# JWT_SECRET=your_secure_random_string
+# NODE_ENV=production
+```
+
+**Security Note:** `.env.production` is gitignored and should never be committed. It contains sensitive credentials.
+
 ## Quick Start
 
 ```bash
+# Build production code
+npm run build
+
 # Start monk-api
 pm2 start ecosystem.config.cjs
 
@@ -29,11 +49,29 @@ pm2 delete monk-api
 The `ecosystem.config.cjs` file contains the PM2 configuration:
 
 - **Application**: Runs `dist/index.js` (production build)
+- **Port**: 8000 (production)
 - **Instances**: 1 (fork mode)
 - **Auto-restart**: Yes, with crash protection
 - **Memory limit**: 1GB (restarts if exceeded)
-- **Environment**: Loads from `.env.local`
+- **Environment**: Loads from `.env.production`
+- **Database**: `monk` (configured in `.env.production`)
 - **Logs**: Written to `logs/pm2-out.log` and `logs/pm2-error.log`
+
+## Development vs Production
+
+**Production (PM2):**
+- Port: `8000`
+- Database: `monk`
+- Config: `.env.production` (gitignored)
+- Command: `pm2 start ecosystem.config.cjs`
+
+**Development (npm):**
+- Port: `9001`
+- Database: `monk_dev`
+- Config: `.env.local` (gitignored)
+- Command: `npm start`
+
+Both can run simultaneously without conflicts.
 
 ## Auto-Start on Boot
 
@@ -107,10 +145,28 @@ pm2 monit
 
 ### Service Won't Start
 
+**Common Cause: Missing Environment Variables**
+
+The application enforces these required variables at startup:
+- `DATABASE_URL` - PostgreSQL connection string
+- `PORT` - Server port (8000 for production)
+- `JWT_SECRET` - JWT signing secret
+- `NODE_ENV` - Environment mode (production)
+
+If any are missing, the app will **fail immediately** with a clear error message. This is intentional - no silent defaults.
+
 Check the error logs:
 ```bash
 pm2 logs monk-api --err --lines 50
 ```
+
+Common errors:
+```
+Fatal: environment is missing "DATABASE_URL"
+Fatal: environment is missing "JWT_SECRET"
+```
+
+**Solution:** Ensure `.env.production` exists and contains all required variables.
 
 ### High Memory Usage
 
