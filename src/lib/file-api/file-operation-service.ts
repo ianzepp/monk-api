@@ -19,7 +19,8 @@ import type {
 import { FilePathParser } from '@src/lib/file-api/file-path-parser.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { isSystemField } from '@src/lib/describe.js';
+import { isSystemField, Describe } from '@src/lib/describe.js';
+import { SchemaCache } from '@src/lib/schema-cache.js';
 import type { FilterData } from '@src/lib/filter-types.js';
 
 
@@ -348,7 +349,6 @@ export class FileOperationService {
         }
 
         // Load schema using cache
-        const { SchemaCache } = await import('@src/lib/schema-cache.js');
         const cache = SchemaCache.getInstance();
         const schema = await cache.getSchema(this.system, filePath.schema!);
 
@@ -417,7 +417,6 @@ export class FileOperationService {
         }
 
         // Update schema definition through describe.ts (which handles cache invalidation)
-        const { Describe } = await import('@src/lib/describe.js');
         const describe = new Describe(this.system as any);
         await describe.updateOne(filePath.schema!, updatedDefinition);
 
@@ -728,7 +727,6 @@ export class FileOperationService {
      * List field definitions in a schema (/describe/accounts)
      */
     private async listSchemaFields(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const { SchemaCache } = await import('@src/lib/schema-cache.js');
         const cache = SchemaCache.getInstance();
         const schema = await cache.getSchema(this.system, filePath.schema!);
 
@@ -769,7 +767,6 @@ export class FileOperationService {
      * List properties of a field definition (/describe/accounts/email)
      */
     private async listFieldProperties(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const { SchemaCache } = await import('@src/lib/schema-cache.js');
         const cache = SchemaCache.getInstance();
         const schema = await cache.getSchema(this.system, filePath.schema!);
 
@@ -814,7 +811,6 @@ export class FileOperationService {
      * List nested properties (/describe/accounts/email/validation)
      */
     private async listNestedProperties(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const { SchemaCache } = await import('@src/lib/schema-cache.js');
         const cache = SchemaCache.getInstance();
         const schema = await cache.getSchema(this.system, filePath.schema!);
 
@@ -865,7 +861,6 @@ export class FileOperationService {
      * Retrieve a property value from field definition (/describe/accounts/email/maxLength)
      */
     private async retrieveProperty(filePath: FilePath, options: FileRetrieveRequest['file_options'] = {}): Promise<RetrieveResult> {
-        const { SchemaCache } = await import('@src/lib/schema-cache.js');
         const cache = SchemaCache.getInstance();
         const schema = await cache.getSchema(this.system, filePath.schema!);
 
