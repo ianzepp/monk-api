@@ -629,7 +629,8 @@ export class FileOperationService {
             const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
             const path = `/data/${filePath.schema}/${record.id}/`;
             const perms = this.derivePermissions(record);
-            return {
+
+            const entry: any = {
                 name: record.id,
                 file_type: 'd' as const,
                 file_size: 0,
@@ -642,6 +643,17 @@ export class FileOperationService {
                     access_level: perms.access_level,
                 },
             };
+
+            // Populate extended metadata when long_format requested
+            if (options?.long_format) {
+                entry.created_time = FileTimestampFormatter.format(record.created_at || timestampInfo.source);
+                entry.content_type = 'application/json';
+                entry.etag = FileContentCalculator.generateETag(JSON.stringify(record));
+                entry.soft_deleted = record.soft_deleted === true;
+                entry.field_count = Object.keys(record).filter(k => !isSystemField(k)).length;
+            }
+
+            return entry;
         });
 
         // Apply client-side sorting for name/size/type (database sorting only handles time)
@@ -696,7 +708,7 @@ export class FileOperationService {
             }
 
             const canonicalString = typeof value === 'string' ? value : JSON.stringify(value);
-            entries.push({
+            const entry: any = {
                 name: fieldName,
                 file_type: 'f',
                 file_size: FileContentCalculator.calculateSize(canonicalString),
@@ -709,7 +721,17 @@ export class FileOperationService {
                     field_name: fieldName,
                     access_level: perms.access_level,
                 },
-            });
+            };
+
+            // Populate extended metadata when long_format requested
+            if (options?.long_format) {
+                entry.created_time = FileTimestampFormatter.format(record.created_at || timestampInfo.source);
+                entry.content_type = FileContentCalculator.detectContentType(value, fieldName);
+                entry.etag = FileContentCalculator.generateETag(canonicalString);
+                entry.soft_deleted = record.soft_deleted === true;
+            }
+
+            entries.push(entry);
         }
 
         // Apply sorting
@@ -738,19 +760,32 @@ export class FileOperationService {
         }
 
         const timestamp = FileTimestampFormatter.format(schema.updated_at || schema.created_at);
-        const entries: FileEntry[] = Object.keys(schema.definition.properties).map((fieldName: string) => ({
-            name: fieldName,
-            file_type: 'd' as const,
-            file_size: 0,
-            file_permissions: this.directoryPermissions(),
-            file_modified: timestamp,
-            path: `/describe/${filePath.schema}/${fieldName}/`,
-            api_context: {
-                schema: filePath.schema!,
-                record_id: fieldName,
-                access_level: this.system.isRoot() ? 'full' : 'read',
-            },
-        }));
+        const entries: FileEntry[] = Object.keys(schema.definition.properties).map((fieldName: string) => {
+            const entry: any = {
+                name: fieldName,
+                file_type: 'd' as const,
+                file_size: 0,
+                file_permissions: this.directoryPermissions(),
+                file_modified: timestamp,
+                path: `/describe/${filePath.schema}/${fieldName}/`,
+                api_context: {
+                    schema: filePath.schema!,
+                    record_id: fieldName,
+                    access_level: this.system.isRoot() ? 'full' : 'read',
+                },
+            };
+
+            // Populate extended metadata when long_format requested
+            if (options?.long_format) {
+                entry.created_time = FileTimestampFormatter.format(schema.created_at || schema.updated_at);
+                entry.content_type = 'application/json';
+                const fieldDef = schema.definition.properties[fieldName];
+                entry.etag = FileContentCalculator.generateETag(JSON.stringify(fieldDef));
+                entry.field_count = Object.keys(fieldDef).length;
+            }
+
+            return entry;
+        });
 
         // Apply sorting
         const sortBy = options?.sort_by ?? 'name';

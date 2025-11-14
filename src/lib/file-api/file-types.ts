@@ -30,6 +30,12 @@ export interface FileEntry {
         field_name?: string;
         access_level: AccessLevel;
     };
+    // Extended metadata (populated when long_format: true)
+    created_time?: string;
+    content_type?: string;
+    etag?: string;
+    soft_deleted?: boolean;
+    field_count?: number;
 }
 
 export interface FileMetadata {
