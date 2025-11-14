@@ -153,22 +153,11 @@ export class FilePathParser {
             };
         }
 
-        // Record level: /data/users/123 or /data/users/123.json
+        // Record/Field level: /data/users/123 or /describe/users/email
+        // This represents either a record directory (data) or field definition (describe)
         if (parts.length === 3) {
             FilePathParser.validateSchemaName(parts[1]);
-
-            let recordId = parts[2];
-            let isJsonFile = false;
-            let isDirectory = true;
-
-            // Handle .json extension
-            if (recordId.endsWith('.json')) {
-                recordId = recordId.slice(0, -5);
-                isJsonFile = true;
-                isDirectory = false;
-            }
-
-            FilePathParser.validateRecordId(recordId);
+            FilePathParser.validateRecordId(parts[2]);
 
             // Check dangerous operations
             if (options.operation === 'delete' && parts[1].includes('*') && !options.allowDangerous) {
@@ -179,9 +168,8 @@ export class FilePathParser {
                 type: 'record',
                 operation: options.operation,
                 schema: parts[1],
-                record_id: recordId,
-                is_json_file: isJsonFile,
-                is_directory: isDirectory,
+                record_id: parts[2],
+                is_directory: true,
                 has_wildcards: hasWildcards,
                 is_cross_schema: isCrossSchema,
                 raw_path: path,
@@ -189,7 +177,7 @@ export class FilePathParser {
             };
         }
 
-        // Field level: /data/users/123/email
+        // Field/Property level: /data/users/123/email or /describe/users/email/maxLength
         if (parts.length === 4) {
             FilePathParser.validateSchemaName(parts[1]);
             FilePathParser.validateRecordId(parts[2]);
@@ -201,7 +189,6 @@ export class FilePathParser {
                 schema: parts[1],
                 record_id: parts[2],
                 field_name: parts[3],
-                is_json_file: false,
                 is_directory: false,
                 has_wildcards: hasWildcards,
                 is_cross_schema: isCrossSchema,
@@ -210,7 +197,37 @@ export class FilePathParser {
             };
         }
 
-        throw HttpErrors.badRequest(`Invalid path format: ${path} - too many path components`, 'INVALID_PATH_FORMAT');
+        // Property level and beyond: /describe/users/email/maxLength/... or /data/users/123/metadata/tags/...
+        // Support unlimited depth for nested properties
+        if (parts.length >= 5) {
+            FilePathParser.validateSchemaName(parts[1]);
+            FilePathParser.validateRecordId(parts[2]);
+            FilePathParser.validateFieldName(parts[3]);
+
+            // All remaining parts are property path components
+            const propertyPath = parts.slice(4);
+
+            // Validate each property name
+            for (const prop of propertyPath) {
+                FilePathParser.validatePropertyName(prop);
+            }
+
+            return {
+                type: 'property',
+                operation: options.operation,
+                schema: parts[1],
+                record_id: parts[2],
+                field_name: parts[3],
+                property_path: propertyPath,
+                is_directory: false,
+                has_wildcards: hasWildcards,
+                is_cross_schema: isCrossSchema,
+                raw_path: path,
+                normalized_path: cleanPath,
+            };
+        }
+
+        throw HttpErrors.badRequest(`Invalid path format: ${path}`, 'INVALID_PATH_FORMAT');
     }
 
     /**
@@ -252,6 +269,20 @@ export class FilePathParser {
         // Field names must be valid identifiers (no wildcards supported)
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fieldName)) {
             throw HttpErrors.badRequest(`Invalid field name format: ${fieldName}`, 'INVALID_FIELD_FORMAT');
+        }
+    }
+
+    /**
+     * Validate property name format (for schema field properties)
+     */
+    private static validatePropertyName(propertyName: string): void {
+        if (!propertyName || typeof propertyName !== 'string') {
+            throw HttpErrors.badRequest('Property name must be a non-empty string', 'INVALID_PROPERTY_NAME');
+        }
+
+        // Property names must be valid identifiers (same rules as field names)
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(propertyName)) {
+            throw HttpErrors.badRequest(`Invalid property name format: ${propertyName}`, 'INVALID_PROPERTY_FORMAT');
         }
     }
 

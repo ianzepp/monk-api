@@ -49,7 +49,7 @@ export interface FileMetadata {
 // Path Parsing Types
 // ===========================
 
-export type FilePathType = 'root' | 'data' | 'describe' | 'schema' | 'record' | 'field';
+export type FilePathType = 'root' | 'data' | 'describe' | 'schema' | 'record' | 'field' | 'property';
 export type FileOperationType = 'list' | 'retrieve' | 'store' | 'delete' | 'stat' | 'size' | 'modify-time';
 
 export interface FilePath {
@@ -58,7 +58,7 @@ export interface FilePath {
     schema?: string;
     record_id?: string;
     field_name?: string;
-    is_json_file?: boolean;
+    property_path?: string[]; // For property-level paths: ['maxLength'] or ['validation', 'pattern']
     is_directory?: boolean;
     has_wildcards?: boolean;
     is_cross_schema?: boolean;

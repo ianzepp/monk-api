@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
+import { logger } from '@src/lib/logger.js';
 
 // Cached schema entry
 interface CachedSchema {
@@ -165,36 +166,32 @@ export class SchemaCache {
 
     /**
      * Get schema with caching
+     *
+     * Trust-based caching: schemas are cached indefinitely and invalidated explicitly
+     * when modified via describe API. No checksum validation on reads - all schema
+     * writes are controlled through describe.ts which invalidates the cache.
      */
     async getSchema(system: SystemContextWithInfrastructure, schemaName: string): Promise<any> {
         const dbCache = this.getDatabaseCache(system.db);
 
-        // 1. Validate checksums (batch operation, infrequent)
-        await this.validateCacheChecksums(system.db, [schemaName]);
-
-        // 2. Check cache
+        // 1. Check cache first - trust it if present
         const cached = dbCache.schemas.get(schemaName);
         if (cached?.schema) {
             logger.info('Schema cache hit', { schemaName });
             return cached.schema;
         }
 
-        // 3. Cache miss - load full schema
-        logger.info('Schema cache miss', { schemaName });
+        // 2. Cache miss - load full schema from database
+        logger.info('Schema cache miss - loading from database', { schemaName });
         const schema = await this.loadFullSchema(system.db, schemaName);
 
-        // 4. Update cache with full schema
-        if (cached) {
-            cached.schema = schema;
-        } else {
-            // Shouldn't happen after validateCacheChecksums, but handle gracefully
-            dbCache.schemas.set(schemaName, {
-                schema,
-                jsonChecksum: schema.json_checksum || '',
-                updatedAt: schema.updated_at,
-                validator: undefined,
-            });
-        }
+        // 3. Store in cache
+        dbCache.schemas.set(schemaName, {
+            schema,
+            jsonChecksum: schema.json_checksum || '',
+            updatedAt: schema.updated_at,
+            validator: undefined,
+        });
 
         return schema;
     }

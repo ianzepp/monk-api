@@ -75,10 +75,19 @@ export class Describe {
     constructor(private system: System) {}
 
     /**
+     * Invalidate schema cache after modifications
+     * All schema writes go through this class, so we control cache invalidation
+     */
+    private async invalidateSchemaCache(schemaName: string): Promise<void> {
+        const { SchemaCache } = await import('@src/lib/schema-cache.js');
+        SchemaCache.getInstance().invalidateSchema(this.system, schemaName);
+    }
+
+    /**
      * Create new schema from JSON content
      */
     async createOne(schemaName: string, jsonContent: any): Promise<any> {
-        return await this.run('create', schemaName, async tx => {
+        const result = await this.run('create', schemaName, async tx => {
             const jsonSchema = this.parseJsonSchema(jsonContent);
             const tableName = jsonSchema.table || schemaName;
 
@@ -102,6 +111,12 @@ export class Describe {
 
             return { name: schemaName, table: tableName, created: true };
         });
+
+        // Invalidate cache after successful creation (no need to cache what doesn't exist yet)
+        // But future reads will now find it
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 
     /**
@@ -129,7 +144,7 @@ export class Describe {
      * Update existing schema from JSON content
      */
     async updateOne(schemaName: string, jsonContent: any): Promise<any> {
-        return await this.run('update', schemaName, async tx => {
+        const result = await this.run('update', schemaName, async tx => {
             this.validateSchemaProtection(schemaName);
 
             const newJsonSchema = this.parseJsonSchema(jsonContent);
@@ -144,21 +159,26 @@ export class Describe {
                 RETURNING *
             `;
 
-            const result = await tx.query(updateQuery, [JSON.stringify(newJsonSchema), fieldCount.toString(), jsonChecksum, schemaName]);
+            const queryResult = await tx.query(updateQuery, [JSON.stringify(newJsonSchema), fieldCount.toString(), jsonChecksum, schemaName]);
 
-            if (result.rows.length === 0) {
+            if (queryResult.rows.length === 0) {
                 throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
             }
 
             return { name: schemaName, updated: true };
         });
+
+        // Invalidate cache after successful update - changes are now immediately visible
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 
     /**
      * Delete schema (soft delete)
      */
     async deleteOne(schemaName: string): Promise<any> {
-        return await this.run('delete', schemaName, async tx => {
+        const result = await this.run('delete', schemaName, async tx => {
             this.validateSchemaProtection(schemaName);
 
             // Soft delete schema record
@@ -169,14 +189,19 @@ export class Describe {
                 RETURNING *
             `;
 
-            const result = await tx.query(deleteQuery, [schemaName]);
+            const queryResult = await tx.query(deleteQuery, [schemaName]);
 
-            if (result.rows.length === 0) {
+            if (queryResult.rows.length === 0) {
                 throw HttpErrors.notFound(`Schema '${schemaName}' not found or already deleted`, 'SCHEMA_NOT_FOUND');
             }
 
             return { name: schemaName, deleted: true };
         });
+
+        // Invalidate cache after successful deletion - schema is now gone
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 
     /**

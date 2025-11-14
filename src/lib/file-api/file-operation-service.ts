@@ -100,6 +100,8 @@ export class FileOperationService {
             allowCrossSchema: true,
         });
 
+        const isDescribe = filePath.raw_path.startsWith('/describe');
+
         switch (filePath.type) {
             case 'root':
                 return this.listRoot(options);
@@ -109,11 +111,16 @@ export class FileOperationService {
             case 'schema':
                 if (filePath.has_wildcards) {
                     if (filePath.schema === '*') {
-                        const namespace = filePath.raw_path.startsWith('/describe') ? 'describe' : 'data';
+                        const namespace = isDescribe ? 'describe' : 'data';
                         return this.listSchemas(namespace as 'data' | 'describe', options);
                     }
                     throw HttpErrors.badRequest('Schema wildcards must use "*" to match all schemas', 'SCHEMA_WILDCARD_NOT_SUPPORTED');
                 }
+                if (isDescribe) {
+                    // /describe/accounts - list field definitions
+                    return this.listSchemaFields(filePath, options);
+                }
+                // /data/accounts - list record directories
                 return this.listSchemaRecords(filePath, options);
             case 'record':
                 if (filePath.has_wildcards) {
@@ -132,7 +139,22 @@ export class FileOperationService {
                         'UUID_WILDCARD_NOT_SUPPORTED'
                     );
                 }
+                if (isDescribe) {
+                    // /describe/accounts/email - list field properties
+                    return this.listFieldProperties(filePath, options);
+                }
+                // /data/accounts/123 - list record fields
                 return this.listRecordFields(filePath, options);
+            case 'field':
+                if (isDescribe) {
+                    // /describe/accounts/email/validation - list nested properties
+                    return this.listNestedProperties(filePath, options);
+                }
+                // /data paths don't support listing at field level (fields are files)
+                throw HttpErrors.badRequest('Field paths cannot be listed for /data namespace', 'INVALID_LIST_PATH');
+            case 'property':
+                // Property paths are always files, not listable directories
+                throw HttpErrors.badRequest('Property paths cannot be listed (they are files)', 'INVALID_LIST_PATH');
             default:
                 throw HttpErrors.badRequest(`Unsupported list path type: ${filePath.type}`, 'UNSUPPORTED_LIST_PATH');
         }
@@ -144,6 +166,13 @@ export class FileOperationService {
             allowWildcards: false,
             requireFile: false,
         });
+
+        const isDescribe = filePath.raw_path.startsWith('/describe');
+
+        // Handle /describe property paths
+        if (isDescribe && (filePath.type === 'field' || filePath.type === 'property')) {
+            return this.retrieveProperty(filePath, options);
+        }
 
         if (filePath.type !== 'record' && filePath.type !== 'field') {
             throw HttpErrors.badRequest('Retrieve only supports record and field paths', 'INVALID_RETRIEVE_PATH');
@@ -381,12 +410,14 @@ export class FileOperationService {
             requireFile: true,
         });
 
-        if (filePath.type === 'record' && !filePath.is_json_file) {
+        // SIZE only works on field and property paths, not directories
+        if (filePath.type === 'record' || filePath.type === 'schema' || filePath.type === 'root' || filePath.type === 'data' || filePath.type === 'describe') {
             throw HttpErrors.badRequest('SIZE command only works on files, not directories', 'NOT_A_FILE');
         }
 
-        if (filePath.type !== 'record' && filePath.type !== 'field') {
-            throw HttpErrors.badRequest('SIZE command only supports record and field files', 'INVALID_SIZE_PATH');
+        // At this point, type must be 'field' or 'property'
+        if (filePath.type !== 'field' && filePath.type !== 'property') {
+            throw HttpErrors.badRequest('SIZE command only supports field and property files', 'INVALID_SIZE_PATH');
         }
 
         // Always use show_hidden=false for consistent file size reporting
@@ -542,24 +573,8 @@ export class FileOperationService {
         const perms = this.derivePermissions(record);
         const showHidden = options?.show_hidden ?? false;
 
-        // Filter record for .json file size calculation
-        const filteredRecord = filterRecordFields(record, showHidden);
-
-        const entries: FileEntry[] = [
-            {
-                name: `${filePath.record_id}.json`,
-                file_type: 'f',
-                file_size: FileContentCalculator.calculateRecordSize(filteredRecord),
-                file_permissions: perms.permissions,
-                file_modified: timestampInfo.formatted,
-                path: `/data/${filePath.schema}/${filePath.record_id}.json`,
-                api_context: {
-                    schema: filePath.schema!,
-                    record_id: filePath.record_id!,
-                    access_level: perms.access_level,
-                },
-            },
-        ];
+        // List all field files (no .json snapshot file)
+        const entries: FileEntry[] = [];
 
         for (const [fieldName, value] of Object.entries(record)) {
             if (isSystemField(fieldName)) {
@@ -591,6 +606,197 @@ export class FileOperationService {
         return {
             entries,
             metadata: this.buildFileMetadata(`/data/${filePath.schema}/${filePath.record_id}`, 'directory', perms.permissions, 0, timestampInfo.formatted),
+        };
+    }
+
+    /**
+     * List field definitions in a schema (/describe/accounts)
+     */
+    private async listSchemaFields(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
+        const { SchemaCache } = await import('@src/lib/schema-cache.js');
+        const cache = SchemaCache.getInstance();
+        const schema = await cache.getSchema(this.system, filePath.schema!);
+
+        if (!schema.definition?.properties) {
+            return {
+                entries: [],
+                metadata: this.buildFileMetadata(`/describe/${filePath.schema}`, 'directory', this.directoryPermissions(), 0, FileTimestampFormatter.current()),
+            };
+        }
+
+        const timestamp = FileTimestampFormatter.format(schema.updated_at || schema.created_at);
+        const entries: FileEntry[] = Object.keys(schema.definition.properties).map((fieldName: string) => ({
+            name: fieldName,
+            file_type: 'd' as const,
+            file_size: 0,
+            file_permissions: this.directoryPermissions(),
+            file_modified: timestamp,
+            path: `/describe/${filePath.schema}/${fieldName}/`,
+            api_context: {
+                schema: filePath.schema!,
+                record_id: fieldName,
+                access_level: this.system.isRoot() ? 'full' : 'read',
+            },
+        }));
+
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
+
+        return {
+            entries,
+            metadata: this.buildFileMetadata(`/describe/${filePath.schema}`, 'directory', this.directoryPermissions(), 0, timestamp),
+        };
+    }
+
+    /**
+     * List properties of a field definition (/describe/accounts/email)
+     */
+    private async listFieldProperties(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
+        const { SchemaCache } = await import('@src/lib/schema-cache.js');
+        const cache = SchemaCache.getInstance();
+        const schema = await cache.getSchema(this.system, filePath.schema!);
+
+        const fieldDef = schema.definition?.properties?.[filePath.record_id!];
+        if (!fieldDef) {
+            throw HttpErrors.notFound(`Field definition not found: ${filePath.record_id}`, 'FIELD_NOT_FOUND');
+        }
+
+        const timestamp = FileTimestampFormatter.format(schema.updated_at || schema.created_at);
+        const entries: FileEntry[] = Object.entries(fieldDef).map(([propName, propValue]: [string, any]) => {
+            const isNested = typeof propValue === 'object' && propValue !== null && !Array.isArray(propValue);
+            const valueStr = Array.isArray(propValue) ? propValue.join('\n') : String(propValue);
+
+            return {
+                name: propName,
+                file_type: isNested ? 'd' : 'f',
+                file_size: isNested ? 0 : FileContentCalculator.calculateSize(valueStr),
+                file_permissions: isNested ? this.directoryPermissions() : 'r--' as FilePermissions,
+                file_modified: timestamp,
+                path: `/describe/${filePath.schema}/${filePath.record_id}/${propName}${isNested ? '/' : ''}`,
+                api_context: {
+                    schema: filePath.schema!,
+                    record_id: filePath.record_id!,
+                    field_name: propName,
+                    access_level: this.system.isRoot() ? 'full' : 'read',
+                },
+            };
+        });
+
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
+
+        return {
+            entries,
+            metadata: this.buildFileMetadata(`/describe/${filePath.schema}/${filePath.record_id}`, 'directory', this.directoryPermissions(), 0, timestamp),
+        };
+    }
+
+    /**
+     * List nested properties (/describe/accounts/email/validation)
+     */
+    private async listNestedProperties(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
+        const { SchemaCache } = await import('@src/lib/schema-cache.js');
+        const cache = SchemaCache.getInstance();
+        const schema = await cache.getSchema(this.system, filePath.schema!);
+
+        const fieldDef = schema.definition?.properties?.[filePath.record_id!];
+        if (!fieldDef) {
+            throw HttpErrors.notFound(`Field definition not found: ${filePath.record_id}`, 'FIELD_NOT_FOUND');
+        }
+
+        // Navigate to nested property
+        const nestedValue = fieldDef[filePath.field_name!];
+        if (typeof nestedValue !== 'object' || nestedValue === null || Array.isArray(nestedValue)) {
+            throw HttpErrors.badRequest(`Property ${filePath.field_name} is not a nested object`, 'NOT_A_DIRECTORY');
+        }
+
+        const timestamp = FileTimestampFormatter.format(schema.updated_at || schema.created_at);
+        const entries: FileEntry[] = Object.entries(nestedValue).map(([propName, propValue]: [string, any]) => {
+            const isNested = typeof propValue === 'object' && propValue !== null && !Array.isArray(propValue);
+            const valueStr = Array.isArray(propValue) ? propValue.join('\n') : String(propValue);
+
+            return {
+                name: propName,
+                file_type: isNested ? 'd' : 'f',
+                file_size: isNested ? 0 : FileContentCalculator.calculateSize(valueStr),
+                file_permissions: isNested ? this.directoryPermissions() : 'r--' as FilePermissions,
+                file_modified: timestamp,
+                path: `/describe/${filePath.schema}/${filePath.record_id}/${filePath.field_name}/${propName}${isNested ? '/' : ''}`,
+                api_context: {
+                    schema: filePath.schema!,
+                    record_id: filePath.record_id!,
+                    field_name: `${filePath.field_name}/${propName}`,
+                    access_level: this.system.isRoot() ? 'full' : 'read',
+                },
+            };
+        });
+
+        // Apply sorting
+        const sortBy = options?.sort_by ?? 'name';
+        const sortOrder = options?.sort_order ?? 'asc';
+        sortFileEntries(entries, sortBy, sortOrder);
+
+        return {
+            entries,
+            metadata: this.buildFileMetadata(`/describe/${filePath.schema}/${filePath.record_id}/${filePath.field_name}`, 'directory', this.directoryPermissions(), 0, timestamp),
+        };
+    }
+
+    /**
+     * Retrieve a property value from field definition (/describe/accounts/email/maxLength)
+     */
+    private async retrieveProperty(filePath: FilePath, options: FileRetrieveRequest['file_options'] = {}): Promise<RetrieveResult> {
+        const { SchemaCache } = await import('@src/lib/schema-cache.js');
+        const cache = SchemaCache.getInstance();
+        const schema = await cache.getSchema(this.system, filePath.schema!);
+
+        const fieldDef = schema.definition?.properties?.[filePath.record_id!];
+        if (!fieldDef) {
+            throw HttpErrors.notFound(`Field definition not found: ${filePath.record_id}`, 'FIELD_NOT_FOUND');
+        }
+
+        // Navigate to the property value
+        let value: any;
+        if (filePath.type === 'field') {
+            // /describe/accounts/email/maxLength
+            value = fieldDef[filePath.field_name!];
+        } else if (filePath.type === 'property' && filePath.property_path) {
+            // /describe/accounts/email/validation/pattern
+            let current = fieldDef[filePath.field_name!];
+            for (const prop of filePath.property_path) {
+                if (typeof current !== 'object' || current === null) {
+                    throw HttpErrors.notFound(`Property path not found: ${filePath.field_name}/${filePath.property_path.join('/')}`, 'PROPERTY_NOT_FOUND');
+                }
+                current = current[prop];
+            }
+            value = current;
+        }
+
+        if (value === undefined) {
+            throw HttpErrors.notFound(`Property not found: ${filePath.field_name}`, 'PROPERTY_NOT_FOUND');
+        }
+
+        // Convert value to string format (arrays as one-per-line)
+        const content = Array.isArray(value) ? value.join('\n') : String(value);
+        const timestamp = FileTimestampFormatter.format(schema.updated_at || schema.created_at);
+
+        return {
+            content,
+            metadata: this.buildFileMetadata(
+                filePath.normalized_path,
+                'file',
+                'r--' as FilePermissions,
+                FileContentCalculator.calculateSize(content),
+                timestamp,
+                {
+                    content_type: 'text/plain',
+                    etag: FileContentCalculator.generateETag(content),
+                }
+            ),
         };
     }
 
@@ -647,29 +853,9 @@ export class FileOperationService {
         const timestampInfo = FileTimestampFormatter.getBestTimestamp(record);
         const perms = this.derivePermissions(record);
 
-        if (filePath.is_json_file) {
-            // Always filter system fields for consistent file size reporting
-            // The "file" is the user data, not the infrastructure metadata
-            const filteredRecord = filterRecordFields(record, false);
-            const canonicalString = JSON.stringify(filteredRecord);
-            return {
-                metadata: this.buildFileMetadata(filePath.normalized_path, 'file', perms.permissions, FileContentCalculator.calculateSize(canonicalString), timestampInfo.formatted, {
-                    created_time: FileTimestampFormatter.format(record.created_at),
-                    access_time: FileTimestampFormatter.current(),
-                    content_type: 'application/json',
-                    etag: FileContentCalculator.generateETag(canonicalString),
-                }),
-                recordInfo: {
-                    schema: filePath.schema!,
-                    record_id: filePath.record_id!,
-                    field_count: Object.keys(record).length,
-                    soft_deleted: Boolean(record.trashed_at),
-                    access_permissions: [perms.access_level],
-                },
-            };
-        }
+        // Record paths are always directories containing field files
+        const fieldCount = Object.keys(record).filter(field => !isSystemField(field)).length;
 
-        const fieldCount = Object.keys(record).filter(field => !isSystemField(field)).length + 1; // +1 for json file
         return {
             metadata: this.buildFileMetadata(filePath.normalized_path, 'directory', perms.permissions, 0, timestampInfo.formatted, {
                 created_time: FileTimestampFormatter.format(record.created_at),
