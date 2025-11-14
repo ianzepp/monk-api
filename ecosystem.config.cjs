@@ -1,8 +1,14 @@
 /**
  * PM2 Ecosystem Configuration for Monk API
  *
+ * IMPORTANT: Before starting, create .env.production with required variables:
+ *   DATABASE_URL=postgresql://user:password@localhost:5432/monk
+ *   PORT=8000
+ *   JWT_SECRET=your_production_secret
+ *   NODE_ENV=production
+ *
  * Usage:
- *   pm2 start ecosystem.config.js
+ *   pm2 start ecosystem.config.cjs
  *   pm2 logs monk-api
  *   pm2 restart monk-api
  *   pm2 stop monk-api
@@ -34,14 +40,9 @@ module.exports = {
       min_uptime: '10s',
       restart_delay: 4000,
 
-      // Environment variables
-      env: {
-        NODE_ENV: 'production',
-        PORT: 8000,
-      },
-
-      // Use .env.local for sensitive config (DATABASE_URL, JWT_SECRET, etc.)
-      env_file: '.env.local',
+      // Environment variables - loaded from .env.production
+      // No defaults - application will fail fast if required vars are missing
+      env_file: '.env.production',
 
       // Logging
       error_file: 'logs/pm2-error.log',
