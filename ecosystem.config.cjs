@@ -37,7 +37,7 @@ module.exports = {
       // Environment variables
       env: {
         NODE_ENV: 'production',
-        PORT: 9001,
+        PORT: 8000,
       },
 
       // Use .env.local for sensitive config (DATABASE_URL, JWT_SECRET, etc.)
