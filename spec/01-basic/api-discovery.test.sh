@@ -10,7 +10,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing API discovery endpoint"
 
 # Simple setup for public endpoint testing
-setup_test_basic
+setup_test_default
 
 # Test root endpoint
 print_step "Testing GET /"

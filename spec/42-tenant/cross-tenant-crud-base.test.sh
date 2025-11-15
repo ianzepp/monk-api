@@ -11,15 +11,16 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing cross-tenant CRUD isolation"
 
 # Setup basic server connection
-setup_test_basic
+setup_test_default
 
 # Test Setup: Create Tenant A
 print_step "Creating Tenant A with account record"
 
-# Create first isolated tenant
-create_isolated_test_tenant "cross-tenant-a" >/dev/null
-TENANT_A_NAME="$TEST_TENANT_NAME"
+# Create tenant from empty template (fast isolation)
+TENANT_A_NAME=$(create_test_tenant_from_template "cross-tenant-a" "empty")
+load_test_env
 TENANT_A_DB="$TEST_DATABASE_NAME"
+setup_test_cleanup_trap "$TENANT_A_NAME" "$TENANT_A_DB"
 
 print_success "Created Tenant A: $TENANT_A_NAME"
 
@@ -61,10 +62,11 @@ print_success "Created account in Tenant A: $ACCOUNT_A_ID"
 # Test Setup: Create Tenant B
 print_step "Creating Tenant B with account record"
 
-# Create second isolated tenant
-create_isolated_test_tenant "cross-tenant-b" >/dev/null
-TENANT_B_NAME="$TEST_TENANT_NAME"
+# Create tenant from empty template (fast isolation)
+TENANT_B_NAME=$(create_test_tenant_from_template "cross-tenant-b" "empty")
+load_test_env
 TENANT_B_DB="$TEST_DATABASE_NAME"
+setup_test_cleanup_trap "$TENANT_B_NAME" "$TENANT_B_DB"
 
 print_success "Created Tenant B: $TENANT_B_NAME"
 

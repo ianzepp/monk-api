@@ -41,7 +41,7 @@ function printWarning(message) {
 // Generate valid phone number matching schema pattern
 function generateValidPhone() {
   // Pattern allows: ^\+?[1-9]\d{1,14}$|^\+?1 \([0-9]{3}\) [0-9]{3}-[0-9]{4}$
-  
+
   if (faker.datatype.boolean(0.7)) {
     // Generate US format: +1 (555) 123-4567
     const area = faker.string.numeric(3, { bannedChars: ['0', '1'] }); // Area code can't start with 0 or 1
@@ -62,7 +62,7 @@ function generateAccount(index) {
   const accountTypes = ['personal', 'business', 'trial', 'premium'];
   const themes = ['light', 'dark'];
   const languages = ['en', 'es'];
-  
+
   return {
     name: faker.person.fullName(),
     email: faker.internet.email(),
@@ -114,18 +114,18 @@ const generators = {
 
 function checkLockFile(fixturesDir) {
   const lockFile = path.join(fixturesDir, '.locked');
-  
+
   if (fs.existsSync(lockFile)) {
     printError(`Template '${templateName}' is locked and cannot be regenerated`);
     printStep('Lock details:');
-    
+
     try {
       const lockData = JSON.parse(fs.readFileSync(lockFile, 'utf8'));
       console.log(JSON.stringify(lockData, null, 2));
     } catch (error) {
       console.log(fs.readFileSync(lockFile, 'utf8'));
     }
-    
+
     printStep(`To unlock: rm ${lockFile}`);
     process.exit(1);
   }
@@ -144,7 +144,7 @@ async function generateFixtures() {
   if (!/^[a-z_]+$/.test(templateName)) {
     printError('Template name must contain only lowercase letters and underscores');
     printError(`Invalid name: '${templateName}'`);
-    printError('Valid examples: basic_large, demo_small, test_data');
+    printError('Valid examples: testing_xl, demo_small, test_data');
     printError('Invalid examples: Basic-Large, demo-small, TestData');
     process.exit(1);
   }
@@ -157,10 +157,10 @@ async function generateFixtures() {
   const fixturesDir = path.join(__dirname, '../fixtures', templateName);
   const sourceSchemasDir = path.join(fixturesDir, 'describe');
   const outputDir = path.join(fixturesDir, 'data');
-  
+
   // Check for lock file
   checkLockFile(fixturesDir);
-  
+
   // Validate source template exists
   if (!fs.existsSync(sourceSchemasDir)) {
     printError(`Template describe directory not found: ${sourceSchemasDir}`);
@@ -178,46 +178,46 @@ async function generateFixtures() {
         console.log(`  ${status} ${template}`);
       });
     }
-    
+
     process.exit(1);
   }
-  
+
   // Ensure output directory exists
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
-  
+
   // Read all schema files
   const schemaFiles = fs.readdirSync(sourceSchemasDir)
     .filter(file => file.endsWith('.json'));
-  
+
   if (schemaFiles.length === 0) {
     printError(`No schema files found in: ${sourceSchemasDir}`);
     process.exit(1);
   }
-  
+
   printStep(`Generating fixtures for template: ${templateName}`);
   printStep(`Target: ${recordCount} records per schema`);
   printStep(`Found ${schemaFiles.length} schemas: ${schemaFiles.join(', ')}`);
-  
+
   for (const schemaFile of schemaFiles) {
     const generator = generators[schemaFile];
-    
+
     if (!generator) {
       printWarning(`No generator found for ${schemaFile}, skipping...`);
       continue;
     }
-    
+
     printStep(`Generating ${recordCount} records for ${schemaFile}...`);
-    
+
     const records = [];
-    
+
     // Generate records
     for (let i = 0; i < recordCount; i++) {
       try {
         const record = generator(i);
         records.push(record);
-        
+
         // Progress indicator for large datasets
         if (recordCount >= 100 && (i + 1) % Math.ceil(recordCount / 5) === 0) {
           printStep(`  Generated ${i + 1}/${recordCount} records...`);
@@ -227,15 +227,15 @@ async function generateFixtures() {
         process.exit(1);
       }
     }
-    
+
     // Write generated data
     const outputFile = path.join(outputDir, schemaFile);
     fs.writeFileSync(outputFile, JSON.stringify(records, null, 2));
-    
+
     const sizeKB = Math.round(fs.statSync(outputFile).size / 1024);
     printSuccess(`Generated ${records.length} records for ${schemaFile} (${sizeKB}KB)`);
   }
-  
+
   printSuccess(`Fixture generation completed for template: ${templateName}`);
   printStep(`Output directory: ${outputDir}`);
   printStep(`To lock this template: npm run fixtures:lock ${templateName}`);

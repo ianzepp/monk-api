@@ -150,7 +150,7 @@ function convertSchemaToSql(jsonSchema, schemaName) {
 async function convertFixtureSchemas(templateName) {
   if (!templateName) {
     printError('Usage: node scripts/fixtures-convert-schema.js <template-name>');
-    printError('Example: node scripts/fixtures-convert-schema.js basic');
+    printError('Example: node scripts/fixtures-convert-schema.js testing');
     process.exit(1);
   }
 

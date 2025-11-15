@@ -73,4 +73,4 @@ Or run the complete test suite:
 npm run test:sh 37-file-api
 ```
 
-All tests use the `basic` fixture template for fast, isolated testing with pre-populated data.
+All tests use the `testing` fixture template for fast, isolated testing with pre-populated data.

@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/../spec/test-tenant-helper.sh"
 
 # Parse arguments
 FORCE_REBUILD=false
-TEMPLATE_NAME="basic"
+TEMPLATE_NAME="testing"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -25,16 +25,16 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [options] [template_name]"
             echo ""
             echo "Arguments:"
-            echo "  template_name    Name of the fixture template to build (default: basic)"
+            echo "  template_name    Name of the fixture template to build (default: testing)"
             echo ""
             echo "Options:"
             echo "  --force         Delete existing template database if it exists"
             echo "  --help, -h      Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0 basic"
-            echo "  $0 --force basic_large"
-            echo "  npm run fixtures:build -- --force basic"
+            echo "  $0 testing"
+            echo "  $0 --force testing_xl"
+            echo "  npm run fixtures:build -- --force testing"
             exit 0
             ;;
         -*)
@@ -55,7 +55,7 @@ FIXTURES_DIR="fixtures/${TEMPLATE_NAME}"
 if [[ ! "$TEMPLATE_NAME" =~ ^[a-z_]+$ ]]; then
     print_error "Template name must contain only lowercase letters and underscores"
     print_error "Invalid name: '$TEMPLATE_NAME'"
-    print_error "Valid examples: basic_large, demo_small, test_data"
+    print_error "Valid examples: testing_xl, demo_small, test_data"
     print_error "Invalid examples: Basic-Large, demo-small, TestData"
     exit 1
 fi

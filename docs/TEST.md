@@ -149,7 +149,7 @@ TEST_VERBOSE=1 npm run test:cleanup
 ### Setup Functions
 - **`setup_test_with_template()`** - Create tenant from template (most common)
 - **`setup_test_isolated()`** - Create fresh tenant database
-- **`setup_test_basic()`** - No tenant setup needed
+- **`setup_test_default()`** - No tenant setup needed
 
 ### Authentication Helpers
 - **`setup_full_auth()`** - Authenticate as full user
@@ -170,7 +170,7 @@ TEST_VERBOSE=1 npm run test:cleanup
 source "$(dirname "${BASH_SOURCE[0]}")/../test-helper.sh"
 
 # Setup test environment
-setup_test_with_template testing"
+setup_test_with_template "test-run"
 setup_full_auth
 
 # Test implementation
@@ -222,7 +222,7 @@ npm run start:bg                 # Start fresh server
 
 # Database connection issues
 psql -d monk -c "SELECT 1;"  # Test main database
-npm run fixtures:build basic        # Rebuild templates
+npm run fixtures:build testing        # Rebuild templates
 
 # Test database pollution
 npm run test:cleanup              # Clean up all test databases

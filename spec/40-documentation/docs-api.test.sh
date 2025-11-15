@@ -10,7 +10,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing self-documenting API endpoints"
 
 # Simple setup for documentation testing
-setup_test_basic
+setup_test_default
 
 # Test auth documentation (merged public + protected)
 print_step "Testing GET /docs/auth"
@@ -36,7 +36,7 @@ data_docs=$(api_get "docs/data")
 if echo "$data_docs" | grep -q "# Data API"; then
     print_success "Data API documentation retrieved"
 else
-    test_fail "Data API documentation invalid or missing"  
+    test_fail "Data API documentation invalid or missing"
 fi
 
 # Test file API documentation

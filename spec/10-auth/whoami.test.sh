@@ -10,7 +10,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing protected Auth API endpoints"
 
 # Simple setup with authentication
-setup_test_basic
+setup_test_default
 setup_test_auth "system" "root"
 
 # Test whoami endpoint

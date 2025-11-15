@@ -8,7 +8,7 @@ The fixtures system provides pre-built database templates that can be cloned ins
 
 ```bash
 # Build standard test template
-npm run fixtures:build basic
+npm run fixtures:build testing
 
 # Run tests with template (0.1s vs 2-3s setup)
 npm run test:sh spec/32-data-api/
@@ -21,8 +21,8 @@ npm run test:cleanup
 
 | Template | Records | Use Case | Speed |
 |----------|---------|----------|-------|
-| `basic` | 5 each | Standard tests | ~0.1s |
-| `basic_large` | 100+ each | Performance tests | ~0.1s |
+| `testing` | 5 each | Standard tests | ~0.1s |
+| `testing_xl` | 100+ each | Performance tests | ~0.1s |
 | `empty` | 0 | Production setup | ~0.05s |
 
 ## Key Commands

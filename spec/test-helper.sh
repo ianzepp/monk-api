@@ -14,7 +14,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/test-tenant-helper.sh"
 
 # Complete test setup with template (most common pattern)
 setup_test_with_template() {
-    local test_name="$1"
+    local test_name="${1:-tests}"
     local template="${2:-testing}"
 
     wait_for_server
@@ -43,7 +43,7 @@ setup_test_isolated() {
 }
 
 # Simple API test setup (no tenant isolation needed)
-setup_test_basic() {
+setup_test_default() {
     wait_for_server
 }
 

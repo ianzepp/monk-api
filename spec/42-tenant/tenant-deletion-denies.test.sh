@@ -11,15 +11,15 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing tenant deletion security enforcement"
 
 # Setup basic server connection
-setup_test_basic
+setup_test_default
 
 # Test Setup: Create tenant with data
 print_step "Creating tenant with account data"
 
-# Create isolated tenant
-create_isolated_test_tenant "tenant-deletion" >/dev/null
-TENANT_NAME="$TEST_TENANT_NAME"
-TENANT_DB="$TEST_DATABASE_NAME"
+# Create tenant from empty template (fast isolation)
+TENANT_NAME=$(create_test_tenant_from_template "tenant-deletion" "empty")
+load_test_env
+setup_test_cleanup_trap "$TENANT_NAME" "$TEST_DATABASE_NAME"
 
 print_success "Created tenant: $TENANT_NAME"
 

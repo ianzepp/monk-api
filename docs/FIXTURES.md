@@ -41,7 +41,7 @@ fixtures/
 │   ├── describe/            # JSON schema definitions
 │   ├── data/                # Pre-generated test data
 │   └── .locked              # Protection lock file
-├── basic_large/              # Larger template (100+ records each)
+├── testing_xl/              # Larger template (100+ records each)
 └── empty/                   # Minimal template for production
 ```
 
@@ -76,7 +76,7 @@ Templates are registered in `monk.tenants` with `tenant_type='template'` for man
 - **Contents:** 100+ accounts, 100+ contacts
 - **Use Case:** Performance benchmarks, pagination tests
 - **Size:** ~6.3KB total data
-- **Speed:** ~0.1s cloning time (same as basic)
+- **Speed:** ~0.1s cloning time (same as testing)
 
 ### Empty Template
 - **Purpose:** Production tenant creation
@@ -90,10 +90,10 @@ Templates are registered in `monk.tenants` with `tenant_type='template'` for man
 ### Build Templates
 ```bash
 # Build testing template (most common)
-npm run fixtures:build basic
+npm run fixtures:build testing
 
 # Build with force (rebuild existing)
-npm run fixtures:build -- --force basic_large
+npm run fixtures:build -- --force testing_xl
 
 # Build custom template
 npm run fixtures:build my-template
@@ -105,13 +105,13 @@ npm run fixtures:build my-template
 npm run fixtures:generate my-template 100
 
 # Generate large dataset
-npm run fixtures:generate basic_large 1000
+npm run fixtures:generate testing_xl 1000
 ```
 
 ### Lock Templates
 ```bash
 # Lock template to prevent regeneration
-npm run fixtures:lock basic
+npm run fixtures:lock testing
 
 # Template will show lock error if generation attempted
 ```
@@ -119,13 +119,13 @@ npm run fixtures:lock basic
 ### Deploy to Neon
 ```bash
 # Deploy template to Neon cloud
-npm run fixtures:deploy basic
+npm run fixtures:deploy testing
 
 # Deploy with progress tracking
-npm run fixtures:deploy basic --progress
+npm run fixtures:deploy testing --progress
 
 # Force deploy (overwrite existing)
-npm run fixtures:deploy basic --force
+npm run fixtures:deploy testing --force
 ```
 
 ## Template Management
@@ -168,10 +168,10 @@ rm fixtures/testing/.locked
 git update-index --no-skip-worktree fixtures/testing/data/*.json
 
 # Make changes
-npm run fixtures:generate basic 10
+npm run fixtures:generate testing 10
 
 # Re-lock (recommended)
-npm run fixtures:lock basic
+npm run fixtures:lock testing
 git update-index --skip-worktree fixtures/testing/data/*.json
 ```
 
@@ -181,13 +181,13 @@ git update-index --skip-worktree fixtures/testing/data/*.json
 
 ```bash
 # Most common pattern - 30x faster than fresh setup
-setup_test_with_template testing"
+setup_test_with_template "my-test" "<template-name>"
 
 # Fallback for special requirements
 setup_test_isolated "test-name"
 
 # No tenant setup needed
-setup_test_basic "test-name"
+setup_test_default "test-name"
 ```
 
 ### Test Development Workflow
@@ -281,7 +281,7 @@ git update-index --skip-worktree fixtures/testing/data/*.json
 **Name Format:**
 - Must match `^[a-z_]+$` (lowercase + underscores)
 - Cannot contain spaces or special characters
-- Examples: `basic_large`, `demo_small`, `test_data`
+- Examples: `testing_xl`, `demo_small`, `test_data`
 
 **Content Validation:**
 - Schema file existence checks
@@ -317,8 +317,8 @@ git update-index --skip-worktree fixtures/testing/data/*.json
 **Regular Maintenance:**
 ```bash
 # Monthly template health check
-npm run fixtures:build basic -- --force
-npm run fixtures:build basic_large -- --force
+npm run fixtures:build testing -- --force
+npm run fixtures:build testing_xl -- --force
 
 # Verify data integrity
 npm run test:sh 03-template-infrastructure/
@@ -347,7 +347,7 @@ git ls-files -v | grep ^S
 **Test Performance:**
 ```bash
 # Time template cloning
-time npm run fixtures:build basic
+time npm run fixtures:build testing
 
 # Monitor database sizes
 psql -d monk -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname LIKE 'monk_template_%'"
@@ -361,7 +361,7 @@ psql -d monk -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM 
 ```bash
 # Error: Template database 'monk_template_testing' not found
 # Solution: Build the template
-npm run fixtures:build basic
+npm run fixtures:build testing
 ```
 
 **Permission Denied:**
@@ -373,10 +373,10 @@ npm run fixtures:build basic
 
 **Template Locked:**
 ```bash
-# Error: Template 'basic' is locked
+# Error: Template 'testing' is locked
 # Solution: Remove lock file (if intentional)
 rm fixtures/testing/.locked
-npm run fixtures:generate basic 10
+npm run fixtures:generate testing 10
 ```
 
 **Git Lock Issues:**
@@ -442,8 +442,8 @@ npm run fixtures:build performance-tests
 ```yaml
 - name: Setup Test Templates
   run: |
-    npm run fixtures:build basic
-    npm run fixtures:build basic_large
+    npm run fixtures:build testing
+    npm run fixtures:build testing_xl
 
 - name: Run Tests
   run: npm run test:sh
@@ -457,7 +457,7 @@ npm run fixtures:build performance-tests
 **Performance Monitoring:**
 ```bash
 # Template build time
-time npm run fixtures:build basic
+time npm run fixtures:build testing
 
 # Database size tracking
 psql -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname LIKE 'monk_template_%'"
@@ -483,6 +483,6 @@ psql -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_datab
 | `npm run test:cleanup` | Clean test databases | `npm run test:cleanup` |
 
 **Speed Improvement:** **30x faster** than fresh database creation
-**Template Types:** `basic`, `basic_large`, `empty`, custom
+**Template Types:** `testing`, `testing_xl`, `empty`, custom
 **Protection:** Multi-layer lock system prevents accidental changes
 **Cloud Ready:** Full Neon integration for serverless deployments

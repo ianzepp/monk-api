@@ -317,7 +317,7 @@ describe('Observer Pipeline Integration', () => {
     let testContext: TestContextWithData;
 
     beforeAll(async () => {
-        testContext = await createTestContextWithFixture('basic');
+        testContext = await createTestContextWithFixture('testing');
     });
 
     test('should run complete observer pipeline for user creation', async () => {

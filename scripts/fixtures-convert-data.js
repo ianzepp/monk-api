@@ -125,7 +125,7 @@ function getSchemaInfo(templateName, schemaName) {
 async function convertFixtureData(templateName) {
   if (!templateName) {
     printError('Usage: node scripts/fixtures-convert-data.js <template-name>');
-    printError('Example: node scripts/fixtures-convert-data.js basic');
+    printError('Example: node scripts/fixtures-convert-data.js testing');
     process.exit(1);
   }
 

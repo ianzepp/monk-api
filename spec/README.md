@@ -71,7 +71,7 @@ Tests are organized by numbered series for logical categorization:
 source "$(dirname "$0")/../test-helper.sh"
 
 # Setup with template (most common)
-setup_test_with_template "test-name" "basic"
+setup_test_with_template "test-name" "testing"
 setup_full_auth
 
 # Make authenticated request

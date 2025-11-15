@@ -41,8 +41,8 @@ npm run fixtures:deploy empty --progress
 | Template | Schemas | Sample Data | Use Case |
 |----------|---------|-------------|----------|
 | `empty` | 0 | None | Production tenants |
-| `basic` | 2 | ~10 records | Development/demos |
-| `basic_large` | 2 | ~2000 records | Performance testing |
+| `testing` | 2 | ~10 records | Development/demos |
+| `testing_xl` | 2 | ~2000 records | Performance testing |
 
 ## Production Benefits
 
