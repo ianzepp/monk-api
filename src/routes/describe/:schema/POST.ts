@@ -5,8 +5,8 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 export default withTransactionParams(async (context, { system, schema, body }) => {
     // Parse JSON to get schema name from content
-    const jsonSchema = system.describe.parseSchema(body);
-    const jsonName = jsonSchema.title.toLowerCase().replace(/\s+/g, '_');
+    const jsonSchema = body;
+    const jsonName = jsonSchema.schema_name.toLowerCase().replace(/\s+/g, '_');
 
     // URL schema must match jsonName if force !== true
     if (schema !== jsonName) {
