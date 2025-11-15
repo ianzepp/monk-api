@@ -480,6 +480,29 @@ else
     handle_error "Server startup test" "The server failed to start properly"
 fi
 
+# Starting: Build Empty Fixtures Template
+print_header "Starting: Build Empty Fixtures Template"
+
+print_step "Checking if empty fixtures template exists..."
+template_db_name="monk_template_empty"
+
+if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_name" 2>/dev/null; then
+    print_success "Empty fixtures template already exists"
+    print_info "Template database: $template_db_name"
+else
+    print_step "Building empty fixtures template..."
+    print_info "This creates a production-ready template with core infrastructure only"
+
+    if npm run fixtures:build empty >/dev/null 2>&1; then
+        print_success "Empty fixtures template built successfully"
+        print_info "Template database: $template_db_name ready for fast tenant creation"
+    else
+        print_warning "Failed to build empty fixtures template"
+        print_info "This is optional - tests will use slower tenant creation"
+        print_info "You can manually build it later with: npm run fixtures:build empty"
+    fi
+fi
+
 # Show available fixture templates
 print_header "Available Fixture Templates"
 
