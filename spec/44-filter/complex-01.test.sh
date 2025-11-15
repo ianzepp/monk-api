@@ -12,12 +12,12 @@ print_step "Testing Find API complex query (SELECT + WHERE + ORDER + LIMIT)"
 
 # Setup test environment with template (provides 5 account records with varied data)
 setup_test_with_template "complex-01"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Complex business query - Find active personal/premium accounts, ordered by balance, limited fields
 print_step "Testing business query: Active personal/premium accounts by balance"
 
-# Query: SELECT name, email, balance FROM account 
+# Query: SELECT name, email, balance FROM account
 #        WHERE account_type IN ('personal', 'premium') AND balance >= 100
 #        ORDER BY balance DESC
 #        LIMIT 3
@@ -57,13 +57,13 @@ for i in $(seq 0 $((record_count - 1))); do
     record=$(echo "$data" | jq -r ".[$i]")
     account_type=$(echo "$record" | jq -r '.account_type')
     balance=$(echo "$record" | jq -r '.balance')
-    
+
     if [[ "$account_type" != "personal" && "$account_type" != "premium" ]]; then
         all_conditions_met=false
         print_warning "Record $i has invalid account_type: $account_type"
         break
     fi
-    
+
     if (( $(echo "$balance < 100" | bc -l) )); then
         all_conditions_met=false
         print_warning "Record $i has balance $balance < 100"

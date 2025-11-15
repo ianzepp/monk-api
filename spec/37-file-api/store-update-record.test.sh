@@ -7,7 +7,7 @@ source "$(dirname "$0")/../file-api-helpers.sh"
 print_step "File API store: create and update records"
 
 setup_test_with_template "file-store-update-record"
-setup_admin_auth
+setup_full_auth
 
 NEW_ID=$(uuidgen | tr 'A-Z' 'a-z')
 NEW_EMAIL="file-api+${NEW_ID}@example.com"

@@ -11,7 +11,7 @@ print_step "Testing Find API where comparison operators"
 
 # Setup test environment with template (provides 5 account records with varying balances)
 setup_test_with_template "where-comparison"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to see balance distribution
 print_step "Analyzing account balance data for comparison tests"

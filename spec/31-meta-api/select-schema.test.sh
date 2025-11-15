@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Describe API schema selection"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "select-schema"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Get account schema from template
 print_step "Testing GET /api/describe/account"

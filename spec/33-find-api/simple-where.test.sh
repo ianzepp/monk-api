@@ -11,7 +11,7 @@ print_step "Testing Find API simple where functionality"
 
 # Setup test environment with template (provides account data)
 setup_test_with_template "simple-where"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to identify test data
 print_step "Getting all accounts to identify test data"
@@ -38,7 +38,7 @@ data=$(extract_and_validate_data "$response" "Name filtered results")
 record_count=$(echo "$data" | jq 'length')
 if [[ "$record_count" -eq 1 ]]; then
     print_success "Name filter returned exactly 1 matching record"
-    
+
     # Verify it's the correct record
     found_name=$(echo "$data" | jq -r '.[0].name')
     if [[ "$found_name" == "$test_name" ]]; then
@@ -62,7 +62,7 @@ data=$(extract_and_validate_data "$response" "Email filtered results")
 record_count=$(echo "$data" | jq 'length')
 if [[ "$record_count" -eq 1 ]]; then
     print_success "Email filter returned exactly 1 matching record"
-    
+
     # Verify it's the correct record
     found_email=$(echo "$data" | jq -r '.[0].email')
     if [[ "$found_email" == "$test_email" ]]; then

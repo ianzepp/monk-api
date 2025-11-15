@@ -174,16 +174,16 @@ fi
 
 print_success "Created fixture tenant: $tenant_name → $template_db_name"
 
-# Step 2: Authenticate as admin
-print_step "Setting up admin authentication"
-JWT_TOKEN=$(get_user_token "$tenant_name" "admin")
+# Step 2: Authenticate as full
+print_step "Setting up authentication (full)"
+JWT_TOKEN=$(get_user_token "$tenant_name" "full")
 
 if [[ -z "$JWT_TOKEN" || "$JWT_TOKEN" == "null" ]]; then
-    fail "Failed to authenticate admin user"
+    fail "Failed to authenticate full user"
 fi
 
 export JWT_TOKEN
-print_success "Admin authentication configured"
+print_success "Authentication (full) configured"
 
 # Step 3: Load all schemas
 print_step "Loading schemas from $FIXTURES_DIR/schemas/"

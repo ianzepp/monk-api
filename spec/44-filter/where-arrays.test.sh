@@ -11,7 +11,7 @@ print_step "Testing Find API where array operators"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-arrays"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to identify test values
 print_step "Analyzing account data for array membership tests"
@@ -139,7 +139,7 @@ else
     test_fail "Expected 0 records for empty \$in array, got: $record_count"
 fi
 
-# Test 5: $nin with empty array (edge case)  
+# Test 5: $nin with empty array (edge case)
 print_step "Testing \$nin with empty array"
 
 empty_nin_filter='{"where": {"name": {"$nin": []}}}'

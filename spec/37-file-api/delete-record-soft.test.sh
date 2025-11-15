@@ -7,7 +7,7 @@ source "$(dirname "$0")/../file-api-helpers.sh"
 print_step "File API delete: soft delete of record"
 
 setup_test_with_template "file-delete-record"
-setup_admin_auth
+setup_full_auth
 
 DELETE_ID=$(uuidgen | tr 'A-Z' 'a-z')
 DELETE_EMAIL="file-api-delete+${DELETE_ID}@example.com"

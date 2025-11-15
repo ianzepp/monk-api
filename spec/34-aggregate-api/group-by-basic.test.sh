@@ -9,7 +9,7 @@ print_step "Testing Aggregate API - GROUP BY"
 
 # Setup
 setup_test_with_template "aggregate-group-by"
-setup_admin_auth
+setup_full_auth
 
 # Create test records with different account types
 print_step "Creating test records with different account types"

@@ -72,7 +72,7 @@ source "$(dirname "$0")/../test-helper.sh"
 
 # Setup with template (most common)
 setup_test_with_template "test-name" "basic"
-setup_admin_auth
+setup_full_auth
 
 # Make authenticated request
 response=$(auth_post "api/describe/account" "$schema_json")

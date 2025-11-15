@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing DELETE /api/data/:schema/:record/:relationship/:child endpoint"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "delete-relationship-post"
-setup_admin_auth
+setup_full_auth
 
 # Basic setup - create schemas
 print_step "Setting up test schemas"

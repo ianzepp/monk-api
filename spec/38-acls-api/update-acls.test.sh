@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing ACLs API PUT (update/replace) functionality"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "update-acls-test"
-setup_admin_auth
+setup_full_auth
 
 # Find an existing record to work with (use first account record)
 print_step "Finding existing record to test ACL replacement"

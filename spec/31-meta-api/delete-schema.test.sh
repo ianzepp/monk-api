@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Describe API schema deletion"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "delete-schema"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Verify contact schema exists before deletion
 print_step "Verifying contact schema exists before deletion"

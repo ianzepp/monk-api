@@ -11,7 +11,7 @@ print_step "Testing Find API basic SELECT functionality"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "select-basic"
-setup_admin_auth
+setup_full_auth
 
 # First get full records to see all available fields
 print_step "Getting full record structure for SELECT tests"
@@ -84,7 +84,7 @@ first_single=$(echo "$data" | jq -r '.[0]')
 single_field_count=$(echo "$first_single" | jq 'keys | length')
 print_success "Single SELECT returned record with $single_field_count fields"
 
-# Test 3: Select system fields  
+# Test 3: Select system fields
 print_step "Testing SELECT system fields (id, created_at, updated_at)"
 
 system_select_filter='{"select": ["id", "created_at", "updated_at"]}'
@@ -106,7 +106,7 @@ validate_record_fields "$first_system" "id" "created_at" "updated_at"
 # Test 4: Select all fields explicitly
 print_step "Testing SELECT all fields explicitly"
 
-# List common account fields explicitly 
+# List common account fields explicitly
 all_select_filter='{"select": ["id", "name", "email", "username", "account_type", "balance", "is_active", "is_verified", "created_at", "updated_at"]}'
 
 response=$(auth_post "api/find/account" "$all_select_filter")

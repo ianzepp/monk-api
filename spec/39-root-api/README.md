@@ -1,6 +1,6 @@
 # 39-root-api: Root API Administrative Tests
 
-Tests for root-level administrative operations requiring elevated privileges.
+Tests for root-level sudo operations requiring elevated privileges.
 
 **Scope:**
 - Tenant management and administration via /api/root/*
@@ -15,4 +15,4 @@ Tests for root-level administrative operations requiring elevated privileges.
 - Tenant provisioning and cleanup workflows
 - Administrative error handling and security
 - Development-only endpoint restrictions
-- Cross-tenant administrative operations
+- Cross-tenant sudo operations

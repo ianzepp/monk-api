@@ -12,15 +12,15 @@ print_step "Testing Find API real-world customer search scenario"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "complex-03"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Customer search with text patterns and business rules
 print_step "Testing customer search: Text patterns + business rules"
 
 # Real-world scenario: Find customers for targeted marketing
 # Query: SELECT name, email, balance, account_type FROM account
-#        WHERE (name LIKE '%John%' OR name LIKE '%Alice%') 
-#              AND balance > 1000 
+#        WHERE (name LIKE '%John%' OR name LIKE '%Alice%')
+#              AND balance > 1000
 #              AND account_type != 'trial'
 #              AND email LIKE '%@%.com'
 # Note: Using $and with individual LIKE conditions since $or is broken
@@ -50,21 +50,21 @@ for i in $(seq 0 $((record_count - 1))); do
     email=$(echo "$record" | jq -r '.email')
     balance=$(echo "$record" | jq -r '.balance')
     account_type=$(echo "$record" | jq -r '.account_type')
-    
+
     # Text pattern validation
     if [[ ! "${name,,}" =~ john ]]; then
         test_fail "Record $i name '$name' doesn't contain 'john'"
     fi
-    
+
     # Business rule validation
     if (( $(echo "$balance <= 1000" | bc -l) )); then
         test_fail "Record $i balance $balance <= 1000 (below threshold)"
     fi
-    
+
     if [[ "$account_type" == "trial" ]]; then
         test_fail "Record $i is trial account (should be excluded)"
     fi
-    
+
     # Email domain validation
     if [[ ! "$email" =~ @.*\.com$ ]]; then
         test_fail "Record $i email '$email' not .com domain"
@@ -73,7 +73,7 @@ done
 
 if [[ "$record_count" -gt 0 ]]; then
     print_success "All prospects meet customer search criteria"
-    
+
     # Display customer search results
     print_step "Qualified customer prospects"
     echo "$data" | jq -r '.[] | "\(.name) (\(.account_type)): $\(.balance) - \(.email)"'
@@ -82,7 +82,7 @@ fi
 # Test 2: Account audit query with existence checks
 print_step "Testing account audit query with existence validation"
 
-# Business scenario: Account audit for compliance  
+# Business scenario: Account audit for compliance
 # Query: Find accounts missing required data or with unusual configurations
 audit_query='{
     "select": ["name", "email", "username", "phone", "credit_limit", "last_login"],
@@ -108,15 +108,15 @@ for i in $(seq 0 $((record_count - 1))); do
     phone=$(echo "$record" | jq -r '.phone')
     last_login=$(echo "$record" | jq -r '.last_login')
     balance=$(echo "$record" | jq -r '.balance')
-    
+
     if [[ "$phone" != "null" ]]; then
         test_fail "Record $i has phone data (audit expects missing phone)"
     fi
-    
+
     if [[ "$last_login" != "null" ]]; then
         test_fail "Record $i has login history (audit expects new accounts)"
     fi
-    
+
     if (( $(echo "$balance < 0" | bc -l) )); then
         test_fail "Record $i has negative balance $balance"
     fi
@@ -154,15 +154,15 @@ for i in $(seq 0 $((record_count - 1))); do
     balance=$(echo "$record" | jq -r '.balance')
     account_type=$(echo "$record" | jq -r '.account_type')
     credit_limit=$(echo "$record" | jq -r '.credit_limit')
-    
+
     if (( $(echo "$balance < 1000 || $balance > 5000" | bc -l) )); then
         test_fail "Record $i balance $balance outside target range [1000, 5000]"
     fi
-    
+
     if [[ "$account_type" != "business" && "$account_type" != "premium" ]]; then
         test_fail "Record $i account_type '$account_type' not business/premium"
     fi
-    
+
     if [[ "$credit_limit" == "null" ]] || (( $(echo "$credit_limit < 5000" | bc -l) )); then
         test_fail "Record $i credit_limit '$credit_limit' < 5000"
     fi
@@ -170,7 +170,7 @@ done
 
 if [[ "$record_count" -gt 0 ]]; then
     print_success "All accounts meet financial analysis criteria"
-    
+
     # Display financial analysis
     print_step "Financial analysis results"
     echo "$data" | jq -r '.[] | "\(.name) (\(.account_type)): Balance $\(.balance), Credit $\(.credit_limit)"'

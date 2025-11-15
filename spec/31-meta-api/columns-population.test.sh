@@ -11,7 +11,7 @@ print_step "Testing Describe API columns table population"
 
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "columns-population" "basic"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Create a tasks schema with various field types and constraints
 print_step "Creating tasks schema with diverse field types"

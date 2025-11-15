@@ -9,7 +9,7 @@ print_step "Testing Aggregate API - Basic COUNT"
 
 # Setup
 setup_test_with_template "aggregate-basic-count"
-setup_admin_auth
+setup_full_auth
 
 # Create test records with known fields
 print_step "Creating test records for aggregation"

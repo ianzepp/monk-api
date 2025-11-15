@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Describe API schema creation"
 
-# Setup isolated test environment and admin authentication
+# Setup isolated test environment and authentication (full)
 setup_test_isolated "create-schema"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Create schema using account.json
 print_step "Testing POST /api/describe/account"

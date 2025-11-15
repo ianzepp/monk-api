@@ -11,7 +11,7 @@ print_step "Testing Find API basic functionality"
 
 # Setup test environment with template (provides account data)
 setup_test_with_template "basic-find"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Basic empty filter test - should return all records
 print_step "Testing POST /api/find/account with empty filter"

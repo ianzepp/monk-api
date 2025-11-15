@@ -11,7 +11,7 @@ print_step "Testing Find API order functionality"
 
 # Setup test environment with template (provides 5 account records with different names)
 setup_test_with_template "order-basic"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Order by name ascending (default)
 print_step "Testing order by name ascending"
@@ -27,7 +27,7 @@ last_name=$(echo "$data" | jq -r '.[-1].name')
 
 print_success "Name ascending order: '$first_name' ... '$last_name'"
 
-# Test 2: Order by name descending 
+# Test 2: Order by name descending
 print_step "Testing order by name descending"
 
 order_desc_filter='{"order": ["name desc"]}'

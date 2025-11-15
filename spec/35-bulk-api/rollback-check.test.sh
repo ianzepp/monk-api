@@ -11,7 +11,7 @@ print_step "Testing Bulk API transaction rollback behavior"
 
 # Setup test environment with template (includes account schema)
 setup_test_with_template "rollback-check"
-setup_admin_auth
+setup_full_auth
 
 # Get initial record count for baseline
 print_step "Getting baseline account count"
@@ -44,7 +44,7 @@ rollback_request='{
             ]
         },
         {
-            "operation": "create-all", 
+            "operation": "create-all",
             "schema": "account",
             "data": [
                 {
@@ -60,7 +60,7 @@ rollback_request='{
         },
         {
             "operation": "create-all",
-            "schema": "account", 
+            "schema": "account",
             "data": [
                 {
                     "name": "Invalid Record",
@@ -81,7 +81,7 @@ response=$(auth_post "api/bulk" "$rollback_request" || echo '{"success":false}')
 # Verify the bulk operation failed
 if echo "$response" | jq -e '.success == false' >/dev/null; then
     print_success "Bulk operation correctly failed due to invalid data"
-    
+
     error_message=$(echo "$response" | jq -r '.error // "unknown"')
     print_success "Error captured: $error_message"
 else
@@ -127,7 +127,7 @@ success_request='{
             "data": [
                 {
                     "name": "Success User 1",
-                    "email": "success1@example.com", 
+                    "email": "success1@example.com",
                     "username": "success1",
                     "account_type": "personal",
                     "balance": 300.0,
@@ -137,7 +137,7 @@ success_request='{
                 {
                     "name": "Success User 2",
                     "email": "success2@example.com",
-                    "username": "success2", 
+                    "username": "success2",
                     "account_type": "premium",
                     "balance": 400.0,
                     "is_active": true,
@@ -152,29 +152,29 @@ success_response=$(auth_post "api/bulk" "$success_request")
 
 if echo "$success_response" | jq -e '.success == true' >/dev/null; then
     print_success "Successful bulk operation completed"
-    
+
     # Verify records were actually created
     after_success_response=$(auth_get "api/data/account")
     after_success_data=$(extract_and_validate_data "$after_success_response" "Accounts after success")
     after_success_count=$(echo "$after_success_data" | jq 'length')
-    
+
     expected_count=$((initial_count + 2))
     if [[ "$after_success_count" -eq "$expected_count" ]]; then
         print_success "SUCCESS VERIFIED: Account count increased by 2 ($after_success_count = $initial_count + 2)"
     else
         test_fail "SUCCESS INCOMPLETE: Expected $expected_count accounts, got $after_success_count"
     fi
-    
+
     # Verify specific records exist
     success1_found=$(echo "$after_success_data" | jq --arg name "Success User 1" 'map(select(.name == $name)) | length')
     success2_found=$(echo "$after_success_data" | jq --arg name "Success User 2" 'map(select(.name == $name)) | length')
-    
+
     if [[ "$success1_found" -eq 1 && "$success2_found" -eq 1 ]]; then
         print_success "Both success records correctly created and persisted"
     else
         test_fail "Success records not found: User 1=$success1_found, User 2=$success2_found"
     fi
-    
+
 else
     test_fail "Expected successful bulk operation to succeed: $success_response"
 fi

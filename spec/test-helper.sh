@@ -51,16 +51,16 @@ setup_test_basic() {
 # Authentication Setup Functions
 # ===========================
 
-# Setup admin authentication for current tenant
-setup_admin_auth() {
-    print_step "Setting up authentication for admin user"
-    JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "admin")
+# Setup authentication (full) for current tenant
+setup_full_auth() {
+    print_step "Setting up authentication for full user"
+    JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "full")
 
     if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-        print_success "Admin authentication configured"
+        print_success "authentication (full) configured"
         export JWT_TOKEN
     else
-        test_fail "Failed to authenticate admin user"
+        test_fail "Failed to authenticate full user"
     fi
 }
 

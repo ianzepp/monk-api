@@ -11,7 +11,7 @@ print_step "Testing Bulk API rollback with mixed operations"
 
 # Setup test environment with template (includes account + contact schemas)
 setup_test_with_template "rollback-mixed-operations"
-setup_admin_auth
+setup_full_auth
 
 # Get baseline counts for both schemas
 print_step "Getting baseline record counts"
@@ -51,7 +51,7 @@ mixed_rollback_request='{
         },
         {
             "operation": "create-one",
-            "schema": "contact", 
+            "schema": "contact",
             "data": {
                 "name": "Should Rollback Contact",
                 "email": "rollback.contact@example.com",
@@ -79,7 +79,7 @@ response=$(auth_post "api/bulk" "$mixed_rollback_request" || echo '{"success":fa
 # Verify the bulk operation failed
 if echo "$response" | jq -e '.success == false' >/dev/null; then
     print_success "Mixed bulk operation correctly failed due to invalid update data"
-    
+
     error_message=$(echo "$response" | jq -r '.error // "unknown"')
     print_success "Validation error captured: Schema validation failed"
 else
@@ -140,7 +140,7 @@ print_step "Testing successful mixed operations (no rollback)"
 success_mixed_request='{
     "operations": [
         {
-            "operation": "create-one", 
+            "operation": "create-one",
             "schema": "account",
             "data": {
                 "name": "Success Account",
@@ -156,7 +156,7 @@ success_mixed_request='{
             "operation": "create-one",
             "schema": "contact",
             "data": {
-                "name": "Success Contact", 
+                "name": "Success Contact",
                 "email": "success.contact@example.com",
                 "phone": "+15550456",
                 "company": "Success Corp",
@@ -178,35 +178,35 @@ success_response=$(auth_post "api/bulk" "$success_mixed_request")
 
 if echo "$success_response" | jq -e '.success == true' >/dev/null; then
     print_success "Mixed successful operations completed"
-    
+
     # Verify counts increased
     final_accounts_response=$(auth_get "api/data/account")
     final_accounts_data=$(extract_and_validate_data "$final_accounts_response" "Final accounts")
     final_account_count=$(echo "$final_accounts_data" | jq 'length')
-    
+
     final_contacts_response=$(auth_get "api/data/contact")
     final_contacts_data=$(extract_and_validate_data "$final_contacts_response" "Final contacts")
     final_contact_count=$(echo "$final_contacts_data" | jq 'length')
-    
+
     expected_accounts=$((initial_account_count + 1))
     expected_contacts=$((initial_contact_count + 1))
-    
+
     if [[ "$final_account_count" -eq "$expected_accounts" && "$final_contact_count" -eq "$expected_contacts" ]]; then
         print_success "Mixed success verified: accounts=$final_account_count (+1), contacts=$final_contact_count (+1)"
     else
         test_fail "Mixed success counts wrong: accounts=$final_account_count (exp $expected_accounts), contacts=$final_contact_count (exp $expected_contacts)"
     fi
-    
+
     # Verify update was applied
     updated_account=$(echo "$final_accounts_data" | jq --arg id "$existing_account_id" '.[] | select(.id == $id)')
     updated_balance=$(echo "$updated_account" | jq -r '.balance')
-    
+
     if [[ "$updated_balance" == "999.99" ]]; then
         print_success "Account update successful: balance updated to $updated_balance"
     else
         test_fail "Account update failed: balance is $updated_balance (expected 999.99)"
     fi
-    
+
 else
     test_fail "Expected successful mixed operations to complete: $success_response"
 fi

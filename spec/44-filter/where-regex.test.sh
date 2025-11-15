@@ -11,7 +11,7 @@ print_step "Testing Find API where REGEX operators"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-regex"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to see data patterns for regex testing
 print_step "Analyzing account data for regex pattern tests"

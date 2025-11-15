@@ -11,7 +11,7 @@ print_step "Testing Find API where existence operators"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-exists"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to analyze field presence
 print_step "Analyzing account data for existence tests"
@@ -148,7 +148,7 @@ else
     print_warning "\$exists true ($exists_true_count) and \$null false ($null_false_count) have different counts"
 fi
 
-# Compare $exists false vs $null true (should be equivalent)  
+# Compare $exists false vs $null true (should be equivalent)
 exists_false_count=$(auth_post "api/find/account" "$exists_false_filter" | jq '.data | length')
 null_true_count=$(auth_post "api/find/account" "$null_true_filter" | jq '.data | length')
 

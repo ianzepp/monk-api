@@ -23,13 +23,13 @@ TENANT_A_DB="$TEST_DATABASE_NAME"
 
 print_success "Created Tenant A: $TENANT_A_NAME"
 
-# Authenticate admin user for Tenant A
-JWT_TOKEN_A=$(get_user_token "$TENANT_A_NAME" "admin")
+# Authenticate full user for Tenant A
+JWT_TOKEN_A=$(get_user_token "$TENANT_A_NAME" "full")
 if [[ -z "$JWT_TOKEN_A" || "$JWT_TOKEN_A" == "null" ]]; then
-    test_fail "Failed to authenticate admin user for Tenant A"
+    test_fail "Failed to authenticate full user for Tenant A"
 fi
 
-print_success "Tenant A admin authentication configured"
+print_success "Tenant A authentication (full) configured"
 
 # Create account schema for Tenant A
 account_schema_a=$(cat spec/account.json)
@@ -68,13 +68,13 @@ TENANT_B_DB="$TEST_DATABASE_NAME"
 
 print_success "Created Tenant B: $TENANT_B_NAME"
 
-# Authenticate admin user for Tenant B
-JWT_TOKEN_B=$(get_user_token "$TENANT_B_NAME" "admin")
+# Authenticate full user for Tenant B
+JWT_TOKEN_B=$(get_user_token "$TENANT_B_NAME" "full")
 if [[ -z "$JWT_TOKEN_B" || "$JWT_TOKEN_B" == "null" ]]; then
-    test_fail "Failed to authenticate admin user for Tenant B"
+    test_fail "Failed to authenticate full user for Tenant B"
 fi
 
-print_success "Tenant B admin authentication configured"
+print_success "Tenant B authentication (full) configured"
 
 # Create account schema for Tenant B
 schema_response_b=$(curl -s -X POST "http://localhost:9001/api/describe/account" \

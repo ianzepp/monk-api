@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing ACLs API basic functionality"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "acls-api-test"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Create a test record to work with
 print_step "Creating test record for ACL operations"

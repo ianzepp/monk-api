@@ -7,7 +7,7 @@ source "$(dirname "$0")/../file-api-helpers.sh"
 print_step "File API retrieve: record and field content"
 
 setup_test_with_template "file-retrieve-field-raw"
-setup_admin_auth
+setup_full_auth
 
 account_json=$(get_template_account)
 extract_account_info "$account_json"

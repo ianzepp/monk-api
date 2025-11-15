@@ -11,7 +11,7 @@ print_step "Testing Find API where logical operators"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-logical"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to identify test values
 print_step "Analyzing account data for logical operator tests"
@@ -80,7 +80,7 @@ else
     print_warning "KNOWN ISSUE: \$or operator implementation - Expected at least $expected_min records, got: $record_count"
 fi
 
-# Test 3: $not operator (condition must not be true)  
+# Test 3: $not operator (condition must not be true)
 print_step "Testing \$not operator (NOT name)"
 
 not_filter="{\"where\": {\"\$not\": {\"name\": \"$test_name\"}}}"

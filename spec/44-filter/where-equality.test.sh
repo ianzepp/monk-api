@@ -11,7 +11,7 @@ print_step "Testing Find API where equality operators"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-equality"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to identify test data
 print_step "Getting all accounts to identify test data"

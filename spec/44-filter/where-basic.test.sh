@@ -11,7 +11,7 @@ print_step "Testing Find API basic where functionality"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-basic"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to see what data we're working with
 print_step "Getting all accounts to identify test data"

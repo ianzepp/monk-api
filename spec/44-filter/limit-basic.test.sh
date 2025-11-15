@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# Find API Limit Test  
+# Find API Limit Test
 # Tests limit functionality with POST /api/find/:schema
 
 # Source helpers
@@ -11,7 +11,7 @@ print_step "Testing Find API limit functionality"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "limit-basic"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Limit functionality - request only 2 records
 print_step "Testing limit=2 functionality"

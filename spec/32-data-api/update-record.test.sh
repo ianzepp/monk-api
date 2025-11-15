@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Data API record updates"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "update-record"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Get an existing account to update
 print_step "Getting existing account for update testing"

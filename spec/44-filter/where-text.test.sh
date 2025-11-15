@@ -11,7 +11,7 @@ print_step "Testing Find API where \$text operator"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-text"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to see available text content
 print_step "Analyzing account data for text search tests"
@@ -123,7 +123,7 @@ else
     print_success "\$find and \$text operators have different implementations (expected for ranking vs simple search)"
 fi
 
-# Test 6: $text operator on email field  
+# Test 6: $text operator on email field
 print_step "Testing \$text on email field"
 
 text_email_filter='{"where": {"email": {"$text": "example"}}}'

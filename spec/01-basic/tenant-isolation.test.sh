@@ -40,10 +40,10 @@ verify_test_tenant "$tenant_name" "$db_name"
 # Test 4: Test different user access levels
 print_step "Testing different user access levels"
 
-# Test admin user
-admin_token=$(get_user_token "$tenant_name" "admin")
-if [[ -n "$admin_token" && "$admin_token" != "null" ]]; then
-    print_success "Admin user authentication successful"
+# Test full user
+full_token=$(get_user_token "$tenant_name" "full")
+if [[ -n "$full_token" && "$full_token" != "null" ]]; then
+    print_success "Full user authentication successful"
 else
     print_error "Admin user authentication failed"
 fi

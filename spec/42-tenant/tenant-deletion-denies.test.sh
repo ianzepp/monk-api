@@ -38,13 +38,13 @@ else
     print_warning "Tenant registration failed: $register_response"
 fi
 
-# Authenticate admin user
-JWT_TOKEN=$(get_user_token "$TENANT_NAME" "admin")
+# Authenticate full user
+JWT_TOKEN=$(get_user_token "$TENANT_NAME" "full")
 if [[ -z "$JWT_TOKEN" || "$JWT_TOKEN" == "null" ]]; then
-    test_fail "Failed to authenticate admin user for tenant"
+    test_fail "Failed to authenticate full user for tenant"
 fi
 
-print_success "Tenant admin authentication configured"
+print_success "Tenant authentication (full) configured"
 
 # Create account schema
 account_schema=$(cat spec/account.json)
@@ -100,10 +100,10 @@ fi
 # Soft Delete Tenant
 print_step "Soft deleting tenant"
 
-# Use system admin token for tenant management
+# Use system root token for tenant management
 SYSTEM_TOKEN=$(get_user_token "system" "root")
 if [[ -z "$SYSTEM_TOKEN" || "$SYSTEM_TOKEN" == "null" ]]; then
-    test_fail "Failed to get system admin token"
+    test_fail "Failed to get system root token"
 fi
 
 # Soft delete the tenant via root API

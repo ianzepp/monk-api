@@ -11,7 +11,7 @@ print_step "Testing Describe API x-monk-relationship types"
 
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "relationship-types" "basic"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Create a schema with both owned and referenced relationships
 print_step "Creating schema with owned and referenced relationships"

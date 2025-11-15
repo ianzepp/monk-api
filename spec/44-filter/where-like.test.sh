@@ -11,7 +11,7 @@ print_step "Testing Find API where LIKE operators"
 
 # Setup test environment with template (provides 5 account records with varying names/emails)
 setup_test_with_template "where-like"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to see name/email patterns
 print_step "Analyzing account data for pattern matching tests"
@@ -26,7 +26,7 @@ echo "$all_data" | jq -r '.[] | "\(.name) - \(.email)"'
 # Test 1: $like operator (case-sensitive pattern matching)
 print_step "Testing \$like operator (case-sensitive)"
 
-# Test pattern: names starting with "J" 
+# Test pattern: names starting with "J"
 like_filter='{"where": {"name": {"$like": "J%"}}}'
 
 response=$(auth_post "api/find/account" "$like_filter")

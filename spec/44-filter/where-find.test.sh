@@ -11,7 +11,7 @@ print_step "Testing Find API where \$find operator"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-find"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to see available text content
 print_step "Analyzing account data for full-text search tests"

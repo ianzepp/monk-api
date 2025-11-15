@@ -9,7 +9,7 @@ print_step "Testing Find API - Total Count Parameter"
 
 # Setup
 setup_test_with_template "find-count-total"
-setup_admin_auth
+setup_full_auth
 
 # Create test records
 print_step "Creating test records for counting"

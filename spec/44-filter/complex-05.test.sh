@@ -12,7 +12,7 @@ print_step "Testing Find API comprehensive enterprise query scenarios"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "complex-05"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Maximum complexity enterprise query
 print_step "Testing maximum complexity enterprise query"
@@ -53,45 +53,45 @@ for i in $(seq 0 $((record_count - 1))); do
     account_type=$(echo "$record" | jq -r '.account_type')
     credit_limit=$(echo "$record" | jq -r '.credit_limit')
     username=$(echo "$record" | jq -r '.username')
-    
+
     # Range validation
     if (( $(echo "$balance < 100 || $balance > 10000" | bc -l) )); then
         test_fail "Record $i balance $balance outside range [100, 10000]"
     fi
-    
-    # Array membership validation  
+
+    # Array membership validation
     if [[ "$account_type" != "personal" && "$account_type" != "business" && "$account_type" != "premium" ]]; then
         test_fail "Record $i account_type '$account_type' not in allowed list"
     fi
-    
+
     # Pattern matching validation
     if [[ ! "$email" =~ @ ]]; then
         test_fail "Record $i email '$email' missing @ symbol"
     fi
-    
+
     if [[ "$account_type" == "suspended" ]]; then
         test_fail "Record $i account_type '$account_type' should be excluded"
     fi
-    
+
     # Regex validation
     if [[ ! "$name" =~ ^[A-Z] ]]; then
         test_fail "Record $i name '$name' doesn't start with capital letter"
     fi
-    
+
     # Existence validation
     if [[ "$credit_limit" != "null" ]]; then
         test_fail "Record $i credit_limit '$credit_limit' should be null"
     fi
-    
+
     if [[ "$email" == "null" ]]; then
         test_fail "Record $i email is null (should exist)"
     fi
-    
+
     # Inequality validation
     if (( $(echo "$balance == 0" | bc -l) )); then
         test_fail "Record $i balance is 0 (should be != 0)"
     fi
-    
+
     # Case-insensitive search validation
     if [[ ! "${name,,}" =~ o ]]; then
         test_fail "Record $i name '$name' doesn't contain 'o'"
@@ -100,7 +100,7 @@ done
 
 if [[ "$record_count" -gt 0 ]]; then
     print_success "All accounts meet comprehensive enterprise criteria"
-    
+
     # Display enterprise results
     print_step "Enterprise segmentation results"
     echo "$data" | jq -r '.[] | "\(.name): \(.email), $\(.balance) (\(.account_type))"'
@@ -190,15 +190,15 @@ for i in $(seq 0 $((record_count - 1))); do
     balance=$(echo "$record" | jq -r '.balance')
     account_type=$(echo "$record" | jq -r '.account_type')
     created_at=$(echo "$record" | jq -r '.created_at')
-    
+
     if (( $(echo "$balance <= 500" | bc -l) )); then
         test_fail "Record $i balance $balance <= 500"
     fi
-    
+
     if [[ "$account_type" != "business" && "$account_type" != "premium" ]]; then
         test_fail "Record $i account_type '$account_type' not business/premium"
     fi
-    
+
     if [[ ! "$created_at" =~ ^2025 ]]; then
         test_fail "Record $i created_at '$created_at' not in 2025"
     fi

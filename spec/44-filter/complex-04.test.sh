@@ -12,7 +12,7 @@ print_step "Testing Find API advanced pattern matching scenarios"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "complex-04"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Email validation with regex and domain filtering
 print_step "Testing email validation with pattern matching"
@@ -41,18 +41,18 @@ for i in $(seq 0 $((record_count - 1))); do
     record=$(echo "$data" | jq -r ".[$i]")
     email=$(echo "$record" | jq -r '.email')
     account_type=$(echo "$record" | jq -r '.account_type')
-    
+
     # Basic email regex validation
     if [[ ! "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
         test_fail "Record $i email '$email' doesn't match valid email pattern"
     fi
-    
+
     # Account type exclusion
     if [[ "$account_type" == "suspended" ]]; then
         test_fail "Record $i account_type '$account_type' should be excluded"
     fi
-    
-    # Account type exclusion  
+
+    # Account type exclusion
     if [[ "$account_type" == "suspended" ]]; then
         test_fail "Record $i is suspended account (should be excluded)"
     fi
@@ -88,12 +88,12 @@ print_success "Name standardization found $record_count accounts with standard n
 for i in $(seq 0 $((record_count - 1))); do
     record=$(echo "$data" | jq -r ".[$i]")
     name=$(echo "$record" | jq -r '.name')
-    
+
     # Standard "First Last" pattern
     if [[ ! "$name" =~ ^[A-Z][a-z]+\ [A-Z][a-z]+$ ]]; then
         test_fail "Record $i name '$name' doesn't follow First Last pattern"
     fi
-    
+
     # Exclusions for suffixes
     if [[ "$name" =~ Jr\.|Sr\.|III ]]; then
         test_fail "Record $i name '$name' contains excluded suffix"
@@ -130,17 +130,17 @@ for i in $(seq 0 $((record_count - 1))); do
     record=$(echo "$data" | jq -r ".[$i]")
     username=$(echo "$record" | jq -r '.username')
     email=$(echo "$record" | jq -r '.email')
-    
+
     # Username pattern validation
     if [[ ! "$username" =~ ^[a-z]+$ ]]; then
         test_fail "Record $i username '$username' not lowercase letters only"
     fi
-    
+
     # Email contains smith
     if [[ ! "${email,,}" =~ smith ]]; then
         test_fail "Record $i email '$email' doesn't contain 'smith'"
     fi
-    
+
     # Username contains smith
     if [[ ! "$username" =~ smith ]]; then
         test_fail "Record $i username '$username' doesn't contain 'smith'"
@@ -180,17 +180,17 @@ for i in $(seq 0 $((record_count - 1))); do
     name=$(echo "$record" | jq -r '.name')
     email=$(echo "$record" | jq -r '.email')
     username=$(echo "$record" | jq -r '.username')
-    
+
     # Text search validation
     if [[ ! "${name,,}" =~ john ]]; then
         test_fail "Record $i name '$name' doesn't contain 'john'"
     fi
-    
+
     # Email regex validation (domain before @)
     if [[ ! "$email" =~ \.[a-z]{3,}@ ]]; then
         test_fail "Record $i email '$email' doesn't match domain pattern"
     fi
-    
+
     # Username contains 'j'
     if [[ ! "$username" =~ j ]]; then
         test_fail "Record $i username '$username' doesn't contain 'j'"
@@ -199,7 +199,7 @@ done
 
 if [[ "$record_count" -gt 0 ]]; then
     print_success "All results meet advanced search criteria"
-    
+
     # Display search results
     print_step "Advanced search results"
     echo "$data" | jq -r '.[] | "\(.name) - \(.username) - \(.email)"'
@@ -236,12 +236,12 @@ for i in $(seq 0 $((record_count - 1))); do
     name=$(echo "$record" | jq -r '.name')
     phone=$(echo "$record" | jq -r '.phone')
     last_login=$(echo "$record" | jq -r '.last_login')
-    
+
     # Required fields validation
     if [[ "$email" == "null" || "$name" == "null" ]]; then
         test_fail "Record $i missing required fields (email/name)"
     fi
-    
+
     # Incomplete profile indicators
     if [[ "$phone" == "null" && "$last_login" == "null" ]]; then
         complete_profiles=$((complete_profiles + 1))

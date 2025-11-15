@@ -7,7 +7,7 @@ source "$(dirname "$0")/../file-api-helpers.sh"
 print_step "File API list: flat recursive listing"
 
 setup_test_with_template "file-list-flat-recursive"
-setup_admin_auth
+setup_full_auth
 
 account_json=$(get_template_account)
 extract_account_info "$account_json"

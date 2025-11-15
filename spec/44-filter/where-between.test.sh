@@ -11,7 +11,7 @@ print_step "Testing Find API where BETWEEN operator"
 
 # Setup test environment with template (provides 5 account records)
 setup_test_with_template "where-between"
-setup_admin_auth
+setup_full_auth
 
 # First get all accounts to analyze numeric and string ranges
 print_step "Analyzing account data for BETWEEN range tests"

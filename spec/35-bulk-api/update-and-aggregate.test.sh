@@ -8,7 +8,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing Bulk API update-all, update-any, and aggregate behavior"
 
 setup_test_with_template "update-and-aggregate"
-setup_admin_auth
+setup_full_auth
 
 # Fetch baseline account data
 accounts_response=$(auth_get "api/data/account")

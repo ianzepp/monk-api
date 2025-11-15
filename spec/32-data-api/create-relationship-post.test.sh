@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing POST /api/data/:schema/:record/:relationship endpoint"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "create-relationship-post"
-setup_admin_auth
+setup_full_auth
 
 # Create post schema with comments relationship
 print_step "Creating post schema"

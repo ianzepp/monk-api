@@ -11,7 +11,7 @@ print_step "Testing Find API limit functionality"
 
 # Setup test environment with template (provides account data)
 setup_test_with_template "limit-basic"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Basic limit functionality
 print_step "Testing limit=2 functionality"
@@ -25,7 +25,7 @@ data=$(extract_and_validate_data "$response" "Limited results")
 record_count=$(echo "$data" | jq 'length')
 if [[ "$record_count" -eq 2 ]]; then
     print_success "Limit=2 correctly returned $record_count records"
-    
+
     # Verify records have proper structure
     first_record=$(echo "$data" | jq -r '.[0]')
     validate_record_fields "$first_record" "id" "name" "email"
@@ -73,7 +73,7 @@ data=$(extract_and_validate_data "$response" "Combined filter results")
 record_count=$(echo "$data" | jq 'length')
 if [[ "$record_count" -eq 1 ]]; then
     print_success "Combined where + limit returned exactly 1 record"
-    
+
     # Verify the returned record matches the filter
     found_type=$(echo "$data" | jq -r '.[0].account_type')
     if [[ "$found_type" == "$account_type" ]]; then

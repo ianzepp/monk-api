@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing DELETE /api/data/:schema/:record/:relationship endpoint"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "delete-relationship-array"
-setup_admin_auth
+setup_full_auth
 
 # Basic setup - create schemas
 print_step "Setting up test schemas"
@@ -113,7 +113,7 @@ print_warning "Skipping DELETE on empty relationship test - observer pipeline va
 # response=$(auth_delete "api/data/posts/$post_id/comments")
 # empty_result=$(extract_and_validate_data "$response" "Delete from empty relationship")
 # empty_count=$(echo "$empty_result" | jq 'length')
-# 
+#
 # if [[ "$empty_count" == "0" ]]; then
 #     print_success "DELETE on empty relationship returned empty array"
 # else
@@ -150,7 +150,7 @@ print_warning "Skipping cross-parent isolation delete test - observer pipeline v
 # response=$(auth_delete "api/data/posts/$post_id/comments")
 # first_delete_result=$(extract_and_validate_data "$response" "Delete from first post")
 # first_delete_count=$(echo "$first_delete_result" | jq 'length')
-# 
+#
 # if [[ "$first_delete_count" == "0" ]]; then
 #     print_success "DELETE on empty first post returned empty array"
 # else

@@ -7,7 +7,7 @@ source "$(dirname "$0")/../file-api-helpers.sh"
 print_step "File API list: WHERE clause filtering"
 
 setup_test_with_template "file-list-where"
-setup_admin_auth
+setup_full_auth
 
 accounts_response=$(auth_get "api/data/account")
 accounts_data=$(extract_and_validate_data "$accounts_response" "Account listing")

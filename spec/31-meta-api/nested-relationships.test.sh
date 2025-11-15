@@ -11,7 +11,7 @@ print_step "Testing Describe API nested relationship endpoints"
 
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "nested-relationships" "basic"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Create parent schema (posts)
 print_step "Creating posts schema"

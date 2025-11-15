@@ -9,9 +9,9 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Data API record selection"
 
-# Setup test environment with template and admin authentication
+# Setup test environment with template and authentication (full)
 setup_test_with_template "select-record"
-setup_admin_auth
+setup_full_auth
 
 # Test 1: Get all accounts from template data
 print_step "Testing GET /api/data/account (list all records)"

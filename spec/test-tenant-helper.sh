@@ -155,13 +155,13 @@ create_isolated_test_tenant() {
     local user_sql="
         INSERT INTO users (name, auth, access, access_read, access_edit, access_full) VALUES
         ('Test Root User', 'root', 'root', '{}', '{}', '{}'),
-        ('Test Admin User', 'admin', 'full', '{}', '{}', '{}'),
+        ('Test Admin User', 'full', 'full', '{}', '{}', '{}'),
         ('Test Regular User', 'user', 'edit', '{}', '{}', '{}')
         ON CONFLICT (auth) DO NOTHING
     "
 
     if psql -d "$db_name" -c "$user_sql" >/dev/null 2>&1; then
-        print_success "Created test users (root, admin, user)"
+        print_success "Created test users (root, full, user)"
     else
         print_error "Failed to create test users"
         cleanup_test_tenant "$tenant_name" "$db_name"
