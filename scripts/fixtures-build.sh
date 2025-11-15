@@ -168,17 +168,34 @@ print_step "Waiting for server to be ready"
 wait_for_server
 print_success "Server is ready"
 
-# Step 1: Create isolated tenant for fixture building
-print_step "Creating isolated tenant for fixture building"
-create_isolated_test_tenant "fixtures_$TEMPLATE_NAME" >/dev/null
-tenant_name="$TEST_TENANT_NAME"
-template_db_name="$TEST_DATABASE_NAME"
+# Step 1: Create fresh tenant database for fixture building
+print_step "Creating fresh tenant database for fixture building"
 
-if [[ -z "$tenant_name" || -z "$template_db_name" ]]; then
-    fail "Failed to create fixture tenant"
+# Generate unique tenant name
+timestamp=$(date +%s)
+random=$(openssl rand -hex 4)
+tenant_name="fixtures_${TEMPLATE_NAME}_${timestamp}_${random}"
+template_db_name=$(hash_tenant_name "$tenant_name")
+
+# Create database
+if ! createdb "$template_db_name" 2>/dev/null; then
+    fail "Failed to create database: $template_db_name"
 fi
+print_success "Created database: $template_db_name"
 
-print_success "Created fixture tenant: $tenant_name → $template_db_name"
+# Initialize tenant schema (no users - let fixture init.sql handle that)
+if ! psql -d "$template_db_name" -f sql/init-tenant.sql >/dev/null 2>&1; then
+    dropdb "$template_db_name" 2>/dev/null || true
+    fail "Failed to initialize tenant schema"
+fi
+print_success "Initialized tenant schema"
+
+# Register in main database
+if ! psql -d monk -c "INSERT INTO tenants (name, database, host, is_active, tenant_type) VALUES ('$tenant_name', '$template_db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
+    dropdb "$template_db_name" 2>/dev/null || true
+    fail "Failed to register tenant"
+fi
+print_success "Registered tenant: $tenant_name"
 
 # Step 1.5: Initialize definitions system for schema caching
 print_step "Initializing definitions system (schema caching)"
