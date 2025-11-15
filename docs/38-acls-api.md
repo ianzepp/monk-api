@@ -39,16 +39,16 @@ GET  /api/acls/:schema/:record    # Retrieve current ACLs
 
 ## Authentication
 
-All ACLs API endpoints require valid JWT authentication. The API enforces administrative privileges for ACL management and respects tenant isolation.
+All ACLs API endpoints require valid JWT authentication. The API enforces sudo privileges for ACL management and respects tenant isolation.
 
 ```bash
 Authorization: Bearer <jwt>
 ```
 
 ### Required Permissions
-- **ACL Management**: `admin` or `root` access level required
+- **ACL Management**: `full` or `root` access level required
 - **ACL Viewing**: `read_data` permission for the schema
-- **Bulk Operations**: `admin` or `root` access level required
+- **Bulk Operations**: `full` or `root` access level required
 
 ## Core Endpoints
 
@@ -83,7 +83,7 @@ Authorization: Bearer <jwt>
       "access_deny": ["user_blocked"]
     },
     "updated_at": "2025-01-01T12:00:00.000Z",
-    "updated_by": "admin_user"
+    "updated_by": "full_user"
   }
 }
 ```
@@ -99,8 +99,8 @@ Authorization: Bearer <jwt>
 
 {
   "access_read": ["group_public"],
-  "access_edit": ["user_admin"],
-  "access_full": ["user_owner"],
+  "access_edit": ["edit_user"],
+  "access_full": ["full_user"],
   "access_deny": []
 }
 ```
@@ -203,7 +203,7 @@ Grants complete control over records including deletion and ACL management.
 {
   "access_full": [
     "user_789",
-    "group_admins",
+    "group_owners",
     "role_owner"
   ]
 }
@@ -255,7 +255,7 @@ Use groups for scalable permission management:
 {
   "access_read": ["group_public", "group_customers"],
   "access_edit": ["group_support", "group_managers"],
-  "access_full": ["group_admins", "group_owners"],
+  "access_full": ["group_owners", "group_owners"],
   "access_deny": ["group_blocked", "group_inactive"]
 }
 ```
@@ -291,7 +291,7 @@ Authorization: Bearer <jwt>
   "acl_update": {
     "access_read": {"$add": ["group_public", "group_employees"]},
     "access_edit": {"$add": ["group_content_managers"]},
-    "access_full": {"$add": ["group_admins"]}
+    "access_full": {"$add": ["group_owners"]}
   }
 }
 ```
@@ -326,7 +326,7 @@ Authorization: Bearer <jwt>
   "acl_update": {
     "access_read": ["group_hr", "group_legal"],
     "access_edit": ["group_hr_managers"],
-    "access_full": ["group_admins"],
+    "access_full": ["group_owners"],
     "access_deny": ["group_terminated"]
   }
 }
@@ -343,7 +343,7 @@ Records automatically inherit ACLs from their schema defaults:
     "users": {
       "access_read": ["group_public"],
       "access_edit": ["user_owner"],
-      "access_full": ["group_admins"]
+      "access_full": ["group_owners"]
     }
   }
 }
@@ -440,7 +440,7 @@ Authorization: Bearer <jwt>
     "type": "PermissionError",
     "message": "Admin privileges required for ACL management",
     "code": "PERMISSION_DENIED",
-    "required_level": "admin"
+    "required_level": "full"
   }
 }
 ```
@@ -522,7 +522,7 @@ Control access to sensitive documents:
 {
   "access_read": ["group_department", "group_legal"],
   "access_edit": ["group_document_owners", "group_legal"],
-  "access_full": ["group_admins", "user_document_creator"],
+  "access_full": ["group_owners", "user_document_creator"],
   "access_deny": ["group_external", "group_contractors"]
 }
 ```
@@ -534,19 +534,19 @@ Manage project-level permissions:
 {
   "access_read": ["group_company", "group_project_stakeholders"],
   "access_edit": ["group_project_members", "group_managers"],
-  "access_full": ["group_project_leads", "group_admins"],
+  "access_full": ["group_project_leads", "group_owners"],
   "access_deny": ["group_former_employees", "group_competitors"]
 }
 ```
 
 ### Administrative Access
-Set up administrative access patterns:
+Set up sudo access patterns:
 
 ```json
 {
   "access_read": ["group_hr", "group_managers"],
   "access_edit": ["group_hr_managers"],
-  "access_full": ["group_admins", "group_hr_directors"],
+  "access_full": ["group_owners", "group_hr_directors"],
   "access_deny": ["group_terminated", "group_suspended"]
 }
 ```
@@ -581,7 +581,7 @@ Authorization: Bearer <jwt>
   "acl_update": {
     "access_read": ["group_security", "group_legal"],
     "access_edit": ["group_security"],
-    "access_full": ["group_admins"],
+    "access_full": ["group_owners"],
     "access_deny": ["group_compromised"]
   }
 }

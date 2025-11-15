@@ -18,12 +18,12 @@
 
 ## Overview
 
-The Auth API provides comprehensive authentication services for the Monk platform, supporting both user authentication and administrative privilege escalation. It serves as the gateway for user identity management and access control within the multi-tenant architecture.
+The Auth API provides comprehensive authentication services for the Monk platform, supporting both user authentication and sudo privilege escalation. It serves as the gateway for user identity management and access control within the multi-tenant architecture.
 
 ### Key Capabilities
 - **User Authentication**: Secure login and session management
 - **User Information**: Retrieve current user context and permissions
-- **Privilege Escalation**: Sudo access for administrative operations
+- **Privilege Escalation**: Sudo access for sudo operations
 - **Multi-tenant Support**: Tenant-isolated authentication with database routing
 - **JWT Token Management**: Secure token-based authentication with expiration
 - **Audit Integration**: All authentication events logged through observer pipeline
@@ -50,7 +50,7 @@ Authorization: Bearer <jwt_token>
 
 ### Required Permissions
 - **Whoami**: Any valid JWT token
-- **Sudo**: `admin` or `root` access level required
+- **Sudo**: `full` or `root` access level required
 
 ### Token Types
 - **User JWT**: Standard user authentication (1 hour expiration)
@@ -116,7 +116,7 @@ The response includes four permission arrays that control access to specific rec
 
 ### POST /api/auth/sudo
 
-Escalates user privileges to root level for administrative operations. Generates a short-lived root JWT token with enhanced permissions.
+Escalates user privileges to root level for sudo operations. Generates a short-lived root JWT token with enhanced permissions.
 
 #### Request
 ```bash
@@ -125,7 +125,7 @@ Authorization: Bearer <user_jwt_token>
 Content-Type: application/json
 
 {
-  "reason": "Tenant administration tasks"
+  "reason": "Tenant sudo tasks"
 }
 ```
 
@@ -139,8 +139,8 @@ Content-Type: application/json
     "token_type": "Bearer",
     "access_level": "root",
     "warning": "Root token expires in 15 minutes",
-    "elevated_from": "admin",
-    "reason": "Tenant administration"
+    "elevated_from": "full",
+    "reason": "Tenant changes"
   }
 }
 ```
@@ -150,17 +150,17 @@ Content-Type: application/json
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 401 | `USER_JWT_REQUIRED` | "Valid user JWT required for privilege escalation" | No valid user JWT |
-| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo" | User lacks admin/root access |
+| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo" | User lacks full/root access |
 
 ### Sudo Workflow
 
 The privilege escalation process follows a secure workflow:
 
 1. **User Authentication**: Validate existing user JWT token
-2. **Permission Check**: Verify user has admin or root access level
+2. **Permission Check**: Verify user has full or root access level
 3. **Token Generation**: Create short-lived root JWT with elevated permissions
 4. **Audit Logging**: Log escalation request with reason and user context
-5. **Token Usage**: Use root JWT for administrative operations
+5. **Token Usage**: Use root JWT for sudo operations
 
 #### Example Usage
 ```bash
@@ -168,9 +168,9 @@ The privilege escalation process follows a secure workflow:
 curl -X POST http://localhost:9001/api/auth/sudo \
   -H "Authorization: Bearer USER_JWT_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"reason": "Tenant administration tasks"}'
+  -d '{"reason": "Tenant sudo tasks"}'
 
-# 2. Use root JWT for administrative operations
+# 2. Use root JWT for sudo operations
 curl -X GET http://localhost:9001/api/root/tenant \
   -H "Authorization: Bearer ROOT_JWT_TOKEN"
 ```
@@ -179,7 +179,7 @@ curl -X GET http://localhost:9001/api/root/tenant \
 
 ### Access Level Requirements
 - **whoami endpoint**: Any valid user JWT token
-- **sudo endpoint**: Requires `admin` or `root` base access level
+- **sudo endpoint**: Requires `full` or `root` base access level
 - **Root operations**: Generated root token required for `/api/root/*` endpoints
 - **Time limits**: Root tokens expire after 15 minutes for security
 
@@ -199,7 +199,7 @@ const rootHeaders = { 'Authorization': `Bearer ${rootToken}` };    // Administra
 - **Explicit escalation**: Must actively request root privileges
 - **Time-limited**: Root tokens automatically expire after 15 minutes
 - **Audit logging**: All sudo requests logged with reason and user context
-- **Base requirements**: Only admin/root users can escalate privileges
+- **Base requirements**: Only full/root users can escalate privileges
 - **Separate storage**: Keep user and root tokens in different storage mechanisms
 
 ### Best Practices
@@ -298,13 +298,13 @@ curl -X GET http://localhost:9001/api/auth/whoami \
 
 ### Administrative Privilege Escalation
 ```bash
-# 1. Request root privileges for administrative tasks
+# 1. Request root privileges for sudo tasks
 curl -X POST http://localhost:9001/api/auth/sudo \
   -H "Authorization: Bearer USER_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"reason": "Tenant database maintenance"}'
 
-# 2. Use root token for administrative operations
+# 2. Use root token for sudo operations
 curl -X GET http://localhost:9001/api/root/tenant \
   -H "Authorization: Bearer ROOT_JWT_TOKEN"
 ```
@@ -342,10 +342,10 @@ curl -X GET http://localhost:9001/api/auth/whoami \
   -H "Authorization: Bearer USER_JWT_TOKEN" | \
   jq -r '.data.access'
 
-# Check if user has admin privileges before sudo
+# Check if user has full privileges before sudo
 curl -X GET http://localhost:9001/api/auth/whoami \
   -H "Authorization: Bearer USER_JWT_TOKEN" | \
-  jq -r '.data.access' | grep -E "(admin|root)"
+  jq -r '.data.access' | grep -E "(full|root)"
 ```
 
 ---

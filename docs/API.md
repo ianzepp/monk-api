@@ -67,7 +67,7 @@ Authorization: Bearer <jwt_token>
 - **33-Find API**: `read_data` (with advanced filtering)
 - **35-Bulk API**: Corresponding permissions for each operation type
 - **37-File API**: File operation permissions mapped to data permissions
-- **38-ACLs API**: `admin` or `root` access level required
+- **38-ACLs API**: `full` or `root` access level required
 - **39-Root API**: `root` access level required
 
 ## Core API Sections
@@ -164,7 +164,7 @@ Authorization: Bearer <jwt_token>
 POST /auth/login
 {
   "tenant": "my_tenant",
-  "username": "admin",
+  "username": "full",
   "password": "secure_password"
 }
 

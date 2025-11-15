@@ -173,7 +173,7 @@ Even users with `access='root'` must explicitly escalate because:
 All `/api/sudo/*` operations are **tenant-scoped**:
 - Can only manage users within your own tenant
 - Cannot see or modify users in other tenants
-- No cross-tenant administrative operations
+- No cross-tenant sudo operations
 - Maintains proper multi-tenant security boundaries
 
 ---

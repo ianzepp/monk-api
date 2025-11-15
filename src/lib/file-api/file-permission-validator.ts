@@ -124,7 +124,7 @@ export class FilePermissionValidator {
             };
         }
 
-        // Schema-level modifications require admin privileges and schema validation
+        // Schema-level modifications require full privileges and schema validation
         if (context.operation === 'delete' && !path.has_wildcards) {
             try {
                 await system.database.toSchema(path.schema!);
@@ -135,7 +135,7 @@ export class FilePermissionValidator {
             return {
                 allowed: false,
                 reason: 'schema_deletion_forbidden',
-                details: 'Schema deletion requires administrator privileges',
+                details: 'Schema deletion requires root privileges',
                 permissions: '---',
                 access_level: 'none',
             };

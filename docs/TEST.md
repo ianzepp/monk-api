@@ -152,7 +152,7 @@ TEST_VERBOSE=1 npm run test:cleanup
 - **`setup_test_basic()`** - No tenant setup needed
 
 ### Authentication Helpers
-- **`setup_admin_auth()`** - Authenticate as admin user
+- **`setup_full_auth()`** - Authenticate as full user
 - **`setup_root_auth()`** - Authenticate as root user
 - **`get_user_token()`** - Get JWT token for specific user
 
@@ -171,7 +171,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../test-helper.sh"
 
 # Setup test environment
 setup_test_with_template "$(basename "$0" .test.sh)" "basic"
-setup_admin_auth
+setup_full_auth
 
 # Test implementation
 print_step "Testing GET /api/describe/account"

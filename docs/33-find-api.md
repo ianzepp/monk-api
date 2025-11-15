@@ -105,7 +105,7 @@ Authorization: Bearer <jwt>
 {
   "where": {
     "status": "active",
-    "role": "admin"
+    "role": "full"
   }
 }
 ```
@@ -214,7 +214,7 @@ Authorization: Bearer <jwt>
   "where": {
     "$or": [
       {"status": "active", "age": {"$gte": 18}},
-      {"role": "admin"},
+      {"role": "full"},
       {"vip": true}
     ]
   }
@@ -399,7 +399,7 @@ The Filter system builds optimized tree structures for complex logical operation
   "where": {
     "status": "active",                    // Simple condition
     "$or": [                               // Logical node
-      {"role": "admin"},                   //   Condition leaf
+      {"role": "full"},                   //   Condition leaf
       {                                     //   Logical node
         "$and": [
           {"role": "user"},                 //     Condition leaf
@@ -486,7 +486,7 @@ The Find API provides three distinct contexts that control how soft-deleted and 
 **Context Selection Guidelines:**
 - Use **api** context for all user-facing endpoints (default behavior)
 - Use **observer** context when observers need to process soft-deleted data
-- Use **system** context only for administrative operations requiring full data access
+- Use **system** context only for sudo operations requiring full data access
 - The context parameter works independently from `include_trashed` and `include_deleted` flags
 - Context provides a higher-level abstraction while override flags offer fine-grained control
 
@@ -704,7 +704,7 @@ Complex queries are built using an optimized tree structure:
   "where": {
     "status": "active",                    // Condition leaf
     "$or": [                               // Logical node
-      {"role": "admin"},                   //   Condition leaf  
+      {"role": "full"},                   //   Condition leaf  
       {                                     //   Logical node
         "$and": [
           {"department": "engineering"},    //     Condition leaf
@@ -809,7 +809,7 @@ FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
         {"name": {"$like": "%John%"}},
         {"email": {"$like": "%john%"}}
       ]},
-      {"role": {"$in": ["admin", "moderator", "user"]}}
+      {"role": {"$in": ["full", "moderator", "user"]}}
     ]
   },
   "limit": 20,
@@ -860,7 +860,7 @@ FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
     "$or": [
       {"department": "engineering", "access_level": {"$gte": 5}},
       {"department": "management"},
-      {"role": "admin"}
+      {"role": "full"}
     ],
     "permissions": {"$contains": ["read", "write", "delete"]},
     "last_audit": {"$gte": "2024-01-01"},

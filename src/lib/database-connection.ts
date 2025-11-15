@@ -30,7 +30,7 @@ export class DatabaseConnection {
         return this.getPool(databaseName);
     }
 
-    /** Convenience helper for postgres administrative client */
+    /** Convenience helper for postgres sudo client */
     static getPostgresClient(): pg.Client {
         return this.getClient('postgres');
     }

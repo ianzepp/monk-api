@@ -113,7 +113,7 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
 
 - `/data/*` → all schema directories matching any name
 - `/data/users/*` → every record directory within the `users` schema
-- `/data/*admin*/` → schema directories that contain `admin` in their name
+- `/data/*channel*/` → schema directories that contain `channel` in their name
 
 > TODO: Record identifiers only honor the literal `*` wildcard right now. Pattern alternatives (`(a|b)`) and ranges (`[01-12]`) described elsewhere are not implemented for record segments yet.
 

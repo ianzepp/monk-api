@@ -111,7 +111,7 @@ psql -d system -f sql/init-tenant.sql
 psql -d system -c "
 INSERT INTO users (name, auth, access, access_read, access_edit, access_full) VALUES
 ('Development Root User', 'root', 'root', '{}', '{}', '{}'),
-('Development Admin User', 'admin', 'full', '{}', '{}', '{}'),
+('Development Full User', 'full', 'full', '{}', '{}', '{}'),
 ('Development User', 'user', 'edit', '{}', '{}', '{}')
 ON CONFLICT (auth) DO NOTHING;
 "
@@ -142,8 +142,8 @@ Your development environment includes:
 - **Main Database**: `monk` (tenant registry)
 - **System Tenant**: `system` database with test users
 - **Available Users**:
-  - `root@system` - Full administrative privileges
-  - `admin@system` - Administrative operations
+  - `root@system` - Full sudo privileges
+  - `full@system` - Administrative operations
   - `user@system` - Standard user operations
 
 ## Core Features
@@ -158,7 +158,7 @@ Define data models using JSON with JSON Schema validation:
   "properties": {
     "name": {"type": "string", "minLength": 1},
     "email": {"type": "string", "format": "email"},
-    "role": {"type": "string", "enum": ["admin", "user"]}
+    "role": {"type": "string", "enum": ["full", "user"]}
   },
   "required": ["name", "email"]
 }

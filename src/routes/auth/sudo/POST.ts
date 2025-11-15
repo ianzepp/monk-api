@@ -6,26 +6,26 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 
 /**
  * POST /api/auth/sudo - Elevate user privileges to root level
- * 
- * Generates short-lived root token for administrative operations.
+ *
+ * Generates short-lived root token for sudo operations.
  * Requires existing user JWT and sufficient base privileges.
  */
 export default async function (context: Context) {
     const userJwt = context.get('jwtPayload');
     const user = context.get('user');
-    
+
     if (!userJwt || !user) {
         throw HttpErrors.unauthorized('Valid user JWT required for privilege escalation', 'USER_JWT_REQUIRED');
     }
-    
+
     // Validate user can escalate privileges (only root users)
     if (user.access !== 'root') {
         throw HttpErrors.forbidden('Insufficient privileges for sudo - root access required', 'SUDO_ACCESS_DENIED');
     }
-    
+
     // Extract optional reason for audit trail
     const { reason } = await context.req.json().catch(() => ({ reason: 'Administrative operation' }));
-    
+
     // Generate short-lived root token (15 minutes)
     const rootUser = {
         id: user.id,
@@ -44,7 +44,7 @@ export default async function (context: Context) {
         elevated_at: new Date().toISOString(),
         elevation_reason: reason
     };
-    
+
     // Generate short-lived sudo token
     const payload: JWTPayload = {
         sub: rootUser.id,
@@ -65,7 +65,7 @@ export default async function (context: Context) {
     };
 
     const rootToken = await sign(payload, process.env['JWT_SECRET']!);
-    
+
     // Log privilege escalation for security audit
     logger.warn('Privilege escalation granted', {
         user_id: user.id,
@@ -75,7 +75,7 @@ export default async function (context: Context) {
         reason: reason,
         expires_in: 900
     });
-    
+
     setRouteResult(context, {
         root_token: rootToken,
         expires_in: 900,

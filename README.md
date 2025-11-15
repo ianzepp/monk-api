@@ -46,7 +46,7 @@
   "properties": {
     "name": {"type": "string", "minLength": 1},
     "email": {"type": "string", "format": "email"},
-    "role": {"type": "string", "enum": ["admin", "user"]}
+    "role": {"type": "string", "enum": ["full", "user"]}
   },
   "required": ["name", "email"]
 }

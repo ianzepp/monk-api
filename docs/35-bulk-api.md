@@ -263,7 +263,7 @@ Additional tests can be added under `spec/35-bulk-api/` to cover new operations 
       "id": "account_123456",
       "data": {
         "access_read": ["user_123456"],
-        "access_edit": ["admin_user"]
+        "access_edit": ["full_user"]
       }
     }
   ]

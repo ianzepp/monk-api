@@ -49,7 +49,7 @@ Run rich search queries with boolean logic, nested filters, ordering, pagination
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "John Doe",
       "email": "john@example.com",
-      "role": "admin",
+      "role": "full",
       "created_at": "2024-01-15T10:30:00Z",
       "updated_at": "2024-01-15T14:22:00Z"
     }
@@ -260,7 +260,7 @@ curl -X POST http://localhost:9001/api/find/documents \
 | Operator | Description | Example |
 |----------|-------------|---------|
 | `$and` | All conditions must match | `{"$and": [{"age": {"$gte": 18}}, {"status": "active"}]}` |
-| `$or` | Any condition must match | `{"$or": [{"role": "admin"}, {"permissions": {"$any": ["write"]}}]}` |
+| `$or` | Any condition must match | `{"$or": [{"role": "full"}, {"permissions": {"$any": ["write"]}}]}` |
 | `$not` | Condition must not match | `{"$not": {"status": "deleted"}}` |
 | `$nand` | Not all conditions match | `{"$nand": [{"role": "guest"}, {"verified": false}]}` |
 | `$nor` | No conditions match | `{"$nor": [{"banned": true}, {"suspended": true}]}` |

@@ -2,7 +2,7 @@
 
 > **System Administration and Tenant Management**
 >
-> The Root API provides administrative endpoints for tenant lifecycle management, system health monitoring, and root-level operations. It requires elevated privileges and is primarily intended for development and administrative use cases.
+> The Root API provides sudo endpoints for tenant lifecycle management, system health monitoring, and root-level operations. It requires elevated privileges and is primarily intended for development and sudo use cases.
 
 ## Table of Contents
 
@@ -19,14 +19,14 @@
 
 ## Overview
 
-The Root API provides administrative functionality for managing the multi-tenant system architecture. It enables creation, management, and monitoring of tenant databases with proper isolation and security controls.
+The Root API provides sudo functionality for managing the multi-tenant system architecture. It enables creation, management, and monitoring of tenant databases with proper isolation and security controls.
 
 ### Key Capabilities
 - **Tenant Lifecycle Management**: Create, update, delete, and restore tenants
 - **Health Monitoring**: Comprehensive system health checks
 - **Database Management**: Automatic database provisioning and cleanup
 - **Security Controls**: Root-level authentication and authorization
-- **Development Support**: Localhost-restricted administrative operations
+- **Development Support**: Localhost-restricted sudo operations
 - **System Integration**: Integration with observer pipeline for audit logging
 
 ### Base URLs
@@ -48,7 +48,7 @@ Authorization: Bearer <root_jwt_token>
 ```
 
 ### Required Permissions
-- **Root Access**: `root` or `admin` access level required
+- **Root Access**: `root` or `full` access level required
 - **Localhost Restriction**: Many endpoints restricted to localhost in production
 - **Tenant Isolation**: Operations respect tenant boundaries
 
@@ -189,7 +189,7 @@ Many Root API endpoints are restricted to localhost access in production environ
 
 ## Testing
 
-The Root API includes comprehensive test coverage for administrative operations. See the [test README](../spec/39-root-api/README.md) for detailed test coverage information.
+The Root API includes comprehensive test coverage for sudo operations. See the [test README](../spec/39-root-api/README.md) for detailed test coverage information.
 
 ## Common Use Cases
 

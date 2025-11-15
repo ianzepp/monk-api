@@ -1,6 +1,6 @@
 # ACLs API
 
-The ACLs API provides administrative control over record-level access permissions. It allows administrators and root users to manage the four access control arrays that determine user permissions for specific records.
+The ACLs API provides sudo control over record-level access permissions. It allows administrators and root users to manage the four access control arrays that determine user permissions for specific records.
 
 ## Overview
 
@@ -137,7 +137,7 @@ When ACL arrays are empty (`[]`), the record uses default role-based permissions
 
 ## Security Notes
 
-- Only admin and root users can modify ACLs
+- Only full and root users can modify ACLs
 - User IDs in ACL arrays must be valid UUID format strings
 - Duplicate user IDs are automatically removed
 - ACL changes take effect immediately

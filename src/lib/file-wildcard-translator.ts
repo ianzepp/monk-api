@@ -26,7 +26,7 @@ export interface WhereCondition {
     $and?: WhereCondition[];
     $not?: WhereCondition;
     $nor?: WhereCondition[];
-    [field: string]: any; // For field conditions like { role: { $like: '%admin%' } }
+    [field: string]: any; // For field conditions like { role: { $like: '%full%' } }
 }
 import { FilterOp } from '@src/lib/filter-types.js';
 

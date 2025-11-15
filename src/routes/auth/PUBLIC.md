@@ -142,7 +142,7 @@ The server administrator configures the database naming strategy via the `TENANT
 POST /auth/register
 {
   "tenant": "acme-corp",
-  "username": "admin"
+  "username": "full"
 }
 # Results: database = "tenant_a1b2c3d4e5f6789a" (hash)
 ```
@@ -171,11 +171,11 @@ POST /auth/register
 POST /auth/register
 {
   "tenant": "monk-irc",
-  "username": "admin",
+  "username": "full",
   "database": "my-irc-bridge",
   "description": "IRC bridge for Slack integration"
 }
-# Results: username = "admin", database = "tenant_my_irc_bridge"
+# Results: username = "full", database = "tenant_my_irc_bridge"
 ```
 
 #### Success Response (200)
@@ -223,7 +223,7 @@ None - GET request with no body.
     {
       "name": "monk-irc",
       "description": "IRC bridge for Slack integration",
-      "users": ["root", "admin"]
+      "users": ["root", "full"]
     },
     {
       "name": "my-app",
