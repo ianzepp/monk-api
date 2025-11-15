@@ -4,6 +4,6 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 export default withTransactionParams(async (context, { system, schema, body }) => {
     // body is automatically parsed JSON object for application/json content-type
-    const result = await system.describe.updateOne(schema!, body);
+    const result = await system.describe.updateSchema(schema!, body);
     setRouteResult(context, result);
 });
