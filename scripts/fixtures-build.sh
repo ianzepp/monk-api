@@ -180,7 +180,16 @@ fi
 
 print_success "Created fixture tenant: $tenant_name → $template_db_name"
 
-# Step 1.5: Execute optional fixture-specific init.sql
+# Step 1.5: Initialize definitions system for schema caching
+print_step "Initializing definitions system (schema caching)"
+if psql -d "$template_db_name" -f sql/init-definitions.sql >/dev/null 2>&1; then
+    print_success "Definitions system initialized"
+else
+    print_error "Failed to initialize definitions system"
+    fail "Definitions initialization failed"
+fi
+
+# Step 1.6: Execute optional fixture-specific init.sql
 fixture_init_sql="$FIXTURES_DIR/init.sql"
 if [[ -f "$fixture_init_sql" ]]; then
     print_step "Executing fixture-specific initialization: $fixture_init_sql"
@@ -195,7 +204,7 @@ else
     print_info "No fixture-specific init.sql found (optional)"
 fi
 
-# Step 2: Load schemas via SQL
+# Step 2: Load schema definitions via SQL
 print_step "Loading schemas from $FIXTURES_DIR/describe/"
 
 schema_count=0
