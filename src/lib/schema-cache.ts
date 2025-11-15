@@ -78,9 +78,10 @@ export class SchemaCache {
      */
     private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{ name: string; json_checksum: string; updated_at: string }[]> {
         const result = await dtx.query(`
-            SELECT name, json_checksum, updated_at
-            FROM schemas
-            WHERE status IN ('active', 'system')
+            SELECT s.name, d.definition_checksum as json_checksum, d.updated_at
+            FROM schemas s
+            JOIN definitions d ON s.name = d.schema_name
+            WHERE s.status IN ('active', 'system')
         `);
 
         return result.rows as any[];
@@ -105,9 +106,10 @@ export class SchemaCache {
                 // Query specific schemas using raw SQL (consistent with our approach)
                 const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
                 const result = await dtx.query(`
-                    SELECT name, json_checksum, updated_at
-                    FROM schemas
-                    WHERE name IN (${quotedNames}) AND status IN ('active', 'system')
+                    SELECT s.name, d.definition_checksum as json_checksum, d.updated_at
+                    FROM schemas s
+                    JOIN definitions d ON s.name = d.schema_name
+                    WHERE s.name IN (${quotedNames}) AND s.status IN ('active', 'system')
                 `);
                 currentChecksums = result.rows;
             } else {
@@ -151,8 +153,10 @@ export class SchemaCache {
     private async loadFullSchema(dtx: DbContext | TxContext, schemaName: string): Promise<any> {
         const result = await dtx.query(
             `
-            SELECT * FROM schemas
-            WHERE name = $1 AND status IN ('active', 'system')
+            SELECT s.*, d.definition, d.definition_checksum as json_checksum
+            FROM schemas s
+            JOIN definitions d ON s.name = d.schema_name
+            WHERE s.name = $1 AND s.status IN ('active', 'system')
         `,
             [schemaName]
         );
