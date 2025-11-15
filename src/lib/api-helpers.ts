@@ -53,6 +53,7 @@ export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 interface RouteParams {
     system: System;
     schema?: string;
+    column?: string;
     record?: string;
     relationship?: string;
     child?: string;
@@ -106,6 +107,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
             const params: RouteParams = {
                 system: context.get('system'),
                 schema: context.req.param('schema'),
+                column: context.req.param('column'),
                 record: context.req.param('record'),
                 relationship: context.req.param('relationship'),
                 child: context.req.param('child'),

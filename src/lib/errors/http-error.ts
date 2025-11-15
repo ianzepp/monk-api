@@ -109,9 +109,13 @@ export class HttpErrors {
     static requestEntityTooLarge(message = 'Request entity too large', errorCode = 'REQUEST_ENTITY_TOO_LARGE', details?: Record<string, any>) {
         return new HttpError(413, message, errorCode, details);
     }
-    
+
     static internal(message = 'Internal server error', errorCode = 'INTERNAL_ERROR') {
         return new HttpError(500, message, errorCode);
+    }
+
+    static notImplemented(message = 'Not implemented', errorCode = 'NOT_IMPLEMENTED') {
+        return new HttpError(501, message, errorCode);
     }
 }
 
