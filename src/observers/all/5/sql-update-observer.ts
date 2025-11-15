@@ -55,7 +55,7 @@ export default class SqlUpdateObserver extends BaseObserver {
                 fields.length // Start WHERE parameters after SET parameters
             );
 
-            const query = `UPDATE "${schema.table}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
+            const query = `UPDATE "${schema.schema_name}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
             const allParams = [...values, ...whereParams];
 
             const result = await SqlUtils.getPool(system).query(query, allParams);

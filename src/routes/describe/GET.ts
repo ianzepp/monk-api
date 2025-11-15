@@ -9,6 +9,6 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 export default withParams(async (context, { system }) => {
     const schemas = await system.describe.listSchemas();
     // Extract just the schema names from the full schema objects
-    const schemaNames = schemas.map((schema: any) => schema.name);
+    const schemaNames = schemas.map((schema: any) => schema.schema_name);
     setRouteResult(context, schemaNames);
 });

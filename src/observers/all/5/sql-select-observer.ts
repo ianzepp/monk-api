@@ -26,7 +26,7 @@ export default class SqlSelectObserver extends BaseObserver {
         // Use FilterWhere for consistent WHERE clause generation
         const { whereClause, params } = FilterWhere.generate({}); // Default filtering for soft deletes
 
-        const query = `SELECT * FROM "${schema.table}" WHERE ${whereClause} ORDER BY "created_at" DESC`;
+        const query = `SELECT * FROM "${schema.schema_name}" WHERE ${whereClause} ORDER BY "created_at" DESC`;
         const result = await SqlUtils.getPool(system).query(query, params);
 
         context.result = result.rows.map((row: any) => SqlUtils.convertPostgreSQLTypes(row, schema));

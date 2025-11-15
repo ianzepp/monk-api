@@ -281,8 +281,8 @@ export class Describe {
 
     //     const insertQuery = `
     //         INSERT INTO schemas
-    //         (id, name, table_name, status, field_count, json_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
-    //         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW(), '{}', '{}', '{}', '{}')
+    //         (id, schema_name, status, created_at, updated_at, access_read, access_edit, access_full, access_deny)
+    //         VALUES (gen_random_uuid(), $1, $2, NOW(), NOW(), '{}', '{}', '{}', '{}')
     //         RETURNING *
     //     `;
 
@@ -314,7 +314,7 @@ export class Describe {
 
     //         const insertQuery = `
     //             INSERT INTO columns
-    //             (id, schema_name, column_name, pg_type, is_required, default_value, relationship_type, related_schema, related_column, relationship_name, cascade_delete, required_relationship, minimum, maximum, pattern_regex, enum_values, is_array, description, created_at, updated_at, access_read, access_edit, access_full, access_deny)
+    //             (id, schema_name, column_name, type, required, default_value, relationship_type, related_schema, related_column, relationship_name, cascade_delete, required_relationship, minimum, maximum, pattern, enum_values, is_array, description, created_at, updated_at, access_read, access_edit, access_full, access_deny)
     //             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW(), '{}', '{}', '{}', '{}')
     //         `;
 

@@ -68,7 +68,7 @@ export class Database {
     // Count
     async count(schemaName: SchemaName, filterData: FilterData = {}): Promise<number> {
         const schema = await this.toSchema(schemaName);
-        const filter = new Filter(schema.table).assign(filterData);
+        const filter = new Filter(schema.schema_name).assign(filterData);
 
         // Issue #102: Use toCountSQL() pattern instead of manual query building
         const { query, params } = filter.toCountSQL();
@@ -79,10 +79,10 @@ export class Database {
 
     /**
      * Aggregate data with optional GROUP BY
-     * 
+     *
      * Executes aggregation queries (SUM, AVG, MIN, MAX, COUNT) with optional grouping.
      * Supports filtering via where clause and respects soft delete settings.
-     * 
+     *
      * @param schemaName - Schema to aggregate
      * @param filterData - Filter conditions (where clause)
      * @param aggregations - Aggregation specifications (e.g., {total: {$count: '*'}})
@@ -98,20 +98,20 @@ export class Database {
         options: SelectOptions = {}
     ): Promise<any[]> {
         const schema = await this.toSchema(schemaName);
-        
+
         // Apply context-based soft delete defaults
         const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
         const mergedOptions = { ...defaultOptions, ...options };
-        
+
         // Create filter and apply WHERE conditions
-        const filter = new Filter(schema.table)
+        const filter = new Filter(schema.schema_name)
             .assign(filterData)
             .withSoftDeleteOptions(mergedOptions);
-        
+
         // Generate aggregation SQL
         const { query, params } = filter.toAggregateSQL(aggregations, groupBy);
         const result = await this.execute(query, params);
-        
+
         // Convert PostgreSQL string types back to proper JSON types
         return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
@@ -145,7 +145,7 @@ export class Database {
 
     // Core data operations
     async selectOne(
-        schemaName: SchemaName, 
+        schemaName: SchemaName,
         filterData: FilterData,
         options: SelectOptions = {}
     ): Promise<any | null> {
@@ -154,8 +154,8 @@ export class Database {
     }
 
     async select404(
-        schemaName: SchemaName, 
-        filter: FilterData, 
+        schemaName: SchemaName,
+        filter: FilterData,
         message?: string,
         options: SelectOptions = {}
     ): Promise<any> {
@@ -170,7 +170,7 @@ export class Database {
 
     // ID-based operations - always work with arrays
     async selectIds(
-        schemaName: SchemaName, 
+        schemaName: SchemaName,
         ids: string[],
         options: SelectOptions = {}
     ): Promise<any[]> {
@@ -185,7 +185,7 @@ export class Database {
 
     async deleteIds(schemaName: SchemaName, ids: string[]): Promise<any[]> {
         if (ids.length === 0) return [];
-        
+
         // Convert IDs to delete records with just ID field
         const deleteRecords = ids.map(id => ({ id }));
         return await this.deleteAll(schemaName, deleteRecords);
@@ -193,17 +193,17 @@ export class Database {
 
     // Advanced operations - filter-based updates/deletes
     async selectAny(
-        schemaName: SchemaName, 
+        schemaName: SchemaName,
         filterData: FilterData = {},
         options: SelectOptions = {}
     ): Promise<any[]> {
         const schema = await this.toSchema(schemaName);
-        
+
         // Apply context-based soft delete defaults
         const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
         const mergedOptions = { ...defaultOptions, ...options };
-        
-        const filter = new Filter(schema.table)
+
+        const filter = new Filter(schema.schema_name)
             .assign(filterData)
             .withSoftDeleteOptions(mergedOptions);
 
@@ -217,7 +217,7 @@ export class Database {
 
     /**
      * Get default soft delete options based on context
-     * 
+     *
      * - 'api': Excludes trashed and deleted records (default user-facing behavior)
      * - 'observer': Includes trashed but excludes deleted (observers may need trashed records)
      * - 'system': Includes everything (system-level operations)
@@ -303,7 +303,7 @@ export class Database {
     }
 
     async deleteAny(schemaName: string, filter: FilterData): Promise<any[]> {
-        // 1. Find all records matching the filter - use system context for internal operations  
+        // 1. Find all records matching the filter - use system context for internal operations
         const records = await this.selectAny(schemaName, filter, { context: 'system' });
 
         if (records.length === 0) {
@@ -433,7 +433,7 @@ export class Database {
             const duration = Date.now() - startTime;
             logger.info('Observer pipeline completed', {
                 operation,
-                schemaName: schema.name,
+                schemaName: schema.schema_name,
                 recordCount: data.length,
                 depth,
                 durationMs: duration,
@@ -443,7 +443,7 @@ export class Database {
         } catch (error) {
             logger.warn('Observer pipeline failed', {
                 operation,
-                schemaName: schema.name,
+                schemaName: schema.schema_name,
                 recordCount: data.length,
                 depth,
                 error: error instanceof Error ? error.message : String(error),
@@ -523,7 +523,7 @@ export class Database {
         const setClause = setClauses.join(', ');
 
         const result = await this.execute(`
-            UPDATE "${schema.table}"
+            UPDATE "${schema.schema_name}"
             SET ${setClause}
             WHERE id = '${recordId}'
             RETURNING *

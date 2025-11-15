@@ -23,7 +23,7 @@ export default class SystemSchemaProtector extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { schema, operation, metadata } = context;
-        const schemaName = schema.name;
+        const schemaName = schema.schema_name;
 
         // Check if this is a system schema using Schema.isSystemSchema()
         if (schema.isSystemSchema()) {

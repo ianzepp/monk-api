@@ -604,14 +604,14 @@ export class FileOperationService {
         const schemas = await this.system.database.selectAny('schemas', { order: 'name asc' });
         const timestamp = FileTimestampFormatter.current();
         const entries = schemas.map((schema: any) => ({
-            name: schema.name,
+            name: schema.schema_name,
             file_type: 'd' as const,
             file_size: 0,
             file_permissions: this.directoryPermissions(),
             file_modified: FileTimestampFormatter.format(schema.updated_at || schema.created_at || timestamp),
-            path: `/${namespace}/${schema.name}/`,
+            path: `/${namespace}/${schema.schema_name}/`,
             api_context: {
-                schema: schema.name,
+                schema: schema.schema_name,
                 access_level: this.system.isRoot() ? 'full' : 'read',
             },
         }));
@@ -803,8 +803,8 @@ export class FileOperationService {
                 entry.created_time = FileTimestampFormatter.format(column.created_at || column.updated_at);
                 entry.content_type = 'application/json';
                 entry.etag = FileContentCalculator.generateETag(JSON.stringify(column));
-                entry.pg_type = column.pg_type;
-                entry.is_required = column.is_required;
+                entry.type = column.type;
+                entry.required = column.required;
             }
 
             return entry;

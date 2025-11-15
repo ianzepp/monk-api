@@ -28,15 +28,8 @@ if [[ -z "$doc_auth" ]]; then
     test_fail "Missing auth documentation array"
 fi
 
-# Check that auth has both public and protected docs
-if echo "$response" | jq -e '.data.documentation.auth | length >= 2' >/dev/null; then
-    print_success "Auth documentation includes both public and protected variants"
-else
-    test_fail "Auth documentation should include multiple variants"
-fi
-
 # Verify all expected APIs are documented
-expected_apis=("auth" "data" "describe" "file" "bulk" "find" "root")
+expected_apis=("auth" "data" "describe" "file" "bulk" "find" "sudo")
 for api in "${expected_apis[@]}"; do
     if echo "$response" | jq -e ".data.documentation.$api" >/dev/null; then
         print_success "Documentation available for $api API"

@@ -14,7 +14,7 @@ All Describe API routes are prefixed with `/api/describe`
 | GET | [`/api/describe`](#get-apidescribe) | List all available schema names in the current tenant. |
 | POST | [`/api/describe/:schema`](#post-apidescribeschema) | Create a new schema with column definitions using Monk-native format. |
 | GET | [`/api/describe/:schema`](#get-apidescribeschema) | Retrieve schema definition with columns array. |
-| PUT | [`/api/describe/:schema`](#put-apidescribeschema) | Update schema metadata (status, table_name). |
+| PUT | [`/api/describe/:schema`](#put-apidescribeschema) | Update schema metadata (status). |
 | DELETE | [`/api/describe/:schema`](#delete-apidescribeschema) | Soft-delete a schema definition. |
 
 ### Column Operations
@@ -71,33 +71,32 @@ Create a new schema using Monk-native format with column definitions. Automatica
 ### Request Body (Monk-Native Format)
 ```json
 {
-  "name": "users",
-  "table_name": "users",
+  "schema_name": "users",
   "status": "active",
   "columns": [
     {
       "column_name": "name",
-      "pg_type": "text",
-      "is_required": "true",
+      "type": "text",
+      "required": "true",
       "description": "User full name"
     },
     {
       "column_name": "email",
-      "pg_type": "text",
-      "is_required": "true",
-      "pattern_regex": "^[^@]+@[^@]+\\.[^@]+$"
+      "type": "text",
+      "required": "true",
+      "pattern": "^[^@]+@[^@]+\\.[^@]+$"
     },
     {
       "column_name": "age",
-      "pg_type": "integer",
-      "is_required": "false",
+      "type": "integer",
+      "required": "false",
       "minimum": 18,
       "maximum": 120
     },
     {
       "column_name": "balance",
-      "pg_type": "decimal",
-      "is_required": "false",
+      "type": "decimal",
+      "required": "false",
       "default_value": "0.00"
     }
   ]
@@ -105,8 +104,7 @@ Create a new schema using Monk-native format with column definitions. Automatica
 ```
 
 **Required Fields:**
-- `name` - Schema name
-- `table_name` - PostgreSQL table name
+- `schema_name` - Schema name
 
 **Optional Fields:**
 - `status` - Schema status (default: "pending")
@@ -114,11 +112,11 @@ Create a new schema using Monk-native format with column definitions. Automatica
 
 **Column Definition Fields:**
 - `column_name` - Column name (required)
-- `pg_type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, uuid, jsonb
-- `is_required` - "true" or "false"
+- `type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, uuid, jsonb
+- `required` - "true" or "false"
 - `default_value` - Default value
 - `minimum` / `maximum` - Range constraints
-- `pattern_regex` - Validation pattern
+- `pattern` - Validation pattern
 - `enum_values` - Allowed values array
 - `description` - Column description
 - Relationship fields: `relationship_type`, `related_schema`, `related_column`, etc.
@@ -139,7 +137,7 @@ Create a new schema using Monk-native format with column definitions. Automatica
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `MISSING_REQUIRED_FIELDS` | "Both name and table_name are required" | Missing required fields |
+| 400 | `MISSING_REQUIRED_FIELDS` | "Schema name is required" | Missing required fields |
 | 400 | `INVALID_COLUMN_NAME` | "Column name must start with letter or underscore" | Invalid column name |
 | 403 | `SCHEMA_PROTECTED` | "Schema is protected and cannot be modified" | System schema |
 
@@ -158,10 +156,8 @@ Retrieve complete schema definition with columns array in Monk-native format.
   "success": true,
   "data": {
     "id": "uuid",
-    "name": "users",
-    "table_name": "users",
+    "schema_name": "users",
     "status": "active",
-    "field_count": "3",
     "created_at": "2025-01-01T12:00:00Z",
     "updated_at": "2025-01-01T12:00:00Z",
     "definition": {
@@ -175,8 +171,8 @@ Retrieve complete schema definition with columns array in Monk-native format.
         "id": "uuid",
         "schema_name": "users",
         "column_name": "name",
-        "pg_type": "text",
-        "is_required": "true",
+        "type": "text",
+        "required": "true",
         "description": "User full name",
         "created_at": "2025-01-01T12:00:00Z",
         "updated_at": "2025-01-01T12:00:00Z"
@@ -201,7 +197,7 @@ Retrieve complete schema definition with columns array in Monk-native format.
 
 ## PUT /api/describe/:schema
 
-Update schema metadata only (status, table_name). **Does not modify columns** - use column endpoints for column changes.
+Update schema metadata only (status). **Does not modify columns** - use column endpoints for column changes.
 
 ### URL Parameters
 - **schema**: Schema name to update
@@ -215,7 +211,6 @@ Update schema metadata only (status, table_name). **Does not modify columns** - 
 
 **Allowed Updates:**
 - `status` - Change schema status
-- `table_name` - Update table reference (doesn't rename actual PostgreSQL table)
 
 ### Success Response (200)
 ```json
@@ -223,8 +218,7 @@ Update schema metadata only (status, table_name). **Does not modify columns** - 
   "success": true,
   "data": {
     "id": "uuid",
-    "name": "users",
-    "table_name": "users",
+    "schema_name": "users",
     "status": "active",
     "updated_at": "2025-01-01T13:00:00Z"
   }
@@ -286,9 +280,9 @@ Add a new column to an existing schema.
 ```json
 {
   "column_name": "phone",
-  "pg_type": "text",
-  "is_required": "false",
-  "pattern_regex": "^\\+?[1-9]\\d{1,14}$"
+  "type": "text",
+  "required": "false",
+  "pattern": "^\\+?[1-9]\\d{1,14}$"
 }
 ```
 
@@ -310,9 +304,9 @@ Retrieve a specific column definition from the columns table.
     "id": "uuid",
     "schema_name": "users",
     "column_name": "email",
-    "pg_type": "text",
-    "is_required": "true",
-    "pattern_regex": "^[^@]+@[^@]+\\.[^@]+$",
+    "type": "text",
+    "required": "true",
+    "pattern": "^[^@]+@[^@]+\\.[^@]+$",
     "description": "User email address",
     "created_at": "2025-01-01T12:00:00Z",
     "updated_at": "2025-01-01T12:00:00Z"
@@ -341,7 +335,7 @@ Update an existing column's properties.
 ### Request Body
 ```json
 {
-  "pattern_regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+  "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
   "description": "Updated validation pattern"
 }
 ```
@@ -364,7 +358,7 @@ Remove a column from the schema.
 
 Direct type mapping without conversion:
 
-| Monk pg_type | PostgreSQL Type | Use Case |
+| Monk type | PostgreSQL Type | Use Case |
 |--------------|-----------------|----------|
 | `text` | TEXT | General strings |
 | `varchar` | VARCHAR(n) | Limited strings (use with maximum) |
@@ -419,23 +413,22 @@ curl -X POST http://localhost:9001/api/describe/products \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "products",
-    "table_name": "products",
+    "schema_name": "products",
     "columns": [
       {
         "column_name": "name",
-        "pg_type": "text",
-        "is_required": "true"
+        "type": "text",
+        "required": "true"
       },
       {
         "column_name": "price",
-        "pg_type": "decimal",
-        "is_required": "true",
+        "type": "decimal",
+        "required": "true",
         "minimum": 0
       },
       {
         "column_name": "in_stock",
-        "pg_type": "boolean",
+        "type": "boolean",
         "default_value": "true"
       }
     ]

@@ -34,7 +34,7 @@ export default class SqlDeleteObserver extends BaseObserver {
             id: { $in: ids },
         });
 
-        const query = `UPDATE "${schema.table}" SET trashed_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
+        const query = `UPDATE "${schema.schema_name}" SET trashed_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
         const result = await SqlUtils.getPool(system).query(query, params);
 
         // Existence validation already confirmed these records exist

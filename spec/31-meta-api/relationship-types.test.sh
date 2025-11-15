@@ -74,13 +74,12 @@ assert_success "$create_response"
 
 # Verify schema creation response
 create_data=$(extract_data "$create_response")
-schema_name=$(echo "$create_data" | jq -r '.name')
-table_name=$(echo "$create_data" | jq -r '.table')
+schema_name=$(echo "$create_data" | jq -r '.schema_name')
 
-if [[ "$schema_name" == "comments" && "$table_name" == "comments" ]]; then
-    print_success "Schema created: $schema_name → $table_name"
+if [[ "$schema_name" == "comments" ]]; then
+    print_success "Schema created: $schema_name"
 else
-    test_fail "Unexpected schema creation response: name='$schema_name' table='$table_name'"
+    test_fail "Unexpected schema creation response: schema_name='$schema_name'"
 fi
 
 # Test 2: Query the columns table to verify relationship metadata
@@ -89,7 +88,7 @@ print_step "Querying columns table for relationship metadata"
 # Use psql to query relationship columns specifically
 relationship_query="SELECT
     column_name,
-    pg_type,
+    type,
     relationship_type,
     related_schema,
     relationship_name,

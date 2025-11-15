@@ -42,7 +42,7 @@ export default class SqlRevertObserver extends BaseObserver {
 
         // Build revert query - only revert actually trashed records
         const fullWhereClause = `${whereClause} AND "trashed_at" IS NOT NULL`;
-        const query = `UPDATE "${schema.table}" SET trashed_at = NULL, updated_at = NOW() WHERE ${fullWhereClause} RETURNING *`;
+        const query = `UPDATE "${schema.schema_name}" SET trashed_at = NULL, updated_at = NOW() WHERE ${fullWhereClause} RETURNING *`;
         const result = await SqlUtils.getPool(system).query(query, params);
 
         // ExistenceValidator already confirmed these are trashed records

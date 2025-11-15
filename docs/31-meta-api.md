@@ -70,34 +70,33 @@ Authorization: Bearer <jwt>
 **Request Body (Monk-native format):**
 ```json
 {
-  "name": "users",
-  "table_name": "users",
+  "schema_name": "users",
   "status": "active",
   "columns": [
     {
       "column_name": "name",
-      "pg_type": "text",
-      "is_required": "true",
+      "type": "text",
+      "required": "true",
       "description": "User full name"
     },
     {
       "column_name": "email",
-      "pg_type": "text",
-      "is_required": "true",
-      "pattern_regex": "^[^@]+@[^@]+\\.[^@]+$",
+      "type": "text",
+      "required": "true",
+      "pattern": "^[^@]+@[^@]+\\.[^@]+$",
       "description": "User email address"
     },
     {
       "column_name": "age",
-      "pg_type": "integer",
-      "is_required": "false",
+      "type": "integer",
+      "required": "false",
       "minimum": 18,
       "maximum": 120
     },
     {
       "column_name": "balance",
-      "pg_type": "decimal",
-      "is_required": "false",
+      "type": "decimal",
+      "required": "false",
       "default_value": "0.00"
     }
   ]
@@ -117,8 +116,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Required Fields:**
-- `name` - Schema name (string)
-- `table_name` - PostgreSQL table name (string)
+- `schema_name` - Schema name (string)
 
 **Optional Fields:**
 - `status` - Schema status (default: "pending")
@@ -126,12 +124,12 @@ Authorization: Bearer <jwt>
 
 **Column Fields:**
 - `column_name` - Column name (required)
-- `pg_type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, uuid, jsonb (required)
-- `is_required` - "true" or "false" (default: "false")
+- `type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, uuid, jsonb (required)
+- `required` - "true" or "false" (default: "false")
 - `default_value` - Default value for column
 - `minimum` - Minimum value (for numbers)
 - `maximum` - Maximum value (for numbers/strings)
-- `pattern_regex` - Regex pattern validation (for strings)
+- `pattern` - Regex pattern validation (for strings)
 - `enum_values` - Array of allowed values
 - `description` - Column description
 - `relationship_type` - "owned" or "referenced" for foreign keys
@@ -177,10 +175,8 @@ Authorization: Bearer <jwt>
   "success": true,
   "data": {
     "id": "uuid",
-    "name": "users",
-    "table_name": "users",
+    "schema_name": "users",
     "status": "active",
-    "field_count": "4",
     "created_at": "2025-01-01T12:00:00Z",
     "updated_at": "2025-01-01T12:00:00Z",
     "definition": {
@@ -194,17 +190,17 @@ Authorization: Bearer <jwt>
         "id": "uuid",
         "schema_name": "users",
         "column_name": "name",
-        "pg_type": "text",
-        "is_required": "true",
+        "type": "text",
+        "required": "true",
         "description": "User full name",
         "created_at": "2025-01-01T12:00:00Z",
         "updated_at": "2025-01-01T12:00:00Z"
       },
       {
         "column_name": "email",
-        "pg_type": "text",
-        "is_required": "true",
-        "pattern_regex": "^[^@]+@[^@]+\\.[^@]+$"
+        "type": "text",
+        "required": "true",
+        "pattern": "^[^@]+@[^@]+\\.[^@]+$"
       }
     ]
   }
@@ -213,7 +209,7 @@ Authorization: Bearer <jwt>
 
 ### Update Schema
 
-Updates schema metadata only (status, table_name). Use column endpoints to modify columns.
+Updates schema metadata only (status). Use column endpoints to modify columns.
 
 ```bash
 PUT /api/describe/:schema
@@ -230,7 +226,6 @@ Authorization: Bearer <jwt>
 
 **Allowed Updates:**
 - `status` - Change schema status
-- `table_name` - Update table reference (doesn't rename actual PostgreSQL table)
 
 **Response:**
 ```json
@@ -238,8 +233,7 @@ Authorization: Bearer <jwt>
   "success": true,
   "data": {
     "id": "uuid",
-    "name": "users",
-    "table_name": "users",
+    "schema_name": "users",
     "status": "active",
     "updated_at": "2025-01-01T13:00:00Z"
   }
@@ -262,7 +256,7 @@ Authorization: Bearer <jwt>
 {
   "success": true,
   "data": {
-    "name": "users",
+    "schema_name": "users",
     "deleted": true
   }
 }
@@ -284,9 +278,9 @@ Authorization: Bearer <jwt>
 ```json
 {
   "column_name": "phone",
-  "pg_type": "text",
-  "is_required": "false",
-  "pattern_regex": "^\\+?[1-9]\\d{1,14}$",
+  "type": "text",
+  "required": "false",
+  "pattern": "^\\+?[1-9]\\d{1,14}$",
   "description": "User phone number"
 }
 ```
@@ -298,7 +292,7 @@ Authorization: Bearer <jwt>
   "data": {
     "column_name": "phone",
     "schema_name": "users",
-    "pg_type": "text",
+    "type": "text",
     "created_at": "2025-01-01T14:00:00Z"
   }
 }
@@ -323,9 +317,9 @@ Authorization: Bearer <jwt>
     "id": "uuid",
     "schema_name": "users",
     "column_name": "email",
-    "pg_type": "text",
-    "is_required": "true",
-    "pattern_regex": "^[^@]+@[^@]+\\.[^@]+$",
+    "type": "text",
+    "required": "true",
+    "pattern": "^[^@]+@[^@]+\\.[^@]+$",
     "description": "User email address",
     "created_at": "2025-01-01T12:00:00Z",
     "updated_at": "2025-01-01T12:00:00Z"
@@ -346,7 +340,7 @@ Authorization: Bearer <jwt>
 **Request Body:**
 ```json
 {
-  "pattern_regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+  "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
   "description": "Updated email validation pattern"
 }
 ```
@@ -392,7 +386,7 @@ Authorization: Bearer <jwt>
 
 Direct type mapping without conversion:
 
-| Monk pg_type | PostgreSQL Type | Example |
+| Monk type | PostgreSQL Type | Example |
 |--------------|-----------------|---------|
 | `text` | TEXT | General strings |
 | `varchar` | VARCHAR(n) | Limited strings (use with maximum) |
@@ -405,10 +399,10 @@ Direct type mapping without conversion:
 
 ### Validation Constraints
 
-- **Required Fields**: `is_required: "true"` → NOT NULL constraint
+- **Required Fields**: `required: "true"` → NOT NULL constraint
 - **Default Values**: `default_value` → DEFAULT constraint
 - **Number Ranges**: `minimum`, `maximum` → CHECK constraints
-- **Pattern Validation**: `pattern_regex` → Application-level validation
+- **Pattern Validation**: `pattern` → Application-level validation
 - **Enum Values**: `enum_values` → Application-level validation
 
 ### Auto-Generated JSON Schema
@@ -443,7 +437,7 @@ Protected schemas cannot be modified or deleted:
 ```json
 {
   "success": false,
-  "error": "Both name and table_name are required",
+  "error": "schema_name is required",
   "error_code": "MISSING_REQUIRED_FIELDS"
 }
 ```
@@ -510,33 +504,32 @@ curl -X POST http://localhost:9001/api/describe/products \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{
-    "name": "products",
-    "table_name": "products",
+    "schema_name": "products",
     "status": "active",
     "columns": [
       {
         "column_name": "name",
-        "pg_type": "text",
-        "is_required": "true",
+        "type": "text",
+        "required": "true",
         "description": "Product name"
       },
       {
         "column_name": "price",
-        "pg_type": "decimal",
-        "is_required": "true",
+        "type": "decimal",
+        "required": "true",
         "minimum": 0,
         "description": "Product price"
       },
       {
         "column_name": "category",
-        "pg_type": "text",
-        "is_required": "true",
+        "type": "text",
+        "required": "true",
         "enum_values": ["electronics", "books", "clothing"]
       },
       {
         "column_name": "in_stock",
-        "pg_type": "boolean",
-        "is_required": "false",
+        "type": "boolean",
+        "required": "false",
         "default_value": "true"
       }
     ]
@@ -586,13 +579,12 @@ curl -X POST http://localhost:9001/api/describe/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{
-    "name": "orders",
-    "table_name": "orders",
+    "schema_name": "orders",
     "columns": [
       {
         "column_name": "user_id",
-        "pg_type": "uuid",
-        "is_required": "true",
+        "type": "uuid",
+        "required": "true",
         "relationship_type": "referenced",
         "related_schema": "users",
         "related_column": "id",
@@ -601,8 +593,8 @@ curl -X POST http://localhost:9001/api/describe/orders \
       },
       {
         "column_name": "total",
-        "pg_type": "decimal",
-        "is_required": "true",
+        "type": "decimal",
+        "required": "true",
         "minimum": 0
       }
     ]

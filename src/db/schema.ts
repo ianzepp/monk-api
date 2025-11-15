@@ -20,10 +20,10 @@ export interface Schema extends BaseFields {
 
 // Column registry table interface
 export interface Column extends BaseFields {
-    schema_name: string; // References schema.name
+    schema_name: string; // References schema.schema_name
     column_name: string; // Column name
-    pg_type: string; // PostgreSQL column type
-    is_required: 'true' | 'false'; // Required flag as string
+    type: string; // PostgreSQL column type
+    required: 'true' | 'false'; // Required flag as string
     default_value: string | null; // Default value if any
     constraints: any | null; // JSON Schema constraints object
     foreign_key: any | null; // Foreign key metadata object

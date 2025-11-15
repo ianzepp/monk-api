@@ -76,9 +76,9 @@ export class SchemaCache {
     /**
      * Load all schema checksums for a database
      */
-    private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{ name: string; json_checksum: string; updated_at: string }[]> {
+    private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{ schema_name: string; json_checksum: string; updated_at: string }[]> {
         const result = await dtx.query(`
-            SELECT s.schema_name as name, d.definition_checksum as json_checksum, d.updated_at
+            SELECT s.schema_name, d.definition_checksum as json_checksum, d.updated_at
             FROM schemas s
             JOIN definitions d ON s.schema_name = d.schema_name
             WHERE s.status IN ('active', 'system')
@@ -106,7 +106,7 @@ export class SchemaCache {
                 // Query specific schemas using raw SQL (consistent with our approach)
                 const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
                 const result = await dtx.query(`
-                    SELECT s.schema_name as name, d.definition_checksum as json_checksum, d.updated_at
+                    SELECT s.schema_name, d.definition_checksum as json_checksum, d.updated_at
                     FROM schemas s
                     JOIN definitions d ON s.schema_name = d.schema_name
                     WHERE s.schema_name IN (${quotedNames}) AND s.status IN ('active', 'system')
@@ -119,21 +119,21 @@ export class SchemaCache {
 
             // Compare checksums and invalidate stale entries
             for (const row of currentChecksums as any[]) {
-                const cached = dbCache.schemas.get(row.name);
+                const cached = dbCache.schemas.get(row.schema_name);
 
                 if (cached && cached.jsonChecksum !== row.json_checksum) {
                     // Checksum mismatch - invalidate cache entry
-                    dbCache.schemas.delete(row.name);
-                    logger.info('Schema cache invalidated', { schemaName: row.name, reason: 'checksum changed' });
+                    dbCache.schemas.delete(row.schema_name);
+                    logger.info('Schema cache invalidated', { schemaName: row.schema_name, reason: 'checksum changed' });
                 } else if (!cached) {
                     // New schema found - add minimal cache entry
-                    dbCache.schemas.set(row.name, {
+                    dbCache.schemas.set(row.schema_name, {
                         schema: null, // Lazy load
                         jsonChecksum: row.json_checksum,
                         updatedAt: row.updated_at,
                         validator: undefined,
                     });
-                    logger.info('Schema cache entry created', { schemaName: row.name });
+                    logger.info('Schema cache entry created', { schemaName: row.schema_name });
                 }
             }
 

@@ -1,15 +1,15 @@
 /**
  * Soft Delete Protector Observer
- * 
+ *
  * Prevents operations on records that have been soft deleted (trashed_at is not null).
  * Uses preloaded record data from RecordPreloader to check trashed status efficiently
  * without additional database queries.
- * 
+ *
  * This enforces the three-tier soft delete access pattern:
  * - List operations: Hide trashed records (handled by query filters)
  * - Direct access: Allow ID retrieval of trashed records (GET /api/data/:schema/:id)
  * - Update operations: Block modifications until restoration (this observer)
- * 
+ *
  * Ring: 2 (Security) - Schema: all - Operations: update, delete
  */
 
@@ -25,12 +25,12 @@ export default class SoftDeleteProtector extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { operation, data, metadata } = context;
-        const schemaName = context.schema.name;
-        
+        const schemaName = context.schema.schema_name;
+
         // Use preloaded existing records to check trashed status
         const existingRecords = RecordPreloader.getPreloadedRecords(context);
         const preloadStats = RecordPreloader.getPreloadStats(context);
-        
+
         // If preloading failed, we can't validate - let other observers handle
         if (RecordPreloader.hasPreloadError(context)) {
             logger.warn('Cannot validate soft delete protection - preload failed', {
@@ -41,15 +41,15 @@ export default class SoftDeleteProtector extends BaseObserver {
             metadata.set('soft_delete_protection', 'skipped_preload_error');
             return;
         }
-        
+
         // Check for trashed records in the preloaded data
-        const trashedRecords = existingRecords.filter(record => 
+        const trashedRecords = existingRecords.filter(record =>
             record.trashed_at !== null && record.trashed_at !== undefined
         );
-        
+
         if (trashedRecords.length > 0) {
             const trashedIds = trashedRecords.map(record => record.id);
-            
+
             // Log detailed information about blocked operation
             logger.warn(`Blocked ${operation} on trashed records`, {
                 schemaName,
@@ -58,7 +58,7 @@ export default class SoftDeleteProtector extends BaseObserver {
                 trashedIds: trashedIds.slice(0, 5), // First 5 for logging
                 totalRequested: data.length
             });
-            
+
             throw new SecurityError(
                 `Cannot ${operation} trashed records: ${trashedIds.join(', ')}. ` +
                 `Use revert operation to restore records before modification.`,
@@ -66,15 +66,15 @@ export default class SoftDeleteProtector extends BaseObserver {
                 'SOFT_DELETE_PROTECTION'
             );
         }
-        
+
         // Also check for hard deleted records (deleted_at is not null)
-        const deletedRecords = existingRecords.filter(record => 
+        const deletedRecords = existingRecords.filter(record =>
             record.deleted_at !== null && record.deleted_at !== undefined
         );
-        
+
         if (deletedRecords.length > 0) {
             const deletedIds = deletedRecords.map(record => record.id);
-            
+
             logger.warn(`Blocked ${operation} on deleted records`, {
                 schemaName,
                 operation,
@@ -82,7 +82,7 @@ export default class SoftDeleteProtector extends BaseObserver {
                 deletedIds: deletedIds.slice(0, 5),
                 totalRequested: data.length
             });
-            
+
             throw new SecurityError(
                 `Cannot ${operation} permanently deleted records: ${deletedIds.join(', ')}. ` +
                 `These records cannot be modified.`,
@@ -90,13 +90,13 @@ export default class SoftDeleteProtector extends BaseObserver {
                 'HARD_DELETE_PROTECTION'
             );
         }
-        
+
         // Record successful protection check
         metadata.set('soft_delete_protection', 'passed');
         metadata.set('protected_record_count', existingRecords.length);
         metadata.set('trashed_record_count', 0);
         metadata.set('deleted_record_count', 0);
-        
+
         logger.info('Soft delete protection check passed', {
             schemaName,
             operation,
@@ -106,7 +106,7 @@ export default class SoftDeleteProtector extends BaseObserver {
             deletedRecords: 0
         });
     }
-    
+
     /**
      * Helper method to check if a specific record is trashed
      */
@@ -114,7 +114,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         if (!record) return false;
         return record.trashed_at !== null && record.trashed_at !== undefined;
     }
-    
+
     /**
      * Helper method to check if a specific record is deleted
      */
@@ -122,7 +122,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         if (!record) return false;
         return record.deleted_at !== null && record.deleted_at !== undefined;
     }
-    
+
     /**
      * Helper method to check if a specific record can be modified
      */
@@ -130,7 +130,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         if (!record) return false;
         return !this.isRecordTrashed(record) && !this.isRecordDeleted(record);
     }
-    
+
     /**
      * Helper method to get protection stats from context
      */
@@ -142,7 +142,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         status: string;
     } {
         const metadata = context.metadata;
-        
+
         return {
             wasChecked: metadata.has('soft_delete_protection'),
             checkedRecords: metadata.get('protected_record_count') || 0,

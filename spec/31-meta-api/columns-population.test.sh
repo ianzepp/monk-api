@@ -85,13 +85,12 @@ assert_success "$create_response"
 
 # Verify schema creation response
 create_data=$(extract_data "$create_response")
-schema_name=$(echo "$create_data" | jq -r '.name')
-table_name=$(echo "$create_data" | jq -r '.table')
+schema_name=$(echo "$create_data" | jq -r '.schema_name')
 
-if [[ "$schema_name" == "tasks" && "$table_name" == "tasks" ]]; then
-    print_success "Schema created: $schema_name → $table_name"
+if [[ "$schema_name" == "tasks" ]]; then
+    print_success "Schema created: $schema_name"
 else
-    test_fail "Unexpected schema creation response: name='$schema_name' table='$table_name'"
+    test_fail "Unexpected schema creation response: schema_name='$schema_name'"
 fi
 
 # Test 2: Query the columns table to verify metadata was populated
@@ -100,12 +99,12 @@ print_step "Querying columns table for tasks schema describe"
 # Use psql to directly query the tenant's columns table
 columns_query="SELECT
     column_name,
-    pg_type,
-    is_required,
+    type,
+    required,
     default_value,
     minimum,
     maximum,
-    pattern_regex,
+    pattern,
     enum_values,
     description
 FROM columns
@@ -138,7 +137,7 @@ expected_columns=(
 )
 
 for expected in "${expected_columns[@]}"; do
-    IFS=':' read -r col_name pg_type required default_val <<< "$expected"
+    IFS=':' read -r col_name type required default_val <<< "$expected"
 
     # Extract this column's data from the query result
     col_data=$(echo "$columns_result" | grep -E "^\s*$col_name\s*\|")
@@ -148,16 +147,16 @@ for expected in "${expected_columns[@]}"; do
         continue
     fi
 
-    # Parse the column data (format: column_name | pg_type | is_required | default_value | constraints | description)
+    # Parse the column data (format: column_name | type | required | default_value | constraints | description)
     actual_type=$(echo "$col_data" | cut -d'|' -f2 | xargs)
     actual_required=$(echo "$col_data" | cut -d'|' -f3 | xargs)
     actual_default=$(echo "$col_data" | cut -d'|' -f4 | xargs)
 
     # Verify PostgreSQL type mapping
-    if [[ "$actual_type" == "$pg_type" ]]; then
-        print_success "Column '$col_name': correct PG type ($pg_type)"
+    if [[ "$actual_type" == "$type" ]]; then
+        print_success "Column '$col_name': correct PG type ($type)"
     else
-        test_fail "Column '$col_name': expected PG type '$pg_type', got '$actual_type'"
+        test_fail "Column '$col_name': expected PG type '$type', got '$actual_type'"
     fi
 
     # Verify required flag
@@ -181,7 +180,7 @@ done
 print_step "Validating constraint metadata storage"
 
 # Check that columns with constraints have regular column constraint data
-constraint_check="SELECT column_name, minimum, maximum, pattern_regex, enum_values FROM columns WHERE schema_name = 'tasks' AND (minimum IS NOT NULL OR maximum IS NOT NULL OR pattern_regex IS NOT NULL OR enum_values IS NOT NULL)"
+constraint_check="SELECT column_name, minimum, maximum, pattern, enum_values FROM columns WHERE schema_name = 'tasks' AND (minimum IS NOT NULL OR maximum IS NOT NULL OR pattern IS NOT NULL OR enum_values IS NOT NULL)"
 constraint_result=$(psql -d "$TEST_DATABASE_NAME" -t -c "$constraint_check")
 
 if [[ -z "$constraint_result" ]]; then

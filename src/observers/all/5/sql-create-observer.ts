@@ -47,11 +47,11 @@ export default class SqlCreateObserver extends BaseObserver {
             const placeholders = fields.map((_, i) => `$${i + 1}`).join(', ');
             const fieldList = fields.map(field => `"${field}"`).join(', ');
 
-            const query = `INSERT INTO "${schema.table}" (${fieldList}) VALUES (${placeholders}) RETURNING *`;
+            const query = `INSERT INTO "${schema.schema_name}" (${fieldList}) VALUES (${placeholders}) RETURNING *`;
             const result = await SqlUtils.getPool(system).query(query, values);
 
             if (result.rows.length === 0) {
-                throw new SystemError(`Failed to create record in ${schema.name}`);
+                throw new SystemError(`Failed to create record in ${schema.schema_name}`);
             }
 
             const convertedResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], schema);

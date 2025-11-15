@@ -31,7 +31,6 @@ export class Schema {
 
     // Schema properties from database record
     private schemaName: SchemaName;
-    private tableName: string;
     private status: string;
     public definition?: any;
 
@@ -41,7 +40,6 @@ export class Schema {
         schemaRecord: any
     ) {
         this.schemaName = schemaName;
-        this.tableName = schemaRecord.table_name;
         this.status = schemaRecord.status || 'active';
         this.definition = schemaRecord.definition;
     }
@@ -73,12 +71,8 @@ export class Schema {
         return Schema.ajv;
     }
 
-    get name(): SchemaName {
+    get schema_name(): SchemaName {
         return this.schemaName;
-    }
-
-    get table(): string {
-        return this.tableName;
     }
 
     /**
@@ -291,8 +285,8 @@ export class Schema {
     // Utility methods
     toJSON() {
         return {
-            name: this.schemaName,
-            table: this.tableName,
+            schema_name: this.schemaName,
+            status: this.status,
             definition: this.definition,
         };
     }
@@ -309,7 +303,6 @@ export async function createSchema(system: SystemContextWithInfrastructure, sche
     }
 
     return new Schema(system, schemaName, {
-        table_name: schemaInfo.table,
         definition: schemaInfo.definition,
         status: 'active', // Assume active for legacy calls
     });

@@ -662,7 +662,7 @@ const result = await system.database.selectAny(schema!, body, options);
 const defaultOptions = this.getDefaultSoftDeleteOptions(options.context); // api|observer|system
 const mergedOptions = { ...defaultOptions, ...options };
 
-const filter = new Filter(schema.table)
+const filter = new Filter(schema.schema_name)
     .assign(filterData)
     .withSoftDeleteOptions(mergedOptions);
 

@@ -22,7 +22,7 @@ export default class RecordPreloader extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, operation, data, metadata } = context;
-        const schemaName = context.schema.name;
+        const schemaName = context.schema.schema_name;
 
         // Extract record IDs that need existing data lookup
         const recordIds = this.extractRecordIds(data, operation);

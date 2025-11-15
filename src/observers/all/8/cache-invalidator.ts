@@ -16,7 +16,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { result, existing, metadata, operation, data } = context;
-        const schemaName = context.schema.name;
+        const schemaName = context.schema.schema_name;
 
         // Process data as array if needed
         const recordsToProcess = Array.isArray(data) ? data : [{ result, existing }];

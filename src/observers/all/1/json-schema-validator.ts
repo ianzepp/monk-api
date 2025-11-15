@@ -1,16 +1,16 @@
 /**
  * JSON Schema Validator Observer
- * 
+ *
  * Validates incoming data against the schema's JSON Schema definition using
  * the Schema object's validateOrThrow() method. Ensures all data conforms
  * to the defined schema structure before database operations.
- * 
+ *
  * For create operations: validates raw input data
  * For update operations: validates merged data from UpdateMerger (also Ring 0)
- * 
+ *
  * Uses the Schema object loaded by ObserverRunner - no additional database
  * calls needed since Schema object contains validation capabilities.
- * 
+ *
  * Ring: 1 (Input Validation) - Schema: all - Operations: create, update
  */
 
@@ -25,11 +25,11 @@ export default class JsonSchemaValidator extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { schema, operation, data, metadata } = context;
-        const schemaName = schema.name;
-        
+        const schemaName = schema.schema_name;
+
         let validatedCount = 0;
         let errorCount = 0;
-        
+
         // Define system fields that should be excluded from JSON schema validation
         const systemFields = [
             'id', 'created_at', 'updated_at', 'deleted_at', 'trashed_at',
@@ -42,35 +42,35 @@ export default class JsonSchemaValidator extends BaseObserver {
             const userRecord = Object.fromEntries(
                 Object.entries(record).filter(([key]) => !systemFields.includes(key))
             );
-            
+
             try {
                 // Use Schema object's validation method on user fields only
                 schema.validateOrThrow(userRecord);
                 validatedCount++;
-                
+
             } catch (error) {
                 errorCount++;
-                
+
                 // Convert schema validation errors to observer ValidationError
                 const validationMessage = error instanceof Error ? error.message : String(error);
-                
+
                 // Enhanced error reporting - show what fields are being validated vs schema
                 const userRecordFields = Object.keys(userRecord).sort();
                 const allRecordFields = Object.keys(record).sort();
                 const filteredFields = systemFields.filter(field => record.hasOwnProperty(field)).sort();
                 const schemaProperties = schema.definition?.properties ? Object.keys(schema.definition.properties).sort() : [];
                 const additionalFields = userRecordFields.filter(field => !schemaProperties.includes(field));
-                
+
                 let enhancedMessage = `Schema validation failed for ${schemaName}: ${validationMessage}`;
                 enhancedMessage += `\n  All record fields: [${allRecordFields.join(', ')}]`;
                 enhancedMessage += `\n  System fields filtered out: [${filteredFields.join(', ')}]`;
                 enhancedMessage += `\n  User fields validated: [${userRecordFields.join(', ')}]`;
                 enhancedMessage += `\n  Schema allows: [${schemaProperties.join(', ')}]`;
-                
+
                 if (additionalFields.length > 0) {
                     enhancedMessage += `\n  Additional user fields found: [${additionalFields.join(', ')}]`;
                 }
-                
+
                 throw new ValidationError(
                     enhancedMessage,
                     undefined, // No specific field
@@ -78,11 +78,11 @@ export default class JsonSchemaValidator extends BaseObserver {
                 );
             }
         }
-        
+
         // Log validation summary for audit
         metadata.set('json_schema_validation', 'passed');
         metadata.set('validated_record_count', validatedCount);
-        
+
         logger.info('JSON Schema validation completed', {
             schemaName,
             operation,

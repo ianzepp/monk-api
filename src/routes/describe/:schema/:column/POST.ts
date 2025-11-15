@@ -7,7 +7,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  *
  * Create a new column in Monk-native format
  *
- * Request body: Column definition in Monk format (pg_type, is_required, etc.)
+ * Request body: Column definition in Monk format (type, required, etc.)
  * @returns Created column record from columns table
  */
 export default withTransactionParams(async (context, { system, schema, column, body }) => {
