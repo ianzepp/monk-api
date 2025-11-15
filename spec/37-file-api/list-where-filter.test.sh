@@ -50,10 +50,6 @@ record_entries_count=$(echo "$record_list_match" | jq '.entries | length')
 [[ "$record_entries_count" -gt 0 ]] || test_fail "Record directory should include fields when filter matches"
 print_success "Record directory includes entries when filter matches"
 
-first_record_entry=$(echo "$record_list_match" | jq -r '.entries[0].name')
-[[ "$first_record_entry" == "$BUSINESS_ID.json" ]] || test_fail "First record entry should be JSON snapshot"
-print_success "Record directory returns JSON snapshot when filter matches"
-
 # Test 3: Record directory with non-matching WHERE clause returns empty entries but metadata
 print_step "Listing /data/account/$BUSINESS_ID with non-matching where clause"
 

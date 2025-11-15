@@ -14,7 +14,7 @@ NEW_EMAIL="file-api+${NEW_ID}@example.com"
 NEW_USERNAME="fileapi_${NEW_ID//-/}"
 
 create_payload=$(jq -n --arg id "$NEW_ID" --arg email "$NEW_EMAIL" --arg username "$NEW_USERNAME" --arg account_type "personal" --argjson balance 0 '{id:$id,name:"File API Test",email:$email,username:$username,account_type:$account_type,balance:$balance}')
-create_response=$(file_store "/data/account/$NEW_ID.json" "$create_payload")
+create_response=$(file_store "/data/account/$NEW_ID" "$create_payload")
 
 create_op=$(echo "$create_response" | jq -r '.operation')
 [[ "$create_op" == "create" ]] || test_fail "Expected create operation, got: $create_op"
@@ -24,7 +24,7 @@ created_flag=$(echo "$create_response" | jq -r '.result.created')
 
 print_success "Record created via file_store"
 
-retrieved=$(file_retrieve "/data/account/$NEW_ID.json")
+retrieved=$(file_retrieve "/data/account/$NEW_ID")
 retrieved_email=$(echo "$retrieved" | jq -r '.content.email')
 [[ "$retrieved_email" == "$NEW_EMAIL" ]] || test_fail "Stored record email mismatch"
 
@@ -39,7 +39,7 @@ updated_name=$(file_retrieve "/data/account/$NEW_ID/name" | jq -r '.content')
 
 # Update entire record
 update_payload=$(jq -n --arg id "$NEW_ID" --arg email "$NEW_EMAIL" --arg username "$NEW_USERNAME" --arg account_type "personal" --argjson balance 0 '{id:$id,name:"Updated Again",email:$email,username:$username,account_type:$account_type,balance:$balance}')
-update_response=$(file_store "/data/account/$NEW_ID.json" "$update_payload")
+update_response=$(file_store "/data/account/$NEW_ID" "$update_payload")
 update_op=$(echo "$update_response" | jq -r '.operation')
 [[ "$update_op" == "update" ]] || test_fail "Expected update operation, got: $update_op"
 

@@ -13,7 +13,7 @@ DELETE_ID=$(uuidgen | tr 'A-Z' 'a-z')
 DELETE_EMAIL="file-api-delete+${DELETE_ID}@example.com"
 DELETE_USERNAME="fileapi_delete_${DELETE_ID//-/}"
 create_payload=$(jq -n --arg id "$DELETE_ID" --arg email "$DELETE_EMAIL" --arg username "$DELETE_USERNAME" --arg account_type "personal" --argjson balance 0 '{id:$id,name:"Delete Candidate",email:$email,username:$username,account_type:$account_type,balance:$balance}')
-file_store "/data/account/$DELETE_ID.json" "$create_payload" >/dev/null
+file_store "/data/account/$DELETE_ID" "$create_payload" >/dev/null
 print_success "Created temporary record $DELETE_ID"
 
 delete_response=$(file_delete "/data/account/$DELETE_ID")
@@ -26,6 +26,6 @@ deleted_count=$(echo "$delete_response" | jq -r '.results.deleted_count')
 print_success "Soft delete response validated"
 
 # Record should no longer be retrievable
-test_file_api_error "retrieve" "/data/account/$DELETE_ID.json" "RECORD_NOT_FOUND" "retrieving deleted record"
+test_file_api_error "retrieve" "/data/account/$DELETE_ID" "RECORD_NOT_FOUND" "retrieving deleted record"
 
 print_success "Deleted record is no longer accessible"

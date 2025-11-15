@@ -13,7 +13,7 @@ account_json=$(get_template_account)
 extract_account_info "$account_json"
 
 # Retrieve full record
-record_response=$(file_retrieve "/data/account/$ACCOUNT_ID.json")
+record_response=$(file_retrieve "/data/account/$ACCOUNT_ID")
 assert_has_field "content" "$record_response"
 
 record_id=$(echo "$record_response" | jq -r '.content.id')

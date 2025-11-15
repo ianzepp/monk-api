@@ -90,6 +90,7 @@ export interface FileListRequest {
         show_hidden?: boolean;
         long_format?: boolean;
         recursive?: boolean;
+        flat?: boolean;
         max_depth?: number;
         sort_by?: 'name' | 'size' | 'time' | 'type';
         sort_order?: 'asc' | 'desc';

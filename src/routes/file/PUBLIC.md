@@ -4,7 +4,13 @@ The File API provides a filesystem-like interface for accessing data records and
 
 ## Recent Improvements
 
-**Property Decomposition (Latest)**: The File API now supports granular property-level access:
+**Flat Recursive Listing (Latest)**: The File API now supports efficient directory tree enumeration:
+- **Flat Listing**: Returns all files in a flat array with `recursive: true, flat: true`
+- **Package Management**: List all 2500+ schema properties in a single API call
+- **No Tree Walking**: Client receives complete file manifest without recursive requests
+- **Grep-Friendly**: Pipe paths directly to grep or feed to batch operations
+
+**Property Decomposition**: The File API supports granular property-level access:
 - **No .json Files**: Records are pure directories containing individual field files
 - **Property Decomposition**: Both `/data` and `/describe` support unlimited path depth
 - **Schema Management**: Update individual schema properties without loading entire definitions
@@ -95,6 +101,9 @@ Traverse schemas, records, fields, or schema properties as if they were director
   "file_options": {
     "show_hidden": false,
     "long_format": false,
+    "recursive": false,
+    "flat": false,
+    "max_depth": -1,
     "sort_by": "name",
     "sort_order": "asc",
     "where": null,
@@ -109,6 +118,15 @@ Traverse schemas, records, fields, or schema properties as if they were director
 - **`long_format`**: Include extended metadata inline (eliminates N+1 queries)
   - Adds: `created_time`, `content_type`, `etag`, `soft_deleted`, `field_count`
   - Critical for FUSE: `ls -l` with 1000 files = 1 query instead of 1001
+- **`recursive`**: Recursively list all subdirectories (default: `false`)
+  - When combined with `flat: true`, returns all files in a flat array
+  - Essential for package management workflows
+- **`flat`**: Return flat list of files when combined with `recursive: true` (default: `false`)
+  - Only returns files (`file_type: "f"`), not directories
+  - Each entry includes full path (e.g., `/describe/users/email/type`)
+  - Enables efficient piping to grep/batch operations
+  - Example: List all 2500 schema properties in one call
+- `max_depth`: Maximum recursion depth when `recursive: true` (default: `-1` = unlimited)
 - `show_hidden`: Include system metadata fields (default: `false`)
 - `sort_by`: Sort by `name` (default), `size`, `time`, or `type`
 - `sort_order`: Direction - `asc` (default) or `desc`
@@ -167,6 +185,70 @@ The File API supports pattern matching:
   }
 }
 ```
+
+### Flat Recursive Listing
+
+When `recursive: true` and `flat: true` are combined, the response returns only files in a flat array without directories:
+
+**Request**
+```json
+{
+  "path": "/describe/users",
+  "file_options": {
+    "recursive": true,
+    "flat": true
+  }
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "entries": [
+    {
+      "name": "type",
+      "file_type": "f",
+      "file_size": 6,
+      "file_permissions": "r--",
+      "file_modified": "20250101120000",
+      "path": "/describe/users/email/type",
+      "api_context": {
+        "schema": "users",
+        "access_level": "read"
+      }
+    },
+    {
+      "name": "maxLength",
+      "file_type": "f",
+      "file_size": 3,
+      "file_permissions": "r--",
+      "file_modified": "20250101120000",
+      "path": "/describe/users/email/maxLength",
+      "api_context": {
+        "schema": "users",
+        "access_level": "read"
+      }
+    }
+    // ... all property files in flat list
+  ],
+  "total": 147,
+  "has_more": false,
+  "file_metadata": {
+    "path": "/describe/users",
+    "type": "directory",
+    "permissions": "r--",
+    "size": 0,
+    "modified_time": "20250101120000"
+  }
+}
+```
+
+**Use Cases**:
+- **Package Management**: List all schema properties in one call for package pull operations
+- **Grep Workflows**: Pipe paths to grep: `jq -r '.entries[].path' | grep 'email'`
+- **Batch Operations**: Collect paths, then feed to batch-retrieve for efficient syncing
+- **File Manifests**: Export complete directory structure without client-side tree walking
 
 ### File Types
 - `d` - Directory (schema, record, field definition)

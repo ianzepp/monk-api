@@ -15,7 +15,7 @@ extract_account_info "$account_json"
 # Test 1: Default behavior (show_hidden=false) - hidden fields should be stripped
 print_step "Testing default retrieve (show_hidden=false)"
 
-default_response=$(file_retrieve "/data/account/$ACCOUNT_ID.json")
+default_response=$(file_retrieve "/data/account/$ACCOUNT_ID")
 assert_has_field "content" "$default_response"
 
 # Verify ID is present (should always be visible)
@@ -55,7 +55,7 @@ print_success "Timestamp fields hidden in default response"
 # Test 2: Explicit show_hidden=false - should behave same as default
 print_step "Testing explicit show_hidden=false"
 
-explicit_false_request=$(jq -n --arg path "/data/account/$ACCOUNT_ID.json" \
+explicit_false_request=$(jq -n --arg path "/data/account/$ACCOUNT_ID" \
     '{path:$path,file_options:{show_hidden:false}}')
 explicit_false_response=$(file_api_post "retrieve" "$explicit_false_request")
 
@@ -73,7 +73,7 @@ print_success "Explicit show_hidden=false works correctly"
 # Test 3: show_hidden=true - all fields should be visible
 print_step "Testing show_hidden=true"
 
-show_hidden_request=$(jq -n --arg path "/data/account/$ACCOUNT_ID.json" \
+show_hidden_request=$(jq -n --arg path "/data/account/$ACCOUNT_ID" \
     '{path:$path,file_options:{show_hidden:true}}')
 show_hidden_response=$(file_api_post "retrieve" "$show_hidden_request")
 
@@ -122,7 +122,7 @@ print_success "Field-level retrieval unaffected by show_hidden"
 # Test 5: Test with raw format
 print_step "Testing show_hidden with raw format"
 
-raw_hidden_request=$(jq -n --arg path "/data/account/$ACCOUNT_ID.json" \
+raw_hidden_request=$(jq -n --arg path "/data/account/$ACCOUNT_ID" \
     '{path:$path,file_options:{format:"raw",show_hidden:false}}')
 raw_hidden_response=$(file_api_post "retrieve" "$raw_hidden_request")
 

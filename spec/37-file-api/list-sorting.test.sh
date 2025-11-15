@@ -20,10 +20,11 @@ list_name_asc_req=$(jq -n --arg path "/data/account/$ACCOUNT_ID" \
 list_name_asc=$(file_api_post "list" "$list_name_asc_req")
 entries_name_asc=$(echo "$list_name_asc" | jq -r '.entries[].name')
 
-# First entry should be the .json file, then fields alphabetically
+# Check that entries are sorted alphabetically
 first_entry_name=$(echo "$entries_name_asc" | head -1)
-[[ "$first_entry_name" == "$ACCOUNT_ID.json" ]] || test_fail "First entry should be .json file"
-print_success "Sort by name ascending: .json file first"
+second_entry_name=$(echo "$entries_name_asc" | head -2 | tail -1)
+[[ "$first_entry_name" < "$second_entry_name" || "$first_entry_name" == "$second_entry_name" ]] || test_fail "Entries should be sorted alphabetically"
+print_success "Sort by name ascending: entries sorted alphabetically"
 
 # Test 2: Sort by name (descending)
 print_step "Testing sort by name (descending)"
@@ -33,9 +34,10 @@ list_name_desc_req=$(jq -n --arg path "/data/account/$ACCOUNT_ID" \
 list_name_desc=$(file_api_post "list" "$list_name_desc_req")
 entries_name_desc=$(echo "$list_name_desc" | jq -r '.entries[].name')
 
-# Last entry should be the .json file in descending order
-last_entry_name=$(echo "$entries_name_desc" | tail -1)
-[[ "$last_entry_name" == "$ACCOUNT_ID.json" ]] || test_fail "Last entry should be .json file in descending order"
+# Check that entries are sorted in reverse alphabetical order
+first_desc_name=$(echo "$entries_name_desc" | head -1)
+second_desc_name=$(echo "$entries_name_desc" | head -2 | tail -1)
+[[ "$first_desc_name" > "$second_desc_name" || "$first_desc_name" == "$second_desc_name" ]] || test_fail "Entries should be sorted in reverse alphabetical order"
 print_success "Sort by name descending works correctly"
 
 # Test 3: Sort by size (ascending)
@@ -126,9 +128,10 @@ print_step "Testing default sorting"
 list_default_req=$(jq -n --arg path "/data/account/$ACCOUNT_ID" '{path:$path}')
 list_default=$(file_api_post "list" "$list_default_req")
 first_default=$(echo "$list_default" | jq -r '.entries[0].name')
+second_default=$(echo "$list_default" | jq -r '.entries[1].name')
 
-# Should default to name ascending (json file first)
-[[ "$first_default" == "$ACCOUNT_ID.json" ]] || test_fail "Default sort should be name ascending"
+# Should default to name ascending
+[[ "$first_default" < "$second_default" || "$first_default" == "$second_default" ]] || test_fail "Default sort should be name ascending"
 print_success "Default sorting is name ascending"
 
 print_success "All sorting tests passed"

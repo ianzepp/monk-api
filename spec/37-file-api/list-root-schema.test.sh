@@ -48,13 +48,8 @@ record_path=$(echo "$record_entry" | jq -r '.path')
 [[ "$record_path" == "/data/account/$ACCOUNT_ID/" ]] || test_fail "Account record path mismatch: $record_path"
 print_success "Schema listing exposes target record"
 
-# /data/account/<id> should include json snapshot and non-system fields
+# /data/account/<id> should include non-system fields
 record_dir_response=$(file_list "/data/account/$ACCOUNT_ID")
-json_entry=$(echo "$record_dir_response" | jq ".entries[] | select(.name == \"$ACCOUNT_ID.json\")")
-[[ -n "$json_entry" && "$json_entry" != "null" ]] || test_fail "Record directory missing JSON snapshot"
-
-json_type=$(echo "$json_entry" | jq -r '.file_type')
-[[ "$json_type" == "f" ]] || test_fail "Record snapshot should be file, got: $json_type"
 
 email_entry=$(echo "$record_dir_response" | jq '.entries[] | select(.name == "email")')
 [[ -n "$email_entry" && "$email_entry" != "null" ]] || test_fail "Record directory missing email field"

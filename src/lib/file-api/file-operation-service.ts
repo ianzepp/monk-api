@@ -101,6 +101,11 @@ export class FileOperationService {
             allowCrossSchema: true,
         });
 
+        // Handle flat recursive listing
+        if (options.recursive && options.flat) {
+            return this.listRecursiveFlat(path, options);
+        }
+
         const isDescribe = filePath.raw_path.startsWith('/describe');
 
         switch (filePath.type) {
@@ -572,15 +577,63 @@ export class FileOperationService {
             this.buildDirectoryEntry('data', '/data/', timestamp),
             this.buildDirectoryEntry('describe', '/describe/', timestamp),
         ];
-        
+
         // Apply sorting
         const sortBy = options?.sort_by ?? 'name';
         const sortOrder = options?.sort_order ?? 'asc';
         sortFileEntries(entries, sortBy, sortOrder);
-        
+
         return {
             entries,
             metadata: this.buildFileMetadata('/', 'directory', this.directoryPermissions(), 0, timestamp),
+        };
+    }
+
+    private async listRecursiveFlat(path: string, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
+        const maxDepth = options.max_depth ?? -1; // -1 = unlimited
+        const allFiles: FileEntry[] = [];
+
+        const collectFiles = async (currentPath: string, currentDepth: number): Promise<void> => {
+            // Check depth limit
+            if (maxDepth !== -1 && currentDepth > maxDepth) {
+                return;
+            }
+
+            // List current directory (non-recursive, non-flat)
+            const nonRecursiveOptions = { ...options, recursive: false, flat: false };
+            let result: ListResult;
+
+            try {
+                // Temporarily clear recursive/flat to get one level
+                result = await this.list(currentPath, nonRecursiveOptions);
+            } catch (error) {
+                // If listing fails, skip this directory
+                logger.debug(`Skipping directory ${currentPath}: ${error}`);
+                return;
+            }
+
+            for (const entry of result.entries) {
+                if (entry.file_type === 'f') {
+                    // It's a file, add it to results
+                    allFiles.push(entry);
+                } else if (entry.file_type === 'd') {
+                    // It's a directory, recurse into it
+                    await collectFiles(entry.path, currentDepth + 1);
+                }
+            }
+        };
+
+        await collectFiles(path, 0);
+
+        // Apply sorting to final flat list
+        const sortBy = options.sort_by ?? 'name';
+        const sortOrder = options.sort_order ?? 'asc';
+        sortFileEntries(allFiles, sortBy, sortOrder);
+
+        const timestamp = FileTimestampFormatter.current();
+        return {
+            entries: allFiles,
+            metadata: this.buildFileMetadata(path, 'directory', this.directoryPermissions(), 0, timestamp),
         };
     }
 

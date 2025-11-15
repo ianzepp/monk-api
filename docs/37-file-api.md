@@ -124,6 +124,9 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
   "file_options": {
     "show_hidden": false,
     "long_format": false,
+    "recursive": false,
+    "flat": false,
+    "max_depth": -1,
     "sort_by": "name",
     "sort_order": "asc",
     "where": null
@@ -137,6 +140,18 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
   - When enabled, each entry includes `created_time`, `content_type`, `etag`, `soft_deleted`, `field_count`
   - Optimizes performance for FUSE filesystems and tools that need stat info for all entries
   - Example: `ls -l` with 1000 files = 1 query instead of 1001
+- **`recursive`**: Recursively list all subdirectories (default: `false`)
+  - When combined with `flat: true`, returns all files in a flat array instead of nested structure
+  - Essential for package management workflows that need to enumerate entire directory trees
+- **`flat`**: Return flat list of all files when combined with `recursive: true` (default: `false`)
+  - Only returns files (`file_type: "f"`), not directories
+  - Each entry includes full path from root (e.g., `/describe/users/email/type`)
+  - Enables efficient piping to grep/batch operations without client-side tree walking
+  - Example: List all 2500 schema properties in one call for package pull operations
+- `max_depth`: Maximum recursion depth when `recursive: true` (default: `-1` = unlimited)
+  - `0`: List only the specified directory (same as non-recursive)
+  - `1`: Include immediate children only
+  - `-1`: No limit, traverse entire tree
 - `sort_by`: Sort field - `name` (default), `size`, `time`, or `type`
   - `name`: Alphabetical by entry name (case-insensitive)
   - `size`: By file size in bytes (directories are size 0)
@@ -185,6 +200,81 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
 ```
 
 Record directories return one entry per non-system field (system fields such as `id`, `created_at`, `updated_at`, `trashed_at`, and `deleted_at` are hidden by default). When a `where` clause is provided, it is evaluated through the Database Filter system just like `/api/find/:schema`.
+
+#### Flat Recursive Listing Example
+
+When `recursive: true` and `flat: true` are combined, the response returns only files in a flat array:
+
+**Request**
+```json
+{
+  "path": "/describe/users",
+  "file_options": {
+    "recursive": true,
+    "flat": true
+  }
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "entries": [
+    {
+      "name": "type",
+      "file_type": "f",
+      "file_size": 6,
+      "file_permissions": "r--",
+      "file_modified": "20250101120000",
+      "path": "/describe/users/email/type",
+      "api_context": {
+        "schema": "users",
+        "access_level": "read"
+      }
+    },
+    {
+      "name": "maxLength",
+      "file_type": "f",
+      "file_size": 3,
+      "file_permissions": "r--",
+      "file_modified": "20250101120000",
+      "path": "/describe/users/email/maxLength",
+      "api_context": {
+        "schema": "users",
+        "access_level": "read"
+      }
+    },
+    {
+      "name": "pattern",
+      "file_type": "f",
+      "file_size": 45,
+      "file_permissions": "r--",
+      "file_modified": "20250101120000",
+      "path": "/describe/users/email/pattern",
+      "api_context": {
+        "schema": "users",
+        "access_level": "read"
+      }
+    }
+    // ... all other property files in flat list
+  ],
+  "total": 147,
+  "has_more": false,
+  "file_metadata": {
+    "path": "/describe/users",
+    "type": "directory",
+    "permissions": "r--",
+    "size": 0,
+    "modified_time": "20250101120000"
+  }
+}
+```
+
+This eliminates the need for client-side tree walking and enables efficient workflows:
+- Pipe paths to grep: `jq -r '.entries[].path' | grep 'email'`
+- Feed to batch-retrieve: Collect all paths, then retrieve in batches of 1000
+- Generate file manifests: Export complete directory structure in one call
 
 ### POST /api/file/retrieve
 
