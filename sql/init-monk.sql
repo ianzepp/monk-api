@@ -1,11 +1,11 @@
--- Monk API Main Database Initialization Script
+-- Monk API Database Initialization Script
 -- This script creates the required tables for the monk database
 --
 -- Usage:
 --   createdb monk
---   psql -d monk -f sql/init-monk-main.sql
+--   psql -d monk -f sql/init-monk.sql
 --
--- The main database serves as the central registry for multi-tenant operations,
+-- The monk database serves as the central registry for multi-tenant operations,
 -- storing tenant configurations and routing information for domain-based authentication.
 
 -- tenants registry table to store multi-tenant database routing information

@@ -14,12 +14,8 @@ export interface BaseFields {
 
 // Schema registry table interface
 export interface Schema extends BaseFields {
-    name: string; // Unique schema name
-    table_name: string; // Unique table name
-    status: 'pending' | 'active' | 'disabled'; // Schema status
-    definition: any; // JSON Schema object
-    field_count: string; // Number of fields
-    json_checksum: string | null; // SHA256 checksum for cache validation
+    schema_name: string; // Unique schema name
+    status: 'pending' | 'active' | 'disabled' | 'system'; // Schema status
 }
 
 // Column registry table interface
