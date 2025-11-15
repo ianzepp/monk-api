@@ -126,7 +126,13 @@ export class Describe {
         const db = this.system.db;
 
         // Get schema record from database (exclude soft-deleted schemas)
-        const selectQuery = `SELECT * FROM schemas WHERE name = $1 AND trashed_at IS NULL LIMIT 1`;
+        const selectQuery = `
+            SELECT s.*, d.definition
+            FROM schemas s
+            JOIN definitions d ON s.name = d.schema_name
+            WHERE s.name = $1 AND s.trashed_at IS NULL
+            LIMIT 1
+        `;
         const schemaResult = await db.query(selectQuery, [schemaName]);
 
         if (schemaResult.rows.length === 0) {
@@ -151,15 +157,15 @@ export class Describe {
             const jsonChecksum = this.generateJsonChecksum(JSON.stringify(jsonContent));
             const fieldCount = Object.keys(newJsonSchema.properties).length;
 
-            // Update schema describe record
+            // Update schema metadata record (definition is now managed by trigger)
             const updateQuery = `
                 UPDATE schemas
-                SET definition = $1, field_count = $2, json_checksum = $3, updated_at = NOW()
-                WHERE name = $4
+                SET field_count = $1, json_checksum = $2, updated_at = NOW()
+                WHERE name = $3
                 RETURNING *
             `;
 
-            const queryResult = await tx.query(updateQuery, [JSON.stringify(newJsonSchema), fieldCount.toString(), jsonChecksum, schemaName]);
+            const queryResult = await tx.query(updateQuery, [fieldCount.toString(), jsonChecksum, schemaName]);
 
             if (queryResult.rows.length === 0) {
                 throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
@@ -411,12 +417,12 @@ export class Describe {
 
         const insertQuery = `
             INSERT INTO schemas
-            (id, name, table_name, status, definition, field_count, json_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
-            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW(), '{}', '{}', '{}', '{}')
+            (id, name, table_name, status, field_count, json_checksum, created_at, updated_at, access_read, access_edit, access_full, access_deny)
+            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW(), '{}', '{}', '{}', '{}')
             RETURNING *
         `;
 
-        await tx.query(insertQuery, [schemaName, tableName, 'active', JSON.stringify(jsonSchema), fieldCount.toString(), jsonChecksum]);
+        await tx.query(insertQuery, [schemaName, tableName, 'active', fieldCount.toString(), jsonChecksum]);
     }
 
     /**
@@ -514,5 +520,137 @@ export class Describe {
             cascadeDelete: false,
             requiredRelationship: false
         };
+    }
+
+    // ===========================
+    // Schema-Level Operations (Monk-native format)
+    // ===========================
+
+    /**
+     * List all schemas
+     *
+     * Returns array of schema records
+     */
+    async listSchemas(): Promise<any[]> {
+        const dtx = this.system.tx || this.system.db;
+
+        const result = await dtx.query(`
+            SELECT s.*, d.definition
+            FROM schemas s
+            LEFT JOIN definitions d ON s.name = d.schema_name
+            WHERE s.trashed_at IS NULL
+            ORDER BY s.name
+        `);
+
+        return result.rows;
+    }
+
+    /**
+     * Get schema definition in Monk-native format
+     *
+     * Returns schema record with columns from columns table
+     */
+    async getSchema(schemaName: string): Promise<any> {
+        // Delegate to existing selectOne for now
+        return this.selectOne(schemaName);
+    }
+
+    /**
+     * Create new schema in Monk-native format
+     *
+     * Executes DDL, inserts into schemas table, and populates columns table
+     * Trigger will auto-generate JSON Schema in definitions table
+     */
+    async createSchema(schemaName: string, schemaDef: any): Promise<any> {
+        // Delegate to existing createOne for now
+        return this.createOne(schemaName, schemaDef);
+    }
+
+    /**
+     * Update schema in Monk-native format
+     *
+     * Updates schema metadata and columns table
+     * Trigger will auto-regenerate JSON Schema in definitions table
+     */
+    async updateSchema(schemaName: string, updates: any): Promise<any> {
+        // Delegate to existing updateOne for now
+        // NOTE: updateOne is currently broken and only updates metadata
+        return this.updateOne(schemaName, updates);
+    }
+
+    /**
+     * Delete schema (soft delete)
+     *
+     * Marks schema as trashed in schemas table
+     */
+    async deleteSchema(schemaName: string): Promise<any> {
+        // Delegate to existing deleteOne for now
+        return this.deleteOne(schemaName);
+    }
+
+    // ===========================
+    // Column-Level Operations (Monk-native format)
+    // ===========================
+
+    /**
+     * Get column definition in Monk-native format
+     *
+     * Returns column record from columns table
+     */
+    async getColumn(schemaName: string, columnName: string): Promise<any> {
+        const dtx = this.system.tx || this.system.db;
+
+        const result = await dtx.query(
+            `SELECT * FROM columns WHERE schema_name = $1 AND column_name = $2`,
+            [schemaName, columnName]
+        );
+
+        if (result.rows.length === 0) {
+            throw HttpErrors.notFound(
+                `Column '${columnName}' not found in schema '${schemaName}'`,
+                'COLUMN_NOT_FOUND'
+            );
+        }
+
+        return result.rows[0];
+    }
+
+    /**
+     * Create new column in Monk-native format
+     *
+     * Executes DDL and inserts into columns table
+     * Trigger will auto-generate JSON Schema in definitions table
+     */
+    async createColumn(schemaName: string, columnName: string, columnDef: any): Promise<any> {
+        throw HttpErrors.notImplemented(
+            'Column creation not yet implemented',
+            'COLUMN_CREATE_NOT_IMPLEMENTED'
+        );
+    }
+
+    /**
+     * Update column in Monk-native format
+     *
+     * Executes DDL and updates columns table
+     * Trigger will auto-regenerate JSON Schema in definitions table
+     */
+    async updateColumn(schemaName: string, columnName: string, updates: any): Promise<any> {
+        throw HttpErrors.notImplemented(
+            'Column update not yet implemented',
+            'COLUMN_UPDATE_NOT_IMPLEMENTED'
+        );
+    }
+
+    /**
+     * Delete column
+     *
+     * Executes DDL and removes from columns table
+     * Trigger will auto-regenerate JSON Schema in definitions table
+     */
+    async deleteColumn(schemaName: string, columnName: string): Promise<any> {
+        throw HttpErrors.notImplemented(
+            'Column deletion not yet implemented',
+            'COLUMN_DELETE_NOT_IMPLEMENTED'
+        );
     }
 }
