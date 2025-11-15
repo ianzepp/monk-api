@@ -70,12 +70,6 @@ CREATE TRIGGER update_tenants_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Insert default system tenant for development and testing
--- This provides a standard tenant for local development work
-INSERT INTO "tenants" (name, database, host, is_active)
-VALUES ('system', 'system', 'localhost', true)
-ON CONFLICT (name) DO NOTHING;
-
 -- Request Tracking Table
 -- Records all API requests for analytics, monitoring, and connection health checking
 CREATE TABLE "requests" (
