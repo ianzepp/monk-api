@@ -116,6 +116,12 @@ if [[ ! -d "$FIXTURES_DIR/data" ]]; then
     fail "Fixtures data directory not found: $FIXTURES_DIR/data"
 fi
 
+# Check that SQL files exist (not JSON)
+if ! ls "$FIXTURES_DIR/describe"/*.sql >/dev/null 2>&1; then
+    print_warning "No SQL files found in $FIXTURES_DIR/describe/"
+    print_info "Did you run: node scripts/fixtures-convert-schema.js $TEMPLATE_NAME"
+fi
+
 # Check if target template database already exists
 template_db_final="monk_template_$TEMPLATE_NAME"
 if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_final" 2>/dev/null; then
@@ -189,83 +195,61 @@ else
     print_info "No fixture-specific init.sql found (optional)"
 fi
 
-# Step 2: Authenticate as full
-print_step "Setting up authentication (full)"
-JWT_TOKEN=$(get_user_token "$tenant_name" "full")
-
-if [[ -z "$JWT_TOKEN" || "$JWT_TOKEN" == "null" ]]; then
-    fail "Failed to authenticate full user"
-fi
-
-export JWT_TOKEN
-print_success "Authentication (full) configured"
-
-# Step 3: Load all schemas
+# Step 2: Load schemas via SQL
 print_step "Loading schemas from $FIXTURES_DIR/describe/"
 
 schema_count=0
-for schema_file in "$FIXTURES_DIR/describe"/*.json; do
+for schema_file in "$FIXTURES_DIR/describe"/*.sql; do
     if [[ ! -f "$schema_file" ]]; then
-        print_warning "No schema files found in $FIXTURES_DIR/describe/"
+        print_warning "No schema SQL files found in $FIXTURES_DIR/describe/"
         continue
     fi
 
-    schema_name=$(basename "$schema_file" .json)
+    schema_name=$(basename "$schema_file" .sql)
     print_step "Loading schema: $schema_name"
 
-    schema_content=$(cat "$schema_file")
-    response=$(auth_post "api/describe/$schema_name" "$schema_content")
-
-    if echo "$response" | jq -e '.success == true' >/dev/null; then
+    if psql -d "$template_db_name" -f "$schema_file" >/dev/null 2>&1; then
         print_success "Schema '$schema_name' loaded successfully"
         ((schema_count++))
     else
-        print_error "Failed to load schema '$schema_name': $response"
+        print_error "Failed to load schema '$schema_name'"
         fail "Schema loading failed"
     fi
 done
 
 print_success "Loaded $schema_count schemas"
 
-# Step 4: Load sample data
+# Step 3: Load sample data via SQL
 print_step "Loading sample data from $FIXTURES_DIR/data/"
 
 data_count=0
 total_records=0
 
-for data_file in "$FIXTURES_DIR/data"/*.json; do
+for data_file in "$FIXTURES_DIR/data"/*.sql; do
     if [[ ! -f "$data_file" ]]; then
-        print_warning "No data files found in $FIXTURES_DIR/data/"
+        print_warning "No data SQL files found in $FIXTURES_DIR/data/"
         continue
     fi
 
-    data_name=$(basename "$data_file" .json)
+    data_name=$(basename "$data_file" .sql)
     print_step "Loading data: $data_name"
 
-    data_content=$(cat "$data_file")
+    # Count records in SQL file (approximate)
+    record_count=$(grep -c "^INSERT INTO" "$data_file" || echo "0")
 
-    # Validate that data is an array
-    if ! echo "$data_content" | jq -e 'type == "array"' >/dev/null; then
-        print_error "Data file $data_file must contain an array of records"
-        fail "Data validation failed"
-    fi
-
-    record_count=$(echo "$data_content" | jq 'length')
-    response=$(auth_post "api/data/$data_name" "$data_content")
-
-    if echo "$response" | jq -e '.success == true' >/dev/null; then
+    if psql -d "$template_db_name" -f "$data_file" >/dev/null 2>&1; then
         print_success "Data '$data_name' loaded: $record_count records"
         ((data_count++))
         ((total_records += record_count))
     else
-        print_error "Failed to load data '$data_name': $response"
+        print_error "Failed to load data '$data_name'"
         fail "Data loading failed"
     fi
 done
 
 print_success "Loaded data for $data_count schemas: $total_records total records"
 
-# Step 5: Convert to template database
+# Step 4: Convert to template database
 print_step "Converting to template database"
 
 # Template database name was already generated during prerequisites check
@@ -292,7 +276,7 @@ print_step "Restarting server"
 npm run start:bg >/dev/null 2>&1
 print_success "Server restarted"
 
-# Step 6: Register as template in tenants table
+# Step 5: Register as template in tenants table
 print_step "Registering template in tenants registry"
 
 # Update the tenant record to mark as template
@@ -307,7 +291,7 @@ template_update_sql="
 psql -d monk -c "$template_update_sql"
 print_success "Template registered: monk_$TEMPLATE_NAME → $template_db_final"
 
-# Step 7: Summary
+# Step 6: Summary
 print_header "Fixture Template Build Complete"
 echo "Template Name: monk_$TEMPLATE_NAME"
 echo "Database Name: $template_db_final"
