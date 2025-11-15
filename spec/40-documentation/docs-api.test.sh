@@ -10,7 +10,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing self-documenting API endpoints"
 
 # Simple setup for documentation testing
-setup_test_default
+setup_test_server_only
 
 # Test auth documentation (merged public + protected)
 print_step "Testing GET /docs/auth"

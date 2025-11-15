@@ -9,8 +9,8 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Describe API schema creation"
 
-# Setup isolated test environment and authentication (full)
-setup_test_isolated "create-schema"
+# Setup test environment with empty template and authentication (full)
+setup_test_with_template "create-schema" "empty"
 setup_full_auth
 
 # Test 1: Create schema using account.json

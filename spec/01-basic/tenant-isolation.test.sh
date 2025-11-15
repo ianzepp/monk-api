@@ -7,20 +7,16 @@ set -e
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing isolated tenant creation and cleanup"
+print_step "Testing template-based tenant creation and cleanup"
 
-# Setup isolated test environment with automatic cleanup
-setup_test_isolated "isolation_test"
+# Setup test environment with empty template and automatic cleanup
+tenant_name=$(setup_test_with_template "isolation_test" "empty")
 
-# Load environment variables (they're exported by setup_test_isolated)
-load_test_env
-tenant_name="$TEST_TENANT_NAME"
-db_name="$TEST_DATABASE_NAME"
-
-if [[ -n "$tenant_name" && -n "$db_name" ]]; then
-    print_success "Created isolated tenant: $tenant_name"
+if [[ -n "$tenant_name" && -n "$TEST_DATABASE_NAME" ]]; then
+    print_success "Created tenant from template: $tenant_name"
+    db_name="$TEST_DATABASE_NAME"
 else
-    test_fail "Failed to create isolated tenant"
+    test_fail "Failed to create tenant from template"
 fi
 
 # Test 2: Verify tenant is usable for authentication

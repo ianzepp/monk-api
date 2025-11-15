@@ -33,17 +33,8 @@ setup_test_with_template() {
     echo "$tenant_name"
 }
 
-# Complete test setup with isolated tenant (fallback pattern)
-setup_test_isolated() {
-    local test_name="$1"
-
-    wait_for_server
-    setup_isolated_test "$test_name"
-    print_success "Isolated test environment ready"
-}
-
-# Simple API test setup (no tenant isolation needed)
-setup_test_default() {
+# Simple server-only test setup (no tenant creation)
+setup_test_server_only() {
     wait_for_server
 }
 
@@ -61,19 +52,6 @@ setup_full_auth() {
         export JWT_TOKEN
     else
         test_fail "Failed to authenticate full user"
-    fi
-}
-
-# Setup root authentication for current tenant
-setup_root_auth() {
-    print_step "Setting up authentication for root user"
-    JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "root")
-
-    if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-        print_success "Root authentication configured"
-        export JWT_TOKEN
-    else
-        test_fail "Failed to authenticate root user"
     fi
 }
 

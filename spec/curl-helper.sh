@@ -187,48 +187,6 @@ escalate_sudo() {
     fi
 }
 
-# Test authentication setup with isolated tenant
-setup_test_auth() {
-    local tenant="${1:-$TEST_TENANT_NAME}"
-    local username="${2:-root}"
-    
-    # Ensure we have a test tenant
-    if [[ -z "$tenant" || -z "$TEST_TENANT_NAME" ]]; then
-        print_warning "No test tenant available - creating isolated tenant"
-        source "$(dirname "${BASH_SOURCE[0]}")/test-tenant-helper.sh"
-        setup_isolated_test "auth_test"
-        tenant="$TEST_TENANT_NAME"
-    fi
-    
-    print_step "Setting up authentication for $username@$tenant"
-    JWT_TOKEN=$(get_user_token "$tenant" "$username")
-    export JWT_TOKEN
-    
-    if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-        print_success "User authentication configured"
-    else
-        test_fail "Failed to setup user authentication"
-    fi
-}
-
-setup_root_auth() {
-    local reason="${1:-Administrative testing}"
-    
-    if [[ -z "$JWT_TOKEN" ]]; then
-        setup_test_auth
-    fi
-    
-    print_step "Escalating to root privileges"
-    ROOT_TOKEN=$(escalate_sudo "$reason")
-    export ROOT_TOKEN
-    
-    if [[ -n "$ROOT_TOKEN" && "$ROOT_TOKEN" != "null" ]]; then
-        print_success "Root authentication configured"
-    else
-        test_fail "Failed to setup root authentication"
-    fi
-}
-
 # ===========================
 # Response Validation
 # ===========================

@@ -11,7 +11,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing tenant deletion security enforcement"
 
 # Setup basic server connection
-setup_test_default
+setup_test_server_only
 
 # Test Setup: Create tenant with data
 print_step "Creating tenant with account data"

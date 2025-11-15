@@ -218,28 +218,6 @@ setup_test_cleanup_trap() {
     trap "cleanup_test_tenant '$tenant_name' '$db_name'" EXIT
 }
 
-# Create test tenant for current test and setup cleanup
-setup_isolated_test() {
-    local test_name="${1:-$(basename "$0" .test.sh)}"
-
-    # Create isolated tenant
-    local tenant_name=$(create_isolated_test_tenant "$test_name")
-
-    if [[ -z "$tenant_name" ]]; then
-        print_error "Failed to create test tenant"
-        exit 1
-    fi
-
-    # Setup automatic cleanup
-    setup_test_cleanup_trap "$tenant_name" "$TEST_DATABASE_NAME"
-
-    # Export for curl helper
-    export TEST_TENANT_NAME="$tenant_name"
-    export TEST_DATABASE_NAME
-
-    print_success "Isolated test environment ready"
-}
-
 # Mass cleanup of all test databases (called at end of test suite)
 cleanup_all_test_databases() {
     print_step "Cleaning up all test databases and tenants"

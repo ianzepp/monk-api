@@ -11,7 +11,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing cross-tenant CRUD isolation"
 
 # Setup basic server connection
-setup_test_default
+setup_test_server_only
 
 # Test Setup: Create Tenant A
 print_step "Creating Tenant A with account record"

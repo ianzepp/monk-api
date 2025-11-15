@@ -9,9 +9,10 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing protected Auth API endpoints"
 
-# Simple setup with authentication
-setup_test_default
-setup_test_auth "system" "root"
+# Setup server and authenticate against system tenant
+setup_test_server_only
+JWT_TOKEN=$(get_user_token "system" "root")
+export JWT_TOKEN
 
 # Test whoami endpoint
 print_step "Testing GET /api/auth/whoami"

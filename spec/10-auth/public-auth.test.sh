@@ -10,7 +10,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing public authentication endpoints"
 
 # Simple setup for auth tests (no tenant isolation needed)
-setup_test_default
+setup_test_server_only
 
 # Test login endpoint
 print_step "Testing POST /auth/login"
