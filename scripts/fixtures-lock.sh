@@ -32,7 +32,7 @@ print_warning() {
 # Validate template name
 if [[ -z "$TEMPLATE_NAME" ]]; then
     print_error "Usage: npm run fixtures:lock <template-name>"
-    print_error "Example: npm run fixtures:lock basic_large"
+    print_error "Example: npm run fixtures:lock testing_large"
     exit 1
 fi
 

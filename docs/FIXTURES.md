@@ -37,7 +37,7 @@ The fixtures system provides pre-built, populated databases that can be cloned i
 
 ```
 fixtures/
-├── basic/                    # Protected template (5 records each)
+├── testing/                  # Protected template (5 records each)
 │   ├── describe/            # JSON schema definitions
 │   ├── data/                # Pre-generated test data
 │   └── .locked              # Protection lock file
@@ -48,8 +48,8 @@ fixtures/
 ### Database Architecture
 
 **Template Databases:**
-- `monk_template_basic` - Standard test template
-- `monk_template_basic_large` - Performance testing template
+- `monk_template_testing` - Standard test template
+- `monk_template_testing_large` - Performance testing template
 - `monk_template_empty` - Production-ready template
 
 **Tenant Registry:**
@@ -89,7 +89,7 @@ Templates are registered in `monk.tenants` with `tenant_type='template'` for man
 
 ### Build Templates
 ```bash
-# Build basic template (most common)
+# Build testing template (most common)
 npm run fixtures:build basic
 
 # Build with force (rebuild existing)
@@ -134,7 +134,7 @@ npm run fixtures:deploy basic --force
 
 ```bash
 # 1. Copy existing template
-cp -r fixtures/basic fixtures/my-template
+cp -r fixtures/testing fixtures/my-template
 
 # 2. Remove lock to allow generation
 rm fixtures/my-template/.locked
@@ -162,17 +162,17 @@ Templates use a multi-layer protection system:
 
 ```bash
 # Remove application lock
-rm fixtures/basic/.locked
+rm fixtures/testing/.locked
 
 # Remove git protection
-git update-index --no-skip-worktree fixtures/basic/data/*.json
+git update-index --no-skip-worktree fixtures/testing/data/*.json
 
 # Make changes
 npm run fixtures:generate basic 10
 
 # Re-lock (recommended)
 npm run fixtures:lock basic
-git update-index --skip-worktree fixtures/basic/data/*.json
+git update-index --skip-worktree fixtures/testing/data/*.json
 ```
 
 ## Test Integration
@@ -181,7 +181,7 @@ git update-index --skip-worktree fixtures/basic/data/*.json
 
 ```bash
 # Most common pattern - 30x faster than fresh setup
-setup_test_with_template "test-name" "basic"
+setup_test_with_template testing"
 
 # Fallback for special requirements
 setup_test_isolated "test-name"
@@ -241,7 +241,7 @@ The test system provides automatic cleanup:
 **Lock File System:**
 ```json
 {
-  "template": "basic",
+  "template testing",
   "locked_at": "2024-01-15T10:30:00Z",
   "locked_by": "user@hostname",
   "reason": "Template locked to prevent accidental regeneration",
@@ -269,11 +269,11 @@ git status  # Won't show modified data files
 **Explicit Unlock Required:**
 ```bash
 # Remove git protection
-git update-index --no-skip-worktree fixtures/basic/data/*.json
+git update-index --no-skip-worktree fixtures/testing/data/*.json
 
 # Make changes
 # Re-apply protection
-git update-index --skip-worktree fixtures/basic/data/*.json
+git update-index --skip-worktree fixtures/testing/data/*.json
 ```
 
 ### Template Validation
@@ -327,10 +327,10 @@ npm run test:sh 03-template-infrastructure/
 **Lock Management:**
 ```bash
 # Check lock status
-ls -la fixtures/basic/.locked
+ls -la fixtures/testing/.locked
 
 # Review lock content
-cat fixtures/basic/.locked
+cat fixtures/testing/.locked
 
 # List git-protected files
 git ls-files -v | grep ^S
@@ -359,7 +359,7 @@ psql -d monk -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM 
 
 **Template Not Found:**
 ```bash
-# Error: Template database 'monk_template_basic' not found
+# Error: Template database 'monk_template_testing' not found
 # Solution: Build the template
 npm run fixtures:build basic
 ```
@@ -375,7 +375,7 @@ npm run fixtures:build basic
 ```bash
 # Error: Template 'basic' is locked
 # Solution: Remove lock file (if intentional)
-rm fixtures/basic/.locked
+rm fixtures/testing/.locked
 npm run fixtures:generate basic 10
 ```
 
@@ -385,7 +385,7 @@ npm run fixtures:generate basic 10
 # Solution: Check git protection
 git ls-files -v | grep ^S
 # Remove protection if needed
-git update-index --no-skip-worktree fixtures/basic/data/*.json
+git update-index --no-skip-worktree fixtures/testing/data/*.json
 ```
 
 ### Debug Commands
@@ -395,10 +395,10 @@ git update-index --no-skip-worktree fixtures/basic/data/*.json
 psql -l | grep monk_template
 
 # Verify template content
-psql -d monk_template_basic -c "SELECT COUNT(*) FROM accounts"
+psql -d monk_template_testing -c "SELECT COUNT(*) FROM accounts"
 
 # Test cloning manually
-createdb test_clone -T monk_template_basic
+createdb test_clone -T monk_template_testing
 
 # Check tenant registry
 psql -d monk -c "SELECT name, database, tenant_type FROM tenants WHERE tenant_type = 'template'"
@@ -424,8 +424,8 @@ The generation system respects:
 **Multi-Template Workflows:**
 ```bash
 # Create specialized templates
-cp -r fixtures/basic fixtures/api-tests
-cp -r fixtures/basic fixtures/performance-tests
+cp -r fixtures/testing fixtures/api-tests
+cp -r fixtures/testing fixtures/performance-tests
 
 # Customize each template
 npm run fixtures:generate api-tests 50
@@ -476,10 +476,10 @@ psql -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_datab
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `npm run fixtures:build [template]` | Build template database | `npm run fixtures:build basic` |
-| `npm run fixtures:generate <template> <count>` | Generate test data | `npm run fixtures:generate basic 100` |
-| `npm run fixtures:lock <template>` | Lock template | `npm run fixtures:lock basic` |
-| `npm run fixtures:deploy <template>` | Deploy to Neon | `npm run fixtures:deploy basic` |
+| `npm run fixtures:build [template testing` |
+| `npm run fixtures:generate <template testing 100` |
+| `npm run fixtures:lock <template testing` |
+| `npm run fixtures:deploy <template testing` |
 | `npm run test:cleanup` | Clean test databases | `npm run test:cleanup` |
 
 **Speed Improvement:** **30x faster** than fresh database creation

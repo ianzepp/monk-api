@@ -170,7 +170,7 @@ TEST_VERBOSE=1 npm run test:cleanup
 source "$(dirname "${BASH_SOURCE[0]}")/../test-helper.sh"
 
 # Setup test environment
-setup_test_with_template "$(basename "$0" .test.sh)" "basic"
+setup_test_with_template testing"
 setup_full_auth
 
 # Test implementation

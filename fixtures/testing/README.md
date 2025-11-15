@@ -1,13 +1,13 @@
-# Basic Fixtures Template
+# Testing Fixtures Template
 
 ## ⚠️ Protected Template
 
-This directory contains the **basic fixtures template** used by many tests throughout the codebase. The data in this template is **locked and protected** to ensure test stability.
+This directory contains the **testing fixtures template** used by many tests throughout the codebase. The data in this template is **locked and protected** to ensure test stability.
 
 ## Protection Mechanisms
 
 ### 1. Application Lock (`.locked` file)
-- **Purpose**: Prevents `npm run fixtures:generate basic <count>` from regenerating data
+- **Purpose**: Prevents `npm run fixtures:generate testing <count>` from regenerating data
 - **File**: `.locked` - Contains lock metadata and unlock instructions
 - **Protection**: Runtime prevention of fixture regeneration
 
@@ -20,7 +20,7 @@ This directory contains the **basic fixtures template** used by many tests throu
 
 - **Schemas**: 2 JSON schemas (`account.json`, `contact.json`)
 - **Data**: Sample data with exactly 5 account records and 5 contact records
-- **Usage**: Template for `npm run fixtures:build basic` → `monk_template_basic` database
+- **Usage**: Template for `npm run fixtures:build testing` → `monk_template_testing` database
 
 ## Test Dependencies
 
@@ -37,7 +37,7 @@ If you need different test data:
 
 1. **Create a new template**:
    ```bash
-   cp -r fixtures/basic fixtures/my-template
+   cp -r fixtures/testing fixtures/my-template
    rm fixtures/my-template/.locked
    npm run fixtures:generate my-template 100
    ```
@@ -52,29 +52,29 @@ If you need different test data:
 
 ```bash
 # 1. Remove application lock
-rm fixtures/basic/.locked
+rm fixtures/testing/.locked
 
 # 2. Remove git lock  
-git update-index --no-skip-worktree fixtures/basic/data/account.json
-git update-index --no-skip-worktree fixtures/basic/data/contact.json
+git update-index --no-skip-worktree fixtures/testing/data/account.json
+git update-index --no-skip-worktree fixtures/testing/data/contact.json
 
 # 3. Make changes
-npm run fixtures:generate basic 5
+npm run fixtures:generate testing 5
 
 # 4. Re-lock (recommended)
-npm run fixtures:lock basic
-git update-index --skip-worktree fixtures/basic/data/account.json
-git update-index --skip-worktree fixtures/basic/data/contact.json
+npm run fixtures:lock testing
+git update-index --skip-worktree fixtures/testing/data/account.json
+git update-index --skip-worktree fixtures/testing/data/contact.json
 ```
 
 ## Related Commands
 
 ```bash
 # Build template database
-npm run fixtures:build basic
+npm run fixtures:build testing
 
 # Check if template is locked
-npm run fixtures:generate basic 10  # Will show lock error
+npm run fixtures:generate testing 10  # Will show lock error
 
 # List git-locked files
 git ls-files -v | grep ^S

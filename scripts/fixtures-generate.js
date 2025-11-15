@@ -135,7 +135,7 @@ async function generateFixtures() {
   // Validate arguments
   if (!templateName) {
     printError('Usage: npm run fixtures:generate <template-name> <record-count>');
-    printError('Example: npm run fixtures:generate basic_large 1000');
+    printError('Example: npm run fixtures:generate testing_large 1000');
     printError('Example: npm run fixtures:generate demo_small 50');
     process.exit(1);
   }

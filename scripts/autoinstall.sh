@@ -526,7 +526,7 @@ if [ -d "fixtures" ]; then
         print_info "To build template databases for testing:"
         print_info "• Build single template: npm run fixtures:build <template_name>"
         print_info "• Force rebuild existing: npm run fixtures:build -- --force <template_name>"
-        print_info "• Example: npm run fixtures:build basic"
+        print_info "• Example: npm run fixtures:build testing"
         echo
         print_info "Template databases are used for fast test environment setup"
     else

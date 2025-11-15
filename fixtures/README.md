@@ -57,7 +57,7 @@ Templates are protected by:
 ## Next Steps
 
 1. **Read the [complete documentation](../docs/FIXTURES.md)**
-2. **Try building your first template:** `npm run fixtures:build basic`
+2. **Try building your first template testing`
 3. **Run tests with templates:** `npm run test:sh 10`
 4. **Create custom templates** for your specific needs
 

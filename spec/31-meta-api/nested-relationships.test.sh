@@ -10,7 +10,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing Describe API nested relationship endpoints"
 
 # Setup test environment with template (needed for columns table)
-setup_test_with_template "nested-relationships" "basic"
+setup_test_with_template "$(basename "$0" .test.sh)" "testing"
 setup_full_auth
 
 # Test 1: Create parent schema (posts)
