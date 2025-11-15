@@ -191,6 +191,12 @@ app.get('/api/describe/:schema', describeRoutes.SchemaGet); // Get schema
 app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema
 app.delete('/api/describe/:schema', describeRoutes.SchemaDelete); // Delete schema
 
+// Column-level Describe API routes
+app.post('/api/describe/:schema/:column', describeRoutes.ColumnPost); // Create column
+app.get('/api/describe/:schema/:column', describeRoutes.ColumnGet); // Get column
+app.put('/api/describe/:schema/:column', describeRoutes.ColumnPut); // Update column
+app.delete('/api/describe/:schema/:column', describeRoutes.ColumnDelete); // Delete column
+
 // 32-data-api: Data API routes
 app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records
 app.get('/api/data/:schema', dataRoutes.SchemaGet); // List records
