@@ -413,142 +413,64 @@ print_header "Starting: Initialize Main Database"
 
 # Handle --clean-auth option
 if [ "$CLEAN_AUTH" = true ]; then
-    print_step "Clean main database requested - removing existing monk database..."
+    print_step "Clean monk database requested - removing existing monk database..."
     if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
         if dropdb monk 2>/dev/null; then
-            print_success "Existing main database removed"
+            print_success "Existing monk database removed"
         else
-            handle_error "Main database removal" "Check PostgreSQL permissions for dropping databases"
+            handle_error "Monk database removal" "Check PostgreSQL permissions for dropping databases"
         fi
     else
-        print_info "Main database did not exist"
+        print_info "Monk database did not exist"
     fi
 fi
 
-print_step "Checking if main database exists..."
+print_step "Checking if monk database exists..."
 
-# Check if main database already exists
+# Check if monk database already exists
 if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
-    print_info "Main database already exists"
+    print_info "Monk database already exists"
 
     # Check if it has the required tables
     if psql -d monk -c "SELECT 1 FROM tenants LIMIT 1;" >/dev/null 2>&1; then
-        print_success "Main database properly initialized"
+        print_success "Monk database properly initialized"
         # Show tenant count
         tenant_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenants;" 2>/dev/null | xargs)
         print_info "Existing tenants: $tenant_count"
     else
-        print_warning "Main database exists but may need initialization"
-        print_step "Re-initializing main database schema..."
-        if psql -d monk -f sql/init-monk-main.sql >/dev/null 2>&1; then
-            print_success "Main database schema updated"
+        print_warning "Monk database exists but may need initialization"
+        print_step "Re-initializing monk database schema..."
+        if psql -d monk -f sql/init-monk.sql >/dev/null 2>&1; then
+            print_success "Monk database schema updated"
         else
-            handle_error "Main database schema initialization" "Check sql/init-monk-main.sql file exists and PostgreSQL permissions"
+            handle_error "Monk database schema initialization" "Check sql/init-monk.sql file exists and PostgreSQL permissions"
         fi
     fi
 else
-    print_step "Creating main database..."
+    print_step "Creating monk database..."
     if createdb monk 2>/dev/null; then
-        print_success "Main database created"
+        print_success "Monk database created"
     else
-        handle_error "Main database creation" "Check PostgreSQL permissions and that createdb command is available"
+        handle_error "Monk database creation" "Check PostgreSQL permissions and that createdb command is available"
     fi
 
-    print_step "Initializing main database schema..."
-    if psql -d monk -f sql/init-monk-main.sql >/dev/null 2>&1; then
-        print_success "Main database schema initialized"
+    print_step "Initializing monk database schema..."
+    if psql -d monk -f sql/init-monk.sql >/dev/null 2>&1; then
+        print_success "Monk database schema initialized"
         print_info "Created tenant table with indexes and triggers"
-        print_info "Added default system tenant"
     else
-        handle_error "Main database schema initialization" "Check sql/init-monk-main.sql file exists and PostgreSQL permissions"
+        handle_error "Monk database schema initialization" "Check sql/init-monk.sql file exists and PostgreSQL permissions"
     fi
 fi
 
-# Starting: Create Default Development Tenant
-print_header "Starting: Create Default Development Tenant"
-
-print_step "Creating default 'system' tenant database for development..."
-
-# Check if system database already exists
-if psql -lqt | cut -d'|' -f1 | grep -qw "system" 2>/dev/null; then
-    print_info "System tenant database already exists"
-
-    # Check if it has users table
-    if psql -d system -c "SELECT 1 FROM users LIMIT 1;" >/dev/null 2>&1; then
-        print_success "System tenant database properly initialized"
-        user_count=$(psql -d system -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | xargs)
-        print_info "System tenant users: $user_count"
-    else
-        print_warning "System database exists but needs initialization"
-        print_step "Re-initializing system tenant schema..."
-        if psql -d system -f sql/init-tenant.sql >/dev/null 2>&1; then
-            print_success "System tenant schema updated"
-        else
-            handle_error "System tenant schema initialization" "Check sql/init-tenant.sql file exists"
-        fi
-    fi
-else
-    print_step "Creating system tenant database..."
-    if createdb system 2>/dev/null; then
-        print_success "System tenant database created"
-    else
-        handle_error "System tenant database creation" "Check PostgreSQL permissions for creating databases"
-    fi
-
-    print_step "Initializing system tenant schema..."
-    if psql -d system -f sql/init-tenant.sql >/dev/null 2>&1; then
-        print_success "System tenant schema initialized"
-    else
-        handle_error "System tenant schema initialization" "Check sql/init-tenant.sql file exists"
-    fi
-fi
-
-# Create default development users
-print_step "Creating default development users..."
-user_sql="
-    INSERT INTO users (name, auth, access, access_read, access_edit, access_full) VALUES
-    ('Development Root User', 'root', 'root', '{}', '{}', '{}'),
-    ('Development Admin User', 'admin', 'full', '{}', '{}', '{}'),
-    ('Development User', 'user', 'edit', '{}', '{}', '{}')
-    ON CONFLICT (auth) DO NOTHING
-"
-
-if psql -d system -c "$user_sql" >/dev/null 2>&1; then
-    print_success "Development users created (root, admin, user)"
-    print_info "You can now login with: tenant='system', username='root'/'admin'/'user'"
-else
-    print_warning "Failed to create development users (may already exist)"
-fi
-
-# Starting: Setup Complete
-print_header "Starting: Setup Complete"
-print_success "Monk API setup completed successfully!"
-echo
-print_info "Environment ready for development:"
-print_info "• PostgreSQL: Connected and configured"
-print_info "• Main database (monk): Initialized with schema"
-print_info "• System tenant: Database created with test users"
-print_info "• TypeScript: Built and ready"
-print_info "• Local server: http://localhost:9001"
-echo
-print_info "Ready for immediate use:"
-print_info "• Login: curl -X POST http://localhost:9001/auth/login -d '{\"tenant\":\"system\",\"username\":\"root\"}'"
-print_info "• Test: npm run start:bg && ./spec/run-series.sh 01-basic; npm run stop"
-print_info "• Development: npm run start:dev"
-echo
-print_info "Available development users:"
-print_info "• root@system (root access) - Full administrative privileges"
-print_info "• admin@system (full access) - Administrative operations"
-print_info "• user@system (edit access) - Standard user operations"
-echo
 # Starting: Verify Build and Server
 print_header "Starting: Verify Build and Server"
 
 print_step "Running build verification..."
 if npm run build >/dev/null 2>&1; then
-    print_success "Build verification passed - code compiles successfully on this system"
+    print_success "Build verification passed - code compiles successfully"
 else
-    handle_error "Build verification" "The code failed to compile on this local system"
+    handle_error "Build verification" "The code failed to compile"
 fi
 
 print_step "Running server startup test..."
@@ -591,4 +513,18 @@ else
     print_warning "fixtures/ directory not found"
 fi
 
-print_success "Ready for development!"
+# Starting: Setup Complete
+print_header "Starting: Setup Complete"
+print_success "Monk API setup completed successfully!"
+echo
+print_info "Environment ready for development:"
+print_info "• PostgreSQL: Connected and configured"
+print_info "• Monk database (monk): Initialized with schema"
+print_info "• TypeScript: Built and ready"
+print_info "• Local server: http://localhost:9001"
+echo
+print_info "Ready for immediate use:"
+print_info "• Rebuild: npm run build"
+print_info "• Start the server: npm run start"
+print_info "• Login: curl -X POST http://localhost:9001/auth/register -d '{\"tenant\":\"<tenant>\",\"username\":\"<username>\"}'"
+echo
