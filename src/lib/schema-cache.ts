@@ -78,9 +78,9 @@ export class SchemaCache {
      */
     private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{ name: string; json_checksum: string; updated_at: string }[]> {
         const result = await dtx.query(`
-            SELECT s.name, d.definition_checksum as json_checksum, d.updated_at
+            SELECT s.schema_name as name, d.definition_checksum as json_checksum, d.updated_at
             FROM schemas s
-            JOIN definitions d ON s.name = d.schema_name
+            JOIN definitions d ON s.schema_name = d.schema_name
             WHERE s.status IN ('active', 'system')
         `);
 
@@ -106,10 +106,10 @@ export class SchemaCache {
                 // Query specific schemas using raw SQL (consistent with our approach)
                 const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
                 const result = await dtx.query(`
-                    SELECT s.name, d.definition_checksum as json_checksum, d.updated_at
+                    SELECT s.schema_name as name, d.definition_checksum as json_checksum, d.updated_at
                     FROM schemas s
-                    JOIN definitions d ON s.name = d.schema_name
-                    WHERE s.name IN (${quotedNames}) AND s.status IN ('active', 'system')
+                    JOIN definitions d ON s.schema_name = d.schema_name
+                    WHERE s.schema_name IN (${quotedNames}) AND s.status IN ('active', 'system')
                 `);
                 currentChecksums = result.rows;
             } else {
@@ -155,8 +155,8 @@ export class SchemaCache {
             `
             SELECT s.*, d.definition, d.definition_checksum as json_checksum
             FROM schemas s
-            JOIN definitions d ON s.name = d.schema_name
-            WHERE s.name = $1 AND s.status IN ('active', 'system')
+            JOIN definitions d ON s.schema_name = d.schema_name
+            WHERE s.schema_name = $1 AND s.status IN ('active', 'system')
         `,
             [schemaName]
         );
