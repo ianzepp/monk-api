@@ -522,6 +522,97 @@ export class Describe {
         };
     }
 
+    /**
+     * Generate CREATE TABLE DDL from columns array (Monk-native format)
+     */
+    private generateCreateTableDDLFromColumns(tableName: string, columns: any[]): string {
+        let ddl = `CREATE TABLE "${tableName}" (\n`;
+
+        // Standard PaaS fields
+        ddl += `    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n`;
+        ddl += `    "access_read" UUID[] DEFAULT '{}',\n`;
+        ddl += `    "access_edit" UUID[] DEFAULT '{}',\n`;
+        ddl += `    "access_full" UUID[] DEFAULT '{}',\n`;
+        ddl += `    "access_deny" UUID[] DEFAULT '{}',\n`;
+        ddl += `    "created_at" TIMESTAMP DEFAULT now() NOT NULL,\n`;
+        ddl += `    "updated_at" TIMESTAMP DEFAULT now() NOT NULL,\n`;
+        ddl += `    "trashed_at" TIMESTAMP,\n`;
+        ddl += `    "deleted_at" TIMESTAMP`;
+
+        // Schema-specific fields from columns array
+        for (const column of columns) {
+            // Skip system fields that are already defined
+            if (isSystemField(column.column_name)) {
+                logger.warn(`Schema defines system field '${column.column_name}' which is automatically managed. Ignoring.`);
+                continue;
+            }
+
+            this.validateColumnName(column.column_name);
+
+            const pgType = column.pg_type || 'TEXT';
+            const isRequired = column.is_required === 'true' || column.is_required === true;
+            const nullable = isRequired ? ' NOT NULL' : '';
+
+            let defaultValue = '';
+            if (column.default_value !== undefined && column.default_value !== null) {
+                if (typeof column.default_value === 'string') {
+                    const escapedDefault = column.default_value.replace(/'/g, "''");
+                    defaultValue = ` DEFAULT '${escapedDefault}'`;
+                } else if (typeof column.default_value === 'number') {
+                    defaultValue = ` DEFAULT ${column.default_value}`;
+                } else if (typeof column.default_value === 'boolean') {
+                    defaultValue = ` DEFAULT ${column.default_value}`;
+                }
+            }
+
+            ddl += `,\n    "${column.column_name}" ${pgType}${nullable}${defaultValue}`;
+        }
+
+        ddl += `\n);`;
+        return ddl;
+    }
+
+    /**
+     * Insert a single column record into columns table (Monk-native format)
+     */
+    private async insertColumnRecord(tx: TxContext | DbContext, schemaName: string, column: any): Promise<void> {
+        const insertQuery = `
+            INSERT INTO columns (
+                schema_name, column_name, pg_type, is_required, default_value,
+                minimum, maximum, pattern_regex, enum_values, is_array, description,
+                relationship_type, related_schema, related_column, relationship_name,
+                cascade_delete, required_relationship,
+                created_at, updated_at
+            ) VALUES (
+                $1, $2, $3, $4, $5,
+                $6, $7, $8, $9, $10, $11,
+                $12, $13, $14, $15,
+                $16, $17,
+                NOW(), NOW()
+            )
+        `;
+
+        await tx.query(insertQuery, [
+            schemaName,
+            column.column_name,
+            column.pg_type || 'TEXT',
+            column.is_required === 'true' || column.is_required === true ? 'true' : 'false',
+            column.default_value || null,
+            column.minimum || null,
+            column.maximum || null,
+            column.pattern_regex || null,
+            column.enum_values || null,
+            column.is_array === 'true' || column.is_array === true ? 'true' : 'false',
+            column.description || null,
+            column.relationship_type || null,
+            column.related_schema || null,
+            column.related_column || null,
+            column.relationship_name || null,
+            column.cascade_delete === 'true' || column.cascade_delete === true ? 'true' : 'false',
+            column.required_relationship === 'true' || column.required_relationship === true ? 'true' : 'false',
+        ]);
+    }
+
     // ===========================
     // Schema-Level Operations (Monk-native format)
     // ===========================
@@ -548,34 +639,165 @@ export class Describe {
     /**
      * Get schema definition in Monk-native format
      *
-     * Returns schema record with columns from columns table
+     * Returns schema record with columns array from columns table
      */
     async getSchema(schemaName: string): Promise<any> {
-        // Delegate to existing selectOne for now
-        return this.selectOne(schemaName);
+        const db = this.system.db;
+
+        // Get schema record from database (exclude soft-deleted schemas)
+        const schemaQuery = `
+            SELECT s.*, d.definition
+            FROM schemas s
+            LEFT JOIN definitions d ON s.name = d.schema_name
+            WHERE s.name = $1 AND s.trashed_at IS NULL
+            LIMIT 1
+        `;
+        const schemaResult = await db.query(schemaQuery, [schemaName]);
+
+        if (schemaResult.rows.length === 0) {
+            throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
+        }
+
+        const schema = schemaResult.rows[0];
+
+        // Get columns for this schema
+        const columnsQuery = `
+            SELECT * FROM columns
+            WHERE schema_name = $1
+            ORDER BY column_name
+        `;
+        const columnsResult = await db.query(columnsQuery, [schemaName]);
+
+        // Return schema with columns array
+        return {
+            ...schema,
+            columns: columnsResult.rows,
+        };
     }
 
     /**
      * Create new schema in Monk-native format
      *
+     * Input format:
+     * {
+     *   name: string,              // Required
+     *   table_name: string,        // Required
+     *   status?: string,           // Optional (default: 'pending')
+     *   columns?: Column[]         // Optional array
+     * }
+     *
      * Executes DDL, inserts into schemas table, and populates columns table
      * Trigger will auto-generate JSON Schema in definitions table
      */
     async createSchema(schemaName: string, schemaDef: any): Promise<any> {
-        // Delegate to existing createOne for now
-        return this.createOne(schemaName, schemaDef);
+        const result = await this.run('create', schemaName, async tx => {
+            // Validate required fields
+            if (!schemaDef.name || !schemaDef.table_name) {
+                throw HttpErrors.badRequest('Both name and table_name are required', 'MISSING_REQUIRED_FIELDS');
+            }
+
+            const tableName = schemaDef.table_name;
+            const columns = schemaDef.columns || [];
+            const status = schemaDef.status || 'pending';
+
+            // Validate schema protection
+            this.validateSchemaProtection(schemaName);
+
+            logger.info('Creating schema (Monk-native)', { schemaName, tableName, columnCount: columns.length });
+
+            // Generate and execute DDL from columns array
+            const ddl = this.generateCreateTableDDLFromColumns(tableName, columns);
+            await tx.query(ddl);
+
+            // Insert schema record (without field_count calculation - will be trigger later)
+            const insertSchemaQuery = `
+                INSERT INTO schemas
+                (name, table_name, status, field_count, json_checksum, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+                RETURNING *
+            `;
+            await tx.query(insertSchemaQuery, [
+                schemaName,
+                tableName,
+                status,
+                String(columns.length),
+                '', // Empty checksum for now
+            ]);
+
+            // Insert column records
+            for (const column of columns) {
+                await this.insertColumnRecord(tx, schemaName, column);
+            }
+
+            logger.info('Schema created successfully (Monk-native)', { schemaName, tableName });
+
+            return { name: schemaName, table: tableName, created: true };
+        });
+
+        // Invalidate cache after successful creation
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 
     /**
-     * Update schema in Monk-native format
+     * Update schema metadata (schemas table only)
      *
-     * Updates schema metadata and columns table
-     * Trigger will auto-regenerate JSON Schema in definitions table
+     * Updates schemas table fields like status, table_name, etc.
+     * Does NOT update columns - use column endpoints for that.
+     *
+     * Allowed updates:
+     * - status
+     * - table_name (use with caution - doesn't rename actual table)
      */
     async updateSchema(schemaName: string, updates: any): Promise<any> {
-        // Delegate to existing updateOne for now
-        // NOTE: updateOne is currently broken and only updates metadata
-        return this.updateOne(schemaName, updates);
+        const result = await this.run('update', schemaName, async tx => {
+            this.validateSchemaProtection(schemaName);
+
+            // Build UPDATE query for allowed fields
+            const allowedFields = ['status', 'table_name'];
+            const setClause: string[] = [];
+            const values: any[] = [];
+            let paramIndex = 1;
+
+            for (const field of allowedFields) {
+                if (updates[field] !== undefined) {
+                    setClause.push(`"${field}" = $${paramIndex}`);
+                    values.push(updates[field]);
+                    paramIndex++;
+                }
+            }
+
+            if (setClause.length === 0) {
+                throw HttpErrors.badRequest('No valid fields to update', 'NO_UPDATES');
+            }
+
+            // Always update updated_at
+            setClause.push(`"updated_at" = NOW()`);
+
+            const updateQuery = `
+                UPDATE schemas
+                SET ${setClause.join(', ')}
+                WHERE name = $${paramIndex} AND trashed_at IS NULL
+                RETURNING *
+            `;
+            values.push(schemaName);
+
+            const queryResult = await tx.query(updateQuery, values);
+
+            if (queryResult.rows.length === 0) {
+                throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
+            }
+
+            logger.info('Schema metadata updated', { schemaName, updates });
+
+            return queryResult.rows[0];
+        });
+
+        // Invalidate cache after successful update
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 
     /**
@@ -584,8 +806,30 @@ export class Describe {
      * Marks schema as trashed in schemas table
      */
     async deleteSchema(schemaName: string): Promise<any> {
-        // Delegate to existing deleteOne for now
-        return this.deleteOne(schemaName);
+        const result = await this.run('delete', schemaName, async tx => {
+            this.validateSchemaProtection(schemaName);
+
+            // Soft delete schema record
+            const deleteQuery = `
+                UPDATE schemas
+                SET trashed_at = NOW(), updated_at = NOW()
+                WHERE name = $1 AND trashed_at IS NULL
+                RETURNING *
+            `;
+
+            const queryResult = await tx.query(deleteQuery, [schemaName]);
+
+            if (queryResult.rows.length === 0) {
+                throw HttpErrors.notFound(`Schema '${schemaName}' not found or already deleted`, 'SCHEMA_NOT_FOUND');
+            }
+
+            return { name: schemaName, deleted: true };
+        });
+
+        // Invalidate cache after successful deletion
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 
     // ===========================
