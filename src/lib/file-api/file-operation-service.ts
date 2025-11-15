@@ -153,8 +153,8 @@ export class FileOperationService {
                 return this.listRecordFields(filePath, options);
             case 'field':
                 if (isDescribe) {
-                    // /describe/accounts/email/validation - list nested properties
-                    return this.listNestedProperties(filePath, options);
+                    // /describe/accounts/email/maximum - field properties are files, not directories
+                    throw HttpErrors.badRequest('Column property paths are files, not directories. Cannot list.', 'INVALID_LIST_PATH');
                 }
                 // /data paths don't support listing at field level (fields are files)
                 throw HttpErrors.badRequest('Field paths cannot be listed for /data namespace', 'INVALID_LIST_PATH');
@@ -175,9 +175,17 @@ export class FileOperationService {
 
         const isDescribe = filePath.raw_path.startsWith('/describe');
 
-        // Handle /describe property paths
-        if (isDescribe && (filePath.type === 'field' || filePath.type === 'property')) {
+        // Handle /describe column property paths (only 'field' type - no nested properties)
+        if (isDescribe && filePath.type === 'field') {
             return this.retrieveProperty(filePath, options);
+        }
+
+        // Nested properties not supported in new architecture
+        if (isDescribe && filePath.type === 'property') {
+            throw HttpErrors.badRequest(
+                'Nested column properties are not supported in Monk-native format',
+                'NESTED_PROPERTIES_NOT_SUPPORTED'
+            );
         }
 
         if (filePath.type !== 'record' && filePath.type !== 'field') {
@@ -345,7 +353,11 @@ export class FileOperationService {
     }
 
     /**
-     * Handle store operations for /describe namespace (schema definitions)
+     * Handle store operations for /describe namespace (column properties)
+     *
+     * Uses Monk-native columns table format. Only supports individual column property updates.
+     * Paths like /describe/accounts/email are directories, not files.
+     * Only /describe/accounts/email/maximum (property) is a storable file.
      */
     private async storeDescribe(filePath: FilePath, content: any, options: any): Promise<StoreResult> {
         // Ensure user has permission to modify schemas
@@ -353,89 +365,40 @@ export class FileOperationService {
             throw HttpErrors.forbidden('Only root users can modify schema definitions', 'PERMISSION_DENIED');
         }
 
-        // Load schema using cache
-        const cache = SchemaCache.getInstance();
-        const schema = await cache.getSchema(this.system, filePath.schema!);
-
-        if (!schema.definition || !schema.definition.properties) {
-            throw HttpErrors.internal('Schema definition is invalid or missing properties', 'SCHEMA_INVALID');
+        // Only 'field' type is valid - individual column properties
+        // /describe/accounts/email/maximum -> type === 'field'
+        if (filePath.type !== 'field') {
+            throw HttpErrors.badRequest(
+                'Only individual column properties can be stored. Path must be /describe/:schema/:column/:property',
+                'INVALID_DESCRIBE_PATH'
+            );
         }
 
-        let operation: 'create' | 'update' | 'field_update';
-        let updatedDefinition = { ...schema.definition };
+        const columnName = filePath.record_id!;
+        const propertyName = filePath.field_name!;
 
-        // type === 'record' in /describe means field definition (/describe/accounts/email)
-        if (filePath.type === 'record') {
-            const fieldName = filePath.record_id!;
-            const fieldExists = !!updatedDefinition.properties[fieldName];
-
-            if (typeof content !== 'object' || content === null) {
-                throw HttpErrors.badRequest('Field definition must be a JSON object', 'INVALID_FIELD_DEFINITION');
-            }
-
-            updatedDefinition.properties[fieldName] = content;
-            operation = fieldExists ? 'update' : 'create';
-        }
-        // type === 'field' in /describe means field property (/describe/accounts/email/maxLength)
-        else if (filePath.type === 'field') {
-            const fieldName = filePath.record_id!;
-            const propertyName = filePath.field_name!;
-
-            if (!updatedDefinition.properties[fieldName]) {
-                throw HttpErrors.notFound(`Field '${fieldName}' not found in schema '${filePath.schema}'`, 'FIELD_NOT_FOUND');
-            }
-
-            updatedDefinition.properties[fieldName][propertyName] = content;
-            operation = 'field_update';
-        }
-        // type === 'property' in /describe means nested property (/describe/accounts/email/validation/pattern)
-        else if (filePath.type === 'property') {
-            const fieldName = filePath.record_id!;
-            const propertyName = filePath.field_name!;
-            const propertyPath = filePath.property_path!;
-
-            if (!updatedDefinition.properties[fieldName]) {
-                throw HttpErrors.notFound(`Field '${fieldName}' not found in schema '${filePath.schema}'`, 'FIELD_NOT_FOUND');
-            }
-
-            // Navigate to the nested property and update it
-            let target = updatedDefinition.properties[fieldName];
-            if (!target[propertyName]) {
-                target[propertyName] = {};
-            }
-            target = target[propertyName];
-
-            // Navigate through property path
-            for (let i = 0; i < propertyPath.length - 1; i++) {
-                if (!target[propertyPath[i]]) {
-                    target[propertyPath[i]] = {};
-                }
-                target = target[propertyPath[i]];
-            }
-
-            // Set the final property value
-            const finalKey = propertyPath[propertyPath.length - 1];
-            target[finalKey] = content;
-            operation = 'field_update';
-        } else {
-            throw HttpErrors.badRequest('Invalid path type for /describe store operation', 'INVALID_PATH_TYPE');
-        }
-
-        // Update schema definition through describe.ts (which handles cache invalidation)
+        // Get current column definition from columns table
         const describe = new Describe(this.system as any);
-        await describe.updateOne(filePath.schema!, updatedDefinition);
+        const column = await describe.getColumn(filePath.schema!, columnName);
 
-        // Build response metadata
-        const timestamp = FileTimestampFormatter.format(schema.updated_at || new Date().toISOString());
+        // Build update object with single property change
+        const updates = { [propertyName]: content };
+
+        // Update column through describe API (triggers auto-regeneration of JSON Schema)
+        await describe.updateColumn(filePath.schema!, columnName, updates);
+
+        // Get updated column for metadata
+        const updatedColumn = await describe.getColumn(filePath.schema!, columnName);
+        const timestamp = FileTimestampFormatter.format(updatedColumn.updated_at || new Date().toISOString());
         const canonicalContent = typeof content === 'string' ? content : JSON.stringify(content);
         const size = FileContentCalculator.calculateSize(canonicalContent);
 
         return {
-            operation,
-            recordId: filePath.record_id!,
-            fieldName: filePath.field_name,
-            created: operation === 'create',
-            updated: operation !== 'create',
+            operation: 'update',
+            recordId: columnName,
+            fieldName: propertyName,
+            created: false,
+            updated: true,
             validationPassed: true,
             metadata: this.buildFileMetadata(
                 filePath.normalized_path,
@@ -444,7 +407,7 @@ export class FileOperationService {
                 size,
                 timestamp,
                 {
-                    content_type: FileContentCalculator.detectContentType(content, filePath.field_name || filePath.record_id!),
+                    content_type: FileContentCalculator.detectContentType(content, propertyName),
                     etag: FileContentCalculator.generateETag(canonicalContent),
                 }
             ),
@@ -799,42 +762,49 @@ export class FileOperationService {
     }
 
     /**
-     * List field definitions in a schema (/describe/accounts)
+     * List columns in a schema (/describe/accounts)
+     *
+     * Uses columns table instead of JSON Schema definitions
      */
     private async listSchemaFields(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const cache = SchemaCache.getInstance();
-        const schema = await cache.getSchema(this.system, filePath.schema!);
+        const dtx = this.system.tx || this.system.db;
 
-        if (!schema.definition?.properties) {
+        // Query columns table for this schema
+        const result = await dtx.query(
+            `SELECT * FROM columns WHERE schema_name = $1 ORDER BY column_name`,
+            [filePath.schema!]
+        );
+
+        if (result.rows.length === 0) {
             return {
                 entries: [],
                 metadata: this.buildFileMetadata(`/describe/${filePath.schema}`, 'directory', this.directoryPermissions(), 0, FileTimestampFormatter.current()),
             };
         }
 
-        const timestamp = FileTimestampFormatter.format(schema.updated_at || schema.created_at);
-        const entries: FileEntry[] = Object.keys(schema.definition.properties).map((fieldName: string) => {
+        const timestamp = FileTimestampFormatter.format(result.rows[0].updated_at || result.rows[0].created_at);
+        const entries: FileEntry[] = result.rows.map((column: any) => {
             const entry: any = {
-                name: fieldName,
+                name: column.column_name,
                 file_type: 'd' as const,
                 file_size: 0,
                 file_permissions: this.directoryPermissions(),
-                file_modified: timestamp,
-                path: `/describe/${filePath.schema}/${fieldName}/`,
+                file_modified: FileTimestampFormatter.format(column.updated_at || column.created_at),
+                path: `/describe/${filePath.schema}/${column.column_name}/`,
                 api_context: {
                     schema: filePath.schema!,
-                    record_id: fieldName,
+                    record_id: column.column_name,
                     access_level: this.system.isRoot() ? 'full' : 'read',
                 },
             };
 
             // Populate extended metadata when long_format requested
             if (options?.long_format) {
-                entry.created_time = FileTimestampFormatter.format(schema.created_at || schema.updated_at);
+                entry.created_time = FileTimestampFormatter.format(column.created_at || column.updated_at);
                 entry.content_type = 'application/json';
-                const fieldDef = schema.definition.properties[fieldName];
-                entry.etag = FileContentCalculator.generateETag(JSON.stringify(fieldDef));
-                entry.field_count = Object.keys(fieldDef).length;
+                entry.etag = FileContentCalculator.generateETag(JSON.stringify(column));
+                entry.pg_type = column.pg_type;
+                entry.is_required = column.is_required;
             }
 
             return entry;
@@ -852,37 +822,37 @@ export class FileOperationService {
     }
 
     /**
-     * List properties of a field definition (/describe/accounts/email)
+     * List properties of a column (/describe/accounts/email)
+     *
+     * Uses columns table, exposes Monk-native field names (not JSON Schema names)
      */
     private async listFieldProperties(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const cache = SchemaCache.getInstance();
-        const schema = await cache.getSchema(this.system, filePath.schema!);
+        const describe = new Describe(this.system as any);
+        const column = await describe.getColumn(filePath.schema!, filePath.record_id!);
 
-        const fieldDef = schema.definition?.properties?.[filePath.record_id!];
-        if (!fieldDef) {
-            throw HttpErrors.notFound(`Field definition not found: ${filePath.record_id}`, 'FIELD_NOT_FOUND');
-        }
+        const timestamp = FileTimestampFormatter.format(column.updated_at || column.created_at);
 
-        const timestamp = FileTimestampFormatter.format(schema.updated_at || schema.created_at);
-        const entries: FileEntry[] = Object.entries(fieldDef).map(([propName, propValue]: [string, any]) => {
-            const isNested = typeof propValue === 'object' && propValue !== null && !Array.isArray(propValue);
-            const valueStr = Array.isArray(propValue) ? propValue.join('\n') : String(propValue);
+        // List all column table fields as files (no nested structures)
+        const entries: FileEntry[] = Object.entries(column)
+            .filter(([propName]) => propName !== 'id') // Exclude internal id field
+            .map(([propName, propValue]: [string, any]) => {
+                const valueStr = propValue === null ? '' : (Array.isArray(propValue) ? propValue.join('\n') : String(propValue));
 
-            return {
-                name: propName,
-                file_type: isNested ? 'd' : 'f',
-                file_size: isNested ? 0 : FileContentCalculator.calculateSize(valueStr),
-                file_permissions: isNested ? this.directoryPermissions() : 'r--' as FilePermissions,
-                file_modified: timestamp,
-                path: `/describe/${filePath.schema}/${filePath.record_id}/${propName}${isNested ? '/' : ''}`,
-                api_context: {
-                    schema: filePath.schema!,
-                    record_id: filePath.record_id!,
-                    field_name: propName,
-                    access_level: this.system.isRoot() ? 'full' : 'read',
-                },
-            };
-        });
+                return {
+                    name: propName,
+                    file_type: 'f' as const,
+                    file_size: FileContentCalculator.calculateSize(valueStr),
+                    file_permissions: this.system.isRoot() ? 'rwx' : 'r--' as FilePermissions,
+                    file_modified: timestamp,
+                    path: `/describe/${filePath.schema}/${filePath.record_id}/${propName}`,
+                    api_context: {
+                        schema: filePath.schema!,
+                        record_id: filePath.record_id!,
+                        field_name: propName,
+                        access_level: this.system.isRoot() ? 'full' : 'read',
+                    },
+                };
+            });
 
         // Apply sorting
         const sortBy = options?.sort_by ?? 'name';
@@ -897,6 +867,8 @@ export class FileOperationService {
 
     /**
      * List nested properties (/describe/accounts/email/validation)
+     *
+     * @deprecated No longer used - Monk-native format has no nested properties
      */
     private async listNestedProperties(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
         const cache = SchemaCache.getInstance();
@@ -946,48 +918,40 @@ export class FileOperationService {
     }
 
     /**
-     * Retrieve a property value from field definition (/describe/accounts/email/maxLength)
+     * Retrieve a column property value (/describe/accounts/email/maximum)
+     *
+     * Uses columns table, exposes Monk-native field names
      */
     private async retrieveProperty(filePath: FilePath, options: FileRetrieveRequest['file_options'] = {}): Promise<RetrieveResult> {
-        const cache = SchemaCache.getInstance();
-        const schema = await cache.getSchema(this.system, filePath.schema!);
-
-        const fieldDef = schema.definition?.properties?.[filePath.record_id!];
-        if (!fieldDef) {
-            throw HttpErrors.notFound(`Field definition not found: ${filePath.record_id}`, 'FIELD_NOT_FOUND');
+        // Only 'field' type is valid (no nested properties)
+        if (filePath.type !== 'field') {
+            throw HttpErrors.badRequest(
+                'Only direct column properties can be retrieved. Nested properties not supported.',
+                'INVALID_DESCRIBE_PATH'
+            );
         }
 
-        // Navigate to the property value
-        let value: any;
-        if (filePath.type === 'field') {
-            // /describe/accounts/email/maxLength
-            value = fieldDef[filePath.field_name!];
-        } else if (filePath.type === 'property' && filePath.property_path) {
-            // /describe/accounts/email/validation/pattern
-            let current = fieldDef[filePath.field_name!];
-            for (const prop of filePath.property_path) {
-                if (typeof current !== 'object' || current === null) {
-                    throw HttpErrors.notFound(`Property path not found: ${filePath.field_name}/${filePath.property_path.join('/')}`, 'PROPERTY_NOT_FOUND');
-                }
-                current = current[prop];
-            }
-            value = current;
-        }
+        const describe = new Describe(this.system as any);
+        const column = await describe.getColumn(filePath.schema!, filePath.record_id!);
+
+        // Get the property value from column record
+        const propertyName = filePath.field_name!;
+        const value = column[propertyName];
 
         if (value === undefined) {
-            throw HttpErrors.notFound(`Property not found: ${filePath.field_name}`, 'PROPERTY_NOT_FOUND');
+            throw HttpErrors.notFound(`Property '${propertyName}' not found in column '${filePath.record_id}'`, 'PROPERTY_NOT_FOUND');
         }
 
-        // Convert value to string format (arrays as one-per-line)
-        const content = Array.isArray(value) ? value.join('\n') : String(value);
-        const timestamp = FileTimestampFormatter.format(schema.updated_at || schema.created_at);
+        // Convert value to string format (arrays as one-per-line, null as empty string)
+        const content = value === null ? '' : (Array.isArray(value) ? value.join('\n') : String(value));
+        const timestamp = FileTimestampFormatter.format(column.updated_at || column.created_at);
 
         return {
             content,
             metadata: this.buildFileMetadata(
                 filePath.normalized_path,
                 'file',
-                'r--' as FilePermissions,
+                this.system.isRoot() ? 'rwx' : 'r--' as FilePermissions,
                 FileContentCalculator.calculateSize(content),
                 timestamp,
                 {
