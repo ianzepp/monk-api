@@ -71,7 +71,7 @@ cat > "$LOCK_FILE" <<EOF
   "locked_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "locked_by": "$(whoami)@$(hostname)",
   "reason": "Template locked to prevent accidental regeneration",
-  "schemas": $(find "$FIXTURES_DIR/schemas" -name "*.json" 2>/dev/null | wc -l | xargs),
+  "schemas": $(find "$FIXTURES_DIR/describe" -name "*.json" 2>/dev/null | wc -l | xargs),
   "data_files": $(find "$FIXTURES_DIR/data" -name "*.json" 2>/dev/null | wc -l | xargs)
 }
 EOF

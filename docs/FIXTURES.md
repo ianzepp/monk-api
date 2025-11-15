@@ -38,7 +38,7 @@ The fixtures system provides pre-built, populated databases that can be cloned i
 ```
 fixtures/
 ├── basic/                    # Protected template (5 records each)
-│   ├── schemas/             # JSON schema definitions
+│   ├── describe/            # JSON schema definitions
 │   ├── data/                # Pre-generated test data
 │   └── .locked              # Protection lock file
 ├── basic_large/              # Larger template (100+ records each)

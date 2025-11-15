@@ -108,8 +108,8 @@ fail() {
 print_header "Building fixtures template: $TEMPLATE_NAME"
 
 # Check prerequisites
-if [[ ! -d "$FIXTURES_DIR/schemas" ]]; then
-    fail "Fixtures schemas directory not found: $FIXTURES_DIR/schemas"
+if [[ ! -d "$FIXTURES_DIR/describe" ]]; then
+    fail "Fixtures describe directory not found: $FIXTURES_DIR/describe"
 fi
 
 if [[ ! -d "$FIXTURES_DIR/data" ]]; then
@@ -174,6 +174,21 @@ fi
 
 print_success "Created fixture tenant: $tenant_name → $template_db_name"
 
+# Step 1.5: Execute optional fixture-specific init.sql
+fixture_init_sql="$FIXTURES_DIR/init.sql"
+if [[ -f "$fixture_init_sql" ]]; then
+    print_step "Executing fixture-specific initialization: $fixture_init_sql"
+
+    if psql -d "$template_db_name" -f "$fixture_init_sql" >/dev/null 2>&1; then
+        print_success "Fixture initialization completed"
+    else
+        print_error "Failed to execute fixture initialization SQL"
+        fail "Fixture initialization failed"
+    fi
+else
+    print_info "No fixture-specific init.sql found (optional)"
+fi
+
 # Step 2: Authenticate as full
 print_step "Setting up authentication (full)"
 JWT_TOKEN=$(get_user_token "$tenant_name" "full")
@@ -186,12 +201,12 @@ export JWT_TOKEN
 print_success "Authentication (full) configured"
 
 # Step 3: Load all schemas
-print_step "Loading schemas from $FIXTURES_DIR/schemas/"
+print_step "Loading schemas from $FIXTURES_DIR/describe/"
 
 schema_count=0
-for schema_file in "$FIXTURES_DIR/schemas"/*.json; do
+for schema_file in "$FIXTURES_DIR/describe"/*.json; do
     if [[ ! -f "$schema_file" ]]; then
-        print_warning "No schema files found in $FIXTURES_DIR/schemas/"
+        print_warning "No schema files found in $FIXTURES_DIR/describe/"
         continue
     fi
 

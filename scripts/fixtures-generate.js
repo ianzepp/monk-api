@@ -155,7 +155,7 @@ async function generateFixtures() {
   }
 
   const fixturesDir = path.join(__dirname, '../fixtures', templateName);
-  const sourceSchemasDir = path.join(fixturesDir, 'schemas');
+  const sourceSchemasDir = path.join(fixturesDir, 'describe');
   const outputDir = path.join(fixturesDir, 'data');
   
   // Check for lock file
@@ -163,18 +163,18 @@ async function generateFixtures() {
   
   // Validate source template exists
   if (!fs.existsSync(sourceSchemasDir)) {
-    printError(`Template schemas directory not found: ${sourceSchemasDir}`);
+    printError(`Template describe directory not found: ${sourceSchemasDir}`);
     printStep('Available templates:');
-    
+
     const fixturesBaseDir = path.join(__dirname, '../fixtures');
     if (fs.existsSync(fixturesBaseDir)) {
       const templates = fs.readdirSync(fixturesBaseDir, { withFileTypes: true })
         .filter(dirent => dirent.isDirectory())
         .map(dirent => dirent.name);
-      
+
       templates.forEach(template => {
-        const schemaDir = path.join(fixturesBaseDir, template, 'schemas');
-        const status = fs.existsSync(schemaDir) ? '✓' : '✗ (no schemas)';
+        const schemaDir = path.join(fixturesBaseDir, template, 'describe');
+        const status = fs.existsSync(schemaDir) ? '✓' : '✗ (no describe)';
         console.log(`  ${status} ${template}`);
       });
     }
