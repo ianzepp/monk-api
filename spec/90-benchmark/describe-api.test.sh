@@ -32,15 +32,15 @@ simple_schema='{
     ]
 }'
 
-start_sec=$(date +%s)
-start_ns=$(date +%N)
+start_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
+
 for i in {1..10}; do
     sudo_post "api/describe/simple_$i" "$simple_schema" > /dev/null 2>&1
 done
-end_sec=$(date +%s)
-end_ns=$(date +%N)
+end_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 
-elapsed_ms=$(( (end_sec - start_sec) * 1000 + (end_ns - start_ns) / 1000000 ))
+
+elapsed_ms=$(( end_ms - start_ms ))
 avg_ms=$(( elapsed_ms / 10 ))
 
 echo "  Total:   ${elapsed_ms}ms"
@@ -66,15 +66,15 @@ complex_schema='{
     ]
 }'
 
-start_sec=$(date +%s)
-start_ns=$(date +%N)
+start_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
+
 for i in {1..5}; do
     sudo_post "api/describe/complex_$i" "$complex_schema" > /dev/null 2>&1
 done
-end_sec=$(date +%s)
-end_ns=$(date +%N)
+end_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 
-elapsed_ms=$(( (end_sec - start_sec) * 1000 + (end_ns - start_ns) / 1000000 ))
+
+elapsed_ms=$(( end_ms - start_ms ))
 avg_ms=$(( elapsed_ms / 5 ))
 
 echo "  Total:   ${elapsed_ms}ms"
@@ -88,16 +88,16 @@ print_step "Benchmark 3: Adding columns to existing schema (10 iterations)"
 # Create base schema
 sudo_post "api/describe/column_test" '{"columns":[{"column_name":"base_id","type":"text","required":true}]}' > /dev/null 2>&1
 
-start_sec=$(date +%s)
-start_ns=$(date +%N)
+start_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
+
 for i in {1..10}; do
     col_def='{"type":"text","required":false,"description":"Test column"}'
     sudo_post "api/describe/column_test/field_$i" "$col_def" > /dev/null 2>&1
 done
-end_sec=$(date +%s)
-end_ns=$(date +%N)
+end_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 
-elapsed_ms=$(( (end_sec - start_sec) * 1000 + (end_ns - start_ns) / 1000000 ))
+
+elapsed_ms=$(( end_ms - start_ms ))
 avg_ms=$(( elapsed_ms / 10 ))
 
 echo "  Total:   ${elapsed_ms}ms"
@@ -108,15 +108,15 @@ echo "  Average: ${avg_ms}ms per column"
 # ===========================
 print_step "Benchmark 4: Schema retrieval (20 iterations)"
 
-start_sec=$(date +%s)
-start_ns=$(date +%N)
+start_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
+
 for i in {1..20}; do
     auth_get "api/describe/simple_1" > /dev/null 2>&1
 done
-end_sec=$(date +%s)
-end_ns=$(date +%N)
+end_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 
-elapsed_ms=$(( (end_sec - start_sec) * 1000 + (end_ns - start_ns) / 1000000 ))
+
+elapsed_ms=$(( end_ms - start_ms ))
 avg_ms=$(( elapsed_ms / 20 ))
 throughput=$(( elapsed_ms > 0 ? 20000 / elapsed_ms : 0 ))
 

@@ -24,15 +24,13 @@ print_success "Warmup complete"
 # ===========================
 print_step "Benchmark 1: Single record creation (50 iterations)"
 
-start_sec=$(date +%s)
-start_ns=$(date +%N)
+start_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 for i in {1..50}; do
     auth_post "api/data/account" "[{\"name\":\"User $i\",\"email\":\"user$i@test.com\",\"username\":\"user$i\"}]" > /dev/null 2>&1
 done
-end_sec=$(date +%s)
-end_ns=$(date +%N)
+end_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 
-elapsed_ms=$(( (end_sec - start_sec) * 1000 + (end_ns - start_ns) / 1000000 ))
+elapsed_ms=$(( end_ms - start_ms ))
 avg_ms=$(( elapsed_ms / 50 ))
 throughput=$(( elapsed_ms > 0 ? 50000 / elapsed_ms : 0 ))
 
@@ -45,8 +43,7 @@ echo "  Throughput: ${throughput} req/sec"
 # ===========================
 print_step "Benchmark 2: Bulk record creation (10 batches of 10 records)"
 
-start_sec=$(date +%s)
-start_ns=$(date +%N)
+start_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 for i in {1..10}; do
     batch_data='['
     for j in {1..10}; do
@@ -57,10 +54,9 @@ for i in {1..10}; do
     batch_data+=']'
     auth_post "api/data/account" "$batch_data" > /dev/null 2>&1
 done
-end_sec=$(date +%s)
-end_ns=$(date +%N)
+end_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 
-elapsed_ms=$(( (end_sec - start_sec) * 1000 + (end_ns - start_ns) / 1000000 ))
+elapsed_ms=$(( end_ms - start_ms ))
 avg_ms=$(( elapsed_ms / 10 ))
 records_per_sec=$(( elapsed_ms > 0 ? 100000 / elapsed_ms : 0 ))
 
@@ -73,15 +69,13 @@ echo "  Record rate:   ${records_per_sec} records/sec"
 # ===========================
 print_step "Benchmark 3: Record retrieval (50 iterations)"
 
-start_sec=$(date +%s)
-start_ns=$(date +%N)
+start_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 for i in {1..50}; do
     auth_get "api/data/account" > /dev/null 2>&1
 done
-end_sec=$(date +%s)
-end_ns=$(date +%N)
+end_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 
-elapsed_ms=$(( (end_sec - start_sec) * 1000 + (end_ns - start_ns) / 1000000 ))
+elapsed_ms=$(( end_ms - start_ms ))
 avg_ms=$(( elapsed_ms / 50 ))
 throughput=$(( elapsed_ms > 0 ? 50000 / elapsed_ms : 0 ))
 
@@ -98,15 +92,13 @@ print_step "Benchmark 4: Record update (20 iterations)"
 response=$(auth_get "api/data/account")
 record_id=$(echo "$response" | jq -r '.data[0].id')
 
-start_sec=$(date +%s)
-start_ns=$(date +%N)
+start_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 for i in {1..20}; do
     auth_put "api/data/account/$record_id" "{\"name\":\"Updated User $i\"}" > /dev/null 2>&1
 done
-end_sec=$(date +%s)
-end_ns=$(date +%N)
+end_ms=$(python3 -c 'import time; print(int(time.time() * 1000))')
 
-elapsed_ms=$(( (end_sec - start_sec) * 1000 + (end_ns - start_ns) / 1000000 ))
+elapsed_ms=$(( end_ms - start_ms ))
 avg_ms=$(( elapsed_ms / 20 ))
 throughput=$(( elapsed_ms > 0 ? 20000 / elapsed_ms : 0 ))
 
