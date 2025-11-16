@@ -125,6 +125,36 @@ curl http://localhost:9001/auth/tenants?format=qr
 
 **Note:** QR code decoding for request bodies is intentionally not supported.
 
+### Markdown (Response-Only)
+Converts JSON responses to readable Markdown with tables, lists, and structured formatting. Perfect for documentation and terminal display.
+
+**Request:**
+```bash
+curl http://localhost:9001/auth/tenants?format=markdown
+```
+
+**Response:**
+```markdown
+# API Response
+
+**Status**: ✓ Success
+
+## Data
+
+| name | description | users |
+| --- | --- | --- |
+| toon-test |  | ["root","full","user"] |
+```
+
+**Features:**
+- Arrays of objects → Markdown tables
+- Single objects → Key-value lists with bold labels
+- Nested structures → Indented sections
+- API responses → Status headers with ✓/✗ symbols
+- GitHub-compatible output
+
+**Note:** Markdown decoding is not supported as it's a presentation format, not a data serialization format.
+
 ## Format Selection
 
 Formats can be specified in three ways (in priority order):
@@ -159,6 +189,7 @@ All subsequent requests with that JWT will default to TOON format.
 | Brainfuck | ✗ | ✓ |
 | Morse | ✓ | ✓ |
 | QR Code | ✗ | ✓ |
+| Markdown | ✗ | ✓ |
 
 ## Content-Type Headers
 
@@ -202,6 +233,14 @@ Request bodies must specify the correct Content-Type header:
 - Air-gapped data transfer
 - Terminal-based workflows
 - Quick data sharing without copy/paste
+
+### Markdown
+- API documentation generation
+- GitHub issues and pull requests
+- Terminal-friendly output
+- Copy/paste into documentation
+- Report generation
+- Human-readable exports
 
 ## Implementation Details
 
