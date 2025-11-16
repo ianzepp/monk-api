@@ -163,11 +163,8 @@ app.get('/health', c => {
 
 // Public routes (no authentication required)
 app.use('/auth/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
-app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for auth routes
-app.use('/auth/*', middleware.responseToonMiddleware); // Support TOON for auth routes
-app.use('/auth/*', middleware.responseYamlMiddleware); // Support YAML for auth routes
-app.use('/auth/*', middleware.responseBrainfuckMiddleware); // Support Brainfuck for auth routes
-app.use('/auth/*', middleware.responseJsonMiddleware); // Public auth: JSON responses
+app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for responses
+app.use('/auth/*', middleware.responseFormatterMiddleware); // Format responses (JSON, TOON, YAML, Brainfuck)
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
 // Public auth routes (token acquisition)
@@ -185,11 +182,8 @@ app.use('/api/*', middleware.requestBodyParserMiddleware);
 app.use('/api/*', middleware.jwtValidationMiddleware);
 app.use('/api/*', middleware.userValidationMiddleware);
 app.use('/api/*', middleware.formatDetectionMiddleware);
-app.use('/api/*', middleware.responseToonMiddleware);
-app.use('/api/*', middleware.responseYamlMiddleware);
-app.use('/api/*', middleware.responseBrainfuckMiddleware);
+app.use('/api/*', middleware.responseFormatterMiddleware);
 app.use('/api/*', middleware.systemContextMiddleware);
-app.use('/api/*', middleware.responseJsonMiddleware);
 
 // 30-auth-api: Auth API routes (protected - user account management)
 app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami

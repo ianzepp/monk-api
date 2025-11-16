@@ -11,8 +11,7 @@
  */
 
 import type { Context, Next } from 'hono';
-import { decode as decodeToon } from '@toon-format/toon';
-import { load as parseYaml } from 'js-yaml';
+import { JsonFormatter, ToonFormatter, YamlFormatter } from '@src/lib/formatters/index.js';
 
 /**
  * Parses request body based on Content-Type header
@@ -41,16 +40,16 @@ export async function requestBodyParserMiddleware(context: Context, next: Next) 
         if (contentType.includes('application/toon') ||
             (contentType.includes('text/plain') && rawBody.trim().startsWith('{'))) {
             // TOON format
-            parsedBody = decodeToon(rawBody);
+            parsedBody = ToonFormatter.decode(rawBody);
         } else if (contentType.includes('application/yaml') ||
                    contentType.includes('application/x-yaml') ||
                    contentType.includes('text/yaml') ||
                    contentType.includes('text/x-yaml')) {
             // YAML format
-            parsedBody = parseYaml(rawBody);
+            parsedBody = YamlFormatter.decode(rawBody);
         } else {
             // Default to JSON (including application/json and no Content-Type)
-            parsedBody = JSON.parse(rawBody);
+            parsedBody = JsonFormatter.decode(rawBody);
         }
 
         // Store parsed body in context for route handlers
