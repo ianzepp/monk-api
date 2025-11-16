@@ -162,6 +162,7 @@ app.get('/health', c => {
 // Note: systemContextMiddleware only applied to protected routes that need it
 
 // Public routes (no authentication required)
+app.use('/auth/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
 app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for auth routes
 app.use('/auth/*', middleware.responseToonMiddleware); // Support TOON for auth routes
 app.use('/auth/*', middleware.responseYamlMiddleware); // Support YAML for auth routes
@@ -180,6 +181,7 @@ app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
 app.get('/docs/:api', publicDocsRoutes.ApiGet); // GET /docs/:api
 
 // Protected API routes - require JWT authentication from /auth
+app.use('/api/*', middleware.requestBodyParserMiddleware);
 app.use('/api/*', middleware.jwtValidationMiddleware);
 app.use('/api/*', middleware.userValidationMiddleware);
 app.use('/api/*', middleware.formatDetectionMiddleware);

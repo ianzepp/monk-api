@@ -13,6 +13,7 @@ export { responseToonMiddleware } from './response-toon.js';
 export { responseYamlMiddleware } from './response-yaml.js';
 export { responseBrainfuckMiddleware } from './response-brainfuck.js';
 export { formatDetectionMiddleware } from './format-detection.js';
+export { requestBodyParserMiddleware } from './request-body-parser.js';
 export { requestTrackingMiddleware } from './request-tracking.js';
 export { jwtValidationMiddleware } from './jwt-validation.js';
 export { userValidationMiddleware } from './user-validation.js';
