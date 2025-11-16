@@ -19,6 +19,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 export default class RecordPreloader extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation;
     readonly operations = ['update', 'delete', 'revert'] as const;
+    readonly priority = 10;  // High priority - must run before other observers that need existing records
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, operation, data, metadata } = context;

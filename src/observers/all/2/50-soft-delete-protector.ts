@@ -17,7 +17,7 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { SecurityError } from '@src/lib/observers/errors.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
-import RecordPreloader from '@src/observers/all/0/record-preloader.js';
+import RecordPreloader from '@src/observers/all/0/10-record-preloader.js';
 
 export default class SoftDeleteProtector extends BaseObserver {
     readonly ring = ObserverRing.Security;

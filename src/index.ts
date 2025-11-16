@@ -40,6 +40,7 @@ import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers
 
 // Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
+import { ObserverValidator } from '@src/lib/observers/validator.js';
 
 // Middleware
 import * as middleware from '@src/lib/middleware/index.js';
@@ -263,8 +264,18 @@ const port = Number(process.env.PORT || 9001);
 // Initialize observer system
 logger.info('Preloading observer system');
 try {
+    // Validate observer files before loading
+    const validationResult = await ObserverValidator.validateAll();
+    if (!validationResult.valid) {
+        console.error(ObserverValidator.formatErrors(validationResult));
+        throw new Error(`Observer validation failed with ${validationResult.errors.length} errors`);
+    }
+
     await ObserverLoader.preloadObservers();
-    logger.info('Observer system ready');
+    logger.info('Observer system ready', {
+        observersValidated: validationResult.filesChecked,
+        warnings: validationResult.warnings.length
+    });
 } catch (error) {
     console.error(`❌ Observer system initialization failed:`, error);
     logger.warn('Continuing without observer system');
