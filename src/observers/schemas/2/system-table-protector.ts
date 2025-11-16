@@ -22,7 +22,7 @@ const SYSTEM_TABLES = new Set([
 ]);
 
 export default class SystemTableProtector extends BaseObserver {
-    readonly ring = ObserverRing.BusinessLogic;  // Ring 2
+    readonly ring = ObserverRing.Business;  // Ring 2
     readonly operations = ['create'] as const;
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {

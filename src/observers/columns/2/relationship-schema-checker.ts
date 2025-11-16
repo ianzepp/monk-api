@@ -12,7 +12,7 @@ import { ValidationError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 
 export default class RelationshipSchemaChecker extends BaseObserver {
-    readonly ring = ObserverRing.BusinessLogic;  // Ring 2
+    readonly ring = ObserverRing.Business;  // Ring 2
     readonly operations = ['create', 'update'] as const;
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {
