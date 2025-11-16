@@ -10,3 +10,4 @@ export { ToonFormatter } from './toon.js';
 export { YamlFormatter } from './yaml.js';
 export { BrainfuckFormatter } from './brainfuck.js';
 export { MorseFormatter } from './morse.js';
+export { QrFormatter } from './qr.js';
