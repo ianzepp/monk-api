@@ -25,6 +25,11 @@ export interface JWTPayload {
     elevated_from?: string; // Original access level before sudo
     elevated_at?: string; // When sudo was granted
     elevation_reason?: string; // Why sudo was requested
+    // User impersonation metadata (optional)
+    is_fake?: boolean; // True if this is a fake/impersonation token
+    faked_by_user_id?: string; // ID of root user doing the faking
+    faked_by_username?: string; // Name of root user doing the faking
+    faked_at?: string; // When impersonation was initiated
     [key: string]: any;
 }
 

@@ -16,6 +16,7 @@ The Auth API covers both **public token acquisition routes** and **protected use
 | GET | [`/auth/tenants`](#get-authtenants) | Public | List available tenants (personal mode only). |
 | GET | [`/api/auth/whoami`](#get-apiauthwhoami) | Protected | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
 | POST | [`/api/auth/sudo`](#post-apiauthsudo) | Protected | Get short-lived sudo token for dangerous operations (user management). |
+| POST | [`/api/auth/fake`](#post-apiauthfake) | Protected (Root) | Impersonate another user for debugging and support (root only). |
 
 ## Content Type
 - **Request**: `application/json`
@@ -413,6 +414,121 @@ Request a short-lived sudo token for protected operations requiring elevated pri
 |--------|------------|---------|-----------|
 | 401 | `USER_JWT_REQUIRED` | "Valid user JWT required for privilege escalation" | No valid user JWT |
 | 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo - requires 'root' or 'full' access level" | User has edit/read/deny access |
+
+---
+
+### POST /api/auth/fake
+
+Impersonate another user by generating a JWT with their identity and permissions. This is useful for debugging user-specific issues, customer support troubleshooting, and testing user permissions without knowing their credentials.
+
+**Security**:
+- Only users with `access='root'` can use this endpoint
+- Shorter-lived token (1 hour vs 24 hours for normal login)
+- Full audit logging with `is_fake` metadata in JWT
+- Cannot fake yourself (use your regular token instead)
+
+**Use Cases**:
+- Debugging user-specific permission issues
+- Customer support troubleshooting
+- Testing features as different user roles
+- Reproducing user-reported bugs
+
+#### Request Body
+```json
+{
+  "user_id": "uuid",      // Optional: Target user's ID
+  "username": "string"    // Optional: Target user's auth identifier
+}
+```
+
+**Note**: Either `user_id` or `username` must be provided.
+
+#### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "fake_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 3600,
+    "token_type": "Bearer",
+    "target_user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "John Doe",
+      "auth": "john@example.com",
+      "access": "full"
+    },
+    "warning": "Fake token expires in 1 hour",
+    "faked_by": {
+      "id": "root-user-id",
+      "name": "Root Admin"
+    }
+  }
+}
+```
+
+#### Error Responses
+
+| Status | Error Code | Message | Condition |
+|--------|------------|---------|-----------|
+| 400 | `TARGET_USER_MISSING` | "Either user_id or username is required to identify target user" | Neither user_id nor username provided |
+| 400 | `CANNOT_FAKE_SELF` | "Cannot fake your own user - you are already authenticated as this user" | Trying to fake yourself |
+| 401 | `USER_JWT_REQUIRED` | "Valid user JWT required" | No valid user JWT |
+| 403 | `FAKE_ACCESS_DENIED` | "User impersonation requires root access" | User lacks root access |
+| 404 | `TARGET_USER_NOT_FOUND` | "Target user not found: {identifier}" | User doesn't exist or is deleted |
+
+#### JWT Payload for Fake Tokens
+
+The fake token includes special metadata for audit tracking:
+```json
+{
+  "sub": "target-user-id",
+  "user_id": "target-user-id",
+  "access": "full",
+  "is_sudo": false,
+  "is_fake": true,
+  "faked_by_user_id": "root-user-id",
+  "faked_by_username": "Root Admin",
+  "faked_at": "2025-11-15T10:30:00Z",
+  "exp": 1234567890
+}
+```
+
+#### Example Usage
+
+**Fake by user ID:**
+```bash
+curl -X POST http://localhost:9001/api/auth/fake \
+  -H "Authorization: Bearer ROOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "550e8400-e29b-41d4-a716-446655440000"}'
+```
+
+**Fake by username:**
+```bash
+curl -X POST http://localhost:9001/api/auth/fake \
+  -H "Authorization: Bearer ROOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john@example.com"}'
+```
+
+**Use fake token:**
+```bash
+# The fake token works like any other JWT
+curl -X GET http://localhost:9001/api/data/accounts \
+  -H "Authorization: Bearer FAKE_TOKEN"
+
+# Whoami will show the faked user's identity
+curl -X GET http://localhost:9001/api/auth/whoami \
+  -H "Authorization: Bearer FAKE_TOKEN"
+```
+
+#### Security Considerations
+
+1. **Audit Trail**: All fake operations are logged with the root user's identity
+2. **Time-Limited**: Fake tokens expire after 1 hour to limit exposure
+3. **Metadata**: JWT includes `is_fake`, `faked_by_user_id`, and `faked_at` for tracking
+4. **Root Only**: Only root users can impersonate - full users cannot
+5. **No Self-Fake**: Cannot fake your own account (prevents confusion)
 
 ---
 
