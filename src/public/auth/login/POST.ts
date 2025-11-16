@@ -74,6 +74,9 @@ export default async function (context: Context) {
         access_full: user.access_full || [],
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
+        // Root users automatically have sudo access (like Linux root)
+        // Full users must call POST /api/auth/sudo to elevate
+        is_sudo: user.access === 'root',
     };
 
     const token = await sign(payload, process.env.JWT_SECRET!);

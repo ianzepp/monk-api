@@ -375,12 +375,19 @@ None - GET request with no body.
 
 ### POST /api/auth/sudo
 
-Perform just-in-time privilege escalation for administrators who need to call `/api/sudo/*` endpoints (user management). The endpoint verifies the caller's base access level, logs the provided reason for audit tracking, and issues a 15-minute sudo token tied to the originating user.
+Request a short-lived sudo token for protected operations requiring elevated privileges. Both root and full users can request sudo tokens, with root users receiving automatic sudo access at login as a convenience.
+
+**Access Model** (Linux-inspired):
+- **`access='root'`**: Automatically has `is_sudo=true` at login (like Linux root user)
+  - Can still call this endpoint to generate time-limited sudo token with audit trail
+- **`access='full'`**: Must call this endpoint to get `is_sudo=true` (like Linux sudoers)
+  - Generates 15-minute sudo token for protected operations
+- **`access='edit'|'read'|'deny'`**: Cannot request sudo tokens (403 error)
 
 #### Request Body
 ```json
 {
-  "reason": "string"    // Optional: Reason for privilege escalation (for audit trail)
+  "reason": "string"    // Optional: Reason for sudo elevation (for audit trail)
 }
 ```
 
@@ -389,12 +396,12 @@ Perform just-in-time privilege escalation for administrators who need to call `/
 {
   "success": true,
   "data": {
-    "root_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "sudo_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "expires_in": 900,
     "token_type": "Bearer",
     "access_level": "root",
-    "warning": "Root token expires in 15 minutes",
-    "elevated_from": "root",
+    "is_sudo": true,
+    "warning": "Sudo token expires in 15 minutes",
     "reason": "User management operation"
   }
 }
@@ -405,68 +412,127 @@ Perform just-in-time privilege escalation for administrators who need to call `/
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 401 | `USER_JWT_REQUIRED` | "Valid user JWT required for privilege escalation" | No valid user JWT |
-| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo - root access required" | User lacks root access |
+| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo - requires 'root' or 'full' access level" | User has edit/read/deny access |
 
 ---
 
 ## Sudo Access Model
 
-### Access Level Requirements
-- **sudo endpoint**: Requires `access='root'` base level
-- **Sudo operations**: Short-lived sudo token required for `/api/sudo/*` endpoints
-- **Time limits**: Sudo tokens expire after 15 minutes for security
-- **Tenant-scoped**: All sudo operations are within the user's own tenant
+The sudo model follows Linux conventions where root users have implicit sudo access, while privileged users can elevate temporarily.
 
-### Access Levels
-- `deny` - No access
-- `read` - Read-only data access
-- `edit` - Can modify data
-- `full` - Can modify data and manage ACLs on records
-- `root` - Can request sudo tokens for dangerous operations (user management)
+### Access Levels and Sudo Behavior
+
+| Access Level | Sudo at Login | Can Request Sudo | Use Case |
+|--------------|---------------|------------------|----------|
+| `root` | ✅ Automatic (`is_sudo=true`) | ✅ Yes (for audit trail) | System administrators |
+| `full` | ❌ No | ✅ Yes (15-min token) | Team leads, senior devs |
+| `edit` | ❌ No | ❌ No | Regular users |
+| `read` | ❌ No | ❌ No | Read-only access |
+| `deny` | ❌ No | ❌ No | Blocked users |
+
+### Root Users (Automatic Sudo)
+- Login JWT includes `is_sudo: true` automatically
+- Can perform sudo operations immediately without calling `/api/auth/sudo`
+- Can still call `/api/auth/sudo` to get time-limited token with `elevation_reason` for audit trail
+- Like Linux root user - inherently trusted
+
+### Full Users (Temporary Sudo)
+- Login JWT has `is_sudo: false`
+- Must call POST `/api/auth/sudo` to get 15-minute sudo token
+- Sudo token includes `is_sudo: true` and audit metadata
+- Like Linux user in sudoers file - can elevate when needed
+
+### Protected Operations
+Operations requiring `is_sudo=true` in JWT:
+- Modifying schemas with `sudo=true` flag (via Describe API)
+- Creating/updating/deleting records in sudo schemas (via Data API)
+- User management operations
+- Other system-critical operations
 
 ### Token Management Strategy
 ```javascript
-// Client should maintain separate tokens:
-localStorage.setItem('user_token', rootJwt);       // Long-lived root JWT (1 hour)
-sessionStorage.setItem('sudo_token', sudoJwt);     // Short-lived sudo token (15 minutes)
+// For root users - immediate sudo access
+const rootToken = loginResponse.data.token;  // Already has is_sudo=true
+localStorage.setItem('token', rootToken);
 
-// Use appropriate token for different operations:
-const userHeaders = { 'Authorization': `Bearer ${userToken}` };    // Normal operations
-const sudoHeaders = { 'Authorization': `Bearer ${sudoToken}` };    // User management
+// For full users - must elevate when needed
+const userToken = loginResponse.data.token;  // is_sudo=false
+localStorage.setItem('user_token', userToken);
+
+// Request sudo when needed
+const sudoResponse = await fetch('/api/auth/sudo', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${userToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ reason: 'User management' })
+});
+const sudoToken = sudoResponse.data.sudo_token;  // is_sudo=true, 15-min expiry
+sessionStorage.setItem('sudo_token', sudoToken);
 ```
 
-### Sudo Workflow Example
+### Sudo Workflow Examples
+
+**Root User Workflow** (Immediate Access):
 ```bash
-# 1. Normal operations with root JWT
-curl -X GET http://localhost:9001/api/data/accounts \
-  -H "Authorization: Bearer ROOT_JWT_TOKEN"
-
-# 2. Request sudo token for user management
-curl -X POST http://localhost:9001/api/auth/sudo \
-  -H "Authorization: Bearer ROOT_JWT_TOKEN" \
+# 1. Login as root user
+curl -X POST http://localhost:9001/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"reason": "Creating new team member account"}'
+  -d '{"tenant": "acme", "username": "root"}'
+# Returns: token with is_sudo=true
 
-# 3. Use sudo JWT for user management
-curl -X POST http://localhost:9001/api/sudo/users \
-  -H "Authorization: Bearer SUDO_JWT_TOKEN" \
+# 2. Use token directly for sudo operations
+curl -X POST http://localhost:9001/api/data/users \
+  -H "Authorization: Bearer ROOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "auth": "john@example.com", "access": "full"}'
+```
+
+**Full User Workflow** (Must Elevate):
+```bash
+# 1. Login as full user
+curl -X POST http://localhost:9001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"tenant": "acme", "username": "full"}'
+# Returns: token with is_sudo=false
+
+# 2. Request sudo token
+curl -X POST http://localhost:9001/api/auth/sudo \
+  -H "Authorization: Bearer FULL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Creating new team member"}'
+# Returns: sudo_token with is_sudo=true (15-min expiry)
+
+# 3. Use sudo token for protected operations
+curl -X POST http://localhost:9001/api/data/users \
+  -H "Authorization: Bearer SUDO_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "John Doe", "auth": "john@example.com", "access": "full"}'
 ```
 
 ## Security Model
 
-### Privilege Escalation Security
-- **Explicit escalation**: Must actively request root privileges
-- **Time-limited**: Root tokens automatically expire after 15 minutes
+### Sudo Security Features
+- **Role-based access**: Only root and full users can have sudo access
+- **Automatic for root**: Root users have implicit sudo (like Linux root)
+- **Explicit for full**: Full users must actively request sudo elevation
+- **Time-limited**: Sudo tokens from `/api/auth/sudo` expire after 15 minutes
 - **Audit logging**: All sudo requests logged with reason and user context
-- **Base requirements**: Only admin/root users can escalate privileges
+- **Tenant-scoped**: Sudo operations restricted to user's tenant
 
 ### Best Practices
+
+**For Root Users:**
+1. **Use login token directly**: No need to call `/api/auth/sudo` for normal operations
+2. **Optional sudo request**: Call `/api/auth/sudo` when you want explicit audit trail
+3. **Long-lived access**: Root login tokens last 24 hours with continuous sudo
+
+**For Full Users:**
 1. **Request sudo only when needed**: Don't preemptively escalate
-2. **Provide clear reasons**: Include meaningful audit trail information
-3. **Handle expiration**: Root tokens expire quickly - be prepared to re-escalate
-4. **Separate storage**: Keep user and root tokens in different storage mechanisms
+2. **Provide clear reasons**: Include meaningful `elevation_reason` for audit trail
+3. **Handle expiration**: Sudo tokens expire after 15 minutes - be prepared to re-request
+4. **Separate storage**: Keep user token (long-lived) and sudo token (short-lived) separate
 
 ## Error Response Format
 
