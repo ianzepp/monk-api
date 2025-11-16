@@ -375,7 +375,7 @@ None - GET request with no body.
 
 ### POST /api/auth/sudo
 
-Perform just-in-time privilege escalation for administrators who need to call `/api/root/*`. The endpoint verifies the caller’s base access level, logs the provided reason for audit tracking, and issues a 15-minute root token tied to the originating user.
+Perform just-in-time privilege escalation for administrators who need to call `/api/sudo/*` endpoints (user management). The endpoint verifies the caller's base access level, logs the provided reason for audit tracking, and issues a 15-minute sudo token tied to the originating user.
 
 #### Request Body
 ```json

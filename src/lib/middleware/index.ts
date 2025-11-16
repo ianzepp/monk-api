@@ -13,4 +13,3 @@ export { requestTrackingMiddleware } from './request-tracking.js';
 export { jwtValidationMiddleware } from './jwt-validation.js';
 export { userValidationMiddleware } from './user-validation.js';
 export { sudoAccessMiddleware } from './sudo-access.js';
-export { localhostDevelopmentOnlyMiddleware } from './localhost-development-only.js';

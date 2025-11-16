@@ -141,7 +141,7 @@ Authorization: Bearer <jwt_token>
 | 35-Bulk | `/api/bulk` | Transaction-safe bulk operations |
 | 37-File | `/api/file/*` | Virtual file system operations |
 | 38-ACLs | `/api/acls/:schema[/:record]` | Access control management |
-| 39-Root | `/api/root/tenant[/:name]` | Tenant administration |
+| 39-Sudo | `/api/sudo/users[/:id]` | User management (tenant-scoped) |
 
 ### Common HTTP Methods
 - **GET**: Retrieve data and metadata

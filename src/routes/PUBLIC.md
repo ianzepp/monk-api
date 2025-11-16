@@ -21,10 +21,10 @@
 | **Bulk API** | `/api/bulk` | Batch operations across multiple schemas |
 | **Find API** | `/api/find/:schema` | Advanced search and filtering |
 
-### Administrative Routes (Root JWT Required)
+### Administrative Routes (Sudo Token Required)
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
-| **Root API** | `/api/root/*` | Tenant management and system administration |
+| **Sudo API** | `/api/sudo/*` | User management (tenant-scoped, requires sudo token) |
 
 ## Key Features
 
@@ -71,7 +71,7 @@ curl http://localhost:9001/
       "file": "/api/file/* (protected)",
       "bulk": "/api/bulk (protected)",
       "find": "/api/find/:schema (protected)",
-      "root": "/api/root/* (restricted, requires sudo or localhost)"
+      "sudo": "/api/sudo/* (restricted, requires sudo token)"
     },
     "documentation": {
       "auth": ["/docs/auth", "/docs/public-auth"],

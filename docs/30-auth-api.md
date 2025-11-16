@@ -170,18 +170,20 @@ curl -X POST http://localhost:9001/api/auth/sudo \
   -H "Content-Type: application/json" \
   -d '{"reason": "Tenant sudo tasks"}'
 
-# 2. Use root JWT for sudo operations
-curl -X GET http://localhost:9001/api/root/tenant \
-  -H "Authorization: Bearer ROOT_JWT_TOKEN"
+# 2. Use sudo token for user management operations
+curl -X POST http://localhost:9001/api/sudo/users \
+  -H "Authorization: Bearer SUDO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "New User", "auth": "user@example.com", "access": "full"}'
 ```
 
 ## Security Model
 
 ### Access Level Requirements
 - **whoami endpoint**: Any valid user JWT token
-- **sudo endpoint**: Requires `full` or `root` base access level
-- **Root operations**: Generated root token required for `/api/root/*` endpoints
-- **Time limits**: Root tokens expire after 15 minutes for security
+- **sudo endpoint**: Requires `root` base access level
+- **Sudo operations**: Generated sudo token required for `/api/sudo/*` endpoints (user management)
+- **Time limits**: Sudo tokens expire after 15 minutes for security
 
 ### Token Management Strategy
 ```javascript
@@ -304,9 +306,11 @@ curl -X POST http://localhost:9001/api/auth/sudo \
   -H "Content-Type: application/json" \
   -d '{"reason": "Tenant database maintenance"}'
 
-# 2. Use root token for sudo operations
-curl -X GET http://localhost:9001/api/root/tenant \
-  -H "Authorization: Bearer ROOT_JWT_TOKEN"
+# 2. Use sudo token for user management operations
+curl -X POST http://localhost:9001/api/sudo/users \
+  -H "Authorization: Bearer SUDO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "New User", "auth": "user@example.com", "access": "full"}'
 ```
 
 ### Token Management in Applications
@@ -330,9 +334,12 @@ const rootHeaders = {
 fetch('/api/data/users', { headers: userHeaders })
   .then(response => response.json());
 
-// Administrative operations with root token
-fetch('/api/root/tenant', { headers: rootHeaders })
-  .then(response => response.json());
+// User management operations with sudo token
+fetch('/api/sudo/users', {
+  method: 'POST',
+  headers: { ...sudoHeaders, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'New User', auth: 'user@example.com', access: 'full' })
+}).then(response => response.json());
 ```
 
 ### Session Validation
