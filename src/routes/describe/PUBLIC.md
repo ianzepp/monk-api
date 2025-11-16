@@ -111,6 +111,8 @@ Create a new schema using Monk-native format with column definitions. Automatica
 
 **Optional Fields:**
 - `status` - Schema status (default: "pending")
+- `sudo` - Require sudo token for all operations on this schema (default: false)
+- `freeze` - Prevent all data changes on this schema (default: false)
 - `columns` - Array of column definitions
 
 **Column Definition Fields:**
@@ -122,6 +124,8 @@ Create a new schema using Monk-native format with column definitions. Automatica
 - `pattern` - Validation pattern
 - `enum_values` - Allowed values array
 - `description` - Column description
+- `immutable` - Prevent changes once set (default: false)
+- `sudo` - Require sudo token to modify this field (default: false)
 - Relationship fields: `relationship_type`, `related_schema`, `related_column`, etc.
 
 ### Success Response (200)
@@ -209,6 +213,8 @@ Update schema metadata only (status). **Does not modify columns** - use column e
 
 **Allowed Updates:**
 - `status` - Change schema status
+- `sudo` - Change sudo requirement for schema operations
+- `freeze` - Change freeze status (emergency lockdown)
 
 ### Success Response (200)
 ```json
@@ -350,7 +356,7 @@ Update an existing column's properties. Supports both metadata updates and struc
 ```
 
 **Updateable Fields:**
-- Metadata only: `description`, `pattern`, `minimum`, `maximum`, `enum_values`, relationship fields
+- Metadata only: `description`, `pattern`, `minimum`, `maximum`, `enum_values`, `immutable`, `sudo`, relationship fields
 - Structural (triggers ALTER TABLE): `type`, `required`, `default_value`
 
 ### Success Response (200)
@@ -434,13 +440,33 @@ All schemas automatically include system-managed fields:
 
 **Do not define these fields in your schemas** - they are automatically added.
 
-## Protected Schemas
+## Schema Protection Features
 
-System schemas cannot be modified or deleted:
+### System Schema Protection
+System schemas (status='system') cannot be modified or deleted:
 - `schemas` - Schema metadata registry
 - `users` - User account management
 - `columns` - Column metadata table
 - `definitions` - Auto-generated JSON Schema definitions (internal use only)
+
+### Sudo-Protected Schemas
+Schemas marked with `sudo=true` require a short-lived sudo token for all data operations. Users must call `POST /api/auth/sudo` to obtain the token before modifying these schemas.
+
+**Use case**: Protect critical system schemas from accidental modifications.
+
+### Frozen Schemas
+Schemas marked with `freeze=true` prevent ALL data changes (create, update, delete). SELECT operations continue to work normally.
+
+**Use cases**:
+- Emergency lockdowns during security incidents
+- Maintenance windows requiring read-only access
+- Regulatory compliance freeze periods
+
+### Field-Level Protection
+
+**Immutable Fields**: Fields marked with `immutable=true` can be set once but never changed. Perfect for audit trails and write-once data like transaction IDs.
+
+**Sudo-Protected Fields**: Fields marked with `sudo=true` require a sudo token to modify, even if the schema itself doesn't require sudo. Allows fine-grained protection of sensitive fields like salary or pricing information.
 
 ## Auto-Generated JSON Schema (Internal)
 

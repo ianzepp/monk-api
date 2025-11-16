@@ -116,6 +116,8 @@ Authorization: Bearer <jwt>
 
 **Optional Fields:**
 - `status` - Schema status (default: "pending")
+- `sudo` - Require sudo token for all operations (default: false)
+- `freeze` - Prevent all data changes on this schema (default: false)
 - `columns` - Array of column definitions (empty array if omitted)
 
 **Column Fields:**
@@ -128,6 +130,8 @@ Authorization: Bearer <jwt>
 - `pattern` - Regex pattern validation (for strings)
 - `enum_values` - Array of allowed values
 - `description` - Column description
+- `immutable` - Prevent changes once set (default: false)
+- `sudo` - Require sudo token to modify this field (default: false)
 - `relationship_type` - "owned" or "referenced" for foreign keys
 - `related_schema` - Target schema for relationships
 - `related_column` - Target column for relationships (default: "id")
@@ -218,6 +222,8 @@ Authorization: Bearer <jwt>
 
 **Allowed Updates:**
 - `status` - Change schema status
+- `sudo` - Change sudo requirement for schema operations
+- `freeze` - Change freeze status (emergency lockdown)
 
 **Response:**
 ```json
@@ -406,13 +412,57 @@ The system automatically generates JSON Schema in the `definitions` table via Po
 
 **Note:** JSON Schema definitions are for internal use only and are not exposed through the API. The API uses Monk-native format exclusively.
 
-### System Schema Protection
+### Schema Protection Features
 
-Protected schemas cannot be modified or deleted:
+#### System Schema Protection
+Protected schemas (status='system') cannot be modified or deleted:
 - `schemas` - Schema metadata registry
 - `users` - User account management
 - `columns` - Column metadata table
 - `definitions` - JSON Schema definitions (internal use only)
+
+#### Sudo-Protected Schemas
+Schemas marked with `sudo=true` require short-lived sudo token for all data operations:
+```json
+{
+  "schema_name": "financial_accounts",
+  "sudo": true,
+  "columns": [...]
+}
+```
+Users must call `POST /api/auth/sudo` to obtain a time-limited sudo token before modifying these schemas.
+
+#### Frozen Schemas
+Schemas marked with `freeze=true` prevent ALL data operations (emergency circuit breaker):
+```json
+{
+  "schema_name": "audit_log",
+  "freeze": true
+}
+```
+Use for maintenance windows, regulatory freezes, or emergency lockdowns. SELECT operations continue to work.
+
+#### Field-Level Protection
+
+**Immutable Fields** - Write-once, never modified:
+```json
+{
+  "column_name": "transaction_id",
+  "type": "text",
+  "immutable": true
+}
+```
+Can be set during creation or first update, but subsequent changes are blocked.
+
+**Sudo-Protected Fields** - Require sudo for specific sensitive fields:
+```json
+{
+  "column_name": "salary",
+  "type": "decimal",
+  "sudo": true
+}
+```
+Allows normal schema updates but requires sudo token for salary changes.
 
 ## Error Handling
 

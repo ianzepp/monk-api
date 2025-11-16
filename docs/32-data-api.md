@@ -49,6 +49,153 @@ Authorization: Bearer <jwt>
 - **Update Records**: `update_data` permission
 - **Delete Records**: `delete_data` permission
 
+## Schema Protection
+
+Data operations automatically respect schema-level and field-level protection configured via the Describe API. These protections are enforced through the observer pipeline (Ring 1 validators) before any database operations occur.
+
+### Frozen Schemas (`freeze=true`)
+
+Schemas marked as frozen **block all write operations** while allowing read access:
+
+| Operation | Allowed | Blocked |
+|-----------|---------|---------|
+| GET (read) | ✅ | |
+| POST (create) | | ❌ |
+| PUT (update) | | ❌ |
+| DELETE (delete) | | ❌ |
+
+**Use cases**:
+- Emergency lockdowns during security incidents
+- Maintenance windows requiring read-only access
+- Regulatory compliance freeze periods
+- Preventing modifications during audits
+
+**Error Response**:
+```json
+{
+  "success": false,
+  "error": "Schema 'audit_log' is frozen. All data operations are temporarily disabled. Contact your administrator to unfreeze this schema.",
+  "error_code": "SCHEMA_FROZEN"
+}
+```
+
+### Sudo-Protected Schemas (`sudo=true`)
+
+Schemas requiring sudo access need a short-lived sudo token from `POST /api/auth/sudo` (typically 15 minutes):
+
+```bash
+# Step 1: Obtain sudo token
+POST /api/auth/sudo
+Content-Type: application/json
+Authorization: Bearer <regular_jwt>
+
+{
+  "reason": "Update financial records for Q4 audit"
+}
+
+# Response includes sudo token
+{
+  "success": true,
+  "data": {
+    "token": "<sudo_jwt>",
+    "expires_in": 900
+  }
+}
+
+# Step 2: Use sudo token for protected operations
+POST /api/data/financial_accounts
+Authorization: Bearer <sudo_jwt>
+
+[{"account_number": "12345", "balance": 100000}]
+```
+
+**Error without sudo**:
+```json
+{
+  "success": false,
+  "error": "Schema 'financial_accounts' requires sudo access. Use POST /api/auth/sudo to get short-lived sudo token.",
+  "error_code": "SUDO_REQUIRED"
+}
+```
+
+### Sudo-Protected Fields (`columns.sudo=true`)
+
+Individual fields can require sudo access while allowing normal operations on other fields:
+
+```bash
+# Allowed without sudo - updating non-protected fields
+PUT /api/data/employees/user_123
+Authorization: Bearer <regular_jwt>
+
+{
+  "title": "Senior Engineer",
+  "department": "Platform"
+}
+# ✅ Success
+
+# Blocked without sudo - updating salary field
+PUT /api/data/employees/user_123
+Authorization: Bearer <regular_jwt>
+
+{
+  "salary": 150000
+}
+# ❌ Error: Cannot modify sudo-protected fields [salary] without sudo access
+```
+
+**Use cases**:
+- Salary/compensation fields in HR systems
+- Pricing/discount fields in e-commerce
+- Credit limit fields in financial systems
+- Security settings (2FA, API keys)
+
+### Immutable Fields (`columns.immutable=true`)
+
+Fields marked as immutable can be set once but never changed (write-once semantics):
+
+```bash
+# First write - allowed
+POST /api/data/audit_log
+Authorization: Bearer <jwt>
+
+[{
+  "transaction_id": "TX-2025-001",
+  "created_by": "user_123",
+  "original_amount": 1000.00
+}]
+# ✅ Success
+
+# Subsequent change attempt - blocked
+PUT /api/data/audit_log/log_abc
+Authorization: Bearer <jwt>
+
+{
+  "transaction_id": "TX-2025-002"
+}
+# ❌ Error: Cannot modify immutable fields: transaction_id
+```
+
+**Behavior**:
+- Setting immutable field when `null` or `undefined`: ✅ Allowed (first write)
+- Changing immutable field value: ❌ Blocked
+- Setting immutable field to same value: ✅ Allowed (no-op)
+- Update without immutable fields: ✅ Allowed
+
+**Use cases**:
+- Audit trail fields (`created_by`, `original_amount`, `transaction_id`)
+- Regulatory identifiers (SSN, tax ID, account numbers)
+- Historical data preservation (`initial_price`, `original_status`)
+- Blockchain-style immutability for critical fields
+
+**Error Response**:
+```json
+{
+  "success": false,
+  "error": "Cannot modify immutable fields: transaction_id on record log_abc (was: TX-2025-001, attempted: TX-2025-002)",
+  "error_code": "VALIDATION_ERROR"
+}
+```
+
 ## Core CRUD Operations
 
 ### Create Records

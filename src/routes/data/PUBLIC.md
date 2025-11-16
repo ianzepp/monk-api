@@ -13,6 +13,64 @@ All Data API routes are prefixed with `/api/data`
 All Data API routes require authentication via JWT token in the Authorization header.
 - **Header**: `Authorization: Bearer <jwt_token>`
 
+## Schema Protection
+
+Data operations respect schema-level and field-level protection configured via the Describe API:
+
+### Frozen Schemas
+Schemas with `freeze=true` **block all data operations**:
+- ❌ POST (create) - blocked
+- ❌ PUT (update) - blocked
+- ❌ DELETE (delete) - blocked
+- ✅ GET (read) - allowed
+
+**Error Response**:
+```json
+{
+  "success": false,
+  "error": "Schema 'audit_log' is frozen. All data operations are temporarily disabled.",
+  "error_code": "SCHEMA_FROZEN"
+}
+```
+
+### Sudo-Protected Schemas
+Schemas with `sudo=true` require a short-lived sudo token from `POST /api/auth/sudo`:
+```bash
+# Get sudo token first
+POST /api/auth/sudo
+{"reason": "Update financial records"}
+
+# Then use returned token for data operations
+PUT /api/data/financial_accounts/123
+Authorization: Bearer <sudo_token>
+```
+
+### Sudo-Protected Fields
+Individual fields marked with `sudo=true` require sudo token to modify, even if the schema doesn't require sudo:
+```json
+// Allowed without sudo
+PUT /api/data/employees/123
+{"title": "Senior Engineer"}
+
+// Requires sudo token
+PUT /api/data/employees/123
+{"salary": 150000}
+// Error: Cannot modify sudo-protected fields [salary] without sudo access
+```
+
+### Immutable Fields
+Fields marked with `immutable=true` can be set once but never changed:
+```json
+// First write - allowed
+POST /api/data/audit_log
+[{"transaction_id": "TX123", "amount": 1000}]
+
+// Change attempt - blocked
+PUT /api/data/audit_log/abc-123
+{"transaction_id": "TX456"}
+// Error: Cannot modify immutable fields: transaction_id
+```
+
 ## Endpoint Summary
 
 | Method | Path | Description |
