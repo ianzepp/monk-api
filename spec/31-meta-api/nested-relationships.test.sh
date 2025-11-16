@@ -12,36 +12,38 @@ print_step "Testing Describe API nested relationship endpoints"
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "$(basename "$0" .test.sh)" "testing"
 setup_full_auth
+setup_sudo_auth "Creating posts and comments schemas with relationships"
 
 # Test 1: Create parent schema (posts)
 print_step "Creating posts schema"
 
 posts_schema='{
-    "title": "Posts",
-    "description": "Blog posts for relationship testing",
-    "type": "object",
-    "properties": {
-        "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200,
+    "columns": [
+        {
+            "column_name": "title",
+            "type": "text",
+            "required": true,
+            "minimum": 1,
+            "maximum": 200,
             "description": "Post title"
         },
-        "content": {
-            "type": "string",
+        {
+            "column_name": "content",
+            "type": "text",
+            "required": false,
             "description": "Post content"
         },
-        "published": {
+        {
+            "column_name": "published",
             "type": "boolean",
-            "default": false,
+            "required": false,
+            "default_value": false,
             "description": "Whether post is published"
         }
-    },
-    "required": ["title"],
-    "additionalProperties": false
+    ]
 }'
 
-create_posts_response=$(auth_post "api/describe/posts" "$posts_schema")
+create_posts_response=$(sudo_post "api/describe/posts" "$posts_schema")
 assert_success "$create_posts_response"
 
 posts_data=$(extract_data "$create_posts_response")
@@ -55,34 +57,30 @@ fi
 print_step "Creating comments schema with owned relationship to posts"
 
 comments_schema='{
-    "title": "Comments",
-    "description": "Comments with owned relationship to posts",
-    "type": "object",
-    "properties": {
-        "text": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 1000,
+    "columns": [
+        {
+            "column_name": "text",
+            "type": "text",
+            "required": true,
+            "minimum": 1,
+            "maximum": 1000,
             "description": "Comment text"
         },
-        "post_id": {
-            "type": "string",
-            "format": "uuid",
+        {
+            "column_name": "post_id",
+            "type": "uuid",
+            "required": true,
             "description": "Parent post reference",
-            "x-monk-relationship": {
-                "type": "owned",
-                "schema": "posts",
-                "name": "comments",
-                "cascadeDelete": true,
-                "required": true
-            }
+            "relationship_type": "owned",
+            "related_schema": "posts",
+            "relationship_name": "comments",
+            "cascade_delete": true,
+            "required_relationship": true
         }
-    },
-    "required": ["text", "post_id"],
-    "additionalProperties": false
+    ]
 }'
 
-create_comments_response=$(auth_post "api/describe/comments" "$comments_schema")
+create_comments_response=$(sudo_post "api/describe/comments" "$comments_schema")
 assert_success "$create_comments_response"
 
 comments_data=$(extract_data "$create_comments_response")

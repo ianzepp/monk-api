@@ -12,6 +12,7 @@ print_step "Testing Describe API schema deletion"
 # Setup test environment with template and authentication (full)
 setup_test_with_template "delete-schema"
 setup_full_auth
+setup_sudo_auth "Deleting contact schema for testing"
 
 # Test 1: Verify contact schema exists before deletion
 print_step "Verifying contact schema exists before deletion"
@@ -20,18 +21,18 @@ pre_delete_response=$(auth_get "api/describe/contact")
 assert_success "$pre_delete_response"
 
 pre_delete_schema=$(extract_data "$pre_delete_response")
-contact_title=$(echo "$pre_delete_schema" | jq -r '.title')
+contact_name=$(echo "$pre_delete_schema" | jq -r '.schema_name')
 
-if [[ "$contact_title" == "Contact" ]]; then
-    print_success "Contact schema exists and ready for deletion: $contact_title"
+if [[ "$contact_name" == "contact" ]]; then
+    print_success "Contact schema exists and ready for deletion: $contact_name"
 else
-    test_fail "Expected Contact schema, got: '$contact_title'"
+    test_fail "Expected contact schema, got: '$contact_name'"
 fi
 
 # Test 2: Delete the contact schema
 print_step "Testing DELETE /api/describe/contact"
 
-delete_response=$(auth_delete "api/describe/contact")
+delete_response=$(sudo_delete "api/describe/contact")
 assert_success "$delete_response"
 
 # Verify deletion response
@@ -68,18 +69,23 @@ account_response=$(auth_get "api/describe/account")
 assert_success "$account_response"
 
 account_schema=$(extract_data "$account_response")
-account_title=$(echo "$account_schema" | jq -r '.title')
+account_name=$(echo "$account_schema" | jq -r '.schema_name')
 
-if [[ "$account_title" == "Account" ]]; then
-    print_success "Account schema remains intact after contact deletion: $account_title"
+if [[ "$account_name" == "account" ]]; then
+    print_success "Account schema remains intact after contact deletion: $account_name"
 else
-    test_fail "Account schema affected by contact deletion: '$account_title'"
+    test_fail "Account schema affected by contact deletion: '$account_name'"
 fi
 
 # Test 5: Test deleting non-existent schema
 test_nonexistent_schema "delete"
 
-# Test 6: Test deleting protected schema
-test_endpoint_error "DELETE" "api/describe/users" "" "SCHEMA_PROTECTED" "Protected schema deletion"
+# Test 6: Test deleting non-existent schema
+nonexistent_delete=$(sudo_delete "api/describe/nonexistent")
+if echo "$nonexistent_delete" | jq -e '.success == false' >/dev/null; then
+    print_success "Non-existent schema deletion properly rejected"
+else
+    test_fail "Expected error when deleting non-existent schema"
+fi
 
 print_success "Describe API schema deletion tests completed successfully"

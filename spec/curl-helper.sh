@@ -175,13 +175,13 @@ get_user_token() {
 
 escalate_sudo() {
     local reason="${1:-Testing operations}"
-    
+
     # Use jq to properly escape JSON
     local json_data=$(jq -n --arg reason "$reason" '{reason: $reason}')
     local response=$(auth_post "api/auth/sudo" "$json_data")
-    
+
     if echo "$response" | jq -e '.success == true' >/dev/null; then
-        echo "$response" | jq -r '.data.root_token'
+        echo "$response" | jq -r '.data.sudo_token'
     else
         test_fail "Failed to escalate sudo: $response"
     fi

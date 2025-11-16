@@ -12,69 +12,65 @@ print_step "Testing Describe API x-monk-relationship types"
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "$(basename "$0" .test.sh)" "testing"
 setup_full_auth
+setup_sudo_auth "Creating comments schema with relationships"
 
 # Test 1: Create a schema with both owned and referenced relationships
 print_step "Creating schema with owned and referenced relationships"
 
-# Define comprehensive relationship test schema
+# Define comprehensive relationship test schema using Monk-native format
+# Relationships are defined as direct column fields instead of x-monk-relationship
 relationship_schema='{
-    "title": "Comments",
-    "description": "Comments with both owned and referenced relationships",
-    "type": "object",
-    "properties": {
-        "text": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 1000,
+    "columns": [
+        {
+            "column_name": "text",
+            "type": "text",
+            "required": true,
+            "minimum": 1,
+            "maximum": 1000,
             "description": "Comment content"
         },
-        "post_id": {
-            "type": "string",
-            "format": "uuid",
+        {
+            "column_name": "post_id",
+            "type": "uuid",
+            "required": true,
             "description": "Parent post (owned relationship)",
-            "x-monk-relationship": {
-                "type": "owned",
-                "schema": "posts",
-                "name": "comments",
-                "cascadeDelete": true,
-                "required": true
-            }
+            "relationship_type": "owned",
+            "related_schema": "posts",
+            "relationship_name": "comments",
+            "cascade_delete": true,
+            "required_relationship": true
         },
-        "author_id": {
-            "type": "string",
-            "format": "uuid",
+        {
+            "column_name": "author_id",
+            "type": "uuid",
+            "required": false,
             "description": "Comment author (referenced relationship)",
-            "x-monk-relationship": {
-                "type": "referenced",
-                "schema": "users",
-                "name": "author",
-                "cascadeDelete": false,
-                "required": false
-            }
+            "relationship_type": "referenced",
+            "related_schema": "users",
+            "relationship_name": "author",
+            "cascade_delete": false,
+            "required_relationship": false
         },
-        "parent_comment_id": {
-            "type": "string",
-            "format": "uuid",
+        {
+            "column_name": "parent_comment_id",
+            "type": "uuid",
+            "required": false,
             "description": "Parent comment for threaded comments (owned with custom column)",
-            "x-monk-relationship": {
-                "type": "owned",
-                "schema": "comments",
-                "name": "replies",
-                "column": "id"
-            }
+            "relationship_type": "owned",
+            "related_schema": "comments",
+            "relationship_name": "replies",
+            "relationship_column": "id"
         }
-    },
-    "required": ["text", "post_id"],
-    "additionalProperties": false
+    ]
 }'
 
-# Create the schema
-create_response=$(auth_post "api/describe/comments" "$relationship_schema")
+# Create the schema (using sudo token)
+create_response=$(sudo_post "api/describe/comments" "$relationship_schema")
 assert_success "$create_response"
 
 # Verify schema creation response
 create_data=$(extract_data "$create_response")
-schema_name=$(echo "$create_data" | jq -r '.schema_name')
+schema_name=$(echo "$create_data" | jq -r '.name')
 
 if [[ "$schema_name" == "comments" ]]; then
     print_success "Schema created: $schema_name"

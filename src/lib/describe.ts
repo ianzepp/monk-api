@@ -356,7 +356,7 @@ export class Describe {
 
         // Step 2: Create column records (ring 5 inserts, ring 6 alters table for each column)
         if (columns.length > 0) {
-            const columnData = columns.map(col => ({
+            const columnData = columns.map((col: any) => ({
                 ...col,
                 schema_name: schemaName
             }));

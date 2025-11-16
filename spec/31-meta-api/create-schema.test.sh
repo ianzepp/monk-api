@@ -12,6 +12,7 @@ print_step "Testing Describe API schema creation"
 # Setup test environment with empty template and authentication (full)
 setup_test_with_template "create-schema" "empty"
 setup_full_auth
+setup_sudo_auth "Creating account schema for testing"
 
 # Test 1: Create schema using account.json
 print_step "Testing POST /api/describe/account"
@@ -23,8 +24,8 @@ fi
 
 account_schema=$(cat spec/account.json)
 
-# Create the schema
-response=$(auth_post "api/describe/account" "$account_schema")
+# Create the schema (using sudo token for write operation)
+response=$(sudo_post "api/describe/account" "$account_schema")
 data=$(extract_and_validate_data "$response" "Schema creation result")
 
 # Verify operation result fields
@@ -54,43 +55,51 @@ print_step "Testing GET /api/describe/account to verify creation"
 get_response=$(auth_get "api/describe/account")
 schema_json=$(extract_and_validate_data "$get_response" "Retrieved schema data")
 
-# Verify essential properties exist
-retrieved_title=$(echo "$schema_json" | jq -r '.title')
-if [[ "$retrieved_title" == "Account" ]]; then
-    print_success "Schema successfully retrieved with title: $retrieved_title"
+# Verify schema_name field exists
+retrieved_name=$(echo "$schema_json" | jq -r '.schema_name')
+if [[ "$retrieved_name" == "account" ]]; then
+    print_success "Schema successfully retrieved with name: $retrieved_name"
 else
-    test_fail "Expected title 'Account', got: $retrieved_title"
+    test_fail "Expected schema_name 'account', got: $retrieved_name"
 fi
 
-# Check for key properties using helper
-validate_record_fields "$schema_json" "properties" "required"
-if echo "$schema_json" | jq -e '.properties.email' >/dev/null; then
-    print_success "Schema contains expected 'email' property"
+# Check for columns array using helper
+validate_record_fields "$schema_json" "columns"
+
+# Verify key columns exist in the columns array
+if echo "$schema_json" | jq -e '.columns[] | select(.column_name == "email")' >/dev/null; then
+    print_success "Schema contains expected 'email' column"
 fi
-if echo "$schema_json" | jq -e '.properties.name' >/dev/null; then
-    print_success "Schema contains expected 'name' property"
+if echo "$schema_json" | jq -e '.columns[] | select(.column_name == "name")' >/dev/null; then
+    print_success "Schema contains expected 'name' column"
 fi
-if echo "$schema_json" | jq -e '.properties.account_type' >/dev/null; then
-    print_success "Schema contains expected 'account_type' property"
+if echo "$schema_json" | jq -e '.columns[] | select(.column_name == "account_type")' >/dev/null; then
+    print_success "Schema contains expected 'account_type' column"
 fi
 
 # Test 3: Verify required fields are preserved
 print_step "Verifying required field validation"
 
-required_fields=$(echo "$schema_json" | jq -r '.required[]')
-if echo "$required_fields" | grep -q "email"; then
+# Check required columns have required=true
+if echo "$schema_json" | jq -e '.columns[] | select(.column_name == "email" and .required == true)' >/dev/null; then
     print_success "Required field 'email' preserved"
 else
-    test_fail "Required field 'email' not found in schema"
+    test_fail "Required field 'email' not found or not marked as required"
 fi
 
-if echo "$required_fields" | grep -q "name"; then
+if echo "$schema_json" | jq -e '.columns[] | select(.column_name == "name" and .required == true)' >/dev/null; then
     print_success "Required field 'name' preserved"
 else
-    test_fail "Required field 'name' not found in schema"
+    test_fail "Required field 'name' not found or not marked as required"
 fi
 
 # Test 4: Test duplicate schema creation (should fail)
-test_endpoint_error "POST" "api/describe/account" "$account_schema" "" "Duplicate schema creation"
+# Note: Using sudo_post directly for error case
+duplicate_response=$(sudo_post "api/describe/account" "$account_schema")
+if echo "$duplicate_response" | jq -e '.success == false' >/dev/null; then
+    print_success "Duplicate schema creation properly rejected"
+else
+    test_fail "Expected error when creating duplicate schema"
+fi
 
 print_success "Describe API schema creation tests completed successfully"

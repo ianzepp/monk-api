@@ -55,6 +55,42 @@ setup_full_auth() {
     fi
 }
 
+# Setup sudo authentication for privileged operations
+setup_sudo_auth() {
+    local reason="${1:-Schema management operation}"
+    print_step "Escalating to sudo for protected operations"
+
+    SUDO_TOKEN=$(escalate_sudo "$reason")
+
+    if [[ -n "$SUDO_TOKEN" && "$SUDO_TOKEN" != "null" ]]; then
+        print_success "sudo access configured"
+        export SUDO_TOKEN
+    else
+        test_fail "Failed to escalate to sudo"
+    fi
+}
+
+# HTTP methods using sudo token
+sudo_post() {
+    local endpoint="$1"
+    local data="$2"
+    shift 2
+    api_post "$endpoint" "$data" -H "Authorization: Bearer $SUDO_TOKEN" "$@"
+}
+
+sudo_put() {
+    local endpoint="$1"
+    local data="$2"
+    shift 2
+    api_put "$endpoint" "$data" -H "Authorization: Bearer $SUDO_TOKEN" "$@"
+}
+
+sudo_delete() {
+    local endpoint="$1"
+    shift
+    api_delete "$endpoint" -H "Authorization: Bearer $SUDO_TOKEN" "$@"
+}
+
 # ===========================
 # Data Validation Helper Functions
 # ===========================

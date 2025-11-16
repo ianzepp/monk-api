@@ -26,24 +26,24 @@ if [[ "$schema_data" == "null" ]]; then
 fi
 
 # Verify essential schema properties
-schema_title=$(echo "$schema_data" | jq -r '.title')
-if [[ "$schema_title" == "Account" ]]; then
-    print_success "Account schema retrieved with correct title: $schema_title"
+schema_name=$(echo "$schema_data" | jq -r '.schema_name')
+if [[ "$schema_name" == "account" ]]; then
+    print_success "Account schema retrieved with correct name: $schema_name"
 else
-    test_fail "Expected title 'Account', got: '$schema_title'"
+    test_fail "Expected schema_name 'account', got: '$schema_name'"
 fi
 
-# Check for key properties
-if echo "$schema_data" | jq -e '.properties.email' >/dev/null; then
-    print_success "Schema contains expected 'email' property"
+# Check for key columns
+if echo "$schema_data" | jq -e '.columns[] | select(.column_name == "email")' >/dev/null; then
+    print_success "Schema contains expected 'email' column"
 else
-    test_fail "Schema missing expected 'email' property"
+    test_fail "Schema missing expected 'email' column"
 fi
 
-if echo "$schema_data" | jq -e '.properties.name' >/dev/null; then
-    print_success "Schema contains expected 'name' property"
+if echo "$schema_data" | jq -e '.columns[] | select(.column_name == "name")' >/dev/null; then
+    print_success "Schema contains expected 'name' column"
 else
-    test_fail "Schema missing expected 'name' property"
+    test_fail "Schema missing expected 'name' column"
 fi
 
 # Test 2: Get contact schema from template
@@ -53,25 +53,25 @@ contact_response=$(auth_get "api/describe/contact")
 assert_success "$contact_response"
 
 contact_schema=$(extract_data "$contact_response")
-contact_title=$(echo "$contact_schema" | jq -r '.title')
+contact_name=$(echo "$contact_schema" | jq -r '.schema_name')
 
-if [[ "$contact_title" == "Contact" ]]; then
-    print_success "Contact schema retrieved with correct title: $contact_title"
+if [[ "$contact_name" == "contact" ]]; then
+    print_success "Contact schema retrieved with correct name: $contact_name"
 else
-    test_fail "Expected title 'Contact', got: '$contact_title'"
+    test_fail "Expected schema_name 'contact', got: '$contact_name'"
 fi
 
-# Verify contact-specific properties
-if echo "$contact_schema" | jq -e '.properties.company' >/dev/null; then
-    print_success "Contact schema contains expected 'company' property"
+# Verify contact-specific columns
+if echo "$contact_schema" | jq -e '.columns[] | select(.column_name == "company")' >/dev/null; then
+    print_success "Contact schema contains expected 'company' column"
 else
-    test_fail "Contact schema missing expected 'company' property"
+    test_fail "Contact schema missing expected 'company' column"
 fi
 
-if echo "$contact_schema" | jq -e '.properties.status' >/dev/null; then
-    print_success "Contact schema contains expected 'status' property"
+if echo "$contact_schema" | jq -e '.columns[] | select(.column_name == "status")' >/dev/null; then
+    print_success "Contact schema contains expected 'status' column"
 else
-    test_fail "Contact schema missing expected 'status' property"
+    test_fail "Contact schema missing expected 'status' column"
 fi
 
 # Test 3: Test non-existent schema
@@ -80,15 +80,13 @@ test_nonexistent_schema "get"
 # Test 4: Verify required fields are present
 print_step "Verifying schema required fields"
 
-account_required=$(echo "$schema_data" | jq -r '.required[]')
-if echo "$account_required" | grep -q "email"; then
+if echo "$schema_data" | jq -e '.columns[] | select(.column_name == "email" and .required == true)' >/dev/null; then
     print_success "Account schema has required 'email' field"
 else
     test_fail "Account schema missing required 'email' field"
 fi
 
-contact_required=$(echo "$contact_schema" | jq -r '.required[]')
-if echo "$contact_required" | grep -q "name"; then
+if echo "$contact_schema" | jq -e '.columns[] | select(.column_name == "name" and .required == true)' >/dev/null; then
     print_success "Contact schema has required 'name' field"
 else
     test_fail "Contact schema missing required 'name' field"

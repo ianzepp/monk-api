@@ -12,80 +12,94 @@ print_step "Testing Describe API columns table population"
 # Setup test environment with template (needed for columns table)
 setup_test_with_template "$(basename "$0" .test.sh)" "testing"
 setup_full_auth
+setup_sudo_auth "Creating tasks schema with diverse column types"
 
 # Test 1: Create a tasks schema with various field types and constraints
 print_step "Creating tasks schema with diverse field types"
 
-# Define comprehensive tasks schema to test column describe extraction
+# Define comprehensive tasks schema to test column metadata extraction
+# Using Monk-native format with columns array
 tasks_schema='{
-    "title": "Tasks",
-    "description": "Task management schema for testing columns population",
-    "type": "object",
-    "properties": {
-        "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200,
+    "columns": [
+        {
+            "column_name": "title",
+            "type": "text",
+            "required": true,
+            "minimum": 1,
+            "maximum": 200,
             "description": "Task title"
         },
-        "description": {
-            "type": "string",
+        {
+            "column_name": "description",
+            "type": "text",
+            "required": false,
             "description": "Detailed task description"
         },
-        "status": {
-            "type": "string",
-            "enum": ["todo", "in_progress", "completed", "cancelled"],
-            "default": "todo",
+        {
+            "column_name": "status",
+            "type": "text",
+            "required": true,
+            "enum_values": ["todo", "in_progress", "completed", "cancelled"],
+            "default_value": "todo",
             "description": "Current task status"
         },
-        "priority": {
+        {
+            "column_name": "priority",
             "type": "integer",
+            "required": false,
             "minimum": 1,
             "maximum": 10,
-            "default": 5,
+            "default_value": 5,
             "description": "Task priority level"
         },
-        "due_date": {
-            "type": "string",
-            "format": "date-time",
+        {
+            "column_name": "due_date",
+            "type": "timestamp",
+            "required": false,
             "description": "Task due date"
         },
-        "assignee_id": {
-            "type": "string",
-            "format": "uuid",
+        {
+            "column_name": "assignee_id",
+            "type": "uuid",
+            "required": false,
             "description": "Assigned user ID"
         },
-        "is_urgent": {
+        {
+            "column_name": "is_urgent",
             "type": "boolean",
-            "default": false,
+            "required": false,
+            "default_value": false,
             "description": "Urgent task flag"
         },
-        "estimated_hours": {
-            "type": "number",
+        {
+            "column_name": "estimated_hours",
+            "type": "decimal",
+            "required": false,
             "minimum": 0,
             "description": "Estimated completion hours"
         },
-        "tags": {
-            "type": "array",
-            "items": {"type": "string"},
+        {
+            "column_name": "tags",
+            "type": "text[]",
+            "required": false,
             "description": "Task category tags"
         },
-        "metadata": {
-            "type": "object",
+        {
+            "column_name": "metadata",
+            "type": "jsonb",
+            "required": false,
             "description": "Additional task metadata"
         }
-    },
-    "required": ["title", "status"],
-    "additionalProperties": false
+    ]
 }'
 
-# Create the schema
-create_response=$(auth_post "api/describe/tasks" "$tasks_schema")
+# Create the schema (using sudo token)
+create_response=$(sudo_post "api/describe/tasks" "$tasks_schema")
 assert_success "$create_response"
 
 # Verify schema creation response
 create_data=$(extract_data "$create_response")
-schema_name=$(echo "$create_data" | jq -r '.schema_name')
+schema_name=$(echo "$create_data" | jq -r '.name')
 
 if [[ "$schema_name" == "tasks" ]]; then
     print_success "Schema created: $schema_name"
@@ -123,17 +137,18 @@ print_success "Successfully queried columns table"
 print_step "Validating column describe"
 
 # Check for specific columns and their properties
+# Using PostgreSQL type names from describe.ts TYPE_MAPPING
 expected_columns=(
-    "assignee_id:UUID:false"
-    "description:TEXT:false"
-    "due_date:TIMESTAMP:false"
-    "estimated_hours:DECIMAL:false"
-    "is_urgent:BOOLEAN:false:false"
-    "metadata:JSONB:false"
-    "priority:INTEGER:false:5"
-    "status:TEXT:true:todo"
-    "tags:JSONB:false"
-    "title:VARCHAR(200):true"
+    "assignee_id:uuid:false"
+    "description:text:false"
+    "due_date:timestamp with time zone:false"
+    "estimated_hours:numeric:false"
+    "is_urgent:boolean:false:false"
+    "metadata:jsonb:false"
+    "priority:integer:false:5"
+    "status:text:true:todo"
+    "tags:text[]:false"
+    "title:text:true"
 )
 
 for expected in "${expected_columns[@]}"; do

@@ -4,21 +4,12 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 export default withTransactionParams(async (context, { system, schema, body }) => {
-    // Parse JSON to get schema name from content
-    const jsonSchema = body;
-    const jsonName = jsonSchema.schema_name.toLowerCase().replace(/\s+/g, '_');
+    // Schema name comes from URL parameter
+    // Body contains Monk-native format with optional columns array
+    const schemaName = schema!.toLowerCase();
 
-    // URL schema must match jsonName if force !== true
-    if (schema !== jsonName) {
-        const forceOverride = context.req.query('force') === 'true';
-
-        if (!forceOverride) {
-            throw HttpErrors.conflict(`URL schema name '${schema}' conflicts with JSON title '${jsonName}'. Use ?force=true to override.`, 'SCHEMA_NAME_CONFLICT');
-        }
-    }
-
-    // Create schema via Describe using the final determined name
-    const result = await system.describe.createSchema(schema!, body);
+    // Create schema via Describe using the URL schema name
+    const result = await system.describe.createSchema(schemaName, body);
 
     // Set result for middleware formatting
     setRouteResult(context, result);
