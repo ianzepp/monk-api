@@ -80,7 +80,7 @@ export class SchemaCache {
         const result = await dtx.query(`
             SELECT s.schema_name, d.definition_checksum as json_checksum, d.updated_at
             FROM schemas s
-            JOIN definitions d ON s.schema_name = d.schema_name
+            LEFT JOIN definitions d ON s.schema_name = d.schema_name
             WHERE s.status IN ('active', 'system')
         `);
 
@@ -108,7 +108,7 @@ export class SchemaCache {
                 const result = await dtx.query(`
                     SELECT s.schema_name, d.definition_checksum as json_checksum, d.updated_at
                     FROM schemas s
-                    JOIN definitions d ON s.schema_name = d.schema_name
+                    LEFT JOIN definitions d ON s.schema_name = d.schema_name
                     WHERE s.schema_name IN (${quotedNames}) AND s.status IN ('active', 'system')
                 `);
                 currentChecksums = result.rows;
@@ -155,7 +155,7 @@ export class SchemaCache {
             `
             SELECT s.*, d.definition, d.definition_checksum as json_checksum
             FROM schemas s
-            JOIN definitions d ON s.schema_name = d.schema_name
+            LEFT JOIN definitions d ON s.schema_name = d.schema_name
             WHERE s.schema_name = $1 AND s.status IN ('active', 'system')
         `,
             [schemaName]
