@@ -1,42 +1,54 @@
 /**
- * JSON Response Middleware
+ * YAML Response Middleware
  *
- * Automatically formats route results as JSON responses and handles errors consistently.
+ * Automatically formats route results as YAML when requested.
+ * Works transparently with existing routes - they continue to use context.json()
+ * and this middleware intercepts to encode as YAML when format is detected.
+ *
+ * Handles both success and error responses in YAML format.
  */
 
 import type { Context, Next } from 'hono';
+import { dump } from 'js-yaml';
+import type { ResponseFormat } from './format-detection.js';
 
 /**
- * JSON response middleware for /api/describe/* routes
- *
- * Automatically formats route results as JSON responses and handles errors consistently.
+ * YAML response middleware
+ * Intercepts JSON responses and converts to YAML when format is 'yaml'
  */
 export async function responseYamlMiddleware(context: Context, next: Next) {
-    try {
+    const format = context.get('responseFormat') as ResponseFormat;
+
+    // If not YAML format, continue normally
+    if (format !== 'yaml') {
         await next();
-
-        // Check if route handler set a result for JSON formatting
-        const routeResult = context.get('routeResult');
-
-        if (routeResult !== undefined && !context.res.body) {
-            // Auto-format as JSON response
-            return new Response(routeResult, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
-    } catch (error) {
-        // Consistent error handling for all describe operations
-        console.error(`Describe API error: ${context.req.method} ${context.req.path}`, error);
-
-        return new Response(
-            JSON.stringify({
-                success: false,
-                error: error instanceof Error ? error.message : 'Describe operation failed',
-            }),
-            {
-                headers: { 'Content-Type': 'application/json' },
-                status: error instanceof Error && error.message.includes('not found') ? 404 : 400,
-            }
-        );
+        return;
     }
+
+    // Store original json method
+    const originalJson = context.json.bind(context);
+
+    // Override context.json to encode as YAML
+    context.json = function (data: any, init?: any) {
+        try {
+            // Encode data to YAML format
+            const yamlString = dump(data, {
+                indent: 2,
+                lineWidth: 120,
+                noRefs: true,
+                sortKeys: false,
+            });
+
+            // Return as text/yaml with YAML content
+            return context.text(yamlString, init, {
+                'Content-Type': 'application/yaml; charset=utf-8',
+            });
+        } catch (error) {
+            // If YAML encoding fails, fall back to JSON
+            console.error('YAML encoding failed, falling back to JSON:', error);
+            return originalJson(data, init);
+        }
+    } as any; // Type assertion needed for Hono method override
+
+    await next();
 }
