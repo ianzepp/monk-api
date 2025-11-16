@@ -8,7 +8,7 @@
 
 import type { Context, Next } from 'hono';
 import type { ResponseFormat } from './format-detection.js';
-import { JsonFormatter, ToonFormatter, YamlFormatter, BrainfuckFormatter } from '@src/lib/formatters/index.js';
+import { JsonFormatter, ToonFormatter, YamlFormatter, BrainfuckFormatter, MorseFormatter } from '@src/lib/formatters/index.js';
 
 /**
  * Response formatter middleware
@@ -41,6 +41,11 @@ export async function responseFormatterMiddleware(context: Context, next: Next) 
                 case 'brainfuck':
                     formattedString = BrainfuckFormatter.encode(data);
                     contentType = BrainfuckFormatter.contentType;
+                    break;
+
+                case 'morse':
+                    formattedString = MorseFormatter.encode(data);
+                    contentType = MorseFormatter.contentType;
                     break;
 
                 case 'json':
