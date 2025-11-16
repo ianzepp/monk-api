@@ -20,7 +20,58 @@ The Auth API covers both **public token acquisition routes** and **protected use
 
 ## Content Type
 - **Request**: `application/json`
-- **Response**: `application/json`
+- **Response**: `application/json` (default), `text/plain` (TOON), or `application/yaml` (YAML)
+
+## Response Formats
+
+The Auth API supports three response formats optimized for different clients:
+
+### Format Selection Priority
+
+1. **Query Parameter**: `?format=json|toon|yaml` (highest priority - allows per-request override)
+2. **Accept Header**: `Accept: application/json|application/toon|application/yaml`
+3. **JWT Preference**: `format` field in JWT payload (set at login)
+4. **Default**: JSON format
+
+### Supported Formats
+
+**JSON (Default)**
+```bash
+GET /api/auth/whoami?format=json
+```
+Standard JSON - widely supported, ideal for web/mobile apps.
+
+**TOON (Token-Oriented Object Notation)**
+```bash
+GET /api/auth/whoami?format=toon
+```
+Ultra-compact format - 30-60% smaller than JSON, optimized for LLM agents.
+
+**YAML (Yet Another Markup Language)**
+```bash
+GET /api/auth/whoami?format=yaml
+```
+Human-readable format - ideal for configuration, DevOps tools, and documentation.
+
+### Setting Persistent Format Preference
+
+Include `format` field in login request to set default format for all API calls:
+
+```json
+POST /auth/login
+{
+  "tenant": "my-tenant",
+  "username": "root",
+  "format": "toon"
+}
+```
+
+The JWT token will include this preference, and all subsequent requests automatically use TOON format unless overridden with `?format=json` or `?format=yaml`.
+
+**Use Cases:**
+- `format: "toon"` - LLM agents, AI assistants, token-constrained environments
+- `format: "json"` - Web apps, mobile apps, standard REST clients
+- `format: "yaml"` - DevOps tools, configuration export, human-readable docs
 
 ---
 
@@ -36,7 +87,8 @@ Authenticate a user against an existing tenant and receive a fresh JWT token sco
 ```json
 {
   "tenant": "string",     // Required: Tenant identifier
-  "username": "string"    // Required: Username for authentication
+  "username": "string",   // Required: Username for authentication
+  "format": "string"      // Optional: Preferred response format ("json", "toon", or "yaml")
 }
 ```
 
@@ -51,12 +103,15 @@ Authenticate a user against an existing tenant and receive a fresh JWT token sco
       "username": "john.doe",
       "tenant": "my-company",
       "database": "tenant_a1b2c3d4",
-      "access": "full"
+      "access": "full",
+      "format": "toon"  // Included if format was provided in request
     },
     "expires_in": 3600
   }
 }
 ```
+
+**Note:** The `format` field in the response echoes back the preference you provided. This preference is embedded in the JWT token and will be used for all subsequent API requests unless overridden.
 
 #### Error Responses
 
@@ -302,6 +357,8 @@ curl -X GET http://localhost:9001/api/auth/whoami \
 
 ## Integration Examples
 
+### Standard JSON Integration
+
 ```javascript
 // 1. Login and store token
 const loginResponse = await fetch('/auth/login', {
@@ -331,6 +388,59 @@ if (apiResponse.status === 401) {
     // Retry original request with new token
   }
 }
+```
+
+### LLM Agent Integration (TOON Format)
+
+```javascript
+// 1. Login with TOON format preference for token efficiency
+const loginResponse = await fetch('/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    tenant: 'acme',
+    username: 'llm-agent',
+    format: 'toon'  // Prefer TOON for all responses
+  })
+});
+const { token } = (await loginResponse.json()).data;
+
+// 2. All API calls now return TOON format automatically
+const response = await fetch('/api/describe', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+
+// Response is TOON format (text/plain):
+// success: true
+// data[4]: columns,definitions,schemas,users
+
+// 3. Override to JSON for specific calls when needed
+const jsonResponse = await fetch('/api/describe?format=json', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+// Returns standard JSON
+
+// 4. Parse TOON responses (if needed)
+import { decode } from '@toon-format/toon';
+const toonText = await response.text();
+const data = decode(toonText);  // Convert TOON to JavaScript object
+```
+
+### Hybrid Integration (Format Per Request)
+
+```bash
+# Web dashboard - always use JSON
+curl -X GET "http://localhost:9001/api/data/users?format=json" \
+  -H "Authorization: Bearer $TOKEN"
+
+# LLM agent - use TOON for efficiency
+curl -X GET "http://localhost:9001/api/data/users?format=toon" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Or use Accept header for content negotiation
+curl -X GET http://localhost:9001/api/data/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/toon"
 ```
 
 ---

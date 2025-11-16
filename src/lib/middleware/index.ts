@@ -3,12 +3,15 @@
  *
  * Clean middleware organization for Hono route handling:
  * - System context and error handling
- * - Response formatting (JSON, JSON, File)
+ * - Response formatting (JSON, TOON, YAML)
  * - Development and security middlewares
  */
 
 export { systemContextMiddleware, setRouteResult } from './system-context.js';
 export { responseJsonMiddleware } from './response-json.js';
+export { responseToonMiddleware } from './response-toon.js';
+export { responseYamlFormatMiddleware } from './response-yaml-format.js';
+export { formatDetectionMiddleware } from './format-detection.js';
 export { requestTrackingMiddleware } from './request-tracking.js';
 export { jwtValidationMiddleware } from './jwt-validation.js';
 export { userValidationMiddleware } from './user-validation.js';

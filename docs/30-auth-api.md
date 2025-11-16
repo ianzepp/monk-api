@@ -8,13 +8,14 @@
 
 1. [Overview](#overview)
 2. [Authentication](#authentication)
-3. [Core Endpoints](#core-endpoints)
-4. [User Information](#user-information)
-5. [Privilege Escalation](#privilege-escalation)
-6. [Security Model](#security-model)
-7. [Error Handling](#error-handling)
-8. [Testing](#testing)
-9. [Common Use Cases](#common-use-cases)
+3. [Response Formats](#response-formats)
+4. [Core Endpoints](#core-endpoints)
+5. [User Information](#user-information)
+6. [Privilege Escalation](#privilege-escalation)
+7. [Security Model](#security-model)
+8. [Error Handling](#error-handling)
+9. [Testing](#testing)
+10. [Common Use Cases](#common-use-cases)
 
 ## Overview
 
@@ -56,6 +57,150 @@ Authorization: Bearer <jwt_token>
 - **User JWT**: Standard user authentication (1 hour expiration)
 - **Root JWT**: Administrative privileges (15 minute expiration)
 - **Refresh JWT**: Long-lived token for renewal (30 day expiration)
+
+## Response Formats
+
+The Auth API supports multiple response formats for optimal integration with different clients, particularly LLM agents that benefit from token-efficient formats.
+
+### Format Selection
+
+The API determines response format using the following priority hierarchy:
+
+1. **Query Parameter** (highest priority): `?format=json`, `?format=toon`, or `?format=yaml`
+2. **Accept Header**: `Accept: application/json`, `Accept: application/toon`, or `Accept: application/yaml`
+3. **JWT Preference**: `format` field in JWT payload (set at login)
+4. **Default**: JSON format
+
+### Supported Formats
+
+#### JSON (Default)
+Standard JSON format - compact, widely supported, ideal for web applications.
+
+```bash
+GET /api/auth/whoami?format=json
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Dr Root",
+    "access": "root",
+    "tenant": "my-tenant"
+  }
+}
+```
+
+#### TOON (Token-Oriented Object Notation)
+Ultra-compact format optimized for LLM token efficiency - reduces token usage by 30-60% for array-heavy responses.
+
+```bash
+GET /api/auth/whoami?format=toon
+Authorization: Bearer <token>
+```
+
+Response:
+```toon
+success: true
+data:
+  id: 550e8400-e29b-41d4-a716-446655440000
+  name: Dr Root
+  access: root
+  tenant: my-tenant
+```
+
+#### YAML (Yet Another Markup Language)
+Human-readable format ideal for configuration, DevOps tools, and documentation - more readable than JSON for nested structures.
+
+```bash
+GET /api/auth/whoami?format=yaml
+Authorization: Bearer <token>
+```
+
+Response:
+```yaml
+success: true
+data:
+  id: 550e8400-e29b-41d4-a716-446655440000
+  name: Dr Root
+  access: root
+  tenant: my-tenant
+```
+
+### Setting Format Preference in JWT
+
+You can set a persistent format preference at login time by including a `format` field in your login request. This preference is embedded in your JWT token and automatically applied to all API requests.
+
+**Login with Format Preference:**
+```bash
+POST /auth/login
+Content-Type: application/json
+
+{
+  "tenant": "my-tenant",
+  "username": "root",
+  "format": "toon"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "username": "Dr Root",
+      "tenant": "my-tenant",
+      "access": "root",
+      "format": "toon"
+    }
+  }
+}
+```
+
+Now all subsequent API requests automatically use TOON format unless overridden:
+
+```bash
+# Uses TOON automatically (from JWT preference)
+GET /api/auth/whoami
+Authorization: Bearer <token_with_toon_preference>
+
+# Override to YAML for configuration export
+GET /api/describe/users?format=yaml
+Authorization: Bearer <token_with_toon_preference>
+```
+
+### Format Use Cases
+
+**JSON Format:**
+- Web applications and dashboards
+- Mobile apps
+- Standard REST API clients
+- Debugging and development
+
+**TOON Format:**
+- LLM agents and AI assistants
+- Token-constrained environments
+- Large array responses (e.g., schema lists, user lists)
+- Cost-sensitive LLM API usage
+
+**YAML Format:**
+- DevOps tools and configuration management
+- Schema export for infrastructure-as-code
+- Human-readable API documentation
+- Developer debugging of complex nested objects
+
+### Content-Type Headers
+
+Responses include appropriate Content-Type headers:
+- JSON: `Content-Type: application/json`
+- TOON: `Content-Type: text/plain; charset=utf-8`
+- YAML: `Content-Type: application/yaml; charset=utf-8`
 
 ## Core Endpoints
 
@@ -212,9 +357,13 @@ const rootHeaders = { 'Authorization': `Bearer ${rootToken}` };    // Administra
 
 ## Error Handling
 
+All error responses respect the format preference (JSON or TOON) set in the request. Error structure remains consistent across both formats.
+
 ### Common Error Responses
 
 #### Authentication Errors
+
+**JSON Format:**
 ```json
 {
   "success": false,
@@ -224,6 +373,15 @@ const rootHeaders = { 'Authorization': `Bearer ${rootToken}` };    // Administra
     "code": "TOKEN_MISSING"
   }
 }
+```
+
+**TOON Format:**
+```toon
+success: false
+error:
+  type: AuthenticationError
+  message: Authorization header required
+  code: TOKEN_MISSING
 ```
 
 #### Token Validation Errors

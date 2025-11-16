@@ -9,9 +9,9 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username } = await context.req.json();
+    const { tenant, username, format } = await context.req.json();
 
-    logger.info('/auth/login', { tenant, username });
+    logger.info('/auth/login', { tenant, username, format });
 
     // Input validation
     if (!tenant) {
@@ -77,6 +77,8 @@ export default async function (context: Context) {
         // Root users automatically have sudo access (like Linux root)
         // Full users must call POST /api/auth/sudo to elevate
         is_sudo: user.access === 'root',
+        // Include format preference if provided
+        ...(format && ['json', 'toon', 'yaml'].includes(format) && { format }),
     };
 
     const token = await sign(payload, process.env.JWT_SECRET!);
@@ -92,6 +94,7 @@ export default async function (context: Context) {
                 tenant: name,
                 database: database,
                 access: user.access,
+                ...(format && ['json', 'toon', 'yaml'].includes(format) && { format }),
             },
         },
     });
