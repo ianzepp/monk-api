@@ -33,7 +33,12 @@ export class Schema {
     private schemaName: SchemaName;
     private status: string;
     public sudo?: boolean;
+    public freeze?: boolean;
     public definition?: any;
+
+    // Precalculated column metadata for performance
+    public immutableFields: Set<string>;
+    public sudoFields: Set<string>;
 
     constructor(
         private system: SystemContextWithInfrastructure,
@@ -43,7 +48,30 @@ export class Schema {
         this.schemaName = schemaName;
         this.status = schemaRecord.status || 'active';
         this.sudo = schemaRecord.sudo;
+        this.freeze = schemaRecord.freeze;
         this.definition = schemaRecord.definition;
+
+        // Precalculate immutable and sudo fields from column metadata for O(1) lookups
+        this.immutableFields = new Set<string>();
+        this.sudoFields = new Set<string>();
+
+        if (schemaRecord._columns && Array.isArray(schemaRecord._columns)) {
+            for (const column of schemaRecord._columns) {
+                if (column.immutable === true) {
+                    this.immutableFields.add(column.column_name);
+                }
+                if (column.sudo === true) {
+                    this.sudoFields.add(column.column_name);
+                }
+            }
+        }
+
+        logger.info('Schema initialized with metadata', {
+            schemaName: this.schemaName,
+            freeze: this.freeze,
+            immutableFields: this.immutableFields.size,
+            sudoFields: this.sudoFields.size
+        });
     }
 
     /**
@@ -51,6 +79,41 @@ export class Schema {
      */
     isSystemSchema(): boolean {
         return this.status === 'system';
+    }
+
+    /**
+     * Check if this schema is frozen (no data changes allowed)
+     */
+    isFrozen(): boolean {
+        return this.freeze === true;
+    }
+
+    /**
+     * Check if a field is immutable (cannot be changed once set)
+     */
+    isFieldImmutable(fieldName: string): boolean {
+        return this.immutableFields.has(fieldName);
+    }
+
+    /**
+     * Get all immutable fields for this schema
+     */
+    getImmutableFields(): Set<string> {
+        return this.immutableFields;
+    }
+
+    /**
+     * Check if a field requires sudo access to modify
+     */
+    isFieldSudo(fieldName: string): boolean {
+        return this.sudoFields.has(fieldName);
+    }
+
+    /**
+     * Get all sudo-protected fields for this schema
+     */
+    getSudoFields(): Set<string> {
+        return this.sudoFields;
     }
 
     /**

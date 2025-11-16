@@ -6,6 +6,7 @@ import { logger } from '@src/lib/logger.js';
 // Cached schema entry
 interface CachedSchema {
     schema: any | null; // Full schema object (lazy loaded)
+    columns: any[] | null; // Column metadata (lazy loaded with schema)
     jsonChecksum: string; // Checksum for cache validation
     updatedAt: string; // Last update timestamp
     validator?: Function; // Compiled JSON Schema validator (lazy loaded)
@@ -129,6 +130,7 @@ export class SchemaCache {
                     // New schema found - add minimal cache entry
                     dbCache.schemas.set(row.schema_name, {
                         schema: null, // Lazy load
+                        columns: null, // Lazy load with schema
                         jsonChecksum: row.json_checksum,
                         updatedAt: row.updated_at,
                         validator: undefined,
@@ -148,10 +150,11 @@ export class SchemaCache {
     }
 
     /**
-     * Load full schema definition from database
+     * Load full schema definition and columns from database in single query
      */
-    private async loadFullSchema(dtx: DbContext | TxContext, schemaName: string): Promise<any> {
-        const result = await dtx.query(
+    private async loadFullSchema(dtx: DbContext | TxContext, schemaName: string): Promise<{ schema: any; columns: any[] }> {
+        // Load schema metadata
+        const schemaResult = await dtx.query(
             `
             SELECT s.*, d.definition, d.definition_checksum as json_checksum
             FROM schemas s
@@ -161,11 +164,26 @@ export class SchemaCache {
             [schemaName]
         );
 
-        if (result.rows.length === 0) {
+        if (schemaResult.rows.length === 0) {
             throw new Error(`Schema '${schemaName}' not found`);
         }
 
-        return result.rows[0];
+        // Load column metadata for performance-critical validations (freeze/immutable/sudo)
+        const columnsResult = await dtx.query(
+            `
+            SELECT column_name, immutable, sudo, required, type
+            FROM columns
+            WHERE schema_name = $1
+            AND trashed_at IS NULL
+            AND deleted_at IS NULL
+        `,
+            [schemaName]
+        );
+
+        return {
+            schema: schemaResult.rows[0],
+            columns: columnsResult.rows
+        };
     }
 
     /**
@@ -180,24 +198,27 @@ export class SchemaCache {
 
         // 1. Check cache first - trust it if present
         const cached = dbCache.schemas.get(schemaName);
-        if (cached?.schema) {
+        if (cached?.schema && cached?.columns) {
             logger.info('Schema cache hit', { schemaName });
-            return cached.schema;
+            // Return schema with columns attached for performance
+            return { ...cached.schema, _columns: cached.columns };
         }
 
-        // 2. Cache miss - load full schema from database
+        // 2. Cache miss - load full schema and columns from database
         logger.info('Schema cache miss - loading from database', { schemaName });
-        const schema = await this.loadFullSchema(system.db, schemaName);
+        const { schema, columns } = await this.loadFullSchema(system.db, schemaName);
 
         // 3. Store in cache
         dbCache.schemas.set(schemaName, {
             schema,
+            columns,
             jsonChecksum: schema.json_checksum || '',
             updatedAt: schema.updated_at,
             validator: undefined,
         });
 
-        return schema;
+        // Return schema with columns attached for performance
+        return { ...schema, _columns: columns };
     }
 
     /**

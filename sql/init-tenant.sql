@@ -37,6 +37,7 @@ CREATE TABLE "schemas" (
 	"schema_name" text NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
 	"sudo" boolean DEFAULT false NOT NULL,
+	"freeze" boolean DEFAULT false NOT NULL,
 
 	-- Constraints
 	CONSTRAINT "schema_name_unique" UNIQUE("schema_name")
@@ -76,7 +77,9 @@ CREATE TABLE "columns" (
 	"maximum" numeric,
 	"pattern" text,
 	"enum_values" text[],
-	"is_array" boolean DEFAULT false
+	"is_array" boolean DEFAULT false,
+	"immutable" boolean DEFAULT false NOT NULL,
+	"sudo" boolean DEFAULT false NOT NULL
 );
 
 -- Add foreign key constraint
@@ -143,7 +146,8 @@ VALUES (
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
     ('schemas', 'schema_name', 'text', true, 'Unique name for the schema'),
     ('schemas', 'status', 'text', true, 'Schema status (pending, active, system)'),
-    ('schemas', 'sudo', 'boolean', true, 'Whether schema modifications require sudo access');
+    ('schemas', 'sudo', 'boolean', true, 'Whether schema modifications require sudo access'),
+    ('schemas', 'freeze', 'boolean', true, 'Whether all data changes are prevented on this schema');
 
 -- Column definitions for 'columns' schema
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
@@ -163,7 +167,9 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('columns', 'maximum', 'numeric', false, 'Maximum value constraint for numeric columns'),
     ('columns', 'pattern', 'text', false, 'Regular expression pattern for validation'),
     ('columns', 'enum_values', 'text[]', false, 'Allowed enum values'),
-    ('columns', 'is_array', 'boolean', false, 'Whether the column is an array type');
+    ('columns', 'is_array', 'boolean', false, 'Whether the column is an array type'),
+    ('columns', 'immutable', 'boolean', false, 'Whether the column value cannot be changed once set'),
+    ('columns', 'sudo', 'boolean', false, 'Whether modifying this column requires sudo access');
 
 -- Column definitions for 'users' schema
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
