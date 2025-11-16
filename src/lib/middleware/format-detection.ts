@@ -11,9 +11,9 @@
 import type { Context, Next } from 'hono';
 import type { JWTPayload } from '@src/lib/jwt-interface.js';
 
-export type ResponseFormat = 'json' | 'toon' | 'yaml';
+export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'brainfuck';
 
-const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml'];
+const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'brainfuck'];
 
 /**
  * Resolves the response format for the current request

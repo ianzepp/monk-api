@@ -165,6 +165,7 @@ app.get('/health', c => {
 app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for auth routes
 app.use('/auth/*', middleware.responseToonMiddleware); // Support TOON for auth routes
 app.use('/auth/*', middleware.responseYamlMiddleware); // Support YAML for auth routes
+app.use('/auth/*', middleware.responseBrainfuckMiddleware); // Support Brainfuck for auth routes
 app.use('/auth/*', middleware.responseJsonMiddleware); // Public auth: JSON responses
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
@@ -184,6 +185,7 @@ app.use('/api/*', middleware.userValidationMiddleware);
 app.use('/api/*', middleware.formatDetectionMiddleware);
 app.use('/api/*', middleware.responseToonMiddleware);
 app.use('/api/*', middleware.responseYamlMiddleware);
+app.use('/api/*', middleware.responseBrainfuckMiddleware);
 app.use('/api/*', middleware.systemContextMiddleware);
 app.use('/api/*', middleware.responseJsonMiddleware);
 

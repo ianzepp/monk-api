@@ -11,6 +11,7 @@ export { systemContextMiddleware, setRouteResult } from './system-context.js';
 export { responseJsonMiddleware } from './response-json.js';
 export { responseToonMiddleware } from './response-toon.js';
 export { responseYamlMiddleware } from './response-yaml.js';
+export { responseBrainfuckMiddleware } from './response-brainfuck.js';
 export { formatDetectionMiddleware } from './format-detection.js';
 export { requestTrackingMiddleware } from './request-tracking.js';
 export { jwtValidationMiddleware } from './jwt-validation.js';
