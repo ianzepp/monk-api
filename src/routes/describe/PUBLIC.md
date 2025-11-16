@@ -66,7 +66,10 @@ curl -X GET http://localhost:9001/api/describe \
 Create a new schema using Monk-native format with column definitions. Automatically generates PostgreSQL table with specified columns and constraints.
 
 ### URL Parameters
-- **schema**: Schema name (must match `name` field in body)
+- **schema**: Schema name (must match `schema_name` field in body)
+
+### Query Parameters
+- **force** (optional): Set to `true` to override schema name mismatch between URL and body. If URL schema differs from `schema_name` in body, request fails unless `?force=true` is provided.
 
 ### Request Body (Monk-Native Format)
 ```json
@@ -77,26 +80,26 @@ Create a new schema using Monk-native format with column definitions. Automatica
     {
       "column_name": "name",
       "type": "text",
-      "required": "true",
+      "required": true,
       "description": "User full name"
     },
     {
       "column_name": "email",
       "type": "text",
-      "required": "true",
+      "required": true,
       "pattern": "^[^@]+@[^@]+\\.[^@]+$"
     },
     {
       "column_name": "age",
       "type": "integer",
-      "required": "false",
+      "required": false,
       "minimum": 18,
       "maximum": 120
     },
     {
       "column_name": "balance",
       "type": "decimal",
-      "required": "false",
+      "required": false,
       "default_value": "0.00"
     }
   ]
@@ -113,7 +116,7 @@ Create a new schema using Monk-native format with column definitions. Automatica
 **Column Definition Fields:**
 - `column_name` - Column name (required)
 - `type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, uuid, jsonb
-- `required` - "true" or "false"
+- `required` - true or false
 - `default_value` - Default value
 - `minimum` / `maximum` - Range constraints
 - `pattern` - Validation pattern
@@ -160,19 +163,13 @@ Retrieve complete schema definition with columns array in Monk-native format.
     "status": "active",
     "created_at": "2025-01-01T12:00:00Z",
     "updated_at": "2025-01-01T12:00:00Z",
-    "definition": {
-      "type": "object",
-      "title": "users",
-      "properties": { ... },
-      "required": [ ... ]
-    },
     "columns": [
       {
         "id": "uuid",
         "schema_name": "users",
         "column_name": "name",
         "type": "text",
-        "required": "true",
+        "required": true,
         "description": "User full name",
         "created_at": "2025-01-01T12:00:00Z",
         "updated_at": "2025-01-01T12:00:00Z"
@@ -184,8 +181,9 @@ Retrieve complete schema definition with columns array in Monk-native format.
 
 **Response includes:**
 - Schema metadata (schemas table fields)
-- Auto-generated JSON Schema (`definition` field)
 - Columns array with full column metadata
+
+**Note:** The system auto-generates JSON Schema in an internal `definitions` table via PostgreSQL trigger, but this is not exposed in API responses.
 
 ### Error Responses
 
@@ -268,8 +266,6 @@ Soft-delete a schema definition. Schema is marked as trashed and can be restored
 
 ## POST /api/describe/:schema/:column
 
-**Status: 501 Not Implemented** - Stub endpoint for future column creation.
-
 Add a new column to an existing schema.
 
 ### URL Parameters
@@ -279,10 +275,25 @@ Add a new column to an existing schema.
 ### Request Body
 ```json
 {
-  "column_name": "phone",
   "type": "text",
-  "required": "false",
-  "pattern": "^\\+?[1-9]\\d{1,14}$"
+  "required": false,
+  "pattern": "^\\+?[1-9]\\d{1,14}$",
+  "description": "User phone number"
+}
+```
+
+**Note:** The `column_name` is taken from the URL parameter, not the request body.
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "schema_name": "users",
+    "column_name": "phone",
+    "type": "text",
+    "created": true
+  }
 }
 ```
 
@@ -305,7 +316,7 @@ Retrieve a specific column definition from the columns table.
     "schema_name": "users",
     "column_name": "email",
     "type": "text",
-    "required": "true",
+    "required": true,
     "pattern": "^[^@]+@[^@]+\\.[^@]+$",
     "description": "User email address",
     "created_at": "2025-01-01T12:00:00Z",
@@ -324,9 +335,7 @@ Retrieve a specific column definition from the columns table.
 
 ## PUT /api/describe/:schema/:column
 
-**Status: 501 Not Implemented** - Stub endpoint for future column updates.
-
-Update an existing column's properties.
+Update an existing column's properties. Supports both metadata updates and structural changes with ALTER TABLE.
 
 ### URL Parameters
 - **schema**: Schema name
@@ -340,34 +349,72 @@ Update an existing column's properties.
 }
 ```
 
+**Updateable Fields:**
+- Metadata only: `description`, `pattern`, `minimum`, `maximum`, `enum_values`, relationship fields
+- Structural (triggers ALTER TABLE): `type`, `required`, `default_value`
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "schema_name": "users",
+    "column_name": "email",
+    "type": "text",
+    "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+    "description": "Updated validation pattern",
+    "updated_at": "2025-01-01T13:00:00Z"
+  }
+}
+```
+
 ---
 
 ## DELETE /api/describe/:schema/:column
 
-**Status: 501 Not Implemented** - Stub endpoint for future column deletion.
-
-Remove a column from the schema.
+Remove a column from the schema. Performs both soft delete (marks as trashed in columns table) and hard delete (DROP COLUMN from PostgreSQL table).
 
 ### URL Parameters
 - **schema**: Schema name
 - **column**: Column name to delete
 
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "schema_name": "users",
+    "column_name": "phone",
+    "deleted": true
+  }
+}
+```
+
+**Warning:** This operation permanently removes the column and all its data from the PostgreSQL table.
+
 ---
 
 ## PostgreSQL Type Mapping
 
-Direct type mapping without conversion:
+User-facing types are mapped to PostgreSQL types internally:
 
-| Monk type | PostgreSQL Type | Use Case |
-|--------------|-----------------|----------|
+| User Type | PostgreSQL Type | Use Case |
+|-----------|-----------------|----------|
 | `text` | TEXT | General strings |
-| `varchar` | VARCHAR(n) | Limited strings (use with maximum) |
 | `integer` | INTEGER | Whole numbers |
-| `decimal` | DECIMAL | Precise decimals, currency |
+| `decimal` | NUMERIC | Precise decimals, currency |
 | `boolean` | BOOLEAN | True/false values |
 | `timestamp` | TIMESTAMP | Date and time |
+| `date` | DATE | Date only |
 | `uuid` | UUID | Unique identifiers |
 | `jsonb` | JSONB | JSON data structures |
+| `text[]` | TEXT[] | Array of strings |
+| `integer[]` | INTEGER[] | Array of integers |
+| `decimal[]` | NUMERIC[] | Array of decimals |
+| `uuid[]` | UUID[] | Array of UUIDs |
+
+**Note:** Use user-facing types (e.g., `decimal`) in API requests. The system automatically maps them to appropriate PostgreSQL types (e.g., `NUMERIC`).
 
 ## System Fields
 
@@ -393,17 +440,16 @@ System schemas cannot be modified or deleted:
 - `schemas` - Schema metadata registry
 - `users` - User account management
 - `columns` - Column metadata table
-- `definitions` - JSON Schema definitions
+- `definitions` - Auto-generated JSON Schema definitions (internal use only)
 
-## Auto-Generated JSON Schema
+## Auto-Generated JSON Schema (Internal)
 
 The system automatically generates JSON Schema in the `definitions` table via PostgreSQL trigger when columns are modified. This provides:
-- JSON Schema for external tools
-- OpenAPI/Swagger compatibility
-- Backward compatibility
-- Interoperability with JSON Schema consumers
+- Internal JSON Schema representation
+- Future integration with validation tools
+- Backward compatibility with JSON Schema consumers
 
-Access via the `definition` field in GET responses.
+**Note:** The `definitions` table is for internal use only and is NOT exposed via API responses. Use the `columns` array from GET /api/describe/:schema for schema metadata.
 
 ## Usage Examples
 
@@ -418,12 +464,12 @@ curl -X POST http://localhost:9001/api/describe/products \
       {
         "column_name": "name",
         "type": "text",
-        "required": "true"
+        "required": true
       },
       {
         "column_name": "price",
         "type": "decimal",
-        "required": "true",
+        "required": true,
         "minimum": 0
       },
       {

@@ -48,13 +48,6 @@ All Meta API endpoints require valid JWT authentication. The API respects tenant
 Authorization: Bearer <jwt>
 ```
 
-### Required Permissions
-- **Schema Creation**: `create_schema` permission
-- **Schema Reading**: `read_schema` permission
-- **Schema Updates**: `update_schema` permission
-- **Schema Deletion**: `delete_schema` permission
-- **Column Operations**: Same as schema permissions
-
 ## Schema Management
 
 ### Create Schema
@@ -67,6 +60,9 @@ Content-Type: application/json
 Authorization: Bearer <jwt>
 ```
 
+**Query Parameters:**
+- `force=true` - Force creation even if schema exists (will drop and recreate the table)
+
 **Request Body (Monk-native format):**
 ```json
 {
@@ -76,27 +72,27 @@ Authorization: Bearer <jwt>
     {
       "column_name": "name",
       "type": "text",
-      "required": "true",
+      "required": true,
       "description": "User full name"
     },
     {
       "column_name": "email",
       "type": "text",
-      "required": "true",
+      "required": true,
       "pattern": "^[^@]+@[^@]+\\.[^@]+$",
       "description": "User email address"
     },
     {
       "column_name": "age",
       "type": "integer",
-      "required": "false",
+      "required": false,
       "minimum": 18,
       "maximum": 120
     },
     {
       "column_name": "balance",
       "type": "decimal",
-      "required": "false",
+      "required": false,
       "default_value": "0.00"
     }
   ]
@@ -125,7 +121,7 @@ Authorization: Bearer <jwt>
 **Column Fields:**
 - `column_name` - Column name (required)
 - `type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, uuid, jsonb (required)
-- `required` - "true" or "false" (default: "false")
+- `required` - true or false (default: false)
 - `default_value` - Default value for column
 - `minimum` - Minimum value (for numbers)
 - `maximum` - Maximum value (for numbers/strings)
@@ -136,8 +132,8 @@ Authorization: Bearer <jwt>
 - `related_schema` - Target schema for relationships
 - `related_column` - Target column for relationships (default: "id")
 - `relationship_name` - Name of the relationship
-- `cascade_delete` - "true" or "false" for cascade delete
-- `required_relationship` - "true" or "false"
+- `cascade_delete` - true or false for cascade delete
+- `required_relationship` - true or false
 
 ### List Schemas
 
@@ -179,19 +175,13 @@ Authorization: Bearer <jwt>
     "status": "active",
     "created_at": "2025-01-01T12:00:00Z",
     "updated_at": "2025-01-01T12:00:00Z",
-    "definition": {
-      "type": "object",
-      "title": "users",
-      "properties": { ... },
-      "required": [ ... ]
-    },
     "columns": [
       {
         "id": "uuid",
         "schema_name": "users",
         "column_name": "name",
         "type": "text",
-        "required": "true",
+        "required": true,
         "description": "User full name",
         "created_at": "2025-01-01T12:00:00Z",
         "updated_at": "2025-01-01T12:00:00Z"
@@ -199,13 +189,15 @@ Authorization: Bearer <jwt>
       {
         "column_name": "email",
         "type": "text",
-        "required": "true",
+        "required": true,
         "pattern": "^[^@]+@[^@]+\\.[^@]+$"
       }
     ]
   }
 }
 ```
+
+**Note:** The `definition` field (JSON Schema) is stored in the `definitions` table for internal use only and is not exposed in API responses.
 
 ### Update Schema
 
@@ -279,7 +271,7 @@ Authorization: Bearer <jwt>
 {
   "column_name": "phone",
   "type": "text",
-  "required": "false",
+  "required": false,
   "pattern": "^\\+?[1-9]\\d{1,14}$",
   "description": "User phone number"
 }
@@ -297,8 +289,6 @@ Authorization: Bearer <jwt>
   }
 }
 ```
-
-**Status:** Currently returns 501 Not Implemented (stub endpoint)
 
 ### Get Column
 
@@ -318,7 +308,7 @@ Authorization: Bearer <jwt>
     "schema_name": "users",
     "column_name": "email",
     "type": "text",
-    "required": "true",
+    "required": true,
     "pattern": "^[^@]+@[^@]+\\.[^@]+$",
     "description": "User email address",
     "created_at": "2025-01-01T12:00:00Z",
@@ -356,8 +346,6 @@ Authorization: Bearer <jwt>
 }
 ```
 
-**Status:** Currently returns 501 Not Implemented (stub endpoint)
-
 ### Delete Column
 
 Remove a column from the schema.
@@ -378,8 +366,6 @@ Authorization: Bearer <jwt>
 }
 ```
 
-**Status:** Currently returns 501 Not Implemented (stub endpoint)
-
 ## Schema Features
 
 ### PostgreSQL Type Mapping
@@ -389,17 +375,20 @@ Direct type mapping without conversion:
 | Monk type | PostgreSQL Type | Example |
 |--------------|-----------------|---------|
 | `text` | TEXT | General strings |
-| `varchar` | VARCHAR(n) | Limited strings (use with maximum) |
 | `integer` | INTEGER | Whole numbers |
-| `decimal` | DECIMAL | Precise decimals |
+| `decimal` | NUMERIC | Precise decimals |
 | `boolean` | BOOLEAN | True/false |
 | `timestamp` | TIMESTAMP | Date and time |
 | `uuid` | UUID | Unique identifiers |
 | `jsonb` | JSONB | JSON data |
+| `text[]` | TEXT[] | Text arrays |
+| `integer[]` | INTEGER[] | Integer arrays |
+| `decimal[]` | NUMERIC[] | Decimal arrays |
+| `uuid[]` | UUID[] | UUID arrays |
 
 ### Validation Constraints
 
-- **Required Fields**: `required: "true"` → NOT NULL constraint
+- **Required Fields**: `required: true` → NOT NULL constraint
 - **Default Values**: `default_value` → DEFAULT constraint
 - **Number Ranges**: `minimum`, `maximum` → CHECK constraints
 - **Pattern Validation**: `pattern` → Application-level validation
@@ -407,7 +396,7 @@ Direct type mapping without conversion:
 
 ### Auto-Generated JSON Schema
 
-The system automatically generates JSON Schema in the `definitions` table via PostgreSQL trigger:
+The system automatically generates JSON Schema in the `definitions` table via PostgreSQL trigger for internal use only:
 
 ```sql
 -- Trigger fires on INSERT/UPDATE/DELETE in columns table
@@ -415,11 +404,7 @@ The system automatically generates JSON Schema in the `definitions` table via Po
 -- Stores in definitions table with checksum
 ```
 
-This provides:
-- JSON Schema for external tools
-- OpenAPI/Swagger compatibility
-- Backward compatibility with JSON Schema consumers
-- Cached representation for interoperability
+**Note:** JSON Schema definitions are for internal use only and are not exposed through the API. The API uses Monk-native format exclusively.
 
 ### System Schema Protection
 
@@ -427,7 +412,7 @@ Protected schemas cannot be modified or deleted:
 - `schemas` - Schema metadata registry
 - `users` - User account management
 - `columns` - Column metadata table
-- `definitions` - JSON Schema definitions
+- `definitions` - JSON Schema definitions (internal use only)
 
 ## Error Handling
 
@@ -510,26 +495,26 @@ curl -X POST http://localhost:9001/api/describe/products \
       {
         "column_name": "name",
         "type": "text",
-        "required": "true",
+        "required": true,
         "description": "Product name"
       },
       {
         "column_name": "price",
         "type": "decimal",
-        "required": "true",
+        "required": true,
         "minimum": 0,
         "description": "Product price"
       },
       {
         "column_name": "category",
         "type": "text",
-        "required": "true",
+        "required": true,
         "enum_values": ["electronics", "books", "clothing"]
       },
       {
         "column_name": "in_stock",
         "type": "boolean",
-        "required": "false",
+        "required": false,
         "default_value": "true"
       }
     ]
@@ -584,7 +569,7 @@ curl -X POST http://localhost:9001/api/describe/orders \
       {
         "column_name": "user_id",
         "type": "uuid",
-        "required": "true",
+        "required": true,
         "relationship_type": "referenced",
         "related_schema": "users",
         "related_column": "id",
@@ -594,7 +579,7 @@ curl -X POST http://localhost:9001/api/describe/orders \
       {
         "column_name": "total",
         "type": "decimal",
-        "required": "true",
+        "required": true,
         "minimum": 0
       }
     ]

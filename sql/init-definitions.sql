@@ -119,7 +119,7 @@ BEGIN
         -- Handle enum values with nullable support (anyOf for Ajv)
         IF v_column.enum_values IS NOT NULL AND array_length(v_column.enum_values, 1) > 0 THEN
             -- Check if column allows NULL (not required)
-            IF v_column.required = 'false' THEN
+            IF v_column.required = false THEN
                 -- Use anyOf to allow null or enum values for Ajv compatibility
                 v_property := jsonb_build_object(
                     'anyOf',
@@ -166,7 +166,7 @@ BEGIN
         v_properties := v_properties || jsonb_build_object(v_column.column_name, v_property);
 
         -- Track required fields
-        IF v_column.required = 'true' THEN
+        IF v_column.required = true THEN
             v_required := array_append(v_required, v_column.column_name);
         END IF;
     END LOOP;

@@ -16,8 +16,8 @@ setup_test_server_only
 # Test Setup: Create Tenant A
 print_step "Creating Tenant A with account record"
 
-# Create tenant from empty template (fast isolation)
-TENANT_A_NAME=$(create_test_tenant_from_template "cross-tenant-a" "empty")
+# Create tenant from template (fast isolation)
+TENANT_A_NAME=$(create_test_tenant_from_template "cross-tenant-a" "testing")
 load_test_env
 TENANT_A_DB="$TEST_DATABASE_NAME"
 setup_test_cleanup_trap "$TENANT_A_NAME" "$TENANT_A_DB"
@@ -62,8 +62,8 @@ print_success "Created account in Tenant A: $ACCOUNT_A_ID"
 # Test Setup: Create Tenant B
 print_step "Creating Tenant B with account record"
 
-# Create tenant from empty template (fast isolation)
-TENANT_B_NAME=$(create_test_tenant_from_template "cross-tenant-b" "empty")
+# Create tenant from template (fast isolation)
+TENANT_B_NAME=$(create_test_tenant_from_template "cross-tenant-b" "testing")
 load_test_env
 TENANT_B_DB="$TEST_DATABASE_NAME"
 setup_test_cleanup_trap "$TENANT_B_NAME" "$TENANT_B_DB"

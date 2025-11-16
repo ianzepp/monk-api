@@ -60,6 +60,66 @@ export function isSystemField(fieldName: string): boolean {
 }
 
 /**
+ * User-facing type names (API input) mapped to PostgreSQL column_type enum values
+ *
+ * User types are more generic and user-friendly (e.g., "decimal")
+ * PostgreSQL types are the actual enum values in the database (e.g., "numeric")
+ */
+const TYPE_MAPPING: Record<string, string> = {
+    // Scalar types
+    'text': 'text',
+    'integer': 'integer',
+    'decimal': 'numeric',      // User-facing "decimal" maps to PostgreSQL "numeric"
+    'boolean': 'boolean',
+    'timestamp': 'timestamp',
+    'date': 'date',
+    'uuid': 'uuid',
+    'jsonb': 'jsonb',
+
+    // Array types
+    'text[]': 'text[]',
+    'integer[]': 'integer[]',
+    'decimal[]': 'numeric[]',  // User-facing "decimal[]" maps to PostgreSQL "numeric[]"
+    'uuid[]': 'uuid[]',
+} as const;
+
+/**
+ * Valid user-facing type names
+ */
+const VALID_USER_TYPES = Object.keys(TYPE_MAPPING);
+
+/**
+ * Map user-facing type name to PostgreSQL column_type enum value
+ */
+function mapUserTypeToPgType(userType: string): string {
+    const pgType = TYPE_MAPPING[userType];
+
+    if (!pgType) {
+        throw HttpErrors.badRequest(
+            `Invalid type '${userType}'. Valid types: ${VALID_USER_TYPES.join(', ')}`,
+            'INVALID_COLUMN_TYPE'
+        );
+    }
+
+    return pgType;
+}
+
+/**
+ * Map PostgreSQL column_type enum value back to user-facing type name
+ */
+function mapPgTypeToUserType(pgType: string): string {
+    // Reverse lookup
+    for (const [userType, mappedPgType] of Object.entries(TYPE_MAPPING)) {
+        if (mappedPgType === pgType) {
+            return userType;
+        }
+    }
+
+    // If no mapping found, return as-is (should not happen with valid data)
+    return pgType;
+}
+
+/**
  * Describe Class - Schema Definition Management
  *
  * Handles schema JSON operations following the same patterns as Database class.
@@ -224,7 +284,7 @@ export class Describe {
      * Validate that schema is not protected (system schema)
      */
     private validateSchemaProtection(schemaName: string): void {
-        const protectedSchemas = ['schemas', 'columns', 'users'];
+        const protectedSchemas = ['schemas', 'columns', 'users', 'definitions'];
 
         if (protectedSchemas.includes(schemaName)) {
             throw HttpErrors.forbidden(`Schema '${schemaName}' is protected and cannot be modified`, 'SCHEMA_PROTECTED');
@@ -413,8 +473,11 @@ export class Describe {
 
             this.validateColumnName(column.column_name);
 
-            const pgType = column.type || 'text';
-            const isRequired = column.required === 'true' || column.required === true;
+            // Map user-facing type to PostgreSQL type
+            const userType = column.type || 'text';
+            const pgType = mapUserTypeToPgType(userType);
+
+            const isRequired = Boolean(column.required);
             const nullable = isRequired ? ' NOT NULL' : '';
 
             let defaultValue = '';
@@ -440,6 +503,10 @@ export class Describe {
      * Insert a single column record into columns table (Monk-native format)
      */
     private async insertColumnRecord(tx: TxContext | DbContext, schemaName: string, column: any): Promise<void> {
+        // Validate and map user-facing type to PostgreSQL type
+        const userType = column.type || 'text';
+        const pgType = mapUserTypeToPgType(userType);
+
         const insertQuery = `
             INSERT INTO columns (
                 schema_name, column_name, type, required, default_value,
@@ -459,21 +526,21 @@ export class Describe {
         await tx.query(insertQuery, [
             schemaName,
             column.column_name,
-            column.type || 'text',
-            column.required === 'true' || column.required === true ? 'true' : 'false',
+            pgType,
+            Boolean(column.required ?? false),
             column.default_value || null,
             column.minimum || null,
             column.maximum || null,
             column.pattern || null,
             column.enum_values || null,
-            column.is_array === 'true' || column.is_array === true ? 'true' : 'false',
+            Boolean(column.is_array ?? false),
             column.description || null,
             column.relationship_type || null,
             column.related_schema || null,
             column.related_column || null,
             column.relationship_name || null,
-            column.cascade_delete === 'true' || column.cascade_delete === true ? 'true' : 'false',
-            column.required_relationship === 'true' || column.required_relationship === true ? 'true' : 'false',
+            Boolean(column.cascade_delete ?? false),
+            Boolean(column.required_relationship ?? false),
         ]);
     }
 
@@ -531,10 +598,16 @@ export class Describe {
         `;
         const columnsResult = await db.query(columnsQuery, [schemaName]);
 
-        // Return schema with columns array
+        // Map PostgreSQL types back to user-facing types in column records
+        const columns = columnsResult.rows.map((col: any) => ({
+            ...col,
+            type: mapPgTypeToUserType(col.type),
+        }));
+
+        // Return schema with columns array (definitions table is internal, not exposed)
         return {
             ...schema,
-            columns: columnsResult.rows,
+            columns,
         };
     }
 
@@ -590,7 +663,7 @@ export class Describe {
 
             console.info('Schema created successfully (Monk-native)', { schemaName });
 
-            return { schema_name: schemaName, created: true };
+            return { name: schemaName, table: schemaName, created: true };
         });
 
         // Invalidate cache after successful creation
@@ -714,7 +787,12 @@ export class Describe {
             );
         }
 
-        return result.rows[0];
+        // Map PostgreSQL type back to user-facing type
+        const column = result.rows[0];
+        return {
+            ...column,
+            type: mapPgTypeToUserType(column.type),
+        };
     }
 
     /**
@@ -724,10 +802,84 @@ export class Describe {
      * Trigger will auto-generate JSON Schema in definitions table
      */
     async createColumn(schemaName: string, columnName: string, columnDef: any): Promise<any> {
-        throw HttpErrors.notImplemented(
-            'Column creation not yet implemented',
-            'COLUMN_CREATE_NOT_IMPLEMENTED'
-        );
+        const result = await this.run('createColumn', schemaName, async tx => {
+            // Validate schema exists
+            const schemaCheck = await tx.query(
+                `SELECT 1 FROM schemas WHERE schema_name = $1 AND trashed_at IS NULL`,
+                [schemaName]
+            );
+
+            if (schemaCheck.rows.length === 0) {
+                throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
+            }
+
+            // Validate schema is not protected
+            this.validateSchemaProtection(schemaName);
+
+            // Validate column name
+            this.validateColumnName(columnName);
+
+            // Check if column already exists
+            const columnCheck = await tx.query(
+                `SELECT 1 FROM columns WHERE schema_name = $1 AND column_name = $2`,
+                [schemaName, columnName]
+            );
+
+            if (columnCheck.rows.length > 0) {
+                throw HttpErrors.conflict(
+                    `Column '${columnName}' already exists in schema '${schemaName}'`,
+                    'COLUMN_ALREADY_EXISTS'
+                );
+            }
+
+            // Map user type to PostgreSQL type
+            const userType = columnDef.type || 'text';
+            const pgType = mapUserTypeToPgType(userType);
+
+            // Generate ALTER TABLE ADD COLUMN DDL
+            const isRequired = Boolean(columnDef.required);
+            const nullable = isRequired ? ' NOT NULL' : '';
+
+            let defaultValue = '';
+            if (columnDef.default_value !== undefined && columnDef.default_value !== null) {
+                if (typeof columnDef.default_value === 'string') {
+                    const escapedDefault = columnDef.default_value.replace(/'/g, "''");
+                    defaultValue = ` DEFAULT '${escapedDefault}'`;
+                } else if (typeof columnDef.default_value === 'number') {
+                    defaultValue = ` DEFAULT ${columnDef.default_value}`;
+                } else if (typeof columnDef.default_value === 'boolean') {
+                    defaultValue = ` DEFAULT ${columnDef.default_value}`;
+                }
+            }
+
+            const ddl = `ALTER TABLE "${schemaName}" ADD COLUMN "${columnName}" ${pgType}${nullable}${defaultValue}`;
+
+            // Execute DDL
+            await tx.query(ddl);
+
+            // Insert column record with provided columnName (not from body)
+            const columnRecord = {
+                ...columnDef,
+                column_name: columnName,
+                type: userType, // Store user-facing type, will be mapped in insertColumnRecord
+            };
+
+            await this.insertColumnRecord(tx, schemaName, columnRecord);
+
+            console.info('Column created successfully', { schemaName, columnName });
+
+            return {
+                schema_name: schemaName,
+                column_name: columnName,
+                type: userType,
+                created: true
+            };
+        });
+
+        // Invalidate cache after successful creation
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 
     /**
@@ -735,24 +887,187 @@ export class Describe {
      *
      * Executes DDL and updates columns table
      * Trigger will auto-regenerate JSON Schema in definitions table
+     *
+     * Supports both metadata updates and structural changes:
+     * - Metadata: description, pattern, minimum, maximum, enum_values, relationship fields
+     * - Structural: type (ALTER TYPE), required (SET/DROP NOT NULL), default_value (SET/DROP DEFAULT)
      */
     async updateColumn(schemaName: string, columnName: string, updates: any): Promise<any> {
-        throw HttpErrors.notImplemented(
-            'Column update not yet implemented',
-            'COLUMN_UPDATE_NOT_IMPLEMENTED'
-        );
+        const result = await this.run('updateColumn', schemaName, async tx => {
+            // Validate schema is not protected
+            this.validateSchemaProtection(schemaName);
+
+            // Get existing column
+            const existingResult = await tx.query(
+                `SELECT * FROM columns WHERE schema_name = $1 AND column_name = $2`,
+                [schemaName, columnName]
+            );
+
+            if (existingResult.rows.length === 0) {
+                throw HttpErrors.notFound(
+                    `Column '${columnName}' not found in schema '${schemaName}'`,
+                    'COLUMN_NOT_FOUND'
+                );
+            }
+
+            const existingColumn = existingResult.rows[0];
+            const ddlCommands: string[] = [];
+
+            // Handle type change
+            if (updates.type && updates.type !== mapPgTypeToUserType(existingColumn.type)) {
+                const newPgType = mapUserTypeToPgType(updates.type);
+                ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" TYPE ${newPgType}`);
+            }
+
+            // Handle required (NOT NULL) change
+            if (updates.required !== undefined) {
+                const newRequired = Boolean(updates.required);
+                const currentRequired = Boolean(existingColumn.required);
+
+                if (newRequired !== currentRequired) {
+                    if (newRequired) {
+                        ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" SET NOT NULL`);
+                    } else {
+                        ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" DROP NOT NULL`);
+                    }
+                }
+            }
+
+            // Handle default value change
+            if (updates.default_value !== undefined) {
+                if (updates.default_value === null) {
+                    // Remove default
+                    ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" DROP DEFAULT`);
+                } else {
+                    // Set new default
+                    let defaultValue: string;
+                    if (typeof updates.default_value === 'string') {
+                        const escapedDefault = updates.default_value.replace(/'/g, "''");
+                        defaultValue = `'${escapedDefault}'`;
+                    } else {
+                        defaultValue = String(updates.default_value);
+                    }
+                    ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" SET DEFAULT ${defaultValue}`);
+                }
+            }
+
+            // Execute all DDL commands
+            for (const ddl of ddlCommands) {
+                await tx.query(ddl);
+            }
+
+            // Build UPDATE query for columns table
+            const allowedFields = [
+                'type', 'required', 'default_value', 'description',
+                'minimum', 'maximum', 'pattern', 'enum_values', 'is_array',
+                'relationship_type', 'related_schema', 'related_column',
+                'relationship_name', 'cascade_delete', 'required_relationship'
+            ];
+
+            const setClause: string[] = [];
+            const values: any[] = [];
+            let paramIndex = 1;
+
+            for (const field of allowedFields) {
+                if (updates[field] !== undefined) {
+                    // Special handling for type field - map to PG type
+                    if (field === 'type') {
+                        setClause.push(`"${field}" = $${paramIndex}::column_type`);
+                        values.push(mapUserTypeToPgType(updates[field]));
+                    }
+                    // Special handling for boolean fields
+                    else if (field === 'required' || field === 'is_array' || field === 'cascade_delete' || field === 'required_relationship') {
+                        setClause.push(`"${field}" = $${paramIndex}`);
+                        values.push(Boolean(updates[field]));
+                    }
+                    else {
+                        setClause.push(`"${field}" = $${paramIndex}`);
+                        values.push(updates[field]);
+                    }
+                    paramIndex++;
+                }
+            }
+
+            if (setClause.length === 0) {
+                throw HttpErrors.badRequest('No valid fields to update', 'NO_UPDATES');
+            }
+
+            // Always update updated_at
+            setClause.push(`"updated_at" = NOW()`);
+
+            const updateQuery = `
+                UPDATE columns
+                SET ${setClause.join(', ')}
+                WHERE schema_name = $${paramIndex} AND column_name = $${paramIndex + 1}
+                RETURNING *
+            `;
+            values.push(schemaName, columnName);
+
+            const updateResult = await tx.query(updateQuery, values);
+
+            console.info('Column updated successfully', { schemaName, columnName, updates });
+
+            // Map PG type back to user type in response
+            const updatedColumn = updateResult.rows[0];
+            return {
+                ...updatedColumn,
+                type: mapPgTypeToUserType(updatedColumn.type),
+            };
+        });
+
+        // Invalidate cache after successful update
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 
     /**
      * Delete column
      *
-     * Executes DDL and removes from columns table
+     * Performs hard delete: soft-deletes from columns table AND drops column from PostgreSQL table
      * Trigger will auto-regenerate JSON Schema in definitions table
      */
     async deleteColumn(schemaName: string, columnName: string): Promise<any> {
-        throw HttpErrors.notImplemented(
-            'Column deletion not yet implemented',
-            'COLUMN_DELETE_NOT_IMPLEMENTED'
-        );
+        const result = await this.run('deleteColumn', schemaName, async tx => {
+            // Validate schema is not protected
+            this.validateSchemaProtection(schemaName);
+
+            // Check if column exists
+            const columnCheck = await tx.query(
+                `SELECT * FROM columns WHERE schema_name = $1 AND column_name = $2 AND trashed_at IS NULL`,
+                [schemaName, columnName]
+            );
+
+            if (columnCheck.rows.length === 0) {
+                throw HttpErrors.notFound(
+                    `Column '${columnName}' not found in schema '${schemaName}'`,
+                    'COLUMN_NOT_FOUND'
+                );
+            }
+
+            // Soft delete from columns table (sets trashed_at)
+            await tx.query(
+                `UPDATE columns SET trashed_at = NOW(), updated_at = NOW()
+                 WHERE schema_name = $1 AND column_name = $2`,
+                [schemaName, columnName]
+            );
+
+            // Hard delete from PostgreSQL table (DROP COLUMN)
+            const ddl = `ALTER TABLE "${schemaName}" DROP COLUMN "${columnName}"`;
+            await tx.query(ddl);
+
+            console.info('Column deleted successfully', { schemaName, columnName });
+
+            return {
+                schema_name: schemaName,
+                column_name: columnName,
+                deleted: true
+            };
+        });
+
+        // Invalidate cache after successful deletion
+        await this.invalidateSchemaCache(schemaName);
+
+        return result;
     }
 }

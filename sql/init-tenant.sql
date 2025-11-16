@@ -58,7 +58,7 @@ CREATE TABLE "columns" (
 	"schema_name" text NOT NULL,
 	"column_name" text NOT NULL,
 	"type" column_type NOT NULL,
-	"required" text DEFAULT 'false' NOT NULL,
+	"required" boolean DEFAULT false NOT NULL,
 	"default_value" text,
 	"description" text,
 
