@@ -338,3 +338,13 @@ SELECT
         "additionalProperties": false
     }'::text, 'sha256'), 'hex')
 FROM schemas s WHERE s.schema_name = 'users';
+
+-- Register definitions schema as a system schema requiring sudo access
+-- This prevents modification of the auto-generated definitions table
+INSERT INTO "schemas" (schema_name, status, sudo)
+VALUES (
+    'definitions',
+    'system',
+    true
+)
+ON CONFLICT (schema_name) DO NOTHING;

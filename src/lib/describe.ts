@@ -175,14 +175,48 @@ export class Describe {
     }
 
     /**
-     * Validate that schema is not protected (system schema)
+     * Validate that schema is not protected (requires sudo access)
+     *
+     * Checks the schemas.sudo column to determine if schema modifications require
+     * elevated permissions. This is a data-driven approach that allows marking any
+     * schema as requiring sudo access without code changes.
      */
-    private validateSchemaProtection(schemaName: string): void {
-        const protectedSchemas = ['schemas', 'columns', 'users', 'definitions'];
+    private async validateSchemaProtection(schemaName: string): Promise<void> {
+        const dtx = this.system.tx || this.system.db;
 
-        if (protectedSchemas.includes(schemaName)) {
-            throw HttpErrors.forbidden(`Schema '${schemaName}' is protected and cannot be modified`, 'SCHEMA_PROTECTED');
+        // Check if schema requires sudo access
+        const schemaQuery = await dtx.query(
+            `SELECT sudo FROM schemas WHERE schema_name = $1 AND trashed_at IS NULL LIMIT 1`,
+            [schemaName]
+        );
+
+        // If schema doesn't exist yet, allow creation (will be validated by other checks)
+        if (schemaQuery.rows.length === 0) {
+            return;
         }
+
+        const requiresSudo = schemaQuery.rows[0].sudo;
+
+        if (!requiresSudo) {
+            // Schema doesn't require sudo - allow modification
+            return;
+        }
+
+        // Schema requires sudo - verify user has sudo token
+        const jwtPayload = this.system.context.get('jwtPayload');
+
+        if (!jwtPayload?.is_sudo) {
+            throw HttpErrors.forbidden(
+                `Schema '${schemaName}' requires sudo access. Use POST /api/auth/sudo to get short-lived sudo token.`,
+                'SCHEMA_REQUIRES_SUDO'
+            );
+        }
+
+        logger.info('Sudo access validated for protected schema modification', {
+            schemaName,
+            userId: this.system.getUser?.()?.id,
+            elevation_reason: jwtPayload.elevation_reason
+        });
     }
 
     /**
@@ -310,7 +344,7 @@ export class Describe {
         const status = schemaDef.status || 'pending';
 
         // Validate schema protection
-        this.validateSchemaProtection(schemaName);
+        await this.validateSchemaProtection(schemaName);
 
         console.info('Creating schema via observer pipeline', { schemaName, columnCount: columns.length });
 
@@ -348,7 +382,7 @@ export class Describe {
      */
     async updateSchema(schemaName: string, updates: any): Promise<any> {
         const result = await this.run('update', schemaName, async tx => {
-            this.validateSchemaProtection(schemaName);
+            await this.validateSchemaProtection(schemaName);
 
             // Build UPDATE query for allowed fields
             const allowedFields = ['status'];
@@ -402,7 +436,7 @@ export class Describe {
      * Uses observer pipeline: ring 5 soft-deletes record, ring 6 drops table.
      */
     async deleteSchema(schemaName: string): Promise<any> {
-        this.validateSchemaProtection(schemaName);
+        await this.validateSchemaProtection(schemaName);
 
         console.info('Deleting schema via observer pipeline', { schemaName });
 
@@ -457,7 +491,7 @@ export class Describe {
      */
     async createColumn(schemaName: string, columnName: string, columnDef: any): Promise<any> {
         // Validate schema is not protected
-        this.validateSchemaProtection(schemaName);
+        await this.validateSchemaProtection(schemaName);
 
         // Validate column name
         this.validateColumnName(columnName);
@@ -496,7 +530,7 @@ export class Describe {
      */
     async updateColumn(schemaName: string, columnName: string, updates: any): Promise<any> {
         // Validate schema is not protected
-        this.validateSchemaProtection(schemaName);
+        await this.validateSchemaProtection(schemaName);
 
         console.info('Updating column via observer pipeline', { schemaName, columnName });
 
@@ -523,7 +557,7 @@ export class Describe {
      */
     async deleteColumn(schemaName: string, columnName: string): Promise<any> {
         // Validate schema is not protected
-        this.validateSchemaProtection(schemaName);
+        await this.validateSchemaProtection(schemaName);
 
         console.info('Deleting column via observer pipeline', { schemaName, columnName });
 

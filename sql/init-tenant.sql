@@ -36,6 +36,7 @@ CREATE TABLE "schemas" (
 	-- Implementation
 	"schema_name" text NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
+	"sudo" boolean DEFAULT false NOT NULL,
 
 	-- Constraints
 	CONSTRAINT "schema_name_unique" UNIQUE("schema_name")
@@ -106,26 +107,29 @@ CREATE TABLE "users" (
 
 -- Insert self-reference row to enable recursive schema discovery via data API
 -- This allows GET /api/data/schemas to work by querying the schemas table itself
-INSERT INTO "schemas" (schema_name, status)
+INSERT INTO "schemas" (schema_name, status, sudo)
 VALUES (
     'schemas',
-    'system'
+    'system',
+    true
 );
 
 -- Insert self-reference row to enable recursive schema discovery via data API
 -- This allows GET /api/data/columns to work by querying the columns table itself
-INSERT INTO "schemas" (schema_name, status)
+INSERT INTO "schemas" (schema_name, status, sudo)
 VALUES (
     'columns',
-    'system'
+    'system',
+    true
 );
 
 -- Insert user schema registration to enable user API access
 -- This allows GET /api/data/users to work
-INSERT INTO "schemas" (schema_name, status)
+INSERT INTO "schemas" (schema_name, status, sudo)
 VALUES (
     'users',
-    'system'
+    'system',
+    true
 );
 
 -- ============================================================================
