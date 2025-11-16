@@ -30,21 +30,19 @@ export default class ExistenceValidator extends BaseObserver {
 
         if (requestedIds.length === 0) {
             logger.info('No record IDs found for existence validation', { schemaName, operation });
-            metadata.set('existence_validation', 'skipped_no_ids');
             return;
         }
 
         // Get preloaded records to check existence
         const existingRecords = RecordPreloader.getPreloadedRecords(context);
-        const preloadStats = RecordPreloader.getPreloadStats(context);
+        const preloadStats = { foundCount: Object.keys(RecordPreloader.getPreloadedRecordsById(context)).length };
 
         // If preloading failed, we can't validate existence
-        if (RecordPreloader.hasPreloadError(context)) {
+        if (Object.keys(RecordPreloader.getPreloadedRecordsById(context)).length === 0) {
             logger.warn('Cannot validate record existence - preload failed', {
                 schemaName,
                 operation,
                 requestedIds: requestedIds.length,
-                requestedRecords: preloadStats.requestedCount
             });
 
             throw new BusinessLogicError(
@@ -108,10 +106,6 @@ export default class ExistenceValidator extends BaseObserver {
         }
 
         // All records exist and are valid for the operation
-        metadata.set('existence_validation', 'passed');
-        metadata.set('validated_record_count', existingRecords.length);
-        metadata.set('requested_record_count', requestedIds.length);
-        metadata.set('missing_record_count', 0);
 
         logger.info('Record existence validation passed', {
             schemaName,

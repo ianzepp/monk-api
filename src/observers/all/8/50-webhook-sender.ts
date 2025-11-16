@@ -52,9 +52,6 @@ export default class WebhookSender extends BaseAsyncObserver {
         
         // TODO: Temporarily disabled for testing - re-enable when webhook endpoints are configured
         logger.info(`📡 Webhook observer triggered for ${schema} ${operation} (disabled for testing)`);
-        metadata.set('webhooks_sent', 0);
-        metadata.set('webhooks_failed', 0);
-        metadata.set('webhook_timestamp', new Date().toISOString());
     }
 
     private getApplicableEndpoints(schema: string, operation: string): WebhookEndpoint[] {

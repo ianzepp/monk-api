@@ -30,21 +30,18 @@ export default class UpdateMerger extends BaseObserver {
 
         if (!Array.isArray(data) || data.length === 0) {
             logger.info('No update data found for merging', { schemaName, operation });
-            metadata.set('update_merge', 'skipped_no_data');
             return;
         }
 
         // Get preloaded existing records for merging
         const existingRecordsById = RecordPreloader.getPreloadedRecordsById(context);
-        const preloadStats = RecordPreloader.getPreloadStats(context);
 
-        // If preloading failed, we can't merge
-        if (RecordPreloader.hasPreloadError(context)) {
-            logger.warn('Cannot merge update data - preload failed', {
+        // Check if any records were preloaded
+        if (Object.keys(existingRecordsById).length === 0 && data.some(d => d?.id)) {
+            logger.warn('Cannot merge update data - no existing records preloaded', {
                 schemaName,
                 operation,
-                updateRecords: data.length,
-                requestedRecords: preloadStats.requestedCount
+                updateRecords: data.length
             });
 
             throw new BusinessLogicError(
@@ -56,7 +53,6 @@ export default class UpdateMerger extends BaseObserver {
 
         let mergedCount = 0;
         let skippedCount = 0;
-        const mergedRecords = [];
         const currentTimestamp = new Date().toISOString();
 
         // Process each update record
@@ -103,26 +99,10 @@ export default class UpdateMerger extends BaseObserver {
                 mergedRecord.id = existingRecord.id;
             }
 
-            // Track the merge for audit
-            mergedRecords.push({
-                recordId: updateData.id,
-                existingFields: Object.keys(existingRecord).length,
-                updateFields: Object.keys(updateData).length,
-                mergedFields: Object.keys(mergedRecord).length,
-                preservedTimestamp: existingRecord.created_at
-            });
-
             // Replace the original update data with merged data
             data[i] = mergedRecord;
             mergedCount++;
         }
-
-        // Record merge statistics
-        metadata.set('update_merge', 'completed');
-        metadata.set('merged_record_count', mergedCount);
-        metadata.set('skipped_record_count', skippedCount);
-        metadata.set('merge_timestamp', currentTimestamp);
-        metadata.set('merge_details', mergedRecords);
 
         logger.info('Update merge completed successfully', {
             schemaName,
@@ -133,43 +113,6 @@ export default class UpdateMerger extends BaseObserver {
             timestamp: currentTimestamp,
             existingRecordsAvailable: Object.keys(existingRecordsById).length
         });
-    }
-
-    /**
-     * Helper method to check if a record was merged
-     */
-    static wasRecordMerged(context: ObserverContext, recordId: string): boolean {
-        const mergeDetails = context.metadata.get('merge_details') || [];
-        return mergeDetails.some((detail: any) => detail.recordId === recordId);
-    }
-
-    /**
-     * Helper method to get merge details for a specific record
-     */
-    static getRecordMergeDetails(context: ObserverContext, recordId: string): any | null {
-        const mergeDetails = context.metadata.get('merge_details') || [];
-        return mergeDetails.find((detail: any) => detail.recordId === recordId) || null;
-    }
-
-    /**
-     * Helper method to get overall merge statistics
-     */
-    static getMergeStats(context: ObserverContext): {
-        wasMerged: boolean;
-        mergedCount: number;
-        skippedCount: number;
-        timestamp: string | null;
-        status: string;
-    } {
-        const metadata = context.metadata;
-
-        return {
-            wasMerged: metadata.has('update_merge'),
-            mergedCount: metadata.get('merged_record_count') || 0,
-            skippedCount: metadata.get('skipped_record_count') || 0,
-            timestamp: metadata.get('merge_timestamp') || null,
-            status: metadata.get('update_merge') || 'not_merged'
-        };
     }
 
     /**

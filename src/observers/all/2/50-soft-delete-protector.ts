@@ -29,16 +29,14 @@ export default class SoftDeleteProtector extends BaseObserver {
 
         // Use preloaded existing records to check trashed status
         const existingRecords = RecordPreloader.getPreloadedRecords(context);
-        const preloadStats = RecordPreloader.getPreloadStats(context);
+        const preloadStats = { foundCount: Object.keys(RecordPreloader.getPreloadedRecordsById(context)).length };
 
         // If preloading failed, we can't validate - let other observers handle
-        if (RecordPreloader.hasPreloadError(context)) {
+        if (Object.keys(RecordPreloader.getPreloadedRecordsById(context)).length === 0) {
             logger.warn('Cannot validate soft delete protection - preload failed', {
                 schemaName,
                 operation,
-                requestedRecords: preloadStats.requestedCount
             });
-            metadata.set('soft_delete_protection', 'skipped_preload_error');
             return;
         }
 
@@ -92,10 +90,6 @@ export default class SoftDeleteProtector extends BaseObserver {
         }
 
         // Record successful protection check
-        metadata.set('soft_delete_protection', 'passed');
-        metadata.set('protected_record_count', existingRecords.length);
-        metadata.set('trashed_record_count', 0);
-        metadata.set('deleted_record_count', 0);
 
         logger.info('Soft delete protection check passed', {
             schemaName,

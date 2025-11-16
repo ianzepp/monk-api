@@ -43,7 +43,6 @@ export default class UuidArrayProcessor extends BaseObserver {
             for (const fieldName of this.UUID_ARRAY_FIELDS) {
                 if (record[fieldName] && Array.isArray(record[fieldName])) {
                     // Set metadata flag for SQL observers to use PostgreSQL array format
-                    metadata.set(`${fieldName}_is_uuid_array`, true);
                     processedFields++;
                     recordHasUuidArrays = true;
                 }
@@ -55,9 +54,6 @@ export default class UuidArrayProcessor extends BaseObserver {
         }
 
         // Log processing summary for audit
-        metadata.set('uuid_array_processing', 'completed');
-        metadata.set('uuid_fields_processed', processedFields);
-        metadata.set('records_with_uuid_arrays', processedRecords);
 
         if (processedFields > 0) {
             logger.info('UUID array processing completed', {

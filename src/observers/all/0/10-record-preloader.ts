@@ -59,10 +59,9 @@ export default class RecordPreloader extends BaseObserver {
                 }, {} as Record<string, any>)
             );
 
+            // Store as frozen data for other observers (data sharing pattern)
             metadata.set('existing_records', frozenRecords);
             metadata.set('existing_records_by_id', frozenById);
-            metadata.set('preloaded_record_count', existingRecords.length);
-            metadata.set('requested_record_count', recordIds.length);
 
             logger.info(`Successfully preloaded ${existingRecords.length} existing records`, {
                 schemaName,
@@ -80,12 +79,9 @@ export default class RecordPreloader extends BaseObserver {
                 error: error instanceof Error ? error.message : String(error)
             });
 
-            // Don't throw - let other observers handle missing data
-            // Set empty metadata so other observers can check for preload failure
+            // Set empty metadata so other observers can safely access it
             metadata.set('existing_records', Object.freeze([]));
             metadata.set('existing_records_by_id', Object.freeze({}));
-            metadata.set('preloaded_record_count', 0);
-            metadata.set('preload_error', true);
         }
     }
 
@@ -137,27 +133,5 @@ export default class RecordPreloader extends BaseObserver {
     static getPreloadedRecordsById(context: ObserverContext): Readonly<Record<string, any>> {
         const recordsById = context.metadata.get('existing_records_by_id');
         return recordsById || {};
-    }
-
-    /**
-     * Helper method to check if preloading failed
-     */
-    static hasPreloadError(context: ObserverContext): boolean {
-        return context.metadata.get('preload_error') === true;
-    }
-
-    /**
-     * Helper method to get preload statistics
-     */
-    static getPreloadStats(context: ObserverContext): {
-        requestedCount: number;
-        foundCount: number;
-        hasError: boolean;
-    } {
-        return {
-            requestedCount: context.metadata.get('requested_record_count') || 0,
-            foundCount: context.metadata.get('preloaded_record_count') || 0,
-            hasError: context.metadata.get('preload_error') === true
-        };
     }
 }

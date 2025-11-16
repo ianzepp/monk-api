@@ -44,8 +44,6 @@ export default class CacheInvalidator extends BaseAsyncObserver {
             await this.invalidateSearchCache(schemaName, operation);
 
             // Mark cache invalidation complete
-            metadata.set('cache_invalidated', true);
-            metadata.set('cache_invalidation_timestamp', new Date().toISOString());
 
         } catch (error) {
             // Cache invalidation failures are system errors
