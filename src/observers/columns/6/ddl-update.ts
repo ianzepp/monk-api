@@ -15,28 +15,6 @@ import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField } from '@src/lib/describe.js';
 
-/**
- * Map user-facing type to PostgreSQL type
- */
-const TYPE_MAPPING: Record<string, string> = {
-    'text': 'text',
-    'integer': 'integer',
-    'decimal': 'numeric',
-    'boolean': 'boolean',
-    'timestamp': 'timestamp',
-    'date': 'date',
-    'uuid': 'uuid',
-    'jsonb': 'jsonb',
-    'text[]': 'text[]',
-    'integer[]': 'integer[]',
-    'decimal[]': 'numeric[]',
-    'uuid[]': 'uuid[]',
-} as const;
-
-function mapUserTypeToPgType(userType: string): string {
-    return TYPE_MAPPING[userType] || userType;
-}
-
 export default class DdlUpdateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['update'] as const;
@@ -63,8 +41,9 @@ export default class DdlUpdateObserver extends BaseObserver {
         const ddlCommands: string[] = [];
 
         // Handle type change
-        const oldPgType = mapUserTypeToPgType(oldRecord.type);
-        const newPgType = mapUserTypeToPgType(record.type);
+        // Types are already PostgreSQL types (converted by Ring 4 type-mapper)
+        const oldPgType = oldRecord.type;
+        const newPgType = record.type;
 
         if (oldPgType !== newPgType) {
             ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" TYPE ${newPgType}`);

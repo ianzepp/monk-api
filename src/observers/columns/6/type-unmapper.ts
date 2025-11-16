@@ -1,14 +1,35 @@
 /**
- * Type Unmapper Observer - Ring 7 Output Transformation
+ * Type Unmapper Observer - Ring 6 PostDatabase
  *
- * Maps PostgreSQL column_type values back to user-facing type names
- * when columns are selected from the database.
+ * Maps PostgreSQL column_type values back to user-facing type names for ALL operations
+ * that return column data (select, create, update, delete).
  *
- * This ensures that internal code, observers, and API responses all see
- * user-friendly type names (e.g., "decimal") instead of PostgreSQL-specific
- * names (e.g., "numeric").
+ * This ensures API responses always show user-friendly type names (e.g., "decimal")
+ * instead of PostgreSQL-specific names (e.g., "numeric").
  *
- * Paired with Ring 1 type-mapper.ts which does the reverse mapping.
+ * ## Why No TypeMapper in Ring 6?
+ *
+ * Type mapping is UNIDIRECTIONAL in the observer pipeline:
+ *
+ * **Incoming (User → Database):**
+ * - Ring 4 type-mapper converts user types → PG types BEFORE database write
+ * - Ring 5 database writes PG types to columns table
+ * - Ring 6 DDL observers receive PG types (no mapping needed!)
+ *
+ * **Outgoing (Database → User):**
+ * - Ring 5 database reads PG types from columns table
+ * - Ring 6 type-unmapper converts PG types → user types AFTER database read
+ * - API responses show user-friendly types
+ *
+ * This architecture ensures:
+ * - Rings 1-3 work with user types (validation, security, business logic)
+ * - Ring 4 transforms user types → PG types (enrichment)
+ * - Ring 5 only sees PG types (database operations)
+ * - Ring 6 DDL uses PG types directly (no mapping needed)
+ * - Ring 6 unmapper restores user types for API responses
+ * - Single source of truth for type mappings (DRY principle)
+ *
+ * Paired with Ring 4 type-mapper.ts which does the forward mapping.
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -38,8 +59,8 @@ const REVERSE_TYPE_MAPPING: Record<string, string> = {
 
 export default class TypeUnmapperObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
-    readonly operations = ['select'] as const;
-    readonly priority = 80;  // Run after DDL observers (which are typically priority 10-50)
+    readonly operations = ['select', 'create', 'update', 'delete'] as const;  // All operations that return data
+    readonly priority = 80;  // Run after DDL observers (priority 10)
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {
         if (!record || !record.type) {
