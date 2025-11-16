@@ -99,6 +99,32 @@ curl -X POST http://localhost:9001/auth/login \
 2. Hex → Morse code (dots and dashes)
 3. Morse → Hex → JSON (perfect round-trip)
 
+### QR Code (Response-Only)
+Generates scannable ASCII art QR codes from JSON responses. Perfect for mobile access and air-gapped data transfer.
+
+**Request:**
+```bash
+curl http://localhost:9001/auth/tenants?format=qr
+```
+
+**Response:**
+```
+█████████████████████████████████████████
+██ ▄▄▄▄▄ █▀ ▀█▀  ▀▄█ ▄█▀  ▀▀▄▄█  █▄▀ ▄▄▀██
+██ █   █ ██▀█▀▀█ ██   █▀█ ▀▄▄██▀▄██ ▄▄▄██
+██ █▄▄▄█ █▄▄  ▀▄▀▄█ ██▀▀█▀ ▄▄▄ ▀ ▀█  ▀▄ ██
+██▄▄▄▄▄▄▄█▄█ ▀▄▀▄█ ▀ █ ▀▄▀ █▄█ ▀▄▀ █ ▀ ███
+...
+```
+
+**Features:**
+- Scannable with any QR code reader app
+- Medium error correction for reliability
+- Unicode block characters (█ ▀ ▄) for high contrast
+- Works in terminals and text displays
+
+**Note:** QR code decoding for request bodies is intentionally not supported.
+
 ## Format Selection
 
 Formats can be specified in three ways (in priority order):
@@ -132,6 +158,7 @@ All subsequent requests with that JWT will default to TOON format.
 | YAML | ✓ | ✓ |
 | Brainfuck | ✗ | ✓ |
 | Morse | ✓ | ✓ |
+| QR Code | ✗ | ✓ |
 
 ## Content-Type Headers
 
@@ -168,6 +195,13 @@ Request bodies must specify the correct Content-Type header:
 - Ham radio integrations
 - Accessibility applications
 - Educational/novelty use
+
+### QR Code
+- Mobile device access (scan with phone camera)
+- Screen sharing / presentations
+- Air-gapped data transfer
+- Terminal-based workflows
+- Quick data sharing without copy/paste
 
 ## Implementation Details
 
