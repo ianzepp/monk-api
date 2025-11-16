@@ -379,7 +379,7 @@ export class FileOperationService {
 
         // Get current column definition from columns table
         const describe = new Describe(this.system as any);
-        const column = await describe.getColumn(filePath.schema!, columnName);
+        const column = await describe.selectColumn(filePath.schema!, columnName);
 
         // Build update object with single property change
         const updates = { [propertyName]: content };
@@ -388,7 +388,7 @@ export class FileOperationService {
         await describe.updateColumn(filePath.schema!, columnName, updates);
 
         // Get updated column for metadata
-        const updatedColumn = await describe.getColumn(filePath.schema!, columnName);
+        const updatedColumn = await describe.selectColumn(filePath.schema!, columnName);
         const timestamp = FileTimestampFormatter.format(updatedColumn.updated_at || new Date().toISOString());
         const canonicalContent = typeof content === 'string' ? content : JSON.stringify(content);
         const size = FileContentCalculator.calculateSize(canonicalContent);
@@ -828,7 +828,7 @@ export class FileOperationService {
      */
     private async listFieldProperties(filePath: FilePath, options: FileListRequest['file_options'] = {}): Promise<ListResult> {
         const describe = new Describe(this.system as any);
-        const column = await describe.getColumn(filePath.schema!, filePath.record_id!);
+        const column = await describe.selectColumn(filePath.schema!, filePath.record_id!);
 
         const timestamp = FileTimestampFormatter.format(column.updated_at || column.created_at);
 
@@ -932,7 +932,7 @@ export class FileOperationService {
         }
 
         const describe = new Describe(this.system as any);
-        const column = await describe.getColumn(filePath.schema!, filePath.record_id!);
+        const column = await describe.selectColumn(filePath.schema!, filePath.record_id!);
 
         // Get the property value from column record
         const propertyName = filePath.field_name!;

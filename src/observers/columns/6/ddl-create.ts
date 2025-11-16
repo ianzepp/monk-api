@@ -37,6 +37,7 @@ function mapUserTypeToPgType(userType: string): string {
 export default class DdlCreateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['create'] as const;
+    readonly priority = 10;  // High priority - DDL should run before data transformations
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {
         const { system } = context;

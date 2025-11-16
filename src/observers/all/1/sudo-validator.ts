@@ -26,19 +26,9 @@ export default class SudoValidator extends BaseObserver {
     async execute(context: ObserverContext): Promise<void> {
         const { system, schema } = context;
 
-        // Check if this schema requires sudo access
-        const schemaQuery = await system.db.query(
-            `SELECT sudo FROM schemas WHERE schema_name = $1 AND trashed_at IS NULL LIMIT 1`,
-            [schema.schema_name]
-        );
-
-        if (schemaQuery.rows.length === 0) {
-            // Schema doesn't exist yet (creation) or is trashed - allow normal processing
-            // Creation will be validated by other observers
-            return;
-        }
-
-        const requiresSudo = schemaQuery.rows[0].sudo;
+        // Use cached schema data - the schema object comes from SchemaCache via Database.toSchema()
+        // This avoids redundant database queries since the schema is already loaded and cached
+        const requiresSudo = schema.sudo ?? false;
 
         if (!requiresSudo) {
             // Schema doesn't require sudo - allow normal processing

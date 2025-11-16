@@ -133,6 +133,45 @@ VALUES (
 );
 
 -- ============================================================================
+-- Column Definitions for System Schemas
+-- ============================================================================
+-- These define the portable (non-system) columns for the core schemas.
+-- System fields (id, access_*, created_at, etc.) are automatically added
+-- to all tables and should NOT be included here.
+
+-- Column definitions for 'schemas' schema
+INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
+    ('schemas', 'schema_name', 'text', true, 'Unique name for the schema'),
+    ('schemas', 'status', 'text', true, 'Schema status (pending, active, system)'),
+    ('schemas', 'sudo', 'boolean', true, 'Whether schema modifications require sudo access');
+
+-- Column definitions for 'columns' schema
+INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
+    ('columns', 'schema_name', 'text', true, 'Name of the schema this column belongs to'),
+    ('columns', 'column_name', 'text', true, 'Name of the column'),
+    ('columns', 'type', 'text', true, 'Data type of the column'),
+    ('columns', 'required', 'boolean', true, 'Whether the column is required (NOT NULL)'),
+    ('columns', 'default_value', 'text', false, 'Default value for the column'),
+    ('columns', 'description', 'text', false, 'Human-readable description of the column'),
+    ('columns', 'relationship_type', 'text', false, 'Type of relationship (owned, referenced)'),
+    ('columns', 'related_schema', 'text', false, 'Related schema for relationships'),
+    ('columns', 'related_column', 'text', false, 'Related column for relationships'),
+    ('columns', 'relationship_name', 'text', false, 'Name of the relationship'),
+    ('columns', 'cascade_delete', 'boolean', false, 'Whether to cascade delete on relationship'),
+    ('columns', 'required_relationship', 'boolean', false, 'Whether the relationship is required'),
+    ('columns', 'minimum', 'numeric', false, 'Minimum value constraint for numeric columns'),
+    ('columns', 'maximum', 'numeric', false, 'Maximum value constraint for numeric columns'),
+    ('columns', 'pattern', 'text', false, 'Regular expression pattern for validation'),
+    ('columns', 'enum_values', 'text[]', false, 'Allowed enum values'),
+    ('columns', 'is_array', 'boolean', false, 'Whether the column is an array type');
+
+-- Column definitions for 'users' schema
+INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
+    ('users', 'name', 'text', true, 'User display name'),
+    ('users', 'auth', 'text', true, 'Authentication identifier'),
+    ('users', 'access', 'text', true, 'User access level (root, full, edit, read, deny)');
+
+-- ============================================================================
 -- Utility Function: Create Table from Schema Definition
 -- ============================================================================
 -- This function reads from schemas/columns tables and generates/executes DDL

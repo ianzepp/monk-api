@@ -49,11 +49,8 @@ export default withTransactionParams(async (context, { system, schema, record, o
         select: ['id']
     }, undefined, options);
 
-    // Replace all ACL lists
-    const result = await system.database.updateOne(schema!, record!, updates);
-
-    // Get the updated record to return actual values
-    const updatedRecord = await system.database.selectOne(schema!, { where: { id: record! } });
+    // Replace all ACL lists (returns the updated record)
+    const updatedRecord = await system.database.updateOne(schema!, record!, updates);
 
     // Return ACL data (middleware will wrap in success response)
     setRouteResult(context, {

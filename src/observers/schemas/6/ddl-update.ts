@@ -15,6 +15,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 export default class DdlUpdateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['update'] as const;
+    readonly priority = 10;  // High priority - DDL should run before data transformations
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {
         // Schema updates only affect metadata (status field)

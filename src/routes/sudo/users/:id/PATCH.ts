@@ -18,6 +18,5 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  */
 export default withTransactionParams(async (context, { system, body }) => {
     const userId = context.req.param('id');
-    const result = await system.database.updateOne('users', userId, body);
-    return result;
+    await system.database.updateOne('users', userId, body);
 });

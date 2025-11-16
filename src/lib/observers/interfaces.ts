@@ -72,6 +72,9 @@ export interface Observer {
     /** Optional: limit to specific operations (default: all operations) */
     operations?: readonly OperationType[];
 
+    /** Optional: execution priority within a ring (lower numbers execute first, default: 50) */
+    priority?: number;
+
     /** Optional: observer name for debugging and error reporting */
     name?: string;
 
@@ -83,7 +86,7 @@ export interface Observer {
      * @param context Shared context with request data and state
      */
     executeTry(context: ObserverContext): Promise<void>;
-    
+
     /**
      * Pure business logic method - implement this in your observer
      * @param context Shared context with request data and state

@@ -14,6 +14,7 @@ import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 export default class DdlDeleteObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['delete'] as const;
+    readonly priority = 10;  // High priority - DDL should run before data transformations
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {
         const { system } = context;

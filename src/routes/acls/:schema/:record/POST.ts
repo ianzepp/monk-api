@@ -60,11 +60,8 @@ export default withTransactionParams(async (context, { system, schema, record, o
         }
     }
 
-    // Update the record
-    const result = await system.database.updateOne(schema!, record!, mergedUpdates);
-
-    // Get the updated record to return actual values
-    const updatedRecord = await system.database.selectOne(schema!, { where: { id: record! } });
+    // Update the record (returns the updated record)
+    const updatedRecord = await system.database.updateOne(schema!, record!, mergedUpdates);
 
     // Return ACL data (middleware will wrap in success response)
     setRouteResult(context, {

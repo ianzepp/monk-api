@@ -2,6 +2,14 @@ import type { DbContext, TxContext } from '@src/db/index.js';
 
 import type { System } from '@src/lib/system.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { logger } from '@src/lib/logger.js';
+import type {
+    SchemaRecord,
+    ColumnRecord,
+    DbRecord,
+    DbCreateInput,
+    SystemFields,
+} from '@src/lib/database-types.js';
 
 export interface JsonSchemaProperty {
     type: string;
@@ -59,66 +67,6 @@ export function isSystemField(fieldName: string): boolean {
 }
 
 /**
- * User-facing type names (API input) mapped to PostgreSQL column_type enum values
- *
- * User types are more generic and user-friendly (e.g., "decimal")
- * PostgreSQL types are the actual enum values in the database (e.g., "numeric")
- */
-const TYPE_MAPPING: Record<string, string> = {
-    // Scalar types
-    'text': 'text',
-    'integer': 'integer',
-    'decimal': 'numeric',      // User-facing "decimal" maps to PostgreSQL "numeric"
-    'boolean': 'boolean',
-    'timestamp': 'timestamp',
-    'date': 'date',
-    'uuid': 'uuid',
-    'jsonb': 'jsonb',
-
-    // Array types
-    'text[]': 'text[]',
-    'integer[]': 'integer[]',
-    'decimal[]': 'numeric[]',  // User-facing "decimal[]" maps to PostgreSQL "numeric[]"
-    'uuid[]': 'uuid[]',
-} as const;
-
-/**
- * Valid user-facing type names
- */
-const VALID_USER_TYPES = Object.keys(TYPE_MAPPING);
-
-/**
- * Map user-facing type name to PostgreSQL column_type enum value
- */
-function mapUserTypeToPgType(userType: string): string {
-    const pgType = TYPE_MAPPING[userType];
-
-    if (!pgType) {
-        throw HttpErrors.badRequest(
-            `Invalid type '${userType}'. Valid types: ${VALID_USER_TYPES.join(', ')}`,
-            'INVALID_COLUMN_TYPE'
-        );
-    }
-
-    return pgType;
-}
-
-/**
- * Map PostgreSQL column_type enum value back to user-facing type name
- */
-function mapPgTypeToUserType(pgType: string): string {
-    // Reverse lookup
-    for (const [userType, mappedPgType] of Object.entries(TYPE_MAPPING)) {
-        if (mappedPgType === pgType) {
-            return userType;
-        }
-    }
-
-    // If no mapping found, return as-is (should not happen with valid data)
-    return pgType;
-}
-
-/**
  * Describe Class - Schema Definition Management
  *
  * Handles schema JSON operations following the same patterns as Database class.
@@ -133,46 +81,7 @@ function mapPgTypeToUserType(pgType: string): string {
 export class Describe {
     constructor(private system: System) {}
 
-    /**
-     * Invalidate schema cache after modifications
-     * All schema writes go through this class, so we control cache invalidation
-     */
-    private async invalidateSchemaCache(schemaName: string): Promise<void> {
-        const { SchemaCache } = await import('@src/lib/schema-cache.js');
-        SchemaCache.getInstance().invalidateSchema(this.system, schemaName);
-    }
 
-    /**
-     * Transaction management pattern (consistent with Database class)
-     */
-    private async run(
-        operation: string,
-        schemaName: string,
-        fn: (tx: TxContext | DbContext) => Promise<any>
-    ): Promise<any> {
-        const executor: TxContext | DbContext = this.system.tx ?? this.system.db;
-        const inTransaction = Boolean(this.system.tx);
-
-        console.debug(
-            `🔄 Describe operation starting`,
-            { operation, schemaName, inTransaction }
-        );
-
-        try {
-            const result = await fn(executor);
-
-            console.debug(`✅ Describe operation completed`, { operation, schemaName, inTransaction });
-            return result;
-        } catch (error) {
-            console.error(`💥 Describe operation failed`, {
-                operation,
-                schemaName,
-                inTransaction,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            throw error;
-        }
-    }
 
     /**
      * Validate that schema is not protected (requires sudo access)
@@ -259,70 +168,59 @@ export class Describe {
     // ===========================
 
     /**
-     * List all schemas
+     * Select all schemas
      *
      * Returns array of schema records
      */
-    async listSchemas(): Promise<any[]> {
-        const dtx = this.system.tx || this.system.db;
-
-        const result = await dtx.query(`
-            SELECT *
-            FROM schemas
-            WHERE trashed_at IS NULL
-            ORDER BY schema_name
-        `);
-
-        return result.rows;
+    async selectSchemas(): Promise<SchemaRecord[]> {
+        return this.system.database.selectAny<SchemaRecord>('schemas', {
+            order: { schema_name: 'asc' }
+        });
     }
 
     /**
-     * Get schema definition in Monk-native format
+     * Select single schema by name
      *
-     * Returns schema record with columns array from columns table
+     * Returns schema record, throws 404 if not found
      */
-    async getSchema(schemaName: string): Promise<any> {
-        const db = this.system.db;
-
-        // Get schema record from database (exclude soft-deleted schemas)
-        const schemaQuery = `
-            SELECT *
-            FROM schemas
-            WHERE schema_name = $1 AND trashed_at IS NULL
-            LIMIT 1
-        `;
-        const schemaResult = await db.query(schemaQuery, [schemaName]);
-
-        if (schemaResult.rows.length === 0) {
-            throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
-        }
-
-        const schema = schemaResult.rows[0];
-
-        // Get columns for this schema
-        const columnsQuery = `
-            SELECT *
-            FROM columns
-            WHERE schema_name = $1 AND trashed_at IS NULL
-            ORDER BY column_name
-        `;
-        const columnsResult = await db.query(columnsQuery, [schemaName]);
-
-        // Map PostgreSQL types back to user-facing types in column records
-        const columns = columnsResult.rows.map((col: any) => ({
-            ...col,
-            type: mapPgTypeToUserType(col.type),
-        }));
-
-        // Return schema with columns array (definitions table is internal, not exposed)
-        return {
-            ...schema,
-            columns,
-        };
+    async selectSchema(schemaName: string): Promise<SchemaRecord> {
+        return this.system.database.select404<SchemaRecord>(
+            'schemas',
+            { where: { schema_name: schemaName } },
+            `Schema '${schemaName}' not found`
+        );
     }
 
     /**
-     * Create new schema in Monk-native format
+     * Select all columns for a schema
+     *
+     * Returns column records from columns table with user-facing type names
+     */
+    async selectColumns(schemaName: string): Promise<ColumnRecord[]> {
+        return this.system.database.selectAny<ColumnRecord>(
+            'columns',
+            {
+                where: { schema_name: schemaName },
+                order: { column_name: 'asc' }
+            }
+        );
+    }
+
+    /**
+     * Select single column by schema and column name
+     *
+     * Returns column record, throws 404 if not found
+     */
+    async selectColumn(schemaName: string, columnName: string): Promise<ColumnRecord> {
+        return this.system.database.select404<ColumnRecord>(
+            'columns',
+            { where: { schema_name: schemaName, column_name: columnName } },
+            `Column '${columnName}' not found in schema '${schemaName}'`
+        );
+    }
+
+    /**
+     * Create new schema
      *
      * Input format:
      * {
@@ -334,41 +232,41 @@ export class Describe {
      * Uses observer pipeline: ring 5 inserts metadata, ring 6 executes DDL.
      * Trigger will auto-generate JSON Schema in definitions table.
      */
-    async createSchema(schemaName: string, schemaDef: any): Promise<any> {
+    async createSchema(schemaName: string, schemaDef: { status?: string; columns?: any[] } = {}): Promise<SchemaRecord> {
         // Validate required fields
         if (!schemaName) {
             throw HttpErrors.badRequest('schema_name is required', 'MISSING_REQUIRED_FIELDS');
         }
 
+        // Validate schema protection (checks if schema already exists and requires sudo)
+        await this.validateSchemaProtection(schemaName);
+
         const columns = schemaDef.columns || [];
         const status = schemaDef.status || 'pending';
 
-        // Validate schema protection
-        await this.validateSchemaProtection(schemaName);
-
-        console.info('Creating schema via observer pipeline', { schemaName, columnCount: columns.length });
+        logger.info('Creating schema via observer pipeline', { schemaName, columnCount: columns.length });
 
         // Step 1: Create schema record (ring 5 inserts, ring 6 creates table with system fields)
-        await this.system.database.createOne('schemas', {
+        const schema = await this.system.database.createOne<Omit<SchemaRecord, keyof SystemFields>>('schemas', {
             schema_name: schemaName,
             status: status
-        });
+        }) as SchemaRecord;
 
         // Step 2: Create column records (ring 5 inserts, ring 6 alters table for each column)
+        // Type mapping is handled by Ring 1 observer (user→PG)
         if (columns.length > 0) {
-            const columnData = columns.map((col: any) => ({
-                ...col,
-                schema_name: schemaName
-            }));
-            await this.system.database.createAll('columns', columnData);
+            await this.system.database.createAll<Omit<ColumnRecord, keyof SystemFields>>('columns',
+                columns.map(col => ({
+                    ...col,
+                    schema_name: schemaName,
+                    type: col.type || 'text'
+                }))
+            );
         }
 
-        console.info('Schema created successfully via observer pipeline', { schemaName });
+        logger.info('Schema created successfully via observer pipeline', { schemaName });
 
-        // Invalidate cache after successful creation
-        await this.invalidateSchemaCache(schemaName);
-
-        return { name: schemaName, table: schemaName, created: true };
+        return schema;
     }
 
     /**
@@ -380,54 +278,26 @@ export class Describe {
      * Allowed updates:
      * - status
      */
-    async updateSchema(schemaName: string, updates: any): Promise<any> {
-        const result = await this.run('update', schemaName, async tx => {
-            await this.validateSchemaProtection(schemaName);
+    async updateSchema(schemaName: string, updates: { status?: string }): Promise<SchemaRecord> {
+        // Validate schema protection
+        await this.validateSchemaProtection(schemaName);
 
-            // Build UPDATE query for allowed fields
-            const allowedFields = ['status'];
-            const setClause: string[] = [];
-            const values: any[] = [];
-            let paramIndex = 1;
+        // Validate at least one field provided
+        if (Object.keys(updates).length === 0) {
+            throw HttpErrors.badRequest('No valid fields to update', 'NO_UPDATES');
+        }
 
-            for (const field of allowedFields) {
-                if (updates[field] !== undefined) {
-                    setClause.push(`"${field}" = $${paramIndex}`);
-                    values.push(updates[field]);
-                    paramIndex++;
-                }
-            }
+        logger.info('Updating schema metadata', { schemaName, updates });
 
-            if (setClause.length === 0) {
-                throw HttpErrors.badRequest('No valid fields to update', 'NO_UPDATES');
-            }
+        // Update via database (goes through observer pipeline)
+        const schema = await this.system.database.update404<SchemaRecord>(
+            'schemas',
+            { where: { schema_name: schemaName } },
+            updates,
+            `Schema '${schemaName}' not found`
+        );
 
-            // Always update updated_at
-            setClause.push(`"updated_at" = NOW()`);
-
-            const updateQuery = `
-                UPDATE schemas
-                SET ${setClause.join(', ')}
-                WHERE schema_name = $${paramIndex} AND trashed_at IS NULL
-                RETURNING *
-            `;
-            values.push(schemaName);
-
-            const queryResult = await tx.query(updateQuery, values);
-
-            if (queryResult.rows.length === 0) {
-                throw HttpErrors.notFound(`Schema '${schemaName}' not found`, 'SCHEMA_NOT_FOUND');
-            }
-
-            console.info('Schema metadata updated', { schemaName, updates });
-
-            return queryResult.rows[0];
-        });
-
-        // Invalidate cache after successful update
-        await this.invalidateSchemaCache(schemaName);
-
-        return result;
+        return schema;
     }
 
     /**
@@ -435,30 +305,22 @@ export class Describe {
      *
      * Uses observer pipeline: ring 5 soft-deletes record, ring 6 drops table.
      */
-    async deleteSchema(schemaName: string): Promise<any> {
+    async deleteSchema(schemaName: string): Promise<SchemaRecord> {
+        // Validate schema protection
         await this.validateSchemaProtection(schemaName);
 
-        console.info('Deleting schema via observer pipeline', { schemaName });
-
-        // Find schema by name
-        const results = await this.system.database.selectAny('schemas', {
-            where: { schema_name: schemaName },
-            limit: 1
-        });
-
-        if (results.length === 0) {
-            throw HttpErrors.notFound("Schema '${schemaName}' not found", 'SCHEMA_NOT_FOUND');
-        }
+        logger.info('Deleting schema via observer pipeline', { schemaName });
 
         // Delete schema (ring 5 soft deletes, ring 6 drops table)
-        await this.system.database.deleteOne('schemas', results[0].id);
+        const schema = await this.system.database.delete404<SchemaRecord>(
+            'schemas',
+            { where: { schema_name: schemaName } },
+            `Schema '${schemaName}' not found`
+        );
 
-        console.info('Schema deleted successfully via observer pipeline', { schemaName });
+        logger.info('Schema deleted successfully via observer pipeline', { schemaName });
 
-        // Invalidate cache after successful deletion
-        await this.invalidateSchemaCache(schemaName);
-
-        return { name: schemaName, deleted: true };
+        return schema;
     }
 
     // ===========================
@@ -466,126 +328,74 @@ export class Describe {
     // ===========================
 
     /**
-     * Get column definition in Monk-native format
+     * Create new column
      *
-     * Returns column record from columns table
+     * Executes DDL and inserts into columns table via observer pipeline.
+     * Trigger will auto-generate JSON Schema in definitions table.
      */
-    async getColumn(schemaName: string, columnName: string): Promise<any> {
-        const dtx = this.system.tx || this.system.db;
-
-        const result = await dtx.query(
-            `SELECT * FROM columns WHERE schema_name = $1 AND column_name = $2`,
-            [schemaName, columnName]
-        );
-
-        if (result.rows.length === 0) {
-            throw HttpErrors.notFound(
-                `Column '${columnName}' not found in schema '${schemaName}'`,
-                'COLUMN_NOT_FOUND'
-            );
-        }
-
-        // Map PostgreSQL type back to user-facing type
-        const column = result.rows[0];
-        return {
-            ...column,
-            type: mapPgTypeToUserType(column.type),
-        };
-    }
-
-    /**
-     * Create new column in Monk-native format
-     *
-     * Executes DDL and inserts into columns table
-     * Trigger will auto-generate JSON Schema in definitions table
-     */
-    async createColumn(schemaName: string, columnName: string, columnDef: any): Promise<any> {
+    async createColumn(schemaName: string, columnName: string, columnDef: Partial<ColumnRecord> = {}): Promise<ColumnRecord> {
         // Validate schema is not protected
         await this.validateSchemaProtection(schemaName);
 
         // Validate column name
         this.validateColumnName(columnName);
 
-        console.info('Creating column via observer pipeline', { schemaName, columnName });
+        logger.info('Creating column via observer pipeline', { schemaName, columnName });
 
         // Create column (ring 5 inserts, ring 6 alters table)
-        const result = await this.system.database.createOne('columns', {
+        // Type mapping is handled by Ring 1 observer (user→PG) and Ring 7 observer (PG→user)
+        return await this.system.database.createOne<Omit<ColumnRecord, keyof SystemFields>>('columns', {
             ...columnDef,
             schema_name: schemaName,
-            column_name: columnName
-        });
-
-        console.info('Column created successfully via observer pipeline', { schemaName, columnName });
-
-        // Invalidate cache after successful creation
-        await this.invalidateSchemaCache(schemaName);
-
-        return {
-            schema_name: schemaName,
             column_name: columnName,
-            type: columnDef.type || 'text',
-            created: true
-        };
+            type: columnDef.type || 'text'
+        }) as ColumnRecord;
     }
 
     /**
-     * Update column in Monk-native format
+     * Update column
      *
-     * Executes DDL and updates columns table
-     * Trigger will auto-regenerate JSON Schema in definitions table
+     * Executes DDL and updates columns table via observer pipeline.
+     * Trigger will auto-regenerate JSON Schema in definitions table.
      *
      * Supports both metadata updates and structural changes:
      * - Metadata: description, pattern, minimum, maximum, enum_values, relationship fields
      * - Structural: type (ALTER TYPE), required (SET/DROP NOT NULL), default_value (SET/DROP DEFAULT)
      */
-    async updateColumn(schemaName: string, columnName: string, updates: any): Promise<any> {
+    async updateColumn(schemaName: string, columnName: string, updates: Partial<ColumnRecord>): Promise<ColumnRecord> {
         // Validate schema is not protected
         await this.validateSchemaProtection(schemaName);
 
-        console.info('Updating column via observer pipeline', { schemaName, columnName });
+        logger.info('Updating column via observer pipeline', { schemaName, columnName });
 
         // Update column (ring 5 updates, ring 6 alters table if needed)
-        const result = await this.system.database.updateAll('columns', [{
-            schema_name: schemaName,
-            column_name: columnName,
-            ...updates
-        }]);
-
-        console.info('Column updated successfully via observer pipeline', { schemaName, columnName });
-
-        // Invalidate cache after successful update
-        await this.invalidateSchemaCache(schemaName);
-
-        return result[0];
+        // Type mapping is handled by Ring 1 observer (user→PG) and Ring 7 observer (PG→user)
+        return await this.system.database.update404<ColumnRecord>(
+            'columns',
+            { where: { schema_name: schemaName, column_name: columnName } },
+            updates,
+            `Column '${columnName}' not found in schema '${schemaName}'`
+        );
     }
 
     /**
      * Delete column
      *
-     * Performs hard delete: soft-deletes from columns table AND drops column from PostgreSQL table
-     * Trigger will auto-regenerate JSON Schema in definitions table
+     * Performs hard delete: soft-deletes from columns table AND drops column from PostgreSQL table.
+     * Trigger will auto-regenerate JSON Schema in definitions table.
      */
-    async deleteColumn(schemaName: string, columnName: string): Promise<any> {
+    async deleteColumn(schemaName: string, columnName: string): Promise<ColumnRecord> {
         // Validate schema is not protected
         await this.validateSchemaProtection(schemaName);
 
-        console.info('Deleting column via observer pipeline', { schemaName, columnName });
+        logger.info('Deleting column via observer pipeline', { schemaName, columnName });
 
         // Delete column (ring 5 soft deletes, ring 6 drops column)
-        await this.system.database.deleteAll('columns', [{
-            schema_name: schemaName,
-            column_name: columnName
-        }]);
-
-        console.info('Column deleted successfully via observer pipeline', { schemaName, columnName });
-
-        // Invalidate cache after successful deletion
-        await this.invalidateSchemaCache(schemaName);
-
-        return {
-            schema_name: schemaName,
-            column_name: columnName,
-            deleted: true
-        };
+        // Type mapping is handled by Ring 7 observer (PG→user)
+        return await this.system.database.delete404<ColumnRecord>(
+            'columns',
+            { where: { schema_name: schemaName, column_name: columnName } },
+            `Column '${columnName}' not found in schema '${schemaName}'`
+        );
     }
 }

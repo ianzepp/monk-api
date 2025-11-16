@@ -28,6 +28,21 @@ export abstract class BaseObserver implements Observer {
     abstract readonly ring: ObserverRing;
     readonly operations?: readonly OperationType[];
 
+    /**
+     * Execution priority within a ring (lower numbers execute first)
+     *
+     * Default: 50 (middle priority)
+     * Range: 0-100 recommended (but any number is valid)
+     *
+     * Examples:
+     * - 0-20: High priority (validation, security checks)
+     * - 40-60: Normal priority (default business logic)
+     * - 80-100: Low priority (cleanup, notifications)
+     *
+     * Use explicit priorities when execution order matters within a ring.
+     */
+    readonly priority: number = 50;
+
     // Default timeout for observer execution (can be overridden)
     protected readonly timeoutMs: number = 5000; // 5 seconds
 

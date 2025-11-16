@@ -12,8 +12,7 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  */
 export default withTransactionParams(async (context, { system }) => {
     const userId = context.req.param('id');
-    
+
     // Soft delete user (sets trashed_at timestamp)
-    const result = await system.database.deleteOne('users', userId);
-    return result;
+    await system.database.deleteOne('users', userId);
 });

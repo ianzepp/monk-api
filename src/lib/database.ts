@@ -11,6 +11,13 @@ import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import type {
+    DbRecord,
+    DbCreateInput,
+    DbUpdateInput,
+    DbDeleteInput,
+    DbAccessInput,
+} from '@src/lib/database-types.js';
 
 /**
  * Options for database select operations with context-aware soft delete handling
@@ -116,7 +123,10 @@ export class Database {
         return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
     }
 
-    async selectAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {
+    async selectAll<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        records: DbRecord<T>[]
+    ): Promise<DbRecord<T>[]> {
         // Extract IDs from records
         const ids = records.map(record => record.id).filter(id => id !== undefined);
 
@@ -125,10 +135,13 @@ export class Database {
         }
 
         // Use selectAny with ID filter - lenient approach, returns what exists
-        return await this.selectAny(schemaName, { where: { id: { $in: ids } } }, { context: 'system' });
+        return await this.selectAny<T>(schemaName, { where: { id: { $in: ids } } }, { context: 'system' });
     }
 
-    async createAll(schemaName: SchemaName, records: Record<string, any>[]): Promise<any[]> {
+    async createAll<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        records: DbCreateInput<T>[]
+    ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
         return await this.runObserverPipeline('create', schemaName, records);
     }
@@ -138,28 +151,31 @@ export class Database {
      * Soft delete multiple records by setting trashed_at timestamp using single batch UPDATE query.
      * Records with trashed_at set are automatically excluded from select queries via Filter class.
      */
-    async deleteAll(schemaName: SchemaName, deletes: Record<string, any>[]): Promise<any[]> {
+    async deleteAll<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        deletes: DbDeleteInput[]
+    ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
         return await this.runObserverPipeline('delete', schemaName, deletes);
     }
 
     // Core data operations
-    async selectOne(
+    async selectOne<T extends Record<string, any> = Record<string, any>>(
         schemaName: SchemaName,
         filterData: FilterData,
         options: SelectOptions = {}
-    ): Promise<any | null> {
-        const results = await this.selectAny(schemaName, filterData, options);
+    ): Promise<DbRecord<T> | null> {
+        const results = await this.selectAny<T>(schemaName, filterData, options);
         return results[0] || null;
     }
 
-    async select404(
+    async select404<T extends Record<string, any> = Record<string, any>>(
         schemaName: SchemaName,
         filter: FilterData,
         message?: string,
         options: SelectOptions = {}
-    ): Promise<any> {
-        const record = await this.selectOne(schemaName, filter, options);
+    ): Promise<DbRecord<T>> {
+        const record = await this.selectOne<T>(schemaName, filter, options);
 
         if (!record) {
             throw HttpErrors.notFound(message || 'Record not found', 'RECORD_NOT_FOUND');
@@ -169,34 +185,41 @@ export class Database {
     }
 
     // ID-based operations - always work with arrays
-    async selectIds(
+    async selectIds<T extends Record<string, any> = Record<string, any>>(
         schemaName: SchemaName,
         ids: string[],
         options: SelectOptions = {}
-    ): Promise<any[]> {
+    ): Promise<DbRecord<T>[]> {
         if (ids.length === 0) return [];
-        return await this.selectAny(schemaName, { where: { id: { $in: ids } } }, options);
+        return await this.selectAny<T>(schemaName, { where: { id: { $in: ids } } }, options);
     }
 
-    async updateIds(schemaName: SchemaName, ids: string[], changes: Record<string, any>): Promise<any[]> {
+    async updateIds<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        ids: string[],
+        changes: Partial<T>
+    ): Promise<DbRecord<T>[]> {
         if (ids.length === 0) return [];
-        return await this.updateAny(schemaName, { where: { id: { $in: ids } } }, changes);
+        return await this.updateAny<T>(schemaName, { where: { id: { $in: ids } } }, changes);
     }
 
-    async deleteIds(schemaName: SchemaName, ids: string[]): Promise<any[]> {
+    async deleteIds<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        ids: string[]
+    ): Promise<DbRecord<T>[]> {
         if (ids.length === 0) return [];
 
         // Convert IDs to delete records with just ID field
         const deleteRecords = ids.map(id => ({ id }));
-        return await this.deleteAll(schemaName, deleteRecords);
+        return await this.deleteAll<T>(schemaName, deleteRecords);
     }
 
     // Advanced operations - filter-based updates/deletes
-    async selectAny(
+    async selectAny<T extends Record<string, any> = Record<string, any>>(
         schemaName: SchemaName,
         filterData: FilterData = {},
         options: SelectOptions = {}
-    ): Promise<any[]> {
+    ): Promise<DbRecord<T>[]> {
         const schema = await this.toSchema(schemaName);
 
         // Apply context-based soft delete defaults
@@ -284,9 +307,13 @@ export class Database {
         return converted;
     }
 
-    async updateAny(schemaName: string, filterData: FilterData, changes: Record<string, any>): Promise<any[]> {
+    async updateAny<T extends Record<string, any> = Record<string, any>>(
+        schemaName: string,
+        filterData: FilterData,
+        changes: Partial<T>
+    ): Promise<DbRecord<T>[]> {
         // 1. Find all records matching the filter - use system context for internal operations
-        const records = await this.selectAny(schemaName, filterData, { context: 'system' });
+        const records = await this.selectAny<T>(schemaName, filterData, { context: 'system' });
 
         if (records.length === 0) {
             return [];
@@ -299,12 +326,15 @@ export class Database {
         }));
 
         // 3. Bulk update all matched records
-        return await this.updateAll(schemaName, updates);
+        return await this.updateAll<T>(schemaName, updates);
     }
 
-    async deleteAny(schemaName: string, filter: FilterData): Promise<any[]> {
+    async deleteAny<T extends Record<string, any> = Record<string, any>>(
+        schemaName: string,
+        filter: FilterData
+    ): Promise<DbRecord<T>[]> {
         // 1. Find all records matching the filter - use system context for internal operations
-        const records = await this.selectAny(schemaName, filter, { context: 'system' });
+        const records = await this.selectAny<T>(schemaName, filter, { context: 'system' });
 
         if (records.length === 0) {
             return [];
@@ -312,17 +342,24 @@ export class Database {
 
         // 2. Extract IDs and bulk delete
         const recordIds = records.map(record => record.id);
-        return await this.deleteIds(schemaName, recordIds);
+        return await this.deleteIds<T>(schemaName, recordIds);
     }
 
-    async createOne(schemaName: SchemaName, recordData: Record<string, any>): Promise<any> {
+    async createOne<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        recordData: DbCreateInput<T>
+    ): Promise<DbRecord<T>> {
         // Universal pattern: Single → Array → Observer Pipeline
-        const results = await this.createAll(schemaName, [recordData]);
+        const results = await this.createAll<T>(schemaName, [recordData]);
         return results[0];
     }
 
-    async updateOne(schemaName: SchemaName, recordId: string, updates: Record<string, any>): Promise<any> {
-        const results = await this.updateAll(schemaName, [{ id: recordId, ...updates }]);
+    async updateOne<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        recordId: string,
+        updates: Partial<T>
+    ): Promise<DbRecord<T>> {
+        const results = await this.updateAll<T>(schemaName, [{ id: recordId, ...updates }]);
 
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found', 'RECORD_NOT_FOUND');
@@ -332,7 +369,10 @@ export class Database {
     }
 
     // Core batch update method - optimized for multiple records
-    async updateAll(schemaName: SchemaName, updates: Record<string, any>[]): Promise<any[]> {
+    async updateAll<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        updates: DbUpdateInput<T>[]
+    ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
         return await this.runObserverPipeline('update', schemaName, updates);
     }
@@ -343,8 +383,11 @@ export class Database {
      * Records with trashed_at set are automatically excluded from select queries via Filter class.
      * @returns The updated record with trashed_at timestamp set
      */
-    async deleteOne(schemaName: SchemaName, recordId: string): Promise<any> {
-        const results = await this.deleteAll(schemaName, [{ id: recordId }]);
+    async deleteOne<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        recordId: string
+    ): Promise<DbRecord<T>> {
+        const results = await this.deleteAll<T>(schemaName, [{ id: recordId }]);
 
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found or already trashed', 'RECORD_NOT_FOUND');
@@ -359,7 +402,10 @@ export class Database {
      * Validates that records are actually trashed before reverting.
      * @returns Array of reverted records with trashed_at set to null
      */
-    async revertAll(schemaName: SchemaName, reverts: Record<string, any>[]): Promise<any[]> {
+    async revertAll<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        reverts: DbUpdateInput<T>[]
+    ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
         return await this.runObserverPipeline('revert', schemaName, reverts);
     }
@@ -368,8 +414,11 @@ export class Database {
      * Revert a single soft-deleted record by setting trashed_at to NULL.
      * Delegates to revertAll() for consistency with updateOne/updateAll pattern.
      */
-    async revertOne(schemaName: SchemaName, recordId: string): Promise<any> {
-        const results = await this.revertAll(schemaName, [{ id: recordId, trashed_at: null }]);
+    async revertOne<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        recordId: string
+    ): Promise<DbRecord<T>> {
+        const results = await this.revertAll<T>(schemaName, [{ id: recordId, trashed_at: null } as unknown as DbUpdateInput<T>]);
 
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found or not trashed', 'RECORD_NOT_FOUND');
@@ -382,21 +431,24 @@ export class Database {
      * Revert multiple records using filter criteria.
      * Finds trashed records matching filter, then reverts them.
      */
-    async revertAny(schemaName: SchemaName, filterData: FilterData = {}): Promise<any[]> {
+    async revertAny<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        filterData: FilterData = {}
+    ): Promise<DbRecord<T>[]> {
         // First find all trashed records matching the filter
         // Note: This requires include_trashed=true to find trashed records
         if (!this.system.options.trashed) {
             throw HttpErrors.badRequest('revertAny() requires include_trashed=true option to find trashed records', 'REQUEST_INVALID_OPTIONS');
         }
 
-        const trashedRecords = await this.selectAny(schemaName, filterData, { includeTrashed: true, includeDeleted: false, context: 'system' });
-        const recordsToRevert = trashedRecords.filter(record => record.trashed_at !== null).map(record => ({ id: record.id, trashed_at: null }));
+        const trashedRecords = await this.selectAny<T>(schemaName, filterData, { includeTrashed: true, includeDeleted: false, context: 'system' });
+        const recordsToRevert = trashedRecords.filter(record => record.trashed_at !== null).map(record => ({ id: record.id, trashed_at: null } as unknown as DbUpdateInput<T>));
 
         if (recordsToRevert.length === 0) {
             return [];
         }
 
-        return await this.revertAll(schemaName, recordsToRevert);
+        return await this.revertAll<T>(schemaName, recordsToRevert);
     }
 
     /**
@@ -480,11 +532,15 @@ export class Database {
     // Database class doesn't handle transactions - System class does
 
     // Access control operations - separate from regular data updates
-    async accessOne(schemaName: SchemaName, recordId: string, accessChanges: Record<string, any>): Promise<any> {
+    async accessOne<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        recordId: string,
+        accessChanges: DbAccessInput
+    ): Promise<DbRecord<T>> {
         const schema = await this.toSchema(schemaName);
 
         // Verify record exists
-        await this.select404(schemaName, { where: { id: recordId } });
+        await this.select404<T>(schemaName, { where: { id: recordId } });
 
         // Only allow access_* field updates
         const allowedFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
@@ -532,17 +588,24 @@ export class Database {
         return result.rows[0];
     }
 
-    async accessAll(schemaName: SchemaName, updates: Array<{ id: string; access: Record<string, any> }>): Promise<any[]> {
-        const results: any[] = [];
+    async accessAll<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        updates: Array<{ id: string; access: DbAccessInput }>
+    ): Promise<DbRecord<T>[]> {
+        const results: DbRecord<T>[] = [];
         for (const update of updates) {
-            results.push(await this.accessOne(schemaName, update.id, update.access));
+            results.push(await this.accessOne<T>(schemaName, update.id, update.access));
         }
         return results;
     }
 
-    async accessAny(schemaName: SchemaName, filter: FilterData, accessChanges: Record<string, any>): Promise<any[]> {
+    async accessAny<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        filter: FilterData,
+        accessChanges: DbAccessInput
+    ): Promise<DbRecord<T>[]> {
         // 1. Find all records matching the filter - use system context for internal operations
-        const records = await this.selectAny(schemaName, filter, { context: 'system' });
+        const records = await this.selectAny<T>(schemaName, filter, { context: 'system' });
 
         if (records.length === 0) {
             return [];
@@ -555,27 +618,41 @@ export class Database {
         }));
 
         // 3. Bulk update access permissions
-        return await this.accessAll(schemaName, accessUpdates);
+        return await this.accessAll<T>(schemaName, accessUpdates);
     }
 
     // 404 operations - convenience methods that throw if not found
-    async update404(schemaName: SchemaName, filter: FilterData, changes: Record<string, any>, message?: string): Promise<any> {
+    async update404<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        filter: FilterData,
+        changes: Partial<T>,
+        message?: string
+    ): Promise<DbRecord<T>> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404(schemaName, filter, message);
+        const record = await this.select404<T>(schemaName, filter, message);
 
-        return await this.updateOne(schemaName, record.id, changes);
+        return await this.updateOne<T>(schemaName, record.id, changes);
     }
 
-    async delete404(schemaName: SchemaName, filter: FilterData, message?: string): Promise<any> {
+    async delete404<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        filter: FilterData,
+        message?: string
+    ): Promise<DbRecord<T>> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404(schemaName, filter, message);
-        return await this.deleteOne(schemaName, record.id);
+        const record = await this.select404<T>(schemaName, filter, message);
+        return await this.deleteOne<T>(schemaName, record.id);
     }
 
-    async access404(schemaName: SchemaName, filter: FilterData, accessChanges: Record<string, any>, message?: string): Promise<any> {
+    async access404<T extends Record<string, any> = Record<string, any>>(
+        schemaName: SchemaName,
+        filter: FilterData,
+        accessChanges: DbAccessInput,
+        message?: string
+    ): Promise<DbRecord<T>> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404(schemaName, filter, message);
-        return await this.accessOne(schemaName, record.id, accessChanges);
+        const record = await this.select404<T>(schemaName, filter, message);
+        return await this.accessOne<T>(schemaName, record.id, accessChanges);
     }
 }
 

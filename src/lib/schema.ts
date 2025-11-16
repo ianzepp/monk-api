@@ -32,6 +32,7 @@ export class Schema {
     // Schema properties from database record
     private schemaName: SchemaName;
     private status: string;
+    public sudo?: boolean;
     public definition?: any;
 
     constructor(
@@ -41,6 +42,7 @@ export class Schema {
     ) {
         this.schemaName = schemaName;
         this.status = schemaRecord.status || 'active';
+        this.sudo = schemaRecord.sudo;
         this.definition = schemaRecord.definition;
     }
 

@@ -192,7 +192,15 @@ export class ObserverRunner {
     ): Promise<boolean> {
         const observers = ObserverLoader.getObservers(context.schema.schema_name, ring);
 
-        for (const observer of observers) {
+        // Sort observers by priority (lower numbers execute first)
+        // This ensures deterministic execution order within a ring
+        const sortedObservers = observers.sort((a, b) => {
+            const priorityA = a.priority ?? 50; // Default to 50 if not specified
+            const priorityB = b.priority ?? 50;
+            return priorityA - priorityB;
+        });
+
+        for (const observer of sortedObservers) {
             if (this._shouldExecuteObserver(observer, context)) {
                 const observerStats = await this._executeObserver(observer, context);
                 if (this.collectStats) {
