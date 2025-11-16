@@ -1,11 +1,13 @@
--- Fixture-specific initialization for 'empty' template
+-- Testing Fixture Initialization
 -- This runs after init-tenant.sql but before schemas and data are loaded
 
--- Add a comment to demonstrate the init.sql executed successfully
-COMMENT ON SCHEMA public IS 'Empty fixture template - initialized via init.sql';
+-- Insert core users for testing
+-- These users are required by many tests that authenticate with specific access levels
 
--- You can add fixture-specific initialization here, such as:
--- - Custom functions
--- - Extensions
--- - Seed data that needs to be in place before schemas
--- - Database-level configuration
+INSERT INTO users (name, auth, access) VALUES
+    ('Dr Root', 'root', 'root'),
+    ('Mr Full', 'full', 'full'),
+    ('Jr User', 'user', 'edit')
+ON CONFLICT (auth) DO NOTHING;
+
+COMMENT ON TABLE users IS 'Empty fixture includes pre-configured users for test authentication';

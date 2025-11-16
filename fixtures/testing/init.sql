@@ -10,4 +10,4 @@ INSERT INTO users (name, auth, access) VALUES
     ('Jr User', 'user', 'edit')
 ON CONFLICT (auth) DO NOTHING;
 
-COMMENT ON TABLE users IS 'Testing fixture includes pre-configured root and full users for test authentication';
+COMMENT ON TABLE users IS 'Testing fixture includes pre-configured users for test authentication';

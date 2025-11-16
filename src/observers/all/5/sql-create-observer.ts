@@ -48,7 +48,15 @@ export default class SqlCreateObserver extends BaseObserver {
             const fieldList = fields.map(field => `"${field}"`).join(', ');
 
             const query = `INSERT INTO "${schema.schema_name}" (${fieldList}) VALUES (${placeholders}) RETURNING *`;
-            const result = await SqlUtils.getPool(system).query(query, values);
+
+            let result;
+            try {
+                result = await SqlUtils.getPool(system).query(query, values);
+            } catch (error) {
+                throw new SystemError(
+                    `Failed to insert record into ${schema.schema_name}: ${error instanceof Error ? error.message : String(error)}`
+                );
+            }
 
             if (result.rows.length === 0) {
                 throw new SystemError(`Failed to create record in ${schema.schema_name}`);

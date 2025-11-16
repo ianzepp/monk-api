@@ -11,6 +11,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField, SYSTEM_FIELDS } from '@src/lib/describe.js';
+import { logger } from '@src/lib/logger.js';
 
 export default class DdlCreateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
@@ -20,22 +21,25 @@ export default class DdlCreateObserver extends BaseObserver {
         const { system } = context;
         const schemaName = record.schema_name;
 
-        let ddl = `CREATE TABLE "${schemaName}" (\n`;
-
-        // Standard system fields
-        ddl += `    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n`;
-        ddl += `    "access_read" UUID[] DEFAULT '{}',\n`;
-        ddl += `    "access_edit" UUID[] DEFAULT '{}',\n`;
-        ddl += `    "access_full" UUID[] DEFAULT '{}',\n`;
-        ddl += `    "access_deny" UUID[] DEFAULT '{}',\n`;
-        ddl += `    "created_at" TIMESTAMP DEFAULT now() NOT NULL,\n`;
-        ddl += `    "updated_at" TIMESTAMP DEFAULT now() NOT NULL,\n`;
-        ddl += `    "trashed_at" TIMESTAMP,\n`;
-        ddl += `    "deleted_at" TIMESTAMP`;
-        ddl += `\n);`;
-
-        // Execute DDL
         try {
+            let ddl = `CREATE TABLE "${schemaName}" (\n`;
+
+            // Standard system fields
+            ddl += `    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n`;
+            ddl += `    "access_read" UUID[] DEFAULT '{}'::UUID[],\n`;
+            ddl += `    "access_edit" UUID[] DEFAULT '{}'::UUID[],\n`;
+            ddl += `    "access_full" UUID[] DEFAULT '{}'::UUID[],\n`;
+            ddl += `    "access_deny" UUID[] DEFAULT '{}'::UUID[],\n`;
+            ddl += `    "created_at" TIMESTAMP DEFAULT now() NOT NULL,\n`;
+            ddl += `    "updated_at" TIMESTAMP DEFAULT now() NOT NULL,\n`;
+            ddl += `    "trashed_at" TIMESTAMP,\n`;
+            ddl += `    "deleted_at" TIMESTAMP`;
+            ddl += `\n);`;
+
+            logger.info('Executing DDL:');
+            logger.info(ddl);
+
+            // Execute DDL
             await SqlUtils.getPool(system).query(ddl);
             logger.info(`Created table for schema: ${schemaName}`);
         } catch (error) {

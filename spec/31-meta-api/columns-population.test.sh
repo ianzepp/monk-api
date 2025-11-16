@@ -10,7 +10,7 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing Describe API columns table population"
 
 # Setup test environment with template (needed for columns table)
-setup_test_with_template "$(basename "$0" .test.sh)" "testing"
+setup_test_with_template "$(basename "$0" .test.sh)" "empty"
 setup_full_auth
 setup_sudo_auth "Creating tasks schema with diverse column types"
 

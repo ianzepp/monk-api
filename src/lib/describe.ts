@@ -440,8 +440,18 @@ export class Describe {
 
         console.info('Deleting schema via observer pipeline', { schemaName });
 
+        // Find schema by name
+        const results = await this.system.database.selectAny('schemas', {
+            where: { schema_name: schemaName },
+            limit: 1
+        });
+
+        if (results.length === 0) {
+            throw HttpErrors.notFound("Schema '${schemaName}' not found", 'SCHEMA_NOT_FOUND');
+        }
+
         // Delete schema (ring 5 soft deletes, ring 6 drops table)
-        await this.system.database.deleteAll('schemas', [{ schema_name: schemaName }]);
+        await this.system.database.deleteOne('schemas', results[0].id);
 
         console.info('Schema deleted successfully via observer pipeline', { schemaName });
 
