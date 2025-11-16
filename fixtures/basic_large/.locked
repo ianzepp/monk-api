@@ -1,8 +1,0 @@
-{
-  "template": "testing_xl",
-  "locked_at": "2025-09-02T15:28:30Z",
-  "locked_by": "ianzepp@dispatch.local",
-  "reason": "Template locked to prevent accidental regeneration",
-  "schemas": 2,
-  "data_files": 2
-}

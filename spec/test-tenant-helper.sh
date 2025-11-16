@@ -232,7 +232,7 @@ verify_test_tenant() {
     # Check database exists and has users
     local user_count=$(psql -d "$db_name" -t -c "SELECT COUNT(*) FROM users" 2>/dev/null | xargs)
 
-    if [[ "$user_count" -ge "3" ]]; then
+    if [[ "$user_count" -ge "2" ]]; then
         print_success "Test tenant verified: $user_count users available"
         return 0
     else

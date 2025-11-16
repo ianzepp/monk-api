@@ -9,12 +9,13 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing public authentication endpoints"
 
-# Simple setup for auth tests (no tenant isolation needed)
-setup_test_server_only
+# Setup test tenant from template
+tenant_name=$(setup_test_with_template "public_auth" "testing")
+load_test_env
 
 # Test login endpoint
 print_step "Testing POST /auth/login"
-response=$(login_user "system" "root")
+response=$(login_user "$tenant_name" "root")
 assert_success "$response"
 assert_has_field "data.token" "$response"
 assert_has_field "data.user" "$response"
@@ -50,7 +51,7 @@ assert_error_code "TENANT_MISSING" "$missing_tenant"
 print_success "Missing tenant field properly validated"
 
 print_step "Testing login with missing username"
-missing_username=$(api_post "auth/login" '{"tenant":"system"}')
+missing_username=$(api_post "auth/login" "{\"tenant\":\"$tenant_name\"}")
 assert_error "$missing_username"
 assert_error_code "USERNAME_MISSING" "$missing_username"
 

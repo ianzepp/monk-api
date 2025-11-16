@@ -9,10 +9,19 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing protected Auth API endpoints"
 
-# Setup server and authenticate against system tenant
-setup_test_server_only
-JWT_TOKEN=$(get_user_token "system" "root")
-export JWT_TOKEN
+# Setup test tenant from template
+tenant_name=$(setup_test_with_template "whoami_test" "testing")
+load_test_env
+
+# Authenticate as root user for sudo privilege testing
+print_step "Setting up authentication for root user"
+JWT_TOKEN=$(get_user_token "$tenant_name" "root")
+if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
+    print_success "Authentication (root) configured"
+    export JWT_TOKEN
+else
+    test_fail "Failed to authenticate root user"
+fi
 
 # Test whoami endpoint
 print_step "Testing GET /api/auth/whoami"

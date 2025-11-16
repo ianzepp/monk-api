@@ -503,37 +503,26 @@ else
     fi
 fi
 
-# Show available fixture templates
-print_header "Available Fixture Templates"
+# Starting: Build Testing Fixtures Template
+print_header "Starting: Build Testing Fixtures Template"
 
-if [ -d "fixtures" ]; then
-    fixture_templates=()
-    for dir in fixtures/*/; do
-        if [ -d "$dir" ]; then
-            fixture_name=$(basename "$dir")
-            if [ -d "$dir/schemas" ] && [ -d "$dir/data" ]; then
-                fixture_templates+=("$fixture_name")
-            fi
-        fi
-    done
+print_step "Checking if testing fixtures template exists..."
+template_db_name="monk_template_testing"
 
-    if [ ${#fixture_templates[@]} -gt 0 ]; then
-        print_info "Found ${#fixture_templates[@]} fixture templates available for building:"
-        for template in "${fixture_templates[@]}"; do
-            print_info "• $template"
-        done
-        echo
-        print_info "To build template databases for testing:"
-        print_info "• Build single template: npm run fixtures:build <template_name>"
-        print_info "• Force rebuild existing: npm run fixtures:build -- --force <template_name>"
-        print_info "• Example: npm run fixtures:build testing"
-        echo
-        print_info "Template databases are used for fast test environment setup"
-    else
-        print_warning "No valid fixture templates found in fixtures/ directory"
-    fi
+if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_name" 2>/dev/null; then
+    print_success "Testing fixtures template already exists"
+    print_info "Template database: $template_db_name"
 else
-    print_warning "fixtures/ directory not found"
+    print_step "Building testing fixtures template..."
+    print_info "This creates a testing-focused template for 'test:sh' scripts in 'spec/**/*.sh'"
+
+    if npm run fixtures:build testing >/dev/null 2>&1; then
+        print_success "Testing fixtures template built successfully"
+        print_info "Template database: $template_db_name ready for fast tenant creation"
+    else
+        print_warning "Failed to build testing fixtures template"
+        print_warning "This is a blocker - testing cannot run"
+    fi
 fi
 
 # Starting: Setup Complete

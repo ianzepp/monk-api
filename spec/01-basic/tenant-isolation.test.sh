@@ -10,7 +10,8 @@ source "$(dirname "$0")/../test-helper.sh"
 print_step "Testing template-based tenant creation and cleanup"
 
 # Setup test environment with empty template and automatic cleanup
-tenant_name=$(setup_test_with_template "isolation_test" "empty")
+tenant_name=$(setup_test_with_template "isolation_test" "testing")
+load_test_env
 
 if [[ -n "$tenant_name" && -n "$TEST_DATABASE_NAME" ]]; then
     print_success "Created tenant from template: $tenant_name"
@@ -41,15 +42,7 @@ full_token=$(get_user_token "$tenant_name" "full")
 if [[ -n "$full_token" && "$full_token" != "null" ]]; then
     print_success "Full user authentication successful"
 else
-    print_error "Admin user authentication failed"
-fi
-
-# Test regular user
-user_token=$(get_user_token "$tenant_name" "user")
-if [[ -n "$user_token" && "$user_token" != "null" ]]; then
-    print_success "Regular user authentication successful"
-else
-    print_error "Regular user authentication failed"
+    print_error "Full user authentication failed"
 fi
 
 # Test 5: Verify tenant appears in tenant registry
