@@ -601,7 +601,7 @@ export class FileOperationService {
     }
 
     private async listSchemas(namespace: 'data' | 'describe', options: FileListRequest['file_options'] = {}): Promise<ListResult> {
-        const schemas = await this.system.database.selectAny('schemas', { order: 'name asc' });
+        const schemas = await this.system.database.selectAny('schemas', { order: 'schema_name asc' });
         const timestamp = FileTimestampFormatter.current();
         const entries = schemas.map((schema: any) => ({
             name: schema.schema_name,

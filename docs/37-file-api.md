@@ -172,7 +172,7 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
       "file_type": "d",
       "file_size": 0,
       "file_permissions": "r--",
-      "file_modified": "20250101120000",
+      "file_modified": "2025-01-01T12:00:00.000Z",
       "path": "/data/users/user-1/",
       "api_context": {
         "schema": "users",
@@ -180,7 +180,7 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
         "access_level": "read"
       },
       // Extended metadata (only when long_format: true)
-      "created_time": "20241231115959",
+      "created_time": "2024-12-31T11:59:59.000Z",
       "content_type": "application/json",
       "etag": "abc123def456",
       "soft_deleted": false,
@@ -194,7 +194,7 @@ Wildcard filters are accepted for directory segments, but record identifiers onl
     "type": "directory",
     "permissions": "r--",
     "size": 0,
-    "modified_time": "20250210120000"
+    "modified_time": "2025-02-10T12:00:00.000Z"
   }
 }
 ```
@@ -226,7 +226,7 @@ When `recursive: true` and `flat: true` are combined, the response returns only 
       "file_type": "f",
       "file_size": 6,
       "file_permissions": "r--",
-      "file_modified": "20250101120000",
+      "file_modified": "2025-01-01T12:00:00.000Z",
       "path": "/describe/users/email/type",
       "api_context": {
         "schema": "users",
@@ -238,7 +238,7 @@ When `recursive: true` and `flat: true` are combined, the response returns only 
       "file_type": "f",
       "file_size": 3,
       "file_permissions": "r--",
-      "file_modified": "20250101120000",
+      "file_modified": "2025-01-01T12:00:00.000Z",
       "path": "/describe/users/email/maxLength",
       "api_context": {
         "schema": "users",
@@ -250,7 +250,7 @@ When `recursive: true` and `flat: true` are combined, the response returns only 
       "file_type": "f",
       "file_size": 45,
       "file_permissions": "r--",
-      "file_modified": "20250101120000",
+      "file_modified": "2025-01-01T12:00:00.000Z",
       "path": "/describe/users/email/pattern",
       "api_context": {
         "schema": "users",
@@ -266,7 +266,7 @@ When `recursive: true` and `flat: true` are combined, the response returns only 
     "type": "directory",
     "permissions": "r--",
     "size": 0,
-    "modified_time": "20250101120000"
+    "modified_time": "2025-01-01T12:00:00.000Z"
   }
 }
 ```
@@ -314,7 +314,7 @@ Fetch the content behind a field or property.
     "type": "file",
     "permissions": "r--",
     "size": 17,
-    "modified_time": "20250101120000",
+    "modified_time": "2025-01-01T12:00:00.000Z",
     "content_type": "text/plain",
     "etag": "abc123",
     "can_resume": false
@@ -386,7 +386,7 @@ Field updates accept plain strings or JSON-serialisable values. If `append_mode`
     "type": "file",
     "permissions": "rw-",
     "size": 17,
-    "modified_time": "20250210120000",
+    "modified_time": "2025-02-10T12:00:00.000Z",
     "content_type": "text/plain",
     "etag": "def456"
   }
@@ -451,9 +451,9 @@ Return metadata for any supported path.
     "type": "file",
     "permissions": "r--",
     "size": 17,
-    "modified_time": "20250101120000",
-    "created_time": "20241231115959",
-    "access_time": "20250210120000",
+    "modified_time": "2025-01-01T12:00:00.000Z",
+    "created_time": "2024-12-31T11:59:59.000Z",
+    "access_time": "2025-02-10T12:00:00.000Z",
     "content_type": "text/plain",
     "etag": "abc123"
   },
@@ -494,7 +494,7 @@ Return the byte size of a field or property.
     "type": "file",
     "permissions": "r--",
     "size": 17,
-    "modified_time": "20250101120000",
+    "modified_time": "2025-01-01T12:00:00.000Z",
     "content_type": "text/plain"
   }
 }
@@ -504,7 +504,7 @@ Return the byte size of a field or property.
 
 ### POST /api/file/modify-time
 
-Return the FTP-style modification timestamp for any path.
+Return the modification timestamp for any path in ISO 8601 format.
 
 **Request**
 ```json
@@ -513,19 +513,19 @@ Return the FTP-style modification timestamp for any path.
 }
 ```
 
-> TODO: This endpoint is currently read-only. The MDTM-style `modified_time` is reported from record metadata; clients cannot set or override timestamps yet.
+> TODO: This endpoint is currently read-only. The `modified_time` is reported from record metadata; clients cannot set or override timestamps yet.
 
 **Response**
 ```json
 {
   "success": true,
-  "modified_time": "20250101120000",
+  "modified_time": "2025-01-01T12:00:00.000Z",
   "file_metadata": {
     "path": "/data/users/user-1/email",
     "type": "file",
     "permissions": "r--",
     "size": 17,
-    "modified_time": "20250101120000"
+    "modified_time": "2025-01-01T12:00:00.000Z"
   },
   "timestamp_info": {
     "source": "updated_at",

@@ -6,7 +6,7 @@ import { logger } from '@src/lib/logger.js';
  * The authoritative implementation for File protocol timestamp formatting.
  * Provides consistent timestamp handling across all File API routes.
  *
- * Features: FTP-compatible YYYYMMDDHHMMSS format, timezone handling,
+ * Features: ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ), timezone handling,
  * best timestamp selection, and proper error handling.
  *
  * Quick Examples:
@@ -16,26 +16,19 @@ import { logger } from '@src/lib/logger.js';
  */
 export class FileTimestampFormatter {
     /**
-     * Format date to FTP timestamp: YYYYMMDDHHMMSS
+     * Format date to ISO 8601 timestamp: YYYY-MM-DDTHH:mm:ss.sssZ
      * This is the authoritative entry point for all File timestamp formatting
      */
     static format(date: Date | string): string {
         try {
             const d = new Date(date);
-            
+
             if (isNaN(d.getTime())) {
                 logger.warn('Invalid date provided to FileTimestampFormatter', { date });
                 return FileTimestampFormatter.current();
             }
 
-            const year = d.getUTCFullYear();
-            const month = (d.getUTCMonth() + 1).toString().padStart(2, '0');
-            const day = d.getUTCDate().toString().padStart(2, '0');
-            const hour = d.getUTCHours().toString().padStart(2, '0');
-            const minute = d.getUTCMinutes().toString().padStart(2, '0');
-            const second = d.getUTCSeconds().toString().padStart(2, '0');
-
-            return `${year}${month}${day}${hour}${minute}${second}`;
+            return d.toISOString();
         } catch (error) {
             logger.warn('FileTimestampFormatter format failed', {
                 date,
@@ -46,7 +39,7 @@ export class FileTimestampFormatter {
     }
 
     /**
-     * Get current timestamp in FTP format
+     * Get current timestamp in ISO 8601 format
      */
     static current(): string {
         return FileTimestampFormatter.format(new Date());
@@ -107,32 +100,21 @@ export class FileTimestampFormatter {
     }
 
     /**
-     * Convert FTP timestamp to ISO format
+     * Convert ISO 8601 timestamp to ISO format (normalize)
+     * @deprecated This method is maintained for backward compatibility
      */
-    static toISO(ftpTimestamp: string): string {
+    static toISO(timestamp: string): string {
         try {
-            if (ftpTimestamp.length !== 14) {
-                throw new Error('FTP timestamp must be 14 characters: YYYYMMDDHHMMSS');
-            }
-
-            const year = ftpTimestamp.substring(0, 4);
-            const month = ftpTimestamp.substring(4, 6);
-            const day = ftpTimestamp.substring(6, 8);
-            const hour = ftpTimestamp.substring(8, 10);
-            const minute = ftpTimestamp.substring(10, 12);
-            const second = ftpTimestamp.substring(12, 14);
-
-            const isoString = `${year}-${month}-${day}T${hour}:${minute}:${second}Z`;
-            const date = new Date(isoString);
+            const date = new Date(timestamp);
 
             if (isNaN(date.getTime())) {
-                throw new Error('Invalid FTP timestamp format');
+                throw new Error('Invalid timestamp format');
             }
 
             return date.toISOString();
         } catch (error) {
             logger.warn('FileTimestampFormatter toISO failed', {
-                ftpTimestamp,
+                timestamp,
                 error: error instanceof Error ? error.message : String(error)
             });
             return new Date().toISOString();
@@ -140,23 +122,16 @@ export class FileTimestampFormatter {
     }
 
     /**
-     * Validate FTP timestamp format
+     * Validate ISO 8601 timestamp format
      */
-    static validate(ftpTimestamp: string): boolean {
+    static validate(timestamp: string): boolean {
         try {
-            if (typeof ftpTimestamp !== 'string' || ftpTimestamp.length !== 14) {
+            if (typeof timestamp !== 'string') {
                 return false;
             }
 
-            // Check if all characters are digits
-            if (!/^\d{14}$/.test(ftpTimestamp)) {
-                return false;
-            }
+            const date = new Date(timestamp);
 
-            // Validate the ISO conversion
-            const isoString = FileTimestampFormatter.toISO(ftpTimestamp);
-            const date = new Date(isoString);
-            
             return !isNaN(date.getTime());
         } catch (error) {
             return false;

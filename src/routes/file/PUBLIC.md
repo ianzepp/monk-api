@@ -159,7 +159,7 @@ The File API supports pattern matching:
       "file_type": "d",
       "file_size": 0,
       "file_permissions": "rwx",
-      "file_modified": "20241201120000",
+      "file_modified": "2024-12-01T12:00:00.000Z",
       "path": "/data/users/user-123/",
       "api_context": {
         "schema": "users",
@@ -167,7 +167,7 @@ The File API supports pattern matching:
         "access_level": "full"
       },
       // Extended metadata (when long_format: true)
-      "created_time": "20241130100000",
+      "created_time": "2024-11-30T10:00:00.000Z",
       "content_type": "application/json",
       "etag": "abc123def456",
       "soft_deleted": false,
@@ -181,7 +181,7 @@ The File API supports pattern matching:
     "type": "directory",
     "permissions": "r-x",
     "size": 0,
-    "modified_time": "20241201120000"
+    "modified_time": "2024-12-01T12:00:00.000Z"
   }
 }
 ```
@@ -211,7 +211,7 @@ When `recursive: true` and `flat: true` are combined, the response returns only 
       "file_type": "f",
       "file_size": 6,
       "file_permissions": "r--",
-      "file_modified": "20250101120000",
+      "file_modified": "2025-01-01T12:00:00.000Z",
       "path": "/describe/users/email/type",
       "api_context": {
         "schema": "users",
@@ -223,7 +223,7 @@ When `recursive: true` and `flat: true` are combined, the response returns only 
       "file_type": "f",
       "file_size": 3,
       "file_permissions": "r--",
-      "file_modified": "20250101120000",
+      "file_modified": "2025-01-01T12:00:00.000Z",
       "path": "/describe/users/email/maxLength",
       "api_context": {
         "schema": "users",
@@ -239,7 +239,7 @@ When `recursive: true` and `flat: true` are combined, the response returns only 
     "type": "directory",
     "permissions": "r--",
     "size": 0,
-    "modified_time": "20250101120000"
+    "modified_time": "2025-01-01T12:00:00.000Z"
   }
 }
 ```
@@ -304,7 +304,7 @@ Read field values or schema property values through filesystem paths. The endpoi
     "type": "file",
     "permissions": "r--",
     "size": 17,
-    "modified_time": "20241201120000",
+    "modified_time": "2024-12-01T12:00:00.000Z",
     "content_type": "text/plain",
     "etag": "abc123",
     "can_resume": false
@@ -322,7 +322,7 @@ Read field values or schema property values through filesystem paths. The endpoi
     "type": "file",
     "permissions": "r--",
     "size": 3,
-    "modified_time": "20241201120000",
+    "modified_time": "2024-12-01T12:00:00.000Z",
     "content_type": "application/json",
     "etag": "def456",
     "can_resume": false
@@ -418,7 +418,7 @@ Create or update data or schema definitions using filesystem semantics. Supports
     "type": "file",
     "permissions": "rw-",
     "size": 17,
-    "modified_time": "20241201120000",
+    "modified_time": "2024-12-01T12:00:00.000Z",
     "content_type": "text/plain",
     "etag": "def456"
   }
@@ -449,9 +449,9 @@ Inspect any virtual path to learn its type, size, timestamps, permissions, and o
     "type": "file",
     "permissions": "rwx",
     "size": 17,
-    "modified_time": "20241201120000",
-    "created_time": "20241201100000",
-    "access_time": "20241201130000",
+    "modified_time": "2024-12-01T12:00:00.000Z",
+    "created_time": "2024-12-01T10:00:00.000Z",
+    "access_time": "2024-12-01T13:00:00.000Z",
     "content_type": "text/plain",
     "etag": "abc123"
   },
@@ -474,7 +474,7 @@ Inspect any virtual path to learn its type, size, timestamps, permissions, and o
     "type": "directory",
     "permissions": "r-x",
     "size": 0,
-    "modified_time": "20241201120000"
+    "modified_time": "2024-12-01T12:00:00.000Z"
   },
   "record_info": {
     "schema": "users",
@@ -569,7 +569,7 @@ Calculate the storage footprint of a field or property without fetching content.
     "type": "file",
     "permissions": "rw-",
     "size": 17,
-    "modified_time": "20241201120000",
+    "modified_time": "2024-12-01T12:00:00.000Z",
     "content_type": "text/plain"
   }
 }
@@ -579,7 +579,7 @@ Calculate the storage footprint of a field or property without fetching content.
 
 ## POST /api/file/modify-time
 
-Read the modified timestamp for any entry using FTP-friendly formatting. Integrations like FTP servers and sync tools rely on this endpoint.
+Read the modified timestamp for any entry in ISO 8601 format. Integrations like sync tools and client applications rely on this endpoint.
 
 ### Request Body
 ```json
@@ -592,17 +592,17 @@ Read the modified timestamp for any entry using FTP-friendly formatting. Integra
 ```json
 {
   "success": true,
-  "modified_time": "20241201120000",
+  "modified_time": "2024-12-01T12:00:00.000Z",
   "file_metadata": {
     "path": "/data/users/user-123/email",
     "type": "file",
     "permissions": "rw-",
     "size": 17,
-    "modified_time": "20241201120000"
+    "modified_time": "2024-12-01T12:00:00.000Z"
   },
   "timestamp_info": {
     "source": "updated_at",
-    "iso_timestamp": "2024-12-01T12:00:00Z",
+    "iso_timestamp": "2024-12-01T12:00:00.000Z",
     "timezone": "UTC"
   }
 }
