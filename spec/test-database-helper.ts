@@ -198,10 +198,10 @@ export class TestDatabaseHelper {
 
         const data = await response.json();
 
-        if (!data.success || !data.token) {
+        if (!data.success || !data.data?.token) {
             throw new Error(`Authentication failed: ${JSON.stringify(data)}`);
         }
 
-        return data.token;
+        return data.data.token;
     }
 }

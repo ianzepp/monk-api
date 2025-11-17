@@ -1,21 +1,23 @@
 /**
  * Field Extraction Middleware
  *
- * Provides server-side field extraction via ?pick= query parameter to simplify
- * test code by eliminating the need for `curl | jq` piping.
+ * Provides server-side field extraction via ?pick= query parameter.
  *
  * Runs AFTER response creation but BEFORE formatting, allowing extracted fields
  * to be formatted in any supported format (JSON, TOON, YAML, etc.)
  *
+ * Always returns JSON (single values or objects), which is then processed by
+ * the formatter middleware for consistent behavior.
+ *
  * Examples:
  *   GET /api/auth/whoami?pick=data.id
- *   → Returns: "c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c"
+ *   → Returns: "c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c" (JSON string)
  *
  *   GET /api/auth/whoami?pick=data.id,data.name
- *   → Returns: {"id":"c81d0a9b...","name":"Demo User"}
+ *   → Returns: {"id":"c81d0a9b...","name":"Demo User"} (JSON object)
  *
  *   GET /api/auth/whoami?pick=data.user&format=yaml
- *   → Extracts data.user first, then formats as YAML
+ *   → Extracts data.user as JSON, then formatter converts to YAML
  */
 
 import type { Context, Next } from 'hono';
@@ -70,19 +72,11 @@ export async function fieldExtractionMiddleware(context: Context, next: Next) {
         // Reset response to avoid header merging
         context.res = undefined;
 
-        // Handle extracted data based on type
-        const isSingleField = !pickParam.includes(',');
-
-        if (isSingleField && typeof extracted === 'string') {
-            // Single string field - return as plain text for easy use in scripts
-            context.res = context.text(extracted, response.status as any);
-        } else if (isSingleField && (typeof extracted === 'number' || typeof extracted === 'boolean')) {
-            // Single primitive - return as plain text
-            context.res = context.text(String(extracted), response.status as any);
-        } else {
-            // Object, array, multiple fields, or null - return as JSON
-            context.res = context.json(extracted, response.status as any);
-        }
+        // Always return JSON - let formatter middleware handle encoding
+        // This ensures consistent behavior: field extraction → JSON → formatter → final format
+        // Note: undefined is not valid JSON, so convert to null
+        const jsonValue = extracted === undefined ? null : extracted;
+        context.res = context.json(jsonValue, response.status as any);
 
     } catch (error) {
         // If extraction fails, return original response
