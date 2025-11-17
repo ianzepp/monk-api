@@ -16,6 +16,7 @@ setup_full_auth
 # Test 1: Basic empty filter test - should return all records
 print_step "Testing POST /api/find/account with empty filter"
 
+# Empty filter should return all account records from template
 empty_filter='{}'
 
 response=$(auth_post "api/find/account" "$empty_filter")

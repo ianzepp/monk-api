@@ -59,6 +59,7 @@ import * as dataRoutes from '@src/routes/data/routes.js';
 import * as describeRoutes from '@src/routes/describe/routes.js';
 import * as fileRoutes from '@src/routes/file/routes.js';
 import * as aclsRoutes from '@src/routes/acls/routes.js';
+import * as statRoutes from '@src/routes/stat/routes.js';
 import { sudoRouter } from '@src/routes/sudo/index.js';
 
 // Special protected endpoints
@@ -178,7 +179,7 @@ app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
 app.get('/auth/tenants', publicAuthRoutes.TenantsGet); // GET /auth/tenants
 app.get('/auth/templates', publicAuthRoutes.TemplatesGet); // GET /auth/templates
 
-// Public docs routes
+// 40-docs-api: Public docs routes (no authentication required)
 app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
 app.get('/docs/:api', publicDocsRoutes.ApiGet); // GET /docs/:api
 
@@ -249,7 +250,10 @@ app.post('/api/acls/:schema/:record', aclsRoutes.RecordAclPost); // Merge acls f
 app.put('/api/acls/:schema/:record', aclsRoutes.RecordAclPut); // Replace acls for a single record
 app.delete('/api/acls/:schema/:record', aclsRoutes.RecordAclDelete); // Delete acls for a single record
 
-// 39-sudo-api: Sudo API routes (require sudo token from /api/auth/sudo)
+// 39-stat-api: Stat API routes (record metadata without user data)
+app.get('/api/stat/:schema/:record', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
+
+// 41-sudo-api: Sudo API routes (require sudo token from /api/auth/sudo)
 app.use('/api/sudo/*', middleware.sudoAccessMiddleware);
 app.route('/api/sudo', sudoRouter);
 
