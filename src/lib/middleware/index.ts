@@ -9,6 +9,7 @@
 
 export { systemContextMiddleware, setRouteResult } from './system-context.js';
 export { formatDetectionMiddleware } from './format-detection.js';
+export { fieldExtractionMiddleware } from './field-extraction.js';
 export { requestBodyParserMiddleware } from './request-body-parser.js';
 export { responseFormatterMiddleware } from './response-formatter.js';
 export { requestTrackingMiddleware } from './request-tracking.js';
