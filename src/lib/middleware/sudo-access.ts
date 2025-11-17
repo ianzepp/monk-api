@@ -50,6 +50,6 @@ export async function sudoAccessMiddleware(context: Context, next: Next) {
     // Set sudo access flag for route handlers
     context.set('isSudo', true);
     context.set('elevatedFrom', jwtPayload.elevated_from);
-    
-    await next();
+
+    return await next();
 }

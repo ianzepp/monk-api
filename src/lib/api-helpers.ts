@@ -348,7 +348,15 @@ export async function withErrorHandling<T>(c: Context, handler: () => Promise<T>
 // Response Helpers
 // ===========================
 
-// Success response helpers
+/**
+ * Success response helpers
+ *
+ * IMPORTANT: context.json() may be transparently overridden by responseFormatterMiddleware
+ * to encode responses in TOON/YAML/etc based on ?format query parameter or JWT preference.
+ *
+ * Routes always work with JSON - formatters operate at the API boundary transparently.
+ * Default format is JSON (no overhead for 99% of requests).
+ */
 export function createSuccessResponse<T>(c: Context, data: T, status = 200) {
     return c.json({ success: true, data } as ApiSuccessResponse<T>, status as any);
 }

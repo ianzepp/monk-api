@@ -1,5 +1,5 @@
 /**
- * System Table Protector - Ring 2 Business Logic
+ * System Table Protector - Ring 3 Business Logic
  *
  * Prevents creation of schemas that would conflict with PostgreSQL system tables
  * or other critical system namespaces (pg_*, information_schema, etc.)
@@ -22,7 +22,7 @@ const SYSTEM_TABLES = new Set([
 ]);
 
 export default class SystemTableProtector extends BaseObserver {
-    readonly ring = ObserverRing.Business;  // Ring 2
+    readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create'] as const;
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {

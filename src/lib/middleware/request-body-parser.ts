@@ -21,8 +21,7 @@ export async function requestBodyParserMiddleware(context: Context, next: Next) 
 
     // Skip parsing if no body (GET, DELETE, etc.)
     if (context.req.method === 'GET' || context.req.method === 'DELETE' || context.req.method === 'HEAD') {
-        await next();
-        return;
+        return await next();
     }
 
     try {
@@ -30,8 +29,7 @@ export async function requestBodyParserMiddleware(context: Context, next: Next) 
 
         // Skip if empty body
         if (!rawBody || rawBody.trim().length === 0) {
-            await next();
-            return;
+            return await next();
         }
 
         let parsedBody: any;
@@ -75,5 +73,5 @@ export async function requestBodyParserMiddleware(context: Context, next: Next) 
         }, 400);
     }
 
-    await next();
+    return await next();
 }

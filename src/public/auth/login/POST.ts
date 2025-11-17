@@ -84,6 +84,8 @@ export default async function (context: Context) {
     const token = await sign(payload, process.env.JWT_SECRET!);
 
     // Return response directly (no system context middleware)
+    // Note: context.json() is transparently overridden by responseFormatterMiddleware
+    // to support ?format=toon|yaml|etc - routes work with JSON, formatters handle encoding
     return context.json({
         success: true,
         data: {

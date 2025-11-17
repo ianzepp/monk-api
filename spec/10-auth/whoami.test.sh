@@ -45,15 +45,15 @@ fi
 print_step "Testing POST /api/auth/sudo"
 sudo_response=$(auth_post "api/auth/sudo" '{"reason":"Testing privilege escalation"}')
 assert_success "$sudo_response"
-assert_has_field "data.root_token" "$sudo_response"
+assert_has_field "data.sudo_token" "$sudo_response"
 assert_has_field "data.expires_in" "$sudo_response"
 
 # Verify token expiration warning
 expires_in=$(echo "$sudo_response" | jq -r '.data.expires_in')
 if [[ "$expires_in" -eq 900 ]]; then
-    print_success "Root token has correct 15-minute expiration"
+    print_success "Sudo token has correct 15-minute expiration"
 else
-    test_fail "Root token should expire in 900 seconds, got: $expires_in"
+    test_fail "Sudo token should expire in 900 seconds, got: $expires_in"
 fi
 
 print_success "Sudo privilege escalation successful"

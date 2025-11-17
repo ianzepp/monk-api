@@ -1,5 +1,5 @@
 /**
- * Relationship Schema Checker - Ring 2 Business Logic
+ * Relationship Schema Checker - Ring 3 Business Logic
  *
  * Validates that related_schema exists when creating a relationship column.
  * Ensures referential integrity before DDL execution.
@@ -12,7 +12,7 @@ import { ValidationError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 
 export default class RelationshipSchemaChecker extends BaseObserver {
-    readonly ring = ObserverRing.Business;  // Ring 2
+    readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create', 'update'] as const;
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {

@@ -1,5 +1,5 @@
 /**
- * Duplicate Column Checker - Ring 2 Business Logic
+ * Duplicate Column Checker - Ring 3 Business Logic
  *
  * Checks if a column with the same name already exists in the schema.
  * Provides better error message than database unique constraint violation.
@@ -12,7 +12,7 @@ import { ValidationError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 
 export default class DuplicateColumnChecker extends BaseObserver {
-    readonly ring = ObserverRing.Business;  // Ring 2
+    readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create'] as const;
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {

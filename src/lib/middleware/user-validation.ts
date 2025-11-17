@@ -66,9 +66,9 @@ export async function userValidationMiddleware(context: Context, next: Next) {
         context.set('accessReadIds', user.access_read || []);
         context.set('accessEditIds', user.access_edit || []);
         context.set('accessFullIds', user.access_full || []);
-        
-        await next();
-        
+
+        return await next();
+
     } catch (error) {
         if (error instanceof Error && error.name === 'HttpError') {
             throw error; // Re-throw HttpErrors

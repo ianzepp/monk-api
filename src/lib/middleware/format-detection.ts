@@ -57,5 +57,5 @@ function resolveFormat(context: Context): ResponseFormat {
 export async function formatDetectionMiddleware(context: Context, next: Next) {
     const format = resolveFormat(context);
     context.set('responseFormat', format);
-    await next();
+    return await next();
 }

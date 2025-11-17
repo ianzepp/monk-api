@@ -57,9 +57,9 @@ export async function jwtValidationMiddleware(context: Context, next: Next) {
         context.set('jwtPayload', payload);
         context.set('tenant', payload.tenant);
         context.set('database', payload.database);
-        
-        await next();
-        
+
+        return await next();
+
     } catch (error: any) {
         // Convert JWT verification errors to proper HttpErrors
         if (error.name === 'JwtTokenExpired' || error.name === 'JwtTokenInvalid' || 

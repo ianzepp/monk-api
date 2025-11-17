@@ -85,12 +85,14 @@ app.use('*', async (c, next) => {
     const method = c.req.method;
     const path = c.req.path;
 
-    await next();
+    const result = await next();
 
     const duration = Date.now() - start;
     const status = c.res.status;
 
     logger.info('Request completed', { method, path, status, duration });
+
+    return result;
 });
 
 // Root endpoint

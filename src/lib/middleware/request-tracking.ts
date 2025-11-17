@@ -50,7 +50,7 @@ export async function requestTrackingMiddleware(context: Context, next: Next) {
         }
 
         // Database connection verified - continue with request
-        await next();
+        return await next();
     } catch (error) {
         // Database connection failed - this is a critical system issue
         console.error('Database connection failed during request tracking:', error);
