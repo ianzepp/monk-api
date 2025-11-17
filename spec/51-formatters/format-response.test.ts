@@ -93,6 +93,87 @@ format: toon`;
         });
     });
 
+    describe('Query Parameter Format (Highest Priority)', () => {
+        it('should return YAML when ?format=yaml query parameter is used', async () => {
+            // JSON request body with query parameter override
+            const response = await httpClient.postJson('/auth/login?format=yaml', {
+                tenant: tenantName,
+                username: 'full',
+            });
+
+            // Verify response status
+            expect(response.status).toBe(200);
+
+            // Verify response Content-Type matches query parameter format
+            expect(response.headers.get('content-type')).toContain('application/yaml');
+
+            // Verify response is in YAML format (despite JSON request)
+            expect(FormatValidator.isYaml(response.body)).toBe(true);
+            expect(response.body).toMatch(/^success:/);
+        });
+
+        it('should return TOON when ?format=toon query parameter is used', async () => {
+            // JSON request body with query parameter override
+            const response = await httpClient.postJson('/auth/login?format=toon', {
+                tenant: tenantName,
+                username: 'full',
+            });
+
+            // Verify response status
+            expect(response.status).toBe(200);
+
+            // Verify response Content-Type matches query parameter format
+            expect(response.headers.get('content-type')).toContain('text/plain');
+
+            // Verify response is in TOON format (despite JSON request)
+            expect(FormatValidator.isToon(response.body)).toBe(true);
+            expect(response.body).toMatch(/^success:/);
+        });
+
+        it('should override Accept header with query parameter', async () => {
+            // Request with Accept: application/yaml but ?format=toon in URL
+            // Query parameter should win (higher priority)
+            const response = await httpClient.request('/auth/login?format=toon', {
+                method: 'POST',
+                contentType: 'application/json',
+                accept: 'application/yaml', // This should be overridden
+                body: {
+                    tenant: tenantName,
+                    username: 'full',
+                },
+            });
+
+            // Verify response status
+            expect(response.status).toBe(200);
+
+            // Verify response is in TOON format (query param overrides Accept header)
+            expect(response.headers.get('content-type')).toContain('text/plain');
+            expect(FormatValidator.isToon(response.body)).toBe(true);
+        });
+
+        it('should override request body format field with query parameter', async () => {
+            // YAML request body with format: yaml, but ?format=toon in URL
+            // Query parameter should win (higher priority)
+            const yamlRequest = `tenant: ${tenantName}
+username: full
+format: yaml`;
+
+            const response = await httpClient.request('/auth/login?format=toon', {
+                method: 'POST',
+                contentType: 'application/yaml',
+                accept: 'application/yaml',
+                body: yamlRequest,
+            });
+
+            // Verify response status
+            expect(response.status).toBe(200);
+
+            // Verify response is in TOON format (query param overrides body format field)
+            expect(response.headers.get('content-type')).toContain('text/plain');
+            expect(FormatValidator.isToon(response.body)).toBe(true);
+        });
+    });
+
     describe('Morse Format', () => {
         it.todo('should accept Morse request and return Morse response', async () => {
             // TODO: Morse format requires actual Morse-encoded input
@@ -101,10 +182,32 @@ format: toon`;
         });
     });
 
-    describe('Format Comparison', () => {
-        it.todo('should return same data in different formats', async () => {
-            // TODO: Verify JSON authentication response structure
-            // Currently the response format differs from expected
+    describe('Format Priority Order', () => {
+        it('should use query parameter over Accept header and body format', async () => {
+            // This test verifies the complete priority order:
+            // 1. Query parameter (highest)
+            // 2. Accept header
+            // 3. Body format field
+            // 4. Default JSON (not tested here)
+
+            // Send JSON with Accept: application/yaml and ?format=toon
+            const response = await httpClient.request('/auth/login?format=toon', {
+                method: 'POST',
+                contentType: 'application/json',
+                accept: 'application/yaml', // Lower priority than query param
+                body: {
+                    tenant: tenantName,
+                    username: 'full',
+                    format: 'json', // Even lower priority
+                },
+            });
+
+            expect(response.status).toBe(200);
+
+            // Query parameter wins: response should be TOON
+            expect(response.headers.get('content-type')).toContain('text/plain');
+            expect(FormatValidator.isToon(response.body)).toBe(true);
+            expect(response.body).toContain('success: true');
         });
     });
 });
