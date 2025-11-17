@@ -7,7 +7,7 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 /**
  * POST /auth/register - User registration
  *
- * Creates a new tenant from the 'empty' template with a user-specified tenant name.
+ * Creates a new tenant from a specified template with a user-specified tenant name.
  * Returns a JWT token for immediate access to the new tenant.
  *
  * The server's TENANT_NAMING_MODE environment variable controls the database naming strategy:
@@ -16,6 +16,7 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  *
  * Request body:
  * - tenant (required): User-facing tenant name
+ * - template (optional): Template name to use (defaults to 'empty'). Available templates can be listed via GET /auth/templates
  * - username (optional): Username for the tenant admin. Defaults to 'root' in personal mode, required in enterprise mode
  * - database (optional): Custom database name (personal mode only). Defaults to sanitized tenant name
  * - description (optional): Human-readable description of the tenant
@@ -23,7 +24,7 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username, database, description } = await context.req.json();
+    const { tenant, template, username, database, description } = await context.req.json();
 
     // Input validation
     if (!tenant) {
@@ -46,9 +47,11 @@ export default async function (context: Context) {
         );
     }
 
-    // Clone empty template with user-provided tenant name
+    // Clone specified template (defaults to 'empty') with user-provided tenant name
+    const templateName = template || 'empty';
+
     const cloneResult = await DatabaseTemplate.cloneTemplate({
-        template_name: 'empty',
+        template_name: templateName,
         tenant_name: tenant,
         username: username,
         user_access: 'root',

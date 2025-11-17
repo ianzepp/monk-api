@@ -107,6 +107,7 @@ app.get('/', c => {
                 '/auth/register',
                 '/auth/refresh',
                 '/auth/tenants',
+                '/auth/templates',
                 '/api/auth/whoami',
                 '/api/auth/sudo'
             ],
@@ -172,6 +173,7 @@ app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
 app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
 app.get('/auth/tenants', publicAuthRoutes.TenantsGet); // GET /auth/tenants
+app.get('/auth/templates', publicAuthRoutes.TemplatesGet); // GET /auth/templates
 
 // Public docs routes
 app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
