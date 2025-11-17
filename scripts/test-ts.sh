@@ -31,6 +31,25 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
+server_start() {
+    print_header "Starting server"
+    npm run start:bg
+    print_success "Server starting, waiting 3 seconds.."
+    sleep 3
+}
+
+server_stop() {
+    print_header "Stopping server (if running)"
+    npm run stop
+}
+
+# Run the build
+npm run build
+
+# Start the API server
+server_stop
+server_start
+
 # Find TypeScript test files based on pattern
 if [[ $# -gt 0 ]]; then
     pattern="$1"
@@ -77,6 +96,7 @@ if [[ -z "$test_files" ]]; then
     echo ""
     echo "TypeScript tests should be placed in spec/XX-category/*.test.ts"
     echo "Example: spec/05-infrastructure/database-naming.test.ts"
+    server_stop
     exit 1
 fi
 
@@ -99,5 +119,7 @@ if [[ $exit_code -eq 0 ]]; then
 else
     print_error "Some TypeScript tests failed"
 fi
+
+server_stop
 
 exit $exit_code
