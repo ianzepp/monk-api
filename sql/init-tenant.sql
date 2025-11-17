@@ -36,6 +36,7 @@ CREATE TABLE "schemas" (
 	-- Implementation
 	"schema_name" text NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
+	"description" text,
 	"sudo" boolean DEFAULT false NOT NULL,
 	"freeze" boolean DEFAULT false NOT NULL,
 
@@ -79,7 +80,8 @@ CREATE TABLE "columns" (
 	"enum_values" text[],
 	"is_array" boolean DEFAULT false,
 	"immutable" boolean DEFAULT false NOT NULL,
-	"sudo" boolean DEFAULT false NOT NULL
+	"sudo" boolean DEFAULT false NOT NULL,
+	"unique" boolean DEFAULT false NOT NULL
 );
 
 -- Add foreign key constraint
@@ -146,6 +148,7 @@ VALUES (
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
     ('schemas', 'schema_name', 'text', true, 'Unique name for the schema'),
     ('schemas', 'status', 'text', true, 'Schema status (pending, active, system)'),
+    ('schemas', 'description', 'text', false, 'Human-readable description of the schema'),
     ('schemas', 'sudo', 'boolean', true, 'Whether schema modifications require sudo access'),
     ('schemas', 'freeze', 'boolean', true, 'Whether all data changes are prevented on this schema');
 
@@ -169,7 +172,8 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('columns', 'enum_values', 'text[]', false, 'Allowed enum values'),
     ('columns', 'is_array', 'boolean', false, 'Whether the column is an array type'),
     ('columns', 'immutable', 'boolean', false, 'Whether the column value cannot be changed once set'),
-    ('columns', 'sudo', 'boolean', false, 'Whether modifying this column requires sudo access');
+    ('columns', 'sudo', 'boolean', false, 'Whether modifying this column requires sudo access'),
+    ('columns', 'unique', 'boolean', false, 'Whether the column must have unique values');
 
 -- Column definitions for 'users' schema
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
@@ -214,7 +218,7 @@ BEGIN
 
     -- Add custom columns from columns table
     FOR v_column IN
-        SELECT column_name, type, required, default_value
+        SELECT column_name, type, required, default_value, "unique"
         FROM columns
         WHERE schema_name = p_schema_name
         ORDER BY column_name
@@ -257,6 +261,19 @@ BEGIN
         p_schema_name || '_updated_at_idx', p_schema_name);
     EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (deleted_at) WHERE deleted_at IS NULL',
         p_schema_name || '_deleted_at_idx', p_schema_name);
+
+    -- Create unique indexes for columns marked as unique
+    FOR v_column IN
+        SELECT column_name
+        FROM columns
+        WHERE schema_name = p_schema_name
+          AND "unique" = true
+    LOOP
+        EXECUTE format('CREATE UNIQUE INDEX IF NOT EXISTS %I ON %I (%I)',
+            p_schema_name || '_' || v_column.column_name || '_unique_idx',
+            p_schema_name,
+            v_column.column_name);
+    END LOOP;
 
     -- Update schema status to active
     UPDATE schemas SET status = 'active' WHERE schema_name = p_schema_name;

@@ -1,0 +1,40 @@
+-- Schema definition for projects
+-- Projects and initiatives within workspaces
+
+-- Insert schema record
+INSERT INTO schemas (schema_name, status, description)
+  VALUES ('projects', 'active', 'Projects and initiatives within workspaces');
+
+-- Insert column definitions
+INSERT INTO columns (schema_name, column_name, type, required, description)
+  VALUES ('projects', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+
+INSERT INTO columns (schema_name, column_name, type, required, description, minimum, maximum)
+  VALUES ('projects', 'name', 'text', 'true', 'Project name', 2, 100);
+
+INSERT INTO columns (schema_name, column_name, type, required, description, maximum)
+  VALUES ('projects', 'description', 'text', 'false', 'Project description', 2000);
+
+INSERT INTO columns (schema_name, column_name, type, required, description, enum_values)
+  VALUES ('projects', 'status', 'text', 'false', 'Project status', ARRAY['planning', 'active', 'on_hold', 'completed', 'cancelled']);
+
+INSERT INTO columns (schema_name, column_name, type, required, description)
+  VALUES ('projects', 'start_date', 'date', 'false', 'Project start date');
+
+INSERT INTO columns (schema_name, column_name, type, required, description)
+  VALUES ('projects', 'end_date', 'date', 'false', 'Project end date');
+
+INSERT INTO columns (schema_name, column_name, type, required, description, maximum)
+  VALUES ('projects', 'owner', 'text', 'false', 'Project owner/lead name', 100);
+
+INSERT INTO columns (schema_name, column_name, type, required, description)
+  VALUES ('projects', 'tags', 'text[]', 'false', 'Project tags for categorization');
+
+INSERT INTO columns (schema_name, column_name, type, required, description)
+  VALUES ('projects', 'created_at', 'timestamp', 'false', 'Timestamp when project was created');
+
+-- Create the actual table from schema definition
+SELECT create_table_from_schema('projects');
+
+-- Add composite unique constraint (workspace_id, name) for scoped uniqueness
+ALTER TABLE projects ADD CONSTRAINT projects_workspace_name_unique UNIQUE(workspace_id, name);
