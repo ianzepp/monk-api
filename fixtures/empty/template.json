@@ -1,0 +1,7 @@
+{
+  "name": "empty",
+  "description": "Minimal template with core infrastructure only (schemas, columns, users, definitions)",
+  "version": "1.0.0",
+  "schemas": 0,
+  "sample_data": false
+}

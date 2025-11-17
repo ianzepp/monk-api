@@ -1,0 +1,7 @@
+{
+  "name": "testing",
+  "description": "Testing template with account and contact schemas for integration tests",
+  "version": "1.0.0",
+  "schemas": 2,
+  "sample_data": true
+}

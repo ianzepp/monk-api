@@ -305,12 +305,23 @@ print_success "Server restarted"
 # Step 5: Register as template in tenants table
 print_step "Registering template in tenants registry"
 
+# Read description from template.json if it exists
+template_description=""
+template_json="$FIXTURES_DIR/template.json"
+if [[ -f "$template_json" ]] && command -v jq >/dev/null 2>&1; then
+    template_description=$(jq -r '.description // ""' "$template_json" 2>/dev/null || echo "")
+    if [[ -n "$template_description" ]]; then
+        print_info "Using description from template.json: $template_description"
+    fi
+fi
+
 # Update the tenant record to mark as template
 template_update_sql="
     UPDATE tenants
     SET database = '$template_db_final',
         tenant_type = 'template',
-        name = 'monk_$TEMPLATE_NAME'
+        name = 'monk_$TEMPLATE_NAME',
+        description = $(if [[ -n "$template_description" ]]; then echo "'$template_description'"; else echo "NULL"; fi)
     WHERE name = '$tenant_name'
 "
 
