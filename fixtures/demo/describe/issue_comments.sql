@@ -15,8 +15,5 @@ INSERT INTO columns (schema_name, column_name, type, required, description, maxi
 INSERT INTO columns (schema_name, column_name, type, required, description, maximum)
   VALUES ('issue_comments', 'body', 'text', 'true', 'Comment content', 5000);
 
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('issue_comments', 'created_at', 'timestamp', 'false', 'Timestamp when comment was created');
-
 -- Create the actual table from schema definition
 SELECT create_table_from_schema('issue_comments');

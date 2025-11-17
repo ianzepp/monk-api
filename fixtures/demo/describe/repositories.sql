@@ -30,12 +30,6 @@ INSERT INTO columns (schema_name, column_name, type, required, description)
 INSERT INTO columns (schema_name, column_name, type, required, description, minimum, maximum)
   VALUES ('repositories', 'stars', 'integer', 'false', 'Star count', 0, 999999);
 
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('repositories', 'created_at', 'timestamp', 'false', 'Timestamp when repository was created');
-
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('repositories', 'updated_at', 'timestamp', 'false', 'Timestamp when repository was last updated');
-
 -- Create the actual table from schema definition
 SELECT create_table_from_schema('repositories');
 

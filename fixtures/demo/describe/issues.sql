@@ -31,12 +31,6 @@ INSERT INTO columns (schema_name, column_name, type, required, description, maxi
   VALUES ('issues', 'reported_by', 'text', 'false', 'Member name who reported the issue', 100);
 
 INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('issues', 'created_at', 'timestamp', 'false', 'Timestamp when issue was created');
-
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('issues', 'updated_at', 'timestamp', 'false', 'Timestamp when issue was last updated');
-
-INSERT INTO columns (schema_name, column_name, type, required, description)
   VALUES ('issues', 'closed_at', 'timestamp', 'false', 'Timestamp when issue was closed');
 
 -- Create the actual table from schema definition

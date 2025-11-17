@@ -33,8 +33,5 @@ INSERT INTO columns (schema_name, column_name, type, required, description, maxi
 INSERT INTO columns (schema_name, column_name, type, required, description)
   VALUES ('releases', 'published_at', 'timestamp', 'false', 'Timestamp when release was published');
 
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('releases', 'created_at', 'timestamp', 'false', 'Timestamp when release was created');
-
 -- Create the actual table from schema definition
 SELECT create_table_from_schema('releases');

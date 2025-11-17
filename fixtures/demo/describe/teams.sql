@@ -18,9 +18,6 @@ INSERT INTO columns (schema_name, column_name, type, required, description, maxi
 INSERT INTO columns (schema_name, column_name, type, required, description, enum_values)
   VALUES ('teams', 'focus_area', 'text', 'false', 'Team focus area', ARRAY['backend', 'frontend', 'ai-ml', 'devops', 'design', 'product', 'data']);
 
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('teams', 'created_at', 'timestamp', 'false', 'Timestamp when team was created');
-
 -- Create the actual table from schema definition
 SELECT create_table_from_schema('teams');
 

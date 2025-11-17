@@ -184,7 +184,7 @@ fi
 print_success "Created database: $template_db_name"
 
 # Initialize tenant schema (no users - let fixture init.sql handle that)
-if ! psql -d "$template_db_name" -f sql/init-tenant.sql >/dev/null 2>&1; then
+if ! psql -d "$template_db_name" -f sql/init-tenant.sql; then
     dropdb "$template_db_name" 2>/dev/null || true
     fail "Failed to initialize tenant schema"
 fi
@@ -199,7 +199,7 @@ print_success "Registered tenant: $tenant_name"
 
 # Step 1.5: Initialize definitions system for schema caching
 print_step "Initializing definitions system (schema caching)"
-if psql -d "$template_db_name" -f sql/init-definitions.sql >/dev/null 2>&1; then
+if psql -d "$template_db_name" -f sql/init-definitions.sql; then
     print_success "Definitions system initialized"
 else
     print_error "Failed to initialize definitions system"
@@ -234,7 +234,7 @@ for schema_file in "$FIXTURES_DIR/describe"/*.sql; do
     schema_name=$(basename "$schema_file" .sql)
     print_step "Loading schema: $schema_name"
 
-    if psql -d "$template_db_name" -f "$schema_file" >/dev/null 2>&1; then
+    if psql -d "$template_db_name" -f "$schema_file"; then
         print_success "Schema '$schema_name' loaded successfully"
         ((schema_count++))
     else
@@ -263,7 +263,7 @@ for data_file in "$FIXTURES_DIR/data"/*.sql; do
     # Count records in SQL file (approximate)
     record_count=$(grep -c "^INSERT INTO" "$data_file" || echo "0")
 
-    if psql -d "$template_db_name" -f "$data_file" >/dev/null 2>&1; then
+    if psql -d "$template_db_name" -f "$data_file"; then
         print_success "Data '$data_name' loaded: $record_count records"
         ((data_count++))
         ((total_records += record_count))

@@ -30,9 +30,6 @@ INSERT INTO columns (schema_name, column_name, type, required, description, maxi
 INSERT INTO columns (schema_name, column_name, type, required, description)
   VALUES ('projects', 'tags', 'text[]', 'false', 'Project tags for categorization');
 
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('projects', 'created_at', 'timestamp', 'false', 'Timestamp when project was created');
-
 -- Create the actual table from schema definition
 SELECT create_table_from_schema('projects');
 

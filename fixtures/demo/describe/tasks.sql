@@ -36,11 +36,5 @@ INSERT INTO columns (schema_name, column_name, type, required, description, mini
 INSERT INTO columns (schema_name, column_name, type, required, description)
   VALUES ('tasks', 'completed_at', 'timestamp', 'false', 'Timestamp when task was completed');
 
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('tasks', 'created_at', 'timestamp', 'false', 'Timestamp when task was created');
-
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('tasks', 'updated_at', 'timestamp', 'false', 'Timestamp when task was last updated');
-
 -- Create the actual table from schema definition
 SELECT create_table_from_schema('tasks');

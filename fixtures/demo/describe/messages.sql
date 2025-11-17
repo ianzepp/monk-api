@@ -21,8 +21,5 @@ INSERT INTO columns (schema_name, column_name, type, required, description, mini
 INSERT INTO columns (schema_name, column_name, type, required, description)
   VALUES ('messages', 'metadata', 'jsonb', 'false', 'Message metadata (function calls, code blocks, attachments, reasoning traces)');
 
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('messages', 'created_at', 'timestamp', 'false', 'Timestamp when message was created');
-
 -- Create the actual table from schema definition
 SELECT create_table_from_schema('messages');

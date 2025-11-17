@@ -18,8 +18,5 @@ INSERT INTO columns (schema_name, column_name, type, required, description, maxi
 INSERT INTO columns (schema_name, column_name, type, required, description)
   VALUES ('workspaces', 'settings', 'jsonb', 'false', 'Workspace settings (theme, preferences, feature flags)');
 
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('workspaces', 'created_at', 'timestamp', 'false', 'Timestamp when workspace was created');
-
 -- Create the actual table from schema definition
 SELECT create_table_from_schema('workspaces');

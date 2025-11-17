@@ -34,12 +34,6 @@ INSERT INTO columns (schema_name, column_name, type, required, description)
   VALUES ('docs', 'metadata', 'jsonb', 'false', 'Document metadata (related_docs, embedding_id, word_count, last_indexed_at)');
 
 INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('docs', 'created_at', 'timestamp', 'false', 'Timestamp when document was created');
-
-INSERT INTO columns (schema_name, column_name, type, required, description)
-  VALUES ('docs', 'updated_at', 'timestamp', 'false', 'Timestamp when document was last updated');
-
-INSERT INTO columns (schema_name, column_name, type, required, description)
   VALUES ('docs', 'accessed_at', 'timestamp', 'false', 'Timestamp when document was last accessed (for LRU/popularity tracking)');
 
 -- Create the actual table from schema definition
