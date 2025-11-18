@@ -121,42 +121,16 @@ COMMENT ON COLUMN "sandboxes"."expires_at" IS 'Auto-deletion time (TODO: impleme
 COMMENT ON COLUMN "sandboxes"."last_accessed_at" IS 'Last access time for usage tracking';
 
 -- ============================================================================
--- SNAPSHOTS TABLE
--- Point-in-time backups of tenant databases
+-- SNAPSHOTS TABLE - MOVED TO TENANT DATABASES
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS "snapshots" (
-    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-    "name" VARCHAR(255) NOT NULL UNIQUE,              -- Snapshot identifier
-    "database" VARCHAR(255) NOT NULL UNIQUE,          -- Database name: snapshot_{timestamp}_{name}
-    "description" TEXT,                               -- Optional description
-    "snapshot_type" VARCHAR(20) DEFAULT 'manual' NOT NULL CHECK (
-        "snapshot_type" IN ('manual', 'auto', 'pre_migration', 'scheduled')
-    ),
-    "source_tenant_id" uuid REFERENCES "tenants"("id") ON DELETE SET NULL,
-    "source_tenant_name" VARCHAR(255) NOT NULL,       -- Preserved even if tenant deleted
-    "size_bytes" BIGINT,                              -- Snapshot size in bytes
-    "record_count" INTEGER,                           -- Total records at snapshot time
-    "created_by" uuid NOT NULL,                       -- User who created snapshot
-    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "expires_at" TIMESTAMP,                           -- Retention policy expiration
-    CONSTRAINT "snapshots_database_prefix" CHECK ("database" LIKE 'snapshot_%')
-);
-
-CREATE INDEX "idx_snapshots_source_tenant" ON "snapshots" ("source_tenant_id");
-CREATE INDEX "idx_snapshots_source_name" ON "snapshots" ("source_tenant_name");
-CREATE INDEX "idx_snapshots_created_by" ON "snapshots" ("created_by");
-CREATE INDEX "idx_snapshots_created_at" ON "snapshots" ("created_at");
-CREATE INDEX "idx_snapshots_type" ON "snapshots" ("snapshot_type");
-CREATE INDEX "idx_snapshots_expires" ON "snapshots" ("expires_at") WHERE "expires_at" IS NOT NULL;
-
-COMMENT ON TABLE "snapshots" IS 'Point-in-time backups of tenant databases';
-COMMENT ON COLUMN "snapshots"."name" IS 'Snapshot identifier';
-COMMENT ON COLUMN "snapshots"."database" IS 'PostgreSQL database name (format: snapshot_{timestamp}_{name})';
-COMMENT ON COLUMN "snapshots"."snapshot_type" IS 'Type: manual, auto, pre_migration, scheduled';
-COMMENT ON COLUMN "snapshots"."source_tenant_id" IS 'Source tenant (NULL if deleted)';
-COMMENT ON COLUMN "snapshots"."source_tenant_name" IS 'Source tenant name preserved for reference';
-COMMENT ON COLUMN "snapshots"."expires_at" IS 'When snapshot should be deleted per retention policy';
-
+-- Snapshots are now stored in each tenant database for:
+-- - Observer pipeline integration (async background processing)
+-- - Tenant-scoped ACLs and validation
+-- - Automatic cleanup when tenant is deleted
+-- - Consistent with Monk's tenant-scoped architecture
+--
+-- See sql/init-template-default.sql for snapshot table definition
+--
 -- ============================================================================
 -- REQUEST TRACKING TABLE
 -- Records all API requests for analytics, monitoring, and health checking

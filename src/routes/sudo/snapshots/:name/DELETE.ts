@@ -1,20 +1,26 @@
-import type { Context} from 'hono';
-import { InfrastructureService } from '@src/lib/services/infrastructure-service.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { InfrastructureService } from '@src/lib/services/infrastructure-service.js';
 
 /**
  * DELETE /api/sudo/snapshots/:name - Delete snapshot
  *
- * Deletes a snapshot database and its registry entry.
- * Users can only delete their own snapshots.
+ * Deletes a snapshot record and drops its database.
+ * Users can only delete snapshots they created (ownership check via ACLs).
+ * 
  * Requires sudo access.
  */
-export default async function (context: Context) {
+export default withTransactionParams(async (context, { system }) => {
     const { name } = context.req.param();
     const userId = context.get('userId');
 
+    // Get snapshot (throws 404 if not found)
+    const snapshot = await system.database.select404('snapshots', {
+        where: { name }
+    }, `Snapshot '${name}' not found`);
+
     // Verify ownership
-    const snapshot = await InfrastructureService.getSnapshot(name);
     if (snapshot.created_by !== userId) {
         throw HttpErrors.forbidden(
             'You can only delete snapshots you created',
@@ -22,10 +28,15 @@ export default async function (context: Context) {
         );
     }
 
-    const result = await InfrastructureService.deleteSnapshot(name);
+    // Drop the snapshot database
+    await InfrastructureService.deleteSnapshotDatabase(snapshot.database);
 
-    return context.json({
+    // Delete the snapshot record
+    await system.database.deleteOne('snapshots', snapshot.id);
+
+    setRouteResult(context, {
         success: true,
-        data: result,
+        deleted: name,
+        database: snapshot.database
     });
-}
+});

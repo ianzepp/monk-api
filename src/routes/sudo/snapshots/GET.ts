@@ -1,21 +1,19 @@
-import type { Context } from 'hono';
-import { InfrastructureService } from '@src/lib/services/infrastructure-service.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
- * GET /api/sudo/snapshots - List all snapshots
+ * GET /api/sudo/snapshots - List all snapshots in current tenant
  *
- * Returns snapshots created by the current user.
+ * Returns snapshots from the current tenant database.
+ * Snapshots are tenant-scoped - each tenant only sees their own snapshots.
+ * 
  * Requires sudo access.
  */
-export default async function (context: Context) {
-    const userId = context.get('userId');
-
-    const snapshots = await InfrastructureService.listSnapshots({
-        created_by: userId,
+export default withTransactionParams(async (context, { system }) => {
+    // Query snapshots table in current tenant database
+    const snapshots = await system.database.selectAny('snapshots', {
+        order: [{ field: 'created_at', direction: 'DESC' }]
     });
 
-    return context.json({
-        success: true,
-        data: snapshots,
-    });
-}
+    setRouteResult(context, snapshots);
+});

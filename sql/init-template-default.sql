@@ -130,6 +130,41 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_auth_unique" UNIQUE("auth")
 );
 
+-- Snapshots table for point-in-time backups
+CREATE TABLE IF NOT EXISTS "snapshots" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" VARCHAR(255) NOT NULL UNIQUE,
+	"database" VARCHAR(255) NOT NULL UNIQUE,
+	"description" TEXT,
+	"status" VARCHAR(20) DEFAULT 'pending' NOT NULL CHECK (
+		"status" IN ('pending', 'processing', 'active', 'failed')
+	),
+	"snapshot_type" VARCHAR(20) DEFAULT 'manual' NOT NULL CHECK (
+		"snapshot_type" IN ('manual', 'auto', 'pre_migration', 'scheduled')
+	),
+	"size_bytes" BIGINT,
+	"record_count" INTEGER,
+	"error_message" TEXT,
+	"created_by" uuid NOT NULL,
+	"created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"expires_at" TIMESTAMP,
+	"trashed_at" TIMESTAMP,
+	"deleted_at" TIMESTAMP,
+	"access_read" uuid[] DEFAULT '{}'::uuid[],
+	"access_edit" uuid[] DEFAULT '{}'::uuid[],
+	"access_full" uuid[] DEFAULT '{}'::uuid[],
+	"access_deny" uuid[] DEFAULT '{}'::uuid[],
+	CONSTRAINT "snapshots_database_prefix" CHECK ("database" LIKE 'snapshot_%')
+);
+
+CREATE INDEX "idx_snapshots_status" ON "snapshots" ("status");
+CREATE INDEX "idx_snapshots_type" ON "snapshots" ("snapshot_type");
+CREATE INDEX "idx_snapshots_created_by" ON "snapshots" ("created_by");
+CREATE INDEX "idx_snapshots_created_at" ON "snapshots" ("created_at");
+CREATE INDEX "idx_snapshots_expires" ON "snapshots" ("expires_at") WHERE "expires_at" IS NOT NULL;
+CREATE INDEX "idx_snapshots_trashed" ON "snapshots" ("trashed_at") WHERE "trashed_at" IS NOT NULL;
+
 -- ============================================================================
 -- PART 2: SYSTEM SCHEMA REGISTRATIONS
 -- ============================================================================
@@ -168,6 +203,16 @@ VALUES (
     'history',
     'system',
     true
+);
+
+-- Insert snapshots schema registration for point-in-time backups
+-- This enables snapshot management via observer pipeline
+INSERT INTO "schemas" (schema_name, status, sudo, description)
+VALUES (
+    'snapshots',
+    'system',
+    true,
+    'Point-in-time database backups created via async observer pipeline'
 );
 
 -- ============================================================================
@@ -225,6 +270,19 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('history', 'created_by', 'uuid', false, 'ID of the user who made the change'),
     ('history', 'request_id', 'text', false, 'Request correlation ID for tracing'),
     ('history', 'metadata', 'jsonb', false, 'Additional context (IP address, user agent, etc.)');
+
+-- Column definitions for 'snapshots' schema (excluding system fields)
+INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
+    ('snapshots', 'name', 'varchar(255)', true, 'Snapshot identifier'),
+    ('snapshots', 'database', 'varchar(255)', true, 'PostgreSQL database name (format: snapshot_{random})'),
+    ('snapshots', 'description', 'text', false, 'Optional description of snapshot purpose'),
+    ('snapshots', 'status', 'varchar(20)', true, 'Processing status: pending, processing, active, failed'),
+    ('snapshots', 'snapshot_type', 'varchar(20)', true, 'Type: manual, auto, pre_migration, scheduled'),
+    ('snapshots', 'size_bytes', 'bigint', false, 'Snapshot database size in bytes'),
+    ('snapshots', 'record_count', 'integer', false, 'Total records at snapshot time'),
+    ('snapshots', 'error_message', 'text', false, 'Error details if status is failed'),
+    ('snapshots', 'created_by', 'uuid', true, 'User who created the snapshot'),
+    ('snapshots', 'expires_at', 'timestamp', false, 'Retention policy expiration time');
 
 -- ============================================================================
 -- PART 4: UTILITY FUNCTIONS

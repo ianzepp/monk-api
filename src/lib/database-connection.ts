@@ -186,7 +186,7 @@ export class DatabaseConnection {
     }
 
     /** Resolve base DATABASE_URL and ensure supported protocol */
-    private static getDatabaseURL(): string {
+    static getDatabaseURL(): string {
         const databaseUrl = process.env.DATABASE_URL;
 
         if (!databaseUrl) {
@@ -200,6 +200,18 @@ export class DatabaseConnection {
         }
 
         return databaseUrl;
+    }
+
+    /** Extract connection parameters from DATABASE_URL */
+    static getConnectionParams(): { host?: string; port?: string; user?: string } {
+        const databaseUrl = this.getDatabaseURL();
+        const url = new URL(databaseUrl);
+        
+        return {
+            host: url.hostname || undefined,
+            port: url.port || undefined,
+            user: url.username || undefined,
+        };
     }
 
     /** Translate connection string into pg.Pool configuration */

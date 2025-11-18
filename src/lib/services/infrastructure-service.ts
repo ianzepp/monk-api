@@ -1,9 +1,8 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { randomBytes } from 'crypto';
-import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { DatabaseNaming, TenantNamingMode } from '@src/lib/database-naming.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 const execAsync = promisify(exec);
 
@@ -272,142 +271,203 @@ export class InfrastructureService {
     // ========================================================================
     // SNAPSHOTS
     // ========================================================================
+    // Note: Snapshots are now stored in tenant databases (not monk database)
+    // CRUD operations use Database class and trigger observer pipeline
+    // This service provides utility methods for the async observer
 
     /**
-     * List all snapshots
+     * Execute pg_dump/restore for snapshot creation
+     * Called by async observer after snapshot record created with status='pending'
      */
-    static async listSnapshots(filters?: { source_tenant_id?: string; created_by?: string }) {
-        const pool = this.getPool();
-        const conditions: string[] = [];
-        const params: any[] = [];
+    static async executePgDump(options: {
+        source_database: string;
+        target_database: string;
+    }): Promise<{ size_bytes: number; record_count: number }> {
+        const { source_database, target_database } = options;
+        const timestamp = Date.now();
+        const dumpFile = `/tmp/snapshot_${timestamp}_${randomBytes(4).toString('hex')}.dump`;
 
-        if (filters?.source_tenant_id) {
-            params.push(filters.source_tenant_id);
-            conditions.push(`source_tenant_id = $${params.length}`);
-        }
-
-        if (filters?.created_by) {
-            params.push(filters.created_by);
-            conditions.push(`created_by = $${params.length}`);
-        }
-
-        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-        const result = await pool.query(
-            `SELECT * FROM snapshots
-             ${whereClause}
-             ORDER BY created_at DESC`,
-            params
-        );
-
-        return result.rows;
-    }
-
-    /**
-     * Get snapshot by name
-     */
-    static async getSnapshot(name: string) {
-        const pool = this.getPool();
-        const result = await pool.query(
-            `SELECT * FROM snapshots WHERE name = $1`,
-            [name]
-        );
-
-        if (result.rows.length === 0) {
-            throw HttpErrors.notFound(`Snapshot '${name}' not found`, 'SNAPSHOT_NOT_FOUND');
-        }
-
-        return result.rows[0];
-    }
-
-    /**
-     * Create snapshot from tenant
-     */
-    static async createSnapshot(options: {
-        tenant_name: string;
-        snapshot_name?: string;
-        description?: string;
-        snapshot_type?: 'manual' | 'auto' | 'pre_migration' | 'scheduled';
-        created_by: string;
-        expires_at?: Date;
-    }) {
-        const pool = this.getPool();
-
-        // Get tenant
-        const tenant = await this.getTenant(options.tenant_name);
-
-        // Generate snapshot name if not provided
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const snapshotName = options.snapshot_name || `${options.tenant_name}_${timestamp}`;
-
-        // Generate database name
-        const databaseName = `snapshot_${timestamp}_${randomBytes(4).toString('hex')}`;
-
-        // Check if name already exists
-        const existingCheck = await pool.query(
-            'SELECT COUNT(*) FROM snapshots WHERE name = $1',
-            [snapshotName]
-        );
-
-        if (existingCheck.rows[0].count > 0) {
-            throw HttpErrors.conflict(
-                `Snapshot '${snapshotName}' already exists`,
-                'SNAPSHOT_EXISTS'
-            );
-        }
-
-        // Clone tenant database
         try {
-            await execAsync(`createdb "${databaseName}" -T "${tenant.database}"`);
+            // Step 1: pg_dump source database (transaction-safe, doesn't block)
+            logger.info('Starting pg_dump', { source_database, target_database, dumpFile });
+            
+            // Get connection parameters from DATABASE_URL
+            const { host, port, user } = DatabaseConnection.getConnectionParams();
+            const hostArg = host ? `-h ${host}` : '';
+            const portArg = port ? `-p ${port}` : '';
+            const userArg = user ? `-U ${user}` : '';
+            
+            await execAsync(
+                `pg_dump ${hostArg} ${portArg} ${userArg} ` +
+                `-d "${source_database}" ` +
+                `-Fc ` +  // Custom format (compressed)
+                `--no-acl --no-owner ` +  // Skip ownership
+                `-f "${dumpFile}"`
+            );
+
+            // Step 2: Create empty target database
+            logger.info('Creating target database', { target_database });
+            await execAsync(`createdb ${hostArg} ${portArg} ${userArg} "${target_database}"`);
+
+            // Step 3: Restore dump to target
+            logger.info('Restoring dump to target', { target_database });
+            await execAsync(
+                `pg_restore ${hostArg} ${portArg} ${userArg} ` +
+                `-d "${target_database}" ` +
+                `-j 4 ` +  // 4 parallel jobs
+                `"${dumpFile}"`
+            );
+
+            // Step 4: Calculate snapshot stats
+            const size_bytes = await this.getDatabaseSize(target_database);
+            const record_count = await this.countDatabaseRecords(target_database);
+
+            // Step 5: Cleanup dump file
+            await execAsync(`rm -f "${dumpFile}"`);
+
+            logger.info('Snapshot created successfully', { 
+                source_database, 
+                target_database, 
+                size_bytes, 
+                record_count 
+            });
+
+            return { size_bytes, record_count };
+
         } catch (error) {
+            // Cleanup on failure
+            await execAsync(`rm -f "${dumpFile}"`).catch(() => {});
+            await execAsync(`dropdb --if-exists "${target_database}"`).catch(() => {});
+            
             throw HttpErrors.internal(
-                `Failed to clone tenant database: ${error}`,
-                'SNAPSHOT_CLONE_FAILED'
+                `Failed to create snapshot: ${error}`,
+                'SNAPSHOT_CREATION_FAILED'
             );
         }
-
-        // Register snapshot
-        const result = await pool.query(
-            `INSERT INTO snapshots (name, database, description, snapshot_type, source_tenant_id, source_tenant_name, created_by, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING *`,
-            [
-                snapshotName,
-                databaseName,
-                options.description || null,
-                options.snapshot_type || 'manual',
-                tenant.id,
-                tenant.name,
-                options.created_by,
-                options.expires_at || null,
-            ]
-        );
-
-        return result.rows[0];
     }
 
     /**
-     * Delete snapshot
+     * Delete snapshot database
+     * Called when snapshot record is deleted
      */
-    static async deleteSnapshot(name: string) {
-        const pool = this.getPool();
-
-        // Get snapshot details
-        const snapshot = await this.getSnapshot(name);
-
-        // Drop the database
+    static async deleteSnapshotDatabase(database: string) {
         try {
-            await execAsync(`dropdb "${snapshot.database}"`);
+            await execAsync(`dropdb "${database}"`);
+            logger.info('Snapshot database dropped', { database });
         } catch (error) {
             throw HttpErrors.internal(
                 `Failed to drop snapshot database: ${error}`,
                 'SNAPSHOT_DROP_FAILED'
             );
         }
+    }
 
-        // Remove from snapshots table
-        await pool.query('DELETE FROM snapshots WHERE name = $1', [name]);
+    /**
+     * Get database size in bytes
+     */
+    private static async getDatabaseSize(database: string): Promise<number> {
+        const pool = this.getPool();
+        const result = await pool.query(
+            `SELECT pg_database_size($1) as size`,
+            [database]
+        );
+        return parseInt(result.rows[0].size);
+    }
 
-        return { success: true, deleted: name };
+    /**
+     * Count total records across all user tables
+     */
+    private static async countDatabaseRecords(database: string): Promise<number> {
+        // Connect to target database to count records
+        const { Pool } = await import('pg');
+        const { host, port, user } = DatabaseConnection.getConnectionParams();
+        const tempPool = new Pool({
+            host: host || 'localhost',
+            port: port ? parseInt(port) : 5432,
+            user: user || undefined,
+            database: database,
+        });
+
+        try {
+            const result = await tempPool.query(`
+                SELECT SUM(n_live_tup) as count
+                FROM pg_stat_user_tables
+            `);
+            return parseInt(result.rows[0].count || '0');
+        } finally {
+            await tempPool.end();
+        }
+    }
+
+    /**
+     * Update snapshot metadata in the snapshot's own database
+     * After pg_dump, the snapshot DB has stale metadata (status='pending')
+     * This updates it to match the source database (status='active')
+     */
+    static async updateSnapshotMetadata(options: {
+        snapshot_id: string;
+        database: string;
+        status: string;
+        size_bytes: number;
+        record_count: number;
+    }): Promise<void> {
+        const { Pool } = await import('pg');
+        const { host, port, user } = DatabaseConnection.getConnectionParams();
+        const snapshotPool = new Pool({
+            host: host || 'localhost',
+            port: port ? parseInt(port) : 5432,
+            user: user || undefined,
+            database: options.database,
+        });
+
+        try {
+            await snapshotPool.query(
+                `UPDATE snapshots 
+                 SET status = $1, size_bytes = $2, record_count = $3, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $4`,
+                [options.status, options.size_bytes, options.record_count, options.snapshot_id]
+            );
+
+            logger.info('Updated snapshot database metadata', {
+                database: options.database,
+                snapshot_id: options.snapshot_id,
+                status: options.status
+            });
+        } finally {
+            await snapshotPool.end();
+        }
+    }
+
+    /**
+     * Lock snapshot database as read-only
+     * Prevents accidental modifications to backup data
+     */
+    static async lockSnapshotDatabase(database: string): Promise<void> {
+        const { Pool } = await import('pg');
+        const { host, port, user } = DatabaseConnection.getConnectionParams();
+        
+        // Must connect to postgres database to run ALTER DATABASE
+        const postgresPool = new Pool({
+            host: host || 'localhost',
+            port: port ? parseInt(port) : 5432,
+            user: user || undefined,
+            database: 'postgres',
+        });
+
+        try {
+            await postgresPool.query(
+                `ALTER DATABASE "${database}" SET default_transaction_read_only = on`
+            );
+
+            logger.info('Locked snapshot database as read-only', { database });
+        } catch (error) {
+            // Log warning but don't fail - snapshot is still usable
+            logger.warn('Failed to lock snapshot database', {
+                database,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        } finally {
+            await postgresPool.end();
+        }
     }
 }
