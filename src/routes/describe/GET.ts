@@ -4,7 +4,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
  * GET /api/describe - List all schema names
- * @see docs/31-meta-api.md
+ * @see docs/31-describe-api.md
  */
 export default withParams(async (context, { system }) => {
     const schemas = await system.describe.selectSchemas();

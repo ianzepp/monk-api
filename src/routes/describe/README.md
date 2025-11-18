@@ -1,8 +1,8 @@
-# 31-Meta API Documentation
+# 31-Describe API Documentation
 
 > **Schema Management and Metadata Operations**
 >
-> The Meta API (also known as the Describe API) provides comprehensive schema management capabilities using Monk-native format. Manage database table structures, column definitions, and metadata with direct PostgreSQL mapping.
+> The Describe API provides comprehensive schema management capabilities using Monk-native format. Manage database table structures, column definitions, and metadata with direct PostgreSQL mapping.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@
 
 ## Overview
 
-The Meta API manages database schemas using Monk-native format with direct PostgreSQL type mapping. It provides automatic DDL generation, column metadata management, and optional JSON Schema export.
+The Describe API manages database schemas using Monk-native format with direct PostgreSQL type mapping. It provides automatic DDL generation, column metadata management, and optional JSON Schema export.
 
 ### Key Capabilities
 - **Monk-Native Format**: Direct PostgreSQL type mapping (no JSON Schema conversion)
@@ -42,7 +42,7 @@ Column operations: /api/describe/:schema/:column
 
 ## Authentication
 
-All Meta API endpoints require valid JWT authentication. The API respects tenant isolation and schema-level permissions.
+All Describe API endpoints require valid JWT authentication. The API respects tenant isolation and schema-level permissions.
 
 ```bash
 Authorization: Bearer <jwt>
@@ -526,9 +526,9 @@ Allows normal schema updates but requires sudo token for salary changes.
 
 For comprehensive testing information and test coverage details, please refer to the test suite documentation:
 
-**[spec/31-meta-api/README.md](../spec/31-meta-api/README.md)**
+**[spec/31-describe-api/README.md](../spec/31-describe-api/README.md)**
 
-This includes test scope, focus areas, and testing strategies for the Meta API endpoints.
+This includes test scope, focus areas, and testing strategies for the Describe API endpoints.
 
 ## Common Use Cases
 

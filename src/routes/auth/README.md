@@ -515,6 +515,6 @@ curl -X GET http://localhost:9001/api/auth/whoami \
 
 ---
 
-**Next: [31-Meta API Documentation](31-meta-api.md)** - Schema management and metadata operations
+**Next: [31-Describe API Documentation](31-describe-api.md)** - Schema management and metadata operations
 
 **Previous: [API Documentation Overview](API.md)** - Complete API reference

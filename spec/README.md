@@ -23,14 +23,14 @@ This directory contains the complete test suite - organized shell integration te
 npm run test:sh
 
 # Run specific test series
-npm run test:sh 31-meta-api
+npm run test:sh 31-describe-api
 npm run test:sh 32-data-api
 
 # Run individual test
-./spec/31-meta-api/create-schema.test.sh
+./spec/31-describe-api/create-schema.test.sh
 
 # Run with detailed output
-TEST_VERBOSE=1 npm run test:sh 33-find-api
+TEST_VERBOSE=1 npm run test:sh 31-describe-api
 
 # Clean up test databases
 npm run test:cleanup
@@ -47,15 +47,15 @@ npm run test:cleanup
 
 ```bash
 # Run specific test category
-npm run test:sh 31-meta       # All meta API tests
+npm run test:sh 31-describe   # All describe API tests
 npm run test:sh 32-data        # Data API tests
 npm run test:sh auth           # All tests with "auth" in path
 
 # Run specific test file
-npm run test:sh 31-meta-api/select-schema.test.sh
+npm run test:sh 31-describe-api/select-schema.test.sh
 
 # Wildcard matching
-npm run test:sh meta           # Matches any test with "meta" in path
+npm run test:sh describe       # Matches any test with "describe" in path
 npm run test:sh find           # Matches any test with "find" in path
 ```
 
@@ -74,7 +74,7 @@ Use `TEST_VERBOSE` to show detailed success messages:
 
 ```bash
 # Verbose mode - shows all output including success messages
-TEST_VERBOSE=1 npm run test:sh 31-meta
+TEST_VERBOSE=1 npm run test:sh 31-describe
 TEST_VERBOSE=true npm run test:cleanup
 ```
 
@@ -119,7 +119,7 @@ Tests are organized by numbered series for logical categorization:
 | Series | Description | Purpose |
 |--------|-------------|---------|
 | **30-auth-api** | Auth API (protected) | User management, whoami, sudo |
-| **31-meta-api** | Schema management | Describe API, schema CRUD |
+| **31-describe-api** | Schema management | Describe API, schema CRUD |
 | **32-data-api** | Data operations | Record CRUD, relationships |
 | **33-find-api** | Search & filtering | Advanced queries, 25+ filter operators |
 | **34-aggregate-api** | Aggregation operations | Count, group by, analytics |
@@ -151,7 +151,7 @@ Tests are organized by numbered series for logical categorization:
 **Quick validation** (< 1 minute):
 ```bash
 npm run test:sh 01-basic       # Basic functionality
-npm run test:sh 31-meta-api    # Schema operations
+npm run test:sh 31-describe-api    # Schema operations
 ```
 
 **Core API validation** (2-3 minutes):
@@ -337,7 +337,7 @@ Follow the naming convention:
 <series>-<category>/<operation>-<subject>.test.sh
 
 Examples:
-31-meta-api/create-schema.test.sh
+31-describe-api/create-schema.test.sh
 32-data-api/update-record.test.sh
 33-find-api/where-basic.test.sh
 ```
@@ -430,10 +430,10 @@ curl http://localhost:9001/health
 #### Run single test with full output
 ```bash
 # Direct execution (most verbose)
-./spec/31-meta-api/create-schema.test.sh
+./spec/31-describe-api/create-schema.test.sh
 
 # Via npm with verbose mode
-TEST_VERBOSE=1 npm run test:sh 31-meta-api/create-schema.test.sh
+TEST_VERBOSE=1 npm run test:sh 31-describe-api/create-schema.test.sh
 ```
 
 #### Check test database state
@@ -451,7 +451,7 @@ psql -d tenant_<hash> -c "SELECT * FROM accounts LIMIT 5;"
 #### Performance debugging
 ```bash
 # Time specific test categories
-time npm run test:sh 31-meta-api
+time npm run test:sh 31-describe-api
 time npm run test:sh 32-data-api
 
 # Compare template vs fresh setup
@@ -597,7 +597,7 @@ Shell tests are ideal for:
 npm run test:sh
 
 # Run specific series
-npm run test:sh 31-meta-api
+npm run test:sh 31-describe-api
 npm run test:sh 32-data-api
 
 # Run with verbose output
@@ -607,7 +607,7 @@ TEST_VERBOSE=1 npm run test:sh 33-find-api
 npm run test:cleanup
 
 # Run individual test
-./spec/31-meta-api/create-schema.test.sh
+./spec/31-describe-api/create-schema.test.sh
 ```
 
 ### Common Test Patterns

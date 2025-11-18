@@ -159,10 +159,10 @@ Observers auto-load at server startup. See: [src/observers/README.md](src/observ
 npm run test:sh
 
 # Run specific test series
-npm run test:sh 31-meta-api
+npm run test:sh 31-describe-api
 
 # Run single test
-./spec/31-meta-api/create-schema.test.sh
+./spec/31-describe-api/create-schema.test.sh
 
 # Clean up test databases
 npm run test:cleanup

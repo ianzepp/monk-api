@@ -1,6 +1,6 @@
-# 31-Meta API: Schema Management API Tests
+# 31-Describe API: Schema Management API Tests
 
-Tests for the Meta API (Describe API) endpoints handling JSON schema operations and metadata management.
+Tests for the Describe API endpoints handling JSON schema operations and metadata management.
 
 **Scope:**
 - Schema creation and management

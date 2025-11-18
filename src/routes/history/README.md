@@ -591,7 +591,7 @@ PUT /api/describe/account/email
 → Enables history tracking for email column
 ```
 
-See: [31-Meta API Documentation](31-meta-api.md)
+See: [31-Describe API Documentation](31-describe-api.md)
 
 ### ACLs API
 

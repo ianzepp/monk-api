@@ -871,4 +871,4 @@ curl -X GET "http://localhost:9001/api/data/users?where={"status":"active"}&orde
 
 **Next: [33-Find API Documentation](33-find-api.md)** - Advanced filtering and search capabilities
 
-**Previous: [31-Meta API Documentation](31-meta-api.md)** - Schema management and metadata operations
+**Previous: [31-Describe API Documentation](31-describe-api.md)** - Schema management and metadata operations
