@@ -16,7 +16,7 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  *
  * Request body:
  * - tenant (required): User-facing tenant name
- * - template (optional): Template name to use (defaults to 'empty'). Available templates can be listed via GET /auth/templates
+ * - template (optional): Template name to use (defaults to 'default'). Available templates can be listed via GET /auth/templates
  * - username (optional): Username for the tenant admin. Defaults to 'root' in personal mode, required in enterprise mode
  * - database (optional): Custom database name (personal mode only). Defaults to sanitized tenant name
  * - description (optional): Human-readable description of the tenant
@@ -47,8 +47,8 @@ export default async function (context: Context) {
         );
     }
 
-    // Clone specified template (defaults to 'empty') with user-provided tenant name
-    const templateName = template || 'empty';
+    // Clone specified template (defaults to 'default') with user-provided tenant name
+    const templateName = template || 'default';
 
     const cloneResult = await DatabaseTemplate.cloneTemplate({
         template_name: templateName,

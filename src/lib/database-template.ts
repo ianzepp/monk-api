@@ -64,23 +64,21 @@ export class DatabaseTemplate {
         const mainPool = DatabaseConnection.getMainPool();
 
         try {
-            // 1. Validate template exists
+            // 1. Validate template exists in new templates table
             const templateQuery = `
                 SELECT database
-                  FROM tenants
+                  FROM templates
                  WHERE name = $1
-                   AND tenant_type = 'template'
-                   AND trashed_at IS NULL
             `;
 
-            // Find the template by name, if it exists
-            const templateResult = await mainPool.query(templateQuery, [`monk_${template_name}`]);
+            // Find the template by name
+            const templateResult = await mainPool.query(templateQuery, [template_name]);
 
             if (templateResult.rows.length === 0) {
                 throw HttpErrors.notFound(`Template '${template_name}' not found`, 'TEMPLATE_NOT_FOUND');
             }
 
-            const templateDatabase = templateResult.rows[0].database; // monk_template_basic
+            const templateDatabase = templateResult.rows[0].database; // monk_template_default, monk_template_testing, etc.
 
             // 2. Generate tenant name if not provided
             let tenantName = options.tenant_name;
@@ -145,13 +143,25 @@ export class DatabaseTemplate {
                 throw HttpErrors.internal(`Failed to clone template database: ${error}`, 'TEMPLATE_CLONE_FAILED');
             }
 
-            // 8. Register tenant in main database with naming mode and description
-            await mainPool.query(
+            // 8. Register tenant in main database with owner_id, source_template, naming mode and description
+            // Note: owner_id is set to the first user's ID (will be the user being created below)
+            // This is a temporary placeholder - ideally we'd have the owner_id passed in options
+            const tenantInsertResult = await mainPool.query(
                 `
-                INSERT INTO tenants (name, database, description, host, is_active, tenant_type, naming_mode)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO tenants (name, database, description, source_template, owner_id, host, is_active, naming_mode)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING id
             `,
-                [tenantName, databaseName, options.description || null, 'localhost', true, 'normal', namingMode]
+                [
+                    tenantName,
+                    databaseName,
+                    options.description || null,
+                    template_name,
+                    '00000000-0000-0000-0000-000000000000', // Placeholder - will update after user creation
+                    'localhost',
+                    true,
+                    namingMode,
+                ]
             );
 
             // 9. Add custom user to cloned database (or use existing if username exists)
@@ -179,6 +189,12 @@ export class DatabaseTemplate {
                 );
                 newUser = userResult.rows[0];
             }
+
+            // 10. Update tenant owner_id to the actual user ID
+            await mainPool.query(
+                'UPDATE tenants SET owner_id = $1 WHERE name = $2',
+                [newUser.id, tenantName]
+            );
 
             return {
                 tenant: tenantName,

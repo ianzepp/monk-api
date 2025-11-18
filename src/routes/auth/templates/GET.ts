@@ -10,7 +10,7 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
  * server is running in personal mode (TENANT_NAMING_MODE=personal).
  *
  * Templates are pre-built database schemas that can be cloned for fast tenant
- * creation. Common templates include 'empty' (minimal setup) and 'testing'
+ * creation. Common templates include 'default' (minimal setup) and 'testing'
  * (includes sample data for development).
  *
  * In enterprise mode, this endpoint returns a 403 error for security reasons
@@ -33,22 +33,17 @@ export default async function (context: Context) {
     // Get main database connection
     const mainPool = DatabaseConnection.getMainPool();
 
-    // Query all active templates (excluding normal tenants and trashed)
+    // Query all templates from new templates table
     const result = await mainPool.query(
         `
         SELECT name, description
-        FROM tenants
-        WHERE tenant_type = 'template'
-          AND is_active = true
-          AND trashed_at IS NULL
-          AND deleted_at IS NULL
-        ORDER BY name ASC
+        FROM templates
+        ORDER BY is_system DESC, name ASC
         `
     );
 
-    // Strip 'monk_' prefix from template names for user-friendly display
     const templates = result.rows.map((row) => ({
-        name: row.name.replace(/^monk_/, ''),
+        name: row.name,
         description: row.description || null,
     }));
 
