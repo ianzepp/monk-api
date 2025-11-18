@@ -57,6 +57,18 @@ export async function jwtValidationMiddleware(context: Context, next: Next) {
         context.set('jwtPayload', payload);
         context.set('tenant', payload.tenant);
         context.set('database', payload.database);
+        
+        // Add isSudo() helper to context
+        // Checks if user has sudo access via any method:
+        // 1. access='root' (automatic sudo)
+        // 2. is_sudo=true (explicit sudo token)
+        // 3. as_sudo=true (temporary self-service sudo)
+        const isSudo = () => {
+            const jwtPayload = context.get('jwtPayload') as JWTPayload;
+            const asSudo = context.get('as_sudo');
+            return jwtPayload?.access === 'root' || jwtPayload?.is_sudo === true || asSudo === true;
+        };
+        context.set('isSudo', isSudo);
 
         return await next();
 

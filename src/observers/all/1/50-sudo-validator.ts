@@ -1,15 +1,17 @@
 /**
  * Sudo Access Validator - Generic Schema Security Observer
  *
- * Ensures that operations on schemas marked with sudo=true require explicit sudo token.
- * Even users with access='root' must escalate via POST /api/auth/sudo
- * to get a short-lived sudo token before managing protected schemas.
+ * Ensures that operations on schemas marked with sudo=true require sudo access.
+ * Sudo access is granted via:
+ * - access='root' (automatic sudo, like Linux root user)
+ * - is_sudo=true (explicit sudo token from POST /api/auth/sudo)
+ * - as_sudo=true (temporary self-service sudo flag)
  *
  * This provides:
  * - Data-driven schema protection (checks schemas.sudo column)
  * - Audit trail for protected schema operations
- * - Time-limited access (15 minute sudo tokens)
- * - Explicit intent requirement for dangerous operations
+ * - Automatic sudo for root users (no extra step needed)
+ * - Optional explicit elevation for audit trail
  *
  * Ring 1 (Input Validation) - Early security check before any processing
  */
@@ -18,6 +20,7 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
+import { logger } from '@src/lib/logger.js';
 
 export default class SudoValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
@@ -40,24 +43,21 @@ export default class SudoValidator extends BaseObserver {
             schemaName: schema.schema_name
         });
 
-        // Get JWT payload from system context
-        const jwtPayload = system.context.get('jwtPayload');
-
-        // Check for self-service sudo flag (set by withSelfServiceSudo helper)
-        const asSudo = system.context.get('as_sudo');
-
-        // Verify user has either a sudo token OR self-service sudo flag
-        if (!jwtPayload?.is_sudo && !asSudo) {
+        // Use isSudo() helper which checks: root user, is_sudo flag, or as_sudo flag
+        const isSudo = system.context.get('isSudo') as (() => boolean);
+        
+        if (!isSudo || !isSudo()) {
             throw new SystemError(
-                `Schema '${schema.schema_name}' requires sudo access. Use POST /api/auth/sudo to get short-lived sudo token.`
+                `Schema '${schema.schema_name}' requires sudo access. Root users have automatic access, others must use POST /api/auth/sudo.`
             );
         }
 
+        const jwtPayload = system.context.get('jwtPayload');
         logger.info('Sudo access validated for protected schema', {
             operation: context.operation,
             schemaName: schema.schema_name,
             userId: system.getUser?.()?.id,
-            elevation_reason: jwtPayload.elevation_reason
+            elevation_reason: jwtPayload?.elevation_reason
         });
     }
 }

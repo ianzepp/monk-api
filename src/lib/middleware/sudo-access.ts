@@ -17,38 +17,45 @@ import type { JWTPayload } from './jwt-validation.js';
 /**
  * Sudo access validation middleware
  * 
- * Ensures JWT token is a valid sudo token (root access + is_sudo flag).
- * Applied to /api/sudo/* routes that require explicit privilege elevation.
+ * Validates user has sudo access via one of:
+ * - access='root' (automatic sudo, like Linux root user)
+ * - is_sudo=true (explicit sudo token from POST /api/auth/sudo)
+ * - as_sudo=true (temporary self-service sudo flag)
+ * 
+ * Applied to /api/sudo/* routes that require privileged access.
  */
 export async function sudoAccessMiddleware(context: Context, next: Next) {
     const jwtPayload = context.get('jwtPayload') as JWTPayload;
     const user = context.get('user');
+    const isSudo = context.get('isSudo') as (() => boolean);
     
     if (!jwtPayload || !user) {
         throw HttpErrors.unauthorized('Valid JWT required for sudo operations', 'JWT_REQUIRED');
     }
     
-    // Validate sudo token (must have root access AND is_sudo flag)
-    if (jwtPayload.access !== 'root' || !jwtPayload.is_sudo) {
+    // Check sudo access via helper (checks root, is_sudo, or as_sudo)
+    if (!isSudo || !isSudo()) {
         throw HttpErrors.forbidden(
-            'Sudo token required - use POST /api/auth/sudo to get short-lived sudo access', 
-            'SUDO_TOKEN_REQUIRED'
+            'Sudo access required - root users have automatic access, others must use POST /api/auth/sudo', 
+            'SUDO_ACCESS_REQUIRED'
         );
     }
     
     // Log sudo operation for security audit
-    logger.warn('Sudo operation accessed', {
+    const logLevel = jwtPayload.access === 'root' && !jwtPayload.is_sudo ? 'info' : 'warn';
+    logger[logLevel]('Sudo operation accessed', {
         user_id: user.id,
         tenant: user.tenant,
         path: context.req.path,
         method: context.req.method,
+        access_method: jwtPayload.access === 'root' ? 'root_automatic' : 
+                       jwtPayload.is_sudo ? 'explicit_sudo' : 'as_sudo_flag',
         elevated_from: jwtPayload.elevated_from,
         elevation_reason: jwtPayload.elevation_reason,
         token_expires: new Date(jwtPayload.exp * 1000).toISOString()
     });
     
-    // Set sudo access flag for route handlers
-    context.set('isSudo', true);
+    // Set metadata for route handlers
     context.set('elevatedFrom', jwtPayload.elevated_from);
 
     return await next();
