@@ -9,7 +9,7 @@ set -e
 #        scripts/autoinstall.sh [options]
 #
 # Options:
-#   --clean         Remove all Monk API databases (tenant_*, monk_template_*, monk, system)
+#   --clean         Remove all Monk API databases (tenant_*, sandbox_*, snapshot_*, monk_template_*, monk_default, monk, system)
 #   --clean-node    Delete node_modules and reinstall dependencies
 #   --clean-dist    Delete dist/ directory and recompile TypeScript
 #   --clean-auth    Delete and recreate monk database
@@ -132,7 +132,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo "       scripts/autoinstall.sh [options]"
     echo
     echo "Options:"
-    echo "  --clean         Remove all Monk API databases (tenant_*, monk_template_*, monk, system)"
+    echo "  --clean         Remove all Monk API databases (tenant_*, sandbox_*, snapshot_*, monk_template_*, monk_default, monk, system)"
     echo "  --clean-node    Delete node_modules and reinstall dependencies"
     echo "  --clean-dist    Delete dist/ directory and recompile TypeScript"
     echo "  --clean-auth    Delete and recreate monk database"
@@ -154,7 +154,13 @@ clean_monk_databases() {
 
     # Find databases matching Monk API patterns
     for db in $all_dbs; do
-        if [[ "$db" == tenant_* ]] || [[ "$db" == monk_template_* ]] || [[ "$db" == "monk" ]] || [[ "$db" == "system" ]]; then
+        if [[ "$db" == tenant_* ]] || \
+           [[ "$db" == monk_template_* ]] || \
+           [[ "$db" == "monk_default" ]] || \
+           [[ "$db" == sandbox_* ]] || \
+           [[ "$db" == snapshot_* ]] || \
+           [[ "$db" == "monk" ]] || \
+           [[ "$db" == "system" ]]; then
             monk_dbs+=("$db")
         fi
     done
@@ -432,11 +438,17 @@ if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
     print_info "Monk database already exists"
 
     # Check if it has the required tables
-    if psql -d monk -c "SELECT 1 FROM tenants LIMIT 1;" >/dev/null 2>&1; then
-        print_success "Monk database properly initialized"
-        # Show tenant count
+    if psql -d monk -c "SELECT 1 FROM templates LIMIT 1;" >/dev/null 2>&1 && \
+       psql -d monk -c "SELECT 1 FROM tenants LIMIT 1;" >/dev/null 2>&1 && \
+       psql -d monk -c "SELECT 1 FROM sandboxes LIMIT 1;" >/dev/null 2>&1 && \
+       psql -d monk -c "SELECT 1 FROM snapshots LIMIT 1;" >/dev/null 2>&1; then
+        print_success "Monk database properly initialized with all tables"
+        # Show counts
+        template_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM templates;" 2>/dev/null | xargs)
         tenant_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenants;" 2>/dev/null | xargs)
-        print_info "Existing tenants: $tenant_count"
+        sandbox_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM sandboxes;" 2>/dev/null | xargs)
+        snapshot_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM snapshots;" 2>/dev/null | xargs)
+        print_info "Infrastructure: Templates: $template_count, Tenants: $tenant_count, Sandboxes: $sandbox_count, Snapshots: $snapshot_count"
     else
         print_warning "Monk database exists but may need initialization"
         print_step "Re-initializing monk database schema..."
@@ -457,7 +469,7 @@ else
     print_step "Initializing monk database schema..."
     if psql -d monk -f sql/init-monk.sql >/dev/null 2>&1; then
         print_success "Monk database schema initialized"
-        print_info "Created tenant table with indexes and triggers"
+        print_info "Created infrastructure tables (templates, tenants, sandboxes, snapshots)"
     else
         handle_error "Monk database schema initialization" "Check sql/init-monk.sql file exists and PostgreSQL permissions"
     fi
@@ -480,26 +492,56 @@ else
     handle_error "Server startup test" "The server failed to start properly"
 fi
 
-# Starting: Build Empty Fixtures Template
-print_header "Starting: Build Empty Fixtures Template"
+# Starting: Build Default Template Database
+print_header "Starting: Build Default Template Database"
 
-print_step "Checking if empty fixtures template exists..."
-template_db_name="monk_template_empty"
+print_step "Checking if default template database exists..."
+template_db_name="monk_default"
 
 if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_name" 2>/dev/null; then
-    print_success "Empty fixtures template already exists"
+    print_success "Default template database already exists"
     print_info "Template database: $template_db_name"
+    
+    # Verify it's registered in monk.templates
+    if psql -d monk -t -c "SELECT 1 FROM templates WHERE database = '$template_db_name';" 2>/dev/null | grep -q 1; then
+        print_success "Template registered in monk.templates"
+    else
+        print_step "Registering template in monk.templates..."
+        psql -d monk -c "
+            INSERT INTO templates (name, database, description, is_system, schema_count)
+            VALUES ('default', '$template_db_name', 'Default template with core infrastructure', true, 4)
+            ON CONFLICT (name) DO NOTHING;
+        " >/dev/null 2>&1
+        print_success "Template registered successfully"
+    fi
 else
-    print_step "Building empty fixtures template..."
+    print_step "Creating default template database..."
     print_info "This creates a production-ready template with core infrastructure only"
-
-    if npm run fixtures:build empty >/dev/null 2>&1; then
-        print_success "Empty fixtures template built successfully"
+    
+    if createdb "$template_db_name" 2>/dev/null; then
+        print_success "Default template database created"
+    else
+        handle_error "Default template database creation" "Check PostgreSQL permissions"
+    fi
+    
+    print_step "Initializing default template schema..."
+    if psql -d "$template_db_name" -f sql/init-template-default.sql >/dev/null 2>&1; then
+        print_success "Default template initialized successfully"
+    else
+        handle_error "Default template initialization" "Check sql/init-template-default.sql exists"
+    fi
+    
+    print_step "Registering template in monk.templates..."
+    if psql -d monk -c "
+        INSERT INTO templates (name, database, description, is_system, schema_count)
+        VALUES ('default', '$template_db_name', 'Default template with core infrastructure', true, 4)
+        ON CONFLICT (name) DO NOTHING;
+    " >/dev/null 2>&1; then
+        print_success "Template registered in monk.templates"
         print_info "Template database: $template_db_name ready for fast tenant creation"
     else
-        print_warning "Failed to build empty fixtures template"
-        print_info "This is optional - tests will use slower tenant creation"
-        print_info "You can manually build it later with: npm run fixtures:build empty"
+        print_warning "Failed to register template in monk.templates"
+        print_info "Template database created but not registered - manual registration may be needed"
     fi
 fi
 
