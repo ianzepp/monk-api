@@ -310,15 +310,15 @@ BEGIN
     INSERT INTO "templates" ("name", "database", "description", "is_system", "schema_count")
     VALUES (
         'default',
-        'monk_default',
+        'monk_template_default',
         'Default empty template for new tenants and sandboxes',
         true,
-        3  -- schemas, columns, users
+        4  -- schemas, columns, users, history
     )
     ON CONFLICT ("name") DO NOTHING;
 
     IF FOUND THEN
-        RAISE NOTICE 'Created default template entry. Database monk_default will be created by autoinstall.';
+        RAISE NOTICE 'Created default template entry. Database monk_template_default will be created by autoinstall.';
     ELSE
         RAISE NOTICE 'Default template entry already exists.';
     END IF;

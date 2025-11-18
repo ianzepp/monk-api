@@ -716,7 +716,7 @@ BEGIN
     -- Connect to monk database and register this template
     -- Note: This uses dblink to register in the monk database from within this template
     -- The autoinstall script should handle this registration instead
-    RAISE NOTICE 'Template database monk_default initialized successfully';
+    RAISE NOTICE 'Template database monk_template_default initialized successfully';
     RAISE NOTICE 'This template should now be registered in the monk.templates table';
 END $$;
 
@@ -736,7 +736,7 @@ BEGIN
     RAISE NOTICE '========================================';
     RAISE NOTICE 'Default Template Initialization Complete';
     RAISE NOTICE '========================================';
-    RAISE NOTICE 'Database: monk_default';
+    RAISE NOTICE 'Database: monk_template_default';
     RAISE NOTICE 'Schemas:  %', schema_count;
     RAISE NOTICE 'Users:    %', user_count;
     RAISE NOTICE '========================================';

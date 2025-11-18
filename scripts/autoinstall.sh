@@ -9,7 +9,7 @@ set -e
 #        scripts/autoinstall.sh [options]
 #
 # Options:
-#   --clean         Remove all Monk API databases (tenant_*, sandbox_*, snapshot_*, monk_template_*, monk_default, monk, system)
+#   --clean         Remove all Monk API databases (tenant_*, sandbox_*, snapshot_*, monk_template_*, monk, system)
 #   --clean-node    Delete node_modules and reinstall dependencies
 #   --clean-dist    Delete dist/ directory and recompile TypeScript
 #   --clean-auth    Delete and recreate monk database
@@ -132,7 +132,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo "       scripts/autoinstall.sh [options]"
     echo
     echo "Options:"
-    echo "  --clean         Remove all Monk API databases (tenant_*, sandbox_*, snapshot_*, monk_template_*, monk_default, monk, system)"
+    echo "  --clean         Remove all Monk API databases (tenant_*, sandbox_*, snapshot_*, monk_template_*, monk, system)"
     echo "  --clean-node    Delete node_modules and reinstall dependencies"
     echo "  --clean-dist    Delete dist/ directory and recompile TypeScript"
     echo "  --clean-auth    Delete and recreate monk database"
@@ -156,7 +156,6 @@ clean_monk_databases() {
     for db in $all_dbs; do
         if [[ "$db" == tenant_* ]] || \
            [[ "$db" == monk_template_* ]] || \
-           [[ "$db" == "monk_default" ]] || \
            [[ "$db" == sandbox_* ]] || \
            [[ "$db" == snapshot_* ]] || \
            [[ "$db" == "monk" ]] || \
@@ -496,7 +495,7 @@ fi
 print_header "Starting: Build Default Template Database"
 
 print_step "Checking if default template database exists..."
-template_db_name="monk_default"
+template_db_name="monk_template_default"
 
 if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_name" 2>/dev/null; then
     print_success "Default template database already exists"
