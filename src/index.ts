@@ -51,7 +51,6 @@ import * as middleware from '@src/lib/middleware/index.js';
 import * as authRoutes from '@src/routes/auth/routes.js';
 import * as dataRoutes from '@src/routes/data/routes.js';
 import * as describeRoutes from '@src/routes/describe/routes.js';
-import * as fileRoutes from '@src/routes/file/routes.js';
 import * as aclsRoutes from '@src/routes/acls/routes.js';
 import * as statRoutes from '@src/routes/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
@@ -230,15 +229,6 @@ app.post('/api/aggregate/:schema', AggregateSchemaPost);
 
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);
-
-// 37-file-api: File API routes
-app.post('/api/file/list', fileRoutes.ListPost); // Directory listing
-app.post('/api/file/retrieve', fileRoutes.RetrievePost); // File retrieval
-app.post('/api/file/store', fileRoutes.StorePost); // File storage
-app.post('/api/file/stat', fileRoutes.StatPost); // File status
-app.post('/api/file/delete', fileRoutes.DeletePost); // File deletion
-app.post('/api/file/size', fileRoutes.SizePost); // File size
-app.post('/api/file/modify-time', fileRoutes.ModifyTimePost); // File modification time
 
 // 38-acls-api: Acls API routes
 app.get('/api/acls/:schema/:record', aclsRoutes.RecordAclGet); // Get acls for a single record
