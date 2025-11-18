@@ -109,7 +109,11 @@ app.get('/', c => {
                 '/api/auth/whoami',
                 '/api/auth/sudo'
             ],
-            describe: ['/api/describe/:schema'],
+            describe: [
+                '/api/describe',
+                '/api/describe/:schema',
+                '/api/describe/:schema/:column'
+            ],
             data: [
                 '/api/data/:schema',
                 '/api/data/:schema/:record',
@@ -119,16 +123,12 @@ app.get('/', c => {
             find: ['/api/find/:schema'],
             aggregate: ['/api/aggregate/:schema'],
             bulk: ['/api/bulk'],
-            file: [
-                '/api/file/list',
-                '/api/file/retrieve',
-                '/api/file/store',
-                '/api/file/stat',
-                '/api/file/delete',
-                '/api/file/size',
-                '/api/file/modify-time'
-            ],
             acls: ['/api/acls/:schema/:record'],
+            stat: ['/api/stat/:schema/:record'],
+            history: [
+                '/api/history/:schema/:record',
+                '/api/history/:schema/:record/:change'
+            ],
             sudo: ['/api/sudo/*']
         },
         documentation: {
@@ -139,10 +139,10 @@ app.get('/', c => {
             find: ['/docs/find'],
             aggregate: ['/docs/aggregate'],
             bulk: ['/docs/bulk'],
-            file: ['/docs/file'],
             acls: ['/docs/acls'],
-            sudo: ['/docs/sudo'],
             stat: ['/docs/stat'],
+            history: ['/docs/history'],
+            sudo: ['/docs/sudo']
         },
     };
 
