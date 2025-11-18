@@ -54,6 +54,7 @@ import * as describeRoutes from '@src/routes/describe/routes.js';
 import * as aclsRoutes from '@src/routes/acls/routes.js';
 import * as statRoutes from '@src/routes/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
+import * as historyRoutes from '@src/routes/history/routes.js';
 import { sudoRouter } from '@src/routes/sudo/index.js';
 
 // Special protected endpoints
@@ -167,17 +168,6 @@ app.use('/auth/*', middleware.fieldExtractionMiddleware); // Extract/unwrap data
 app.use('/auth/*', middleware.responseFormatterMiddleware); // Format responses (JSON, TOON, YAML, Brainfuck)
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
-// Public auth routes (token acquisition)
-app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
-app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
-app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
-app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
-app.get('/auth/templates', authRoutes.TemplatesGet); // GET /auth/templates
-
-// 40-docs-api: Public docs routes (no authentication required)
-app.get('/README.md', docsRoutes.ReadmeGet); // GET /README.md
-app.get('/docs/:api', docsRoutes.ApiGet); // GET /docs/:api
-
 // Protected API routes - require JWT authentication from /auth
 app.use('/api/*', middleware.requestBodyParserMiddleware);
 app.use('/api/*', middleware.jwtValidationMiddleware);
@@ -186,6 +176,17 @@ app.use('/api/*', middleware.formatDetectionMiddleware);
 app.use('/api/*', middleware.fieldExtractionMiddleware); // Extract/unwrap data via ?unwrap or ?select=
 app.use('/api/*', middleware.responseFormatterMiddleware);
 app.use('/api/*', middleware.systemContextMiddleware);
+
+// 40-docs-api: Public docs routes (no authentication required)
+app.get('/README.md', docsRoutes.ReadmeGet); // GET /README.md
+app.get('/docs/:api', docsRoutes.ApiGet); // GET /docs/:api
+
+// 30-auth-api: Public auth routes (token acquisition)
+app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
+app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
+app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
+app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
+app.get('/auth/templates', authRoutes.TemplatesGet); // GET /auth/templates
 
 // 30-auth-api: Auth API routes (protected - user account management)
 app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
@@ -198,7 +199,7 @@ app.get('/api/describe/:schema', describeRoutes.SchemaGet); // Get schema
 app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema
 app.delete('/api/describe/:schema', describeRoutes.SchemaDelete); // Delete schema
 
-// Column-level Describe API routes
+// 31-describe-api: Column-level Describe API routes
 app.post('/api/describe/:schema/:column', describeRoutes.ColumnPost); // Create column
 app.get('/api/describe/:schema/:column', describeRoutes.ColumnGet); // Get column
 app.put('/api/describe/:schema/:column', describeRoutes.ColumnPut); // Update column
@@ -242,6 +243,10 @@ app.get('/api/stat/:schema/:record', statRoutes.RecordGet); // Get record metada
 // 41-sudo-api: Sudo API routes (require sudo token from /api/auth/sudo)
 app.use('/api/sudo/*', middleware.sudoAccessMiddleware);
 app.route('/api/sudo', sudoRouter);
+
+// 42-history-api: History API routes (change tracking and audit trails)
+app.get('/api/history/:schema/:record', historyRoutes.RecordHistoryGet); // List all changes for a record
+app.get('/api/history/:schema/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

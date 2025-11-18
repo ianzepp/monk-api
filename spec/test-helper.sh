@@ -55,6 +55,19 @@ setup_full_auth() {
     fi
 }
 
+# Setup authentication (root) for current tenant
+setup_root_auth() {
+    print_step "Setting up authentication for root user"
+    JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "root")
+
+    if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
+        print_success "authentication (root) configured"
+        export JWT_TOKEN
+    else
+        test_fail "Failed to authenticate root user"
+    fi
+}
+
 # Setup sudo authentication for privileged operations
 setup_sudo_auth() {
     local reason="${1:-Schema management operation}"

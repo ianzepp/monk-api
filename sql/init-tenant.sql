@@ -8,6 +8,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TYPE column_type AS ENUM (
     'text',
     'integer',
+    'bigserial',
     'numeric',
     'boolean',
     'jsonb',
@@ -81,7 +82,8 @@ CREATE TABLE "columns" (
 	"is_array" boolean DEFAULT false,
 	"immutable" boolean DEFAULT false NOT NULL,
 	"sudo" boolean DEFAULT false NOT NULL,
-	"unique" boolean DEFAULT false NOT NULL
+	"unique" boolean DEFAULT false NOT NULL,
+	"tracked" boolean DEFAULT false NOT NULL
 );
 
 -- Add foreign key constraint
@@ -137,6 +139,15 @@ VALUES (
     true
 );
 
+-- Insert history schema registration for change tracking
+-- This enables audit trail for tracked columns across all schemas
+INSERT INTO "schemas" (schema_name, status, sudo)
+VALUES (
+    'history',
+    'system',
+    true
+);
+
 -- ============================================================================
 -- Column Definitions for System Schemas
 -- ============================================================================
@@ -173,13 +184,25 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('columns', 'is_array', 'boolean', false, 'Whether the column is an array type'),
     ('columns', 'immutable', 'boolean', false, 'Whether the column value cannot be changed once set'),
     ('columns', 'sudo', 'boolean', false, 'Whether modifying this column requires sudo access'),
-    ('columns', 'unique', 'boolean', false, 'Whether the column must have unique values');
+    ('columns', 'unique', 'boolean', false, 'Whether the column must have unique values'),
+    ('columns', 'tracked', 'boolean', false, 'Whether changes to this column are tracked in history');
 
 -- Column definitions for 'users' schema
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
     ('users', 'name', 'text', true, 'User display name'),
     ('users', 'auth', 'text', true, 'Authentication identifier'),
     ('users', 'access', 'text', true, 'User access level (root, full, edit, read, deny)');
+
+-- Column definitions for 'history' schema
+INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
+    ('history', 'change_id', 'bigserial', true, 'Auto-incrementing change identifier for ordering'),
+    ('history', 'schema_name', 'text', true, 'Name of the schema where the change occurred'),
+    ('history', 'record_id', 'uuid', true, 'ID of the record that was changed'),
+    ('history', 'operation', 'text', true, 'Operation type: create, update, or delete'),
+    ('history', 'changes', 'jsonb', true, 'Field-level changes with old and new values'),
+    ('history', 'created_by', 'uuid', false, 'ID of the user who made the change'),
+    ('history', 'request_id', 'text', false, 'Request correlation ID for tracing'),
+    ('history', 'metadata', 'jsonb', false, 'Additional context (IP address, user agent, etc.)');
 
 -- ============================================================================
 -- Utility Function: Create Table from Schema Definition
@@ -281,3 +304,12 @@ BEGIN
     RETURN format('Table %I created successfully', p_schema_name);
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- Create History Table
+-- ============================================================================
+-- Create the history table using the schema definition above
+SELECT create_table_from_schema('history');
+
+-- Create composite index for efficient history queries by schema+record
+CREATE INDEX idx_history_schema_record ON history(schema_name, record_id, change_id DESC);

@@ -153,7 +153,7 @@ TEST_VERBOSE=1 npm run test:cleanup
 
 ### Authentication Helpers
 - **`setup_full_auth()`** - Authenticate as full user
-- **`setup_root_auth()`** - Authenticate as root user
+- **`setup_sudo_auth()`** - Authenticate as root user
 - **`get_user_token()`** - Get JWT token for specific user
 
 ### Validation Helpers

@@ -39,6 +39,7 @@ export class Schema {
     // Precalculated column metadata for performance
     public immutableFields: Set<string>;
     public sudoFields: Set<string>;
+    public trackedFields: Set<string>;
 
     constructor(
         private system: SystemContextWithInfrastructure,
@@ -51,9 +52,10 @@ export class Schema {
         this.freeze = schemaRecord.freeze;
         this.definition = schemaRecord.definition;
 
-        // Precalculate immutable and sudo fields from column metadata for O(1) lookups
+        // Precalculate immutable, sudo, and tracked fields from column metadata for O(1) lookups
         this.immutableFields = new Set<string>();
         this.sudoFields = new Set<string>();
+        this.trackedFields = new Set<string>();
 
         if (schemaRecord._columns && Array.isArray(schemaRecord._columns)) {
             for (const column of schemaRecord._columns) {
@@ -63,6 +65,9 @@ export class Schema {
                 if (column.sudo === true) {
                     this.sudoFields.add(column.column_name);
                 }
+                if (column.tracked === true) {
+                    this.trackedFields.add(column.column_name);
+                }
             }
         }
 
@@ -70,7 +75,8 @@ export class Schema {
             schemaName: this.schemaName,
             freeze: this.freeze,
             immutableFields: this.immutableFields.size,
-            sudoFields: this.sudoFields.size
+            sudoFields: this.sudoFields.size,
+            trackedFields: this.trackedFields.size
         });
     }
 
