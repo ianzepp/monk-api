@@ -16,7 +16,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Requires sudo access.
  */
 export default async function (context: Context) {
-    const userId = context.get('user_id');
+    const userId = context.get('userId');
     const tenantName = context.get('tenant');
     const body = await context.req.json();
 

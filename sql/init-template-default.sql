@@ -8,7 +8,7 @@
 -- This template contains:
 -- - Core system tables (schemas, columns, users, history, definitions)
 -- - System schema definitions and metadata
--- - Default users (root, full, user) for testing
+-- - Default user (root)
 -- - JSON Schema generation functions and triggers
 --
 -- The default template serves as the base for all new tenants and sandboxes,
@@ -699,12 +699,10 @@ ON CONFLICT (schema_name) DO NOTHING;
 -- Insert core users for testing and development
 -- These users are required by many tests that authenticate with specific access levels
 INSERT INTO users (name, auth, access) VALUES
-    ('Dr Root', 'root', 'root'),
-    ('Mr Full', 'full', 'full'),
-    ('Jr User', 'user', 'edit')
+    ('root', 'root', 'root'),
 ON CONFLICT (auth) DO NOTHING;
 
-COMMENT ON TABLE users IS 'Default template includes pre-configured users for test authentication';
+COMMENT ON TABLE users IS 'Default template includes pre-configured root user for initial login';
 
 -- ============================================================================
 -- PART 8: REGISTER TEMPLATE IN MONK DATABASE

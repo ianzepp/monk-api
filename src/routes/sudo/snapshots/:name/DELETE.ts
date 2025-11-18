@@ -11,7 +11,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  */
 export default async function (context: Context) {
     const { name } = context.req.param();
-    const userId = context.get('user_id');
+    const userId = context.get('userId');
 
     // Verify ownership
     const snapshot = await InfrastructureService.getSnapshot(name);

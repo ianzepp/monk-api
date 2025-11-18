@@ -20,7 +20,7 @@ import { InfrastructureService } from '@src/lib/services/infrastructure-service.
  * Requires sudo access.
  */
 export default async function (context: Context) {
-    const userId = context.get('user_id');
+    const userId = context.get('userId');
     const tenantName = context.get('tenant');
     const body = await context.req.json();
 

@@ -102,11 +102,7 @@ CREATE TABLE IF NOT EXISTS "sandboxes" (
     "expires_at" TIMESTAMP,                           -- Auto-delete after this time (TODO)
     "last_accessed_at" TIMESTAMP,                     -- Track usage for cleanup
     "is_active" BOOLEAN DEFAULT true NOT NULL,        -- Enable/disable access
-    CONSTRAINT "sandboxes_database_prefix" CHECK ("database" LIKE 'sandbox_%'),
-    CONSTRAINT "sandboxes_one_parent" CHECK (
-        ("parent_tenant_id" IS NOT NULL AND "parent_template" IS NULL) OR
-        ("parent_tenant_id" IS NULL AND "parent_template" IS NOT NULL)
-    )
+    CONSTRAINT "sandboxes_database_prefix" CHECK ("database" LIKE 'sandbox_%')
 );
 
 CREATE INDEX "idx_sandboxes_parent_tenant" ON "sandboxes" ("parent_tenant_id");

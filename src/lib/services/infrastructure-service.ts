@@ -153,26 +153,26 @@ export class InfrastructureService {
     }) {
         const pool = this.getPool();
 
-        // Get source tenant
+        // Get source tenant (sandbox always belongs to a tenant)
         const tenant = await this.getTenant(options.tenant_name);
 
-        // Determine source: use tenant database or template
+        // Determine source database: tenant or template
         let sourceDatabase: string;
-        let parentTenantId: string | null = null;
         let parentTemplate: string | null = null;
 
         if (options.template_name) {
-            // Clone from template
+            // Clone from template database
             const template = await this.getTemplate(options.template_name);
             sourceDatabase = template.database;
             parentTemplate = options.template_name;
-            parentTenantId = null;
         } else {
-            // Clone from current tenant
+            // Clone from current tenant database
             sourceDatabase = tenant.database;
-            parentTenantId = tenant.id;
             parentTemplate = null;
         }
+        
+        // Sandbox always belongs to the tenant (for team collaboration)
+        const parentTenantId = tenant.id;
 
         // Generate sandbox name if not provided
         const sandboxName = options.sandbox_name || `${options.tenant_name}_sandbox_${Date.now()}`;

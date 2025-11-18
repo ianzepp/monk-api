@@ -1,11 +1,11 @@
 -- Testing Fixture Initialization
--- This runs after init-tenant.sql but before schemas and data are loaded
+-- This runs after init-template-default.sql but before schemas and data are loaded
 
 -- Insert core users for testing
+-- Root user already exists (created in the default template)
 -- These users are required by many tests that authenticate with specific access levels
 
 INSERT INTO users (name, auth, access) VALUES
-    ('Dr Root', 'root', 'root'),
     ('Mr Full', 'full', 'full'),
     ('Jr User', 'user', 'edit')
 ON CONFLICT (auth) DO NOTHING;
