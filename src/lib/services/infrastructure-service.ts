@@ -91,16 +91,17 @@ export class InfrastructureService {
     // ========================================================================
 
     /**
-     * List all sandboxes
+     * List all sandboxes for a tenant
+     * Returns all sandboxes owned by the tenant (regardless of creator)
      */
-    static async listSandboxes(filters?: { created_by?: string; is_active?: boolean }) {
+    static async listSandboxes(filters?: { tenant_id?: string; is_active?: boolean }) {
         const pool = this.getPool();
         const conditions: string[] = [];
         const params: any[] = [];
 
-        if (filters?.created_by) {
-            params.push(filters.created_by);
-            conditions.push(`created_by = $${params.length}`);
+        if (filters?.tenant_id) {
+            params.push(filters.tenant_id);
+            conditions.push(`parent_tenant_id = $${params.length}`);
         }
 
         if (filters?.is_active !== undefined) {
@@ -138,10 +139,12 @@ export class InfrastructureService {
     }
 
     /**
-     * Create sandbox from template
+     * Create sandbox from current tenant
+     * Sandboxes are tenant-scoped so all admins can manage them
      */
     static async createSandbox(options: {
-        template_name: string;
+        tenant_name: string;
+        template_name?: string;
         sandbox_name?: string;
         description?: string;
         purpose?: string;
@@ -150,11 +153,29 @@ export class InfrastructureService {
     }) {
         const pool = this.getPool();
 
-        // Get template
-        const template = await this.getTemplate(options.template_name);
+        // Get source tenant
+        const tenant = await this.getTenant(options.tenant_name);
+
+        // Determine source: use tenant database or template
+        let sourceDatabase: string;
+        let parentTenantId: string | null = null;
+        let parentTemplate: string | null = null;
+
+        if (options.template_name) {
+            // Clone from template
+            const template = await this.getTemplate(options.template_name);
+            sourceDatabase = template.database;
+            parentTemplate = options.template_name;
+            parentTenantId = null;
+        } else {
+            // Clone from current tenant
+            sourceDatabase = tenant.database;
+            parentTenantId = tenant.id;
+            parentTemplate = null;
+        }
 
         // Generate sandbox name if not provided
-        const sandboxName = options.sandbox_name || `sandbox_${Date.now()}_${randomBytes(4).toString('hex')}`;
+        const sandboxName = options.sandbox_name || `${options.tenant_name}_sandbox_${Date.now()}`;
 
         // Generate database name
         const databaseName = `sandbox_${randomBytes(8).toString('hex')}`;
@@ -172,27 +193,28 @@ export class InfrastructureService {
             );
         }
 
-        // Clone template database
+        // Clone source database
         try {
-            await execAsync(`createdb "${databaseName}" -T "${template.database}"`);
+            await execAsync(`createdb "${databaseName}" -T "${sourceDatabase}"`);
         } catch (error) {
             throw HttpErrors.internal(
-                `Failed to clone template database: ${error}`,
+                `Failed to clone database: ${error}`,
                 'SANDBOX_CLONE_FAILED'
             );
         }
 
-        // Register sandbox
+        // Register sandbox (tenant-scoped)
         const result = await pool.query(
-            `INSERT INTO sandboxes (name, database, description, purpose, parent_template, created_by, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO sandboxes (name, database, description, purpose, parent_tenant_id, parent_template, created_by, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
             [
                 sandboxName,
                 databaseName,
                 options.description || null,
                 options.purpose || null,
-                options.template_name,
+                parentTenantId,
+                parentTemplate,
                 options.created_by,
                 options.expires_at || null,
             ]

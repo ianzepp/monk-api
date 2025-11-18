@@ -1,15 +1,17 @@
 import type { Context } from 'hono';
 import { InfrastructureService } from '@src/lib/services/infrastructure-service.js';
-import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /api/sudo/sandboxes - Create sandbox from template
+ * POST /api/sudo/sandboxes - Create sandbox from current tenant or template
  *
- * Creates a new sandbox database cloned from a template.
- * The sandbox is isolated and can be used for testing.
+ * Creates a new sandbox database for testing. The sandbox is tenant-scoped,
+ * so all admins in the tenant can access and manage it.
+ *
+ * By default, clones the current tenant's database. Optionally, can clone
+ * from a template instead by specifying template_name.
  *
  * Request body:
- * - template_name (required): Template to clone from
+ * - template_name (optional): Template to clone from (if not provided, clones current tenant)
  * - sandbox_name (optional): Custom sandbox name
  * - description (optional): Sandbox description
  * - purpose (optional): Why this sandbox exists
@@ -19,14 +21,12 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  */
 export default async function (context: Context) {
     const userId = context.get('user_id');
+    const tenantName = context.get('tenant');
     const body = await context.req.json();
 
-    if (!body.template_name) {
-        throw HttpErrors.badRequest('template_name is required', 'TEMPLATE_NAME_MISSING');
-    }
-
     const sandbox = await InfrastructureService.createSandbox({
-        template_name: body.template_name,
+        tenant_name: tenantName,
+        template_name: body.template_name, // Optional - defaults to cloning current tenant
         sandbox_name: body.sandbox_name,
         description: body.description,
         purpose: body.purpose,
