@@ -12,12 +12,21 @@ source "$SCRIPT_DIR/../spec/test-tenant-helper.sh"
 # Parse arguments
 FORCE_REBUILD=false
 TEMPLATE_NAME="testing"
+USE_JSON_IMPORT=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force)
             FORCE_REBUILD=true
+            shift
+            ;;
+        --with-json)
+            USE_JSON_IMPORT=true
+            shift
+            ;;
+        --with-sql)
+            USE_JSON_IMPORT=false
             shift
             ;;
         --help|-h)
@@ -29,12 +38,15 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --force         Delete existing template database if it exists"
+            echo "  --with-json     Load data via Data API (with validation)"
+            echo "  --with-sql      Load data via SQL INSERT (default, faster)"
             echo "  --help, -h      Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0 testing"
             echo "  $0 --force testing_xl"
-            echo "  npm run fixtures:build -- --force testing"
+            echo "  $0 --with-json import_test"
+            echo "  npm run fixtures:build -- --force --with-json testing"
             exit 0
             ;;
         -*)
@@ -245,35 +257,109 @@ done
 
 print_success "Loaded $schema_count schemas"
 
-# Step 3: Load sample data via SQL
-print_step "Loading sample data from $FIXTURES_DIR/data/"
-
-data_count=0
-total_records=0
-
-for data_file in "$FIXTURES_DIR/data"/*.sql; do
-    if [[ ! -f "$data_file" ]]; then
-        print_warning "No data SQL files found in $FIXTURES_DIR/data/"
-        continue
+# Step 3: Load sample data (SQL or JSON based on flag)
+if [[ "$USE_JSON_IMPORT" == true ]]; then
+    print_step "Loading sample data via Data API from $FIXTURES_DIR/data/"
+    
+    # Ensure server is still running
+    print_step "Verifying API server is ready"
+    wait_for_server
+    print_success "API server is ready"
+    
+    # Get root JWT token for API authentication
+    print_step "Authenticating as root user for tenant: $tenant_name"
+    ROOT_TOKEN=$(get_user_token "$tenant_name" "root" 2>&1)
+    
+    print_info "Token received: ${ROOT_TOKEN:0:80}... (length: ${#ROOT_TOKEN})"
+    
+    if [[ -z "$ROOT_TOKEN" || "$ROOT_TOKEN" == "null" || "$ROOT_TOKEN" == *"Failed"* ]]; then
+        print_error "Failed to get root JWT token"
+        print_error "Tenant: $tenant_name"
+        print_error "Token response: $ROOT_TOKEN"
+        fail "Failed to get root JWT token for API authentication"
     fi
-
-    data_name=$(basename "$data_file" .sql)
-    print_step "Loading data: $data_name"
-
-    # Count records in SQL file (approximate)
-    record_count=$(grep -c "^INSERT INTO" "$data_file" || echo "0")
-
-    if psql -d "$template_db_name" -f "$data_file"; then
-        print_success "Data '$data_name' loaded: $record_count records"
-        ((data_count++))
-        ((total_records += record_count))
-    else
-        print_error "Failed to load data '$data_name'"
-        fail "Data loading failed"
-    fi
-done
-
-print_success "Loaded data for $data_count schemas: $total_records total records"
+    
+    export JWT_TOKEN="$ROOT_TOKEN"
+    print_success "Authenticated successfully (token length: ${#JWT_TOKEN})"
+    
+    data_count=0
+    total_records=0
+    
+    # Load JSON data files via Data API
+    for json_file in "$FIXTURES_DIR/data"/*.json; do
+        if [[ ! -f "$json_file" ]]; then
+            print_warning "No JSON files found in $FIXTURES_DIR/data/"
+            print_info "Use --with-sql to load via SQL instead"
+            continue
+        fi
+        
+        schema_name=$(basename "$json_file" .json)
+        print_step "Loading data for schema: $schema_name"
+        
+        # Read JSON array from file
+        json_data=$(cat "$json_file")
+        
+        # Count records in JSON array
+        if command -v jq >/dev/null 2>&1; then
+            record_count=$(echo "$json_data" | jq 'length' 2>/dev/null || echo "0")
+        else
+            record_count="unknown"
+        fi
+        
+        print_info "Payload size: $(echo "$json_data" | wc -c) bytes, records: $record_count"
+        
+        # POST to Data API
+        response=$(auth_post "api/data/$schema_name" "$json_data")
+        
+        print_info "Response received: $(echo "$response" | wc -c) bytes"
+        
+        # Check if successful
+        if echo "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+            print_success "Data '$schema_name' loaded via API: $record_count records"
+            ((data_count++))
+            if [[ "$record_count" != "unknown" ]]; then
+                ((total_records += record_count))
+            fi
+        else
+            print_error "Failed to load data '$schema_name' via API"
+            print_error "Response: $response"
+            print_error "JWT_TOKEN length: ${#JWT_TOKEN}"
+            print_error "Endpoint: api/data/$schema_name"
+            fail "Data loading via API failed"
+        fi
+    done
+    
+    print_success "Loaded data for $data_count schemas via API: $total_records total records"
+else
+    print_step "Loading sample data via SQL from $FIXTURES_DIR/data/"
+    
+    data_count=0
+    total_records=0
+    
+    for data_file in "$FIXTURES_DIR/data"/*.sql; do
+        if [[ ! -f "$data_file" ]]; then
+            print_warning "No data SQL files found in $FIXTURES_DIR/data/"
+            continue
+        fi
+        
+        data_name=$(basename "$data_file" .sql)
+        print_step "Loading data: $data_name"
+        
+        # Count records in SQL file (approximate)
+        record_count=$(grep -c "^INSERT INTO" "$data_file" || echo "0")
+        
+        if psql -d "$template_db_name" -f "$data_file"; then
+            print_success "Data '$data_name' loaded: $record_count records"
+            ((data_count++))
+            ((total_records += record_count))
+        else
+            print_error "Failed to load data '$data_name'"
+            fail "Data loading failed"
+        fi
+    done
+    
+    print_success "Loaded data for $data_count schemas: $total_records total records"
+fi
 
 # Step 4: Convert to template database
 print_step "Converting to template database"

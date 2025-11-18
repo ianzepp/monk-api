@@ -1,0 +1,16 @@
+{
+  "name": "import_test",
+  "description": "Test fixture for JSON-based data import via API",
+  "purpose": "Validates that fixture data can be loaded through Data API with full observer pipeline validation",
+  "schemas": ["records"],
+  "record_count": 5,
+  "features": [
+    "API-based data loading",
+    "Full validation pipeline",
+    "Multiple column types",
+    "Pattern validation",
+    "Enum constraints",
+    "Array fields",
+    "JSONB fields"
+  ]
+}
