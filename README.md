@@ -14,10 +14,11 @@
 ### Key Features
 - **Schema-First Development**: JSON-based data model definitions with JSON Schema validation
 - **Multi-Tenant Architecture**: Automatic tenant isolation with dedicated database instances
+- **Infrastructure Management**: Templates, Sandboxes, and Snapshots for rapid provisioning and testing
 - **Ring-Based Observer System**: Sophisticated event-driven business logic (0-9 execution rings)
 - **Ultra-Fast Performance**: Hono framework with multi-runtime support (Node.js, Bun, Deno, Cloudflare Workers)
 - **RESTful API**: Automatic REST endpoint generation from schema definitions
-- **Comprehensive Testing**: Isolated test environments with shell script and TypeScript integration
+- **Comprehensive Testing**: Isolated test environments with 30x faster template-based setup
 
 ### Technical Architecture
 - **Modern Framework Stack**: Hono (~50KB) + TypeScript + PostgreSQL + AJV
@@ -34,6 +35,9 @@
 ### Multi-Tenant Capabilities
 - **Database Isolation**: Dedicated PostgreSQL per tenant with JWT-based routing
 - **Schema Independence**: Tenants evolve independently without interference
+- **Template System**: Instant tenant provisioning from pre-configured templates (30x faster)
+- **Sandboxes**: Temporary testing environments with automatic expiration
+- **Snapshots**: Point-in-time backups with async processing for disaster recovery
 - **Performance**: SHA256 caching provides 15x faster schema access
 
 **Multi-Tenant Architecture**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for detailed tenant management
@@ -77,7 +81,10 @@ PUT  /api/data/users/123  # Update specific user (object input)
 **Performance Details**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for optimization strategies
 
 ### Enterprise Features
-- **Security**: Built-in auth, JWT-based tenant routing, comprehensive audit trails
+- **Security**: Built-in auth, JWT-based tenant routing, sudo escalation, comprehensive audit trails
+- **Infrastructure Management**: API-driven templates, sandboxes, and snapshots for DevOps workflows
+- **Disaster Recovery**: Point-in-time snapshots with async backup processing
+- **Safe Testing**: Isolated sandboxes with team collaboration and automatic cleanup
 - **Scalability**: Horizontal scaling through tenant distribution
 - **Documentation**: Extensive developer guides and implementation documentation
 

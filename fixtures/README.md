@@ -1,8 +1,44 @@
 # Monk API Fixtures System
 
-> **Template-based database cloning for ultra-fast test setup**
+> **Template-based database cloning for ultra-fast tenant provisioning**
 
-The fixtures system uses PostgreSQL's `CREATE DATABASE WITH TEMPLATE` to clone pre-built databases instantly, achieving **30x faster** setup compared to traditional fresh database creation.
+The fixtures system uses PostgreSQL's `CREATE DATABASE WITH TEMPLATE` to clone pre-built databases instantly, achieving **30x faster** setup for tests, sandboxes, and tenant provisioning compared to traditional fresh database creation.
+
+## Infrastructure Overview
+
+Monk API provides four types of database entities for different purposes:
+
+### Templates (Immutable Prototypes)
+- **Database**: `monk_template_*` (e.g., `monk_template_default`, `monk_template_testing`)
+- **Registry**: `templates` table in central `monk` database
+- **Purpose**: Pre-configured schemas and data for fast cloning
+- **Lifecycle**: Immutable, created via fixtures build process
+- **Examples**: `default` (minimal), `testing` (with test data), `demo` (with sample data)
+
+### Tenants (Production Databases)
+- **Database**: `tenant_*` (e.g., `tenant_acme_abc123`)
+- **Registry**: `tenants` table in central `monk` database
+- **Purpose**: Production customer databases
+- **Lifecycle**: Long-lived, created from templates
+- **Source**: Cloned from templates via registration
+
+### Sandboxes (Temporary Testing)
+- **Database**: `sandbox_*` (e.g., `sandbox_acme_xyz789`)
+- **Registry**: `sandboxes` table in central `monk` database
+- **Purpose**: Temporary experimental environments for safe testing
+- **Lifecycle**: Short-lived with expiration dates (7-14 days typical)
+- **Source**: Cloned from templates or tenants
+- **Ownership**: Team-scoped (belongs to parent tenant)
+
+### Snapshots (Point-in-Time Backups)
+- **Database**: `snapshot_*` (e.g., `snapshot_acme_backup123`)
+- **Registry**: `snapshots` table in **tenant databases** (not central `monk`)
+- **Purpose**: Backup before migrations, disaster recovery
+- **Lifecycle**: Long-lived or with expiration policy
+- **Source**: Async backup of tenant databases (via `pg_dump`)
+- **Immutability**: Read-only after creation
+
+The fixtures system primarily focuses on **template** creation and management.
 
 ## Quick Start
 
@@ -211,22 +247,105 @@ psql -d monk -c "SELECT name, database, tenant_type FROM tenants WHERE tenant_ty
 ## Architecture
 
 ### Database Structure
-- **Template DBs:** `monk_template_testing`, `monk_template_testing_xl`, `monk_template_empty`
-- **Test DBs:** `tenant_test_*` (auto-created, auto-cleaned)
-- **Registry:** Templates registered in `monk.tenants` with `tenant_type='template'`
+- **Template DBs:** `monk_template_default`, `monk_template_testing`, `monk_template_testing_xl`
+- **Tenant DBs:** `tenant_*` (production databases)
+- **Sandbox DBs:** `sandbox_*` (temporary testing environments)
+- **Snapshot DBs:** `snapshot_*` (point-in-time backups)
+- **Test DBs:** `tenant_test_*` (auto-created during tests, auto-cleaned)
+- **Registry:** Templates in `monk.templates`, Tenants in `monk.tenants`, Sandboxes in `monk.sandboxes`
 
 ### Directory Structure
 ```
 fixtures/
-├── testing/              # Protected template (5 records)
+├── default/             # Minimal system template (renamed from 'empty')
+│   ├── describe/        # JSON schema definitions (system tables)
+│   └── data/            # Minimal system data
+├── testing/             # Protected template (5 records)
 │   ├── describe/        # JSON schema definitions
 │   ├── data/            # Pre-generated test data
 │   └── .locked          # Protection lock file
 ├── testing_xl/          # Large template (100+ records)
-└── empty/               # Minimal template
+│   ├── describe/        # JSON schema definitions
+│   └── data/            # Large dataset
+└── demo/                # Demo template with sample data
+    ├── describe/        # JSON schema definitions
+    └── data/            # Sample business data
 ```
 
+**Note**: The `empty` template has been renamed to `default` to better reflect its purpose as the base template for new tenants.
+
+## Infrastructure Integration
+
+The fixtures system integrates with Monk API's infrastructure management:
+
+### Template to Tenant Flow
+```bash
+# 1. Build template (development, one-time)
+npm run fixtures:build testing
+
+# 2. Register new tenant using template (via API)
+POST /api/auth/register
+{
+  "tenant": "acme-corp",
+  "username": "admin@acme.com",
+  "template": "testing"
+}
+# → Creates tenant_acme_xyz123 from monk_template_testing
+```
+
+### Template to Sandbox Flow
+```bash
+# 1. Create sandbox for testing (via API)
+POST /api/sudo/sandboxes
+{
+  "template": "testing",
+  "description": "Testing v3 API changes",
+  "expires_in_days": 7
+}
+# → Creates sandbox_acme_abc123 from monk_template_testing
+
+# 2. Test changes in sandbox
+# ... perform tests ...
+
+# 3. Delete sandbox when done
+DELETE /api/sudo/sandboxes/acme-sandbox-abc123
+```
+
+### Tenant to Snapshot Flow
+```bash
+# 1. Create snapshot before migration (via API)
+POST /api/sudo/snapshots
+{
+  "name": "pre-v3-migration",
+  "description": "Backup before v3 schema changes",
+  "snapshot_type": "pre_migration"
+}
+# → Creates snapshot_acme_backup123 (async, via pg_dump)
+
+# 2. Poll for completion
+GET /api/sudo/snapshots/pre-v3-migration
+# → Check status: pending → processing → active
+
+# 3. Run migration on tenant
+# ... if successful, keep snapshot ...
+# ... if failed, restore from snapshot (future feature) ...
+```
+
+### Performance Benefits
+| Operation | Traditional | Template-Based | Improvement |
+|-----------|-------------|----------------|-------------|
+| New tenant creation | 2-3s | ~0.1s | **30x faster** |
+| Sandbox creation | 2-3s | ~0.1s | **30x faster** |
+| Test setup | 2-3s | ~0.1s | **30x faster** |
+| Snapshot creation | N/A | Proportional to size | Async (non-blocking) |
+
 ## Complete Documentation
+
+📖 **[Infrastructure API Guide](../src/routes/sudo/PUBLIC.md)** - Complete infrastructure management documentation:
+- Templates, Sandboxes, Snapshots API reference
+- Workflow examples
+- Security model
+- Best practices
 
 📖 **[Full Fixtures Guide](../docs/FIXTURES.md)** - Comprehensive documentation including:
 - Detailed architecture

@@ -92,9 +92,10 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - See: [spec/README.md](spec/README.md)
 
 #### **Fixtures System** (`fixtures/`)
-- Template-based database cloning
-- 30x faster test setup (0.1s vs 2-3s)
-- Multiple templates: testing, testing_xl, empty
+- Template-based database cloning for ultra-fast provisioning
+- 30x faster setup (0.1s vs 2-3s) for tests, tenants, sandboxes
+- Templates: `default` (minimal), `testing`, `testing_xl`, `demo`
+- Infrastructure integration with templates, sandboxes, snapshots
 - See: [fixtures/README.md](fixtures/README.md)
 
 ### System Architecture
@@ -225,10 +226,75 @@ monk data select account            # Lists from staging database
 
 ### Multi-tenant Architecture
 
-- **Main Database**: `monk` contains tenant registry
-- **Tenant Databases**: `tenant_12345678` for each tenant
-- **JWT Routing**: Tokens contain tenant and database information
+Monk API implements a sophisticated multi-database architecture with four entity types:
+
+#### Infrastructure Entities
+
+**Templates** (Immutable Prototypes)
+- **Database**: `monk_template_*` (e.g., `monk_template_default`)
+- **Registry**: `templates` table in central `monk` database
+- **Purpose**: Pre-configured schemas for fast tenant/sandbox provisioning
+- **Lifecycle**: Immutable, created via fixtures build process
+- **Performance**: Instant cloning via PostgreSQL's `CREATE DATABASE WITH TEMPLATE`
+
+**Tenants** (Production Databases)
+- **Database**: `tenant_*` (e.g., `tenant_acme_abc123`)
+- **Registry**: `tenants` table in central `monk` database
+- **Purpose**: Production customer databases
+- **Lifecycle**: Long-lived, created from templates
+- **JWT Routing**: Tokens contain tenant and database information for automatic routing
 - **Isolation**: Each tenant gets separate database and user management
+
+**Sandboxes** (Temporary Testing)
+- **Database**: `sandbox_*` (e.g., `sandbox_acme_xyz789`)
+- **Registry**: `sandboxes` table in central `monk` database
+- **Purpose**: Temporary experimental environments for safe testing
+- **Lifecycle**: Short-lived with expiration dates (typically 7-14 days)
+- **Source**: Cloned from templates or tenants
+- **Ownership**: Team-scoped (belongs to parent tenant for collaboration)
+- **API**: Managed via `/api/sudo/sandboxes/*` endpoints
+
+**Snapshots** (Point-in-Time Backups)
+- **Database**: `snapshot_*` (e.g., `snapshot_acme_backup123`)
+- **Registry**: `snapshots` table in **tenant databases** (not central `monk`)
+- **Purpose**: Backup before migrations, disaster recovery
+- **Processing**: Async via observer pipeline using `pg_dump`/`pg_restore`
+- **Status**: `pending` → `processing` → `active` or `failed`
+- **Immutability**: Read-only after creation (`default_transaction_read_only = on`)
+- **Restriction**: Only from tenant databases (not sandboxes)
+- **API**: Managed via `/api/sudo/snapshots/*` endpoints
+
+#### Infrastructure Management
+
+All infrastructure operations require **sudo access** via `/api/sudo/*` endpoints:
+
+```bash
+# 1. Get sudo token (15 min validity)
+POST /api/auth/sudo
+
+# 2. List templates
+GET /api/sudo/templates
+
+# 3. Create sandbox from template
+POST /api/sudo/sandboxes
+{
+  "template": "testing",
+  "expires_in_days": 7
+}
+
+# 4. Create snapshot (async)
+POST /api/sudo/snapshots
+{
+  "name": "pre-migration",
+  "snapshot_type": "pre_migration"
+}
+
+# 5. Poll snapshot status
+GET /api/sudo/snapshots/pre-migration
+# → Check status: pending → processing → active
+```
+
+**Complete API Reference**: [src/routes/sudo/PUBLIC.md](src/routes/sudo/PUBLIC.md)
 
 ## Build and Deployment
 
