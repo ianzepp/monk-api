@@ -49,6 +49,7 @@ import * as middleware from '@src/lib/middleware/index.js';
 
 // Route handlers
 import * as authRoutes from '@src/routes/auth/routes.js';
+import * as userRoutes from '@src/routes/user/routes.js';
 import * as dataRoutes from '@src/routes/data/routes.js';
 import * as describeRoutes from '@src/routes/describe/routes.js';
 import * as aclsRoutes from '@src/routes/acls/routes.js';
@@ -123,6 +124,10 @@ app.get('/', c => {
             find: ['/api/find/:schema'],
             aggregate: ['/api/aggregate/:schema'],
             bulk: ['/api/bulk'],
+            user: [
+                '/api/user/profile',
+                '/api/user/deactivate'
+            ],
             acls: ['/api/acls/:schema/:record'],
             stat: ['/api/stat/:schema/:record'],
             history: [
@@ -139,6 +144,7 @@ app.get('/', c => {
             find: ['/docs/find'],
             aggregate: ['/docs/aggregate'],
             bulk: ['/docs/bulk'],
+            user: ['/docs/user'],
             acls: ['/docs/acls'],
             stat: ['/docs/stat'],
             history: ['/docs/history'],
@@ -230,6 +236,11 @@ app.post('/api/aggregate/:schema', AggregateSchemaPost);
 
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);
+
+// 36-user-api: User API routes (self-service user management)
+app.get('/api/user/profile', userRoutes.ProfileGet); // GET /api/user/profile
+app.put('/api/user/profile', userRoutes.ProfilePut); // PUT /api/user/profile
+app.post('/api/user/deactivate', userRoutes.DeactivatePost); // POST /api/user/deactivate
 
 // 38-acls-api: Acls API routes
 app.get('/api/acls/:schema/:record', aclsRoutes.RecordAclGet); // Get acls for a single record

@@ -322,6 +322,44 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
     });
 }
 
+/**
+ * Utility function that temporarily sets the 'as_sudo' flag for self-service operations
+ * that need to bypass schema-level sudo protection.
+ *
+ * Used by User API endpoints that allow users to modify their own records in sudo-protected
+ * schemas (like the users table). Sets the 'as_sudo' flag which observers can check
+ * alongside 'is_sudo' from JWT tokens.
+ *
+ * Automatically handles:
+ * - Setting as_sudo=true flag before handler execution
+ * - Cleaning up as_sudo flag after completion (even on errors)
+ * - Returns the handler's return value
+ *
+ * Security: Only use for controlled self-service operations where business logic
+ * ensures users can only modify their own records.
+ *
+ * Example usage:
+ * ```typescript
+ * export default withTransactionParams(async (context, { system, body }) => {
+ *     const result = await withSelfServiceSudo(context, async () => {
+ *         return await system.database.updateOne('users', userId, updates);
+ *     });
+ *     setRouteResult(context, result);
+ * });
+ * ```
+ */
+export async function withSelfServiceSudo<T>(
+    context: Context,
+    handler: () => Promise<T>
+): Promise<T> {
+    context.set('as_sudo', true);
+    try {
+        return await handler();
+    } finally {
+        context.set('as_sudo', undefined);
+    }
+}
+
 // Error handling wrapper - keeps business logic in handlers
 export async function withErrorHandling<T>(c: Context, handler: () => Promise<T>, successStatus: number = 200): Promise<any> {
     const schema = c.req.param('schema');

@@ -43,8 +43,11 @@ export default class SudoValidator extends BaseObserver {
         // Get JWT payload from system context
         const jwtPayload = system.context.get('jwtPayload');
 
-        // Verify user has sudo token (not just root access)
-        if (!jwtPayload?.is_sudo) {
+        // Check for self-service sudo flag (set by withSelfServiceSudo helper)
+        const asSudo = system.context.get('as_sudo');
+
+        // Verify user has either a sudo token OR self-service sudo flag
+        if (!jwtPayload?.is_sudo && !asSudo) {
             throw new SystemError(
                 `Schema '${schema.schema_name}' requires sudo access. Use POST /api/auth/sudo to get short-lived sudo token.`
             );
