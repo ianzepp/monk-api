@@ -196,6 +196,123 @@ Authorization: Bearer <jwt>
 }
 ```
 
+## Query Parameters
+
+### System Field Filtering
+
+Control which system metadata fields are included in API responses using query parameters. By default, all system fields are included for backward compatibility.
+
+#### ?stat Parameter
+
+Controls inclusion of timestamp fields in responses.
+
+**Values:**
+- `?stat=true` (default): Include created_at, updated_at, trashed_at, deleted_at
+- `?stat=false`: Exclude all timestamp fields
+
+**Example:**
+```bash
+GET /api/data/users?stat=false
+POST /api/data/users?stat=false
+PUT /api/data/users/:id?stat=false
+```
+
+**Response without stat fields:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "user_123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "access_read": [...],
+    "access_edit": [...]
+    // No created_at, updated_at, trashed_at, deleted_at
+  }
+}
+```
+
+**Use cases:**
+- Reduce response size when timestamps aren't needed
+- Simplify client-side data models
+- Bandwidth optimization for mobile apps
+
+#### ?access Parameter
+
+Controls inclusion of ACL (Access Control List) fields in responses.
+
+**Values:**
+- `?access=true` (default): Include access_read, access_edit, access_full, access_deny
+- `?access=false`: Exclude all ACL fields
+
+**Example:**
+```bash
+GET /api/data/users?access=false
+POST /api/data/users?access=false
+PUT /api/data/users/:id?access=false
+```
+
+**Response without access fields:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "user_123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "created_at": "2025-01-01T12:00:00.000Z",
+    "updated_at": "2025-01-01T12:00:00.000Z"
+    // No access_read, access_edit, access_full, access_deny
+  }
+}
+```
+
+**Use cases:**
+- Reduce response size (ACL arrays can be large)
+- Exclude permissions data when not needed
+- Bandwidth optimization (can save 200+ bytes per record)
+
+#### Combined Filtering
+
+Use both parameters together for data-only responses:
+
+```bash
+GET /api/data/users?stat=false&access=false
+```
+
+**Response with only user data:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "user_123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "status": "active"
+    // Only user-defined fields, no system metadata
+  }
+}
+```
+
+**Bandwidth savings:**
+- Typical record with ACLs: ~800-1500 bytes
+- With `?stat=false&access=false`: ~300-500 bytes
+- Savings: 60-75% reduction per record
+
+#### Interaction with ?pick Parameter
+
+System field filtering runs **before** field extraction with `?pick=`:
+
+```bash
+GET /api/data/users?access=false&pick=data.id,data.name
+```
+
+1. First: ACL fields are filtered out
+2. Then: Only id and name are extracted
+3. Result: Extracted fields will never include access_* (already filtered)
+
+This ensures `?pick=` operates on already-filtered data.
+
 ## Core CRUD Operations
 
 ### Create Records

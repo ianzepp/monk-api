@@ -25,14 +25,8 @@ export default async function (context: Context) {
     const baseDir = isDevelopment ? 'src' : 'dist';
     let publicDocsPath: string;
 
-    // Handle public API variants (public-auth, public-user, etc.)
-    if (apiLowercase.startsWith('public-')) {
-        const apiName = apiLowercase.substring(7); // Remove 'public-' prefix
-        publicDocsPath = join(process.cwd(), baseDir, 'public', apiName, 'PUBLIC.md');
-    } else {
-        // Standard protected API documentation
-        publicDocsPath = join(process.cwd(), baseDir, 'routes', apiLowercase, 'PUBLIC.md');
-    }
+    // Standard protected API documentation
+    publicDocsPath = join(process.cwd(), baseDir, 'routes', apiLowercase, 'PUBLIC.md');
 
     // Check if documentation exists
     if (!existsSync(publicDocsPath)) {

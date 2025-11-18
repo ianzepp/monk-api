@@ -1,7 +1,6 @@
 import type { Context } from 'hono';
 import { withParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { HttpErrors } from '@src/lib/http-errors.js';
 
 /**
  * GET /api/stat/:schema/:record - Get record metadata (timestamps, etag, size)
@@ -19,13 +18,9 @@ import { HttpErrors } from '@src/lib/http-errors.js';
  *
  * @see docs/39-stat-api.md
  */
-export default withParams(async (context, { system, schema, record }) => {
-    // Fetch the full record using selectOne
-    const result = await system.database.selectOne(schema!, record!);
-
-    if (!result) {
-        throw HttpErrors.notFound(`Record ${record} not found in schema ${schema}`);
-    }
+export default withParams(async (context, { system, schema, record, options }) => {
+    // Fetch the record (select404 automatically throws 404 if not found)
+    const result = await system.database.select404(schema!, { where: { id: record! } }, undefined, options);
 
     // Return only stat fields (exclude user data)
     const statData = {

@@ -47,19 +47,14 @@ import * as middleware from '@src/lib/middleware/index.js';
 
 // Root API
 
-// Public route handlers (no authentication required)
-import * as publicAuthRoutes from '@src/public/auth/routes.js';
-
-// Public docs  (no authentication required)
-import * as publicDocsRoutes from '@src/public/docs/routes.js';
-
-// Protected API handlers (JWT + user validation required)
+// Route handlers
 import * as authRoutes from '@src/routes/auth/routes.js';
 import * as dataRoutes from '@src/routes/data/routes.js';
 import * as describeRoutes from '@src/routes/describe/routes.js';
 import * as fileRoutes from '@src/routes/file/routes.js';
 import * as aclsRoutes from '@src/routes/acls/routes.js';
 import * as statRoutes from '@src/routes/stat/routes.js';
+import * as docsRoutes from '@src/routes/docs/routes.js';
 import { sudoRouter } from '@src/routes/sudo/index.js';
 
 // Special protected endpoints
@@ -147,6 +142,7 @@ app.get('/', c => {
             file: ['/docs/file'],
             acls: ['/docs/acls'],
             sudo: ['/docs/sudo'],
+            stat: ['/docs/stat'],
         },
     };
 
@@ -173,15 +169,15 @@ app.use('/auth/*', middleware.responseFormatterMiddleware); // Format responses 
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
 // Public auth routes (token acquisition)
-app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
-app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
-app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
-app.get('/auth/tenants', publicAuthRoutes.TenantsGet); // GET /auth/tenants
-app.get('/auth/templates', publicAuthRoutes.TemplatesGet); // GET /auth/templates
+app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
+app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
+app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
+app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
+app.get('/auth/templates', authRoutes.TemplatesGet); // GET /auth/templates
 
 // 40-docs-api: Public docs routes (no authentication required)
-app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
-app.get('/docs/:api', publicDocsRoutes.ApiGet); // GET /docs/:api
+app.get('/README.md', docsRoutes.ReadmeGet); // GET /README.md
+app.get('/docs/:api', docsRoutes.ApiGet); // GET /docs/:api
 
 // Protected API routes - require JWT authentication from /auth
 app.use('/api/*', middleware.requestBodyParserMiddleware);

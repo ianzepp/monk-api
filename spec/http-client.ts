@@ -101,6 +101,72 @@ export class HttpClient {
     }
 
     /**
+     * Make a GET request
+     *
+     * @param path - API path
+     * @param options - Request options
+     * @returns Promise with parsed JSON response
+     */
+    async get(path: string, options: HttpRequestOptions = {}): Promise<any> {
+        const response = await this.request(path, {
+            ...options,
+            method: 'GET',
+        });
+        return response.json;
+    }
+
+    /**
+     * Make a POST request
+     *
+     * @param path - API path
+     * @param body - Request body (will be JSON.stringified)
+     * @param options - Request options
+     * @returns Promise with parsed JSON response
+     */
+    async post(path: string, body?: any, options: HttpRequestOptions = {}): Promise<any> {
+        const response = await this.request(path, {
+            ...options,
+            method: 'POST',
+            body,
+            contentType: options.contentType || 'application/json',
+        });
+        return response.json;
+    }
+
+    /**
+     * Make a PUT request
+     *
+     * @param path - API path
+     * @param body - Request body (will be JSON.stringified)
+     * @param options - Request options
+     * @returns Promise with parsed JSON response
+     */
+    async put(path: string, body?: any, options: HttpRequestOptions = {}): Promise<any> {
+        const response = await this.request(path, {
+            ...options,
+            method: 'PUT',
+            body,
+            contentType: options.contentType || 'application/json',
+        });
+        return response.json;
+    }
+
+    /**
+     * Make a DELETE request
+     *
+     * @param path - API path
+     * @param options - Request options
+     * @returns Promise with parsed JSON response
+     */
+    async delete(path: string, options: HttpRequestOptions = {}): Promise<any> {
+        const response = await this.request(path, {
+            ...options,
+            method: 'DELETE',
+        });
+        return response.json;
+    }
+
+    /**
      * Make a POST request with YAML format
      *
      * @param path - API path
