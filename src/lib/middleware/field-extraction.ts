@@ -34,47 +34,7 @@
 
 import type { Context, Next } from 'hono';
 import { extract } from '@src/lib/field-extractor.js';
-
-/**
- * Filter system fields from data based on query parameters
- *
- * @param data - Data to filter (object, array, or primitive)
- * @param includeStat - Whether to include stat fields (created_at, updated_at, etc.)
- * @param includeAccess - Whether to include access fields (access_read, access_edit, etc.)
- * @returns Filtered data
- */
-function filterSystemFields(data: any, includeStat: boolean, includeAccess: boolean): any {
-    if (!data) return data;
-
-    // Handle arrays - recursively filter each item
-    if (Array.isArray(data)) {
-        return data.map(item => filterSystemFields(item, includeStat, includeAccess));
-    }
-
-    // Handle objects - filter system fields
-    if (typeof data === 'object') {
-        const filtered = { ...data };
-
-        if (!includeStat) {
-            delete filtered.created_at;
-            delete filtered.updated_at;
-            delete filtered.trashed_at;
-            delete filtered.deleted_at;
-        }
-
-        if (!includeAccess) {
-            delete filtered.access_read;
-            delete filtered.access_edit;
-            delete filtered.access_full;
-            delete filtered.access_deny;
-        }
-
-        return filtered;
-    }
-
-    // Primitives pass through unchanged
-    return data;
-}
+import { filterSystemFields } from '@src/lib/system-field-filter.js';
 
 /**
  * Field extraction middleware - filters system fields and extracts/unwraps data from successful responses
