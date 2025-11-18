@@ -114,30 +114,48 @@ CREATE INDEX idx_sandboxes_created_by ON sandboxes(created_by);
 CREATE INDEX idx_sandboxes_expires ON sandboxes(expires_at) WHERE expires_at IS NOT NULL;
 ```
 
-#### 4. Snapshots Table (Point-in-Time Backups)
+#### 4. Snapshots Table (Point-in-Time Backups - IN TENANT DATABASES)
+**Location:** Each tenant database has its own `snapshots` table
+
 ```sql
 CREATE TABLE snapshots (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     name varchar(255) UNIQUE NOT NULL,
     database varchar(255) UNIQUE NOT NULL,
     description text,
+    status varchar(20) DEFAULT 'pending' CHECK (
+        status IN ('pending', 'processing', 'active', 'failed')
+    ),
     snapshot_type varchar(20) DEFAULT 'manual' CHECK (
         snapshot_type IN ('manual', 'auto', 'pre_migration', 'scheduled')
     ),
-    source_tenant_id uuid REFERENCES tenants(id) ON DELETE SET NULL,
-    source_tenant_name varchar(255) NOT NULL,
     size_bytes bigint,
     record_count int,
+    error_message text,  -- For failed snapshots
     created_by uuid NOT NULL,
     created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now(),
     expires_at timestamp,
+    trashed_at timestamp,
+    deleted_at timestamp,
+    access_read uuid[] DEFAULT '{}',
+    access_edit uuid[] DEFAULT '{}',
+    access_full uuid[] DEFAULT '{}',
+    access_deny uuid[] DEFAULT '{}',
     CONSTRAINT snapshots_database_prefix CHECK (database LIKE 'snapshot_%')
 );
 
-CREATE INDEX idx_snapshots_source_tenant ON snapshots(source_tenant_id);
+CREATE INDEX idx_snapshots_status ON snapshots(status);
 CREATE INDEX idx_snapshots_created_by ON snapshots(created_by);
 CREATE INDEX idx_snapshots_created_at ON snapshots(created_at);
 ```
+
+**Key Differences from Original Plan:**
+- ❌ No `source_tenant_id` or `source_tenant_name` (snapshot record IS in the tenant)
+- ✅ Added `status` field for async processing tracking
+- ✅ Added `error_message` for failed snapshot diagnostics
+- ✅ Added standard ACL fields (tenant-scoped permissions)
+- ✅ Added soft delete fields (trashed_at, deleted_at)
 
 ### API Endpoints
 
@@ -172,12 +190,27 @@ POST   /api/sudo/sandboxes/{name}/extend      # Extend expiration
 
 #### Snapshots
 ```
-GET    /api/sudo/snapshots                    # List all snapshots
-GET    /api/sudo/snapshots/{name}             # Get snapshot details
-POST   /api/sudo/snapshots                    # Create snapshot from tenant
-POST   /api/sudo/snapshots/{name}/restore     # Restore → new tenant (TODO)
-DELETE /api/sudo/snapshots/{name}             # Delete snapshot
+GET    /api/sudo/snapshots                    # List tenant's snapshots
+GET    /api/sudo/snapshots/{name}             # Get snapshot details (poll for status)
+POST   /api/sudo/snapshots                    # Create snapshot (async via observer)
+DELETE /api/sudo/snapshots/{name}             # Delete snapshot + database
 ```
+
+**Snapshot Workflow:**
+1. POST creates record with `status='pending'` (returns immediately)
+2. AsyncObserver (Ring 8) detects pending → updates to 'processing'
+3. Observer runs pg_dump/restore in background
+4. Observer updates both source tenant DB and snapshot DB to 'active'
+5. Observer locks snapshot database as read-only
+6. User polls GET to check status
+
+**Important Notes:**
+- Snapshots are **tenant-scoped** (each tenant only sees their own)
+- Snapshots are **stored in tenant databases** (not central `monk` database)
+- Snapshot databases contain **their own metadata** (consistent with source)
+- Snapshot databases are **immutable** (read-only after creation)
+- Snapshots **cannot be created from sandboxes** (tenant databases only)
+- Restoration feature: **Future work** (requires design decisions)
 
 ### Fixture Format: YAML
 
@@ -295,20 +328,47 @@ FIXTURES_DIR="fixtures/$FIXTURE_NAME"
 
 ## Implementation Phases
 
-### Phase 1: Database Schema Migration ✓ TODO
-1. Create new tables: `templates`, `sandboxes`, `snapshots`
-2. Migrate data from `tenants` table:
-   - `tenant_type='template'` → `templates` table
-   - `tenant_type='normal'` → keep in `tenants`, add `owner_id`
-3. Rename `monk_template_empty` → `monk_default`
-4. Update `tenants` table structure (remove `tenant_type`, add constraints)
+### Phase 1: Database Schema Migration ✅ COMPLETE
+1. ✅ Created new tables: `templates`, `sandboxes`, `snapshots`
+2. ✅ Migrated data from `tenants` table via migration script
+3. ✅ Renamed `monk_template_empty` → `monk_template_default`
+4. ✅ Updated `tenants` table structure (removed `tenant_type`, added `owner_id`, `source_template`)
+5. ✅ Moved snapshots from `monk` database to tenant databases
+6. ✅ Removed `sandboxes_one_parent` constraint (allow tracking both tenant and template)
 
-### Phase 2: API Endpoints ✓ TODO
-1. Implement `/api/sudo/templates/*` routes
-2. Implement `/api/sudo/sandboxes/*` routes  
-3. Implement `/api/sudo/tenants/*` routes (management)
-4. Implement `/api/sudo/snapshots/*` routes
-5. Update `/auth/register` to support `create_as` parameter
+**Key Changes:**
+- `sql/init-monk.sql` - Separate tables for templates, tenants, sandboxes
+- `sql/init-template-default.sql` - Snapshots table in each tenant database
+- Database naming: `monk_template_default` for CHECK constraint compliance
+- Default template renamed from "empty" to "default"
+
+### Phase 2: API Endpoints ✅ COMPLETE
+1. ✅ Implemented `/api/sudo/templates/*` routes (GET list, GET detail)
+2. ✅ Implemented `/api/sudo/sandboxes/*` routes (GET list, POST create, GET detail, DELETE, POST extend)
+3. ✅ Implemented `/api/sudo/snapshots/*` routes (GET list, POST create, GET detail, DELETE)
+4. ⚠️  Tenant management routes (POST, PUT, DELETE) - Use direct PostgreSQL access
+5. ⚠️  Template promotion - Future work
+
+**Architectural Decisions:**
+- **Templates**: Read-only via API (create via init scripts)
+- **Sandboxes**: Tenant-scoped (team collaboration model)
+  - Belongs to `parent_tenant_id` for team access
+  - `created_by` for audit trail only
+  - Can track both source tenant and template
+- **Snapshots**: Tenant-scoped with async observer pipeline
+  - Stored in tenant databases (not `monk` database)
+  - Created with `status='pending'`
+  - AsyncObserver (Ring 8) processes via pg_dump
+  - Updates both source and snapshot DBs to `status='active'`
+  - Locked as read-only (`default_transaction_read_only = on`)
+  - **Restriction**: Only from tenant databases (not sandboxes)
+- **Tenants**: No DELETE/UPDATE via API (direct DB access required)
+
+**Services & Infrastructure:**
+- `src/lib/services/infrastructure-service.ts` - Utility methods for DB operations
+- `src/lib/database-template.ts` - Updated to query `templates` table
+- `src/observers/snapshots/8/50-snapshot-processor.ts` - Async snapshot processing
+- `src/lib/database-connection.ts` - Added `getConnectionParams()` for pg_dump credentials
 
 ### Phase 3: Convert Fixtures to YAML ✓ TODO
 1. Convert `fixtures/empty/` → `fixtures/default/`
@@ -363,11 +423,19 @@ Production workflow:
 ### Workflow 3: Pre-Migration Snapshot
 ```
 Backup workflow:
-1. POST /api/sudo/snapshots
-   {tenant: 'acme-corp', snapshot_name: 'pre-v3-migration'}
-2. Run migration on tenant
-3. If failed → TODO: Restore from snapshot
-4. If success → Keep snapshot per retention policy
+1. Login to tenant 'acme-corp'
+2. POST /api/sudo/snapshots
+   {name: 'pre-v3-migration', description: 'Before v3 schema changes'}
+   → Returns: {status: 'pending', database: 'snapshot_abc123', ...}
+3. Poll GET /api/sudo/snapshots/pre-v3-migration
+   → Check status: pending → processing → active
+4. Run migration on tenant
+5. If failed → Restore from snapshot (TODO: design restoration)
+6. If success → Keep snapshot per retention policy
+
+Note: Snapshot creation is non-blocking. The API returns immediately
+with status='pending', and an async observer processes pg_dump in the
+background. Poll the GET endpoint to check when status='active'.
 ```
 
 ## Design Decisions
@@ -517,5 +585,43 @@ Backup workflow:
 
 ---
 
-**Status:** Planning complete, ready for implementation
-**Next Step:** Begin Phase 1 (Database Schema Migration)
+## Current Status
+
+**Overall Progress:** Phase 2 Complete ✅
+
+### Completed (Phases 1-2)
+- ✅ **Database schema migration** - Separate tables for templates, tenants, sandboxes, snapshots
+- ✅ **Infrastructure service** - Utility methods for DB cloning, pg_dump, locking
+- ✅ **Sudo API routes** - Templates (read), Sandboxes (CRUD), Snapshots (CRUD)
+- ✅ **Async observer pipeline** - Background snapshot processing with dual metadata updates
+- ✅ **Database locking** - Snapshots are immutable (read-only)
+- ✅ **Connection extraction** - DatabaseConnection.getConnectionParams() for pg_dump
+- ✅ **Sudo access control** - isSudo() helper, root users get automatic sudo
+- ✅ **Sandbox ownership model** - Team collaboration (tenant-scoped, not user-scoped)
+
+### Key Architectural Decisions Made
+1. **Snapshots in tenant DBs** - Not in central `monk` database (enables observer pipeline)
+2. **Tenant-scoped sandboxes** - Multiple admins can manage team's sandboxes
+3. **Async snapshot processing** - Non-blocking API, background pg_dump via observer
+4. **Dual metadata updates** - Both source and snapshot DBs show status='active'
+5. **Read-only snapshots** - Immutable via `default_transaction_read_only = on`
+6. **No snapshot from sandboxes** - Sandboxes are temporary, snapshots are for tenants only
+
+### Remaining Work (Phases 3-4)
+- ⚠️  **Phase 3:** Convert fixtures to YAML format
+- ⚠️  **Phase 4:** Rewrite `fixtures-build.sh` as pure API client (no psql dependency)
+- ⚠️  **Phase 5:** Documentation updates
+- ⚠️  **Phase 6:** Integration testing
+
+### Future Enhancements (Not Blocking)
+- Template promotion (sandbox → template)
+- Tenant CRUD via API (currently requires direct DB access)
+- Snapshot restoration (create tenant from snapshot)
+- Auto-expiration for sandboxes
+- ACL-based template access control
+
+**Next Step:** Begin Phase 3 (Convert fixtures to YAML format)
+
+**Git Branch:** `3.1` (10 commits ahead of origin)
+
+**Last Updated:** 2025-11-18
