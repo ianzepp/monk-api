@@ -3,24 +3,26 @@ import { TestDatabaseHelper } from '../test-database-helper.js';
 import { HttpClient } from '../http-client.js';
 
 /**
- * Field Extraction Tests (?pick= parameter)
+ * Field Extraction Tests (?unwrap and ?select= parameters)
  *
  * Tests server-side field extraction from JSON responses.
- * The ?pick= parameter allows extracting specific fields before formatting.
+ * The ?unwrap parameter removes the envelope and returns full data.
+ * The ?select= parameter removes the envelope and extracts specific fields.
  *
  * Features tested:
- * 1. Single field extraction (returns JSON-encoded value)
- * 2. Multiple field extraction (returns JSON object)
- * 3. Nested path extraction (dot notation)
- * 4. Missing field handling (graceful null)
- * 5. Format compatibility (extraction + formatting)
- * 6. Array element extraction
+ * 1. Unwrap (remove envelope, return full data)
+ * 2. Single field extraction (returns JSON-encoded value)
+ * 3. Multiple field extraction (returns JSON object)
+ * 4. Nested path extraction (dot notation)
+ * 5. Missing field handling (graceful null)
+ * 6. Format compatibility (extraction + formatting)
+ * 7. Array element extraction
  *
  * Note: Field extraction always returns JSON, which can then be formatted
  * by the formatter middleware (JSON, YAML, TOON, etc.)
  */
 
-describe('Field Extraction (?pick= parameter)', () => {
+describe('Field Extraction (?unwrap and ?select= parameters)', () => {
     let tenantName: string;
     let databaseName: string;
     let authToken: string;
@@ -29,7 +31,7 @@ describe('Field Extraction (?pick= parameter)', () => {
     // Create test tenant and authenticate before all tests
     beforeAll(async () => {
         const result = await TestDatabaseHelper.createTestTenant({
-            testName: 'pick',
+            testName: 'field-extraction',
             template: 'testing',
         });
 
@@ -47,10 +49,47 @@ describe('Field Extraction (?pick= parameter)', () => {
         }
     });
 
+    describe('Unwrap (Remove Envelope)', () => {
+        it('should unwrap and return full data object without envelope', async () => {
+            const response = await httpClient.authenticatedRequest(
+                '/api/auth/whoami?unwrap',
+                authToken
+            );
+
+            expect(response.status).toBe(200);
+
+            // Should return data object directly (no success wrapper)
+            const data = response.json;
+            expect(data).toBeDefined();
+            expect(data.id).toBeDefined();
+            expect(data.name).toBeDefined();
+            expect(data.access).toBeDefined();
+
+            // Should NOT have success wrapper
+            expect(data.success).toBeUndefined();
+        });
+
+        it('should work with format parameter', async () => {
+            const response = await httpClient.authenticatedRequest(
+                '/api/auth/whoami?unwrap&format=yaml',
+                authToken
+            );
+
+            expect(response.status).toBe(200);
+
+            // Response should be YAML formatted
+            expect(response.headers.get('content-type')).toContain('application/yaml');
+            expect(response.body).toMatch(/id:/);
+            expect(response.body).toMatch(/name:/);
+            // Should not have success wrapper
+            expect(response.body).not.toMatch(/success:/);
+        });
+    });
+
     describe('Single Field Extraction', () => {
         it('should extract single field as JSON-encoded value', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.id',
+                '/api/auth/whoami?select=id',
                 authToken
             );
 
@@ -66,7 +105,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should extract nested field as JSON-encoded value', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.access',
+                '/api/auth/whoami?select=access',
                 authToken
             );
 
@@ -78,7 +117,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should return empty or null for missing field', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.nonexistent',
+                '/api/auth/whoami?select=nonexistent',
                 authToken
             );
 
@@ -92,7 +131,7 @@ describe('Field Extraction (?pick= parameter)', () => {
     describe('Multiple Field Extraction', () => {
         it('should extract multiple fields as JSON object', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.id,data.name',
+                '/api/auth/whoami?select=id,data.name',
                 authToken
             );
 
@@ -110,7 +149,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should extract multiple nested fields', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.access,data.tenant,data.database',
+                '/api/auth/whoami?select=access,data.tenant,data.database',
                 authToken
             );
 
@@ -124,7 +163,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should handle mix of existing and missing fields', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.id,data.nonexistent',
+                '/api/auth/whoami?select=id,data.nonexistent',
                 authToken
             );
 
@@ -151,7 +190,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should handle invalid nested paths gracefully', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.invalid.nested.path',
+                '/api/auth/whoami?select=invalid.nested.path',
                 authToken
             );
 
@@ -164,7 +203,7 @@ describe('Field Extraction (?pick= parameter)', () => {
     describe('Field Extraction with Format Override', () => {
         it('should extract field then format as YAML', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.id,data.access&format=yaml',
+                '/api/auth/whoami?select=id,data.access&format=yaml',
                 authToken
             );
 
@@ -178,7 +217,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should extract field then format as TOON', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.id,data.name&format=toon',
+                '/api/auth/whoami?select=id,data.name&format=toon',
                 authToken
             );
 
@@ -192,7 +231,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should extract single field then format as YAML', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.access&format=yaml',
+                '/api/auth/whoami?select=access&format=yaml',
                 authToken
             );
 
@@ -208,7 +247,7 @@ describe('Field Extraction (?pick= parameter)', () => {
     describe('Array Element Extraction', () => {
         it('should extract array fields', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.access_read',
+                '/api/auth/whoami?select=access_read',
                 authToken
             );
 
@@ -220,7 +259,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should extract multiple array fields as JSON object', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.access_read,data.access_edit',
+                '/api/auth/whoami?select=access_read,data.access_edit',
                 authToken
             );
 
@@ -232,16 +271,16 @@ describe('Field Extraction (?pick= parameter)', () => {
         });
     });
 
-    describe('Empty and Invalid Pick Parameters', () => {
-        it('should return full response when pick parameter is empty', async () => {
+    describe('Empty and Invalid Select Parameters', () => {
+        it('should return full response when select parameter is empty', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=',
+                '/api/auth/whoami?select=',
                 authToken
             );
 
             expect(response.status).toBe(200);
 
-            // Empty pick should return full response
+            // Empty select should return full response
             const data = response.json;
             expect(data.success).toBe(true);
             expect(data.data).toBeDefined();
@@ -249,7 +288,7 @@ describe('Field Extraction (?pick= parameter)', () => {
             expect(data.data.name).toBeDefined();
         });
 
-        it('should return full response when pick parameter is missing', async () => {
+        it('should return full response when select parameter is missing', async () => {
             const response = await httpClient.authenticatedRequest(
                 '/api/auth/whoami',
                 authToken
@@ -257,7 +296,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
             expect(response.status).toBe(200);
 
-            // No pick should return full response
+            // No select should return full response
             const data = response.json;
             expect(data.success).toBe(true);
             expect(data.data).toBeDefined();
@@ -267,7 +306,7 @@ describe('Field Extraction (?pick= parameter)', () => {
     describe('Token Extraction Use Case', () => {
         it('should extract token directly from login response if supported', async () => {
             const response = await httpClient.postJson(
-                '/auth/login?pick=data.token',
+                '/auth/login?select=token',
                 {
                     tenant: tenantName,
                     username: 'full',
@@ -276,13 +315,13 @@ describe('Field Extraction (?pick= parameter)', () => {
 
             expect(response.status).toBe(200);
 
-            // If pick works on auth endpoint, should return JSON-encoded token string
+            // If select works on auth endpoint, should return JSON-encoded token string
             // Otherwise, should return full response object
             if (typeof response.json === 'string' && response.json.match(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)) {
                 // Token extracted successfully (JWT format)
                 expect(response.json).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
             } else if (typeof response.json === 'object' && response.json.success) {
-                // Full response object returned (pick may not be supported on auth endpoint)
+                // Full response object returned (select may not be supported on auth endpoint)
                 expect(response.json.success).toBe(true);
                 expect(response.json.data.token).toBeDefined();
             } else {
@@ -293,7 +332,7 @@ describe('Field Extraction (?pick= parameter)', () => {
 
         it('should extract user ID for subsequent requests', async () => {
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.id',
+                '/api/auth/whoami?select=id',
                 authToken
             );
 
@@ -303,7 +342,7 @@ describe('Field Extraction (?pick= parameter)', () => {
             expect(response.json).toMatch(/^[a-f0-9-]{36}$/);
 
             // This can be used in shell scripts with jq:
-            // USER_ID=$(curl /api/auth/whoami?pick=data.id -H "Authorization: Bearer $TOKEN" | jq -r .)
+            // USER_ID=$(curl /api/auth/whoami?select=id -H "Authorization: Bearer $TOKEN" | jq -r .)
         });
     });
 
@@ -315,7 +354,7 @@ describe('Field Extraction (?pick= parameter)', () => {
             // 3. Format middleware converts to requested format
 
             const response = await httpClient.authenticatedRequest(
-                '/api/auth/whoami?pick=data.id,data.access&format=toon',
+                '/api/auth/whoami?select=id,data.access&format=toon',
                 authToken
             );
 

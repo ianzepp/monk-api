@@ -13,7 +13,7 @@ import { HttpClient } from '../http-client.js';
  * 3. ?access=false excludes ACL fields
  * 4. Combined filtering works correctly
  * 5. Filtering works on GET, POST, PUT operations
- * 6. Filtering runs before ?pick= extraction
+ * 6. Filtering runs before ?unwrap/?select= extraction
  */
 
 describe('System Field Filtering (?stat= and ?access= parameters)', () => {
@@ -318,9 +318,9 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
         });
     });
 
-    describe('Interaction with ?pick= parameter', () => {
-        it('should filter fields BEFORE pick extraction', async () => {
-            const response = await httpClient.get('/api/data/accounts?access=false&pick=data', {
+    describe('Interaction with ?unwrap parameter', () => {
+        it('should filter fields BEFORE unwrap extraction', async () => {
+            const response = await httpClient.get('/api/data/accounts?access=false&unwrap', {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -329,7 +329,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
             if (response.length > 0) {
                 const record = response[0];
 
-                // Access fields should be ABSENT (filtered before pick)
+                // Access fields should be ABSENT (filtered before unwrap)
                 expect(record.access_read).toBeUndefined();
                 expect(record.access_edit).toBeUndefined();
 
@@ -342,20 +342,20 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
             }
         });
 
-        it('should apply both filtering and picking correctly', async () => {
+        it('should apply both filtering and select correctly', async () => {
             const response = await httpClient.get(
-                '/api/data/accounts?stat=false&access=false&pick=data.id,data.name',
+                '/api/data/accounts?stat=false&access=false&select=id,name',
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 }
             );
 
-            // Pick should extract only id and name from filtered data
+            // Select should extract only id and name from filtered data
             expect(response).toBeDefined();
             expect(typeof response).toBe('object');
 
             if (Array.isArray(response.id)) {
-                // Multiple records - pick returns {id: [...], name: [...]}
+                // Multiple records - select returns {id: [...], name: [...]}
                 expect(response.id).toBeDefined();
                 expect(response.name).toBeDefined();
                 expect(response.created_at).toBeUndefined();

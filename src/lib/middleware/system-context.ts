@@ -12,7 +12,6 @@ import type { Context, Next } from 'hono';
 import { System } from '@src/lib/system.js';
 import { createValidationError, createInternalError } from '@src/lib/api-helpers.js';
 import { ValidationError, BusinessLogicError, SystemError } from '@src/lib/observers/errors.js';
-import { extract } from '@src/lib/field-extractor.js';
 
 /**
  * System context middleware - sets up System instance and global error handling
@@ -49,28 +48,14 @@ export async function systemContextMiddleware(context: Context, next: Next) {
         if (routeResult !== undefined) {
             // Route used setRouteResult() pattern - create response
             const routeTotal = context.get('routeTotal');
-            let responseData = {
+            const responseData = {
                 success: true,
                 data: routeResult,
                 ...(routeTotal !== undefined && { total: routeTotal })
             };
 
-            // Apply field extraction if ?pick parameter is present
-            const pickParam = context.req.query('pick');
-            if (pickParam && pickParam.trim() !== '') {
-                const extracted = extract(responseData, pickParam);
-                const isSingleField = !pickParam.includes(',');
-
-                // For single primitives, still wrap in responseData format for formatter compatibility
-                if (isSingleField && (typeof extracted !== 'object' || extracted === null || Array.isArray(extracted))) {
-                    // Single field extraction - return just the value directly
-                    // Formatter will handle this appropriately
-                    responseData = extracted;
-                } else {
-                    // Multiple fields or object - use extracted data
-                    responseData = extracted;
-                }
-            }
+            // Note: Field extraction (?unwrap, ?select=) is handled by fieldExtractionMiddleware
+            // which runs after this middleware in the response chain
 
             return context.json(responseData, 200);
         }

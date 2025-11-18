@@ -4,6 +4,8 @@
  * Lightweight field extraction using dot notation, similar to lodash.pick()
  * but without requiring lodash as a dependency.
  *
+ * Used internally by fieldExtractionMiddleware to support ?unwrap and ?select= parameters.
+ *
  * Supports:
  * - Nested paths: get(obj, 'data.user.email')
  * - Multiple fields: pick(obj, ['data.id', 'data.name'])

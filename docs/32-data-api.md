@@ -299,19 +299,19 @@ GET /api/data/users?stat=false&access=false
 - With `?stat=false&access=false`: ~300-500 bytes
 - Savings: 60-75% reduction per record
 
-#### Interaction with ?pick Parameter
+#### Interaction with ?select Parameter
 
-System field filtering runs **before** field extraction with `?pick=`:
+System field filtering runs **before** field extraction with `?select=`:
 
 ```bash
-GET /api/data/users?access=false&pick=data.id,data.name
+GET /api/data/users?access=false&select=id,name
 ```
 
 1. First: ACL fields are filtered out
 2. Then: Only id and name are extracted
 3. Result: Extracted fields will never include access_* (already filtered)
 
-This ensures `?pick=` operates on already-filtered data.
+This ensures `?select=` operates on already-filtered data.
 
 ## Core CRUD Operations
 
