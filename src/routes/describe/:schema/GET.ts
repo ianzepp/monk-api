@@ -1,30 +1,20 @@
 import type { Context } from 'hono';
 import { withParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { isSystemField } from '@src/lib/describe.js';
+import { stripSystemFields } from '@src/lib/describe.js';
 
+/**
+ * GET /api/describe/:schema - Get schema metadata
+ *
+ * Returns schema record only (without columns).
+ * Use GET /api/describe/:schema/:column for individual column definitions.
+ */
 export default withParams(async (context, { system, schema }) => {
-    const result = await system.describe.selectSchema(schema!);
+    const result = await system.describe.schemas.select404(
+        { where: { schema_name: schema } },
+        `Schema '${schema}' not found`
+    );
 
-    // // Filter out system columns for portable schema representation
-    // if (jsonContent.columns) {
-    //     jsonContent.columns = jsonContent.columns.filter((col: any) => !isSystemField(col.column_name));
-    // }
-
-    // // Build portable schema response using only fields defined in columns table
-    // // This ensures the Describe API returns only portable, user-defined fields
-    // const portableSchema: Record<string, any> = {};
-
-    // // Always include the columns array
-    // portableSchema.columns = jsonContent.columns;
-
-    // // Include only schema fields that have corresponding column definitions
-    // for (const column of jsonContent.columns) {
-    //     const fieldName = column.column_name;
-    //     if (fieldName in jsonContent) {
-    //         portableSchema[fieldName] = jsonContent[fieldName];
-    //     }
-    // }
-
-    setRouteResult(context, result);
+    // Strip system fields before returning
+    setRouteResult(context, stripSystemFields(result));
 });

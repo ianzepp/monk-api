@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
  * POST /api/describe/:schema/:column
@@ -11,8 +12,12 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  * @returns Created column record from columns table
  */
 export default withTransactionParams(async (context, { system, schema, column, body }) => {
-    // Create column using Describe API
-    const result = await system.describe.createColumn(schema!, column!, body);
+    const result = await system.describe.columns.createOne({
+        schema_name: schema!,
+        column_name: column!,
+        ...body
+    });
 
-    setRouteResult(context, result);
+    // Strip system fields before returning
+    setRouteResult(context, stripSystemFields(result));
 });
