@@ -89,6 +89,7 @@ Authorization: Bearer <jwt>
 - `status` - Schema status (default: "pending")
 - `sudo` - Require sudo token for all operations (default: false)
 - `freeze` - Prevent all data changes on this schema (default: false)
+- `immutable` - Records are write-once (default: false)
 
 **Note:** Schema creation no longer accepts a `columns` array. After creating the schema, add columns individually using `POST /api/describe/:schema/:column`
 
@@ -158,6 +159,7 @@ Authorization: Bearer <jwt>
 - `status` - Change schema status
 - `sudo` - Change sudo requirement for schema operations
 - `freeze` - Change freeze status (emergency lockdown)
+- `immutable` - Change immutable status (write-once pattern)
 
 **Response:**
 ```json
@@ -393,6 +395,16 @@ Schemas marked with `freeze=true` prevent ALL data operations (emergency circuit
 }
 ```
 Use for maintenance windows, regulatory freezes, or emergency lockdowns. SELECT operations continue to work.
+
+#### Immutable Schemas
+Schemas marked with `immutable=true` allow records to be created but never modified or deleted:
+```json
+{
+  "schema_name": "transaction_log",
+  "immutable": true
+}
+```
+Write-once data pattern perfect for audit logs, transaction history, event logs, and append-only ledgers. Unlike `freeze`, immutable schemas still allow INSERT operations.
 
 #### Field-Level Protection
 

@@ -48,6 +48,7 @@ All fields available when creating or updating schemas via `POST /api/describe/:
 | `description` | text | No | - | Human-readable description of the schema's purpose. |
 | `sudo` | boolean | No | `false` | Require sudo token for all data operations on this schema. |
 | `freeze` | boolean | No | `false` | Prevent all data changes (create, update, delete). SELECT still works. |
+| `immutable` | boolean | No | `false` | Records are write-once: can be created but never modified. Perfect for audit logs. |
 
 **Notes:**
 - System fields (id, timestamps, access_*) are automatically added to all tables
@@ -149,6 +150,7 @@ Create a new schema using Monk-native format with column definitions. Automatica
 - `status` - Schema status (default: "pending")
 - `sudo` - Require sudo token for all operations on this schema (default: false)
 - `freeze` - Prevent all data changes on this schema (default: false)
+- `immutable` - Records are write-once (default: false)
 
 **Note:** Schema creation no longer accepts a `columns` array. Use column endpoints (`POST /api/describe/:schema/:column`) to add columns after creating the schema.
 
@@ -225,6 +227,7 @@ Update schema metadata only (status). **Does not modify columns** - use column e
 - `status` - Change schema status
 - `sudo` - Change sudo requirement for schema operations
 - `freeze` - Change freeze status (emergency lockdown)
+- `immutable` - Change immutable status (write-once pattern)
 
 ### Success Response (200)
 ```json
@@ -464,6 +467,17 @@ Schemas marked with `freeze=true` prevent ALL data changes (create, update, dele
 - Emergency lockdowns during security incidents
 - Maintenance windows requiring read-only access
 - Regulatory compliance freeze periods
+
+### Immutable Schemas
+Schemas marked with `immutable=true` allow records to be created but never modified or deleted. Write-once data pattern.
+
+**Use cases**:
+- Audit logs and compliance trails that must never change
+- Transaction history and financial records
+- Event logs and time-series data
+- Append-only ledgers
+
+**Note:** Unlike `freeze`, immutable schemas still allow INSERT operations. Only UPDATE and DELETE are prevented.
 
 ### Field-Level Protection
 

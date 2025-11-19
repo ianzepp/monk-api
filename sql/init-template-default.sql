@@ -58,6 +58,7 @@ CREATE TABLE "schemas" (
 	"description" text,
 	"sudo" boolean DEFAULT false NOT NULL,
 	"freeze" boolean DEFAULT false NOT NULL,
+	"immutable" boolean DEFAULT false NOT NULL,
 
 	-- Constraints
 	CONSTRAINT "schema_name_unique" UNIQUE("schema_name")
@@ -228,7 +229,8 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('schemas', 'status', 'text', true, 'Schema status (pending, active, system)'),
     ('schemas', 'description', 'text', false, 'Human-readable description of the schema'),
     ('schemas', 'sudo', 'boolean', true, 'Whether schema modifications require sudo access'),
-    ('schemas', 'freeze', 'boolean', true, 'Whether all data changes are prevented on this schema');
+    ('schemas', 'freeze', 'boolean', true, 'Whether all data changes are prevented on this schema'),
+    ('schemas', 'immutable', 'boolean', true, 'Whether records are write-once (can be created but never modified)');
 
 -- Column definitions for 'columns' schema
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
