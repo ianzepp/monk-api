@@ -1,23 +1,18 @@
-import Ajv, { type ErrorObject } from 'ajv';
-import addFormats from 'ajv-formats';
-
 import type { FilterData } from '@src/lib/filter-types.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
-import { isSystemField } from '@src/lib/describe.js';
 
 export type SchemaName = string;
 
-// Custom validation error class
-export class ValidationError extends Error {
-    public readonly errors: ErrorObject[];
-
-    constructor(errors: ErrorObject[]) {
-        const message = errors.map(err => `${err.instancePath || 'root'}: ${err.message}`).join(', ');
-
-        super(`Validation failed: ${message}`);
-        this.name = 'ValidationError';
-        this.errors = errors;
-    }
+/**
+ * Merged validation configuration for a single field
+ * Pre-calculated once per schema to avoid redundant loops during validation
+ */
+export interface FieldValidationConfig {
+    fieldName: string;
+    required: boolean;
+    type?: { type: string; is_array: boolean };
+    constraints?: { minimum?: number; maximum?: number; pattern?: RegExp };
+    enum?: string[];
 }
 
 /**
@@ -26,9 +21,6 @@ export class ValidationError extends Error {
  */
 
 export class Schema {
-    private static ajv: Ajv | null = null;
-    private cachedValidator?: Function;
-
     // Schema properties from database record
     private schemaName: SchemaName;
     private status: string;
@@ -40,6 +32,15 @@ export class Schema {
     public immutableFields: Set<string>;
     public sudoFields: Set<string>;
     public trackedFields: Set<string>;
+    public requiredFields: Set<string>;
+    public typedFields: Map<string, { type: string; is_array: boolean }>;
+    public rangeFields: Map<string, { minimum?: number; maximum?: number; pattern?: RegExp }>;
+    public enumFields: Map<string, string[]>;
+    public transformFields: Map<string, string>;
+
+    // Merged validation configuration (optimized for single-loop validation)
+    // Combines all validation metadata into one array, excludes system fields
+    public validationFields: FieldValidationConfig[];
 
     constructor(
         private system: SystemContextWithInfrastructure,
@@ -52,32 +53,154 @@ export class Schema {
         this.freeze = schemaRecord.freeze;
         this.definition = schemaRecord.definition;
 
-        // Precalculate immutable, sudo, and tracked fields from column metadata for O(1) lookups
+        // Precalculate immutable, sudo, tracked, required, type, range, enum, and transform fields from column metadata for O(1) lookups
         this.immutableFields = new Set<string>();
         this.sudoFields = new Set<string>();
         this.trackedFields = new Set<string>();
+        this.requiredFields = new Set<string>();
+        this.typedFields = new Map();
+        this.rangeFields = new Map();
+        this.enumFields = new Map();
+        this.transformFields = new Map();
 
         if (schemaRecord._columns && Array.isArray(schemaRecord._columns)) {
             for (const column of schemaRecord._columns) {
+                const fieldName = column.column_name;
+
+                // Existing fields
                 if (column.immutable === true) {
-                    this.immutableFields.add(column.column_name);
+                    this.immutableFields.add(fieldName);
                 }
                 if (column.sudo === true) {
-                    this.sudoFields.add(column.column_name);
+                    this.sudoFields.add(fieldName);
                 }
                 if (column.tracked === true) {
-                    this.trackedFields.add(column.column_name);
+                    this.trackedFields.add(fieldName);
+                }
+
+                // New validation fields
+                if (column.required === true) {
+                    this.requiredFields.add(fieldName);
+                }
+
+                if (column.type) {
+                    this.typedFields.set(fieldName, {
+                        type: column.type,
+                        is_array: column.is_array || false,
+                    });
+                }
+
+                // Range/pattern constraints
+                if (column.minimum !== null || column.maximum !== null || column.pattern) {
+                    const range: { minimum?: number; maximum?: number; pattern?: RegExp } = {};
+                    if (column.minimum !== null && column.minimum !== undefined) {
+                        range.minimum = Number(column.minimum);
+                    }
+                    if (column.maximum !== null && column.maximum !== undefined) {
+                        range.maximum = Number(column.maximum);
+                    }
+                    if (column.pattern) {
+                        try {
+                            range.pattern = new RegExp(column.pattern);
+                        } catch (error) {
+                            logger.warn(`Invalid regex pattern for ${fieldName}`, { pattern: column.pattern });
+                        }
+                    }
+                    this.rangeFields.set(fieldName, range);
+                }
+
+                // Enum values
+                if (column.enum_values && Array.isArray(column.enum_values) && column.enum_values.length > 0) {
+                    this.enumFields.set(fieldName, column.enum_values);
+                }
+
+                // Transforms
+                if (column.transform) {
+                    this.transformFields.set(fieldName, column.transform);
                 }
             }
         }
+
+        // Build merged validation field configs (optimized for single-loop validation)
+        this.validationFields = this.buildValidationFields();
 
         logger.info('Schema initialized with metadata', {
             schemaName: this.schemaName,
             freeze: this.freeze,
             immutableFields: this.immutableFields.size,
             sudoFields: this.sudoFields.size,
-            trackedFields: this.trackedFields.size
+            trackedFields: this.trackedFields.size,
+            requiredFields: this.requiredFields.size,
+            typedFields: this.typedFields.size,
+            rangeFields: this.rangeFields.size,
+            enumFields: this.enumFields.size,
+            transformFields: this.transformFields.size,
+            validationFields: this.validationFields.length
         });
+    }
+
+    /**
+     * Build merged validation field configurations
+     * Combines all validation metadata into a single array for optimal single-loop validation
+     * Automatically excludes system fields
+     */
+    private buildValidationFields(): FieldValidationConfig[] {
+        const systemFields = new Set([
+            'id',
+            'created_at',
+            'updated_at',
+            'deleted_at',
+            'trashed_at',
+            'access_deny',
+            'access_edit',
+            'access_full',
+            'access_read',
+        ]);
+
+        const fields: FieldValidationConfig[] = [];
+
+        // Collect all unique field names that have any validation metadata
+        const allFieldNames = new Set<string>([
+            ...this.requiredFields,
+            ...this.typedFields.keys(),
+            ...this.rangeFields.keys(),
+            ...this.enumFields.keys(),
+        ]);
+
+        // Build config for each field (excluding system fields)
+        for (const fieldName of allFieldNames) {
+            // Skip system fields
+            if (systemFields.has(fieldName)) {
+                continue;
+            }
+
+            const config: FieldValidationConfig = {
+                fieldName,
+                required: this.requiredFields.has(fieldName),
+            };
+
+            // Add type info if exists
+            const typeInfo = this.typedFields.get(fieldName);
+            if (typeInfo) {
+                config.type = typeInfo;
+            }
+
+            // Add constraints if exists
+            const constraints = this.rangeFields.get(fieldName);
+            if (constraints) {
+                config.constraints = constraints;
+            }
+
+            // Add enum if exists
+            const enumValues = this.enumFields.get(fieldName);
+            if (enumValues) {
+                config.enum = enumValues;
+            }
+
+            fields.push(config);
+        }
+
+        return fields;
     }
 
     /**
@@ -123,109 +246,51 @@ export class Schema {
     }
 
     /**
-     * Get or initialize global AJV instance
+     * Get all required fields for this schema
      */
-    private static getAjv(): Ajv {
-        if (!Schema.ajv) {
-            Schema.ajv = new Ajv({
-                allErrors: true, // Return all validation errors
-                removeAdditional: false, // Don't remove additional properties
-                coerceTypes: false, // Don't auto-convert types
-                strict: false, // Allow unknown keywords
-            });
+    getRequiredFields(): Set<string> {
+        return this.requiredFields;
+    }
 
-            // Add standard format validations (email, date-time, etc.)
-            addFormats(Schema.ajv);
+    /**
+     * Get all typed fields with their type information
+     */
+    getTypedFields(): Map<string, { type: string; is_array: boolean }> {
+        return this.typedFields;
+    }
 
-            logger.info('Schema AJV initialized with formats');
-        }
-        return Schema.ajv;
+    /**
+     * Get all fields with range/pattern constraints
+     */
+    getRangeFields(): Map<string, { minimum?: number; maximum?: number; pattern?: RegExp }> {
+        return this.rangeFields;
+    }
+
+    /**
+     * Get all fields with enum constraints
+     */
+    getEnumFields(): Map<string, string[]> {
+        return this.enumFields;
+    }
+
+    /**
+     * Get all fields with transform operations
+     */
+    getTransformFields(): Map<string, string> {
+        return this.transformFields;
+    }
+
+    /**
+     * Get merged validation field configurations
+     * Optimized for single-loop validation - contains all validation metadata
+     * in one structure, with system fields already excluded
+     */
+    getValidationFields(): FieldValidationConfig[] {
+        return this.validationFields;
     }
 
     get schema_name(): SchemaName {
         return this.schemaName;
-    }
-
-    /**
-     * Preprocess schema definition to allow null values for non-required fields.
-     * This allows generators to return null for optional fields without validation errors.
-     */
-    private preprocessSchemaForNullability(definition: any): any {
-        // Deep clone to avoid modifying original
-        const processed = JSON.parse(JSON.stringify(definition));
-        const required = processed.required || [];
-
-        if (processed.properties) {
-            for (const [fieldName, propertyDef] of Object.entries(processed.properties)) {
-                const property = propertyDef as any;
-                // Skip system fields (they're handled separately) and required fields
-                if (!required.includes(fieldName) && !isSystemField(fieldName)) {
-                    // For enum fields, we need to use anyOf to allow null
-                    if (property.enum) {
-                        // Convert enum to anyOf that allows null or the enum values
-                        processed.properties[fieldName] = {
-                            anyOf: [{ type: 'null' }, { enum: property.enum }],
-                        };
-                        // Preserve other properties like description
-                        if (property.description) {
-                            processed.properties[fieldName].description = property.description;
-                        }
-                    } else if (typeof property.type === 'string') {
-                        // Convert "string" to ["string", "null"]
-                        property.type = [property.type, 'null'];
-                    } else if (Array.isArray(property.type) && !property.type.includes('null')) {
-                        // Add "null" to existing type array if not already present
-                        property.type.push('null');
-                    }
-                }
-            }
-        }
-
-        return processed;
-    }
-
-    /**
-     * Validate record data against this schema's JSON Schema definition
-     */
-    isValid(recordData: any): { valid: boolean; errors?: ErrorObject[] } {
-        if (!this.definition) {
-            logger.warn('Schema definition not available for validation', { schema: this.schemaName });
-            return { valid: true }; // Allow if no definition
-        }
-
-        // Get or compile validator
-        if (!this.cachedValidator) {
-            const ajv = Schema.getAjv();
-
-            // Preprocess schema to allow nulls for non-required fields
-            const processedDefinition = this.preprocessSchemaForNullability(this.definition);
-
-            this.cachedValidator = ajv.compile(processedDefinition);
-            console.debug(`Schema '${this.schemaName}': compiled validator with nullable support for non-required fields`);
-        }
-
-        // Validate the data
-        const valid = this.cachedValidator(recordData) as boolean;
-
-        if (!valid && (this.cachedValidator as any).errors) {
-            return {
-                valid: false,
-                errors: [...(this.cachedValidator as any).errors],
-            };
-        }
-
-        return { valid: true };
-    }
-
-    /**
-     * Validate record data and throw ValidationError if invalid
-     */
-    validateOrThrow(recordData: any): void {
-        const result = this.isValid(recordData);
-        if (!result.valid && result.errors) {
-            throw new ValidationError(result.errors);
-        }
-        console.debug(`Schema '${this.schemaName}': validation passed`);
     }
 
     //
