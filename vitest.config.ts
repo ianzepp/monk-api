@@ -6,6 +6,10 @@ export default defineConfig({
         environment: 'node',
         testTimeout: 30000,
         setupFiles: ['./src/test-setup.ts'],
+        include: ['spec/**/*.test.ts'],
+        typecheck: {
+            tsconfig: './tsconfig.spec.json',
+        },
     },
     resolve: {
         alias: {
@@ -14,6 +18,7 @@ export default defineConfig({
             '@observers': resolve(__dirname, 'src/lib/observers'),
             '@routes': resolve(__dirname, 'src/routes'),
             '@spec': resolve(__dirname, 'spec'),
+            '@sql': resolve(__dirname, 'src/lib/sql'),
         },
     },
 });

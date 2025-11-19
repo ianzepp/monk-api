@@ -74,9 +74,9 @@ if [[ $# -gt 0 ]]; then
             exit 1
         fi
     else
-        # Single directory number (e.g., "05" or "31")
-        print_header "Running TypeScript tests in spec/$pattern-*"
-        test_files=$(find spec -name "*.test.ts" -type f | grep "^spec/$pattern-" | sort)
+        # Any pattern (e.g., "05", "04-connection", "basic-connection.test.ts", etc.)
+        print_header "Running TypeScript tests matching: $pattern"
+        test_files=$(find spec -name "*.test.ts" -type f | grep "$pattern" | sort)
     fi
 else
     # Run all TypeScript tests
