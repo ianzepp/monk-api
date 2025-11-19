@@ -136,6 +136,6 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
         });
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('SCHEMA_PROTECTED');
+        expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
     });
 });

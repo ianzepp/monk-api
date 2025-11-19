@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TestHelpers, type TestTenant } from '../test-helpers.js';
+import { expectSuccess } from '../test-helpers.js';
 
 /**
  * POST /api/describe/:schema - Create Schema
@@ -21,10 +22,10 @@ describe('POST /api/describe/:schema - Create Schema', () => {
 
     it('should create schema with minimal fields', async () => {
         const response = await tenant.httpClient.post('/api/describe/products', {
-            schema_name: 'products'
+            schema_name: 'products',
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response, 'Failed to create schema');
         expect(response.data).toBeDefined();
         expect(response.data.schema_name).toBe('products');
     });
@@ -35,7 +36,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
             status: 'active'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response, 'Failed to create schema');
         expect(response.data.schema_name).toBe('orders');
         expect(response.data.status).toBe('active');
     });
@@ -47,7 +48,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
             description: 'Customer information'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response, 'Failed to create schema');
         expect(response.data.schema_name).toBe('customers');
         expect(response.data.description).toBe('Customer information');
     });
@@ -59,7 +60,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
             sudo: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response, 'Failed to create schema');
         expect(response.data.schema_name).toBe('sensitive_data');
         expect(response.data.sudo).toBe(true);
     });
@@ -71,7 +72,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
             freeze: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response, 'Failed to create schema');
         expect(response.data.schema_name).toBe('frozen_data');
         expect(response.data.freeze).toBe(true);
     });
@@ -83,7 +84,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
             immutable: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response, 'Failed to create schema');
         expect(response.data.schema_name).toBe('audit_log');
         expect(response.data.immutable).toBe(true);
     });
@@ -125,7 +126,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         });
 
         // Should succeed with force, using body name
-        expect(response.success).toBe(true);
+        expectSuccess(response, 'Failed to create schema');
         expect(response.data.schema_name).toBe('body_name2');
     });
 
@@ -146,7 +147,8 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         const createResponse = await tenant.httpClient.post('/api/describe/listed_schema', {
             schema_name: 'listed_schema'
         });
-        expect(createResponse.success).toBe(true);
+
+        expectSuccess(createResponse, 'Failed to create schema');
 
         // Verify it appears in schema list
         const listResponse = await tenant.httpClient.get('/api/describe');

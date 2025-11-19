@@ -184,7 +184,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             const response = await tenant.httpClient.post(`/api/describe/products/${name}`, {
                 type
             });
-            
+
             expect(response.success).toBe(true);
             expect(response.data.type).toBe(type);
         }

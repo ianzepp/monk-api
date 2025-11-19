@@ -20,15 +20,15 @@ export const TEST_CONFIG = {
 
     /**
      * Default template for test tenants
-     * 
+     *
      * Default: 'default' - The standard monk-api template with:
      *   - System schemas (schemas, columns, users, etc.)
      *   - Default 'root' user (full permissions)
      *   - No additional test data
-     * 
+     *
      * This template is always available and requires no fixture setup.
      * Tests can create their own schemas/data as needed.
-     * 
+     *
      * Alternative: 'testing' - Pre-populated template with test data
      *   - Requires: npm run fixtures:build testing
      *   - Contains: Sample accounts, contacts, relationships

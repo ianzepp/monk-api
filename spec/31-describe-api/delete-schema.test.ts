@@ -108,21 +108,21 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
         const response = await tenant.httpClient.delete('/api/describe/schemas');
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('SCHEMA_PROTECTED');
+        expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
     });
 
     it('should protect users schema from deletion', async () => {
         const response = await tenant.httpClient.delete('/api/describe/users');
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('SCHEMA_PROTECTED');
+        expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
     });
 
     it('should protect columns schema from deletion', async () => {
         const response = await tenant.httpClient.delete('/api/describe/columns');
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('SCHEMA_PROTECTED');
+        expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
     });
 
     it('should allow deleting schemas with various statuses', async () => {
