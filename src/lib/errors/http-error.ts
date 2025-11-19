@@ -117,6 +117,42 @@ export class HttpErrors {
     static notImplemented(message = 'Not implemented', errorCode = 'NOT_IMPLEMENTED') {
         return new HttpError(501, message, errorCode);
     }
+
+    /**
+     * Remap error code if it matches the source code
+     * Preserves all error properties (message, status, details, stack)
+     *
+     * Use this to convert generic error codes to more specific ones in wrapper layers.
+     *
+     * @param error - The error to potentially remap
+     * @param fromCode - The error code to match
+     * @param toCode - The new error code to use if matched
+     * @returns Never returns (always throws)
+     *
+     * @example
+     * // Remap generic RECORD_NOT_FOUND to USER_NOT_FOUND
+     * return await database.select404('users', filter)
+     *     .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'USER_NOT_FOUND'));
+     *
+     * @example
+     * // Chain multiple remappings
+     * return await database.createOne('users', data)
+     *     .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'USER_NOT_FOUND'))
+     *     .catch(e => HttpErrors.remap(e, 'VALIDATION_ERROR', 'USER_VALIDATION_ERROR'));
+     */
+    static remap(error: any, fromCode: string, toCode: string): never {
+        // Check both .code and .errorCode for compatibility
+        if (error.code === fromCode || error.errorCode === fromCode) {
+            // If it's an HttpError, preserve the instance and just change the code
+            if (error instanceof HttpError) {
+                (error as any).errorCode = toCode;
+                throw error;
+            }
+            // Fallback: wrap non-HttpError with original message
+            throw new HttpError(error.statusCode || 500, error.message, toCode);
+        }
+        throw error;
+    }
 }
 
 /**

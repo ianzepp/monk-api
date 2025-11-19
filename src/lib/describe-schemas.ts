@@ -74,7 +74,8 @@ export class DescribeSchemas {
      * Select single schema (throws 404 if not found)
      */
     async select404(filter: FilterData, message?: string, options?: { context?: 'api' | 'observer' | 'system' }): Promise<SchemaRecord> {
-        return this.system.database.select404<SchemaRecord>('schemas', filter, message, options);
+        return await this.system.database.select404<SchemaRecord>('schemas', filter, message, options)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'SCHEMA_NOT_FOUND'));
     }
 
     /**
@@ -117,8 +118,8 @@ export class DescribeSchemas {
 
         logger.info('Updating schema metadata', { schemaName, updates });
 
-        // Delegate to database
-        return this.system.database.update404<SchemaRecord>('schemas', filter, updates, message);
+        return await this.system.database.update404<SchemaRecord>('schemas', filter, updates, message)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'SCHEMA_NOT_FOUND'));
     }
 
     /**
@@ -136,7 +137,7 @@ export class DescribeSchemas {
 
         logger.info('Deleting schema via observer pipeline', { schemaName });
 
-        // Delegate to database
-        return this.system.database.delete404<SchemaRecord>('schemas', filter, message);
+        return await this.system.database.delete404<SchemaRecord>('schemas', filter, message)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'SCHEMA_NOT_FOUND'));
     }
 }

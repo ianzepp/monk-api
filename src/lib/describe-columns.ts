@@ -97,7 +97,8 @@ export class DescribeColumns {
      * Select single column (throws 404 if not found)
      */
     async select404(filter: FilterData, message?: string, options?: { context?: 'api' | 'observer' | 'system' }): Promise<ColumnRecord> {
-        return this.system.database.select404<ColumnRecord>('columns', filter, message, options);
+        return await this.system.database.select404<ColumnRecord>('columns', filter, message, options)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'COLUMN_NOT_FOUND'));
     }
 
     /**
@@ -147,8 +148,8 @@ export class DescribeColumns {
             columnName: filter.where?.column_name
         });
 
-        // Delegate to database (observer pipeline handles DDL and type mapping)
-        return this.system.database.update404<ColumnRecord>('columns', filter, updates, message);
+        return await this.system.database.update404<ColumnRecord>('columns', filter, updates, message)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'COLUMN_NOT_FOUND'));
     }
 
     /**
@@ -169,7 +170,7 @@ export class DescribeColumns {
             columnName: filter.where?.column_name
         });
 
-        // Delegate to database (observer pipeline handles DDL)
-        return this.system.database.delete404<ColumnRecord>('columns', filter, message);
+        return await this.system.database.delete404<ColumnRecord>('columns', filter, message)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'COLUMN_NOT_FOUND'));
     }
 }

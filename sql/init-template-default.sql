@@ -54,7 +54,7 @@ CREATE TABLE "schemas" (
 
 	-- Implementation
 	"schema_name" text NOT NULL,
-	"status" text DEFAULT 'pending' NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
 	"description" text,
 	"sudo" boolean DEFAULT false NOT NULL,
 	"freeze" boolean DEFAULT false NOT NULL,
@@ -229,10 +229,10 @@ VALUES (
 -- to all tables and should NOT be included here.
 
 -- Column definitions for 'schemas' schema
-INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
-    ('schemas', 'schema_name', 'text', true, 'Unique name for the schema'),
-    ('schemas', 'status', 'text', false, 'Schema status (pending, active, system)'),
-    ('schemas', 'description', 'text', false, 'Human-readable description of the schema'),
+INSERT INTO "columns" (schema_name, column_name, type, required, default_value, description) VALUES
+    ('schemas', 'schema_name', 'text', true, NULL, 'Unique name for the schema'),
+    ('schemas', 'status', 'text', false, 'active', 'Schema status (active, disabled, system)'),
+    ('schemas', 'description', 'text', false, NULL, 'Human-readable description of the schema'),
     ('schemas', 'sudo', 'boolean', false, 'Whether schema modifications require sudo access'),
     ('schemas', 'freeze', 'boolean', false, 'Whether all data changes are prevented on this schema'),
     ('schemas', 'immutable', 'boolean', false, 'Whether records are write-once (can be created but never modified)');
@@ -633,121 +633,14 @@ EXECUTE FUNCTION trigger_regenerate_schema_definitions();
 
 COMMENT ON FUNCTION trigger_regenerate_schema_definitions() IS 'Trigger function to automatically regenerate schema definitions when columns are modified';
 
--- Insert definition for schemas schema
-INSERT INTO "definitions" (schema_id, schema_name, definition, definition_checksum)
-SELECT
-    s.id,
-    'schemas',
-    '{
-        "type": "object",
-        "title": "Schemas",
-        "description": "Schema registry table for describe API schema definitions",
-        "properties": {
-            "schema_name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 100,
-                "description": "Unique schema name",
-                "example": "accounts"
-            },
-            "status": {
-                "type": "string",
-                "enum": ["pending", "active", "disabled", "system"],
-                "default": "pending",
-                "description": "Schema status"
-            }
-        },
-        "required": ["schema_name", "status"],
-        "additionalProperties": false
-    }'::jsonb,
-    encode(digest('{
-        "type": "object",
-        "title": "Schemas",
-        "description": "Schema registry table for describe API schema definitions",
-        "properties": {
-            "schema_name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 100,
-                "description": "Unique schema name",
-                "example": "accounts"
-            },
-            "status": {
-                "type": "string",
-                "enum": ["pending", "active", "disabled", "system"],
-                "default": "pending",
-                "description": "Schema status"
-            }
-        },
-        "required": ["schema_name", "status"],
-        "additionalProperties": false
-    }'::text, 'sha256'), 'hex')
-FROM schemas s WHERE s.schema_name = 'schemas';
-
--- Insert definition for users schema
-INSERT INTO "definitions" (schema_id, schema_name, definition, definition_checksum)
-SELECT
-    s.id,
-    'users',
-    '{
-        "type": "object",
-        "title": "Users",
-        "description": "User management schema for tenant databases",
-        "properties": {
-            "name": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 100,
-                "description": "Human-readable display name for the user",
-                "example": "Jane Smith"
-            },
-            "auth": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 255,
-                "description": "Authentication identifier (username, email, etc.)",
-                "example": "jane@company.com"
-            },
-            "access": {
-                "type": "string",
-                "enum": ["root", "full", "edit", "read", "deny"],
-                "description": "Access level for the user",
-                "example": "full"
-            }
-        },
-        "required": ["id", "name", "auth", "access"],
-        "additionalProperties": false
-    }'::jsonb,
-    encode(digest('{
-        "type": "object",
-        "title": "Users",
-        "description": "User management schema for tenant databases",
-        "properties": {
-            "name": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 100,
-                "description": "Human-readable display name for the user",
-                "example": "Jane Smith"
-            },
-            "auth": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 255,
-                "description": "Authentication identifier (username, email, etc.)",
-                "example": "jane@company.com"
-            },
-            "access": {
-                "type": "string",
-                "enum": ["root", "full", "edit", "read", "deny"],
-                "description": "Access level for the user",
-                "example": "full"
-            }
-        },
-        "required": ["id", "name", "auth", "access"],
-        "additionalProperties": false
-    }'::text, 'sha256'), 'hex')
-FROM schemas s WHERE s.schema_name = 'users';
+-- Regenerate schema definitions from columns metadata
+-- This ensures definitions are always in sync with columns table
+-- and eliminates the need for hardcoded JSON schemas
+SELECT regenerate_schema_definition('schemas');
+SELECT regenerate_schema_definition('columns');
+SELECT regenerate_schema_definition('users');
+SELECT regenerate_schema_definition('history');
+SELECT regenerate_schema_definition('snapshots');
 
 -- Register definitions schema as a system schema requiring sudo access
 -- This prevents modification of the auto-generated definitions table
