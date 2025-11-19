@@ -1,0 +1,141 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { TestHelpers, type TestTenant } from '../test-helpers.js';
+
+/**
+ * PUT /api/describe/:schema - Update Schema
+ *
+ * Tests schema metadata updates (status, sudo, freeze, immutable).
+ * Does NOT update columns - use column endpoints for that.
+ */
+
+describe('PUT /api/describe/:schema - Update Schema', () => {
+    let tenant: TestTenant;
+
+    beforeAll(async () => {
+        tenant = await TestHelpers.createTestTenant('update-schema');
+
+        // Create test schema
+        await tenant.httpClient.post('/api/describe/products', {
+            schema_name: 'products',
+            status: 'pending'
+        });
+    });
+
+    afterAll(async () => {
+        await TestHelpers.cleanupTestTenant(tenant.tenantName);
+    });
+
+    it('should update schema status', async () => {
+        const response = await tenant.httpClient.put('/api/describe/products', {
+            status: 'active'
+        });
+
+        expect(response.success).toBe(true);
+        expect(response.data.status).toBe('active');
+    });
+
+    it('should update sudo protection flag', async () => {
+        const response = await tenant.httpClient.put('/api/describe/products', {
+            sudo: true
+        });
+
+        expect(response.success).toBe(true);
+        expect(response.data.sudo).toBe(true);
+    });
+
+    it('should update freeze flag', async () => {
+        const response = await tenant.httpClient.put('/api/describe/products', {
+            freeze: true
+        });
+
+        expect(response.success).toBe(true);
+        expect(response.data.freeze).toBe(true);
+    });
+
+    it('should update immutable flag', async () => {
+        const response = await tenant.httpClient.put('/api/describe/products', {
+            immutable: true
+        });
+
+        expect(response.success).toBe(true);
+        expect(response.data.immutable).toBe(true);
+    });
+
+    it('should update description', async () => {
+        const response = await tenant.httpClient.put('/api/describe/products', {
+            description: 'Updated product catalog'
+        });
+
+        expect(response.success).toBe(true);
+        expect(response.data.description).toBe('Updated product catalog');
+    });
+
+    it('should update multiple fields at once', async () => {
+        const response = await tenant.httpClient.put('/api/describe/products', {
+            status: 'active',
+            sudo: false,
+            freeze: false,
+            description: 'Multi-field update'
+        });
+
+        expect(response.success).toBe(true);
+        expect(response.data.status).toBe('active');
+        expect(response.data.sudo).toBe(false);
+        expect(response.data.freeze).toBe(false);
+        expect(response.data.description).toBe('Multi-field update');
+    });
+
+    it('should persist updates across GET requests', async () => {
+        // Update schema
+        await tenant.httpClient.put('/api/describe/products', {
+            status: 'active',
+            description: 'Persisted description'
+        });
+
+        // Retrieve schema
+        const getResponse = await tenant.httpClient.get('/api/describe/products');
+
+        expect(getResponse.success).toBe(true);
+        expect(getResponse.data.status).toBe('active');
+        expect(getResponse.data.description).toBe('Persisted description');
+    });
+
+    it('should reject empty updates', async () => {
+        const response = await tenant.httpClient.put('/api/describe/products', {});
+
+        expect(response.success).toBe(false);
+        expect(response.error_code).toBe('NO_UPDATES');
+    });
+
+    it('should return 404 for non-existent schema', async () => {
+        const response = await tenant.httpClient.put('/api/describe/nonexistent', {
+            status: 'active'
+        });
+
+        expect(response.success).toBe(false);
+        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+    });
+
+    it('should not allow updating schema_name', async () => {
+        // Attempt to change schema name (should be ignored or fail)
+        const response = await tenant.httpClient.put('/api/describe/products', {
+            schema_name: 'renamed_products',
+            status: 'active'
+        });
+
+        // Even if successful, schema_name should not change
+        if (response.success) {
+            const getResponse = await tenant.httpClient.get('/api/describe/products');
+            expect(getResponse.data.schema_name).toBe('products');
+        }
+    });
+
+    it('should protect system schemas from updates', async () => {
+        const response = await tenant.httpClient.put('/api/describe/schemas', {
+            status: 'active'
+        });
+
+        expect(response.success).toBe(false);
+        expect(response.error_code).toBe('SCHEMA_PROTECTED');
+    });
+});
