@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { TestDatabaseHelper } from '../test-database-helper.js';
-import { HttpClient } from '../http-client.js';
+import { TestHelpers, type TestTenant } from '../test-helpers.js';
 
 /**
  * Find API Basic Functionality Tests
@@ -10,41 +9,21 @@ import { HttpClient } from '../http-client.js';
  */
 
 describe('Find API - Basic Functionality', () => {
-    let tenantName: string;
-    let databaseName: string;
-    let token: string;
-    const httpClient = new HttpClient('http://localhost:9001');
+    let tenant: TestTenant;
 
     beforeAll(async () => {
-        const result = await TestDatabaseHelper.createTestTenant({
-            testName: 'basic-find',
-            template: 'testing',
-        });
-
-        tenantName = result.tenantName;
-        databaseName = result.databaseName;
-
-        const loginResponse = await httpClient.post('/auth/login', {
-            tenant: tenantName,
-            username: 'full',
-        });
-
-        expect(loginResponse.success).toBe(true);
-        token = loginResponse.data.token;
+        // Create test tenant via API (uses /auth/register)
+        tenant = await TestHelpers.createTestTenant('basic-find', 'testing');
     });
 
     afterAll(async () => {
-        if (tenantName && databaseName) {
-            await TestDatabaseHelper.cleanupTestTenant(tenantName, databaseName);
-        }
+        // Cleanup handled by global teardown
+        await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
     it('should return all records with empty filter', async () => {
-        const response = await httpClient.post(
-            '/api/find/account',
-            {},
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // Auth token automatically included - no manual headers needed!
+        const response = await tenant.httpClient.post('/api/find/account', {});
 
         expect(response.success).toBe(true);
         expect(response.data).toBeDefined();
@@ -55,11 +34,8 @@ describe('Find API - Basic Functionality', () => {
     });
 
     it('should return properly structured records', async () => {
-        const response = await httpClient.post(
-            '/api/find/account',
-            {},
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // Auth token automatically included - no manual headers needed!
+        const response = await tenant.httpClient.post('/api/find/account', {});
 
         expect(response.success).toBe(true);
         const firstRecord = response.data[0];
@@ -71,11 +47,8 @@ describe('Find API - Basic Functionality', () => {
     });
 
     it('should include system timestamps in records', async () => {
-        const response = await httpClient.post(
-            '/api/find/account',
-            {},
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // Auth token automatically included - no manual headers needed!
+        const response = await tenant.httpClient.post('/api/find/account', {});
 
         expect(response.success).toBe(true);
         const firstRecord = response.data[0];

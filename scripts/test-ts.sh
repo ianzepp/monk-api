@@ -32,8 +32,8 @@ print_error() {
 }
 
 server_start() {
-    print_header "Starting server"
-    npm run start:bg
+    print_header "Starting test server on port 9002"
+    PORT=9002 npm run start:bg
     print_success "Server starting, waiting 3 seconds.."
     sleep 3
 }

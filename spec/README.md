@@ -642,3 +642,393 @@ validate_record_fields "$data" "id" "name" "email"
 ---
 
 **The test suite provides comprehensive validation of all Monk API functionality through shell-based integration testing with real database operations, achieving fast execution through template-based setup and complete isolation through per-test tenant databases.**
+
+---
+
+# TypeScript Test Suite (Vitest)
+
+## Overview
+
+In addition to shell tests, the project includes **TypeScript integration tests** using Vitest. These tests provide:
+- Type-safe test code with TypeScript
+- IDE integration (debugging, breakpoints)
+- Async/await support
+- Vitest's modern test runner features
+
+## Running TypeScript Tests
+
+### Recommended: Use Wrapper Script
+
+```bash
+# Run all TypeScript tests
+npm run test:ts
+
+# Run specific test directory
+npm run test:ts 33
+
+# Run tests in range
+npm run test:ts 30-39
+```
+
+The `test-ts.sh` script handles all prerequisites:
+1. Builds the code (`npm run build`)
+2. Starts test server on **port 9002** (isolated from dev server on 9001)
+3. Runs vitest
+4. Stops server and cleanup
+
+### Advanced: Direct Vitest
+
+You can run `npx vitest` directly, but prerequisites must be met:
+
+```bash
+# 1. Build code
+npm run build
+
+# 2. Start test server on port 9002
+PORT=9002 npm run start:bg
+
+# 3. Run tests
+npx vitest
+
+# 4. Cleanup
+npm run stop
+```
+
+**Important**: If you run `npx vitest` without the server running, you'll get a clear error explaining what's missing.
+
+## Test Server Port Isolation
+
+- **Development server**: Port 9001 (default `npm start`)
+- **Test server**: Port 9002 (isolated, used by `npm run test:ts`)
+
+This prevents test runs from interfering with active development.
+
+## Writing TypeScript Tests
+
+### Basic Test Pattern (Recommended)
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { TestHelpers, type TestTenant } from '../test-helpers.js';
+
+describe('My Feature Tests', () => {
+    let tenant: TestTenant;
+
+    beforeAll(async () => {
+        // Create isolated tenant via /auth/register API
+        tenant = await TestHelpers.createTestTenant('my-feature');
+    });
+
+    afterAll(async () => {
+        // Cleanup (handled by global teardown)
+        await TestHelpers.cleanupTestTenant(tenant.tenantName);
+    });
+
+    it('should do something', async () => {
+        // JWT token automatically included - no manual headers needed!
+        const response = await tenant.httpClient.post('/api/find/account', {});
+
+        expect(response.success).toBe(true);
+        expect(response.data).toBeDefined();
+    });
+});
+```
+
+### Using AuthClient Directly (Advanced)
+
+For more control over authentication:
+
+```typescript
+import { describe, it, expect, beforeAll } from 'vitest';
+import { AuthClient } from '../auth-client.js';
+
+describe('Custom Auth Tests', () => {
+    let authClient: AuthClient;
+
+    beforeAll(async () => {
+        authClient = new AuthClient();
+        
+        // Register a new tenant
+        await authClient.register({
+            tenant: 'test-tenant',
+            template: 'testing',
+            username: 'admin'
+        });
+        // Token is automatically cached!
+    });
+
+    it('should make authenticated requests', async () => {
+        // Use the client - token is already cached
+        const response = await authClient.client.get('/api/describe/account');
+        expect(response.success).toBe(true);
+    });
+
+    it('should switch users', async () => {
+        // Login as different user
+        await authClient.login({
+            tenant: 'test-tenant',
+            username: 'readonly'
+        });
+        
+        // Now authenticated as readonly user
+        const response = await authClient.client.get('/api/find/account');
+        expect(response.success).toBe(true);
+    });
+});
+```
+
+### TestTenant Object
+
+`TestHelpers.createTestTenant()` returns:
+
+```typescript
+{
+    tenantName: string;      // Generated name (test_myfeature_1234567890_abcd1234)
+    databaseName: string;    // Hashed database name
+    username: string;        // Username that was created
+    token: string;           // JWT authentication token (also cached in httpClient)
+    httpClient: HttpClient;  // Pre-configured HTTP client with cached JWT token
+}
+```
+
+**Important**: The `httpClient` already has the JWT token cached, so you don't need to manually add Authorization headers!
+
+### Multiple Users in Same Tenant
+
+```typescript
+it('should support different user permissions', async () => {
+    // Get token for different user
+    const readonlyToken = await TestHelpers.loginToTenant(
+        tenant.tenantName,
+        'readonly'
+    );
+
+    const response = await tenant.httpClient.post(
+        '/api/find/account',
+        {},
+        { headers: { Authorization: `Bearer ${readonlyToken}` } }
+    );
+
+    expect(response.success).toBe(true);
+});
+```
+
+## TypeScript Test Infrastructure
+
+### Authentication and JWT Caching
+
+The TypeScript test framework includes **automatic JWT token caching** to eliminate repetitive Authorization headers:
+
+**AuthClient** - High-level authentication wrapper:
+- `login({ tenant, username })` - Authenticate with existing tenant
+- `register({ tenant, template, username })` - Create new tenant
+- Automatically caches JWT token in HttpClient
+- Provides `.client` property for authenticated API requests
+
+**HttpClient** - HTTP request utilities:
+- Automatically includes cached JWT in all requests
+- `setAuthToken(token)` - Cache a token
+- `getAuthToken()` - Get cached token
+- `clearAuthToken()` - Clear cached token
+- Manual Authorization headers override cached token
+
+**Benefits:**
+- No repetitive `{ headers: { Authorization: 'Bearer ...' } }` in every request
+- Cleaner test code
+- Easy to switch users (just call login again)
+- Type-safe authentication responses
+
+### Key Files
+
+- **`spec/test-config.ts`** - Configuration (PORT=9002, API_URL, etc.)
+- **`spec/test-infrastructure.ts`** - Global setup/teardown logic
+- **`spec/test-helpers.ts`** - TestHelpers API for test files
+- **`spec/auth-client.ts`** - AuthClient for login/register with auto JWT caching
+- **`spec/http-client.ts`** - HTTP request utilities with JWT caching
+- **`spec/global-setup.ts`** - Vitest global hooks
+- **`vitest.config.ts`** - Vitest configuration
+
+### Architecture
+
+1. **Global Setup** (once for entire test run)
+   - Verifies server is running on port 9002
+   - Throws clear error if prerequisites missing
+
+2. **Per-Test Setup** (each test file's `beforeAll`)
+   - Calls `/auth/register` to create tenant from template
+   - Returns tenant info with auth token ready to use
+
+3. **Global Teardown** (once after all tests)
+   - Cleanup handled by `scripts/test-cleanup.sh`
+
+## Benefits Over Direct Database Access
+
+The new pattern uses `/auth/register` API instead of direct database cloning:
+
+1. **Tests realistic user flow** - Uses actual registration API
+2. **Simpler test code** - One line creates tenant with auth
+3. **API coverage** - Tests the registration endpoint itself
+4. **No database dependencies** - Tests use API, not direct DB access
+
+### Migration Examples
+
+**Old Pattern** (Direct Database + Manual Auth Headers):
+```typescript
+import { TestDatabaseHelper } from '../test-database-helper.js';
+import { HttpClient } from '../http-client.js';
+
+let tenantName: string;
+let databaseName: string;
+let token: string;
+const httpClient = new HttpClient('http://localhost:9001');
+
+beforeAll(async () => {
+    // Direct database cloning
+    const result = await TestDatabaseHelper.createTestTenant({
+        testName: 'my-test',
+        template: 'testing',
+    });
+    
+    tenantName = result.tenantName;
+    databaseName = result.databaseName;
+    
+    // Manual login
+    const loginResponse = await httpClient.post('/auth/login', {
+        tenant: tenantName,
+        username: 'full',
+    });
+    
+    token = loginResponse.data.token;
+});
+
+it('should do something', async () => {
+    // Manual Authorization header
+    const response = await httpClient.post(
+        '/api/find/account',
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+});
+```
+
+**New Pattern** (Via API + Auto JWT Caching):
+```typescript
+import { TestHelpers, type TestTenant } from '../test-helpers.js';
+
+let tenant: TestTenant;
+
+beforeAll(async () => {
+    // One line - creates tenant via API and caches JWT
+    tenant = await TestHelpers.createTestTenant('my-test');
+});
+
+it('should do something', async () => {
+    // No manual headers - JWT automatically included!
+    const response = await tenant.httpClient.post('/api/find/account', {});
+});
+```
+
+**Benefits:**
+- 10+ lines → 2 lines in setup
+- No manual Authorization headers
+- Uses real API (realistic testing)
+- Type-safe responses
+- Auto JWT caching
+
+**New Pattern** (Via API):
+```typescript
+tenant = await TestHelpers.createTestTenant('my-test');
+// That's it! tenant.token is ready to use
+```
+
+## Troubleshooting TypeScript Tests
+
+### Error: "Test server not running on http://localhost:9002"
+
+**Solution**: Use the wrapper script:
+```bash
+npm run test:ts
+```
+
+Or manually start server on port 9002:
+```bash
+PORT=9002 npm run start:bg
+npx vitest
+```
+
+### Error: "Template database not found"
+
+**Solution**: Build test fixtures:
+```bash
+npm run fixtures:build testing
+```
+
+### Tests fail with connection errors
+
+**Check**:
+1. Server running on port 9002? `lsof -i :9002`
+2. Code built? `ls dist/index.js`
+3. Templates exist? `psql -l | grep monk_template`
+
+### Port 9002 already in use
+
+**Solution**: Stop existing test server:
+```bash
+npm run stop
+# Or kill manually:
+pkill -f "node.*dist/index.js"
+```
+
+## Current TypeScript Test Files
+
+Located in `spec/*/*.test.ts`:
+- `spec/04-connection/` - Basic connectivity tests
+- `spec/05-infrastructure/` - Infrastructure tests
+- `spec/32-data-api/` - Data API tests
+- `spec/33-find-api/` - Find/search API tests
+- `spec/39-stat-api/` - Stat API tests
+- `spec/51-formatters/` - Format middleware tests
+
+## Configuration Files
+
+### vitest.config.ts
+```typescript
+{
+    test: {
+        environment: 'node',
+        testTimeout: 30000,
+        globalSetup: ['./spec/global-setup.ts'],  // ← Verifies server
+        setupFiles: ['./src/test-setup.ts'],
+        include: ['spec/**/*.test.ts'],
+    }
+}
+```
+
+### spec/test-config.ts
+```typescript
+export const TEST_CONFIG = {
+    API_URL: 'http://localhost:9002',  // Test server port
+    PORT: 9002,
+    DEFAULT_TEMPLATE: 'testing',
+    SERVER_CHECK_TIMEOUT: 5000,
+    SERVER_STARTUP_WAIT: 3000,
+};
+```
+
+---
+
+## Choosing Between Shell and TypeScript Tests
+
+| Feature | Shell Tests | TypeScript Tests |
+|---------|-------------|------------------|
+| **Setup** | Fast (templates) | Fast (API registration) |
+| **Syntax** | Bash/curl | TypeScript/fetch |
+| **Type Safety** | No | Yes |
+| **IDE Support** | Basic | Full (debugging, autocomplete) |
+| **Async/Await** | No | Yes |
+| **Best For** | Quick scripts, simple flows | Complex logic, multiple steps |
+| **Port** | 9001 (default) | 9002 (isolated) |
+
+**Recommendation**: Use both!
+- Shell tests for quick validation and simple workflows
+- TypeScript tests for complex scenarios and type safety

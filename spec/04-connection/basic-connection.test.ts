@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { HttpClient } from '../http-client.js';
+import { TEST_CONFIG } from '../test-config.js';
 
 /**
  * Basic Connection Tests
@@ -9,7 +10,7 @@ import { HttpClient } from '../http-client.js';
  */
 
 describe('Basic Connection (GET /)', () => {
-    const httpClient = new HttpClient('http://localhost:9001');
+    const httpClient = new HttpClient(TEST_CONFIG.API_URL);
 
     it('should respond to GET / (server is running)', async () => {
         const response = await httpClient.request('/');

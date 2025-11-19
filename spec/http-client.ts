@@ -26,9 +26,36 @@ export interface HttpResponse {
  */
 export class HttpClient {
     private baseUrl: string;
+    private authToken?: string;
 
-    constructor(baseUrl: string = 'http://localhost:9001') {
+    constructor(baseUrl: string = 'http://localhost:9001', authToken?: string) {
         this.baseUrl = baseUrl;
+        this.authToken = authToken;
+    }
+
+    /**
+     * Set the authentication token for all subsequent requests
+     * 
+     * @param token - JWT token to use for authentication
+     */
+    setAuthToken(token: string): void {
+        this.authToken = token;
+    }
+
+    /**
+     * Get the current authentication token
+     * 
+     * @returns Current JWT token or undefined
+     */
+    getAuthToken(): string | undefined {
+        return this.authToken;
+    }
+
+    /**
+     * Clear the authentication token
+     */
+    clearAuthToken(): void {
+        this.authToken = undefined;
     }
 
     /**
@@ -50,6 +77,11 @@ export class HttpClient {
         const url = `${this.baseUrl}${path}`;
 
         const fetchHeaders: Record<string, string> = { ...headers };
+
+        // Automatically add cached auth token if available and not already provided
+        if (this.authToken && !fetchHeaders['Authorization']) {
+            fetchHeaders['Authorization'] = `Bearer ${this.authToken}`;
+        }
 
         if (contentType) {
             fetchHeaders['Content-Type'] = contentType;
