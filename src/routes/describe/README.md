@@ -228,6 +228,9 @@ Authorization: Bearer <jwt>
 - `description` - Column description
 - `immutable` - Prevent changes once set (default: false)
 - `sudo` - Require sudo token to modify this field (default: false)
+- `index` - Create standard btree index for faster queries (default: false)
+- `searchable` - Enable full-text search with GIN index (default: false, text columns only)
+- `transform` - Auto-transform values: lowercase, uppercase, trim, normalize_phone, normalize_email
 - `relationship_type` - "owned" or "referenced" for foreign keys
 - `related_schema` - Target schema for relationships
 - `related_column` - Target column for relationships (default: "id")

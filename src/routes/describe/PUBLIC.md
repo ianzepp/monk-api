@@ -79,8 +79,13 @@ All fields available when creating or updating columns via `POST /api/describe/:
 | **Protection** |
 | `immutable` | boolean | No | `false` | Value can be set once but never changed. Perfect for audit trails. |
 | `sudo` | boolean | No | `false` | Require sudo token to modify this field, even if schema doesn't require sudo. |
+| **Indexing & Search** |
+| `index` | boolean | No | `false` | Create standard btree index on this column for faster queries. |
+| `searchable` | boolean | No | `false` | Enable full-text search with GIN index. For text columns only. |
 | **Change Tracking** |
 | `tracked` | boolean | No | `false` | Track changes to this column in the `history` table for audit trails. |
+| **Data Transform** |
+| `transform` | text | No | - | Auto-transform values: `lowercase`, `uppercase`, `trim`, `normalize_phone`, `normalize_email`. |
 | **Relationships** |
 | `relationship_type` | text | No | - | Type of relationship: `owned` or `referenced`. |
 | `related_schema` | text | No | - | Target schema for the relationship. |
@@ -93,9 +98,11 @@ All fields available when creating or updating columns via `POST /api/describe/:
 
 **Notes:**
 - `schema_name` and `column_name` come from URL parameters, not request body
-- Changing `type`, `required`, or `default_value` triggers ALTER TABLE (structural change)
-- Other fields are metadata-only and don't modify the PostgreSQL table
+- **Structural changes** (trigger ALTER TABLE): `type`, `required`, `default_value`, `unique`, `index`, `searchable`
+- **Metadata-only**: `description`, `pattern`, `minimum`, `maximum`, `enum_values`, `immutable`, `sudo`, `tracked`, `transform`
 - Column names must start with a letter or underscore, followed by alphanumerics/underscores
+- `searchable` creates GIN index: `to_tsvector('english', column_name)` - text columns only
+- `transform` enforced in observer pipeline before validation
 
 ---
 

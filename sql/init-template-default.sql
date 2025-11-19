@@ -102,7 +102,12 @@ CREATE TABLE "columns" (
 	"immutable" boolean DEFAULT false NOT NULL,
 	"sudo" boolean DEFAULT false NOT NULL,
 	"unique" boolean DEFAULT false NOT NULL,
-	"tracked" boolean DEFAULT false NOT NULL
+	"index" boolean DEFAULT false NOT NULL,
+	"tracked" boolean DEFAULT false NOT NULL,
+
+	-- Search and Transform
+	"searchable" boolean DEFAULT false NOT NULL,
+	"transform" text
 );
 
 -- Add foreign key constraint
@@ -254,7 +259,10 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('columns', 'immutable', 'boolean', false, 'Whether the column value cannot be changed once set'),
     ('columns', 'sudo', 'boolean', false, 'Whether modifying this column requires sudo access'),
     ('columns', 'unique', 'boolean', false, 'Whether the column must have unique values'),
-    ('columns', 'tracked', 'boolean', false, 'Whether changes to this column are tracked in history');
+    ('columns', 'index', 'boolean', false, 'Whether to create a standard btree index on this column'),
+    ('columns', 'tracked', 'boolean', false, 'Whether changes to this column are tracked in history'),
+    ('columns', 'searchable', 'boolean', false, 'Whether to enable full-text search with GIN index'),
+    ('columns', 'transform', 'text', false, 'Auto-transform values: lowercase, uppercase, trim, normalize_phone, normalize_email');
 
 -- Column definitions for 'users' schema
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
