@@ -6,6 +6,7 @@
  */
 
 import { randomBytes } from 'crypto';
+import { expect } from 'vitest';
 import { HttpClient } from './http-client.js';
 import { AuthClient } from './auth-client.js';
 import { TEST_CONFIG } from './test-config.js';
@@ -47,7 +48,7 @@ export class TestHelpers {
      *   - Use when: Testing API functionality with your own test data
      *   - Benefits: No fixture setup required, predictable baseline
      *   - Root user can create schemas/columns/records as needed
-     * 
+     *
      * - 'testing' - Pre-populated with test data (requires: npm run fixtures:build testing)
      *   - Use when: Testing queries/filters on existing data
      *   - Benefits: Faster tests, realistic data relationships
@@ -65,7 +66,7 @@ export class TestHelpers {
      *
      * beforeAll(async () => {
      *     tenant = await TestHelpers.createTestTenant('my-test');
-     *     
+     *
      *     // Create your own schema for testing
      *     await tenant.httpClient.post('/api/describe/product', {
      *         columns: [
@@ -81,7 +82,7 @@ export class TestHelpers {
      *         name: 'Widget',
      *         price: 9.99
      *     });
-     *     
+     *
      *     // Query it
      *     const response = await tenant.httpClient.post('/api/find/product', {});
      *     expect(response.success).toBe(true);
@@ -209,4 +210,33 @@ export class TestHelpers {
         // Each request will need to pass the token in headers
         return httpClient;
     }
+}
+
+/**
+ * Assert that an API response is successful
+ *
+ * This helper provides better error messages by displaying the full response
+ * when an assertion fails, making it easier to debug test failures.
+ *
+ * @param response - API response object (should have .success property)
+ * @param message - Optional context message to explain what was being tested
+ * @throws Error with full response details if response.success is not true
+ *
+ * @example
+ * ```typescript
+ * const response = await tenant.httpClient.post('/api/describe/products', {
+ *     schema_name: 'products',
+ * });
+ * expectSuccess(response, 'Failed to create products schema');
+ * ```
+ */
+export function expectSuccess(response: any, message?: string): void {
+    if (!response || !response.success) {
+        const errorDetails = JSON.stringify(response, null, 2);
+        const errorMessage = message
+            ? `${message}\n\nFull Response:\n${errorDetails}`
+            : `API request failed\n\nFull Response:\n${errorDetails}`;
+        throw new Error(errorMessage);
+    }
+    expect(response.success).toBe(true);
 }

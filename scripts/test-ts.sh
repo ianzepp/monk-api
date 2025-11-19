@@ -2,13 +2,16 @@
 #
 # TypeScript Test Runner - Unit tests with Vitest
 #
-# Usage: scripts/test-ts.sh [test-pattern]
+# Usage: scripts/test-ts.sh [test-pattern] [vitest-args...]
 #   test-pattern: Number pattern to match test directories (e.g., "05", "31", "01-15")
+#   vitest-args: Additional arguments passed to vitest (e.g., -t "test name")
 #
 # Examples:
 #   npm run test:ts           # Run all TypeScript tests
 #   npm run test:ts 05        # Run only 05-infrastructure tests
 #   npm run test:ts 30-39     # Run tests in range 30-39
+#   npm run test:ts -- -t "should create"  # Run tests matching name
+#   npm run test:ts 31 -- -t "should create"  # Run tests in 31-* matching name
 
 set -e
 
@@ -31,34 +34,26 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
-server_start() {
-    print_header "Starting test server on port 9002"
-    PORT=9002 npm run start:bg
-    print_success "Server starting, waiting 3 seconds.."
-    sleep 3
-}
+# Parse arguments: first arg is optional pattern, rest are vitest args
+pattern=""
+vitest_args=()
 
-server_stop() {
-    print_header "Stopping server (if running)"
-    npm run stop
-}
+# Check if first argument looks like a file pattern (not a vitest flag)
+if [[ $# -gt 0 && ! "$1" =~ ^- ]]; then
+    pattern="$1"
+    shift
+fi
 
-# Run the build
-npm run build
-
-# Start the API server
-server_stop
-server_start
+# Remaining arguments are vitest flags
+vitest_args=("$@")
 
 # Find TypeScript test files based on pattern
-if [[ $# -gt 0 ]]; then
-    pattern="$1"
-    
+if [[ -n "$pattern" ]]; then
     # Check for range pattern (e.g., "10-39", "01-15")
     if [[ "$pattern" =~ ^([0-9]{2})-([0-9]{2})$ ]]; then
         start_range="${BASH_REMATCH[1]}"
         end_range="${BASH_REMATCH[2]}"
-        
+
         # Validate range (start <= end)
         if [[ $start_range -le $end_range ]]; then
             print_header "Running TypeScript tests in range: $start_range-$end_range"
@@ -96,7 +91,6 @@ if [[ -z "$test_files" ]]; then
     echo ""
     echo "TypeScript tests should be placed in spec/XX-category/*.test.ts"
     echo "Example: spec/05-infrastructure/database-naming.test.ts"
-    server_stop
     exit 1
 fi
 
@@ -105,11 +99,15 @@ test_count=$(echo "$test_files" | wc -l | xargs)
 echo "Found $test_count test file(s)"
 echo ""
 
-# Run vitest with the specific files
-print_header "Executing: npx vitest run"
+# Run vitest with the specific files and any additional arguments
+if [[ ${#vitest_args[@]} -gt 0 ]]; then
+    print_header "Executing: npx vitest run ${vitest_args[*]}"
+else
+    print_header "Executing: npx vitest run"
+fi
 echo ""
 
-npx vitest run $test_files
+npx vitest run $test_files "${vitest_args[@]}"
 
 exit_code=$?
 
@@ -119,7 +117,5 @@ if [[ $exit_code -eq 0 ]]; then
 else
     print_error "Some TypeScript tests failed"
 fi
-
-server_stop
 
 exit $exit_code

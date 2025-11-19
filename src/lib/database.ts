@@ -523,7 +523,31 @@ export class Database {
         );
 
         if (!result.success) {
-            throw new SystemError(`Observer pipeline validation failed: ${result.errors?.map(e => e.message).join(', ')}`);
+            // Convert observer validation errors to structured HTTP errors
+            const errors = result.errors || [];
+
+            if (errors.length === 0) {
+                // Fallback for unknown errors
+                throw HttpErrors.internal('Observer pipeline failed without error details', 'OBSERVER_PIPELINE_FAILED');
+            }
+
+            // Use the first error's code, or default to VALIDATION_ERROR
+            const primaryError = errors[0];
+            const errorCode = primaryError.code || 'VALIDATION_ERROR';
+
+            // Create structured error response with all validation errors
+            throw HttpErrors.unprocessableEntity(
+                primaryError.message,
+                errorCode,
+                {
+                    validation_errors: errors.map(e => ({
+                        message: e.message,
+                        code: e.code,
+                        field: (e as any).field // ValidationError has optional field property
+                    })),
+                    error_count: errors.length
+                }
+            );
         }
 
         return result.result || data;
