@@ -170,8 +170,7 @@ app.get('/health', c => {
 // Public routes (no authentication required)
 app.use('/auth/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
 app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for responses
-app.use('/auth/*', middleware.fieldExtractionMiddleware); // Extract/unwrap data via ?unwrap or ?select=
-app.use('/auth/*', middleware.responseFormatterMiddleware); // Format responses (JSON, TOON, YAML, Brainfuck)
+app.use('/auth/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
 // Protected API routes - require JWT authentication from /auth
@@ -179,8 +178,7 @@ app.use('/api/*', middleware.requestBodyParserMiddleware);
 app.use('/api/*', middleware.jwtValidationMiddleware);
 app.use('/api/*', middleware.userValidationMiddleware);
 app.use('/api/*', middleware.formatDetectionMiddleware);
-app.use('/api/*', middleware.fieldExtractionMiddleware); // Extract/unwrap data via ?unwrap or ?select=
-app.use('/api/*', middleware.responseFormatterMiddleware);
+app.use('/api/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
 app.use('/api/*', middleware.systemContextMiddleware);
 
 // 40-docs-api: Public docs routes (no authentication required)

@@ -157,11 +157,179 @@ All endpoints return consistent JSON responses:
 {"success": false, "error": "message", "error_code": "CODE"}
 ```
 
+### Response Customization
+
+All API endpoints support query parameters for customizing response format and content:
+
+#### Format Selection (`?format=`)
+
+Choose response encoding format to optimize for different use cases:
+
+**Supported Formats:**
+- `json` (default) - Standard JSON with 2-space indentation
+- `toon` - Compact human-readable format (30-40% fewer tokens for LLMs)
+- `yaml` - YAML format for human readability
+- `toml` - TOML configuration format (explicit typing, clean syntax)
+- `csv` - CSV tabular data (response-only, auto-unwraps, array of objects only)
+- `msgpack` - Binary format (30-50% smaller, base64-encoded for HTTP)
+- `brainfuck` - Novelty format (response-only)
+- `morse` - Morse code encoding
+- `qr` - QR code ASCII art (response-only)
+- `markdown` - Markdown tables and formatting (response-only)
+
+**Examples:**
+```bash
+# Get response in TOON format (compact for LLMs)
+curl http://localhost:9001/api/auth/whoami?format=toon
+
+# Get response as TOML (great for config files)
+curl http://localhost:9001/api/auth/whoami?format=toml
+
+# Get response as MessagePack binary (efficient)
+curl http://localhost:9001/api/data/users?format=msgpack
+
+# Get response as Markdown table
+curl http://localhost:9001/api/describe?format=markdown
+
+# Export user list as CSV (auto-unwraps data)
+curl http://localhost:9001/api/find/users?format=csv > users.csv
+```
+
+**Alternative Methods:**
+1. Query parameter: `?format=toon` (highest priority)
+2. Accept header: `Accept: application/toon`
+3. JWT preference: Set `format` during login (persists for session)
+
+#### Field Extraction (`?unwrap` and `?select=`)
+
+Extract specific fields server-side, eliminating the need for client-side processing:
+
+**Unwrap (Remove Envelope):**
+```bash
+# Standard response with envelope
+curl /api/auth/whoami
+# → {"success": true, "data": {"id": "...", "name": "...", ...}}
+
+# Unwrapped response (just the data)
+curl /api/auth/whoami?unwrap
+# → {"id": "...", "name": "...", ...}
+```
+
+**Select Specific Fields:**
+```bash
+# Extract single field (returns plain text)
+curl /api/auth/whoami?select=id
+# → c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c
+
+# Extract multiple fields (returns JSON object)
+curl /api/auth/whoami?select=id,name,access
+# → {"id": "...", "name": "...", "access": "..."}
+
+# Nested field extraction
+curl /api/data/users/123?select=profile.email
+# → user@example.com
+```
+
+**Combined Usage:**
+```bash
+# Extract fields AND format output
+curl /api/auth/whoami?select=id,name&format=toon
+# → id: c81d0a9b...
+#   name: Demo User
+
+# Extract field and get as MessagePack
+TOKEN=$(curl /auth/login?select=token -d '{"tenant":"demo","username":"root"}')
+```
+
+**Benefits:**
+- **No client-side parsing**: Eliminates `| jq` piping in shell scripts
+- **Bandwidth optimization**: Return only needed fields
+- **Simplified automation**: Direct value extraction for CI/CD
+- **Format compatible**: Works with all response formats
+
+**Processing Order:**
+1. Route executes and returns full data
+2. Field extraction filters data (if `?select=` or `?unwrap` present)
+3. Response formatter encodes to requested format (if `?format=` specified)
+4. Response encryption encrypts output (if `?encrypt=` specified)
+
+### Response Encryption (`?encrypt=pgp`)
+
+Encrypt API responses for secure transmission using AES-256-GCM with keys derived from your JWT token.
+
+**Encryption Model:**
+- **Algorithm**: AES-256-GCM (authenticated encryption)
+- **Key Source**: Derived from your JWT token via PBKDF2
+- **Output**: PGP-style ASCII armor format
+- **Purpose**: Transport security (ephemeral, not long-term storage)
+
+**Usage:**
+```bash
+# Encrypt any response
+curl /api/auth/whoami?encrypt=pgp \
+  -H "Authorization: Bearer $JWT" > encrypted.txt
+
+# Decrypt with same JWT
+node scripts/decrypt.js "$JWT" < encrypted.txt
+
+# Combine with formatting and field selection
+curl /api/find/users?select=id,email&format=csv&encrypt=pgp \
+  -H "Authorization: Bearer $JWT"
+```
+
+**ASCII Armor Output:**
+```
+-----BEGIN MONK ENCRYPTED MESSAGE-----
+Version: Monk-API/3.0
+Cipher: AES-256-GCM
+
+<base64-encoded encrypted data>
+-----END MONK ENCRYPTED MESSAGE-----
+```
+
+**Security Model (Ephemeral Encryption):**
+
+✅ **Good for:**
+- Secure transmission over untrusted networks
+- Additional defense-in-depth layer
+- Preventing data logging in proxies
+
+⚠️ **Important Limitations:**
+- JWT token IS the decryption key
+- JWT expiry means old messages become undecryptable
+- NOT suitable for long-term storage
+- Decrypt immediately or data may be lost
+
+**Composability:**
+```bash
+# Select → Format → Encrypt (all in one request)
+curl /api/find/users?select=id,name,email&format=csv&encrypt=pgp
+
+# Any format can be encrypted
+curl /api/data/users?format=yaml&encrypt=pgp
+curl /api/describe?format=markdown&encrypt=pgp
+```
+
 ## Integration Examples
 
 ### JavaScript/Node.js
 
 ```javascript
+// Login with field extraction (get token directly)
+const loginResponse = await fetch('https://api.example.com/auth/login?select=token', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({
+    tenant: 'my_tenant',
+    username: 'user',
+    password: 'pass'
+  })
+});
+
+// Token is returned directly (not wrapped in envelope)
+const token = await loginResponse.text();
+
+// Create a record
 const response = await fetch('https://api.example.com/api/data/users', {
   method: 'POST',
   headers: {
@@ -180,12 +348,37 @@ if (result.success) {
 } else {
   console.error('Error:', result.error_code, result.error);
 }
+
+// Get data in TOON format (compact for LLM processing)
+const toonResponse = await fetch('https://api.example.com/api/data/users?format=toon', {
+  headers: {'Authorization': `Bearer ${token}`}
+});
+const toonData = await toonResponse.text();  // TOON-formatted string
+
+// Extract specific fields only
+const userResponse = await fetch('https://api.example.com/api/data/users/123?select=email,name', {
+  headers: {'Authorization': `Bearer ${token}`}
+});
+const userInfo = await userResponse.json();  // {"email": "...", "name": "..."}
 ```
 
 ### Python
 
 ```python
 import requests
+
+# Login with field extraction (get token directly)
+login_response = requests.post(
+    'https://api.example.com/auth/login?select=token',
+    json={
+        'tenant': 'my_tenant',
+        'username': 'user',
+        'password': 'pass'
+    }
+)
+
+# Token is returned directly (not wrapped in envelope)
+token = login_response.text
 
 headers = {
     'Authorization': f'Bearer {token}',
@@ -224,16 +417,32 @@ response = requests.post(
 )
 
 results = response.json()
+
+# Get data in TOON format (compact for LLM processing)
+response = requests.post(
+    'https://api.example.com/api/find/users?format=toon',
+    headers=headers,
+    json=query
+)
+
+toon_results = response.text  # Returns TOON-formatted string
+
+# Extract specific fields only
+response = requests.get(
+    'https://api.example.com/api/data/users/123?select=email,name',
+    headers=headers
+)
+
+user_info = response.json()  # Returns {"email": "...", "name": "..."}
 ```
 
 ### cURL
 
 ```bash
-# Get authentication token
-TOKEN=$(curl -X POST https://api.example.com/auth/login \
+# Get authentication token (with field extraction - no jq needed!)
+TOKEN=$(curl -X POST https://api.example.com/auth/login?select=token \
   -H "Content-Type: application/json" \
-  -d '{"tenant":"my_tenant","username":"user","password":"pass"}' \
-  | jq -r '.data.token')
+  -d '{"tenant":"my_tenant","username":"user","password":"pass"}')
 
 # Create a record
 curl -X POST https://api.example.com/api/data/users \
@@ -250,6 +459,16 @@ curl -X POST https://api.example.com/api/find/users \
     "limit": 10,
     "order": ["created_at desc"]
   }'
+
+# Query with TOON format (compact for LLM processing)
+curl -X POST https://api.example.com/api/find/users?format=toon \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"where": {"status": "active"}, "limit": 10}'
+
+# Get specific field from user record
+USER_EMAIL=$(curl https://api.example.com/api/data/users/123?select=email \
+  -H "Authorization: Bearer $TOKEN")
 
 # Bulk operations
 curl -X POST https://api.example.com/api/bulk \

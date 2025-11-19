@@ -36,6 +36,8 @@
     "license": "MIT",
     "dependencies": {
         "@hono/node-server": "^1.13.7",
+        "@iarna/toml": "^2.2.5",
+        "@msgpack/msgpack": "^3.1.2",
         "@toon-format/toon": "^1.0.0",
         "@types/bcrypt": "^6.0.0",
         "ajv": "^8.17.1",
@@ -44,6 +46,7 @@
         "dotenv": "^17.2.1",
         "hono": "^4.6.5",
         "js-yaml": "^4.1.1",
+        "papaparse": "^5.5.3",
         "pg": "^8.16.3",
         "qr": "^0.5.2",
         "zod": "^4.0.17"
@@ -52,6 +55,7 @@
         "@faker-js/faker": "^10.0.0",
         "@types/js-yaml": "^4.0.9",
         "@types/node": "^22",
+        "@types/papaparse": "^5.5.0",
         "@types/pg": "^8.15.5",
         "concurrently": "^9.2.1",
         "nodemon": "^3.1.10",

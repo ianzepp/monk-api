@@ -115,22 +115,149 @@ curl http://localhost:9001/api/auth/whoami?select=access_read,access_edit&format
   access_edit: []
 ```
 
-### Brainfuck (Response-Only)
-Converts JSON responses to Brainfuck code that outputs the JSON string when executed. Completely impractical but technically fascinating.
+### TOML
+TOML (Tom's Obvious, Minimal Language) configuration file format. Clean and human-readable with explicit typing.
 
 **Request:**
 ```bash
-curl http://localhost:9001/auth/tenants?format=brainfuck > output.bf
-brainfuck output.bf  # Executes and outputs JSON
+curl -X POST http://localhost:9001/auth/login \
+  -H "Content-Type: application/toml" \
+  -H "Accept: application/toml" \
+  -d 'tenant = "toon-test"
+username = "root"'
+```
+
+**Response:**
+```toml
+success = true
+
+[data]
+token = "eyJhbGc..."
+
+[data.user]
+id = "c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c"
+name = "Demo User"
+```
+
+**Features:**
+- Clear, minimal syntax
+- Explicit data types (strings, integers, booleans, dates)
+- Section headers for nested structures
+- Popular for configuration files
+- Better than JSON for human editing
+
+**With Field Extraction:**
+```bash
+curl http://localhost:9001/api/auth/whoami?select=id,access&format=toml
+→ id = "c81d0a9b..."
+  access = "root"
+```
+
+**Use Cases:**
+- Configuration files
+- Infrastructure as Code (IaC)
+- Application settings
+- Deployment manifests
+- CI/CD pipeline configuration
+
+### CSV (Response-Only)
+Comma-Separated Values format for tabular data export. Perfect for Excel, Google Sheets, and data analysis tools.
+
+**Request:**
+```bash
+# CSV export of user list (automatically unwraps data)
+curl http://localhost:9001/api/find/users?format=csv
+```
+
+**Response:**
+```csv
+id,name,email,created_at,status
+"c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c","Demo User","demo@example.com","2025-01-15T10:30:00Z","active"
+"a72f3bc4-1d2e-4f3a-8e91-2bc7d9e4f6a1","Jane Smith","jane@example.com","2025-01-16T14:22:00Z","active"
+```
+
+**Features:**
+- Automatic envelope removal (`?unwrap` implied)
+- Header row with column names
+- Quoted fields for safety
+- Proper CSV escaping
+- **Only works with array of objects** - validates data structure
+- Nested objects are JSON-stringified
+- Empty arrays produce headers only
+
+**IMPORTANT Constraints:**
+```bash
+# ✓ Works: Array of objects
+curl /api/find/users?format=csv
+→ Returns CSV with headers
+
+# ✗ Error: Not an array
+curl /api/auth/whoami?format=csv
+→ HTTP 500: "CSV format requires an array of objects"
+
+# ✗ Error: Array of primitives
+curl /api/data/tags?format=csv
+→ HTTP 500: "CSV format requires array of plain objects"
 ```
 
 **With Field Extraction:**
 ```bash
-# Extract single field, then convert to Brainfuck
-curl http://localhost:9001/auth/tenants?select=[0].name&format=brainfuck > tenant.bf
+# Select specific fields before CSV export
+curl /api/find/users?select=id,name,email&format=csv
+→ id,name,email
+  "c81d...", "Demo User","demo@example.com"
 ```
 
-**Note:** Brainfuck decoding for request bodies is intentionally not supported.
+**Error Handling:**
+- Invalid data structure → HTTP 500 with JSON error message
+- Success responses → CSV data with HTTP 200
+- Errors always return JSON (never CSV)
+
+**Use Cases:**
+- Data export for Excel/Google Sheets
+- Reporting and analytics
+- Bulk data extraction
+- Integration with BI tools
+- Database query results export
+
+### MessagePack
+Binary serialization format that's more compact than JSON. Ideal for high-performance APIs and bandwidth-constrained environments.
+
+**Request:**
+```bash
+# Encode JSON to MessagePack (base64) and send
+echo '{"tenant":"demo","username":"root"}' | \
+  msgpack encode | base64 | \
+  curl -X POST http://localhost:9001/auth/login \
+    -H "Content-Type: application/msgpack" \
+    --data-binary @-
+```
+
+**Response:**
+```bash
+curl http://localhost:9001/auth/tenants?format=msgpack | base64 -d
+```
+
+**Features:**
+- 30-50% smaller than JSON
+- Binary format for efficiency
+- Full type preservation (integers, floats, binary data)
+- Base64-encoded for HTTP transport
+- Widely supported across languages
+
+**With Field Extraction:**
+```bash
+# Extract token and return as MessagePack
+curl http://localhost:9001/auth/login?select=token&format=msgpack \
+  -d '{"tenant":"demo","username":"root"}' | base64 -d
+```
+
+**Use Cases:**
+- High-performance APIs
+- Bandwidth-constrained networks
+- Microservice communication
+- IoT/embedded systems
+- Mobile applications
 
 ### Morse Code
 Converts JSON to/from Morse code (dots and dashes). Uses hex encoding internally to preserve case sensitivity.
@@ -363,15 +490,18 @@ All subsequent requests with that JWT will default to TOON format.
 
 ## Bidirectional Support
 
-| Format | Request Support | Response Support | Field Extraction |
-|--------|----------------|------------------|------------------|
-| JSON | ✓ | ✓ | ✓ |
-| TOON | ✓ | ✓ | ✓ |
-| YAML | ✓ | ✓ | ✓ |
-| Brainfuck | ✗ | ✓ | ✓ |
-| Morse | ✓ | ✓ | ✓ |
-| QR Code | ✗ | ✓ | ✓ |
-| Markdown | ✗ | ✓ | ✓ |
+| Format | Request Support | Response Support | Field Extraction | Auto-Unwrap |
+|--------|----------------|------------------|------------------|-------------|
+| JSON | ✓ | ✓ | ✓ | ✗ |
+| TOON | ✓ | ✓ | ✓ | ✗ |
+| YAML | ✓ | ✓ | ✓ | ✗ |
+| TOML | ✓ | ✓ | ✓ | ✗ |
+| CSV | ✗ | ✓ (array only) | ✓ | ✓ |
+| MessagePack | ✓ | ✓ | ✓ | ✗ |
+| Brainfuck | ✗ | ✓ | ✓ | ✗ |
+| Morse | ✓ | ✓ | ✓ | ✗ |
+| QR Code | ✗ | ✓ | ✓ | ✗ |
+| Markdown | ✗ | ✓ | ✓ | ✗ |
 
 **Note:** Field extraction works with all response formats - data is extracted first (from JSON), then formatted.
 
@@ -382,7 +512,12 @@ Request bodies must specify the correct Content-Type header:
 - JSON: `application/json`
 - TOON: `application/toon` or `text/plain`
 - YAML: `application/yaml` or `text/yaml`
+- TOML: `application/toml` or `application/x-toml`
+- CSV: Not supported for requests (response-only)
+- MessagePack: `application/msgpack` or `application/x-msgpack`
 - Morse: `application/morse` or `text/plain` (with morse pattern)
+
+**Note:** CSV decoding is intentionally not supported for request bodies.
 
 ## Use Cases
 
@@ -403,6 +538,28 @@ Request bodies must specify the correct Content-Type header:
 - Human-readable exports
 - Documentation examples
 - CI/CD pipeline data
+
+### TOML
+- Configuration files
+- Infrastructure as Code (IaC)
+- Application settings
+- Deployment manifests
+- CI/CD pipeline configuration
+
+### CSV
+- Data export for Excel/Google Sheets
+- Reporting and analytics dashboards
+- Bulk data extraction
+- Integration with BI tools
+- Database query results export
+
+### MessagePack
+- High-performance APIs
+- Bandwidth-constrained networks
+- Microservice communication
+- IoT/embedded systems
+- Mobile applications
+- Binary data transfer
 
 ### Brainfuck
 - Novelty applications
@@ -446,34 +603,50 @@ All format and extraction handling is implemented in:
 
 **Field Extraction:**
 - `src/lib/field-extractor.ts` - Lightweight dot-notation utility (~100 lines, no dependencies)
-- `src/lib/middleware/field-extraction.ts` - Middleware for direct `context.json()` routes
-- `src/lib/middleware/system-context.ts` - Integrated extraction for `setRouteResult()` routes
+- `src/lib/system-field-filter.ts` - System field filtering (?stat=false, ?access=false)
 
 **Format Handling:**
 - `src/lib/formatters/` - Encoding/decoding logic for each format
   - `json.ts` - Standard JSON (default)
   - `toon.ts` - Compact TOON format
   - `yaml.ts` - YAML format
+  - `toml.ts` - TOML configuration format
+  - `csv.ts` - CSV tabular data (response-only, auto-unwrap)
+  - `msgpack.ts` - MessagePack binary format
   - `brainfuck.ts` - Brainfuck encoding (response-only)
   - `morse.ts` - Morse code encoding/decoding
   - `qr.ts` - QR code ASCII art (response-only)
   - `markdown.ts` - Markdown formatting (response-only)
 
+**Encryption:**
+- `src/lib/encryption/aes-gcm.ts` - AES-256-GCM encryption/decryption
+- `src/lib/encryption/key-derivation.ts` - JWT-based key derivation (PBKDF2)
+- `src/lib/encryption/pgp-armor.ts` - PGP-style ASCII armor encoding
+
 **Middleware Pipeline:**
-- `src/lib/middleware/response-formatter.ts` - Response formatting via `context.json()` override
+- `src/lib/middleware/response-pipeline.ts` - **Single pipeline** for all transformations (extract → format → encrypt)
 - `src/lib/middleware/request-body-parser.ts` - Request parsing (TOON/YAML/Morse → JSON)
 - `src/lib/middleware/format-detection.ts` - Format selection (query param → header → JWT)
 
 **Processing Order:**
 1. **Request**: `request-body-parser` decodes TOON/YAML/Morse → JSON
 2. **Route Logic**: Works with JSON objects (format-agnostic)
-3. **Field Extraction**: Extracts specified fields if `?select=` present
-4. **Response Formatting**: Encodes JSON → TOON/YAML/Morse/etc if requested
+3. **Response Pipeline**: Single middleware handles all transformations:
+   - **Step 1**: Field extraction (?unwrap, ?select=, ?stat=false, ?access=false)
+   - **Step 2**: Format conversion (?format=yaml|csv|toon|etc)
+   - **Step 3**: Encryption (?encrypt=pgp)
 
 ## Architecture Principles
 
+### Single Response Pipeline
+All response transformations happen in one middleware (`response-pipeline.ts`):
+- Single override of `context.json()`
+- Explicit, deterministic processing order
+- No response cloning or re-parsing
+- Easy to extend with new transformation steps
+
 ### Transparent at API Boundary
-Routes always work with JSON objects - formatters and extraction operate transparently:
+Routes always work with JSON objects - pipeline operates transparently:
 ```typescript
 // Route handler - always works with JSON
 export default async function(context: Context) {
@@ -483,10 +656,11 @@ export default async function(context: Context) {
     });
 }
 
-// Formatters handle encoding at boundary:
+// Response pipeline handles transformations:
 // - ?format=toon → encodes to TOON
 // - ?select=id → extracts field first
 // - ?select=id&format=toon → extracts then encodes
+// - ?encrypt=pgp → encrypts final output
 ```
 
 ### No Dependencies
@@ -496,10 +670,12 @@ Field extraction is implemented without external libraries:
 - Graceful null/undefined handling
 
 ### Performance
-- Default format (JSON) has zero overhead
-- Format detection is a simple query param check
-- Field extraction only runs when `?select=` is present
-- Formatters are lazy-loaded and cached
+- Single override per request (minimal overhead)
+- Early exit for non-JSON responses
+- Field extraction only runs when `?select=` or `?unwrap` present
+- Format conversion only runs when `?format=` specified
+- Encryption only runs when `?encrypt=pgp` specified
+- Formatters are cached (not reloaded per request)
 
 ## Testing
 
@@ -635,17 +811,137 @@ USER_ID=$(curl /api/auth/whoami?select=id -H "Authorization: Bearer $TOKEN")
 - Fewer characters
 - Less shell escaping issues
 
+## Response Encryption (`?encrypt=pgp`)
+
+In addition to format encoding, responses can be encrypted for transport security.
+
+### Encryption Model
+
+**Query Parameter**: `?encrypt=pgp`  
+**Encryption**: AES-256-GCM (authenticated encryption)  
+**Key Derivation**: PBKDF2 from user's JWT token  
+**Output Format**: PGP-style ASCII armor  
+
+**Processing Pipeline:**
+```
+Request → Route Logic → ?select=/?unwrap → ?format= → ?encrypt=pgp → Response
+```
+
+**Example:**
+```bash
+# Encrypt JSON response
+curl /api/auth/whoami?encrypt=pgp \
+  -H "Authorization: Bearer $JWT" > encrypted.txt
+
+# Decrypt with same JWT
+node scripts/decrypt.js "$JWT" < encrypted.txt
+
+# Combine with formatting
+curl /api/find/users?format=csv&encrypt=pgp \
+  -H "Authorization: Bearer $JWT" > users-encrypted.txt
+```
+
+**ASCII Armor Format:**
+```
+-----BEGIN MONK ENCRYPTED MESSAGE-----
+Version: Monk-API/3.0
+Cipher: AES-256-GCM
+
+<base64-encoded: IV + ciphertext + authTag>
+-----END MONK ENCRYPTED MESSAGE-----
+```
+
+### Security Model (Ephemeral Encryption)
+
+**Purpose**: Transport security, NOT long-term storage
+
+✅ **Good for:**
+- Secure transmission over untrusted networks
+- Defense-in-depth beyond HTTPS
+- Preventing sensitive data logging in proxies
+- Compliance demonstrations
+
+⚠️ **Limitations:**
+- JWT token IS the decryption key (if leaked, encryption broken)
+- No perfect forward secryption
+- JWT expiry means old encrypted messages become undecryptable
+- Not suitable for archival/long-term storage
+
+**User Flow:**
+1. Request with `?encrypt=pgp` and valid JWT
+2. Receive encrypted response
+3. Decrypt IMMEDIATELY with same JWT
+4. Store plaintext or re-encrypt with own keys
+
+### Decryption
+
+**Using Decrypt Script:**
+```bash
+# From stdin
+curl /api/auth/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" \
+  | node scripts/decrypt.js "$JWT"
+
+# From file
+node scripts/decrypt.js "$JWT" encrypted-response.txt
+```
+
+**What Gets Encrypted:**
+- The final formatted response (after all formatters run)
+- Works with any format: JSON, CSV, YAML, etc.
+- Respects `?select=` and `?unwrap` parameters
+
+**Error Handling:**
+```bash
+# Missing JWT → 401 error (JSON response)
+curl /api/auth/whoami?encrypt=pgp
+→ {"success": false, "error": "Encryption requires authentication"}
+
+# Invalid JWT → Decryption fails with clear error message
+```
+
+### Composability
+
+```bash
+# Select fields, format as CSV, then encrypt
+curl /api/find/users?select=id,email&format=csv&encrypt=pgp
+
+# Unwrap data, format as YAML, then encrypt
+curl /api/describe?unwrap&format=yaml&encrypt=pgp
+
+# Extract single field, then encrypt
+curl /api/auth/whoami?select=id&encrypt=pgp
+```
+
+### Important Security Warnings
+
+⚠️ **DO:**
+- Decrypt responses immediately after receiving
+- Use for secure transmission over untrusted networks
+- Treat JWT token as encryption password (keep secure)
+
+❌ **DON'T:**
+- Store encrypted responses long-term
+- Expect to decrypt after JWT expires/rotates
+- Use as replacement for proper encryption-at-rest
+- Share encrypted messages (tied to YOUR JWT)
+
+**After JWT rotation, old encrypted messages become undecryptable.**  
+This is by design - encryption is for transport security, not archival storage.
+
 ## Summary
 
-The Monk API provides a flexible, extensible format system with field extraction:
+The Monk API provides a flexible, extensible format system with field extraction and optional encryption:
 
-✅ **7 Formats**: JSON, TOON, YAML, Brainfuck, Morse, QR, Markdown
+✅ **10 Formats**: JSON, TOON, YAML, TOML, CSV, MessagePack, Brainfuck, Morse, QR, Markdown
+✅ **Response Encryption**: AES-256-GCM with JWT-based key derivation
 ✅ **Bidirectional**: Request + response support (where applicable)
 ✅ **Format Detection**: Query param → Accept header → JWT preference
 ✅ **Field Extraction**: Server-side `?select=` eliminates `| jq` piping
-✅ **Transparent**: Routes work with JSON, formatters handle encoding
-✅ **No Dependencies**: Lightweight implementation (~320 lines total)
+✅ **Auto-Unwrap**: CSV automatically removes envelope for direct data export
+✅ **Composable**: Combine ?select, ?format, and ?encrypt in any order
+✅ **Transparent**: Routes work with JSON, formatters/encryption handle encoding
+✅ **Minimal Dependencies**: Lightweight implementation with industry-standard libraries
 ✅ **Fully Tested**: Comprehensive test coverage in `spec/`
 ✅ **monk curl**: Simplified CLI with automatic authentication
 
-Perfect for LLM integrations, test automation, CI/CD pipelines, and human-readable API exploration.
+Perfect for secure data export, LLM integrations, configuration management, high-performance APIs, test automation, CI/CD pipelines, and human-readable API exploration.

@@ -11,9 +11,9 @@
 import type { Context, Next } from 'hono';
 import type { JWTPayload } from '@src/lib/jwt-interface.js';
 
-export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'brainfuck' | 'morse' | 'qr' | 'markdown';
+export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'toml' | 'csv' | 'brainfuck' | 'morse' | 'qr' | 'markdown' | 'msgpack';
 
-const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'brainfuck', 'morse', 'qr', 'markdown'];
+const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'toml', 'csv', 'brainfuck', 'morse', 'qr', 'markdown', 'msgpack'];
 
 /**
  * Resolves the response format for the current request
@@ -38,6 +38,15 @@ function resolveFormat(context: Context): ResponseFormat {
     }
     if (acceptHeader?.includes('text/yaml') || acceptHeader?.includes('text/x-yaml')) {
         return 'yaml';
+    }
+    if (acceptHeader?.includes('application/msgpack') || acceptHeader?.includes('application/x-msgpack')) {
+        return 'msgpack';
+    }
+    if (acceptHeader?.includes('application/toml') || acceptHeader?.includes('application/x-toml')) {
+        return 'toml';
+    }
+    if (acceptHeader?.includes('text/csv') || acceptHeader?.includes('application/csv')) {
+        return 'csv';
     }
 
     // Priority 3: JWT format preference

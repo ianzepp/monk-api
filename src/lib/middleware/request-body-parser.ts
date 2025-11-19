@@ -6,12 +6,14 @@
  * - application/json (default)
  * - application/toon, text/plain (TOON format)
  * - application/yaml, text/yaml
+ * - application/toml (TOML configuration format)
+ * - application/msgpack (MessagePack binary format)
  *
  * Sets context.get('parsedBody') for route handlers to consume.
  */
 
 import type { Context, Next } from 'hono';
-import { JsonFormatter, ToonFormatter, YamlFormatter, MorseFormatter } from '@src/lib/formatters/index.js';
+import { JsonFormatter, ToonFormatter, YamlFormatter, TomlFormatter, MorseFormatter, MessagePackFormatter } from '@src/lib/formatters/index.js';
 
 /**
  * Parses request body based on Content-Type header
@@ -49,6 +51,15 @@ export async function requestBodyParserMiddleware(context: Context, next: Next) 
                    (contentType.includes('text/plain') && /^[.\-\s\/]+$/.test(rawBody.trim()))) {
             // Morse code format (dots, dashes, spaces, slashes)
             parsedBody = MorseFormatter.decode(rawBody);
+        } else if (contentType.includes('application/toml') ||
+                   contentType.includes('application/x-toml') ||
+                   contentType.includes('text/toml')) {
+            // TOML format
+            parsedBody = TomlFormatter.decode(rawBody);
+        } else if (contentType.includes('application/msgpack') ||
+                   contentType.includes('application/x-msgpack')) {
+            // MessagePack format (base64-encoded binary)
+            parsedBody = MessagePackFormatter.decode(rawBody);
         } else {
             // Default to JSON (including application/json and no Content-Type)
             parsedBody = JsonFormatter.decode(rawBody);
