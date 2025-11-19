@@ -231,18 +231,18 @@ VALUES (
 -- Column definitions for 'schemas' schema
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
     ('schemas', 'schema_name', 'text', true, 'Unique name for the schema'),
-    ('schemas', 'status', 'text', true, 'Schema status (pending, active, system)'),
+    ('schemas', 'status', 'text', false, 'Schema status (pending, active, system)'),
     ('schemas', 'description', 'text', false, 'Human-readable description of the schema'),
-    ('schemas', 'sudo', 'boolean', true, 'Whether schema modifications require sudo access'),
-    ('schemas', 'freeze', 'boolean', true, 'Whether all data changes are prevented on this schema'),
-    ('schemas', 'immutable', 'boolean', true, 'Whether records are write-once (can be created but never modified)');
+    ('schemas', 'sudo', 'boolean', false, 'Whether schema modifications require sudo access'),
+    ('schemas', 'freeze', 'boolean', false, 'Whether all data changes are prevented on this schema'),
+    ('schemas', 'immutable', 'boolean', false, 'Whether records are write-once (can be created but never modified)');
 
 -- Column definitions for 'columns' schema
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
     ('columns', 'schema_name', 'text', true, 'Name of the schema this column belongs to'),
     ('columns', 'column_name', 'text', true, 'Name of the column'),
     ('columns', 'type', 'text', true, 'Data type of the column'),
-    ('columns', 'required', 'boolean', true, 'Whether the column is required (NOT NULL)'),
+    ('columns', 'required', 'boolean', false, 'Whether the column is required (NOT NULL)'),
     ('columns', 'default_value', 'text', false, 'Default value for the column'),
     ('columns', 'description', 'text', false, 'Human-readable description of the column'),
     ('columns', 'relationship_type', 'text', false, 'Type of relationship (owned, referenced)'),
