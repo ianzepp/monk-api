@@ -42,30 +42,71 @@ export class TestHelpers {
      * The returned HttpClient automatically includes the JWT token in all requests,
      * so you don't need to manually add Authorization headers.
      *
+     * Template Options:
+     * - 'default' (default) - Always available, includes system schemas + root user
+     *   - Use when: Testing API functionality with your own test data
+     *   - Benefits: No fixture setup required, predictable baseline
+     *   - Root user can create schemas/columns/records as needed
+     * 
+     * - 'testing' - Pre-populated with test data (requires: npm run fixtures:build testing)
+     *   - Use when: Testing queries/filters on existing data
+     *   - Benefits: Faster tests, realistic data relationships
+     *   - Contains: Sample accounts, contacts, relationships
+     *
      * @param testName - Short name for this test (e.g., 'basic-find')
-     * @param template - Template name to clone from (default: 'testing')
-     * @param username - Username for the tenant admin (default: 'full')
+     * @param template - Template name to clone from (default: 'default')
+     * @param username - Username for the tenant admin (default: 'root')
      * @returns Promise with tenant information including auth token
      *
      * @example
      * ```typescript
+     * // Using default template (system schemas + root user only)
      * let tenant: TestTenant;
      *
      * beforeAll(async () => {
      *     tenant = await TestHelpers.createTestTenant('my-test');
+     *     
+     *     // Create your own schema for testing
+     *     await tenant.httpClient.post('/api/describe/product', {
+     *         columns: [
+     *             { name: 'name', type: 'text' },
+     *             { name: 'price', type: 'number' }
+     *         ]
+     *     });
      * });
      *
-     * it('should do something', async () => {
-     *     // Auth token automatically included - no manual headers needed!
-     *     const response = await tenant.httpClient.post('/api/find/account', {});
+     * it('should create and query records', async () => {
+     *     // Create test data
+     *     await tenant.httpClient.post('/api/data/product', {
+     *         name: 'Widget',
+     *         price: 9.99
+     *     });
+     *     
+     *     // Query it
+     *     const response = await tenant.httpClient.post('/api/find/product', {});
      *     expect(response.success).toBe(true);
+     *     expect(response.data.length).toBe(1);
+     * });
+     * ```
+     *
+     * @example
+     * ```typescript
+     * // Using 'testing' template (pre-populated with test data)
+     * beforeAll(async () => {
+     *     tenant = await TestHelpers.createTestTenant('query-test', 'testing');
+     * });
+     *
+     * it('should query existing accounts', async () => {
+     *     // Testing template has 5 pre-populated accounts
+     *     const response = await tenant.httpClient.post('/api/find/account', {});
+     *     expect(response.data.length).toBe(5);
      * });
      * ```
      */
     static async createTestTenant(
         testName: string,
         template: string = TEST_CONFIG.DEFAULT_TEMPLATE,
-        username: string = 'full'
+        username: string = 'root'
     ): Promise<TestTenant> {
         // Generate unique tenant name (matches shell script pattern)
         // Format: test_{testName}_{timestamp}_{random}

@@ -703,6 +703,89 @@ npm run stop
 
 This prevents test runs from interfering with active development.
 
+## Test Templates and Fixtures
+
+### Understanding Templates
+
+When you register a new tenant via `/auth/register`, you specify a template to clone from:
+
+#### 'default' Template (Always Available)
+- **What it includes:**
+  - System schemas: `schemas`, `columns`, `users`, `acls`
+  - Default 'root' user with full permissions
+  - No additional test data
+- **When to use:**
+  - Testing API functionality (describe, data, find, stat)
+  - Tests that create their own schemas and data
+  - Unit-style integration tests
+- **Benefits:**
+  - No fixture setup required
+  - Predictable baseline (you know exactly what's there)
+  - Fast test execution
+  - Less fragile (no dependency on external fixtures)
+- **Example:**
+  ```typescript
+  // Create tenant with default template
+  tenant = await TestHelpers.createTestTenant('my-test');
+  
+  // Root user can create schemas
+  await tenant.httpClient.post('/api/describe/product', {
+      columns: [
+          { name: 'name', type: 'text' },
+          { name: 'price', type: 'number' }
+      ]
+  });
+  
+  // Insert test data
+  await tenant.httpClient.post('/api/data/product', {
+      name: 'Widget',
+      price: 9.99
+  });
+  ```
+
+#### 'testing' Template (Requires Setup)
+- **What it includes:**
+  - Everything from 'default' template
+  - Pre-populated test data (accounts, contacts, relationships)
+  - Sample records for query testing
+- **When to use:**
+  - Testing complex queries and filters
+  - Testing relationships and joins
+  - Performance testing with realistic data
+- **Setup required:**
+  ```bash
+  npm run fixtures:build testing
+  ```
+- **Benefits:**
+  - Faster tests (data already exists)
+  - Realistic data relationships
+  - Good for query/filter testing
+- **Example:**
+  ```typescript
+  // Requires: npm run fixtures:build testing
+  tenant = await TestHelpers.createTestTenant('query-test', 'testing');
+  
+  // Testing template has 5 pre-populated accounts
+  const response = await tenant.httpClient.post('/api/find/account', {});
+  expect(response.data.length).toBe(5);
+  ```
+
+### Choosing a Template Strategy
+
+**Use 'default' template when:**
+- Testing core API functionality (CRUD operations)
+- You want predictable, controlled test data
+- You don't want to depend on external fixtures
+- Tests are self-contained and create their own data
+
+**Use 'testing' template when:**
+- Testing complex queries with many records
+- Testing data relationships and foreign keys
+- Performance testing with realistic data volumes
+- You want faster tests (data already exists)
+
+**Recommendation:** Start with 'default' template for most tests. Only use 'testing' when you need pre-populated data for queries.
+
 ## Writing TypeScript Tests
 
 ### Basic Test Pattern (Recommended)
