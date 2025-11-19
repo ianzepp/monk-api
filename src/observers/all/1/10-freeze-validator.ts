@@ -15,7 +15,7 @@
  * - Regulatory compliance freeze periods
  * - Preventing modifications during audits
  *
- * Ring 1 (Input Validation) - Priority 20 (high, after RecordPreloader)
+ * Ring 1 (Input Validation) - Priority 10 (highest - first security check)
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -26,7 +26,7 @@ import { SecurityError } from '@src/lib/observers/errors.js';
 export default class FreezeValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
     readonly operations = ['create', 'update', 'delete'] as const;
-    readonly priority = 20;
+    readonly priority = 10;
 
     async execute(context: ObserverContext): Promise<void> {
         const { schema, operation, data } = context;

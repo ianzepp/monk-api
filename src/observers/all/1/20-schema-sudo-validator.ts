@@ -1,5 +1,5 @@
 /**
- * Sudo Access Validator - Generic Schema Security Observer
+ * Schema Sudo Access Validator - Schema-Level Security Observer
  *
  * Ensures that operations on schemas marked with sudo=true require sudo access.
  * Sudo access is granted via:
@@ -13,7 +13,7 @@
  * - Automatic sudo for root users (no extra step needed)
  * - Optional explicit elevation for audit trail
  *
- * Ring 1 (Input Validation) - Early security check before any processing
+ * Ring 1 (Input Validation) - Priority 20 (schema-level security)
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -22,9 +22,10 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { logger } from '@src/lib/logger.js';
 
-export default class SudoValidator extends BaseObserver {
+export default class SchemaSudoValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
     readonly operations = ['create', 'update', 'delete'] as const;
+    readonly priority = 20;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, schema } = context;
