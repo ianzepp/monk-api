@@ -35,6 +35,69 @@ Requires valid JWT token in Authorization header: `Bearer <token>`
 
 ---
 
+## Schema Reference
+
+### Schema Fields
+
+All fields available when creating or updating schemas via `POST /api/describe/:schema` or `PUT /api/describe/:schema`:
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `schema_name` | text | Yes | - | Unique identifier for the schema. Must match URL parameter. |
+| `status` | text | No | `pending` | Schema status: `pending`, `active`, or `system`. System schemas are protected. |
+| `description` | text | No | - | Human-readable description of the schema's purpose. |
+| `sudo` | boolean | No | `false` | Require sudo token for all data operations on this schema. |
+| `freeze` | boolean | No | `false` | Prevent all data changes (create, update, delete). SELECT still works. |
+
+**Notes:**
+- System fields (id, timestamps, access_*) are automatically added to all tables
+- `schema_name` must be a valid PostgreSQL identifier (alphanumeric and underscores)
+- Schemas with `status='system'` cannot be modified or deleted
+
+### Column Fields
+
+All fields available when creating or updating columns via `POST /api/describe/:schema/:column` or `PUT /api/describe/:schema/:column`:
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| **Identity** |
+| `schema_name` | text | Yes | - | Name of the schema (from URL parameter). |
+| `column_name` | text | Yes | - | Name of the column (from URL parameter). |
+| `type` | text | Yes | - | Data type: `text`, `integer`, `decimal`, `boolean`, `timestamp`, `date`, `uuid`, `jsonb`, or array types (`text[]`, `integer[]`, etc.). See [type mapping](#postgresql-type-mapping). |
+| **Constraints** |
+| `required` | boolean | No | `false` | Whether the column is required (NOT NULL constraint). |
+| `default_value` | text | No | - | Default value for the column. |
+| `unique` | boolean | No | `false` | Whether the column must have unique values. Creates UNIQUE index. |
+| **Validation** |
+| `minimum` | numeric | No | - | Minimum value for numeric types. Application-level validation. |
+| `maximum` | numeric | No | - | Maximum value for numeric types or max length for text. Application-level validation. |
+| `pattern` | text | No | - | Regular expression pattern for text validation. Application-level validation. |
+| `enum_values` | text[] | No | - | Array of allowed values. Application-level validation. |
+| **Metadata** |
+| `description` | text | No | - | Human-readable description of the column's purpose. |
+| **Protection** |
+| `immutable` | boolean | No | `false` | Value can be set once but never changed. Perfect for audit trails. |
+| `sudo` | boolean | No | `false` | Require sudo token to modify this field, even if schema doesn't require sudo. |
+| **Change Tracking** |
+| `tracked` | boolean | No | `false` | Track changes to this column in the `history` table for audit trails. |
+| **Relationships** |
+| `relationship_type` | text | No | - | Type of relationship: `owned` or `referenced`. |
+| `related_schema` | text | No | - | Target schema for the relationship. |
+| `related_column` | text | No | `id` | Target column for the relationship (usually `id`). |
+| `relationship_name` | text | No | - | Name of the relationship for API access. |
+| `cascade_delete` | boolean | No | `false` | Whether to cascade delete when parent is deleted. |
+| `required_relationship` | boolean | No | `false` | Whether the relationship is required (NOT NULL FK). |
+| **Internal** |
+| `is_array` | boolean | No | `false` | Internal flag set automatically based on type (e.g., `text[]`). |
+
+**Notes:**
+- `schema_name` and `column_name` come from URL parameters, not request body
+- Changing `type`, `required`, or `default_value` triggers ALTER TABLE (structural change)
+- Other fields are metadata-only and don't modify the PostgreSQL table
+- Column names must start with a letter or underscore, followed by alphanumerics/underscores
+
+---
+
 ## Schema Operations
 
 ## GET /api/describe
@@ -71,38 +134,11 @@ Create a new schema using Monk-native format with column definitions. Automatica
 ### Query Parameters
 - **force** (optional): Set to `true` to override schema name mismatch between URL and body. If URL schema differs from `schema_name` in body, request fails unless `?force=true` is provided.
 
-### Request Body (Monk-Native Format)
+### Request Body (Schema Metadata Only)
 ```json
 {
   "schema_name": "users",
-  "status": "active",
-  "columns": [
-    {
-      "column_name": "name",
-      "type": "text",
-      "required": true,
-      "description": "User full name"
-    },
-    {
-      "column_name": "email",
-      "type": "text",
-      "required": true,
-      "pattern": "^[^@]+@[^@]+\\.[^@]+$"
-    },
-    {
-      "column_name": "age",
-      "type": "integer",
-      "required": false,
-      "minimum": 18,
-      "maximum": 120
-    },
-    {
-      "column_name": "balance",
-      "type": "decimal",
-      "required": false,
-      "default_value": "0.00"
-    }
-  ]
+  "status": "active"
 }
 ```
 
@@ -113,29 +149,16 @@ Create a new schema using Monk-native format with column definitions. Automatica
 - `status` - Schema status (default: "pending")
 - `sudo` - Require sudo token for all operations on this schema (default: false)
 - `freeze` - Prevent all data changes on this schema (default: false)
-- `columns` - Array of column definitions
 
-**Column Definition Fields:**
-- `column_name` - Column name (required)
-- `type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, uuid, jsonb
-- `required` - true or false
-- `default_value` - Default value
-- `minimum` / `maximum` - Range constraints
-- `pattern` - Validation pattern
-- `enum_values` - Allowed values array
-- `description` - Column description
-- `immutable` - Prevent changes once set (default: false)
-- `sudo` - Require sudo token to modify this field (default: false)
-- Relationship fields: `relationship_type`, `related_schema`, `related_column`, etc.
+**Note:** Schema creation no longer accepts a `columns` array. Use column endpoints (`POST /api/describe/:schema/:column`) to add columns after creating the schema.
 
 ### Success Response (200)
 ```json
 {
   "success": true,
   "data": {
-    "name": "users",
-    "table": "users",
-    "created": true
+    "schema_name": "users",
+    "status": "active"
   }
 }
 ```
@@ -162,32 +185,19 @@ Retrieve complete schema definition with columns array in Monk-native format.
 {
   "success": true,
   "data": {
-    "id": "uuid",
     "schema_name": "users",
     "status": "active",
-    "created_at": "2025-01-01T12:00:00Z",
-    "updated_at": "2025-01-01T12:00:00Z",
-    "columns": [
-      {
-        "id": "uuid",
-        "schema_name": "users",
-        "column_name": "name",
-        "type": "text",
-        "required": true,
-        "description": "User full name",
-        "created_at": "2025-01-01T12:00:00Z",
-        "updated_at": "2025-01-01T12:00:00Z"
-      }
-    ]
+    "sudo": false,
+    "freeze": false
   }
 }
 ```
 
 **Response includes:**
-- Schema metadata (schemas table fields)
-- Columns array with full column metadata
+- Schema metadata only (no columns array)
+- System fields (id, timestamps, access_*) are stripped from response
 
-**Note:** The system auto-generates JSON Schema in an internal `definitions` table via PostgreSQL trigger, but this is not exposed in API responses.
+**To retrieve columns:** Use individual column endpoints (`GET /api/describe/:schema/:column`) or query the columns table directly via the Data API.
 
 ### Error Responses
 
@@ -221,10 +231,8 @@ Update schema metadata only (status). **Does not modify columns** - use column e
 {
   "success": true,
   "data": {
-    "id": "uuid",
     "schema_name": "users",
-    "status": "active",
-    "updated_at": "2025-01-01T13:00:00Z"
+    "status": "active"
   }
 }
 ```
@@ -253,8 +261,7 @@ Soft-delete a schema definition. Schema is marked as trashed and can be restored
 {
   "success": true,
   "data": {
-    "name": "users",
-    "deleted": true
+    "schema_name": "users"
   }
 }
 ```
@@ -298,7 +305,9 @@ Add a new column to an existing schema.
     "schema_name": "users",
     "column_name": "phone",
     "type": "text",
-    "created": true
+    "required": false,
+    "pattern": "^\\+?[1-9]\\d{1,14}$",
+    "description": "User phone number"
   }
 }
 ```
@@ -318,15 +327,12 @@ Retrieve a specific column definition from the columns table.
 {
   "success": true,
   "data": {
-    "id": "uuid",
     "schema_name": "users",
     "column_name": "email",
     "type": "text",
     "required": true,
     "pattern": "^[^@]+@[^@]+\\.[^@]+$",
-    "description": "User email address",
-    "created_at": "2025-01-01T12:00:00Z",
-    "updated_at": "2025-01-01T12:00:00Z"
+    "description": "User email address"
   }
 }
 ```
@@ -364,13 +370,11 @@ Update an existing column's properties. Supports both metadata updates and struc
 {
   "success": true,
   "data": {
-    "id": "uuid",
     "schema_name": "users",
     "column_name": "email",
     "type": "text",
     "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
-    "description": "Updated validation pattern",
-    "updated_at": "2025-01-01T13:00:00Z"
+    "description": "Updated validation pattern"
   }
 }
 ```
@@ -391,8 +395,7 @@ Remove a column from the schema. Performs both soft delete (marks as trashed in 
   "success": true,
   "data": {
     "schema_name": "users",
-    "column_name": "phone",
-    "deleted": true
+    "column_name": "phone"
   }
 }
 ```
@@ -475,39 +478,58 @@ The system automatically generates JSON Schema in the `definitions` table via Po
 - Future integration with validation tools
 - Backward compatibility with JSON Schema consumers
 
-**Note:** The `definitions` table is for internal use only and is NOT exposed via API responses. Use the `columns` array from GET /api/describe/:schema for schema metadata.
+**Note:** The `definitions` table is for internal use only and is NOT exposed via API responses. Use the column endpoints (GET /api/describe/:schema/:column) to retrieve column metadata.
 
 ## Usage Examples
 
-### Creating a Product Schema
+### Creating a Product Schema with Columns
+
+**Step 1: Create the schema**
 ```bash
 curl -X POST http://localhost:9001/api/describe/products \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "schema_name": "products",
-    "columns": [
-      {
-        "column_name": "name",
-        "type": "text",
-        "required": true
-      },
-      {
-        "column_name": "price",
-        "type": "decimal",
-        "required": true,
-        "minimum": 0
-      },
-      {
-        "column_name": "in_stock",
-        "type": "boolean",
-        "default_value": "true"
-      }
-    ]
+    "status": "active"
   }'
 ```
 
-### Retrieving Schema with Columns
+**Step 2: Add columns sequentially**
+```bash
+# Add name column
+curl -X POST http://localhost:9001/api/describe/products/name \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "text",
+    "required": true,
+    "description": "Product name"
+  }'
+
+# Add price column
+curl -X POST http://localhost:9001/api/describe/products/price \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "decimal",
+    "required": true,
+    "minimum": 0,
+    "description": "Product price in USD"
+  }'
+
+# Add in_stock column
+curl -X POST http://localhost:9001/api/describe/products/in_stock \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "boolean",
+    "default_value": "true",
+    "description": "Product availability status"
+  }'
+```
+
+### Retrieving Schema Metadata
 ```bash
 curl -X GET http://localhost:9001/api/describe/products \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"

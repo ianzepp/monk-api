@@ -61,41 +61,13 @@ Authorization: Bearer <jwt>
 ```
 
 **Query Parameters:**
-- `force=true` - Force creation even if schema exists (will drop and recreate the table)
+- `force=true` - Override schema name mismatch between URL and body
 
-**Request Body (Monk-native format):**
+**Request Body:**
 ```json
 {
   "schema_name": "users",
-  "status": "active",
-  "columns": [
-    {
-      "column_name": "name",
-      "type": "text",
-      "required": true,
-      "description": "User full name"
-    },
-    {
-      "column_name": "email",
-      "type": "text",
-      "required": true,
-      "pattern": "^[^@]+@[^@]+\\.[^@]+$",
-      "description": "User email address"
-    },
-    {
-      "column_name": "age",
-      "type": "integer",
-      "required": false,
-      "minimum": 18,
-      "maximum": 120
-    },
-    {
-      "column_name": "balance",
-      "type": "decimal",
-      "required": false,
-      "default_value": "0.00"
-    }
-  ]
+  "status": "active"
 }
 ```
 
@@ -104,9 +76,8 @@ Authorization: Bearer <jwt>
 {
   "success": true,
   "data": {
-    "name": "users",
-    "table": "users",
-    "created": true
+    "schema_name": "users",
+    "status": "active"
   }
 }
 ```
@@ -118,26 +89,8 @@ Authorization: Bearer <jwt>
 - `status` - Schema status (default: "pending")
 - `sudo` - Require sudo token for all operations (default: false)
 - `freeze` - Prevent all data changes on this schema (default: false)
-- `columns` - Array of column definitions (empty array if omitted)
 
-**Column Fields:**
-- `column_name` - Column name (required)
-- `type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, uuid, jsonb (required)
-- `required` - true or false (default: false)
-- `default_value` - Default value for column
-- `minimum` - Minimum value (for numbers)
-- `maximum` - Maximum value (for numbers/strings)
-- `pattern` - Regex pattern validation (for strings)
-- `enum_values` - Array of allowed values
-- `description` - Column description
-- `immutable` - Prevent changes once set (default: false)
-- `sudo` - Require sudo token to modify this field (default: false)
-- `relationship_type` - "owned" or "referenced" for foreign keys
-- `related_schema` - Target schema for relationships
-- `related_column` - Target column for relationships (default: "id")
-- `relationship_name` - Name of the relationship
-- `cascade_delete` - true or false for cascade delete
-- `required_relationship` - true or false
+**Note:** Schema creation no longer accepts a `columns` array. After creating the schema, add columns individually using `POST /api/describe/:schema/:column`
 
 ### List Schemas
 
@@ -162,7 +115,7 @@ Authorization: Bearer <jwt>
 
 ### Get Schema
 
-Retrieves complete schema definition with columns array in Monk-native format.
+Retrieves schema metadata only. To retrieve columns, use the column endpoints.
 
 ```bash
 GET /api/describe/:schema
@@ -174,34 +127,15 @@ Authorization: Bearer <jwt>
 {
   "success": true,
   "data": {
-    "id": "uuid",
     "schema_name": "users",
     "status": "active",
-    "created_at": "2025-01-01T12:00:00Z",
-    "updated_at": "2025-01-01T12:00:00Z",
-    "columns": [
-      {
-        "id": "uuid",
-        "schema_name": "users",
-        "column_name": "name",
-        "type": "text",
-        "required": true,
-        "description": "User full name",
-        "created_at": "2025-01-01T12:00:00Z",
-        "updated_at": "2025-01-01T12:00:00Z"
-      },
-      {
-        "column_name": "email",
-        "type": "text",
-        "required": true,
-        "pattern": "^[^@]+@[^@]+\\.[^@]+$"
-      }
-    ]
+    "sudo": false,
+    "freeze": false
   }
 }
 ```
 
-**Note:** The `definition` field (JSON Schema) is stored in the `definitions` table for internal use only and is not exposed in API responses.
+**Note:** To retrieve column definitions, use `GET /api/describe/:schema/:column` for individual columns or query the columns table directly via the Data API
 
 ### Update Schema
 
@@ -230,10 +164,8 @@ Authorization: Bearer <jwt>
 {
   "success": true,
   "data": {
-    "id": "uuid",
     "schema_name": "users",
-    "status": "active",
-    "updated_at": "2025-01-01T13:00:00Z"
+    "status": "active"
   }
 }
 ```
@@ -254,8 +186,7 @@ Authorization: Bearer <jwt>
 {
   "success": true,
   "data": {
-    "schema_name": "users",
-    "deleted": true
+    "schema_name": "users"
   }
 }
 ```
@@ -275,7 +206,6 @@ Authorization: Bearer <jwt>
 **Request Body:**
 ```json
 {
-  "column_name": "phone",
   "type": "text",
   "required": false,
   "pattern": "^\\+?[1-9]\\d{1,14}$",
@@ -283,15 +213,37 @@ Authorization: Bearer <jwt>
 }
 ```
 
+**Note:** The `column_name` is taken from the URL parameter `:column`, not the request body.
+
+**Column Fields:**
+- `type` - PostgreSQL type: text, integer, decimal, boolean, timestamp, date, uuid, jsonb, array types (required)
+- `required` - true or false (default: false)
+- `default_value` - Default value for column
+- `minimum` - Minimum value (for numbers)
+- `maximum` - Maximum value (for numbers/strings)
+- `pattern` - Regex pattern validation (for strings)
+- `enum_values` - Array of allowed values
+- `description` - Column description
+- `immutable` - Prevent changes once set (default: false)
+- `sudo` - Require sudo token to modify this field (default: false)
+- `relationship_type` - "owned" or "referenced" for foreign keys
+- `related_schema` - Target schema for relationships
+- `related_column` - Target column for relationships (default: "id")
+- `relationship_name` - Name of the relationship
+- `cascade_delete` - true or false for cascade delete
+- `required_relationship` - true or false
+
 **Response:**
 ```json
 {
   "success": true,
   "data": {
-    "column_name": "phone",
     "schema_name": "users",
+    "column_name": "phone",
     "type": "text",
-    "created_at": "2025-01-01T14:00:00Z"
+    "required": false,
+    "pattern": "^\\+?[1-9]\\d{1,14}$",
+    "description": "User phone number"
   }
 }
 ```
@@ -310,15 +262,12 @@ Authorization: Bearer <jwt>
 {
   "success": true,
   "data": {
-    "id": "uuid",
     "schema_name": "users",
     "column_name": "email",
     "type": "text",
     "required": true,
     "pattern": "^[^@]+@[^@]+\\.[^@]+$",
-    "description": "User email address",
-    "created_at": "2025-01-01T12:00:00Z",
-    "updated_at": "2025-01-01T12:00:00Z"
+    "description": "User email address"
   }
 }
 ```
@@ -346,8 +295,12 @@ Authorization: Bearer <jwt>
 {
   "success": true,
   "data": {
+    "schema_name": "users",
     "column_name": "email",
-    "updated_at": "2025-01-01T15:00:00Z"
+    "type": "text",
+    "required": true,
+    "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+    "description": "Updated email validation pattern"
   }
 }
 ```
@@ -366,8 +319,8 @@ Authorization: Bearer <jwt>
 {
   "success": true,
   "data": {
-    "column_name": "phone",
-    "deleted": true
+    "schema_name": "users",
+    "column_name": "phone"
   }
 }
 ```
@@ -426,8 +379,7 @@ Schemas marked with `sudo=true` require short-lived sudo token for all data oper
 ```json
 {
   "schema_name": "financial_accounts",
-  "sudo": true,
-  "columns": [...]
+  "sudo": true
 }
 ```
 Users must call `POST /api/auth/sudo` to obtain a time-limited sudo token before modifying these schemas.
@@ -532,52 +484,68 @@ This includes test scope, focus areas, and testing strategies for the Describe A
 
 ## Common Use Cases
 
-### Creating a Simple Schema
+### Creating a Schema with Columns
+
+**Step 1: Create the schema**
 ```bash
-# Define schema with columns in Monk-native format
 curl -X POST http://localhost:9001/api/describe/products \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{
     "schema_name": "products",
-    "status": "active",
-    "columns": [
-      {
-        "column_name": "name",
-        "type": "text",
-        "required": true,
-        "description": "Product name"
-      },
-      {
-        "column_name": "price",
-        "type": "decimal",
-        "required": true,
-        "minimum": 0,
-        "description": "Product price"
-      },
-      {
-        "column_name": "category",
-        "type": "text",
-        "required": true,
-        "enum_values": ["electronics", "books", "clothing"]
-      },
-      {
-        "column_name": "in_stock",
-        "type": "boolean",
-        "required": false,
-        "default_value": "true"
-      }
-    ]
+    "status": "active"
   }'
 ```
 
-### Retrieving Schema with Columns
+**Step 2: Add columns sequentially**
 ```bash
-# Get complete schema definition
+# Add name column
+curl -X POST http://localhost:9001/api/describe/products/name \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(monk auth token)" \
+  -d '{
+    "type": "text",
+    "required": true,
+    "description": "Product name"
+  }'
+
+# Add price column
+curl -X POST http://localhost:9001/api/describe/products/price \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(monk auth token)" \
+  -d '{
+    "type": "decimal",
+    "required": true,
+    "minimum": 0,
+    "description": "Product price"
+  }'
+
+# Add category column
+curl -X POST http://localhost:9001/api/describe/products/category \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(monk auth token)" \
+  -d '{
+    "type": "text",
+    "required": true,
+    "enum_values": ["electronics", "books", "clothing"]
+  }'
+
+# Add in_stock column
+curl -X POST http://localhost:9001/api/describe/products/in_stock \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(monk auth token)" \
+  -d '{
+    "type": "boolean",
+    "required": false,
+    "default_value": "true"
+  }'
+```
+
+### Retrieving Schema Metadata
+```bash
+# Get schema metadata (excludes columns)
 curl -X GET http://localhost:9001/api/describe/products \
   -H "Authorization: Bearer $(monk auth token)"
-
-# Response includes columns array with full metadata
 ```
 
 ### Updating Schema Status
@@ -597,7 +565,7 @@ curl -X PUT http://localhost:9001/api/describe/products \
 curl -X GET http://localhost:9001/api/describe/products/price \
   -H "Authorization: Bearer $(monk auth token)"
 
-# Update column (when implemented)
+# Update column
 curl -X PUT http://localhost:9001/api/describe/products/price \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
@@ -605,34 +573,45 @@ curl -X PUT http://localhost:9001/api/describe/products/price \
     "minimum": 0.01,
     "description": "Product price (minimum $0.01)"
   }'
+
+# Delete column
+curl -X DELETE http://localhost:9001/api/describe/products/in_stock \
+  -H "Authorization: Bearer $(monk auth token)"
 ```
 
 ### Schema with Relationships
 ```bash
-# Create schema with foreign key relationship
+# Step 1: Create schema
 curl -X POST http://localhost:9001/api/describe/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(monk auth token)" \
   -d '{
     "schema_name": "orders",
-    "columns": [
-      {
-        "column_name": "user_id",
-        "type": "uuid",
-        "required": true,
-        "relationship_type": "referenced",
-        "related_schema": "users",
-        "related_column": "id",
-        "relationship_name": "user",
-        "required_relationship": "true"
-      },
-      {
-        "column_name": "total",
-        "type": "decimal",
-        "required": true,
-        "minimum": 0
-      }
-    ]
+    "status": "active"
+  }'
+
+# Step 2: Add foreign key column
+curl -X POST http://localhost:9001/api/describe/orders/user_id \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(monk auth token)" \
+  -d '{
+    "type": "uuid",
+    "required": true,
+    "relationship_type": "referenced",
+    "related_schema": "users",
+    "related_column": "id",
+    "relationship_name": "user",
+    "required_relationship": "true"
+  }'
+
+# Step 3: Add other columns
+curl -X POST http://localhost:9001/api/describe/orders/total \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(monk auth token)" \
+  -d '{
+    "type": "decimal",
+    "required": true,
+    "minimum": 0
   }'
 ```
 
