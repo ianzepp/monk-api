@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 /**
  * Sudo API Routes - Privileged Operations
  * 
- * These routes require explicit sudo token obtained via POST /api/auth/sudo.
+ * These routes require explicit sudo token obtained via POST /api/user/sudo.
  * Even users with access='root' must explicitly escalate to get short-lived
  * sudo tokens before accessing these endpoints.
  * 

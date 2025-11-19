@@ -11,7 +11,7 @@
  *
  * Example:
  *   # From stdin
- *   curl /api/auth/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | node scripts/decrypt.js "$JWT"
+ *   curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | node scripts/decrypt.js "$JWT"
  *
  *   # From file
  *   node scripts/decrypt.js "$JWT" encrypted-response.txt
@@ -134,7 +134,7 @@ function main() {
         console.error('Examples:');
         console.error('  node decrypt.js "$JWT" < encrypted.txt');
         console.error('  node decrypt.js "$JWT" encrypted.txt');
-        console.error('  curl /api/auth/whoami?encrypt=pgp | node decrypt.js "$JWT"');
+        console.error('  curl /api/user/whoami?encrypt=pgp | node decrypt.js "$JWT"');
         process.exit(1);
     }
 

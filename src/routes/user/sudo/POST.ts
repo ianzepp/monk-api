@@ -5,7 +5,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 
 /**
- * POST /api/auth/sudo - Elevate user privileges to sudo level
+ * POST /api/user/sudo - Elevate user privileges to sudo level
  *
  * Generates short-lived sudo token for protected operations.
  * Requires existing user JWT and sufficient base privileges (root or full).

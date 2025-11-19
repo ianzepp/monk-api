@@ -34,10 +34,10 @@ Schemas with `freeze=true` **block all data operations**:
 ```
 
 ### Sudo-Protected Schemas
-Schemas with `sudo=true` require a short-lived sudo token from `POST /api/auth/sudo`:
+Schemas with `sudo=true` require a short-lived sudo token from `POST /api/user/sudo`:
 ```bash
 # Get sudo token first
-POST /api/auth/sudo
+POST /api/user/sudo
 {"reason": "Update financial records"}
 
 # Then use returned token for data operations

@@ -15,7 +15,7 @@ sudo_response=$(curl -s \
     -H "Authorization: Bearer $AUTH_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{\"reason\": \"Testing deactivation\"}" \
-    "$API_BASE/api/auth/sudo")
+    "$API_BASE/api/user/sudo")
 
 sudo_token=$(echo "$sudo_response" | jq -r '.data.token')
 

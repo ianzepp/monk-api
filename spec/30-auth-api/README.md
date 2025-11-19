@@ -9,8 +9,8 @@ Tests for protected authentication endpoints that require user authentication.
 - Post-login authentication workflows
 
 **Test Focus:**
-- WHO AM I endpoint (/api/auth/whoami)
-- Sudo privilege escalation (/api/auth/sudo)
+- WHO AM I endpoint (/api/user/whoami)
+- Sudo privilege escalation (/api/user/sudo)
 - User context validation for authenticated operations
 - Token-based authentication verification
 - Role and permission validation for protected endpoints

@@ -5,7 +5,7 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  * DELETE /api/sudo/users/:id - Delete user
  *
  * Deletes (soft delete) a user within the authenticated user's tenant.
- * Requires sudo token (obtained via POST /api/auth/sudo).
+ * Requires sudo token (obtained via POST /api/user/sudo).
  *
  * Query parameters:
  * - force=true: Perform hard delete instead of soft delete

@@ -5,7 +5,7 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  * PATCH /api/sudo/users/:id - Update specific user
  *
  * Updates an existing user within the authenticated user's tenant.
- * Requires sudo token (obtained via POST /api/auth/sudo).
+ * Requires sudo token (obtained via POST /api/user/sudo).
  *
  * Request body contains fields to update:
  * {

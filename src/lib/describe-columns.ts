@@ -38,7 +38,7 @@ export class DescribeColumns {
 
         if (!jwtPayload?.is_sudo) {
             throw HttpErrors.forbidden(
-                `Schema '${schemaName}' requires sudo access. Use POST /api/auth/sudo to get short-lived sudo token.`,
+                `Schema '${schemaName}' requires sudo access. Use POST /api/user/sudo to get short-lived sudo token.`,
                 'SCHEMA_REQUIRES_SUDO'
             );
         }

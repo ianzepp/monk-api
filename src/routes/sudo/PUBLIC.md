@@ -39,7 +39,7 @@ The Sudo API provides infrastructure management and user administration operatio
 
 ## Authentication
 
-All Sudo API endpoints require a valid **sudo token** obtained from `POST /api/auth/sudo`. Regular JWTs, even with `access='root'`, are not sufficient.
+All Sudo API endpoints require a valid **sudo token** obtained from `POST /api/user/sudo`. Regular JWTs, even with `access='root'`, are not sufficient.
 
 ```bash
 Authorization: Bearer <sudo_token>
@@ -48,7 +48,7 @@ Authorization: Bearer <sudo_token>
 ### Getting a Sudo Token
 
 1. User must have `access='root'` in their base JWT
-2. Request sudo token via `POST /api/auth/sudo`
+2. Request sudo token via `POST /api/user/sudo`
 3. Sudo token expires after 15 minutes
 4. Use sudo token for `/api/sudo/*` operations
 
@@ -551,7 +551,7 @@ Content-Type: application/json
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 401 | `JWT_REQUIRED` | "Valid JWT required for sudo operations" | No JWT provided |
-| 403 | `SUDO_TOKEN_REQUIRED` | "Sudo token required - use POST /api/auth/sudo to get short-lived sudo access" | Not a sudo token |
+| 403 | `SUDO_TOKEN_REQUIRED` | "Sudo token required - use POST /api/user/sudo to get short-lived sudo access" | Not a sudo token |
 | 409 | `DUPLICATE_AUTH` | "User with auth 'john@example.com' already exists" | Username/email already taken |
 
 ---
@@ -618,7 +618,7 @@ Authorization: Bearer <sudo_token>
 
 ### Sudo Token Requirements
 - Must have `access='root'` in base JWT
-- Must request sudo token via `POST /api/auth/sudo`
+- Must request sudo token via `POST /api/user/sudo`
 - Sudo token contains `is_sudo: true` flag
 - Sudo token expires after 15 minutes
 - Each dangerous operation requires fresh sudo token
@@ -644,7 +644,7 @@ All `/api/sudo/*` operations are **tenant-scoped**:
 ### Creating a New Team Member
 ```bash
 # 1. Get sudo token (15 min)
-SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/auth/sudo \
+SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/user/sudo \
   -H "Authorization: Bearer $ROOT_JWT" \
   -H "Content-Type: application/json" \
   -d '{"reason": "Adding new team member"}' | jq -r '.data.root_token')
@@ -663,7 +663,7 @@ curl -X POST http://localhost:9001/api/sudo/users \
 ### Updating User Access Level
 ```bash
 # 1. Get sudo token
-SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/auth/sudo \
+SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/user/sudo \
   -H "Authorization: Bearer $ROOT_JWT" \
   -d '{"reason": "Promoting user to full access"}' | jq -r '.data.root_token')
 
@@ -677,7 +677,7 @@ curl -X PATCH http://localhost:9001/api/sudo/users/$USER_ID \
 ### Removing a User
 ```bash
 # 1. Get sudo token
-SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/auth/sudo \
+SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/user/sudo \
   -H "Authorization: Bearer $ROOT_JWT" \
   -d '{"reason": "Removing inactive user"}' | jq -r '.data.root_token')
 
@@ -694,7 +694,7 @@ curl -X DELETE http://localhost:9001/api/sudo/users/$USER_ID \
 
 ```bash
 # 1. Get sudo token
-SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/auth/sudo \
+SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/user/sudo \
   -H "Authorization: Bearer $ROOT_JWT" \
   -d '{"reason": "Creating test sandbox"}' | jq -r '.data.root_token')
 
@@ -721,7 +721,7 @@ echo "Sandbox created: $SANDBOX_NAME"
 
 ```bash
 # 1. Get sudo token
-SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/auth/sudo \
+SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/user/sudo \
   -H "Authorization: Bearer $ROOT_JWT" \
   -d '{"reason": "Creating pre-migration snapshot"}' | jq -r '.data.root_token')
 
@@ -772,7 +772,7 @@ echo "Running migration..."
 
 ```bash
 # 1. Get sudo token
-SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/auth/sudo \
+SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/user/sudo \
   -H "Authorization: Bearer $ROOT_JWT" \
   -d '{"reason": "Testing production changes"}' | jq -r '.data.root_token')
 
@@ -807,7 +807,7 @@ curl -X DELETE http://localhost:9001/api/sudo/sandboxes/$SANDBOX_NAME \
 
 ```bash
 # 1. Get sudo token
-SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/auth/sudo \
+SUDO_TOKEN=$(curl -X POST http://localhost:9001/api/user/sudo \
   -H "Authorization: Bearer $ROOT_JWT" \
   -d '{"reason": "Extending sandbox"}' | jq -r '.data.root_token')
 
@@ -830,7 +830,7 @@ curl -X POST http://localhost:9001/api/sudo/sandboxes/my-sandbox-abc123/extend \
 ### Access Control
 All infrastructure operations require:
 1. Valid JWT with `access='root'`
-2. Sudo token (explicit escalation via `/api/auth/sudo`)
+2. Sudo token (explicit escalation via `/api/user/sudo`)
 3. Sudo token expires after 15 minutes
 
 ### Sandbox Ownership Model
@@ -882,7 +882,7 @@ Sandboxes belong to the **parent tenant**, not individual users:
 | Status | Error Code | Message | Solution |
 |--------|------------|---------|----------|
 | 401 | `JWT_REQUIRED` | "Valid JWT required" | Provide JWT token |
-| 403 | `SUDO_TOKEN_REQUIRED` | "Sudo token required" | Get sudo token via `/api/auth/sudo` |
+| 403 | `SUDO_TOKEN_REQUIRED` | "Sudo token required" | Get sudo token via `/api/user/sudo` |
 | 404 | `TEMPLATE_NOT_FOUND` | "Template 'xyz' not found" | Check template name, use `/api/sudo/templates` to list |
 | 404 | `SANDBOX_NOT_FOUND` | "Sandbox 'xyz' not found" | Verify sandbox exists in current tenant |
 | 404 | `SNAPSHOT_NOT_FOUND` | "Snapshot 'xyz' not found" | Verify snapshot exists in current tenant |

@@ -106,9 +106,7 @@ app.get('/', c => {
                 '/auth/register',
                 '/auth/refresh',
                 '/auth/tenants',
-                '/auth/templates',
-                '/api/auth/whoami',
-                '/api/auth/sudo'
+                '/auth/templates'
             ],
             describe: [
                 '/api/describe',
@@ -125,6 +123,8 @@ app.get('/', c => {
             aggregate: ['/api/aggregate/:schema'],
             bulk: ['/api/bulk'],
             user: [
+                '/api/user/whoami',
+                '/api/user/sudo',
                 '/api/user/profile',
                 '/api/user/deactivate'
             ],
@@ -192,10 +192,6 @@ app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
 app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
 app.get('/auth/templates', authRoutes.TemplatesGet); // GET /auth/templates
 
-// 30-auth-api: Auth API routes (protected - user account management)
-app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
-app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
-
 // 31-describe-api: Describe API routes
 app.get('/api/describe', describeRoutes.SchemaList); // Lists all schemas
 app.post('/api/describe/:schema', describeRoutes.SchemaPost); // Create schema (with URL name)
@@ -235,7 +231,9 @@ app.post('/api/aggregate/:schema', AggregateSchemaPost);
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);
 
-// 36-user-api: User API routes (self-service user management)
+// 36-user-api: User API routes (user identity and self-service management)
+app.get('/api/user/whoami', userRoutes.WhoamiGet); // GET /api/user/whoami
+app.post('/api/user/sudo', userRoutes.SudoPost); // POST /api/user/sudo
 app.get('/api/user/profile', userRoutes.ProfileGet); // GET /api/user/profile
 app.put('/api/user/profile', userRoutes.ProfilePut); // PUT /api/user/profile
 app.post('/api/user/deactivate', userRoutes.DeactivatePost); // POST /api/user/deactivate
@@ -249,7 +247,7 @@ app.delete('/api/acls/:schema/:record', aclsRoutes.RecordAclDelete); // Delete a
 // 39-stat-api: Stat API routes (record metadata without user data)
 app.get('/api/stat/:schema/:record', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
 
-// 41-sudo-api: Sudo API routes (require sudo token from /api/auth/sudo)
+// 41-sudo-api: Sudo API routes (require sudo token from /api/user/sudo)
 app.use('/api/sudo/*', middleware.sudoAccessMiddleware);
 app.route('/api/sudo', sudoRouter);
 

@@ -2,7 +2,7 @@
  * Sudo Access Validation Middleware
  * 
  * Validates that JWT token is a valid sudo token for /api/sudo/* operations.
- * Requires short-lived sudo token obtained via POST /api/auth/sudo.
+ * Requires short-lived sudo token obtained via POST /api/user/sudo.
  * 
  * This ensures dangerous operations (like user management) require explicit
  * privilege escalation even for root users, providing audit trail and
@@ -19,7 +19,7 @@ import type { JWTPayload } from './jwt-validation.js';
  * 
  * Validates user has sudo access via one of:
  * - access='root' (automatic sudo, like Linux root user)
- * - is_sudo=true (explicit sudo token from POST /api/auth/sudo)
+ * - is_sudo=true (explicit sudo token from POST /api/user/sudo)
  * - as_sudo=true (temporary self-service sudo flag)
  * 
  * Applied to /api/sudo/* routes that require privileged access.
@@ -36,7 +36,7 @@ export async function sudoAccessMiddleware(context: Context, next: Next) {
     // Check sudo access via helper (checks root, is_sudo, or as_sudo)
     if (!isSudo || !isSudo()) {
         throw HttpErrors.forbidden(
-            'Sudo access required - root users have automatic access, others must use POST /api/auth/sudo', 
+            'Sudo access required - root users have automatic access, others must use POST /api/user/sudo', 
             'SUDO_ACCESS_REQUIRED'
         );
     }

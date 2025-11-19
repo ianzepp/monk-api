@@ -5,7 +5,7 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  * POST /api/sudo/users - Create new user in current tenant
  *
  * Creates a new user within the authenticated user's tenant.
- * Requires sudo token (obtained via POST /api/auth/sudo).
+ * Requires sudo token (obtained via POST /api/user/sudo).
  *
  * This is a tenant-scoped operation - creates users only in the caller's tenant,
  * maintaining proper multi-tenant isolation.

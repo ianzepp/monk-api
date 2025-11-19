@@ -1,8 +1,8 @@
 # 30-Auth API Documentation
 
-> **Authentication and User Management**
+> **Public Authentication Interface**
 >
-> The Auth API provides user authentication, account management, and privilege escalation capabilities. It includes both public endpoints (login, whoami) and protected endpoints (sudo) for managing user sessions and access levels within the multi-tenant architecture.
+> The Auth API provides public authentication endpoints for token acquisition and account creation. All endpoints are public (no JWT required). User identity and privilege management have moved to the User API (/api/user).
 
 ## Table of Contents
 
@@ -19,43 +19,40 @@
 
 ## Overview
 
-The Auth API provides comprehensive authentication services for the Monk platform, supporting both user authentication and sudo privilege escalation. It serves as the gateway for user identity management and access control within the multi-tenant architecture.
+The Auth API provides public authentication services for the Monk platform. All endpoints are accessible without JWT tokens and handle initial user authentication and account creation.
 
 ### Key Capabilities
 - **User Authentication**: Secure login and session management
-- **User Information**: Retrieve current user context and permissions
-- **Privilege Escalation**: Sudo access for sudo operations
+- **Token Management**: Issue and refresh JWT tokens
+- **Account Registration**: Create new tenant accounts
+- **Tenant Discovery**: List available tenants (personal mode only)
+- **Template Management**: List available account templates
 - **Multi-tenant Support**: Tenant-isolated authentication with database routing
-- **JWT Token Management**: Secure token-based authentication with expiration
-- **Audit Integration**: All authentication events logged through observer pipeline
 
-### Base URLs
+### Public Endpoints (No JWT Required)
 ```
-GET  /api/auth/whoami     # Get current user information
-POST /api/auth/sudo       # Escalate to root privileges
+POST /auth/login          # User login - obtain JWT token
+POST /auth/register       # Create new tenant account
+POST /auth/refresh        # Token refresh - exchange old for new token
+GET  /auth/tenants        # List available tenants (personal mode)
+GET  /auth/templates      # List available templates (personal mode)
+POST /auth/fake           # Impersonate user (requires validation in handler)
 ```
 
-### Related Public Endpoints
+### Related Protected Endpoints (JWT Required)
+User identity and privilege management have moved to the User API:
 ```
-POST /auth/login          # User login (public, no JWT required)
-POST /auth/refresh        # Token refresh (public, no JWT required)
+GET  /api/user/whoami     # Get current user information
+POST /api/user/sudo       # Escalate to sudo privileges
 ```
 
 ## Authentication
 
-All 30-Auth API endpoints (except login/refresh) require valid JWT authentication. The API respects tenant isolation and provides detailed user context information.
+**All Auth API endpoints are public** - no JWT token required. These endpoints issue JWT tokens that are then used to access protected APIs under `/api/*`.
 
-```bash
-Authorization: Bearer <jwt_token>
-```
-
-### Required Permissions
-- **Whoami**: Any valid JWT token
-- **Sudo**: `full` or `root` access level required
-
-### Token Types
-- **User JWT**: Standard user authentication (1 hour expiration)
-- **Root JWT**: Administrative privileges (15 minute expiration)
+### Token Types Issued
+- **User JWT**: Standard user authentication (24 hour expiration)
+- **Sudo JWT**: Elevated privileges (15 minute expiration, obtained via `/api/user/sudo`)
 - **Refresh JWT**: Long-lived token for renewal (30 day expiration)
 
 ## Response Formats
@@ -77,7 +74,7 @@ The API determines response format using the following priority hierarchy:
 Standard JSON format - compact, widely supported, ideal for web applications.
 
 ```bash
-GET /api/auth/whoami?format=json
+GET /api/user/whoami?format=json
 Authorization: Bearer <token>
 ```
 
@@ -98,7 +95,7 @@ Response:
 Ultra-compact format optimized for LLM token efficiency - reduces token usage by 30-60% for array-heavy responses.
 
 ```bash
-GET /api/auth/whoami?format=toon
+GET /api/user/whoami?format=toon
 Authorization: Bearer <token>
 ```
 
@@ -116,7 +113,7 @@ data:
 Human-readable format ideal for configuration, DevOps tools, and documentation - more readable than JSON for nested structures.
 
 ```bash
-GET /api/auth/whoami?format=yaml
+GET /api/user/whoami?format=yaml
 Authorization: Bearer <token>
 ```
 
@@ -167,7 +164,7 @@ Now all subsequent API requests automatically use TOON format unless overridden:
 
 ```bash
 # Uses TOON automatically (from JWT preference)
-GET /api/auth/whoami
+GET /api/user/whoami
 Authorization: Bearer <token_with_toon_preference>
 
 # Override to YAML for configuration export
@@ -204,156 +201,55 @@ Responses include appropriate Content-Type headers:
 
 ## Core Endpoints
 
-### GET /api/auth/whoami
+The Auth API provides public authentication endpoints. For user identity and privilege management, see the [User API Documentation](../user/README.md).
 
-Retrieves comprehensive information about the currently authenticated user, including permissions, tenant context, and access levels.
+### User Identity and Privilege Management
 
-#### Request
-```bash
-GET /api/auth/whoami
-Authorization: Bearer <jwt_token>
-```
+The following endpoints have moved to the User API (`/api/user`):
 
-#### Response
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "username": "john.doe",
-    "tenant": "my-company",
-    "database": "tenant_a1b2c3d4",
-    "access": "full",
-    "access_read": ["uuid1", "uuid2"],
-    "access_edit": ["uuid3"],
-    "access_full": ["uuid4"],
-    "is_active": true,
-    "created_at": "2025-01-01T12:00:00.000Z",
-    "last_login": "2025-01-01T11:30:00.000Z"
-  }
-}
-```
+- **GET /api/user/whoami** - Get current authenticated user information
+- **POST /api/user/sudo** - Elevate privileges for protected operations
 
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 401 | `TOKEN_MISSING` | "Authorization header required" | No Bearer token provided |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Bad JWT signature or expired |
-| 401 | `USER_NOT_FOUND` | "User not found or inactive" | User doesn't exist in tenant DB |
-
-## User Information
-
-The whoami endpoint provides detailed user context for authenticated operations, enabling applications to:
-- Display current user information
-- Validate user permissions before operations
-- Implement role-based UI adaptations
-- Track user sessions and activity
-
-### Permission Arrays
-The response includes four permission arrays that control access to specific records:
-- **access_read**: Records the user can view
-- **access_edit**: Records the user can modify
-- **access_full**: Records the user can delete/manage
-- **access_deny**: Records explicitly denied (overrides other permissions)
-
-## Privilege Escalation
-
-### POST /api/auth/sudo
-
-Escalates user privileges to root level for sudo operations. Generates a short-lived root JWT token with enhanced permissions.
-
-#### Request
-```bash
-POST /api/auth/sudo
-Authorization: Bearer <user_jwt_token>
-Content-Type: application/json
-
-{
-  "reason": "Tenant sudo tasks"
-}
-```
-
-#### Response
-```json
-{
-  "success": true,
-  "data": {
-    "root_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expires_in": 900,
-    "token_type": "Bearer",
-    "access_level": "root",
-    "warning": "Root token expires in 15 minutes",
-    "elevated_from": "full",
-    "reason": "Tenant changes"
-  }
-}
-```
-
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 401 | `USER_JWT_REQUIRED` | "Valid user JWT required for privilege escalation" | No valid user JWT |
-| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo" | User lacks full/root access |
-
-### Sudo Workflow
-
-The privilege escalation process follows a secure workflow:
-
-1. **User Authentication**: Validate existing user JWT token
-2. **Permission Check**: Verify user has full or root access level
-3. **Token Generation**: Create short-lived root JWT with elevated permissions
-4. **Audit Logging**: Log escalation request with reason and user context
-5. **Token Usage**: Use root JWT for sudo operations
-
-#### Example Usage
-```bash
-# 1. Request elevated privileges
-curl -X POST http://localhost:9001/api/auth/sudo \
-  -H "Authorization: Bearer USER_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"reason": "Tenant sudo tasks"}'
-
-# 2. Use sudo token for user management operations
-curl -X POST http://localhost:9001/api/sudo/users \
-  -H "Authorization: Bearer SUDO_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "New User", "auth": "user@example.com", "access": "full"}'
-```
+For detailed documentation on these endpoints, please refer to:
+**[User API Documentation](../user/README.md)**
 
 ## Security Model
 
-### Access Level Requirements
-- **whoami endpoint**: Any valid user JWT token
-- **sudo endpoint**: Requires `root` base access level
-- **Sudo operations**: Generated sudo token required for `/api/sudo/*` endpoints (user management)
-- **Time limits**: Sudo tokens expire after 15 minutes for security
+### Public Access
+All Auth API endpoints are public and require no authentication. They handle:
+- Initial user authentication
+- JWT token issuance
+- Account registration
+- Tenant discovery (personal mode)
 
 ### Token Management Strategy
 ```javascript
-// Client should maintain separate tokens:
-localStorage.setItem('user_token', userJwt);        // Long-lived (1 hour)
-sessionStorage.setItem('root_token', rootJwt);     // Short-lived (15 minutes)
+// Store tokens issued by auth endpoints:
+localStorage.setItem('user_token', userJwt);        // Long-lived (24 hours)
 localStorage.setItem('refresh_token', refreshJwt); // Very long-lived (30 days)
 
-// Use appropriate token for different operations:
-const userHeaders = { 'Authorization': `Bearer ${userToken}` };    // Normal operations
-const rootHeaders = { 'Authorization': `Bearer ${rootToken}` };    // Administrative operations
+// Use user token for protected API operations:
+const headers = {
+  'Authorization': `Bearer ${userToken}`,
+  'Content-Type': 'application/json'
+};
+
+// Refresh when needed:
+if (tokenExpired) {
+  const response = await fetch('/auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ token: userToken })
+  });
+  const { token: newToken } = response.data;
+  localStorage.setItem('user_token', newToken);
+}
 ```
 
-### Security Features
-- **Explicit escalation**: Must actively request root privileges
-- **Time-limited**: Root tokens automatically expire after 15 minutes
-- **Audit logging**: All sudo requests logged with reason and user context
-- **Base requirements**: Only full/root users can escalate privileges
-- **Separate storage**: Keep user and root tokens in different storage mechanisms
-
 ### Best Practices
-1. **Request sudo only when needed**: Don't preemptively escalate
-2. **Provide clear reasons**: Include meaningful audit trail information
-3. **Handle expiration**: Root tokens expire quickly - be prepared to re-escalate
-4. **Separate storage**: Keep user and root tokens in different storage mechanisms
+1. **Secure token storage**: Use httpOnly cookies or secure localStorage
+2. **Handle expiration**: Implement token refresh flow before expiration
+3. **Validate on use**: Always handle 401 responses gracefully
+4. **Logout properly**: Clear tokens on logout
 
 ## Error Handling
 
@@ -361,73 +257,50 @@ All error responses respect the format preference (JSON or TOON) set in the requ
 
 ### Common Error Responses
 
-#### Authentication Errors
-
-**JSON Format:**
+#### Invalid Credentials
 ```json
 {
   "success": false,
   "error": {
     "type": "AuthenticationError",
-    "message": "Authorization header required",
-    "code": "TOKEN_MISSING"
+    "message": "Authentication failed",
+    "code": "AUTH_FAILED"
   }
 }
 ```
 
-**TOON Format:**
-```toon
-success: false
-error:
-  type: AuthenticationError
-  message: Authorization header required
-  code: TOKEN_MISSING
+#### Missing Required Fields
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "Tenant is required",
+    "code": "TENANT_MISSING"
+  }
+}
 ```
 
-#### Token Validation Errors
+#### Token Refresh Failed
 ```json
 {
   "success": false,
   "error": {
     "type": "AuthenticationError",
-    "message": "Invalid or expired token",
-    "code": "TOKEN_INVALID"
+    "message": "Token refresh failed",
+    "code": "TOKEN_REFRESH_FAILED"
   }
 }
 ```
 
-#### User Not Found
+#### Tenant Already Exists
 ```json
 {
   "success": false,
   "error": {
-    "type": "AuthenticationError",
-    "message": "User not found or inactive",
-    "code": "USER_NOT_FOUND"
-  }
-}
-```
-
-#### Sudo Access Denied
-```json
-{
-  "success": false,
-  "error": {
-    "type": "PermissionError",
-    "message": "Insufficient privileges for sudo",
-    "code": "SUDO_ACCESS_DENIED"
-  }
-}
-```
-
-#### Missing User JWT
-```json
-{
-  "success": false,
-  "error": {
-    "type": "AuthenticationError",
-    "message": "Valid user JWT required for privilege escalation",
-    "code": "USER_JWT_REQUIRED"
+    "type": "ConflictError",
+    "message": "Tenant 'example' already exists",
+    "code": "TENANT_EXISTS"
   }
 }
 ```
@@ -438,79 +311,83 @@ For comprehensive testing information and test coverage details, please refer to
 
 **[spec/30-auth-api/README.md](../spec/30-auth-api/README.md)**
 
-This includes test scope, focus areas, and testing strategies for authentication endpoints, including:
-- WHOAMI endpoint functionality and user context validation
-- Sudo privilege escalation and root token generation
-- Authentication error handling and security validation
-- Token-based authentication verification
-- Role and permission validation for protected endpoints
+This includes test scope, focus areas, and testing strategies for public authentication endpoints, including:
+- Login and token acquisition
+- Account registration
+- Token refresh flows
+- Tenant discovery (personal mode)
+- Authentication error handling
 
 ## Common Use Cases
 
-### Basic User Information Retrieval
+### Initial Authentication
 ```bash
-# Get current user information
-curl -X GET http://localhost:9001/api/auth/whoami \
-  -H "Authorization: Bearer USER_JWT_TOKEN"
+# Login to get JWT token
+curl -X POST http://localhost:9001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"tenant": "my-company", "username": "john.doe"}'
 
-# Response includes user details, permissions, and tenant context
+# Response includes JWT token for protected API access
 ```
 
-### Administrative Privilege Escalation
+### Account Registration
 ```bash
-# 1. Request root privileges for sudo tasks
-curl -X POST http://localhost:9001/api/auth/sudo \
-  -H "Authorization: Bearer USER_JWT_TOKEN" \
+# Create new tenant account (personal mode)
+curl -X POST http://localhost:9001/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"reason": "Tenant database maintenance"}'
+  -d '{"tenant": "my-app", "description": "My application"}'
 
-# 2. Use sudo token for user management operations
-curl -X POST http://localhost:9001/api/sudo/users \
-  -H "Authorization: Bearer SUDO_TOKEN" \
+# Response includes JWT token for immediate access
+```
+
+### Token Refresh
+```bash
+# Refresh expired or near-expiration token
+curl -X POST http://localhost:9001/auth/refresh \
   -H "Content-Type: application/json" \
-  -d '{"name": "New User", "auth": "user@example.com", "access": "full"}'
+  -d '{"token": "CURRENT_JWT_TOKEN"}'
+
+# Response includes new JWT token with fresh expiration
 ```
 
 ### Token Management in Applications
 ```javascript
-// Store tokens separately with different lifetimes
-const userToken = localStorage.getItem('user_token');     // 1 hour
-const rootToken = sessionStorage.getItem('root_token');   // 15 minutes
-
-// Use appropriate token for different operations
-const userHeaders = {
-  'Authorization': `Bearer ${userToken}`,
-  'Content-Type': 'application/json'
-};
-
-const rootHeaders = {
-  'Authorization': `Bearer ${rootToken}`,
-  'Content-Type': 'application/json'
-};
-
-// Normal data operations with user token
-fetch('/api/data/users', { headers: userHeaders })
-  .then(response => response.json());
-
-// User management operations with sudo token
-fetch('/api/sudo/users', {
+// 1. Login and store token
+const loginResponse = await fetch('/auth/login', {
   method: 'POST',
-  headers: { ...sudoHeaders, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'New User', auth: 'user@example.com', access: 'full' })
-}).then(response => response.json());
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ tenant: 'my-company', username: 'john.doe' })
+});
+const { token } = (await loginResponse.json()).data;
+localStorage.setItem('access_token', token);
+
+// 2. Use token for protected API calls
+const apiResponse = await fetch('/api/data/users', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+
+// 3. Handle token refresh when needed
+if (apiResponse.status === 401) {
+  const refreshResponse = await fetch('/auth/refresh', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token })
+  });
+
+  if (refreshResponse.ok) {
+    const { token: newToken } = (await refreshResponse.json()).data;
+    localStorage.setItem('access_token', newToken);
+    // Retry original request with new token
+  }
+}
 ```
 
-### Session Validation
+### Tenant Discovery (Personal Mode)
 ```bash
-# Validate current session before sensitive operations
-curl -X GET http://localhost:9001/api/auth/whoami \
-  -H "Authorization: Bearer USER_JWT_TOKEN" | \
-  jq -r '.data.access'
+# List available tenants
+curl -X GET http://localhost:9001/auth/tenants
 
-# Check if user has full privileges before sudo
-curl -X GET http://localhost:9001/api/auth/whoami \
-  -H "Authorization: Bearer USER_JWT_TOKEN" | \
-  jq -r '.data.access' | grep -E "(full|root)"
+# Response includes all tenants with their users
 ```
 
 ---

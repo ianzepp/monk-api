@@ -75,7 +75,7 @@ export default async function (context: Context) {
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
         // Root users automatically have sudo access (like Linux root)
-        // Full users must call POST /api/auth/sudo to elevate
+        // Full users must call POST /api/user/sudo to elevate
         is_sudo: user.access === 'root',
         // Include format preference if provided
         ...(format && ['json', 'toon', 'yaml'].includes(format) && { format }),

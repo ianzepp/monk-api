@@ -4,7 +4,7 @@
  * Ensures that operations on schemas marked with sudo=true require sudo access.
  * Sudo access is granted via:
  * - access='root' (automatic sudo, like Linux root user)
- * - is_sudo=true (explicit sudo token from POST /api/auth/sudo)
+ * - is_sudo=true (explicit sudo token from POST /api/user/sudo)
  * - as_sudo=true (temporary self-service sudo flag)
  *
  * This provides:
@@ -48,7 +48,7 @@ export default class SudoValidator extends BaseObserver {
         
         if (!isSudo || !isSudo()) {
             throw new SystemError(
-                `Schema '${schema.schema_name}' requires sudo access. Root users have automatic access, others must use POST /api/auth/sudo.`
+                `Schema '${schema.schema_name}' requires sudo access. Root users have automatic access, others must use POST /api/user/sudo.`
             );
         }
 

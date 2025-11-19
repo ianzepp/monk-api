@@ -92,15 +92,15 @@ Client receives final response
 **Examples:**
 ```bash
 # Unwrap envelope
-GET /api/auth/whoami?unwrap
+GET /api/user/whoami?unwrap
 → {"id": "...", "name": "...", "access": "root"}
 
 # Select specific fields
-GET /api/auth/whoami?select=id,name
+GET /api/user/whoami?select=id,name
 → {"id": "...", "name": "..."}
 
 # Select single field (returns plain text)
-GET /api/auth/whoami?select=id
+GET /api/user/whoami?select=id
 → "c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c"
 
 # Exclude system fields
@@ -131,7 +131,7 @@ GET /api/data/users?stat=false&access=false
 **Examples:**
 ```bash
 # YAML format
-GET /api/auth/whoami?format=yaml
+GET /api/user/whoami?format=yaml
 → success: true
   data:
     id: ...
@@ -142,7 +142,7 @@ GET /api/find/users?format=csv
   "...", "...", "..."
 
 # TOON format (compact for LLMs)
-GET /api/auth/whoami?format=toon
+GET /api/user/whoami?format=toon
 → success: true
   data:
     id: ...
@@ -170,7 +170,7 @@ GET /api/auth/whoami?format=toon
 **Examples:**
 ```bash
 # Encrypt JSON response
-GET /api/auth/whoami?encrypt=pgp
+GET /api/user/whoami?encrypt=pgp
 → -----BEGIN MONK ENCRYPTED MESSAGE-----
   Version: Monk-API/3.0
   Cipher: AES-256-GCM
@@ -179,7 +179,7 @@ GET /api/auth/whoami?encrypt=pgp
   -----END MONK ENCRYPTED MESSAGE-----
 
 # Encrypt YAML response
-GET /api/auth/whoami?format=yaml&encrypt=pgp
+GET /api/user/whoami?format=yaml&encrypt=pgp
 → (encrypted YAML output)
 
 # Decrypt
@@ -199,13 +199,13 @@ All query parameters work together seamlessly:
 
 ```bash
 # Extract fields + format + encrypt
-GET /api/auth/whoami?select=id,name&format=yaml&encrypt=pgp
+GET /api/user/whoami?select=id,name&format=yaml&encrypt=pgp
 
 # Unwrap + exclude system fields + CSV
 GET /api/find/users?unwrap&stat=false&format=csv
 
 # Select field + TOON format
-GET /api/auth/whoami?select=access&format=toon
+GET /api/user/whoami?select=access&format=toon
 → root
 ```
 
@@ -316,10 +316,10 @@ To add a new transformation step:
 ### Test Format Conversion
 ```bash
 # JSON (default)
-monk curl GET '/api/auth/whoami'
+monk curl GET '/api/user/whoami'
 
 # YAML
-monk curl GET '/api/auth/whoami?format=yaml'
+monk curl GET '/api/user/whoami?format=yaml'
 
 # CSV (requires array response)
 monk curl GET '/api/find/users?format=csv'
@@ -328,7 +328,7 @@ monk curl GET '/api/find/users?format=csv'
 ### Test Encryption
 ```bash
 # Encrypt JSON
-monk curl GET '/api/auth/whoami?encrypt=pgp' > encrypted.txt
+monk curl GET '/api/user/whoami?encrypt=pgp' > encrypted.txt
 
 # Decrypt
 TOKEN=$(monk curl POST '/auth/login' -d '{"tenant":"demo","username":"root"}' | jq -r '.data.token')
@@ -338,7 +338,7 @@ node scripts/decrypt.js "$TOKEN" < encrypted.txt
 ### Test Composition
 ```bash
 # Extract + format + encrypt
-monk curl GET '/api/auth/whoami?select=id,name&format=yaml&encrypt=pgp'
+monk curl GET '/api/user/whoami?select=id,name&format=yaml&encrypt=pgp'
 ```
 
 ## Performance Considerations

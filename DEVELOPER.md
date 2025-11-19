@@ -270,7 +270,7 @@ All infrastructure operations require **sudo access** via `/api/sudo/*` endpoint
 
 ```bash
 # 1. Get sudo token (15 min validity)
-POST /api/auth/sudo
+POST /api/user/sudo
 
 # 2. List templates
 GET /api/sudo/templates

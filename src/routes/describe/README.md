@@ -387,7 +387,7 @@ Schemas marked with `sudo=true` require short-lived sudo token for all data oper
   "sudo": true
 }
 ```
-Users must call `POST /api/auth/sudo` to obtain a time-limited sudo token before modifying these schemas.
+Users must call `POST /api/user/sudo` to obtain a time-limited sudo token before modifying these schemas.
 
 #### Frozen Schemas
 Schemas marked with `freeze=true` prevent ALL data operations (emergency circuit breaker):

@@ -14,8 +14,8 @@ The Auth API covers both **public token acquisition routes** and **protected use
 | POST | [`/auth/refresh`](#post-authrefresh) | Public | Exchange an existing token for a fresh one with the same scope. |
 | POST | [`/auth/register`](#post-authregister) | Public | Provision a new tenant from the default template and return an initial token. |
 | GET | [`/auth/tenants`](#get-authtenants) | Public | List available tenants (personal mode only). |
-| GET | [`/api/auth/whoami`](#get-apiauthwhoami) | Protected | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
-| POST | [`/api/auth/sudo`](#post-apiauthsudo) | Protected | Get short-lived sudo token for dangerous operations (user management). |
+| GET | [`/api/user/whoami`](#get-apiauthwhoami) | Protected | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
+| POST | [`/api/user/sudo`](#post-apiauthsudo) | Protected | Get short-lived sudo token for dangerous operations (user management). |
 | POST | [`/api/auth/fake`](#post-apiauthfake) | Protected (Root) | Impersonate another user for debugging and support (root only). |
 
 ## Content Type
@@ -37,19 +37,19 @@ The Auth API supports three response formats optimized for different clients:
 
 **JSON (Default)**
 ```bash
-GET /api/auth/whoami?format=json
+GET /api/user/whoami?format=json
 ```
 Standard JSON - widely supported, ideal for web/mobile apps.
 
 **TOON (Token-Oriented Object Notation)**
 ```bash
-GET /api/auth/whoami?format=toon
+GET /api/user/whoami?format=toon
 ```
 Ultra-compact format - 30-60% smaller than JSON, optimized for LLM agents.
 
 **YAML (Yet Another Markup Language)**
 ```bash
-GET /api/auth/whoami?format=yaml
+GET /api/user/whoami?format=yaml
 ```
 Human-readable format - ideal for configuration, DevOps tools, and documentation.
 
@@ -345,7 +345,7 @@ curl -X GET http://localhost:9001/api/data/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Access user account management
-curl -X GET http://localhost:9001/api/auth/whoami \
+curl -X GET http://localhost:9001/api/user/whoami \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -449,7 +449,7 @@ curl -X GET http://localhost:9001/api/data/users \
 
 Protected routes operate on authenticated users. They require a valid Bearer token obtained from the public routes above.
 
-### GET /api/auth/whoami
+### GET /api/user/whoami
 
 Return the fully hydrated user identity for the active JWT, including tenant metadata, ACL lists, and record status flags. Clients typically call this at startup to confirm the token is valid, discover the backing database, and personalize UI according to the access arrays.
 
@@ -484,7 +484,7 @@ None - GET request with no body.
 
 ---
 
-### POST /api/auth/sudo
+### POST /api/user/sudo
 
 Request a short-lived sudo token for protected operations requiring elevated privileges. Both root and full users can request sudo tokens, with root users receiving automatic sudo access at login as a convenience.
 
@@ -628,7 +628,7 @@ curl -X GET http://localhost:9001/api/data/accounts \
   -H "Authorization: Bearer FAKE_TOKEN"
 
 # Whoami will show the faked user's identity
-curl -X GET http://localhost:9001/api/auth/whoami \
+curl -X GET http://localhost:9001/api/user/whoami \
   -H "Authorization: Bearer FAKE_TOKEN"
 ```
 
@@ -658,13 +658,13 @@ The sudo model follows Linux conventions where root users have implicit sudo acc
 
 ### Root Users (Automatic Sudo)
 - Login JWT includes `is_sudo: true` automatically
-- Can perform sudo operations immediately without calling `/api/auth/sudo`
-- Can still call `/api/auth/sudo` to get time-limited token with `elevation_reason` for audit trail
+- Can perform sudo operations immediately without calling `/api/user/sudo`
+- Can still call `/api/user/sudo` to get time-limited token with `elevation_reason` for audit trail
 - Like Linux root user - inherently trusted
 
 ### Full Users (Temporary Sudo)
 - Login JWT has `is_sudo: false`
-- Must call POST `/api/auth/sudo` to get 15-minute sudo token
+- Must call POST `/api/user/sudo` to get 15-minute sudo token
 - Sudo token includes `is_sudo: true` and audit metadata
 - Like Linux user in sudoers file - can elevate when needed
 
@@ -686,7 +686,7 @@ const userToken = loginResponse.data.token;  // is_sudo=false
 localStorage.setItem('user_token', userToken);
 
 // Request sudo when needed
-const sudoResponse = await fetch('/api/auth/sudo', {
+const sudoResponse = await fetch('/api/user/sudo', {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${userToken}`,
@@ -724,7 +724,7 @@ curl -X POST http://localhost:9001/auth/login \
 # Returns: token with is_sudo=false
 
 # 2. Request sudo token
-curl -X POST http://localhost:9001/api/auth/sudo \
+curl -X POST http://localhost:9001/api/user/sudo \
   -H "Authorization: Bearer FULL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"reason": "Creating new team member"}'
@@ -743,15 +743,15 @@ curl -X POST http://localhost:9001/api/data/users \
 - **Role-based access**: Only root and full users can have sudo access
 - **Automatic for root**: Root users have implicit sudo (like Linux root)
 - **Explicit for full**: Full users must actively request sudo elevation
-- **Time-limited**: Sudo tokens from `/api/auth/sudo` expire after 15 minutes
+- **Time-limited**: Sudo tokens from `/api/user/sudo` expire after 15 minutes
 - **Audit logging**: All sudo requests logged with reason and user context
 - **Tenant-scoped**: Sudo operations restricted to user's tenant
 
 ### Best Practices
 
 **For Root Users:**
-1. **Use login token directly**: No need to call `/api/auth/sudo` for normal operations
-2. **Optional sudo request**: Call `/api/auth/sudo` when you want explicit audit trail
+1. **Use login token directly**: No need to call `/api/user/sudo` for normal operations
+2. **Optional sudo request**: Call `/api/user/sudo` when you want explicit audit trail
 3. **Long-lived access**: Root login tokens last 24 hours with continuous sudo
 
 **For Full Users:**

@@ -23,7 +23,7 @@ else
 fi
 
 # Verify it contains both public and protected sections
-if echo "$auth_docs" | grep -q "POST /auth/login" && echo "$auth_docs" | grep -q "POST /api/auth/sudo"; then
+if echo "$auth_docs" | grep -q "POST /auth/login" && echo "$auth_docs" | grep -q "POST /api/user/sudo"; then
     print_success "Auth documentation contains both public and protected endpoints"
 else
     test_fail "Auth documentation missing public or protected sections"

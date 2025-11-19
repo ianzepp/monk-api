@@ -2,22 +2,22 @@
 set -e
 
 # Sudo Escalation Test
-# Tests the /api/auth/sudo endpoint for privilege escalation
+# Tests the /api/user/sudo endpoint for privilege escalation
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing sudo escalation endpoint"
+print_step "Testing User API sudo escalation endpoint"
 
 # Setup test environment
 setup_test_with_template "sudo-escalation" "testing"
 setup_full_auth
 
 # Test 1: Basic sudo escalation
-print_step "Testing POST /api/auth/sudo with full user"
+print_step "Testing POST /api/user/sudo with full user"
 
 sudo_payload=$(jq -n '{"reason": "Testing sudo escalation"}')
-sudo_response=$(auth_post "api/auth/sudo" "$sudo_payload")
+sudo_response=$(auth_post "api/user/sudo" "$sudo_payload")
 
 echo "Sudo response: $sudo_response"
 

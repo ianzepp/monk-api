@@ -178,7 +178,7 @@ escalate_sudo() {
 
     # Use jq to properly escape JSON
     local json_data=$(jq -n --arg reason "$reason" '{reason: $reason}')
-    local response=$(auth_post "api/auth/sudo" "$json_data")
+    local response=$(auth_post "api/user/sudo" "$json_data")
 
     if echo "$response" | jq -e '.success == true' >/dev/null; then
         echo "$response" | jq -r '.data.sudo_token'

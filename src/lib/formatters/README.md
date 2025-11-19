@@ -7,24 +7,24 @@ The Monk API supports multiple response formats to optimize for different use ca
 ### Format Only
 ```bash
 # Get response in TOON format
-curl http://localhost:9001/api/auth/whoami?format=toon
+curl http://localhost:9001/api/user/whoami?format=toon
 ```
 
 ### Field Extraction Only
 ```bash
 # Extract single field (returns plain text)
-curl http://localhost:9001/api/auth/whoami?select=id
+curl http://localhost:9001/api/user/whoami?select=id
 → c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c
 
 # Extract multiple fields (returns JSON object)
-curl http://localhost:9001/api/auth/whoami?select=id,name
+curl http://localhost:9001/api/user/whoami?select=id,name
 → {"id":"c81d0a9b...","name":"Demo User"}
 ```
 
 ### Combined: Extract + Format
 ```bash
 # Extract fields THEN format as TOON
-curl http://localhost:9001/api/auth/whoami?select=id,name&format=toon
+curl http://localhost:9001/api/user/whoami?select=id,name&format=toon
 → id: c81d0a9b...
   name: Demo User
 ```
@@ -82,7 +82,7 @@ data:
 
 **With Field Extraction:**
 ```bash
-curl http://localhost:9001/api/auth/whoami?select=id,access&format=toon
+curl http://localhost:9001/api/user/whoami?select=id,access&format=toon
 → id: c81d0a9b...
   access: root
 ```
@@ -110,7 +110,7 @@ data:
 
 **With Field Extraction:**
 ```bash
-curl http://localhost:9001/api/auth/whoami?select=access_read,access_edit&format=yaml
+curl http://localhost:9001/api/user/whoami?select=access_read,access_edit&format=yaml
 → access_read: []
   access_edit: []
 ```
@@ -148,7 +148,7 @@ name = "Demo User"
 
 **With Field Extraction:**
 ```bash
-curl http://localhost:9001/api/auth/whoami?select=id,access&format=toml
+curl http://localhost:9001/api/user/whoami?select=id,access&format=toml
 → id = "c81d0a9b..."
   access = "root"
 ```
@@ -192,7 +192,7 @@ curl /api/find/users?format=csv
 → Returns CSV with headers
 
 # ✗ Error: Not an array
-curl /api/auth/whoami?format=csv
+curl /api/user/whoami?format=csv
 → HTTP 500: "CSV format requires an array of objects"
 
 # ✗ Error: Array of primitives
@@ -283,7 +283,7 @@ curl -X POST http://localhost:9001/auth/login \
 **With Field Extraction:**
 ```bash
 # Extract field and return as Morse code
-curl http://localhost:9001/api/auth/whoami?select=name&format=morse
+curl http://localhost:9001/api/user/whoami?select=name&format=morse
 ```
 
 ### QR Code (Response-Only)
@@ -363,7 +363,7 @@ Server-side field extraction eliminates the need for `curl | jq` piping in test 
 
 **No Parameters (Full Envelope):**
 ```bash
-GET /api/auth/whoami
+GET /api/user/whoami
 → {"success": true, "data": {"id": "...", "name": "...", ...}}
 ```
 
@@ -384,31 +384,31 @@ GET /api/auth/whoami
 **Before (with jq):**
 ```bash
 # Unwrap data object
-curl /api/auth/whoami | jq -r '.data'
+curl /api/user/whoami | jq -r '.data'
 
 # Extract single field
-curl /api/auth/whoami | jq -r '.data.id'
+curl /api/user/whoami | jq -r '.data.id'
 
 # Extract multiple fields
-curl /api/auth/whoami | jq '{id: .data.id, name: .data.name}'
+curl /api/user/whoami | jq '{id: .data.id, name: .data.name}'
 ```
 
 **After (with ?unwrap and ?select=):**
 ```bash
 # Unwrap data object (no envelope)
-curl /api/auth/whoami?unwrap
+curl /api/user/whoami?unwrap
 → {"id":"c81d0a9b...","name":"Demo User","access":"root",...}
 
 # Extract single field (returns plain text)
-curl /api/auth/whoami?select=id
+curl /api/user/whoami?select=id
 → c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c
 
 # Extract multiple fields (returns JSON object)
-curl /api/auth/whoami?select=id,name
+curl /api/user/whoami?select=id,name
 → {"id":"c81d0a9b...","name":"Demo User"}
 
 # Extract and format (one request)
-curl /api/auth/whoami?select=id,name&format=toon
+curl /api/user/whoami?select=id,name&format=toon
 → id: c81d0a9b...
   name: Demo User
 ```
@@ -431,13 +431,13 @@ curl /api/auth/whoami?select=id,name&format=toon
 **Test Scripts:**
 ```bash
 # Get unwrapped user data
-USER_DATA=$(curl /api/auth/whoami?unwrap)
+USER_DATA=$(curl /api/user/whoami?unwrap)
 
 # Get just the token for subsequent requests
 TOKEN=$(curl /auth/login?select=token -d '{"tenant":"demo","username":"root"}')
 
 # Verify specific field value
-USER_ACCESS=$(curl /api/auth/whoami?select=access)
+USER_ACCESS=$(curl /api/user/whoami?select=access)
 [[ "$USER_ACCESS" == "root" ]] && echo "Admin access confirmed"
 ```
 
@@ -447,7 +447,7 @@ USER_ACCESS=$(curl /api/auth/whoami?select=access)
 curl /api/describe?unwrap | jq 'length'
 
 # Get database name for backup scripts
-DB_NAME=$(curl /api/auth/whoami?select=database)
+DB_NAME=$(curl /api/user/whoami?select=database)
 backup-database "$DB_NAME"
 ```
 
@@ -457,8 +457,8 @@ backup-database "$DB_NAME"
 curl /api/data/users/123?select=email
 
 # Compare fields across formats
-curl /api/auth/whoami?select=id,name&format=toon
-curl /api/auth/whoami?select=id,name&format=yaml
+curl /api/user/whoami?select=id,name&format=toon
+curl /api/user/whoami?select=id,name&format=yaml
 
 # Get full data without envelope
 curl /api/data/users/123?unwrap
@@ -704,16 +704,16 @@ The `monk curl` command provides simplified access with automatic authentication
 
 ```bash
 # Standard request
-monk curl GET /api/auth/whoami
+monk curl GET /api/user/whoami
 
 # With field extraction
-monk curl GET '/api/auth/whoami?select=id'
+monk curl GET '/api/user/whoami?select=id'
 
 # With format
-monk curl GET '/api/auth/whoami?format=toon'
+monk curl GET '/api/user/whoami?format=toon'
 
 # Combined
-monk curl GET '/api/auth/whoami?select=id,name&format=yaml'
+monk curl GET '/api/user/whoami?select=id,name&format=yaml'
 ```
 
 The command handles:
@@ -737,29 +737,29 @@ curl /auth/tenants?unwrap&format=json | jq -r '.[].name'
 ### Chain with jq (When Needed)
 ```bash
 # Extract then transform with jq
-curl /api/auth/whoami?unwrap | jq -r '.access'
+curl /api/user/whoami?unwrap | jq -r '.access'
 
 # Or just extract directly
-curl /api/auth/whoami?select=access
+curl /api/user/whoami?select=access
 ```
 
 ### Format Comparison
 ```bash
 # Compare same data in different formats
-curl /api/auth/whoami?select=id,name
-curl /api/auth/whoami?select=id,name&format=toon
-curl /api/auth/whoami?select=id,name&format=yaml
-curl /api/auth/whoami?select=id,name&format=markdown
+curl /api/user/whoami?select=id,name
+curl /api/user/whoami?select=id,name&format=toon
+curl /api/user/whoami?select=id,name&format=yaml
+curl /api/user/whoami?select=id,name&format=markdown
 ```
 
 ### Token Usage Optimization
 ```bash
 # Full response (verbose JSON)
-curl /api/auth/whoami
+curl /api/user/whoami
 → {"success":true,"data":{"id":"...","name":"...","access":"...","tenant":"...","database":"...","access_read":[],"access_edit":[],"access_full":[]}}
 
 # Extract only needed fields + TOON format (minimal tokens)
-curl /api/auth/whoami?select=id,access&format=toon
+curl /api/user/whoami?select=id,access&format=toon
 → id: c81d0a9b...
   access: root
 ```
@@ -768,19 +768,19 @@ curl /api/auth/whoami?select=id,access&format=toon
 
 ### Missing Fields
 ```bash
-curl /api/auth/whoami?select=nonexistent
+curl /api/user/whoami?select=nonexistent
 → null  (graceful)
 ```
 
 ### Invalid Path Syntax
 ```bash
-curl /api/auth/whoami?select=.invalid
+curl /api/user/whoami?select=.invalid
 → null  (graceful - treats as missing)
 ```
 
 ### Empty Pick Parameter
 ```bash
-curl /api/auth/whoami?select=
+curl /api/user/whoami?select=
 → (returns full response - extraction skipped)
 ```
 
@@ -795,14 +795,14 @@ If extraction fails, the original response is returned with a logged error.
 ```bash
 #!/bin/bash
 TOKEN=$(curl /auth/login -d '{"tenant":"demo","username":"root"}' | jq -r '.data.token')
-USER_ID=$(curl /api/auth/whoami -H "Authorization: Bearer $TOKEN" | jq -r '.data.id')
+USER_ID=$(curl /api/user/whoami -H "Authorization: Bearer $TOKEN" | jq -r '.data.id')
 ```
 
 **New Approach:**
 ```bash
 #!/bin/bash
 TOKEN=$(curl /auth/login?select=token -d '{"tenant":"demo","username":"root"}')
-USER_ID=$(curl /api/auth/whoami?select=id -H "Authorization: Bearer $TOKEN")
+USER_ID=$(curl /api/user/whoami?select=id -H "Authorization: Bearer $TOKEN")
 ```
 
 **Benefits:**
@@ -830,7 +830,7 @@ Request → Route Logic → ?select=/?unwrap → ?format= → ?encrypt=pgp → R
 **Example:**
 ```bash
 # Encrypt JSON response
-curl /api/auth/whoami?encrypt=pgp \
+curl /api/user/whoami?encrypt=pgp \
   -H "Authorization: Bearer $JWT" > encrypted.txt
 
 # Decrypt with same JWT
@@ -878,7 +878,7 @@ Cipher: AES-256-GCM
 **Using Decrypt Script:**
 ```bash
 # From stdin
-curl /api/auth/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" \
+curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" \
   | node scripts/decrypt.js "$JWT"
 
 # From file
@@ -893,7 +893,7 @@ node scripts/decrypt.js "$JWT" encrypted-response.txt
 **Error Handling:**
 ```bash
 # Missing JWT → 401 error (JSON response)
-curl /api/auth/whoami?encrypt=pgp
+curl /api/user/whoami?encrypt=pgp
 → {"success": false, "error": "Encryption requires authentication"}
 
 # Invalid JWT → Decryption fails with clear error message
@@ -909,7 +909,7 @@ curl /api/find/users?select=id,email&format=csv&encrypt=pgp
 curl /api/describe?unwrap&format=yaml&encrypt=pgp
 
 # Extract single field, then encrypt
-curl /api/auth/whoami?select=id&encrypt=pgp
+curl /api/user/whoami?select=id&encrypt=pgp
 ```
 
 ### Important Security Warnings

@@ -463,7 +463,7 @@ System schemas (status='system') cannot be modified or deleted:
 - `definitions` - Auto-generated JSON Schema definitions (internal use only)
 
 ### Sudo-Protected Schemas
-Schemas marked with `sudo=true` require a short-lived sudo token for all data operations. Users must call `POST /api/auth/sudo` to obtain the token before modifying these schemas.
+Schemas marked with `sudo=true` require a short-lived sudo token for all data operations. Users must call `POST /api/user/sudo` to obtain the token before modifying these schemas.
 
 **Use case**: Protect critical system schemas from accidental modifications.
 

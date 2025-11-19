@@ -80,7 +80,7 @@ export default class ColumnSudoValidator extends BaseObserver {
 
             throw new SecurityError(
                 `Cannot modify sudo-protected fields [${fieldList}] without sudo access. ` +
-                `Use POST /api/auth/sudo to get short-lived sudo token before modifying these fields.`,
+                `Use POST /api/user/sudo to get short-lived sudo token before modifying these fields.`,
                 { fields: Array.from(sudoFieldsModified) }, // Context with affected fields
                 'FIELD_REQUIRES_SUDO'
             );

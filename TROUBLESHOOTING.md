@@ -195,7 +195,7 @@ curl http://localhost:9001/
 
 # 3. Test authenticated endpoint
 TOKEN=$(node -e "console.log(process.env.JWT_TOKEN)")
-curl -H "Authorization: Bearer $TOKEN" http://localhost:9001/api/auth/whoami
+curl -H "Authorization: Bearer $TOKEN" http://localhost:9001/api/user/whoami
 ```
 
 **Check authentication:**

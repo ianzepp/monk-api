@@ -180,10 +180,10 @@ Choose response encoding format to optimize for different use cases:
 **Examples:**
 ```bash
 # Get response in TOON format (compact for LLMs)
-curl http://localhost:9001/api/auth/whoami?format=toon
+curl http://localhost:9001/api/user/whoami?format=toon
 
 # Get response as TOML (great for config files)
-curl http://localhost:9001/api/auth/whoami?format=toml
+curl http://localhost:9001/api/user/whoami?format=toml
 
 # Get response as MessagePack binary (efficient)
 curl http://localhost:9001/api/data/users?format=msgpack
@@ -207,22 +207,22 @@ Extract specific fields server-side, eliminating the need for client-side proces
 **Unwrap (Remove Envelope):**
 ```bash
 # Standard response with envelope
-curl /api/auth/whoami
+curl /api/user/whoami
 # → {"success": true, "data": {"id": "...", "name": "...", ...}}
 
 # Unwrapped response (just the data)
-curl /api/auth/whoami?unwrap
+curl /api/user/whoami?unwrap
 # → {"id": "...", "name": "...", ...}
 ```
 
 **Select Specific Fields:**
 ```bash
 # Extract single field (returns plain text)
-curl /api/auth/whoami?select=id
+curl /api/user/whoami?select=id
 # → c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c
 
 # Extract multiple fields (returns JSON object)
-curl /api/auth/whoami?select=id,name,access
+curl /api/user/whoami?select=id,name,access
 # → {"id": "...", "name": "...", "access": "..."}
 
 # Nested field extraction
@@ -233,7 +233,7 @@ curl /api/data/users/123?select=profile.email
 **Combined Usage:**
 ```bash
 # Extract fields AND format output
-curl /api/auth/whoami?select=id,name&format=toon
+curl /api/user/whoami?select=id,name&format=toon
 # → id: c81d0a9b...
 #   name: Demo User
 
@@ -266,7 +266,7 @@ Encrypt API responses for secure transmission using AES-256-GCM with keys derive
 **Usage:**
 ```bash
 # Encrypt any response
-curl /api/auth/whoami?encrypt=pgp \
+curl /api/user/whoami?encrypt=pgp \
   -H "Authorization: Bearer $JWT" > encrypted.txt
 
 # Decrypt with same JWT

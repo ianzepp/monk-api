@@ -81,11 +81,11 @@ Schemas marked as frozen **block all write operations** while allowing read acce
 
 ### Sudo-Protected Schemas (`sudo=true`)
 
-Schemas requiring sudo access need a short-lived sudo token from `POST /api/auth/sudo` (typically 15 minutes):
+Schemas requiring sudo access need a short-lived sudo token from `POST /api/user/sudo` (typically 15 minutes):
 
 ```bash
 # Step 1: Obtain sudo token
-POST /api/auth/sudo
+POST /api/user/sudo
 Content-Type: application/json
 Authorization: Bearer <regular_jwt>
 
@@ -113,7 +113,7 @@ Authorization: Bearer <sudo_jwt>
 ```json
 {
   "success": false,
-  "error": "Schema 'financial_accounts' requires sudo access. Use POST /api/auth/sudo to get short-lived sudo token.",
+  "error": "Schema 'financial_accounts' requires sudo access. Use POST /api/user/sudo to get short-lived sudo token.",
   "error_code": "SUDO_REQUIRED"
 }
 ```
