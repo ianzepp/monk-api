@@ -129,7 +129,7 @@ COMMENT ON COLUMN "sandboxes"."last_accessed_at" IS 'Last access time for usage 
 -- - Automatic cleanup when tenant is deleted
 -- - Consistent with Monk's tenant-scoped architecture
 --
--- See sql/init-template-default.sql for snapshot table definition
+-- See fixtures/default/describe/snapshots.sql for snapshot table definition
 --
 -- ============================================================================
 -- REQUEST TRACKING TABLE

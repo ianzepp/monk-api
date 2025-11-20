@@ -524,10 +524,10 @@ else
     fi
     
     print_step "Initializing default template schema..."
-    if psql -d "$template_db_name" -f sql/init-template-default.sql >/dev/null 2>&1; then
+    if psql -d "$template_db_name" -f fixtures/default/load.sql >/dev/null 2>&1; then
         print_success "Default template initialized successfully"
     else
-        handle_error "Default template initialization" "Check sql/init-template-default.sql exists"
+        handle_error "Default template initialization" "Check fixtures/default/load.sql exists"
     fi
     
     print_step "Registering template in monk.templates..."
