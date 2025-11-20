@@ -101,16 +101,15 @@ app.get('/', c => {
         name: 'Monk API (Hono)',
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
-        endpoints: {
-            home: ['/', '/health'],
-            docs: ['/README.md', '/docs/:api'],
-            auth: [
-                '/auth/login',
-                '/auth/register',
-                '/auth/refresh',
-                '/auth/tenants',
-                '/auth/templates'
-            ],
+        health: '/health',
+        auth: [
+            '/auth/login',
+            '/auth/register',
+            '/auth/refresh',
+            '/auth/tenants',
+            '/auth/templates'
+        ],
+        apis: {
             describe: [
                 '/api/describe',
                 '/api/describe/:schema',
@@ -122,22 +121,42 @@ app.get('/', c => {
                 '/api/data/:schema/:record/:relationship',
                 '/api/data/:schema/:record/:relationship/:child'
             ],
-            find: ['/api/find/:schema'],
-            aggregate: ['/api/aggregate/:schema'],
-            bulk: ['/api/bulk'],
+            find: [
+                '/api/find/:schema'
+            ],
+            aggregate: [
+                '/api/aggregate/:schema'
+            ],
+            bulk: [
+                '/api/bulk'
+            ],
             user: [
                 '/api/user/whoami',
                 '/api/user/sudo',
                 '/api/user/profile',
                 '/api/user/deactivate'
             ],
-            acls: ['/api/acls/:schema/:record'],
-            stat: ['/api/stat/:schema/:record'],
+            acls: [
+                '/api/acls/:schema/:record'
+            ],
+            stat: [
+                '/api/stat/:schema/:record'
+            ],
             history: [
                 '/api/history/:schema/:record',
                 '/api/history/:schema/:record/:change'
             ],
-            sudo: ['/api/sudo/*']
+            sudo: [
+                '/api/sudo/sandboxes/',
+                '/api/sudo/sandboxes/:name',
+                '/api/sudo/sandboxes/:name/extend',
+                '/api/sudo/snapshots/',
+                '/api/sudo/snapshots/:name',
+                '/api/sudo/templates/',
+                '/api/sudo/templates/:name',
+                '/api/sudo/users/',
+                '/api/sudo/users/:id',
+            ],
         },
         apps: {
             extracts: [
@@ -157,9 +176,9 @@ app.get('/', c => {
             ]
         },
         documentation: {
+            home: ['/README.md'],
+            auth: ['/docs/auth'],
             api: {
-                home: ['/README.md'],
-                auth: ['/docs/auth'],
                 describe: ['/docs/describe'],
                 data: ['/docs/data'],
                 find: ['/docs/find'],
