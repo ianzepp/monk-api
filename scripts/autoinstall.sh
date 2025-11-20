@@ -500,7 +500,7 @@ template_db_name="monk_template_system"
 if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_name" 2>/dev/null; then
     print_success "Default template database already exists"
     print_info "Template database: $template_db_name"
-    
+
     # Verify it's registered in monk.templates
     if psql -d monk -t -c "SELECT 1 FROM templates WHERE database = '$template_db_name';" 2>/dev/null | grep -q 1; then
         print_success "Template registered in monk.templates"
@@ -516,20 +516,20 @@ if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_na
 else
     print_step "Creating default template database..."
     print_info "This creates a production-ready template with core infrastructure only"
-    
+
     if createdb "$template_db_name" 2>/dev/null; then
         print_success "Default template database created"
     else
         handle_error "Default template database creation" "Check PostgreSQL permissions"
     fi
-    
+
     print_step "Initializing default template schema..."
     if psql -d "$template_db_name" -f fixtures/system/load.sql >/dev/null 2>&1; then
         print_success "Default template initialized successfully"
     else
         handle_error "System template initialization" "Check fixtures/system/load.sql exists"
     fi
-    
+
     print_step "Registering template in monk.templates..."
     if psql -d monk -c "
         INSERT INTO templates (name, database, description, is_system, schema_count)
@@ -544,27 +544,27 @@ else
     fi
 fi
 
-# Starting: Build Testing Fixtures Template
-print_header "Starting: Build Testing Fixtures Template"
+# # Starting: Build Testing Fixtures Template
+# print_header "Starting: Build Testing Fixtures Template"
 
-print_step "Checking if testing fixtures template exists..."
-template_db_name="monk_template_testing"
+# print_step "Checking if testing fixtures template exists..."
+# template_db_name="monk_template_testing"
 
-if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_name" 2>/dev/null; then
-    print_success "Testing fixtures template already exists"
-    print_info "Template database: $template_db_name"
-else
-    print_step "Building testing fixtures template..."
-    print_info "This creates a testing-focused template for 'test:sh' scripts in 'spec/**/*.sh'"
+# if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_name" 2>/dev/null; then
+#     print_success "Testing fixtures template already exists"
+#     print_info "Template database: $template_db_name"
+# else
+#     print_step "Building testing fixtures template..."
+#     print_info "This creates a testing-focused template for 'test:sh' scripts in 'spec/**/*.sh'"
 
-    if npm run fixtures:build testing >/dev/null 2>&1; then
-        print_success "Testing fixtures template built successfully"
-        print_info "Template database: $template_db_name ready for fast tenant creation"
-    else
-        print_warning "Failed to build testing fixtures template"
-        print_warning "This is a blocker - testing cannot run"
-    fi
-fi
+#     if npm run fixtures:build testing >/dev/null 2>&1; then
+#         print_success "Testing fixtures template built successfully"
+#         print_info "Template database: $template_db_name ready for fast tenant creation"
+#     else
+#         print_warning "Failed to build testing fixtures template"
+#         print_warning "This is a blocker - testing cannot run"
+#     fi
+# fi
 
 # Starting: Setup Complete
 print_header "Starting: Setup Complete"
