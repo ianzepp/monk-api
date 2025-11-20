@@ -11,7 +11,7 @@
         "stop": "pkill -f 'node.*dist/index.js' || pkill -f 'nodemon.*build' || true",
         "build": "scripts/build.sh",
         "build:watch": "nodemon --watch src --ext ts --exec 'npm run build'",
-        "build:tests": "scripts/build-spec.sh",
+        "build:tests": "scripts/build-tests.sh",
         "autoinstall": "scripts/autoinstall.sh",
         "fixtures:build": "scripts/fixtures-build.sh",
         "fixtures:generate": "node scripts/fixtures-generate.js",
