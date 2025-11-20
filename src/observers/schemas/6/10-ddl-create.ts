@@ -22,6 +22,12 @@ export default class DdlCreateObserver extends BaseObserver {
         const { system } = context;
         const schemaName = record.schema_name;
 
+        // Skip DDL operations for external schemas (managed elsewhere)
+        if (record.external === true) {
+            logger.info(`Skipping DDL operation for external schema: ${schemaName}`);
+            return;
+        }
+
         try {
             let ddl = `CREATE TABLE "${schemaName}" (\n`;
 

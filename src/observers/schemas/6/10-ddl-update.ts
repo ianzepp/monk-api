@@ -18,9 +18,17 @@ export default class DdlUpdateObserver extends BaseObserver {
     readonly priority = 10;  // High priority - DDL should run before data transformations
 
     async executeOne(record: any, context: ObserverContext): Promise<void> {
+        const schemaName = record.schema_name;
+
+        // Skip DDL operations for external schemas (managed elsewhere)
+        if (record.external === true) {
+            logger.info(`Skipping DDL operation for external schema: ${schemaName}`);
+            return;
+        }
+
         // Schema updates only affect metadata (status field)
         // No DDL operations needed - table structure is managed by column operations
-        logger.debug(`Schema metadata updated: ${record.schema_name}`, {
+        logger.debug(`Schema metadata updated: ${schemaName}`, {
             status: record.status
         });
 

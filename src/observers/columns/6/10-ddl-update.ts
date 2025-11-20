@@ -14,6 +14,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField } from '@src/lib/describe.js';
+import { SchemaCache } from '@src/lib/schema-cache.js';
 
 export default class DdlUpdateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
@@ -23,6 +24,15 @@ export default class DdlUpdateObserver extends BaseObserver {
     async executeOne(record: any, context: ObserverContext): Promise<void> {
         const { system } = context;
         const { schema_name: schemaName, column_name: columnName } = record;
+
+        // Load schema from cache to check if external
+        const schema = await SchemaCache.getInstance().getSchema(system, schemaName);
+
+        // Skip DDL operations for external schemas (managed elsewhere)
+        if (schema.external === true) {
+            logger.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
+            return;
+        }
 
         // Skip system fields - they cannot be altered
         if (isSystemField(columnName)) {

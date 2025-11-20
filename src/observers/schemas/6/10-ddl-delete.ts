@@ -20,6 +20,12 @@ export default class DdlDeleteObserver extends BaseObserver {
         const { system } = context;
         const schemaName = record.schema_name;
 
+        // Skip DDL operations for external schemas (managed elsewhere)
+        if (record.external === true) {
+            logger.info(`Skipping DDL operation for external schema: ${schemaName}`);
+            return;
+        }
+
         // Generate DROP TABLE DDL
         const ddl = `DROP TABLE IF EXISTS "${schemaName}" CASCADE`;
 
