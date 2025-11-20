@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { withParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { parseRange, validateRangeBounds, formatCells } from '@src/routes/grid/range-parser.js';
+import { parseRange, validateRangeBounds, formatCells } from '@src/routes/app/grids/range-parser.js';
 
 /**
  * GET /app/grids/:id/:range - Read cells from grid

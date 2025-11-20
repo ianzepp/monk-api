@@ -186,6 +186,6 @@ These tests reflect the **new Describe API architecture**:
 
 ## Related Documentation
 
-- **API Docs**: `src/routes/describe/PUBLIC.md`
+- **API Docs**: `src/routes/api/describe/PUBLIC.md`
 - **Test Framework**: `spec/README.md`
 - **Shell Tests**: `spec/31-describe-api/*.test.sh` (legacy, not used)

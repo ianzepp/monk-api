@@ -106,7 +106,7 @@ npm run test:ts 05
 
 ## API Reference
 
-Complete infrastructure API documentation: [/api/sudo/PUBLIC.md](../../src/routes/sudo/PUBLIC.md)
+Complete infrastructure API documentation: [/api/sudo/PUBLIC.md](../../src/routes/api/sudo/PUBLIC.md)
 
 ## Related Documentation
 

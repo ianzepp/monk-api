@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { parseRange, validateRangeBounds } from '@src/routes/grid/range-parser.js';
+import { parseRange, validateRangeBounds } from '@src/routes/app/grids/range-parser.js';
 
 /**
  * PUT /app/grids/:id/:range - Update cells in grid

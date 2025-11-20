@@ -49,22 +49,22 @@ import * as middleware from '@src/lib/middleware/index.js';
 
 // Route handlers
 import * as authRoutes from '@src/routes/auth/routes.js';
-import * as userRoutes from '@src/routes/user/routes.js';
-import * as dataRoutes from '@src/routes/data/routes.js';
-import * as describeRoutes from '@src/routes/describe/routes.js';
-import * as aclsRoutes from '@src/routes/acls/routes.js';
-import * as statRoutes from '@src/routes/stat/routes.js';
+import * as userRoutes from '@src/routes/api/user/routes.js';
+import * as dataRoutes from '@src/routes/api/data/routes.js';
+import * as describeRoutes from '@src/routes/api/describe/routes.js';
+import * as aclsRoutes from '@src/routes/api/acls/routes.js';
+import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
-import * as historyRoutes from '@src/routes/history/routes.js';
-import * as extractRoutes from '@src/routes/extracts/routes.js';
-import * as restoreRoutes from '@src/routes/restores/routes.js';
-import * as gridRoutes from '@src/routes/grid/routes.js';
-import { sudoRouter } from '@src/routes/sudo/index.js';
+import * as historyRoutes from '@src/routes/api/history/routes.js';
+import * as extractRoutes from '@src/routes/app/extracts/routes.js';
+import * as restoreRoutes from '@src/routes/app/restores/routes.js';
+import * as gridRoutes from '@src/routes/app/grids/routes.js';
+import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Special protected endpoints
-import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
-import FindSchemaPost from '@src/routes/find/:schema/POST.js'; // POST /api/find/:schema
-import AggregateSchemaPost from '@src/routes/aggregate/:schema/POST.js'; // POST /api/aggregate/:schema
+import BulkPost from '@src/routes/api/bulk/POST.js'; // POST /api/bulk
+import FindSchemaPost from '@src/routes/api/find/:schema/POST.js'; // POST /api/find/:schema
+import AggregateSchemaPost from '@src/routes/api/aggregate/:schema/POST.js'; // POST /api/aggregate/:schema
 
 // Check database connection before doing anything else
 logger.info('Checking database connection:');

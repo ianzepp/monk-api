@@ -294,7 +294,7 @@ GET /api/sudo/snapshots/pre-migration
 # → Check status: pending → processing → active
 ```
 
-**Complete API Reference**: [src/routes/sudo/PUBLIC.md](src/routes/sudo/PUBLIC.md)
+**Complete API Reference**: [src/routes/api/sudo/PUBLIC.md](src/routes/api/sudo/PUBLIC.md)
 
 ## Build and Deployment
 
@@ -527,9 +527,9 @@ Docs: Update observer development guide (#160)
 
 Each API route has detailed documentation:
 - Auth API: [src/routes/auth/README.md](src/routes/auth/README.md)
-- Data API: [src/routes/data/README.md](src/routes/data/README.md)
-- Describe API: [src/routes/describe/README.md](src/routes/describe/README.md)
-- Find API: [src/routes/find/README.md](src/routes/find/README.md)
+- Data API: [src/routes/api/data/README.md](src/routes/api/data/README.md)
+- Describe API: [src/routes/api/describe/README.md](src/routes/api/describe/README.md)
+- Find API: [src/routes/api/find/README.md](src/routes/api/find/README.md)
 - And more in `src/routes/*/README.md`
 
 ### External Resources

@@ -655,7 +655,7 @@ FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
 The Find API uses a clean separation of concerns pattern with context-aware soft delete handling:
 
 ```typescript
-// Route handler (src/routes/find/:schema/POST.ts)
+// Route handler (src/routes/api/find/:schema/POST.ts)
 const result = await system.database.selectAny(schema!, body, options);
 
 // Database method (src/lib/database.ts)

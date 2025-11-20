@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { parseRange, validateRangeBounds } from '@src/routes/grid/range-parser.js';
+import { parseRange, validateRangeBounds } from '@src/routes/app/grids/range-parser.js';
 
 /**
  * DELETE /app/grids/:id/:range - Clear cells in range

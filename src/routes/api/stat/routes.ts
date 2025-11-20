@@ -8,4 +8,4 @@
  */
 
 // Record stat operation (with schema and record parameters)
-export { default as RecordGet } from '@src/routes/stat/:schema/:record/GET.js';
+export { default as RecordGet } from '@src/routes/api/stat/:schema/:record/GET.js';

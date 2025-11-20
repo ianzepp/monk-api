@@ -113,12 +113,12 @@ PRIMARY KEY: (grid_id, row, col)
 - GRID_* prefixed error codes (consistent error handling)
 
 **Key Files:**
-- `/src/routes/grid/range-parser.ts` - Range parsing and validation
-- `/src/routes/grid/:id/:range/GET.ts` - Read cells handler
-- `/src/routes/grid/:id/:range/PUT.ts` - Update cells handler (UPSERT)
-- `/src/routes/grid/:id/:range/DELETE.ts` - Delete cells handler
-- `/src/routes/grid/:id/cells/POST.ts` - Bulk upsert handler
-- `/src/routes/grid/routes.ts` - Barrel exports
+- `/src/routes/app/grids/range-parser.ts` - Range parsing and validation
+- `/src/routes/app/grids/:id/:range/GET.ts` - Read cells handler
+- `/src/routes/app/grids/:id/:range/PUT.ts` - Update cells handler (UPSERT)
+- `/src/routes/app/grids/:id/:range/DELETE.ts` - Delete cells handler
+- `/src/routes/app/grids/:id/cells/POST.ts` - Bulk upsert handler
+- `/src/routes/app/grids/routes.ts` - Barrel exports
 - `/src/index.ts` - Route registration (45-grid-api section)
 - `/spec/45-grid-api/README.md` - Comprehensive test specification
 
@@ -1020,7 +1020,7 @@ ORDER BY row, col;
 - Both tables created in system template, propagate to all tenants
 
 ### Phase 2: Grid API - Basic Operations ✅ COMPLETE
-- [x] Create `/src/routes/grid/` directory
+- [x] Create `/src/routes/app/grids/` directory
 - [x] Implement range parser (A1:Z100 → coordinates)
 - [x] GET `/app/grids/:id/:range` - Read cells
 - [x] PUT `/app/grids/:id/:range` - Update cells/range

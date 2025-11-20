@@ -341,7 +341,7 @@ GET /api/sudo/snapshots/pre-v3-migration
 
 ## Complete Documentation
 
-📖 **[Infrastructure API Guide](../src/routes/sudo/PUBLIC.md)** - Complete infrastructure management documentation:
+📖 **[Infrastructure API Guide](../src/routes/api/sudo/PUBLIC.md)** - Complete infrastructure management documentation:
 - Templates, Sandboxes, Snapshots API reference
 - Workflow examples
 - Security model

@@ -115,7 +115,7 @@ export async function withSelfServiceSudo<T>(
 
 1. **Route Handler Sets Flag**:
    ```typescript
-   // src/routes/user/profile/PUT.ts
+   // src/routes/api/user/profile/PUT.ts
    export default withTransactionParams(async (context, { system, body }) => {
        const user = context.get('user');
 
@@ -184,7 +184,7 @@ The User API implements defense in depth with multiple security layers:
 
 #### Layer 1: Route-Level Validation
 ```typescript
-// src/routes/user/profile/PUT.ts
+// src/routes/api/user/profile/PUT.ts
 const allowedFields = ['name', 'auth'];
 const disallowedFields = Object.keys(body).filter(key => !allowedFields.includes(key));
 
@@ -279,7 +279,7 @@ All User API operations are automatically logged:
 
 **Purpose**: Retrieve own user profile
 
-**Implementation**: `src/routes/user/profile/GET.ts`
+**Implementation**: `src/routes/api/user/profile/GET.ts`
 
 **Pattern**: Uses `withParams()` (read-only, no transaction needed)
 
@@ -307,7 +307,7 @@ export default withParams(async (context: Context, { system }) => {
 
 **Purpose**: Update own name and/or auth identifier
 
-**Implementation**: `src/routes/user/profile/PUT.ts`
+**Implementation**: `src/routes/api/user/profile/PUT.ts`
 
 **Pattern**: Uses `withTransactionParams()` + `withSelfServiceSudo()`
 
@@ -353,7 +353,7 @@ export default withTransactionParams(async (context: Context, { system, body }) 
 
 **Purpose**: Soft delete own account
 
-**Implementation**: `src/routes/user/deactivate/POST.ts`
+**Implementation**: `src/routes/api/user/deactivate/POST.ts`
 
 **Pattern**: Uses `withTransactionParams()` + `withSelfServiceSudo()`
 
