@@ -51,6 +51,8 @@ CREATE TYPE column_type AS ENUM (
 \ir describe/restores.sql
 \ir describe/restore_runs.sql
 \ir describe/restore_logs.sql
+\ir describe/grids.sql
+\ir describe/grid_cells.sql
 -- Note: history.sql just documents, actual table created via function
 
 -- PHASE 3: FUNCTIONS
