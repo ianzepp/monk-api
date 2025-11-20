@@ -56,6 +56,7 @@ import * as aclsRoutes from '@src/routes/acls/routes.js';
 import * as statRoutes from '@src/routes/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as historyRoutes from '@src/routes/history/routes.js';
+import * as extractRoutes from '@src/routes/extracts/routes.js';
 import { sudoRouter } from '@src/routes/sudo/index.js';
 
 // Special protected endpoints
@@ -134,6 +135,12 @@ app.get('/', c => {
                 '/api/history/:schema/:record',
                 '/api/history/:schema/:record/:change'
             ],
+            extracts: [
+                '/api/extracts/:id/run',
+                '/api/extracts/:id/cancel',
+                '/api/extracts/runs/:runId/download',
+                '/api/extracts/artifacts/:artifactId/download'
+            ],
             sudo: ['/api/sudo/*']
         },
         documentation: {
@@ -148,6 +155,7 @@ app.get('/', c => {
             acls: ['/docs/acls'],
             stat: ['/docs/stat'],
             history: ['/docs/history'],
+            extracts: ['/docs/extracts'],
             sudo: ['/docs/sudo']
         },
     };
@@ -254,6 +262,12 @@ app.route('/api/sudo', sudoRouter);
 // 42-history-api: History API routes (change tracking and audit trails)
 app.get('/api/history/:schema/:record', historyRoutes.RecordHistoryGet); // List all changes for a record
 app.get('/api/history/:schema/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
+
+// 43-extracts-api: Extract API routes (data export jobs)
+app.post('/api/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job
+app.post('/api/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
+app.get('/api/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
+app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));
