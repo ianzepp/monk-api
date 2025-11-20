@@ -7,6 +7,13 @@
 **Phase 1 Complete:** 2025-11-20
 **Phase 2 Complete:** 2025-11-20
 
+## TODO: Migrate to App Endpoint
+
+**Future Migration:** This API should be moved from `/api/grid/*` to `/app/grid/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
+
+**Target Path:** `/app/grid/:id/:range`
+**Rationale:** Grid API is an application-level feature (spreadsheet functionality) rather than a direct data model operation, making it a better fit for the `/app` namespace.
+
 ## Overview
 
 Grid API provides Excel-like spreadsheet functionality within Monk API. It fills the gap between unstructured data (JSONB) and formal schemas - offering structured tabular data with calculation capabilities without requiring upfront schema design.

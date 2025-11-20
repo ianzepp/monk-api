@@ -2,6 +2,13 @@
 
 The Restore API provides data import functionality with background job processing and multiple conflict resolution strategies.
 
+## TODO: Migrate to App Endpoint
+
+**Future Migration:** This API should be moved from `/api/restores/*` to `/app/restores/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
+
+**Target Path:** `/app/restores/:id/*`
+**Rationale:** Restore API is an application-level feature (background jobs, file processing) rather than a direct data model operation, making it a better fit for the `/app` namespace.
+
 ## Architecture
 
 ```
