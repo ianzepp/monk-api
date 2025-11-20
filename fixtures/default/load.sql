@@ -48,6 +48,9 @@ CREATE TYPE column_type AS ENUM (
 \ir describe/extracts.sql
 \ir describe/extract_runs.sql
 \ir describe/extract_artifacts.sql
+\ir describe/restores.sql
+\ir describe/restore_runs.sql
+\ir describe/restore_logs.sql
 -- Note: history.sql just documents, actual table created via function
 
 -- PHASE 3: FUNCTIONS
@@ -65,6 +68,7 @@ CREATE TYPE column_type AS ENUM (
 \ir data/history.sql        -- Creates history table via function
 \ir data/definitions.sql    -- Generates JSON Schema definitions
 \ir data/extracts.sql        -- Extracts system (registers schemas + columns + generates definitions)
+\ir data/restores.sql        -- Restores system (registers schemas + columns + generates definitions)
 
 -- PHASE 5: POST-LOAD INDEXES
 \echo ''
