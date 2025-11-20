@@ -3,10 +3,22 @@
 -- ============================================================================
 -- Grid metadata storage - regular schema managed via Data API
 
-INSERT INTO schemas (schema_name, external) VALUES ('grids', false);
-INSERT INTO columns (schema_name, column_name, type, required, default_value) VALUES
-  ('grids', 'name', 'string', true, NULL),
-  ('grids', 'description', 'string', false, NULL),
-  ('grids', 'row_count', 'integer', false, NULL),
-  ('grids', 'row_max', 'integer', false, 1000),
-  ('grids', 'col_max', 'string', false, 'Z');
+CREATE TABLE "grids" (
+	-- System fields
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"access_read" uuid[] DEFAULT '{}'::uuid[],
+	"access_edit" uuid[] DEFAULT '{}'::uuid[],
+	"access_full" uuid[] DEFAULT '{}'::uuid[],
+	"access_deny" uuid[] DEFAULT '{}'::uuid[],
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"trashed_at" timestamp,
+	"deleted_at" timestamp,
+
+	-- Grid metadata
+	"name" text NOT NULL,
+	"description" text,
+	"row_count" integer,
+	"row_max" integer DEFAULT 1000,
+	"col_max" text DEFAULT 'Z'
+);
