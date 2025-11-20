@@ -5,7 +5,7 @@
 -- Schema definition lives in system, but data is accessed via /api/grid/* only
 
 CREATE TABLE grid_cells (
-	grid_id VARCHAR NOT NULL,
+	grid_id UUID NOT NULL,
 	row INTEGER NOT NULL,
 	col CHAR(1) NOT NULL,
 	value TEXT,

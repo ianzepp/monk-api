@@ -15,7 +15,7 @@ VALUES (
 -- COLUMNS FOR: grid_cells
 -- ============================================================================
 INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
-    ('grid_cells', 'grid_id', 'text', true, 'Foreign key to grids table'),
+    ('grid_cells', 'grid_id', 'uuid', true, 'Foreign key to grids table'),
     ('grid_cells', 'row', 'integer', true, 'Row number (1-based)'),
     ('grid_cells', 'col', 'text', true, 'Column letter (A-Z)'),
     ('grid_cells', 'value', 'text', false, 'Cell value (stored as text)');
