@@ -1,2 +1,0 @@
-# This file ensures the fixtures/empty/ directory is tracked by git
-# even though it contains no schema or data files by design
