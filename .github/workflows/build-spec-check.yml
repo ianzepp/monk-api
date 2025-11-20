@@ -9,7 +9,7 @@ on:
 jobs:
     compile-spec:
         runs-on: ubuntu-latest
-        name: npm run build:spec
+        name: npm run build:tests
 
         steps:
             - name: Checkout code
@@ -24,4 +24,4 @@ jobs:
               run: npm install
 
             - name: Test spec compilation check
-              run: npm run build:spec
+              run: npm run build:tests

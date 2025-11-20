@@ -37,7 +37,7 @@ npm run build
 
 # Step 2: Type-check test files
 print_step "Type-checking test files"
-npm run build:spec
+npm run build:tests
 
 # Step 3: Kill any existing servers on port 9002
 print_step "Killing any existing servers on port 9002"
