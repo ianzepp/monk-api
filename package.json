@@ -49,6 +49,7 @@
         "papaparse": "^5.5.3",
         "pg": "^8.16.3",
         "qr": "^0.5.2",
+        "unzipper": "^0.12.3",
         "zod": "^4.0.17"
     },
     "devDependencies": {
@@ -58,6 +59,7 @@
         "@types/node": "^22",
         "@types/papaparse": "^5.5.0",
         "@types/pg": "^8.15.5",
+        "@types/unzipper": "^0.10.11",
         "concurrently": "^9.2.1",
         "nodemon": "^3.1.10",
         "tsc-alias": "^1.8.16",
