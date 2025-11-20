@@ -22,6 +22,7 @@ CREATE TABLE "schemas" (
 	"sudo" boolean DEFAULT false NOT NULL,
 	"freeze" boolean DEFAULT false NOT NULL,
 	"immutable" boolean DEFAULT false NOT NULL,
+	"external" boolean DEFAULT false NOT NULL,
 
 	-- Constraints
 	CONSTRAINT "schema_name_unique" UNIQUE("schema_name")
