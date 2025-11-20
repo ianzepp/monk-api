@@ -1,0 +1,425 @@
+#!/usr/bin/env bash
+# Note: Removed set -e to handle errors gracefully and provide better visibility
+
+# Simple Fixtures Build Script
+# Creates template tenant databases with pre-loaded schemas and data for fast test setup
+
+# Source helpers
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/../spec/curl-helper.sh"
+source "$SCRIPT_DIR/../spec/test-tenant-helper.sh"
+
+# Parse arguments
+FORCE_REBUILD=false
+TEMPLATE_NAME="testing"
+USE_JSON_IMPORT=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force)
+            FORCE_REBUILD=true
+            shift
+            ;;
+        --with-json)
+            USE_JSON_IMPORT=true
+            shift
+            ;;
+        --with-sql)
+            USE_JSON_IMPORT=false
+            shift
+            ;;
+        --help|-h)
+            echo "Fixtures Build Script"
+            echo "Usage: $0 [options] [template_name]"
+            echo ""
+            echo "Arguments:"
+            echo "  template_name    Name of the fixture template to build (default: testing)"
+            echo ""
+            echo "Options:"
+            echo "  --force         Delete existing template database if it exists"
+            echo "  --with-json     Load data via Data API (with validation)"
+            echo "  --with-sql      Load data via SQL INSERT (default, faster)"
+            echo "  --help, -h      Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 testing"
+            echo "  $0 --force testing_xl"
+            echo "  $0 --with-json import_test"
+            echo "  npm run fixtures:build -- --force --with-json testing"
+            exit 0
+            ;;
+        -*)
+            print_error "Unknown option: $1"
+            exit 1
+            ;;
+        *)
+            TEMPLATE_NAME="$1"
+            shift
+            ;;
+    esac
+done
+
+# Configuration
+FIXTURES_DIR="fixtures/${TEMPLATE_NAME}"
+
+# Validate template name format (lowercase and underscores only)
+if [[ ! "$TEMPLATE_NAME" =~ ^[a-z_]+$ ]]; then
+    print_error "Template name must contain only lowercase letters and underscores"
+    print_error "Invalid name: '$TEMPLATE_NAME'"
+    print_error "Valid examples: testing_xl, demo_small, test_data"
+    print_error "Invalid examples: Basic-Large, demo-small, TestData"
+    exit 1
+fi
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+print_header() {
+    echo -e "${BLUE}=== $1 ===${NC}"
+}
+
+print_step() {
+    echo -e "${BLUE}→ $1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✓ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}✗ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠ $1${NC}"
+}
+
+print_info() {
+    echo -e "${YELLOW}ℹ $1${NC}"
+}
+
+server_start() {
+    npm run start:bg
+}
+
+server_stop() {
+    npm run stop
+}
+
+fail() {
+    print_error "$1"
+    server_stop
+    exit 1
+}
+
+print_header "Building fixtures template: $TEMPLATE_NAME"
+
+# Check prerequisites
+if [[ ! -d "$FIXTURES_DIR/describe" ]]; then
+    fail "Fixtures describe directory not found: $FIXTURES_DIR/describe"
+fi
+
+if [[ ! -d "$FIXTURES_DIR/data" ]]; then
+    fail "Fixtures data directory not found: $FIXTURES_DIR/data"
+fi
+
+# Check that SQL files exist (not JSON)
+if ! ls "$FIXTURES_DIR/describe"/*.sql >/dev/null 2>&1; then
+    print_warning "No SQL files found in $FIXTURES_DIR/describe/"
+fi
+
+# Check if target template database already exists
+template_db_final="monk_template_$TEMPLATE_NAME"
+if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_final" 2>/dev/null; then
+    if [[ "$FORCE_REBUILD" == true ]]; then
+        print_warning "Template database '$template_db_final' already exists - removing due to --force"
+
+        # Stop any running server to close connections
+        print_step "Stopping server to close database connections"
+        npm run stop >/dev/null 2>&1 || true
+        sleep 2
+
+        # Remove the existing template database
+        print_step "Dropping existing template database: $template_db_final"
+        if dropdb "$template_db_final" 2>/dev/null; then
+            print_success "Template database dropped"
+        else
+            print_warning "Failed to drop template database (may not exist or have active connections)"
+        fi
+
+        # Remove the tenant registry entry
+        print_step "Cleaning tenant registry"
+        if psql -d monk -c "DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'" >/dev/null 2>&1; then
+            print_success "Tenant registry cleaned"
+        else
+            print_warning "Failed to clean tenant registry (may not exist)"
+        fi
+
+        print_success "Existing template cleaned - proceeding with rebuild"
+    else
+        print_warning "Template database '$template_db_final' already exists"
+        print_info "To rebuild, either use --force or manually clean up:"
+        print_info "  dropdb '$template_db_final'"
+        print_info "  psql -d monk -c \"DELETE FROM tenants WHERE name = 'monk_$TEMPLATE_NAME'\""
+        print_info "Or run: npm run fixtures:build -- --force $TEMPLATE_NAME"
+        fail "Template database already exists"
+    fi
+fi
+
+# Start the server
+server_start
+
+# Wait for server to be ready
+print_step "Waiting for server to be ready"
+wait_for_server
+print_success "Server is ready"
+
+# Step 1: Create fresh tenant database for fixture building
+print_step "Creating fresh tenant database for fixture building"
+
+# Generate unique tenant name
+timestamp=$(date +%s)
+random=$(openssl rand -hex 4)
+tenant_name="fixtures_${TEMPLATE_NAME}_${timestamp}_${random}"
+template_db_name=$(hash_tenant_name "$tenant_name")
+
+# Create database
+if ! createdb "$template_db_name" 2>/dev/null; then
+    fail "Failed to create database: $template_db_name"
+fi
+print_success "Created database: $template_db_name"
+
+# # Initialize tenant schema (no users - let fixture init.sql handle that)
+# if ! psql -d "$template_db_name" -f sql/init-tenant.sql; then
+#     dropdb "$template_db_name" 2>/dev/null || true
+#     fail "Failed to initialize tenant schema"
+# fi
+# print_success "Initialized tenant schema"
+
+# Register in main database
+if ! psql -d monk -c "INSERT INTO tenants (name, database, host, is_active, tenant_type) VALUES ('$tenant_name', '$template_db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
+    dropdb "$template_db_name" 2>/dev/null || true
+    fail "Failed to register tenant"
+fi
+print_success "Registered tenant: $tenant_name"
+
+# Step 1.5: Execute optional fixture-specific load.sql
+fixture_load_sql="$FIXTURES_DIR/load.sql"
+
+if [[ -f "$fixture_load_sql" ]]; then
+    print_step "Executing fixture-specific load: $fixture_load_sql"
+
+    if psql -d "$template_db_name" -f "$fixture_load_sql" >/dev/null 2>&1; then
+        print_success "Fixture load completed"
+    else
+        print_error "Failed to execute fixture load SQL"
+        fail "Fixture load failed"
+    fi
+else
+    print_info "No fixture-specific load.sql found (optional)"
+fi
+
+# # Step 2: Load schema definitions via SQL
+# print_step "Loading schemas from $FIXTURES_DIR/describe/"
+
+# schema_count=0
+# for schema_file in "$FIXTURES_DIR/describe"/*.sql; do
+#     if [[ ! -f "$schema_file" ]]; then
+#         print_warning "No schema SQL files found in $FIXTURES_DIR/describe/"
+#         continue
+#     fi
+
+#     schema_name=$(basename "$schema_file" .sql)
+#     print_step "Loading schema: $schema_name"
+
+#     if psql -d "$template_db_name" -f "$schema_file"; then
+#         print_success "Schema '$schema_name' loaded successfully"
+#         ((schema_count++))
+#     else
+#         print_error "Failed to load schema '$schema_name'"
+#         fail "Schema loading failed"
+#     fi
+# done
+
+# print_success "Loaded $schema_count schemas"
+
+# # Step 3: Load sample data (SQL or JSON based on flag)
+# if [[ "$USE_JSON_IMPORT" == true ]]; then
+#     print_step "Loading sample data via Data API from $FIXTURES_DIR/data/"
+
+#     # Ensure server is still running
+#     print_step "Verifying API server is ready"
+#     wait_for_server
+#     print_success "API server is ready"
+
+#     # Get root JWT token for API authentication
+#     print_step "Authenticating as root user for tenant: $tenant_name"
+#     ROOT_TOKEN=$(get_user_token "$tenant_name" "root" 2>&1)
+
+#     print_info "Token received: ${ROOT_TOKEN:0:80}... (length: ${#ROOT_TOKEN})"
+
+#     if [[ -z "$ROOT_TOKEN" || "$ROOT_TOKEN" == "null" || "$ROOT_TOKEN" == *"Failed"* ]]; then
+#         print_error "Failed to get root JWT token"
+#         print_error "Tenant: $tenant_name"
+#         print_error "Token response: $ROOT_TOKEN"
+#         fail "Failed to get root JWT token for API authentication"
+#     fi
+
+#     export JWT_TOKEN="$ROOT_TOKEN"
+#     print_success "Authenticated successfully (token length: ${#JWT_TOKEN})"
+
+#     data_count=0
+#     total_records=0
+
+#     # Load JSON data files via Data API
+#     for json_file in "$FIXTURES_DIR/data"/*.json; do
+#         if [[ ! -f "$json_file" ]]; then
+#             print_warning "No JSON files found in $FIXTURES_DIR/data/"
+#             print_info "Use --with-sql to load via SQL instead"
+#             continue
+#         fi
+
+#         schema_name=$(basename "$json_file" .json)
+#         print_step "Loading data for schema: $schema_name"
+
+#         # Read JSON array from file
+#         json_data=$(cat "$json_file")
+
+#         # Count records in JSON array
+#         if command -v jq >/dev/null 2>&1; then
+#             record_count=$(echo "$json_data" | jq 'length' 2>/dev/null || echo "0")
+#         else
+#             record_count="unknown"
+#         fi
+
+#         print_info "Payload size: $(echo "$json_data" | wc -c) bytes, records: $record_count"
+
+#         # POST to Data API
+#         response=$(auth_post "api/data/$schema_name" "$json_data")
+
+#         print_info "Response received: $(echo "$response" | wc -c) bytes"
+
+#         # Check if successful
+#         if echo "$response" | jq -e '.success == true' >/dev/null 2>&1; then
+#             print_success "Data '$schema_name' loaded via API: $record_count records"
+#             ((data_count++))
+#             if [[ "$record_count" != "unknown" ]]; then
+#                 ((total_records += record_count))
+#             fi
+#         else
+#             print_error "Failed to load data '$schema_name' via API"
+#             print_error "Response: $response"
+#             print_error "JWT_TOKEN length: ${#JWT_TOKEN}"
+#             print_error "Endpoint: api/data/$schema_name"
+#             fail "Data loading via API failed"
+#         fi
+#     done
+
+#     print_success "Loaded data for $data_count schemas via API: $total_records total records"
+# else
+#     print_step "Loading sample data via SQL from $FIXTURES_DIR/data/"
+
+#     data_count=0
+#     total_records=0
+
+#     for data_file in "$FIXTURES_DIR/data"/*.sql; do
+#         if [[ ! -f "$data_file" ]]; then
+#             print_warning "No data SQL files found in $FIXTURES_DIR/data/"
+#             continue
+#         fi
+
+#         data_name=$(basename "$data_file" .sql)
+#         print_step "Loading data: $data_name"
+
+#         # Count records in SQL file (approximate)
+#         record_count=$(grep -c "^INSERT INTO" "$data_file" || echo "0")
+
+#         if psql -d "$template_db_name" -f "$data_file"; then
+#             print_success "Data '$data_name' loaded: $record_count records"
+#             ((data_count++))
+#             ((total_records += record_count))
+#         else
+#             print_error "Failed to load data '$data_name'"
+#             fail "Data loading failed"
+#         fi
+#     done
+
+#     print_success "Loaded data for $data_count schemas: $total_records total records"
+# fi
+
+# Step 4: Convert to template database
+print_step "Converting to template database"
+
+# Template database name was already generated during prerequisites check
+
+# Stop server to close database connections before rename
+print_step "Stopping server to close database connections"
+npm run stop >/dev/null 2>&1 || true
+print_success "Server stopped"
+
+# Wait a moment for connections to fully close
+sleep 2
+
+# Rename the database
+print_step "Renaming database: $template_db_name → $template_db_final"
+if psql -d postgres -c "ALTER DATABASE \"$template_db_name\" RENAME TO \"$template_db_final\"" >/dev/null 2>&1; then
+    print_success "Database renamed to: $template_db_final"
+else
+    print_error "Failed to rename database - may need manual cleanup"
+    fail "Database rename failed"
+fi
+
+# Restart server for continued operations
+print_step "Restarting server"
+npm run start:bg >/dev/null 2>&1
+print_success "Server restarted"
+
+# Step 5: Register as template in tenants table
+print_step "Registering template in tenants registry"
+
+# Read description from template.json if it exists
+template_description=""
+template_json="$FIXTURES_DIR/template.json"
+if [[ -f "$template_json" ]] && command -v jq >/dev/null 2>&1; then
+    template_description=$(jq -r '.description // ""' "$template_json" 2>/dev/null || echo "")
+    if [[ -n "$template_description" ]]; then
+        print_info "Using description from template.json: $template_description"
+    fi
+fi
+
+# Update the tenant record to mark as template
+template_update_sql="
+    UPDATE tenants
+    SET database = '$template_db_final',
+        tenant_type = 'template',
+        name = 'monk_$TEMPLATE_NAME',
+        description = $(if [[ -n "$template_description" ]]; then echo "'$template_description'"; else echo "NULL"; fi)
+    WHERE name = '$tenant_name'
+"
+
+psql -d monk -c "$template_update_sql"
+print_success "Template registered: monk_$TEMPLATE_NAME → $template_db_final"
+
+# Step 6: Summary
+print_header "Fixture Template Build Complete"
+echo "Template Name: monk_$TEMPLATE_NAME"
+echo "Database Name: $template_db_final"
+echo "Schemas: $schema_count"
+echo "Records: $total_records"
+echo ""
+print_success "Template ready for test cloning via PostgreSQL CREATE DATABASE WITH TEMPLATE"
+
+# Verify template exists
+print_step "Verifying template registration"
+template_check=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenants WHERE name = 'monk_$TEMPLATE_NAME' AND tenant_type = 'template'" | xargs)
+
+if [[ "$template_check" == "1" ]]; then
+    print_success "Template successfully registered and ready for use"
+else
+    fail "Template registration verification failed"
+fi

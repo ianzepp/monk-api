@@ -451,10 +451,10 @@ if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
     else
         print_warning "Monk database exists but may need initialization"
         print_step "Re-initializing monk database schema..."
-        if psql -d monk -f sql/init-monk.sql >/dev/null 2>&1; then
+        if psql -d monk -f fixtures/init-monk.sql >/dev/null 2>&1; then
             print_success "Monk database schema updated"
         else
-            handle_error "Monk database schema initialization" "Check sql/init-monk.sql file exists and PostgreSQL permissions"
+            handle_error "Monk database schema initialization" "Check fixtures/init-monk.sql file exists and PostgreSQL permissions"
         fi
     fi
 else

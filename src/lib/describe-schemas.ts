@@ -18,38 +18,37 @@ export class DescribeSchemas {
     constructor(private system: System) {}
 
     /**
-     * Validate that schema is not protected (requires sudo access)
+     * Validate that system schemas (status='system') are not modified without proper privileges
      *
-     * Uses cached schema to check sudo requirement. This is a data-driven approach
-     * that allows marking any schema as requiring sudo access without code changes.
+     * System schemas (schemas, users, columns, history) are core infrastructure and require
+     * sudo access to modify, unlike the schema.sudo flag which protects DATA operations.
      */
-    private async validateSchemaProtection(schemaName: string): Promise<void> {
-        // Try to load schema from cache (will throw if not found during updates/deletes)
+    private async validateSystemSchemaProtection(schemaName: string): Promise<void> {
+        // Try to load schema from cache
         let schema;
         try {
             schema = await this.system.database.toSchema(schemaName);
         } catch (error) {
-            // Schema doesn't exist yet - allow creation (will be validated by other checks)
+            // Schema doesn't exist yet - allow creation
             return;
         }
 
-        // Check if schema requires sudo access
-        if (!schema.sudo) {
-            // Schema doesn't require sudo - allow modification
+        // Only protect system schemas (status='system')
+        if (schema.status !== 'system') {
             return;
         }
 
-        // Schema requires sudo - verify user has sudo token
+        // System schema - verify user has sudo token
         const jwtPayload = this.system.context.get('jwtPayload');
 
         if (!jwtPayload?.is_sudo) {
             throw HttpErrors.forbidden(
-                `Schema '${schemaName}' requires sudo access. Use POST /api/user/sudo to get short-lived sudo token.`,
+                `Schema '${schemaName}' is a system schema and requires sudo access. Use POST /api/user/sudo.`,
                 'SCHEMA_REQUIRES_SUDO'
             );
         }
 
-        logger.info('Sudo access validated for protected schema modification', {
+        logger.info('Sudo access validated for system schema modification', {
             schemaName,
             userId: this.system.getUser?.()?.id,
             elevation_reason: jwtPayload.elevation_reason
@@ -90,9 +89,6 @@ export class DescribeSchemas {
             throw HttpErrors.badRequest('schema_name is required', 'MISSING_REQUIRED_FIELDS');
         }
 
-        // Validate schema protection
-        await this.validateSchemaProtection(data.schema_name);
-
         logger.info('Creating schema via observer pipeline', { schemaName: data.schema_name });
 
         // Delegate to database
@@ -105,11 +101,8 @@ export class DescribeSchemas {
      * Validates schema protection before updating.
      */
     async update404(filter: FilterData, updates: Partial<SchemaRecord>, message?: string): Promise<SchemaRecord> {
-        // Extract schema name from filter for validation
+        // Extract schema name for logging
         const schemaName = filter.where?.schema_name;
-        if (schemaName) {
-            await this.validateSchemaProtection(schemaName);
-        }
 
         // Validate at least one field provided
         if (Object.keys(updates).length === 0) {
@@ -129,11 +122,8 @@ export class DescribeSchemas {
      * Observer pipeline will handle DDL (DROP TABLE).
      */
     async delete404(filter: FilterData, message?: string): Promise<SchemaRecord> {
-        // Extract schema name from filter for validation
+        // Extract schema name for logging
         const schemaName = filter.where?.schema_name;
-        if (schemaName) {
-            await this.validateSchemaProtection(schemaName);
-        }
 
         logger.info('Deleting schema via observer pipeline', { schemaName });
 

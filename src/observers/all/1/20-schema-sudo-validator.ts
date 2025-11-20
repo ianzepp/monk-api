@@ -30,6 +30,13 @@ export default class SchemaSudoValidator extends BaseObserver {
     async execute(context: ObserverContext): Promise<void> {
         const { system, schema } = context;
 
+        // Don't apply sudo checks to schema metadata operations (operations on the 'schemas' table itself)
+        // The sudo flag protects DATA operations, not metadata operations
+        // Schema metadata operations already require root/admin privileges
+        if (schema.schema_name === 'schemas') {
+            return;
+        }
+
         // Use cached schema data - the schema object comes from SchemaCache via Database.toSchema()
         // This avoids redundant database queries since the schema is already loaded and cached
         const requiresSudo = schema.sudo ?? false;
