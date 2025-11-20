@@ -27,7 +27,7 @@ export class Schema {
 
     // Schema flags
     public sudo?: boolean;
-    public freeze?: boolean;
+    public frozen?: boolean;
     public external?: boolean;
 
     // Precalculated column metadata for performance
@@ -52,7 +52,7 @@ export class Schema {
         this.schemaName = schemaName;
         this.status = schemaRecord.status || 'active';
         this.sudo = schemaRecord.sudo;
-        this.freeze = schemaRecord.freeze;
+        this.frozen = schemaRecord.frozen;
         this.external = schemaRecord.external;
 
         // Precalculate immutable, sudo, tracked, required, type, range, enum, and transform fields from column metadata for O(1) lookups
@@ -128,7 +128,7 @@ export class Schema {
 
         logger.info('Schema initialized with metadata', {
             schemaName: this.schemaName,
-            freeze: this.freeze,
+            frozen: this.frozen,
             immutableFields: this.immutableFields.size,
             sudoFields: this.sudoFields.size,
             trackedFields: this.trackedFields.size,
@@ -216,7 +216,7 @@ export class Schema {
      * Check if this schema is frozen (no data changes allowed)
      */
     isFrozen(): boolean {
-        return this.freeze === true;
+        return this.frozen === true;
     }
 
     /**

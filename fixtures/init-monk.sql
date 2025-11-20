@@ -170,9 +170,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Apply to templates table
+CREATE TRIGGER "update_templates_updated_at"
+    BEFORE UPDATE ON "templates"
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- Apply to tenants table
 CREATE TRIGGER "update_tenants_updated_at"
     BEFORE UPDATE ON "tenants"
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Apply to sandboxes table
+CREATE TRIGGER "update_sandboxes_updated_at"
+    BEFORE UPDATE ON "sandboxes"
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -182,117 +194,31 @@ CREATE TRIGGER "update_requests_updated_at"
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- ============================================================================
--- MIGRATION FROM OLD SCHEMA
--- Migrate existing data if old tenants table structure exists
--- ============================================================================
 
--- Check if we need to migrate from old schema
-DO $$
-DECLARE
-    has_tenant_type BOOLEAN;
-    template_count INTEGER;
-BEGIN
-    -- Check if old tenant_type column exists
-    SELECT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'tenants' 
-        AND column_name = 'tenant_type'
-    ) INTO has_tenant_type;
+-- -- ============================================================================
+-- -- SEED DATA
+-- -- Create system template registry entry
+-- -- ============================================================================
 
-    IF has_tenant_type THEN
-        RAISE NOTICE 'Migrating from old schema with tenant_type discriminator...';
+-- DO $$
+-- BEGIN
+--     -- Create system template entry (database will be created by autoinstall)
+--     INSERT INTO "templates" ("name", "database", "description", "is_system", "schema_count")
+--     VALUES (
+--         'system',
+--         'monk_template_system',
+--         'System template with core infrastructure for new tenants and sandboxes',
+--         true,
+--         4  -- schemas, columns, users, history
+--     )
+--     ON CONFLICT ("name") DO NOTHING;
 
-        -- Migrate templates: tenant_type = 'template' → templates table
-        INSERT INTO "templates" (
-            "id", "name", "database", "description", 
-            "is_system", "created_at", 
-            "access_read", "access_edit", "access_full"
-        )
-        SELECT 
-            "id",
-            "name",
-            "database",
-            "description",
-            true,  -- Mark migrated templates as system
-            "created_at",
-            "access_read",
-            "access_edit",
-            "access_full"
-        FROM "tenants"
-        WHERE "tenant_type" = 'template'
-        ON CONFLICT ("name") DO NOTHING;
-
-        GET DIAGNOSTICS template_count = ROW_COUNT;
-        RAISE NOTICE 'Migrated % templates to templates table', template_count;
-
-        -- Delete migrated templates from tenants table
-        DELETE FROM "tenants" WHERE "tenant_type" = 'template';
-
-        -- Drop old columns from tenants table
-        ALTER TABLE "tenants" DROP COLUMN IF EXISTS "tenant_type";
-        
-        -- Add new required columns if they don't exist
-        IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_name = 'tenants' AND column_name = 'owner_id'
-        ) THEN
-            -- Add owner_id column (use id as owner for migrated tenants)
-            ALTER TABLE "tenants" ADD COLUMN "owner_id" uuid;
-            UPDATE "tenants" SET "owner_id" = "id" WHERE "owner_id" IS NULL;
-            ALTER TABLE "tenants" ALTER COLUMN "owner_id" SET NOT NULL;
-        END IF;
-
-        IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_name = 'tenants' AND column_name = 'source_template'
-        ) THEN
-            ALTER TABLE "tenants" ADD COLUMN "source_template" VARCHAR(255);
-        END IF;
-
-        -- Add constraints if they don't exist
-        BEGIN
-            ALTER TABLE "tenants" ADD CONSTRAINT "tenants_database_prefix" 
-                CHECK ("database" LIKE 'tenant_%');
-        EXCEPTION
-            WHEN duplicate_object THEN NULL;
-        END;
-
-        -- Update indexes
-        DROP INDEX IF EXISTS "idx_tenants_tenant_type";
-        CREATE INDEX IF NOT EXISTS "idx_tenants_owner" ON "tenants" ("owner_id");
-        CREATE INDEX IF NOT EXISTS "idx_tenants_source_template" ON "tenants" ("source_template");
-
-        RAISE NOTICE 'Migration complete. Old tenant_type column removed.';
-    ELSE
-        RAISE NOTICE 'Schema is up to date. No migration needed.';
-    END IF;
-END $$;
-
--- ============================================================================
--- SEED DATA
--- Create system template registry entry
--- ============================================================================
-
-DO $$
-BEGIN
-    -- Create system template entry (database will be created by autoinstall)
-    INSERT INTO "templates" ("name", "database", "description", "is_system", "schema_count")
-    VALUES (
-        'system',
-        'monk_template_system',
-        'System template with core infrastructure for new tenants and sandboxes',
-        true,
-        4  -- schemas, columns, users, history
-    )
-    ON CONFLICT ("name") DO NOTHING;
-
-    IF FOUND THEN
-        RAISE NOTICE 'Created system template entry. Database monk_template_system will be created by autoinstall.';
-    ELSE
-        RAISE NOTICE 'System template entry already exists.';
-    END IF;
-END $$;
+--     IF FOUND THEN
+--         RAISE NOTICE 'Created system template entry. Database monk_template_system will be created by autoinstall.';
+--     ELSE
+--         RAISE NOTICE 'System template entry already exists.';
+--     END IF;
+-- END $$;
 
 -- ============================================================================
 -- SUMMARY
@@ -303,12 +229,10 @@ DECLARE
     template_count INTEGER;
     tenant_count INTEGER;
     sandbox_count INTEGER;
-    snapshot_count INTEGER;
 BEGIN
     SELECT COUNT(*) INTO template_count FROM "templates";
     SELECT COUNT(*) INTO tenant_count FROM "tenants";
     SELECT COUNT(*) INTO sandbox_count FROM "sandboxes";
-    SELECT COUNT(*) INTO snapshot_count FROM "snapshots";
 
     RAISE NOTICE '';
     RAISE NOTICE '========================================';
@@ -317,7 +241,6 @@ BEGIN
     RAISE NOTICE 'Templates:  %', template_count;
     RAISE NOTICE 'Tenants:    %', tenant_count;
     RAISE NOTICE 'Sandboxes:  %', sandbox_count;
-    RAISE NOTICE 'Snapshots:  %', snapshot_count;
     RAISE NOTICE '========================================';
     RAISE NOTICE '';
 END $$;

@@ -439,15 +439,13 @@ if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
     # Check if it has the required tables
     if psql -d monk -c "SELECT 1 FROM templates LIMIT 1;" >/dev/null 2>&1 && \
        psql -d monk -c "SELECT 1 FROM tenants LIMIT 1;" >/dev/null 2>&1 && \
-       psql -d monk -c "SELECT 1 FROM sandboxes LIMIT 1;" >/dev/null 2>&1 && \
-       psql -d monk -c "SELECT 1 FROM snapshots LIMIT 1;" >/dev/null 2>&1; then
+       psql -d monk -c "SELECT 1 FROM sandboxes LIMIT 1;" >/dev/null 2>&1; then
         print_success "Monk database properly initialized with all tables"
         # Show counts
         template_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM templates;" 2>/dev/null | xargs)
         tenant_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM tenants;" 2>/dev/null | xargs)
         sandbox_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM sandboxes;" 2>/dev/null | xargs)
-        snapshot_count=$(psql -d monk -t -c "SELECT COUNT(*) FROM snapshots;" 2>/dev/null | xargs)
-        print_info "Infrastructure: Templates: $template_count, Tenants: $tenant_count, Sandboxes: $sandbox_count, Snapshots: $snapshot_count"
+        print_info "Infrastructure: Templates: $template_count, Tenants: $tenant_count, Sandboxes: $sandbox_count"
     else
         print_warning "Monk database exists but may need initialization"
         print_step "Re-initializing monk database schema..."
@@ -466,11 +464,11 @@ else
     fi
 
     print_step "Initializing monk database schema..."
-    if psql -d monk -f sql/init-monk.sql >/dev/null 2>&1; then
+    if psql -d monk -f fixtures/init-monk.sql >/dev/null 2>&1; then
         print_success "Monk database schema initialized"
-        print_info "Created infrastructure tables (templates, tenants, sandboxes, snapshots)"
+        print_info "Created infrastructure tables (templates, tenants, sandboxes)"
     else
-        handle_error "Monk database schema initialization" "Check sql/init-monk.sql file exists and PostgreSQL permissions"
+        handle_error "Monk database schema initialization" "Check fixtures/init-monk.sql file exists and PostgreSQL permissions"
     fi
 fi
 

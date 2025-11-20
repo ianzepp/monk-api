@@ -5,7 +5,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 /**
  * PUT /api/describe/:schema - Update Schema
  *
- * Tests schema metadata updates (status, sudo, freeze, immutable).
+ * Tests schema metadata updates (status, sudo, frozen, immutable).
  * Does NOT update columns - use column endpoints for that.
  */
 
@@ -44,13 +44,13 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
         expect(response.data.sudo).toBe(true);
     });
 
-    it('should update freeze flag', async () => {
+    it('should update frozen flag', async () => {
         const response = await tenant.httpClient.put('/api/describe/products', {
-            freeze: true
+            frozen: true
         });
 
         expectSuccess(response);
-        expect(response.data.freeze).toBe(true);
+        expect(response.data.frozen).toBe(true);
     });
 
     it('should update immutable flag', async () => {
@@ -75,14 +75,14 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
         const response = await tenant.httpClient.put('/api/describe/products', {
             status: 'active',
             sudo: false,
-            freeze: false,
+            frozen: false,
             description: 'Multi-field update'
         });
 
         expectSuccess(response);
         expect(response.data.status).toBe('active');
         expect(response.data.sudo).toBe(false);
-        expect(response.data.freeze).toBe(false);
+        expect(response.data.frozen).toBe(false);
         expect(response.data.description).toBe('Multi-field update');
     });
 

@@ -6,7 +6,7 @@ import { stripSystemFields } from '@src/lib/describe.js';
 /**
  * PUT /api/describe/:schema - Update schema metadata
  *
- * Updates schema properties like status, sudo, freeze.
+ * Updates schema properties like status, sudo, frozen.
  * Does not modify columns - use column endpoints for that.
  */
 export default withTransactionParams(async (context, { system, schema, body }) => {

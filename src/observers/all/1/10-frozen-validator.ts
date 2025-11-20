@@ -1,7 +1,7 @@
 /**
  * Freeze Validator - Schema-Level Data Protection Observer
  *
- * Prevents all data operations (create, update, delete) on schemas marked with freeze=true.
+ * Prevents all data operations (create, update, delete) on schemas marked with frozen=true.
  * This provides emergency "circuit breaker" functionality to temporarily lock down schemas
  * during incidents or maintenance windows.
  *
@@ -23,7 +23,7 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { SecurityError } from '@src/lib/observers/errors.js';
 
-export default class FreezeValidator extends BaseObserver {
+export default class FrozenValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
     readonly operations = ['create', 'update', 'delete'] as const;
     readonly priority = 10;
@@ -39,7 +39,7 @@ export default class FreezeValidator extends BaseObserver {
                 schemaName,
                 operation,
                 recordCount: data.length,
-                freeze: true
+                frozen: true
             });
 
             throw new SecurityError(

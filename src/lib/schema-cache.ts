@@ -161,7 +161,7 @@ export class SchemaCache {
             throw new Error(`Schema '${schemaName}' not found`);
         }
 
-        // Load column metadata for performance-critical validations (freeze/immutable/sudo/tracked/required/type/range/enum/transform)
+        // Load column metadata for performance-critical validations (frozen/immutable/sudo/tracked/required/type/range/enum/transform)
         const columnsResult = await dtx.query(
             `
             SELECT column_name, immutable, sudo, required, type, is_array, tracked,

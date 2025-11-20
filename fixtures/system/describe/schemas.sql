@@ -20,7 +20,7 @@ CREATE TABLE "schemas" (
 	"status" text DEFAULT 'active' NOT NULL,
 	"description" text,
 	"sudo" boolean DEFAULT false NOT NULL,
-	"freeze" boolean DEFAULT false NOT NULL,
+	"frozen" boolean DEFAULT false NOT NULL,
 	"immutable" boolean DEFAULT false NOT NULL,
 	"external" boolean DEFAULT false NOT NULL,
 

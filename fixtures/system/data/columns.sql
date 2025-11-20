@@ -13,7 +13,7 @@ INSERT INTO "columns" (schema_name, column_name, type, required, default_value, 
     ('schemas', 'status', 'text', false, 'active', 'Schema status (active, disabled, system)'),
     ('schemas', 'description', 'text', false, NULL, 'Human-readable description of the schema'),
     ('schemas', 'sudo', 'boolean', false, NULL, 'Whether schema modifications require sudo access'),
-    ('schemas', 'freeze', 'boolean', false, NULL, 'Whether all data changes are prevented on this schema'),
+    ('schemas', 'frozen', 'boolean', false, NULL, 'Whether all data changes are prevented on this schema'),
     ('schemas', 'immutable', 'boolean', false, NULL, 'Whether records are write-once (can be created but never modified)');
 
 -- ============================================================================

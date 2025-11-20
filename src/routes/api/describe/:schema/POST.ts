@@ -6,7 +6,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 export default withTransactionParams(async (context, { system, schema, body }) => {
     // Schema name comes from URL parameter
-    // Body contains schema metadata only (status, sudo, freeze)
+    // Body contains schema metadata only (status, sudo, frozen)
     // Use column endpoints for column management
     const schemaName = schema!.toLowerCase();
 

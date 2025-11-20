@@ -26,7 +26,7 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
             schema_name: 'protected_schema',
             status: 'active',
             sudo: true,
-            freeze: false,
+            frozen: false,
             immutable: false
         });
     });
@@ -62,7 +62,7 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
 
         expectSuccess(response);
         expect(response.data.sudo).toBe(true);
-        expect(response.data.freeze).toBe(false);
+        expect(response.data.frozen).toBe(false);
         expect(response.data.immutable).toBe(false);
     });
 

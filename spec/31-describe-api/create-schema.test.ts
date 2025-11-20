@@ -65,16 +65,16 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expect(response.data.sudo).toBe(true);
     });
 
-    it('should create schema with freeze flag', async () => {
+    it('should create schema with frozen flag', async () => {
         const response = await tenant.httpClient.post('/api/describe/frozen_data', {
             schema_name: 'frozen_data',
             status: 'active',
-            freeze: true
+            frozen: true
         });
 
         expectSuccess(response, 'Failed to create schema');
         expect(response.data.schema_name).toBe('frozen_data');
-        expect(response.data.freeze).toBe(true);
+        expect(response.data.frozen).toBe(true);
     });
 
     it('should create schema with immutable flag', async () => {
