@@ -42,20 +42,6 @@
 
 **Multi-Tenant Architecture**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for detailed tenant management
 
-### Schema-First Development
-```json
-# Example: user.json schema definition
-{
-  "name": "user",
-  "properties": {
-    "name": {"type": "string", "minLength": 1},
-    "email": {"type": "string", "format": "email"},
-    "role": {"type": "string", "enum": ["full", "user"]}
-  },
-  "required": ["name", "email"]
-}
-```
-
 ### API Design Patterns
 **Consistent Array/Object Patterns**:
 ```bash
@@ -99,7 +85,6 @@ PUT  /api/data/users/123  # Update specific user (object input)
 - **[Hono](https://hono.dev/)**: Ultra-fast web framework with multi-runtime support
 - **TypeScript**: Type-safe development with modern language features
 - **PostgreSQL**: Advanced multi-tenant database architecture
-- **AJV**: High-performance JSON Schema validation
 
 **Complete Stack**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for detailed technology specifications
 

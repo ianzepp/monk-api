@@ -258,17 +258,17 @@ psql -d monk -c "SELECT name, database, tenant_type FROM tenants WHERE tenant_ty
 ```
 fixtures/
 ├── default/             # Minimal system template (renamed from 'empty')
-│   ├── describe/        # JSON schema definitions (system tables)
+│   ├── describe/        # Schema definitions (system tables)
 │   └── data/            # Minimal system data
 ├── testing/             # Protected template (5 records)
-│   ├── describe/        # JSON schema definitions
+│   ├── describe/        # Schema definitions
 │   ├── data/            # Pre-generated test data
 │   └── .locked          # Protection lock file
 ├── testing_xl/          # Large template (100+ records)
-│   ├── describe/        # JSON schema definitions
+│   ├── describe/        # Schema definitions
 │   └── data/            # Large dataset
 └── demo/                # Demo template with sample data
-    ├── describe/        # JSON schema definitions
+    ├── describe/        # Schema definitions
     └── data/            # Sample business data
 ```
 
