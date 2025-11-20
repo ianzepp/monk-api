@@ -109,7 +109,6 @@ export interface SchemaRecord extends DbRecord {
     status: string;
     sudo?: boolean;
     external?: boolean;
-    definition?: any;
 }
 
 export interface ColumnRecord extends DbRecord {
@@ -131,11 +130,6 @@ export interface ColumnRecord extends DbRecord {
     relationship_column?: string;
     relationship_cascade_delete?: boolean;
     relationship_required?: boolean;
-}
-
-export interface DefinitionRecord extends DbRecord {
-    schema_name: string;
-    definition: any;
 }
 
 export interface UserRecord extends DbRecord {

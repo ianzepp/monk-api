@@ -209,16 +209,7 @@ if ! psql -d monk -c "INSERT INTO tenants (name, database, host, is_active, tena
 fi
 print_success "Registered tenant: $tenant_name"
 
-# Step 1.5: Initialize definitions system for schema caching
-print_step "Initializing definitions system (schema caching)"
-if psql -d "$template_db_name" -f sql/init-definitions.sql; then
-    print_success "Definitions system initialized"
-else
-    print_error "Failed to initialize definitions system"
-    fail "Definitions initialization failed"
-fi
-
-# Step 1.6: Execute optional fixture-specific init.sql
+# Step 1.5: Execute optional fixture-specific init.sql
 fixture_init_sql="$FIXTURES_DIR/init.sql"
 if [[ -f "$fixture_init_sql" ]]; then
     print_step "Executing fixture-specific initialization: $fixture_init_sql"
