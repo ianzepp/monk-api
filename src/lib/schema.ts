@@ -22,8 +22,10 @@ export interface FieldValidationConfig {
 
 export class Schema {
     // Schema properties from database record
-    private schemaName: SchemaName;
-    private status: string;
+    public schemaName: SchemaName;
+    public status: string;
+
+    // Schema flags
     public sudo?: boolean;
     public freeze?: boolean;
     public external?: boolean;
