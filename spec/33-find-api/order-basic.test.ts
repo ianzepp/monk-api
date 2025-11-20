@@ -46,7 +46,7 @@ describe('Find API - Order Functionality', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(5);
 
         // Verify ascending order
@@ -62,7 +62,7 @@ describe('Find API - Order Functionality', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(5);
 
         // Verify descending order
@@ -78,7 +78,7 @@ describe('Find API - Order Functionality', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
 
         // Verify numeric ascending order
         for (let i = 0; i < response.data.length - 1; i++) {
@@ -93,7 +93,7 @@ describe('Find API - Order Functionality', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(5);
 
         // Verify first level ordering by account_type

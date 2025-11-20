@@ -59,7 +59,7 @@ describe('Find API - Where Equality Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toHaveLength(1);
             expect(response.data[0].name).toBe(testAccount.name);
         });
@@ -71,7 +71,7 @@ describe('Find API - Where Equality Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // All returned records should have null credit_limit
             response.data.forEach((record: any) => {
@@ -88,7 +88,7 @@ describe('Find API - Where Equality Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toHaveLength(4); // 5 total - 1 excluded
 
             // Verify excluded record is not in results
@@ -103,7 +103,7 @@ describe('Find API - Where Equality Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // All returned records should have non-null credit_limit
             response.data.forEach((record: any) => {
@@ -120,7 +120,7 @@ describe('Find API - Where Equality Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // Calculate expected count
             const expectedCount = allAccounts.filter(

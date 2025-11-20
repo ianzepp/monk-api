@@ -36,7 +36,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             description: 'Updated product name'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.description).toBe('Updated product name');
     });
 
@@ -45,7 +45,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             pattern: '^[A-Z]'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.pattern).toBe('^[A-Z]');
     });
 
@@ -60,7 +60,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             maximum: 1000
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.minimum).toBe(0);
         expect(response.data.maximum).toBe(1000);
     });
@@ -75,7 +75,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             enum_values: ['active', 'inactive', 'pending']
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.enum_values).toEqual(['active', 'inactive', 'pending']);
     });
 
@@ -84,7 +84,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             immutable: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.immutable).toBe(true);
     });
 
@@ -93,7 +93,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             sudo: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.sudo).toBe(true);
     });
 
@@ -102,7 +102,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             tracked: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.tracked).toBe(true);
     });
 
@@ -111,7 +111,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             transform: 'lowercase'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.transform).toBe('lowercase');
     });
 
@@ -120,7 +120,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             required: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.required).toBe(true);
     });
 
@@ -129,7 +129,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             default_value: 'Untitled'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.default_value).toBe('Untitled');
     });
 
@@ -156,7 +156,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             tracked: false
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.description).toBe('Multi-field update');
         expect(response.data.pattern).toBe('^[A-Za-z]');
         expect(response.data.immutable).toBe(false);
@@ -166,7 +166,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
     it('should reject empty updates', async () => {
         const response = await tenant.httpClient.put('/api/describe/products/name', {});
 
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should return 404 for non-existent column', async () => {
@@ -174,7 +174,7 @@ describe('PUT /api/describe/:schema/:column - Update Column', () => {
             description: 'test'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('COLUMN_NOT_FOUND');
     });
 

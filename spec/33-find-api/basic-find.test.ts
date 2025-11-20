@@ -25,7 +25,7 @@ describe('Find API - Basic Functionality', () => {
         // Auth token automatically included - no manual headers needed!
         const response = await tenant.httpClient.post('/api/find/account', {});
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toBeDefined();
         expect(Array.isArray(response.data)).toBe(true);
 
@@ -37,7 +37,7 @@ describe('Find API - Basic Functionality', () => {
         // Auth token automatically included - no manual headers needed!
         const response = await tenant.httpClient.post('/api/find/account', {});
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         const firstRecord = response.data[0];
 
         expect(firstRecord).toBeDefined();
@@ -50,7 +50,7 @@ describe('Find API - Basic Functionality', () => {
         // Auth token automatically included - no manual headers needed!
         const response = await tenant.httpClient.post('/api/find/account', {});
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         const firstRecord = response.data[0];
 
         expect(firstRecord.created_at).toBeDefined();

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TestHelpers, type TestTenant } from '../test-helpers.js';
+import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
  * POST /api/describe/:schema/:column - Create Column
@@ -30,7 +31,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             type: 'text'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.schema_name).toBe('products');
         expect(response.data.column_name).toBe('name');
         expect(response.data.type).toBe('text');
@@ -42,7 +43,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             required: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.required).toBe(true);
     });
 
@@ -52,7 +53,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             default_value: 'true'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.default_value).toBe('true');
     });
 
@@ -62,7 +63,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             description: 'Product price in USD'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.description).toBe('Product price in USD');
     });
 
@@ -72,7 +73,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             pattern: '^[^@]+@[^@]+\\.[^@]+$'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.pattern).toBe('^[^@]+@[^@]+\\.[^@]+$');
     });
 
@@ -83,7 +84,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             maximum: 1000
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.minimum).toBe(0);
         expect(response.data.maximum).toBe(1000);
     });
@@ -94,7 +95,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             enum_values: ['draft', 'published', 'archived']
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.enum_values).toEqual(['draft', 'published', 'archived']);
     });
 
@@ -104,7 +105,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             unique: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.unique).toBe(true);
     });
 
@@ -114,7 +115,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             index: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.index).toBe(true);
     });
 
@@ -124,7 +125,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             searchable: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.searchable).toBe(true);
     });
 
@@ -134,7 +135,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             immutable: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.immutable).toBe(true);
     });
 
@@ -144,7 +145,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             sudo: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.sudo).toBe(true);
     });
 
@@ -154,7 +155,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             transform: 'lowercase'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.transform).toBe('lowercase');
     });
 
@@ -164,7 +165,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             tracked: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.tracked).toBe(true);
     });
 
@@ -185,7 +186,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
                 type
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data.type).toBe(type);
         }
     });
@@ -195,7 +196,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             type: 'text[]'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.type).toBe('text[]');
         expect(response.data.is_array).toBe(true);
     });
@@ -211,7 +212,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             type: 'text'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should reject column creation without type', async () => {
@@ -219,7 +220,7 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             description: 'Missing type field'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should reject column on non-existent schema', async () => {
@@ -227,6 +228,6 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
             type: 'text'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 });

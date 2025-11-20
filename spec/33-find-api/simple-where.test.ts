@@ -56,7 +56,7 @@ describe('Find API - Simple Where Conditions', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(1);
         expect(response.data[0].name).toBe(testAccount.name);
     });
@@ -68,7 +68,7 @@ describe('Find API - Simple Where Conditions', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(1);
         expect(response.data[0].email).toBe(testAccount.email);
     });
@@ -80,7 +80,7 @@ describe('Find API - Simple Where Conditions', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(0);
     });
 });

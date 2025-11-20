@@ -37,7 +37,7 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
     it('should retrieve schema metadata', async () => {
         const response = await tenant.httpClient.get('/api/describe/products');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toBeDefined();
         expect(response.data.schema_name).toBe('products');
     });
@@ -45,21 +45,21 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
     it('should include status field', async () => {
         const response = await tenant.httpClient.get('/api/describe/products');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.status).toBe('active');
     });
 
     it('should include description field', async () => {
         const response = await tenant.httpClient.get('/api/describe/products');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.description).toBe('Product catalog');
     });
 
     it('should include protection flags', async () => {
         const response = await tenant.httpClient.get('/api/describe/protected_schema');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.sudo).toBe(true);
         expect(response.data.freeze).toBe(false);
         expect(response.data.immutable).toBe(false);
@@ -68,8 +68,8 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
     it('should not include system fields in response', async () => {
         const response = await tenant.httpClient.get('/api/describe/products');
 
-        expect(response.success).toBe(true);
-        
+        expectSuccess(response);
+
         // System fields should be filtered out
         expect(response.data.id).toBeUndefined();
         expect(response.data.created_at).toBeUndefined();
@@ -80,8 +80,8 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
     it('should not include columns array (new architecture)', async () => {
         const response = await tenant.httpClient.get('/api/describe/products');
 
-        expect(response.success).toBe(true);
-        
+        expectSuccess(response);
+
         // Columns are not included in schema GET response
         expect(response.data.columns).toBeUndefined();
     });
@@ -89,14 +89,14 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
     it('should return 404 for non-existent schema', async () => {
         const response = await tenant.httpClient.get('/api/describe/nonexistent');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
     });
 
     it('should retrieve system schemas', async () => {
         const response = await tenant.httpClient.get('/api/describe/schemas');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.schema_name).toBe('schemas');
         expect(response.data.status).toBe('system');
     });
@@ -106,13 +106,13 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
         await tenant.httpClient.post('/api/describe/temp_schema', {
             schema_name: 'temp_schema'
         });
-        
+
         await tenant.httpClient.delete('/api/describe/temp_schema');
 
         // Try to retrieve deleted schema
         const response = await tenant.httpClient.get('/api/describe/temp_schema');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
     });
 });

@@ -85,7 +85,7 @@ export class TestHelpers {
      *
      *     // Query it
      *     const response = await tenant.httpClient.post('/api/find/product', {});
-     *     expect(response.success).toBe(true);
+     *     expectSuccess(response);
      *     expect(response.data.length).toBe(1);
      * });
      * ```
@@ -238,5 +238,5 @@ export function expectSuccess(response: any, message?: string): void {
             : `API request failed\n\nFull Response:\n${errorDetails}`;
         throw new Error(errorMessage);
     }
-    expect(response.success).toBe(true);
+    expectSuccess(response);
 }

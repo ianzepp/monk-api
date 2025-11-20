@@ -73,7 +73,7 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
 
             // Verify all stat fields are present
@@ -100,7 +100,7 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
 
             // User data fields should be ABSENT
@@ -127,7 +127,7 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(false);
+            expectError(response);
             expect(response.error).toBeDefined();
             expect(response.error).toContain('not found');
         });
@@ -137,7 +137,7 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(false);
+            expectError(response);
             expect(response.error).toBeDefined();
         });
     });
@@ -148,7 +148,7 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data.trashed_at).toBeNull();
         });
 
@@ -283,7 +283,7 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
                 headers: {}, // No Authorization header
             });
 
-            expect(response.success).toBe(false);
+            expectError(response);
             expect(response.error).toBeDefined();
         });
 
@@ -303,7 +303,7 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
             // Verify top-level response structure
             expect(response).toHaveProperty('success');
             expect(response).toHaveProperty('data');
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // Verify data object structure
             expect(typeof response.data).toBe('object');
@@ -322,7 +322,7 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // Verify data types
             expect(typeof response.data.id).toBe('string');

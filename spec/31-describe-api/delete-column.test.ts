@@ -34,7 +34,7 @@ describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
         // Delete it
         const response = await tenant.httpClient.delete('/api/describe/products/deletable');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.schema_name).toBe('products');
         expect(response.data.column_name).toBe('deletable');
     });
@@ -44,13 +44,13 @@ describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
         await tenant.httpClient.post('/api/describe/products/deleted_col', {
             type: 'text'
         });
-        
+
         await tenant.httpClient.delete('/api/describe/products/deleted_col');
 
         // Try to retrieve deleted column
         const response = await tenant.httpClient.get('/api/describe/products/deleted_col');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('COLUMN_NOT_FOUND');
     });
 
@@ -59,7 +59,7 @@ describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
         await tenant.httpClient.post('/api/describe/products/update_deleted', {
             type: 'text'
         });
-        
+
         await tenant.httpClient.delete('/api/describe/products/update_deleted');
 
         // Try to update deleted column
@@ -67,7 +67,7 @@ describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
             description: 'test'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('COLUMN_NOT_FOUND');
     });
 
@@ -76,27 +76,27 @@ describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
         await tenant.httpClient.post('/api/describe/products/double_delete', {
             type: 'text'
         });
-        
+
         await tenant.httpClient.delete('/api/describe/products/double_delete');
 
         // Try to delete again
         const response = await tenant.httpClient.delete('/api/describe/products/double_delete');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('COLUMN_NOT_FOUND');
     });
 
     it('should return 404 for non-existent column', async () => {
         const response = await tenant.httpClient.delete('/api/describe/products/never_existed');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('COLUMN_NOT_FOUND');
     });
 
     it('should return 404 for column in non-existent schema', async () => {
         const response = await tenant.httpClient.delete('/api/describe/nonexistent/column');
 
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should allow deleting columns with various types', async () => {
@@ -104,11 +104,11 @@ describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
         await tenant.httpClient.post('/api/describe/products/text_delete', {
             type: 'text'
         });
-        
+
         await tenant.httpClient.post('/api/describe/products/int_delete', {
             type: 'integer'
         });
-        
+
         await tenant.httpClient.post('/api/describe/products/json_delete', {
             type: 'jsonb'
         });
@@ -133,7 +133,7 @@ describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
 
         // Should be deletable
         const response = await tenant.httpClient.delete('/api/describe/products/required_delete');
-        expect(response.success).toBe(true);
+        expectSuccess(response);
     });
 
     it('should allow deleting columns with constraints', async () => {
@@ -145,7 +145,7 @@ describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
 
         // Should be deletable
         const response = await tenant.httpClient.delete('/api/describe/products/unique_delete');
-        expect(response.success).toBe(true);
+        expectSuccess(response);
     });
 
     it('should permanently remove column from PostgreSQL table', async () => {

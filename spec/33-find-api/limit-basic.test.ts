@@ -46,7 +46,7 @@ describe('Find API - Limit Functionality', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(2);
     });
 
@@ -57,7 +57,7 @@ describe('Find API - Limit Functionality', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(5); // Template has 5 accounts
     });
 
@@ -68,7 +68,7 @@ describe('Find API - Limit Functionality', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(0);
     });
 });

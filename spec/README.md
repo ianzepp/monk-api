@@ -822,7 +822,7 @@ describe('My Feature Tests', () => {
         // JWT token automatically included - no manual headers needed!
         const response = await tenant.httpClient.post('/api/find/account', {});
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toBeDefined();
     });
 });
@@ -854,7 +854,7 @@ describe('Custom Auth Tests', () => {
     it('should make authenticated requests', async () => {
         // Use the client - token is already cached
         const response = await authClient.client.get('/api/describe/account');
-        expect(response.success).toBe(true);
+        expectSuccess(response);
     });
 
     it('should switch users', async () => {
@@ -866,7 +866,7 @@ describe('Custom Auth Tests', () => {
         
         // Now authenticated as readonly user
         const response = await authClient.client.get('/api/find/account');
-        expect(response.success).toBe(true);
+        expectSuccess(response);
     });
 });
 ```
@@ -903,7 +903,7 @@ it('should support different user permissions', async () => {
         { headers: { Authorization: `Bearer ${readonlyToken}` } }
     );
 
-    expect(response.success).toBe(true);
+    expectSuccess(response);
 });
 ```
 

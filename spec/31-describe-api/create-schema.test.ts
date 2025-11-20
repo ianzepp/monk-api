@@ -100,7 +100,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
             schema_name: 'unique_test'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should reject when schema_name missing', async () => {
@@ -108,7 +108,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
             status: 'active'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should reject mismatched schema names (URL vs body)', async () => {
@@ -117,7 +117,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         });
 
         // Should fail without ?force=true
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should allow mismatched names with force parameter', async () => {
@@ -139,7 +139,7 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         });
 
         // Should fail - columns not allowed in schema creation
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should create schema and it appears in list', async () => {

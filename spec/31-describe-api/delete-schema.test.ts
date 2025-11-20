@@ -28,7 +28,7 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
         // Delete it
         const response = await tenant.httpClient.delete('/api/describe/deletable');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.schema_name).toBe('deletable');
     });
 
@@ -55,13 +55,13 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
         await tenant.httpClient.post('/api/describe/deleted_schema', {
             schema_name: 'deleted_schema'
         });
-        
+
         await tenant.httpClient.delete('/api/describe/deleted_schema');
 
         // Try to retrieve deleted schema
         const response = await tenant.httpClient.get('/api/describe/deleted_schema');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
     });
 
@@ -70,7 +70,7 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
         await tenant.httpClient.post('/api/describe/update_deleted', {
             schema_name: 'update_deleted'
         });
-        
+
         await tenant.httpClient.delete('/api/describe/update_deleted');
 
         // Try to update deleted schema
@@ -78,7 +78,7 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
             status: 'active'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
     });
 
@@ -87,41 +87,41 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
         await tenant.httpClient.post('/api/describe/double_delete', {
             schema_name: 'double_delete'
         });
-        
+
         await tenant.httpClient.delete('/api/describe/double_delete');
 
         // Try to delete again
         const response = await tenant.httpClient.delete('/api/describe/double_delete');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
     });
 
     it('should return 404 for non-existent schema', async () => {
         const response = await tenant.httpClient.delete('/api/describe/never_existed');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
     });
 
     it('should protect system schemas from deletion', async () => {
         const response = await tenant.httpClient.delete('/api/describe/schemas');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
     });
 
     it('should protect users schema from deletion', async () => {
         const response = await tenant.httpClient.delete('/api/describe/users');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
     });
 
     it('should protect columns schema from deletion', async () => {
         const response = await tenant.httpClient.delete('/api/describe/columns');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
     });
 
@@ -131,7 +131,7 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
             schema_name: 'pending_delete',
             status: 'pending'
         });
-        
+
         await tenant.httpClient.post('/api/describe/active_delete', {
             schema_name: 'active_delete',
             status: 'active'

@@ -48,7 +48,7 @@ describe('Find API - Where Comparison Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // All returned records should have balance > 1000
             response.data.forEach((record: any) => {
@@ -65,7 +65,7 @@ describe('Find API - Where Comparison Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // All returned records should have balance >= 1000
             response.data.forEach((record: any) => {
@@ -82,7 +82,7 @@ describe('Find API - Where Comparison Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // All returned records should have balance < 1000
             response.data.forEach((record: any) => {
@@ -99,7 +99,7 @@ describe('Find API - Where Comparison Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // All returned records should have balance <= 1000
             response.data.forEach((record: any) => {
@@ -116,7 +116,7 @@ describe('Find API - Where Comparison Operators', () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
 
             // All returned records should have 500 <= balance <= 2000
             response.data.forEach((record: any) => {

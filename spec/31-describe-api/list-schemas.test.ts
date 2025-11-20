@@ -22,7 +22,7 @@ describe('GET /api/describe - List All Schemas', () => {
     it('should return array of schema names', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toBeDefined();
         expect(Array.isArray(response.data)).toBe(true);
     });
@@ -30,8 +30,8 @@ describe('GET /api/describe - List All Schemas', () => {
     it('should include system schemas in default template', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
-        expect(response.success).toBe(true);
-        
+        expectSuccess(response);
+
         // Default template should have system schemas
         const schemas = response.data as string[];
         expect(schemas).toContain('schemas');
@@ -42,11 +42,11 @@ describe('GET /api/describe - List All Schemas', () => {
     it('should return string array (schema names only)', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
-        expect(response.success).toBe(true);
-        
+        expectSuccess(response);
+
         const schemas = response.data as string[];
         expect(schemas.length).toBeGreaterThan(0);
-        
+
         // Each item should be a string (schema name)
         schemas.forEach(schema => {
             expect(typeof schema).toBe('string');
@@ -63,7 +63,7 @@ describe('GET /api/describe - List All Schemas', () => {
 
         // List schemas again
         const listResponse = await tenant.httpClient.get('/api/describe');
-        
+
         expect(listResponse.success).toBe(true);
         const schemas = listResponse.data as string[];
         expect(schemas).toContain('products');
@@ -81,8 +81,8 @@ describe('GET /api/describe - List All Schemas', () => {
 
         // List schemas - should not include trashed
         const response = await tenant.httpClient.get('/api/describe');
-        
-        expect(response.success).toBe(true);
+
+        expectSuccess(response);
         const schemas = response.data as string[];
         expect(schemas).not.toContain('temp_schema');
     });

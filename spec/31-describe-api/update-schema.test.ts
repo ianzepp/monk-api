@@ -30,7 +30,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
             status: 'active'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.status).toBe('active');
     });
 
@@ -39,7 +39,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
             sudo: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.sudo).toBe(true);
     });
 
@@ -48,7 +48,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
             freeze: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.freeze).toBe(true);
     });
 
@@ -57,7 +57,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
             immutable: true
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.immutable).toBe(true);
     });
 
@@ -66,7 +66,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
             description: 'Updated product catalog'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.description).toBe('Updated product catalog');
     });
 
@@ -78,7 +78,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
             description: 'Multi-field update'
         });
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.status).toBe('active');
         expect(response.data.sudo).toBe(false);
         expect(response.data.freeze).toBe(false);
@@ -103,7 +103,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
     it('should reject empty updates', async () => {
         const response = await tenant.httpClient.put('/api/describe/products', {});
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('NO_UPDATES');
     });
 
@@ -112,7 +112,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
             status: 'active'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
     });
 
@@ -135,7 +135,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
             status: 'active'
         });
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
     });
 });

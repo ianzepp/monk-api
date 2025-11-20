@@ -64,7 +64,7 @@ describe('Find API - Total Count Parameter', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(5);
         expect(response.total).toBeDefined();
         expect(response.total).toBeGreaterThanOrEqual(19); // 4 template + 15 new
@@ -81,7 +81,7 @@ describe('Find API - Total Count Parameter', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(3);
         expect(response.total).toBeDefined();
         expect(response.total).toBeGreaterThanOrEqual(19);
@@ -97,7 +97,7 @@ describe('Find API - Total Count Parameter', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(5);
         expect(response.total).toBeUndefined();
     });
@@ -113,7 +113,7 @@ describe('Find API - Total Count Parameter', () => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toHaveLength(2);
         expect(response.total).toBeGreaterThan(response.data.length);
     });

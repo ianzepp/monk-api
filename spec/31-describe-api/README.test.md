@@ -71,7 +71,7 @@ describe('Endpoint Name', () => {
 
     it('should test specific behavior', async () => {
         const response = await tenant.httpClient.post('/api/endpoint', {});
-        expect(response.success).toBe(true);
+        expectSuccess(response);
     });
 });
 ```

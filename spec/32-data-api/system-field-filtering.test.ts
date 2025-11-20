@@ -56,7 +56,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
             expect(Array.isArray(response.data)).toBe(true);
 
@@ -89,7 +89,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
 
             // Stat fields should be present
@@ -111,7 +111,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
             expect(Array.isArray(response.data)).toBe(true);
 
@@ -146,7 +146,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
 
             // Stat fields should be ABSENT
@@ -207,7 +207,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
             expect(Array.isArray(response.data)).toBe(true);
 
@@ -242,7 +242,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
 
             // Access fields should be ABSENT
@@ -266,7 +266,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
             expect(Array.isArray(response.data)).toBe(true);
 
@@ -302,7 +302,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 }
             );
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(response.data).toBeDefined();
 
             // All system fields should be ABSENT
@@ -376,7 +376,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             if (response.data.length > 0) {
                 const record = response.data[0];
                 expect(record.created_at).toBeDefined();
@@ -389,7 +389,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             if (response.data.length > 0) {
                 const record = response.data[0];
                 expect(record).toHaveProperty('access_read');
@@ -404,7 +404,7 @@ describe('System Field Filtering (?stat= and ?access= parameters)', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            expect(response.success).toBe(true);
+            expectSuccess(response);
             expect(Array.isArray(response.data)).toBe(true);
 
             // Check that ALL records in the array are filtered

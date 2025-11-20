@@ -40,7 +40,7 @@ describe('GET /api/describe/:schema/:column - Get Column Details', () => {
     it('should retrieve column details', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/name');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data).toBeDefined();
         expect(response.data.schema_name).toBe('products');
         expect(response.data.column_name).toBe('name');
@@ -49,21 +49,21 @@ describe('GET /api/describe/:schema/:column - Get Column Details', () => {
     it('should include column type', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/name');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.type).toBe('text');
     });
 
     it('should include constraint flags', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/name');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.required).toBe(true);
     });
 
     it('should include validation rules', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/price');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.minimum).toBe(0);
         expect(response.data.maximum).toBe(1000000);
     });
@@ -71,28 +71,28 @@ describe('GET /api/describe/:schema/:column - Get Column Details', () => {
     it('should include description', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/name');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.description).toBe('Product name');
     });
 
     it('should return 404 for non-existent column', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/nonexistent');
 
-        expect(response.success).toBe(false);
+        expectError(response);
         expect(response.error_code).toBe('COLUMN_NOT_FOUND');
     });
 
     it('should return 404 for column in non-existent schema', async () => {
         const response = await tenant.httpClient.get('/api/describe/nonexistent/column');
 
-        expect(response.success).toBe(false);
+        expectError(response);
     });
 
     it('should retrieve system schema columns', async () => {
         // System schemas have columns too
         const response = await tenant.httpClient.get('/api/describe/schemas/schema_name');
 
-        expect(response.success).toBe(true);
+        expectSuccess(response);
         expect(response.data.schema_name).toBe('schemas');
         expect(response.data.column_name).toBe('schema_name');
     });
