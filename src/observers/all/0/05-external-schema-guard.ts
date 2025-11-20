@@ -8,7 +8,7 @@
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
-import { UserError } from '@src/lib/observers/errors.js';
+import { SecurityError } from '@src/lib/observers/errors.js';
 
 export default class ExternalSchemaGuard extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation; // Ring 0
@@ -21,8 +21,9 @@ export default class ExternalSchemaGuard extends BaseObserver {
 
         // Check if schema is external
         if (schema.external === true) {
-            throw new UserError(
+            throw new SecurityError(
                 `Schema '${schemaName}' is externally managed and cannot be modified via Data API. Use the appropriate specialized API instead.`,
+                { schemaName },
                 'SCHEMA_EXTERNAL'
             );
         }

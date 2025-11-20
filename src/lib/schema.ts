@@ -26,6 +26,7 @@ export class Schema {
     private status: string;
     public sudo?: boolean;
     public freeze?: boolean;
+    public external?: boolean;
     public definition?: any;
 
     // Precalculated column metadata for performance
@@ -51,6 +52,7 @@ export class Schema {
         this.status = schemaRecord.status || 'active';
         this.sudo = schemaRecord.sudo;
         this.freeze = schemaRecord.freeze;
+        this.external = schemaRecord.external;
         this.definition = schemaRecord.definition;
 
         // Precalculate immutable, sudo, tracked, required, type, range, enum, and transform fields from column metadata for O(1) lookups

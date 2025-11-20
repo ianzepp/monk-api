@@ -108,6 +108,7 @@ export interface SchemaRecord extends DbRecord {
     schema_name: string;
     status: string;
     sudo?: boolean;
+    external?: boolean;
     definition?: any;
 }
 
