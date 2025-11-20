@@ -57,6 +57,7 @@ import * as statRoutes from '@src/routes/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as historyRoutes from '@src/routes/history/routes.js';
 import * as extractRoutes from '@src/routes/extracts/routes.js';
+import * as restoreRoutes from '@src/routes/restores/routes.js';
 import { sudoRouter } from '@src/routes/sudo/index.js';
 
 // Special protected endpoints
@@ -141,6 +142,11 @@ app.get('/', c => {
                 '/api/extracts/runs/:runId/download',
                 '/api/extracts/artifacts/:artifactId/download'
             ],
+            restores: [
+                '/api/restores/:id/run',
+                '/api/restores/:id/cancel',
+                '/api/restores/import'
+            ],
             sudo: ['/api/sudo/*']
         },
         documentation: {
@@ -156,6 +162,7 @@ app.get('/', c => {
             stat: ['/docs/stat'],
             history: ['/docs/history'],
             extracts: ['/docs/extracts'],
+            restores: ['/docs/restores'],
             sudo: ['/docs/sudo']
         },
     };
@@ -268,6 +275,11 @@ app.post('/api/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract 
 app.post('/api/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
 app.get('/api/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
 app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
+
+// 44-restores-api: Restore API routes (data import jobs)
+app.post('/api/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
+app.post('/api/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
+app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));
