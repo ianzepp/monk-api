@@ -21,6 +21,6 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('grid_cells', 'value', 'text', false, 'Cell value (stored as text)');
 
 -- ============================================================================
--- Generate JSON Schema definition
+-- Regenerate schema metadata
 -- ============================================================================
 SELECT regenerate_schema_definition('grid_cells');

@@ -95,7 +95,7 @@ Ring 9: Notification    // User notifications, email alerts, real-time updates (
 
 #### **Synchronous Rings (0-5): Blocking Execution**
 - **Ring 0 (DataPreparation)**: Record preloading, data merging, input sanitization
-- **Ring 1 (InputValidation)**: JSON Schema validation, required field checks, format validation
+- **Ring 1 (InputValidation)**: Type validation, required field checks, constraint validation
 - **Ring 2 (Security)**: Access control, soft delete protection, existence validation
 - **Ring 3 (Business)**: Complex business rules, domain validation, workflow logic
 - **Ring 4 (Enrichment)**: Computed fields, default values, data transformation
@@ -128,7 +128,7 @@ src/observers/:schema/:ring/:observer-name.ts
 
 Examples:
 src/observers/all/0/10-record-preloader.ts       # Ring 0: All schemas, data preparation
-src/observers/all/1/50-json-schema-validator.ts  # Ring 1: All schemas, validation
+src/observers/all/1/50-data-validator.ts  # Ring 1: All schemas, validation
 src/observers/users/1/50-email-validation.ts     # Ring 1: Users schema only
 src/observers/all/2/50-soft-delete-protector.ts  # Ring 2: All schemas, security
 src/observers/all/5/50-sql-create-observer.ts    # Ring 5: All schemas, SQL execution
@@ -336,7 +336,7 @@ export default class RecordPreloader extends BaseObserver {
 ### Validation Pattern (Ring 1)
 
 ```typescript
-export default class JsonSchemaValidator extends BaseObserver {
+export default class DataValidator extends BaseObserver {
     ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
 
@@ -498,7 +498,7 @@ All observers are automatically tracked with nanosecond precision:
 
 ```
 [TIME] Observer: RecordPreloader 1.291ms { ring: 0, operation: "update", schemaName: "users", status: "success" }
-[TIME] Observer: JsonSchemaValidator 0.090ms { ring: 1, operation: "update", schemaName: "users", status: "success" }
+[TIME] Observer: DataValidator 0.090ms { ring: 1, operation: "update", schemaName: "users", status: "success" }
 [TIME] Observer: SoftDeleteProtector 0.045ms { ring: 2, operation: "update", schemaName: "users", status: "success" }
 [TIME] Observer: UpdateSqlObserver 3.257ms { ring: 5, operation: "update", schemaName: "users", status: "success" }
 [TIME] AsyncObserver: CacheInvalidator 1.625ms { ring: 8, operation: "update", status: "success" }
@@ -571,7 +571,7 @@ The observer system provides complete data integrity protection:
 
 #### **Schema Validation (Rings 0-1)**
 - **SystemSchemaProtector**: Prevents data operations on system schemas
-- **JsonSchemaValidator**: Validates all data against JSON Schema definitions
+- **DataValidator**: Validates all data against column metadata
 - **RequiredFieldsValidator**: Ensures required fields are present
 
 #### **Data Integrity & Business Logic (Rings 0-3)**
@@ -618,7 +618,7 @@ npm run start:dev
 | Ring | Name | Purpose | Examples |
 |------|------|---------|----------|
 | 0 | DataPreparation | Load, merge, sanitize | RecordPreloader, UpdateMerger |
-| 1 | InputValidation | Schema validation | JsonSchemaValidator, EmailValidator |
+| 1 | InputValidation | Schema validation | DataValidator, EmailValidator |
 | 2 | Security | Access control, protection | SoftDeleteProtector, ExistenceValidator |
 | 3 | Business | Business rules | DuplicateChecker, BalanceValidator |
 | 4 | Enrichment | Defaults, computed fields | UuidArrayProcessor, DefaultValues |

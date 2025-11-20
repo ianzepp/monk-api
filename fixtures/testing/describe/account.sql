@@ -1,5 +1,5 @@
 -- Schema definition for account
--- Generated from JSON Schema format
+-- Generated schema definition
 
 -- Insert schema record
 INSERT INTO schemas (schema_name, status) VALUES ('account', 'active');

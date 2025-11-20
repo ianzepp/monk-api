@@ -12,7 +12,7 @@
 - **Performance**: 15x faster schema access, ultra-lightweight framework (~50KB)
 
 ### Key Features
-- **Schema-First Development**: JSON-based data model definitions with JSON Schema validation
+- **Schema-First Development**: JSON-based data model definitions with in-house validation
 - **Multi-Tenant Architecture**: Automatic tenant isolation with dedicated database instances
 - **Infrastructure Management**: Templates, Sandboxes, and Snapshots for rapid provisioning and testing
 - **Ring-Based Observer System**: Sophisticated event-driven business logic (0-9 execution rings)
@@ -21,7 +21,7 @@
 - **Comprehensive Testing**: Isolated test environments with 30x faster template-based setup
 
 ### Technical Architecture
-- **Modern Framework Stack**: Hono (~50KB) + TypeScript + PostgreSQL + AJV
+- **Modern Framework Stack**: Hono (~50KB) + TypeScript + PostgreSQL
 - **Observer System**: Ring-based execution model for predictable business logic flow
 - **CLI Integration**: Complete management via monk-cli standalone tool
 

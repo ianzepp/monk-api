@@ -460,7 +460,7 @@ System schemas (status='system') cannot be modified or deleted:
 - `schemas` - Schema metadata registry
 - `users` - User account management
 - `columns` - Column metadata table
-- `definitions` - Auto-generated JSON Schema definitions (internal use only)
+- `history` - Change tracking and audit trails
 
 ### Sudo-Protected Schemas
 Schemas marked with `sudo=true` require a short-lived sudo token for all data operations. Users must call `POST /api/user/sudo` to obtain the token before modifying these schemas.
@@ -491,15 +491,6 @@ Schemas marked with `immutable=true` allow records to be created but never modif
 **Immutable Fields**: Fields marked with `immutable=true` can be set once but never changed. Perfect for audit trails and write-once data like transaction IDs.
 
 **Sudo-Protected Fields**: Fields marked with `sudo=true` require a sudo token to modify, even if the schema itself doesn't require sudo. Allows fine-grained protection of sensitive fields like salary or pricing information.
-
-## Auto-Generated JSON Schema (Internal)
-
-The system automatically generates JSON Schema in the `definitions` table via PostgreSQL trigger when columns are modified. This provides:
-- Internal JSON Schema representation
-- Future integration with validation tools
-- Backward compatibility with JSON Schema consumers
-
-**Note:** The `definitions` table is for internal use only and is NOT exposed via API responses. Use the column endpoints (GET /api/describe/:schema/:column) to retrieve column metadata.
 
 ## Usage Examples
 

@@ -22,6 +22,6 @@ INSERT INTO "columns" (schema_name, column_name, type, required, default_value, 
     ('grids', 'col_max', 'text', false, 'Z', 'Maximum column letter allowed');
 
 -- ============================================================================
--- Generate JSON Schema definition
+-- Regenerate schema metadata
 -- ============================================================================
 SELECT regenerate_schema_definition('grids');

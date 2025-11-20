@@ -25,7 +25,7 @@ export interface Column extends BaseFields {
     type: string; // PostgreSQL column type
     required: 'true' | 'false'; // Required flag as string
     default_value: string | null; // Default value if any
-    constraints: any | null; // JSON Schema constraints object
+    constraints: any | null; // Column constraints metadata
     foreign_key: any | null; // Foreign key metadata object
     description: string | null; // Column description
 }

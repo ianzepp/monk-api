@@ -16,7 +16,7 @@
 |-----|-----------|---------|
 | **Auth API** | `/api/auth/*` | User account management and privilege escalation |
 | **Data API** | `/api/data/:schema[/:record]` | CRUD operations for schema records |
-| **Describe API** | `/api/describe/:schema[/:column]` | JSON Schema definition and column management |
+| **Describe API** | `/api/describe/:schema[/:column]` | Schema definition and column management |
 | **Find API** | `/api/find/:schema` | Advanced search and filtering with 25+ operators |
 | **Aggregate API** | `/api/aggregate/:schema` | Data aggregation and analytics operations |
 | **Bulk API** | `/api/bulk` | Batch operations across multiple schemas |
@@ -31,7 +31,7 @@
 
 ## Key Features
 
-- **Schema-First Development**: Define data models with JSON Schema validation and automatic PostgreSQL table generation
+- **Schema-First Development**: Define data models with in-house validation and automatic PostgreSQL table generation
 - **Multi-Tenant Architecture**: Isolated tenant databases with JWT-based routing and security
 - **Advanced Filtering**: 25+ filter operators with complex logical operations and ACL integration
 - **Change Tracking**: Comprehensive audit trails with history tracking for all record modifications
@@ -124,7 +124,7 @@ curl http://localhost:9001/
 
 ### Core API Documentation
 - **Data Management**: `/docs/data` - CRUD operations and record management
-- **Schema Management**: `/docs/describe` - JSON Schema definition and column management
+- **Schema Management**: `/docs/describe` - Schema definition and column management
 - **Access Control**: `/docs/acls` - Record-level ACL management and permissions
 - **Metadata Access**: `/docs/stat` - Record metadata without user data
 
@@ -644,7 +644,7 @@ try {
 ## Architecture Highlights
 
 - **Ultra-Fast Performance**: Hono framework with ~50KB footprint and multi-runtime support
-- **Schema-Driven**: JSON Schema validation with automatic database DDL generation
+- **Schema-Driven**: Column-based validation with automatic database DDL generation
 - **Multi-Tenant**: Automatic tenant isolation with dedicated PostgreSQL databases
 - **Self-Documenting**: Complete API reference served via HTTP endpoints
 - **Enterprise Security**: Sophisticated authentication with privilege escalation and ACL management

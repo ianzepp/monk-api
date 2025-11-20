@@ -83,7 +83,7 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('restore_logs', 'detail', 'jsonb', false, 'Additional context');
 
 -- ============================================================================
--- Generate JSON Schema definitions
+-- Regenerate schema metadatas
 -- ============================================================================
 SELECT regenerate_schema_definition('restores');
 SELECT regenerate_schema_definition('restore_runs');

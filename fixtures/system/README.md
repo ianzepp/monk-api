@@ -14,7 +14,6 @@ fixtures/system/
 │   ├── columns.sql        # columns table
 │   ├── users.sql          # users table
 │   ├── snapshots.sql      # snapshots table
-│   ├── definitions.sql    # definitions table
 │   ├── extracts.sql       # extracts table
 │   ├── extract_runs.sql   # extract_runs table
 │   ├── extract_artifacts.sql # extract_artifacts table
@@ -22,16 +21,12 @@ fixtures/system/
 │
 ├── functions/             # PostgreSQL functions
 │   ├── create-table-from-schema.sql      # Dynamically create tables
-│   └── regenerate-schema-definition.sql  # Generate JSON Schema
-│
 └── data/                  # Data inserts (DML)
     ├── schemas.sql        # Register system schemas
     ├── columns.sql        # Define columns for system schemas
     ├── users.sql          # Insert root user
     ├── history.sql        # Create history table (via function)
-    └── definitions.sql    # Generate JSON Schema definitions
 ```
-
 ## Load Order
 
 The fixture must be loaded in this specific order:
@@ -41,19 +36,18 @@ The fixture must be loaded in this specific order:
    - Custom types (column_type enum)
 
 2. **Table Definitions** (`describe/*.sql`)
-   - Core tables: schemas, columns, users, snapshots, definitions, history
+   - Core tables: schemas, columns, users, snapshots, history
    - Extract system: extracts, extract_runs, extract_artifacts
 
 3. **Functions** (`functions/*.sql`)
    - `create_table_from_schema()` - Dynamically creates tables
-   - `regenerate_schema_definition()` - Generates JSON Schema
+   - `create_table_from_schema()` - Dynamically creates data tables
 
 4. **Data** (`data/*.sql`)
    - Schema registrations (self-references)
    - Column definitions for all system schemas
    - Default root user
    - History table creation (via function)
-   - JSON Schema generation
 
 5. **Indexes** (`describe/history.sql`)
    - Additional indexes after data load
@@ -69,7 +63,6 @@ The system fixture creates these system schemas:
 | **users** | User management | `users` |
 | **history** | Change tracking | `history` |
 | **snapshots** | DB backups | `snapshots` |
-| **definitions** | JSON Schema cache | `definitions` |
 
 ## Usage
 
@@ -105,14 +98,11 @@ async function loadDefaultFixture(client) {
         'describe/columns.sql',
         'describe/users.sql',
         'describe/snapshots.sql',
-        'describe/definitions.sql',
         'functions/create-table-from-schema.sql',
-        'functions/regenerate-schema-definition.sql',
         'data/schemas.sql',
         'data/columns.sql',
         'data/users.sql',
         'data/history.sql',
-        'data/definitions.sql',
         'describe/history.sql'
     ];
 
@@ -153,12 +143,8 @@ To add new system schemas (like `extracts`, `restores`):
        ('new_schema', 'status', 'text', false, 'Processing status');
    ```
 
-4. **Generate definition**: Add to `data/definitions.sql`
    ```sql
-   SELECT regenerate_schema_definition('new_schema');
-   ```
-
-5. **Update load order**: Add to `load.sql` in appropriate phases
+: Add to `load.sql` in appropriate phases
 
 ## Design Principles
 

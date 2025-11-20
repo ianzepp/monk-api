@@ -624,7 +624,7 @@ All relationship routes follow the pattern `/api/data/:parent_schema/:parent_id/
 
 ## GET /api/data/:schema/:record/:relationship
 
-List every child record tied to the specified parent through a relationship defined in JSON Schema extensions. The route automatically applies the parent filter, enforces ACL inheritance, and supports the same trashed/deleted flags as top-level queries.
+List every child record tied to the specified parent through a relationship defined in schema relationships. The route automatically applies the parent filter, enforces ACL inheritance, and supports the same trashed/deleted flags as top-level queries.
 
 ### Path Parameters
 - `:schema` - Parent schema name

@@ -95,7 +95,7 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('extract_artifacts', 'is_primary', 'boolean', false, 'Primary downloadable artifact');
 
 -- ============================================================================
--- Generate JSON Schema definitions
+-- Regenerate schema metadatas
 -- ============================================================================
 SELECT regenerate_schema_definition('extracts');
 SELECT regenerate_schema_definition('extract_runs');

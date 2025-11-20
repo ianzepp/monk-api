@@ -17,21 +17,21 @@
 
 ## Overview
 
-The Describe API manages database schemas using Monk-native format with direct PostgreSQL type mapping. It provides automatic DDL generation, column metadata management, and optional JSON Schema export.
+The Describe API manages database schemas using Monk-native format with direct PostgreSQL type mapping. It provides automatic DDL generation, column metadata management, and in-house validation.
 
 ### Key Capabilities
-- **Monk-Native Format**: Direct PostgreSQL type mapping (no JSON Schema conversion)
+- **Monk-Native Format**: Direct PostgreSQL type mapping with column metadata
 - **DDL Generation**: Automatic PostgreSQL table creation from column definitions
 - **Column Management**: Full CRUD operations on individual columns
-- **Schema Caching**: High-performance caching with checksum validation
+- **Schema Caching**: High-performance caching with timestamp validation
 - **System Schema Protection**: Prevents modification of core system schemas
-- **Auto-Generated JSON Schema**: Definitions table maintains JSON Schema for interoperability
+- **In-House Validation**: Optimized type and constraint validation from column metadata
 
 ### Architecture
 ```
-Monk API Input → columns table → PostgreSQL trigger → definitions table (JSON Schema)
+Monk API Input → columns table → CREATE TABLE DDL
                       ↓
-                 CREATE TABLE DDL
+              Schema Cache (timestamp-based)
 ```
 
 ### Base URLs
@@ -358,18 +358,6 @@ Direct type mapping without conversion:
 - **Pattern Validation**: `pattern` → Application-level validation
 - **Enum Values**: `enum_values` → Application-level validation
 
-### Auto-Generated JSON Schema
-
-The system automatically generates JSON Schema in the `definitions` table via PostgreSQL trigger for internal use only:
-
-```sql
--- Trigger fires on INSERT/UPDATE/DELETE in columns table
--- Regenerates JSON Schema from columns metadata
--- Stores in definitions table with checksum
-```
-
-**Note:** JSON Schema definitions are for internal use only and are not exposed through the API. The API uses Monk-native format exclusively.
-
 ### Schema Protection Features
 
 #### System Schema Protection
@@ -377,7 +365,7 @@ Protected schemas (status='system') cannot be modified or deleted:
 - `schemas` - Schema metadata registry
 - `users` - User account management
 - `columns` - Column metadata table
-- `definitions` - JSON Schema definitions (internal use only)
+- `history` - Change tracking and audit trails
 
 #### Sudo-Protected Schemas
 Schemas marked with `sudo=true` require short-lived sudo token for all data operations:

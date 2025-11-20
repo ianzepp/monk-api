@@ -149,7 +149,7 @@ Your development environment includes:
 ## Core Features
 
 ### 🎯 Schema Management
-Define data models using JSON with JSON Schema validation:
+Define data models using JSON with in-house validation:
 
 ```json
 # user.json
@@ -259,8 +259,7 @@ npm run test:sh 31-32     # Meta and data API tests
 - **[Hono](https://hono.dev/)** - Ultra-fast web framework
 - **TypeScript** - Type-safe development
 - **PostgreSQL** - Multi-tenant database architecture
-- **AJV** - High-performance JSON Schema validation
-- **JSON Schema** - Validation and documentation
+- **In-House Validators** - Optimized type and constraint validation
 
 ## Troubleshooting
 

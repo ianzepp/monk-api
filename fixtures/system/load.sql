@@ -68,11 +68,10 @@ CREATE TYPE column_type AS ENUM (
 \ir data/columns.sql
 \ir data/users.sql
 \ir data/history.sql        -- Creates history table via function
-\ir data/definitions.sql    -- Generates JSON Schema definitions
-\ir data/extracts.sql        -- Extracts system (registers schemas + columns + generates definitions)
-\ir data/restores.sql        -- Restores system (registers schemas + columns + generates definitions)
-\ir data/grids.sql           -- Grid API metadata (registers schemas + columns + generates definitions)
-\ir data/grid_cells.sql      -- Grid API cells - external schema (registers schemas + columns + generates definitions)
+\ir data/extracts.sql        -- Extracts system (registers schemas + columns)
+\ir data/restores.sql        -- Restores system (registers schemas + columns)
+\ir data/grids.sql           -- Grid API metadata (registers schemas + columns)
+\ir data/grid_cells.sql      -- Grid API cells - external schema (registers schemas + columns)
 
 -- PHASE 5: POST-LOAD INDEXES
 \echo ''

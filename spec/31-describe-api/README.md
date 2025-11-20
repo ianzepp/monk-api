@@ -4,7 +4,7 @@ Tests for the Describe API endpoints handling JSON schema operations and metadat
 
 **Scope:**
 - Schema creation and management
-- JSON Schema validation and DDL generation
+- Schema validation and DDL generation
 - Schema lifecycle operations (CRUD)
 - Column metadata and population
 - Relationship definition and validation
