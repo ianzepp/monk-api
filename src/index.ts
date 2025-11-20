@@ -58,6 +58,7 @@ import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as historyRoutes from '@src/routes/history/routes.js';
 import * as extractRoutes from '@src/routes/extracts/routes.js';
 import * as restoreRoutes from '@src/routes/restores/routes.js';
+import * as gridRoutes from '@src/routes/grid/routes.js';
 import { sudoRouter } from '@src/routes/sudo/index.js';
 
 // Special protected endpoints
@@ -147,6 +148,10 @@ app.get('/', c => {
                 '/api/restores/:id/cancel',
                 '/api/restores/import'
             ],
+            grid: [
+                '/api/grid/:id/:range',
+                '/api/grid/:id/cells'
+            ],
             sudo: ['/api/sudo/*']
         },
         documentation: {
@@ -163,6 +168,7 @@ app.get('/', c => {
             history: ['/docs/history'],
             extracts: ['/docs/extracts'],
             restores: ['/docs/restores'],
+            grid: ['/docs/grid'],
             sudo: ['/docs/sudo']
         },
     };
@@ -280,6 +286,12 @@ app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDo
 app.post('/api/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
 app.post('/api/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
 app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
+
+// 45-grid-api: Grid API routes (spreadsheet-like cell storage)
+app.get('/api/grid/:id/:range', gridRoutes.RangeGet); // Read cells (A1, A1:Z100, A:A, 5:5)
+app.put('/api/grid/:id/:range', gridRoutes.RangePut); // Update cells/range
+app.delete('/api/grid/:id/:range', gridRoutes.RangeDelete); // Clear cells/range
+app.post('/api/grid/:id/cells', gridRoutes.CellsPost); // Bulk upsert cells
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));
