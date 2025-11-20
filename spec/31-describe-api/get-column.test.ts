@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TestHelpers, type TestTenant } from '../test-helpers.js';
+import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
  * GET /api/describe/:schema/:column - Get Column Details

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TestHelpers, type TestTenant } from '../test-helpers.js';
-import { expectSuccess } from '../test-helpers.js';
+import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
  * POST /api/describe/:schema - Create Schema

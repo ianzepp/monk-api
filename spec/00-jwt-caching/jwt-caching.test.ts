@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { HttpClient } from '../http-client.js';
+import { expectSuccess, expectError } from '../test-assertions.js';
 import { TEST_CONFIG } from '../test-config.js';
 
 /**

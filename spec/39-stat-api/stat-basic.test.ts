@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TestDatabaseHelper } from '../test-database-helper.js';
 import { HttpClient } from '../http-client.js';
+import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
  * Stat API Tests

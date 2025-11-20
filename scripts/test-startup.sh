@@ -35,7 +35,11 @@ print_step "Building application"
 cd "$PROJECT_ROOT"
 npm run build
 
-# Step 2: Kill any existing servers on port 9002
+# Step 2: Type-check test files
+print_step "Type-checking test files"
+npm run build:spec
+
+# Step 3: Kill any existing servers on port 9002
 print_step "Killing any existing servers on port 9002"
 if lsof -ti:9002 >/dev/null 2>&1; then
     lsof -ti:9002 | xargs kill -9 2>/dev/null || true
@@ -47,7 +51,7 @@ fi
 # Give the port a moment to be released
 sleep 1
 
-# Step 3: Start new server on port 9002 in background
+# Step 4: Start new server on port 9002 in background
 print_step "Starting server on port 9002 in background"
 
 # Ensure logs directory exists

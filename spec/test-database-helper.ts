@@ -196,7 +196,7 @@ export class TestDatabaseHelper {
             throw new Error(`Authentication failed: ${response.status} ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = await response.json() as { success: boolean; data?: { token: string } };
 
         if (!data.success || !data.data?.token) {
             throw new Error(`Authentication failed: ${JSON.stringify(data)}`);
