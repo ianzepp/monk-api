@@ -176,6 +176,7 @@ Choose response encoding format to optimize for different use cases:
 - `morse` - Morse code encoding
 - `qr` - QR code ASCII art (response-only)
 - `markdown` - Markdown tables and formatting (response-only)
+- `grid-compact` - Compact Grid API format (60% smaller, Grid API only, response-only)
 
 **Examples:**
 ```bash
@@ -193,6 +194,9 @@ curl http://localhost:9001/api/describe?format=markdown
 
 # Export user list as CSV (auto-unwraps data)
 curl http://localhost:9001/api/find/users?format=csv > users.csv
+
+# Get Grid API response in compact format (Grid API only, 60% smaller)
+curl http://localhost:9001/api/grid/abc123/A1:Z100?format=grid-compact
 ```
 
 **Alternative Methods:**

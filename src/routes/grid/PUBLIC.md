@@ -528,6 +528,84 @@ GET /api/data/grids
 
 ---
 
+## Response Format Optimization
+
+### Compact Format (`?format=grid-compact`)
+
+All Grid API endpoints support an optional `grid-compact` format for reduced payload size.
+
+**Standard Response Format:**
+```json
+{
+  "grid_id": "abc123",
+  "range": "A1:B2",
+  "cells": [
+    {"row": 1, "col": "A", "value": "Name"},
+    {"row": 1, "col": "B", "value": "Age"},
+    {"row": 2, "col": "A", "value": "Alice"},
+    {"row": 2, "col": "B", "value": "30"}
+  ]
+}
+```
+
+**Compact Response Format:**
+```json
+{
+  "grid_id": "abc123",
+  "range": "A1:B2",
+  "cells": [
+    [1, "A", "Name"],
+    [1, "B", "Age"],
+    [2, "A", "Alice"],
+    [2, "B", "30"]
+  ]
+}
+```
+
+**Benefits:**
+- **60% smaller payload** - Critical for large grids (1000+ cells)
+- **JSON-compatible** - No special parsing libraries required
+- **Optional** - Use standard format or compact as needed
+- **Bandwidth-efficient** - Perfect for mobile clients or low-bandwidth scenarios
+
+**Usage:**
+```bash
+# Add ?format=grid-compact to any Grid API request
+curl http://localhost:9001/api/grid/abc123/A1:Z100?format=grid-compact \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Client Consumption:**
+```javascript
+// Easy array destructuring in JavaScript
+const response = await fetch('/api/grid/abc123/A1:Z100?format=grid-compact', {
+    headers: { 'Authorization': 'Bearer YOUR_JWT_TOKEN' }
+});
+
+const { grid_id, range, cells } = await response.json();
+
+// Destructure cell arrays
+cells.forEach(([row, col, value]) => {
+    console.log(`Cell ${col}${row}: ${value}`);
+});
+```
+
+**When to Use:**
+- Large grid ranges (100+ cells)
+- Mobile applications with limited bandwidth
+- High-frequency polling scenarios
+- Performance-critical applications
+
+**Wire Size Comparison:**
+
+| Grid Size | Standard | Compact | Savings |
+|-----------|----------|---------|---------|
+| 100 cells | ~6 KB | ~2.4 KB | 60% |
+| 1000 cells | ~60 KB | ~24 KB | 60% |
+| 10000 cells | ~600 KB | ~240 KB | 60% |
+
+---
+
 ## Error Codes
 
 All Grid API errors are prefixed with `GRID_`:

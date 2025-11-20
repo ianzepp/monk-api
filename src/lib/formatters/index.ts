@@ -15,3 +15,4 @@ export { MorseFormatter } from './morse.js';
 export { QrFormatter } from './qr.js';
 export { MarkdownFormatter } from './markdown.js';
 export { MessagePackFormatter } from './msgpack.js';
+export { GridCompactFormatter } from './grid-compact.js';
