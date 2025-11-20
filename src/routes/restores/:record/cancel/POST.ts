@@ -1,16 +1,17 @@
-import { withParams, setRouteResult } from '@src/lib/api-helpers.js';
+import { withParams } from '@src/lib/api-helpers.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /api/restores/:id/cancel
+ * POST /api/restores/:record/cancel
  *
  * Cancel a running restore job
  */
-export default withParams(async (context, { system, id }) => {
+export default withParams(async (context, { system, record }) => {
     // Find most recent running restore for this configuration
     const runningRuns = await system.database.selectAny('restore_runs', {
         where: {
-            restore_id: id,
+            restore_id: record,
             status: { $in: ['pending', 'queued', 'running'] }
         },
         order: { created_at: 'desc' },

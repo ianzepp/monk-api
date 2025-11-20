@@ -1,17 +1,20 @@
-import { withParams } from '@src/lib/api-helpers.js';
+import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { createReadStream, createWriteStream } from 'fs';
 import { stat, readdir } from 'fs/promises';
 import { join } from 'path';
 import { createGzip } from 'zlib';
 import archiver from 'archiver';
+import { System } from '@src/lib/system.js';
 
 /**
  * GET /api/extracts/runs/:runId/download
  *
  * Download all artifacts for a run as a ZIP archive
  */
-export default withParams(async (context, { system, runId }) => {
+export default async function (context: Context) {
+    const system = new System(context);
+    const runId = context.req.param('runId');
     // Get run record
     const run = await system.database.select404(
         'extract_runs',
@@ -43,7 +46,7 @@ export default withParams(async (context, { system, runId }) => {
     );
 
     if (expiredArtifacts.length > 0) {
-        throw HttpErrors.gone('Some artifacts have expired');
+        throw HttpErrors.notFound('Some artifacts have expired');
     }
 
     // Create ZIP archive
@@ -75,4 +78,4 @@ export default withParams(async (context, { system, runId }) => {
             'Content-Disposition': `attachment; filename="${filename}"`
         }
     });
-});
+}

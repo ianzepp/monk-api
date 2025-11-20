@@ -7,8 +7,8 @@
  */
 
 // Restore execution operations
-export { default as RestoreRun } from '@src/routes/restores/:id/run/POST.js';
-export { default as RestoreCancel } from '@src/routes/restores/:id/cancel/POST.js';
+export { default as RestoreRun } from '@src/routes/restores/:record/run/POST.js';
+export { default as RestoreCancel } from '@src/routes/restores/:record/cancel/POST.js';
 
 // Direct import operation
 export { default as RestoreImport } from '@src/routes/restores/import/POST.js';

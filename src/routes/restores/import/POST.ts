@@ -1,4 +1,5 @@
-import { withParams, setRouteResult } from '@src/lib/api-helpers.js';
+import { withParams } from '@src/lib/api-helpers.js';
+import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { RestoreProcessor } from '@src/lib/restore-processor.js';
 import { writeFile, mkdir } from 'fs/promises';

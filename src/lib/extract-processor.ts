@@ -65,7 +65,7 @@ export class ExtractProcessor {
             status: 'queued',
             progress: 0,
             triggered_by: 'manual',
-            executed_by: this.system.auth.user?.id || null,
+            executed_by: this.system.userId,
             config_snapshot: {
                 format: extract.format,
                 include: extract.include,
@@ -286,8 +286,8 @@ export class ExtractProcessor {
         writeStream.write(content);
         writeStream.end();
 
-        await new Promise((resolve, reject) => {
-            writeStream.on('finish', resolve);
+        await new Promise<void>((resolve, reject) => {
+            writeStream.on('finish', () => resolve());
             writeStream.on('error', reject);
         });
 
@@ -352,8 +352,8 @@ export class ExtractProcessor {
 
         writeStream.end();
 
-        await new Promise((resolve, reject) => {
-            writeStream.on('finish', resolve);
+        await new Promise<void>((resolve, reject) => {
+            writeStream.on('finish', () => resolve());
             writeStream.on('error', reject);
         });
 
@@ -413,8 +413,8 @@ export class ExtractProcessor {
         writeStream.write(content);
         writeStream.end();
 
-        await new Promise((resolve, reject) => {
-            writeStream.on('finish', resolve);
+        await new Promise<void>((resolve, reject) => {
+            writeStream.on('finish', () => resolve());
             writeStream.on('error', reject);
         });
 

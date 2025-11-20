@@ -402,7 +402,7 @@ export class RestoreProcessor {
         switch (conflictStrategy) {
             case 'replace':
                 // Delete all existing records
-                await this.system.database.deleteMany(schemaName, {});
+                await this.system.database.deleteAny(schemaName, {});
                 await this.log(runId, 'info', 'data_import', schemaName, null,
                     'Deleted all existing records (replace strategy)');
 

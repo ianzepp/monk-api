@@ -1,14 +1,17 @@
-import { withParams } from '@src/lib/api-helpers.js';
+import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
+import { System } from '@src/lib/system.js';
 
 /**
  * GET /api/extracts/artifacts/:artifactId/download
  *
  * Download a single extract artifact
  */
-export default withParams(async (context, { system, artifactId }) => {
+export default async function (context: Context) {
+    const system = new System(context);
+    const artifactId = context.req.param('artifactId');
     // Get artifact record
     const artifact = await system.database.select404(
         'extract_artifacts',
@@ -18,7 +21,7 @@ export default withParams(async (context, { system, artifactId }) => {
 
     // Check if expired
     if (artifact.expires_at && new Date(artifact.expires_at) < new Date()) {
-        throw HttpErrors.gone('Artifact has expired and been deleted');
+        throw HttpErrors.notFound('Artifact has expired and been deleted');
     }
 
     // Check if file exists
@@ -29,7 +32,7 @@ export default withParams(async (context, { system, artifactId }) => {
     }
 
     // Update access stats
-    await system.database.updateOne('extract_artifacts', artifactId!, {
+    await system.database.updateOne('extract_artifacts', artifactId, {
         accessed_at: new Date(),
         download_count: (artifact.download_count || 0) + 1
     });
@@ -45,4 +48,4 @@ export default withParams(async (context, { system, artifactId }) => {
             'X-Checksum-SHA256': artifact.checksum || ''
         }
     });
-});
+}

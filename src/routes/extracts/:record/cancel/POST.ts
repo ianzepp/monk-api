@@ -3,18 +3,18 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /api/extracts/:id/cancel
+ * POST /api/extracts/:record/cancel
  *
  * Cancel a running extract job
  *
  * TODO: Implement cancellation logic
  * For now, returns not implemented
  */
-export default withParams(async (context, { system, id }) => {
+export default withParams(async (context, { system, record }) => {
     // Find running extract for this extract ID
     const runningRuns = await system.database.selectAny('extract_runs', {
         where: {
-            extract_id: id,
+            extract_id: record,
             status: { $in: ['pending', 'queued', 'running'] }
         },
         order: { created_at: 'desc' },

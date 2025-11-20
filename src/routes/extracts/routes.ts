@@ -7,8 +7,8 @@
  */
 
 // Extract execution operations
-export { default as ExtractRun } from '@src/routes/extracts/:id/run/POST.js';
-export { default as ExtractCancel } from '@src/routes/extracts/:id/cancel/POST.js';
+export { default as ExtractRun } from '@src/routes/extracts/:record/run/POST.js';
+export { default as ExtractCancel } from '@src/routes/extracts/:record/cancel/POST.js';
 
 // Artifact download operations
 export { default as RunDownload } from '@src/routes/extracts/runs/:runId/download/GET.js';
