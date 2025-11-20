@@ -7,9 +7,7 @@ import { logger } from '@src/lib/logger.js';
 interface CachedSchema {
     schema: any | null; // Full schema object (lazy loaded)
     columns: any[] | null; // Column metadata (lazy loaded with schema)
-    jsonChecksum: string; // Checksum for cache validation
-    updatedAt: string; // Last update timestamp
-    validator?: Function; // Compiled JSON Schema validator (lazy loaded)
+    updatedAt: string; // Last update timestamp for cache validation
 }
 
 // Database-specific cache
@@ -20,10 +18,10 @@ interface DatabaseCache {
 }
 
 /**
- * Multi-database schema caching system with checksum-based invalidation
+ * Multi-database schema caching system with timestamp-based invalidation
  *
  * Each database gets its own cache space to handle multi-tenant architecture.
- * Uses json_checksum for efficient cache validation without fetching full schemas.
+ * Uses schemas.updated_at for efficient cache validation without fetching full schemas.
  */
 export class SchemaCache {
     private static instance: SchemaCache | null = null;
@@ -75,13 +73,12 @@ export class SchemaCache {
     }
 
     /**
-     * Load all schema checksums for a database
+     * Load all schema timestamps for a database
      */
-    private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{ schema_name: string; json_checksum: string; updated_at: string }[]> {
+    private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{ schema_name: string; updated_at: string }[]> {
         const result = await dtx.query(`
-            SELECT s.schema_name, d.definition_checksum as json_checksum, d.updated_at
+            SELECT s.schema_name, s.updated_at
             FROM schemas s
-            LEFT JOIN definitions d ON s.schema_name = d.schema_name
             WHERE s.status IN ('active', 'system')
         `);
 
@@ -107,9 +104,8 @@ export class SchemaCache {
                 // Query specific schemas using raw SQL (consistent with our approach)
                 const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
                 const result = await dtx.query(`
-                    SELECT s.schema_name, d.definition_checksum as json_checksum, d.updated_at
+                    SELECT s.schema_name, s.updated_at
                     FROM schemas s
-                    LEFT JOIN definitions d ON s.schema_name = d.schema_name
                     WHERE s.schema_name IN (${quotedNames}) AND s.status IN ('active', 'system')
                 `);
                 currentChecksums = result.rows;
@@ -118,22 +114,20 @@ export class SchemaCache {
                 currentChecksums = await this.loadSchemaChecksums(dtx);
             }
 
-            // Compare checksums and invalidate stale entries
+            // Compare timestamps and invalidate stale entries
             for (const row of currentChecksums as any[]) {
                 const cached = dbCache.schemas.get(row.schema_name);
 
-                if (cached && cached.jsonChecksum !== row.json_checksum) {
-                    // Checksum mismatch - invalidate cache entry
+                if (cached && cached.updatedAt !== row.updated_at) {
+                    // Timestamp mismatch - invalidate cache entry
                     dbCache.schemas.delete(row.schema_name);
-                    logger.info('Schema cache invalidated', { schemaName: row.schema_name, reason: 'checksum changed' });
+                    logger.info('Schema cache invalidated', { schemaName: row.schema_name, reason: 'timestamp changed' });
                 } else if (!cached) {
                     // New schema found - add minimal cache entry
                     dbCache.schemas.set(row.schema_name, {
                         schema: null, // Lazy load
                         columns: null, // Lazy load with schema
-                        jsonChecksum: row.json_checksum,
                         updatedAt: row.updated_at,
-                        validator: undefined,
                     });
                     logger.info('Schema cache entry created', { schemaName: row.schema_name });
                 }
@@ -150,15 +144,14 @@ export class SchemaCache {
     }
 
     /**
-     * Load full schema definition and columns from database in single query
+     * Load full schema metadata and columns from database
      */
     private async loadFullSchema(dtx: DbContext | TxContext, schemaName: string): Promise<{ schema: any; columns: any[] }> {
         // Load schema metadata
         const schemaResult = await dtx.query(
             `
-            SELECT s.*, d.definition, d.definition_checksum as json_checksum
+            SELECT s.*
             FROM schemas s
-            LEFT JOIN definitions d ON s.schema_name = d.schema_name
             WHERE s.schema_name = $1 AND s.status IN ('active', 'system')
         `,
             [schemaName]
@@ -213,9 +206,7 @@ export class SchemaCache {
         dbCache.schemas.set(schemaName, {
             schema,
             columns,
-            jsonChecksum: schema.json_checksum || '',
             updatedAt: schema.updated_at,
-            validator: undefined,
         });
 
         // Return schema with columns attached for performance

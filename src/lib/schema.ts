@@ -27,7 +27,6 @@ export class Schema {
     public sudo?: boolean;
     public freeze?: boolean;
     public external?: boolean;
-    public definition?: any;
 
     // Precalculated column metadata for performance
     public immutableFields: Set<string>;
@@ -53,7 +52,6 @@ export class Schema {
         this.sudo = schemaRecord.sudo;
         this.freeze = schemaRecord.freeze;
         this.external = schemaRecord.external;
-        this.definition = schemaRecord.definition;
 
         // Precalculate immutable, sudo, tracked, required, type, range, enum, and transform fields from column metadata for O(1) lookups
         this.immutableFields = new Set<string>();
@@ -425,7 +423,6 @@ export class Schema {
         return {
             schema_name: this.schemaName,
             status: this.status,
-            definition: this.definition,
         };
     }
 }
@@ -441,7 +438,6 @@ export async function createSchema(system: SystemContextWithInfrastructure, sche
     }
 
     return new Schema(system, schemaName, {
-        definition: schemaInfo.definition,
         status: 'active', // Assume active for legacy calls
     });
 }

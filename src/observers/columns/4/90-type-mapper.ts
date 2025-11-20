@@ -19,29 +19,7 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
-
-/**
- * Map user-facing type names to PostgreSQL column_type enum values
- */
-const TYPE_MAPPING: Record<string, string> = {
-    // Scalar types
-    'text': 'text',
-    'integer': 'integer',
-    'decimal': 'numeric',      // User-facing "decimal" maps to PostgreSQL "numeric"
-    'boolean': 'boolean',
-    'timestamp': 'timestamp',
-    'date': 'date',
-    'uuid': 'uuid',
-    'jsonb': 'jsonb',
-
-    // Array types
-    'text[]': 'text[]',
-    'integer[]': 'integer[]',
-    'decimal[]': 'numeric[]',  // User-facing "decimal[]" maps to PostgreSQL "numeric[]"
-    'uuid[]': 'uuid[]',
-} as const;
-
-const VALID_USER_TYPES = Object.keys(TYPE_MAPPING);
+import { USER_TO_PG_TYPE_MAP, VALID_USER_TYPES } from '@src/lib/column-types.js';
 
 export default class TypeMapperObserver extends BaseObserver {
     readonly ring = ObserverRing.Enrichment;  // Ring 4
@@ -54,7 +32,7 @@ export default class TypeMapperObserver extends BaseObserver {
         }
 
         const userType = record.type;
-        const pgType = TYPE_MAPPING[userType];
+        const pgType = USER_TO_PG_TYPE_MAP[userType];
 
         if (!pgType) {
             throw new ValidationError(

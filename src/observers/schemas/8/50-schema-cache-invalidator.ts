@@ -4,6 +4,9 @@
  * Automatically invalidates SchemaCache when schemas are modified.
  * Ensures cache stays consistent without manual invalidation in Describe class.
  *
+ * Note: Schema modifications already update schemas.updated_at (system field),
+ * so we only need to invalidate the in-memory cache here.
+ *
  * This observer runs AFTER database changes are committed (Ring 8), ensuring
  * that cache is only invalidated for successfully persisted changes.
  *

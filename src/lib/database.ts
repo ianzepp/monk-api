@@ -11,6 +11,7 @@ import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { convertRecordPgToMonk } from '@src/lib/column-types.js';
 import type {
     DbRecord,
     DbCreateInput,
@@ -270,41 +271,14 @@ export class Database {
      * Convert PostgreSQL string results back to proper JSON types
      *
      * PostgreSQL returns all values as strings by default. This method converts
-     * them back to the correct JSON types based on the schema definition.
+     * them back to the correct JSON types based on the schema column metadata.
      */
     private convertPostgreSQLTypes(record: any, schema: any): any {
-        if (!schema.definition?.properties) {
+        if (!schema.typedFields || schema.typedFields.size === 0) {
             return record;
         }
 
-        const converted = { ...record };
-        const properties = schema.definition.properties;
-
-        for (const [fieldName, fieldDef] of Object.entries(properties)) {
-            if (converted[fieldName] !== null && converted[fieldName] !== undefined) {
-                const fieldDefinition = fieldDef as any;
-
-                switch (fieldDefinition.type) {
-                    case 'number':
-                    case 'integer':
-                        if (typeof converted[fieldName] === 'string') {
-                            converted[fieldName] = Number(converted[fieldName]);
-                        }
-                        break;
-
-                    case 'boolean':
-                        if (typeof converted[fieldName] === 'string') {
-                            converted[fieldName] = converted[fieldName] === 'true';
-                        }
-                        break;
-
-                    // Arrays and objects should already be handled by PostgreSQL
-                    // Strings and dates can remain as strings
-                }
-            }
-        }
-
-        return converted;
+        return convertRecordPgToMonk(record, schema.typedFields);
     }
 
     async updateAny<T extends Record<string, any> = Record<string, any>>(
