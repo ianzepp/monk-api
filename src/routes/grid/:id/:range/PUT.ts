@@ -5,14 +5,14 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { parseRange, validateRangeBounds } from '@src/routes/grid/range-parser.js';
 
 /**
- * PUT /api/grid/:id/:range - Update cells in grid
+ * PUT /app/grids/:id/:range - Update cells in grid
  *
  * Single cell:
- * PUT /api/grid/:id/A1
+ * PUT /app/grids/:id/A1
  * Body: {"value": "Name"}
  *
  * Range:
- * PUT /api/grid/:id/A1:B2
+ * PUT /app/grids/:id/A1:B2
  * Body: {"cells": [{row: 1, col: "A", value: "Name"}, ...]}
  *
  * Null values delete the cell (sparse storage)

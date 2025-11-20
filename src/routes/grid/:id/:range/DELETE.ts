@@ -4,13 +4,13 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { parseRange, validateRangeBounds } from '@src/routes/grid/range-parser.js';
 
 /**
- * DELETE /api/grid/:id/:range - Clear cells in range
+ * DELETE /app/grids/:id/:range - Clear cells in range
  *
  * Supports all range formats:
- * - Single cell: /api/grid/:id/A1
- * - Range: /api/grid/:id/A1:Z100
- * - Row: /api/grid/:id/5:5
- * - Column: /api/grid/:id/A:A
+ * - Single cell: /app/grids/:id/A1
+ * - Range: /app/grids/:id/A1:Z100
+ * - Row: /app/grids/:id/5:5
+ * - Column: /app/grids/:id/A:A
  *
  * Returns count of deleted cells
  */

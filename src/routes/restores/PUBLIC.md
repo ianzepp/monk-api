@@ -1,9 +1,9 @@
-# Restore API
+# Restore Application
 
 Import data from extract archives with flexible conflict resolution and background processing.
 
 ## Base Path
-Restore execution and import endpoints use: `/api/restores`
+Restore execution and import endpoints use: `/app/restores`
 
 Restore configuration management uses: `/api/data/restores` (Data API)
 
@@ -11,9 +11,9 @@ Restore configuration management uses: `/api/data/restores` (Data API)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | [`/api/restores/:id/run`](#post-apirestoresidrun) | Execute a restore job |
-| POST | [`/api/restores/:id/cancel`](#post-apirestoresidcancel) | Cancel a running restore |
-| POST | [`/api/restores/import`](#post-apirestoresimport) | Upload and restore in one step |
+| POST | [`/app/restores/:id/run`](#post-apirestoresidrun) | Execute a restore job |
+| POST | [`/app/restores/:id/cancel`](#post-apirestoresidcancel) | Cancel a running restore |
+| POST | [`/app/restores/import`](#post-apirestoresimport) | Upload and restore in one step |
 
 **Note:** Restore configuration management (create, read, update, delete) is handled via the standard Data API at `/api/data/restores`.
 
@@ -26,7 +26,7 @@ All endpoints require a valid JWT bearer token. Authorization follows standard A
 
 ---
 
-## POST /api/restores/:id/run
+## POST /app/restores/:id/run
 
 Execute a restore job. Creates a `restore_run` record and starts background processing. The job executes asynchronously—this endpoint returns immediately with the run ID.
 
@@ -54,13 +54,13 @@ Execute a restore job. Creates a `restore_run` record and starts background proc
 
 ### Usage Example
 ```bash
-curl -X POST http://localhost:9001/api/restores/restore_123/run \
+curl -X POST http://localhost:9001/app/restores/restore_123/run \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ---
 
-## POST /api/restores/:id/cancel
+## POST /app/restores/:id/cancel
 
 Cancel a running restore job. Marks the most recent running job for this restore as cancelled.
 
@@ -86,7 +86,7 @@ Cancel a running restore job. Marks the most recent running job for this restore
 
 ---
 
-## POST /api/restores/import
+## POST /app/restores/import
 
 Upload a ZIP file (from extract download) and execute restore in one step. This is a convenience endpoint for quick imports without creating a restore configuration first.
 
@@ -146,7 +146,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 
 ### Usage Example
 ```bash
-curl -X POST http://localhost:9001/api/restores/import \
+curl -X POST http://localhost:9001/app/restores/import \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -F "file=@Dev-Data-2025-01-19.zip" \
   -F "conflict_strategy=upsert"
@@ -373,7 +373,7 @@ curl -O http://localhost:9001/api/extracts/runs/run_xyz/download \
 # Saved: My-Dev-Data-2025-01-19-run_xyz.zip
 
 # AFTER autoinstall (DB is fresh): Restore data
-curl -X POST http://localhost:9001/api/restores/import \
+curl -X POST http://localhost:9001/app/restores/import \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@My-Dev-Data-2025-01-19-run_xyz.zip" \
   -F "conflict_strategy=replace"
@@ -397,7 +397,7 @@ curl http://localhost:9001/api/data/restore_runs/run_def456 \
 
 ```bash
 # Install external package (e.g., Slack clone)
-curl -X POST http://localhost:9001/api/restores/import \
+curl -X POST http://localhost:9001/app/restores/import \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@monk-slack-v1.0.0.zip" \
   -F "conflict_strategy=merge"
@@ -420,7 +420,7 @@ curl -O http://localhost:9001/api/extracts/runs/run_sandbox/download \
 # Saved: Sandbox-Changes.zip
 
 # In parent: Restore with sync strategy
-curl -X POST http://localhost:9001/api/restores/import \
+curl -X POST http://localhost:9001/app/restores/import \
   -H "Authorization: Bearer $PARENT_TOKEN" \
   -F "file=@Sandbox-Changes.zip" \
   -F "conflict_strategy=sync"
@@ -479,7 +479,7 @@ GET /api/data/restore_logs?filter[where][run_id]=run_xyz&filter[where][level]=er
 
 **Example:**
 ```bash
-curl -X POST /api/restores/import \
+curl -X POST /app/restores/import \
   -F "file=@backup.zip" \
   -F "conflict_strategy=replace"
 ```
@@ -497,7 +497,7 @@ curl -X POST /api/restores/import \
 
 **Example:**
 ```bash
-curl -X POST /api/restores/import \
+curl -X POST /app/restores/import \
   -F "file=@backup.zip" \
   -F "conflict_strategy=upsert"
 ```
@@ -515,7 +515,7 @@ curl -X POST /api/restores/import \
 
 **Example:**
 ```bash
-curl -X POST /api/restores/import \
+curl -X POST /app/restores/import \
   -F "file=@monk-slack-v1.0.0.zip" \
   -F "conflict_strategy=merge"
 ```
@@ -538,7 +538,7 @@ curl -X POST /api/restores/import \
 
 **Example:**
 ```bash
-curl -X POST /api/restores/import \
+curl -X POST /app/restores/import \
   -F "file=@sandbox-export.zip" \
   -F "conflict_strategy=sync"
 ```
@@ -560,7 +560,7 @@ curl -X POST /api/restores/import \
 
 **Example:**
 ```bash
-curl -X POST /api/restores/import \
+curl -X POST /app/restores/import \
   -F "file=@backup.zip" \
   -F "conflict_strategy=skip"
 ```
@@ -577,7 +577,7 @@ curl -X POST /api/restores/import \
 
 **Example:**
 ```bash
-curl -X POST /api/restores/import \
+curl -X POST /app/restores/import \
   -F "file=@package.zip" \
   -F "conflict_strategy=error"
 ```

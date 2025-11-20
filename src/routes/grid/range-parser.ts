@@ -254,3 +254,28 @@ export function validateRangeBounds(range: ParsedRange, rowMax: number, colMax: 
     if (range.startCol) checkCol(range.startCol);
     if (range.endCol) checkCol(range.endCol);
 }
+
+/**
+ * Return a compacted version of the full grids cells response
+ *
+ * @param cells
+ * @param format
+ * @returns
+ */
+export function formatCells(cells: any[], format?: string) {
+    // Format: grid-compact
+    if (format === 'grid-compact') {
+        return cells.map(cell => [cell.row, cell.col, cell.value]);
+    }
+
+    // TODO: future custom formats handled here
+
+    // No custom format matched. Return standard format
+    return cells.map((cell: any) => {
+        return {
+            row: cell.row,
+            col: cell.col,
+            value: cell.value
+        };
+    });
+}

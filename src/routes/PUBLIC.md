@@ -196,7 +196,7 @@ curl http://localhost:9001/api/describe?format=markdown
 curl http://localhost:9001/api/find/users?format=csv > users.csv
 
 # Get Grid API response in compact format (Grid API only, 60% smaller)
-curl http://localhost:9001/api/grid/abc123/A1:Z100?format=grid-compact
+curl http://localhost:9001/app/grids/abc123/A1:Z100?format=grid-compact
 ```
 
 **Alternative Methods:**

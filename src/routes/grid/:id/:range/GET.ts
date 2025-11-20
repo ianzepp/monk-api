@@ -1,22 +1,23 @@
 import type { Context } from 'hono';
 import { withParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { parseRange, validateRangeBounds } from '@src/routes/grid/range-parser.js';
+import { parseRange, validateRangeBounds, formatCells } from '@src/routes/grid/range-parser.js';
 
 /**
- * GET /api/grid/:id/:range - Read cells from grid
+ * GET /app/grids/:id/:range - Read cells from grid
  *
  * Supports Excel-style range notation:
- * - Single cell: /api/grid/:id/A1
- * - Range: /api/grid/:id/A1:Z100
- * - Row: /api/grid/:id/5:5
- * - Column: /api/grid/:id/A:A
+ * - Single cell: /app/grids/:id/A1
+ * - Range: /app/grids/:id/A1:Z100
+ * - Row: /app/grids/:id/5:5
+ * - Column: /app/grids/:id/A:A
  *
  * Returns sparse array (only non-empty cells)
  */
 export default withParams(async (context, { system }) => {
     const gridId = context.req.param('id');
     const rangeStr = context.req.param('range');
+    const format = context.req.query('format');
 
     // 1. Load grid (validates existence + gets constraints)
     const grid = await system.database.select404('grids', {
@@ -34,13 +35,14 @@ export default withParams(async (context, { system }) => {
     const { query, params } = buildSelectQuery(gridId, range);
 
     // 5. Execute query
-    const result = await dbContext.query(query, params);
+    const result = await dbContext.query(query, params)
+    const cells = formatCells(result.rows, format);
 
     // 6. Return with metadata
     setRouteResult(context, {
         grid_id: gridId,
         range: rangeStr,
-        cells: result.rows
+        cells: cells
     });
 });
 

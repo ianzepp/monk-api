@@ -137,39 +137,45 @@ app.get('/', c => {
                 '/api/history/:schema/:record',
                 '/api/history/:schema/:record/:change'
             ],
-            extracts: [
-                '/api/extracts/:id/run',
-                '/api/extracts/:id/cancel',
-                '/api/extracts/runs/:runId/download',
-                '/api/extracts/artifacts/:artifactId/download'
-            ],
-            restores: [
-                '/api/restores/:id/run',
-                '/api/restores/:id/cancel',
-                '/api/restores/import'
-            ],
-            grid: [
-                '/api/grid/:id/:range',
-                '/api/grid/:id/cells'
-            ],
             sudo: ['/api/sudo/*']
         },
+        apps: {
+            extracts: [
+                '/app/extracts/:id/run',
+                '/app/extracts/:id/cancel',
+                '/app/extracts/runs/:runId/download',
+                '/app/extracts/artifacts/:artifactId/download'
+            ],
+            restores: [
+                '/app/restores/:id/run',
+                '/app/restores/:id/cancel',
+                '/app/restores/import'
+            ],
+            grids: [
+                '/app/grids/:id/:range',
+                '/app/grids/:id/cells'
+            ]
+        },
         documentation: {
-            home: ['/README.md'],
-            auth: ['/docs/auth'],
-            describe: ['/docs/describe'],
-            data: ['/docs/data'],
-            find: ['/docs/find'],
-            aggregate: ['/docs/aggregate'],
-            bulk: ['/docs/bulk'],
-            user: ['/docs/user'],
-            acls: ['/docs/acls'],
-            stat: ['/docs/stat'],
-            history: ['/docs/history'],
-            extracts: ['/docs/extracts'],
-            restores: ['/docs/restores'],
-            grid: ['/docs/grid'],
-            sudo: ['/docs/sudo']
+            api: {
+                home: ['/README.md'],
+                auth: ['/docs/auth'],
+                describe: ['/docs/describe'],
+                data: ['/docs/data'],
+                find: ['/docs/find'],
+                aggregate: ['/docs/aggregate'],
+                bulk: ['/docs/bulk'],
+                user: ['/docs/user'],
+                acls: ['/docs/acls'],
+                stat: ['/docs/stat'],
+                history: ['/docs/history'],
+                sudo: ['/docs/sudo']
+            },
+            apps: {
+                extracts: ['/docs/extracts'],
+                restores: ['/docs/restores'],
+                grids: ['/docs/grids']
+            }
         },
     };
 
@@ -201,6 +207,14 @@ app.use('/api/*', middleware.userValidationMiddleware);
 app.use('/api/*', middleware.formatDetectionMiddleware);
 app.use('/api/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
 app.use('/api/*', middleware.systemContextMiddleware);
+
+// Protected App routes - application features (same authentication as API routes)
+app.use('/app/*', middleware.requestBodyParserMiddleware);
+app.use('/app/*', middleware.jwtValidationMiddleware);
+app.use('/app/*', middleware.userValidationMiddleware);
+app.use('/app/*', middleware.formatDetectionMiddleware);
+app.use('/app/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
+app.use('/app/*', middleware.systemContextMiddleware);
 
 // 40-docs-api: Public docs routes (no authentication required)
 app.get('/README.md', docsRoutes.ReadmeGet); // GET /README.md
@@ -276,22 +290,22 @@ app.route('/api/sudo', sudoRouter);
 app.get('/api/history/:schema/:record', historyRoutes.RecordHistoryGet); // List all changes for a record
 app.get('/api/history/:schema/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
 
-// 43-extracts-api: Extract API routes (data export jobs)
-app.post('/api/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job
-app.post('/api/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
-app.get('/api/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
-app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
+// 50-extracts-app: Extract application (data export jobs)
+app.post('/app/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job
+app.post('/app/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
+app.get('/app/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
+app.get('/app/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
 
-// 44-restores-api: Restore API routes (data import jobs)
-app.post('/api/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
-app.post('/api/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
-app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
+// 51-restores-app: Restore application (data import jobs)
+app.post('/app/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
+app.post('/app/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
+app.post('/app/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
 
-// 45-grid-api: Grid API routes (spreadsheet-like cell storage)
-app.get('/api/grid/:id/:range', gridRoutes.RangeGet); // Read cells (A1, A1:Z100, A:A, 5:5)
-app.put('/api/grid/:id/:range', gridRoutes.RangePut); // Update cells/range
-app.delete('/api/grid/:id/:range', gridRoutes.RangeDelete); // Clear cells/range
-app.post('/api/grid/:id/cells', gridRoutes.CellsPost); // Bulk upsert cells
+// 52-grids-app: Grid application (spreadsheet-like cell storage)
+app.get('/app/grids/:id/:range', gridRoutes.RangeGet); // Read cells (A1, A1:Z100, A:A, 5:5)
+app.put('/app/grids/:id/:range', gridRoutes.RangePut); // Update cells/range
+app.delete('/app/grids/:id/:range', gridRoutes.RangeDelete); // Clear cells/range
+app.post('/app/grids/:id/cells', gridRoutes.CellsPost); // Bulk upsert cells
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

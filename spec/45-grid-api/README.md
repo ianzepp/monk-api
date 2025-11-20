@@ -123,7 +123,7 @@ Test cases:
 ## Cell Read Operations
 
 ### Test: read-single-cell.test.sh
-**GET /api/grid/:id/:range - Single Cell**
+**GET /app/grids/:id/:range - Single Cell**
 
 Test cases:
 - ✅ Read existing cell returns value
@@ -136,7 +136,7 @@ Test cases:
 - ❌ Range exceeds grid bounds returns GRID_COLUMN_OUT_OF_BOUNDS
 
 ### Test: read-cell-range.test.sh
-**GET /api/grid/:id/:range - Cell Range**
+**GET /app/grids/:id/:range - Cell Range**
 
 Test cases:
 - ✅ Read range A1:B2 returns only populated cells
@@ -148,7 +148,7 @@ Test cases:
 - ❌ Range exceeds grid bounds returns error
 
 ### Test: read-row-range.test.sh
-**GET /api/grid/:id/:range - Row Range**
+**GET /app/grids/:id/:range - Row Range**
 
 Test cases:
 - ✅ Read single row "5:5" returns cells in that row
@@ -158,7 +158,7 @@ Test cases:
 - ❌ Row exceeds grid bounds returns error
 
 ### Test: read-column-range.test.sh
-**GET /api/grid/:id/:range - Column Range**
+**GET /app/grids/:id/:range - Column Range**
 
 Test cases:
 - ✅ Read single column "A:A" returns cells in that column
@@ -170,7 +170,7 @@ Test cases:
 ## Cell Write Operations
 
 ### Test: write-single-cell.test.sh
-**PUT /api/grid/:id/:range - Single Cell**
+**PUT /app/grids/:id/:range - Single Cell**
 
 Test cases:
 - ✅ Write new cell creates record
@@ -184,7 +184,7 @@ Test cases:
 - ❌ Grid not found returns 404
 
 ### Test: write-cell-range.test.sh
-**PUT /api/grid/:id/:range - Cell Range**
+**PUT /app/grids/:id/:range - Cell Range**
 
 Test cases:
 - ✅ Write multiple cells in single transaction
@@ -223,7 +223,7 @@ Test cases:
 ## Cell Delete Operations
 
 ### Test: delete-single-cell.test.sh
-**DELETE /api/grid/:id/:range - Single Cell**
+**DELETE /app/grids/:id/:range - Single Cell**
 
 Test cases:
 - ✅ Delete existing cell
@@ -235,7 +235,7 @@ Test cases:
 - ❌ Grid not found returns 404
 
 ### Test: delete-cell-range.test.sh
-**DELETE /api/grid/:id/:range - Cell Range**
+**DELETE /app/grids/:id/:range - Cell Range**
 
 Test cases:
 - ✅ Delete all cells in range
@@ -246,7 +246,7 @@ Test cases:
 - ❌ Range exceeds bounds returns error
 
 ### Test: delete-row-range.test.sh
-**DELETE /api/grid/:id/:range - Row Range**
+**DELETE /app/grids/:id/:range - Row Range**
 
 Test cases:
 - ✅ Delete all cells in single row "5:5"
@@ -255,7 +255,7 @@ Test cases:
 - ✅ Response includes deleted count
 
 ### Test: delete-column-range.test.sh
-**DELETE /api/grid/:id/:range - Column Range**
+**DELETE /app/grids/:id/:range - Column Range**
 
 Test cases:
 - ✅ Delete all cells in single column "A:A"
@@ -266,7 +266,7 @@ Test cases:
 ## Bulk Operations
 
 ### Test: bulk-upsert-cells.test.sh
-**POST /api/grid/:id/cells**
+**POST /app/grids/:id/cells**
 
 Test cases:
 - ✅ Bulk insert 100 cells
@@ -406,10 +406,10 @@ Test cases:
 **Grid Not Found Errors**
 
 Test cases:
-- ❌ GET /api/grid/invalid-id/A1 returns 404
-- ❌ PUT /api/grid/invalid-id/A1 returns 404
-- ❌ DELETE /api/grid/invalid-id/A1 returns 404
-- ❌ POST /api/grid/invalid-id/cells returns 404
+- ❌ GET /app/grids/invalid-id/A1 returns 404
+- ❌ PUT /app/grids/invalid-id/A1 returns 404
+- ❌ DELETE /app/grids/invalid-id/A1 returns 404
+- ❌ POST /app/grids/invalid-id/cells returns 404
 - ✅ Error uses select404 (consistent with Data API)
 
 ### Test: error-invalid-range.test.sh
@@ -632,7 +632,7 @@ Recommended order for implementing tests:
 4. Cell range operations (A1:Z100)
 5. Row range operations (5:5)
 6. Column range operations (A:A)
-7. Bulk operations (POST /api/grid/:id/cells)
+7. Bulk operations (POST /app/grids/:id/cells)
 8. Bounds validation (row_max, col_max)
 9. Transaction behavior
 10. Sparse storage verification

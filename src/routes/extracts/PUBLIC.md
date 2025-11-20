@@ -1,9 +1,9 @@
-# Extract API
+# Extract Application
 
 Execute data extraction jobs to export schemas and data with background processing and downloadable artifacts.
 
 ## Base Path
-Extract execution and download endpoints use: `/api/extracts`
+Extract execution and download endpoints use: `/app/extracts`
 
 Extract configuration management uses: `/api/data/extracts` (Data API)
 
@@ -11,10 +11,10 @@ Extract configuration management uses: `/api/data/extracts` (Data API)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | [`/api/extracts/:id/run`](#post-apiextractsidrun) | Execute an extract job |
-| POST | [`/api/extracts/:id/cancel`](#post-apiextractsidcancel) | Cancel a running extract |
-| GET | [`/api/extracts/runs/:runId/download`](#get-apiextractsrunsruniddownload) | Download all artifacts as ZIP |
-| GET | [`/api/extracts/artifacts/:artifactId/download`](#get-apiextractsartifactsartifactiddownload) | Download single artifact |
+| POST | [`/app/extracts/:id/run`](#post-appextractsidrun) | Execute an extract job |
+| POST | [`/app/extracts/:id/cancel`](#post-appextractsidcancel) | Cancel a running extract |
+| GET | [`/app/extracts/runs/:runId/download`](#get-appextractsrunsruniddownload) | Download all artifacts as ZIP |
+| GET | [`/app/extracts/artifacts/:artifactId/download`](#get-appextractsartifactsartifactiddownload) | Download single artifact |
 
 **Note:** Extract configuration management (create, read, update, delete) is handled via the standard Data API at `/api/data/extracts`.
 
@@ -27,7 +27,7 @@ All endpoints require a valid JWT bearer token. Authorization follows standard A
 
 ---
 
-## POST /api/extracts/:id/run
+## POST /app/extracts/:id/run
 
 Execute an extract job. Creates an `extract_run` record and starts background processing. The job executes asynchronously—this endpoint returns immediately with the run ID.
 
@@ -55,13 +55,13 @@ Execute an extract job. Creates an `extract_run` record and starts background pr
 
 ### Usage Example
 ```bash
-curl -X POST http://localhost:9001/api/extracts/extract_123/run \
+curl -X POST http://localhost:9001/app/extracts/extract_123/run \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ---
 
-## POST /api/extracts/:id/cancel
+## POST /app/extracts/:id/cancel
 
 Cancel a running extract job. Marks the most recent running job for this extract as cancelled.
 
@@ -87,7 +87,7 @@ Cancel a running extract job. Marks the most recent running job for this extract
 
 ---
 
-## GET /api/extracts/runs/:runId/download
+## GET /app/extracts/runs/:runId/download
 
 Download all artifacts from a completed extract run as a ZIP archive.
 
@@ -123,13 +123,13 @@ ExtractName-2025-01-19-abc12345.zip
 
 ### Usage Example
 ```bash
-curl -O http://localhost:9001/api/extracts/runs/run_456/download \
+curl -O http://localhost:9001/app/extracts/runs/run_456/download \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ---
 
-## GET /api/extracts/artifacts/:artifactId/download
+## GET /app/extracts/artifacts/:artifactId/download
 
 Download a single artifact file.
 
@@ -156,7 +156,7 @@ X-Checksum-SHA256: a1b2c3d4...
 
 ### Usage Example
 ```bash
-curl -O http://localhost:9001/api/extracts/artifacts/artifact_789/download \
+curl -O http://localhost:9001/app/extracts/artifacts/artifact_789/download \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -374,7 +374,7 @@ curl -X POST http://localhost:9001/api/data/extracts \
 
 ### 2. Execute Extract
 ```bash
-curl -X POST http://localhost:9001/api/extracts/extract_abc123/run \
+curl -X POST http://localhost:9001/app/extracts/extract_abc123/run \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -431,11 +431,11 @@ curl http://localhost:9001/api/data/extract_runs/run_xyz789 \
 ### 4. Download Results
 ```bash
 # Download all artifacts as ZIP
-curl -O http://localhost:9001/api/extracts/runs/run_xyz789/download \
+curl -O http://localhost:9001/app/extracts/runs/run_xyz789/download \
   -H "Authorization: Bearer $TOKEN"
 
 # Or download individual artifacts
-curl -O http://localhost:9001/api/extracts/artifacts/artifact_1/download \
+curl -O http://localhost:9001/app/extracts/artifacts/artifact_1/download \
   -H "Authorization: Bearer $TOKEN"
 ```
 
