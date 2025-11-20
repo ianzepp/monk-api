@@ -37,8 +37,12 @@ export default class SchemaNameValidator extends BaseObserver {
     async executeOne(record: any, context: ObserverContext): Promise<void> {
         const schemaName = record.schema_name;
 
-        if (!schemaName) {
-            return; // Required field validation handled by Ajv
+        // Validate required field (previously handled by Ajv, now done explicitly)
+        if (!schemaName || schemaName.trim() === '') {
+            throw new ValidationError(
+                'schema_name is required',
+                'schema_name'
+            );
         }
 
         // Validate length

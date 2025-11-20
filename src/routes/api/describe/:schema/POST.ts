@@ -10,6 +10,17 @@ export default withTransactionParams(async (context, { system, schema, body }) =
     // Use column endpoints for column management
     const schemaName = schema!.toLowerCase();
 
+    // Validate schema name mismatch (URL vs body)
+    if (body.schema_name && body.schema_name.toLowerCase() !== schemaName) {
+        const force = context.req.query('force') === 'true';
+        if (!force) {
+            throw HttpErrors.badRequest(
+                `Schema name mismatch: URL has '${schemaName}' but body has '${body.schema_name}'. Use ?force=true to override.`
+            );
+        }
+        // If force=true, use body's schema_name (will be spread below)
+    }
+
     // Create schema record via wrapper
     const result = await system.describe.schemas.createOne({
         schema_name: schemaName,

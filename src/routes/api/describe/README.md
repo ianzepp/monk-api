@@ -66,7 +66,6 @@ Authorization: Bearer <jwt>
 **Request Body:**
 ```json
 {
-  "schema_name": "users",
   "status": "active"
 }
 ```
@@ -82,8 +81,11 @@ Authorization: Bearer <jwt>
 }
 ```
 
-**Required Fields:**
-- `schema_name` - Schema name (string)
+**Schema Name Handling:**
+- Schema name is taken from the URL parameter (`:schema`)
+- `schema_name` in the request body is optional
+- If provided in body, it must match the URL parameter unless `?force=true` is used
+- With `?force=true`, the body's `schema_name` takes precedence over the URL
 
 **Optional Fields:**
 - `status` - Schema status (default: "pending")

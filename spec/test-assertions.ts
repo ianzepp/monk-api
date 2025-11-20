@@ -49,7 +49,7 @@ export function expectSuccess(response: ApiResponse, message?: string): void {
         throw new Error(`Expected success but got error: ${errorMessage}`);
     }
 
-    expectSuccess(response);
+    expect(response.success).toBe(true);
 }
 
 /**
@@ -75,7 +75,7 @@ export function expectSuccess(response: ApiResponse, message?: string): void {
  * ```
  */
 export function expectError(response: ApiResponse, errorPattern?: RegExp | string): void {
-    expectError(response);
+    expect(response.success).toBe(false);
 
     if (errorPattern) {
         const error = response.error || '';

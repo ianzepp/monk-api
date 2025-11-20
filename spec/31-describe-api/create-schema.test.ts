@@ -103,14 +103,6 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expectError(response);
     });
 
-    it('should reject when schema_name missing', async () => {
-        const response = await tenant.httpClient.post('/api/describe/test', {
-            status: 'active'
-        });
-
-        expectError(response);
-    });
-
     it('should reject mismatched schema names (URL vs body)', async () => {
         const response = await tenant.httpClient.post('/api/describe/url_name', {
             schema_name: 'body_name'
