@@ -114,7 +114,13 @@ Tests are organized by numbered series for logical categorization:
 | **13-security-comprehensive** | Integrated security | Complete security workflow testing |
 | **15-authentication** | Authentication workflows | End-to-end auth scenarios |
 
-### API Testing (30-42)
+### Infrastructure & Middleware (20-29)
+
+| Series | Description | Purpose |
+|--------|-------------|---------|
+| **21-formatters** | Response formatters | JSON, YAML, TOON, grid-compact format tests |
+
+### API Testing (30-49)
 
 | Series | Description | Purpose |
 |--------|-------------|---------|
@@ -127,20 +133,20 @@ Tests are organized by numbered series for logical categorization:
 | **38-acls-api** | Access control lists | ACL management for records |
 | **39-stat-api** | Stat API | Record metadata (timestamps, etag, size) |
 | **40-docs-api** | Documentation API | Self-documenting API endpoints |
-| **41-sudo-api** | Sudo operations | Administrative operations |
 | **42-history-api** | History tracking | Change tracking, audit trails |
 
-### Advanced Features (50-90)
+### Application Features (50-79)
 
 | Series | Description | Purpose |
 |--------|-------------|---------|
-| **50-integration** | Cross-feature integration | Multi-feature workflow tests |
-| **51-formatters** | Response formatters | JSON, YAML, TOON format tests |
-| **52-database** | Database management | Database operations, migrations |
-| **53-tenant** | Multi-tenant functionality | Tenant isolation, cross-tenant tests |
-| **60-lifecycle** | Application lifecycle | Startup, shutdown, health checks |
-| **70-validation** | Data validation | Schema enforcement, validation rules |
-| **85-observer-integration** | Observer system | Observer pipeline integration tests |
+| **50-extracts-app** | Extract application | Data export jobs, background processing, artifact downloads |
+| **51-restores-app** | Restore application | Data import jobs, conflict resolution, file uploads |
+| **52-grids-app** | Grid application | Spreadsheet-like cell storage, Excel-style ranges |
+
+### Benchmarks & Examples (90+)
+
+| Series | Description | Purpose |
+|--------|-------------|---------|
 | **90-benchmark** | Performance benchmarks | Performance measurement tests |
 | **90-examples** | Usage examples | Example patterns and workflows |
 
@@ -156,12 +162,17 @@ npm run test:sh 31-describe-api    # Schema operations
 
 **Core API validation** (2-3 minutes):
 ```bash
-npm run test:sh 30-42          # All API tests
+npm run test:sh 30-49          # All API tests
 ```
 
 **Security validation** (1-2 minutes):
 ```bash
 npm run test:sh 10-15          # All security tests
+```
+
+**Application features** (2-3 minutes):
+```bash
+npm run test:sh 50-79          # All app tests (extracts, restores, grids)
 ```
 
 **Complete suite** (5-10 minutes):
