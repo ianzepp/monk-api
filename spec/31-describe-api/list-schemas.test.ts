@@ -5,7 +5,7 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
  * GET /api/describe - List All Schemas
  *
  * Tests the endpoint that lists all available schema names in the current tenant.
- * Uses 'default' template which includes system schemas.
+ * Uses 'system' template which includes system schemas.
  */
 
 describe('GET /api/describe - List All Schemas', () => {

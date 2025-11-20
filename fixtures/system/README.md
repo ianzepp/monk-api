@@ -1,11 +1,11 @@
-# Default Fixture
+# System Fixture
 
-The **default** fixture provides the core system schemas required for the Monk API to function. This is the foundation that all tenant databases are built upon.
+The **system** fixture provides the core system schemas required for the Monk API to function. This is the foundation that all tenant databases are built upon.
 
 ## Structure
 
 ```
-fixtures/default/
+fixtures/system/
 ├── load.sql                 # Master loader script (includes initialization)
 ├── README.md               # This file
 │
@@ -60,7 +60,7 @@ The fixture must be loaded in this specific order:
 
 ## System Schemas
 
-The default fixture creates these system schemas:
+The system fixture creates these system schemas:
 
 | Schema | Purpose | Tables |
 |--------|---------|--------|
@@ -76,8 +76,8 @@ The default fixture creates these system schemas:
 ### Via psql
 
 ```bash
-createdb monk_template_default
-psql -d monk_template_default -f fixtures/default/load.sql
+createdb monk_template_system
+psql -d monk_template_system -f fixtures/system/load.sql
 ```
 
 ### Via Node.js
@@ -87,7 +87,7 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 
 async function loadDefaultFixture(client) {
-    const fixtureDir = join(process.cwd(), 'fixtures', 'default');
+    const fixtureDir = join(process.cwd(), 'fixtures', 'system');
 
     // Initialize (extensions & types)
     await client.query(`

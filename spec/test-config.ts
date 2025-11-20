@@ -21,7 +21,7 @@ export const TEST_CONFIG = {
     /**
      * Default template for test tenants
      *
-     * Default: 'default' - The standard monk-api template with:
+     * Default: 'system' - The standard monk-api template with:
      *   - System schemas (schemas, columns, users, etc.)
      *   - Default 'root' user (full permissions)
      *   - No additional test data
@@ -34,7 +34,7 @@ export const TEST_CONFIG = {
      *   - Contains: Sample accounts, contacts, relationships
      *   - Best for: Tests that need existing data to query
      */
-    DEFAULT_TEMPLATE: process.env.TEST_TEMPLATE || 'default',
+    DEFAULT_TEMPLATE: process.env.TEST_TEMPLATE || 'system',
 
     /**
      * Server readiness check timeout (ms)

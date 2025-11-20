@@ -331,7 +331,7 @@ FIXTURES_DIR="fixtures/$FIXTURE_NAME"
 ### Phase 1: Database Schema Migration ✅ COMPLETE
 1. ✅ Created new tables: `templates`, `sandboxes`, `snapshots`
 2. ✅ Migrated data from `tenants` table via migration script
-3. ✅ Renamed `monk_template_empty` → `monk_template_default`
+3. ✅ Renamed `monk_template_empty` → `monk_template_system`
 4. ✅ Updated `tenants` table structure (removed `tenant_type`, added `owner_id`, `source_template`)
 5. ✅ Moved snapshots from `monk` database to tenant databases
 6. ✅ Removed `sandboxes_one_parent` constraint (allow tracking both tenant and template)
@@ -339,7 +339,7 @@ FIXTURES_DIR="fixtures/$FIXTURE_NAME"
 **Key Changes:**
 - `sql/init-monk.sql` - Separate tables for templates, tenants, sandboxes
 - `sql/init-template-default.sql` - Snapshots table in each tenant database
-- Database naming: `monk_template_default` for CHECK constraint compliance
+- Database naming: `monk_template_system` for CHECK constraint compliance
 - Default template renamed from "empty" to "default"
 
 ### Phase 2: API Endpoints ✅ COMPLETE
@@ -399,7 +399,7 @@ FIXTURES_DIR="fixtures/$FIXTURE_NAME"
 ### Workflow 1: Build Fixture (Developer)
 ```
 Developer workflow:
-1. Register sandbox from 'default' template
+1. Register sandbox from 'system' template
 2. Login as root (auto-sudo)
 3. POST schemas to /api/describe (from YAML)
 4. POST data to /api/data (from YAML, validated!)

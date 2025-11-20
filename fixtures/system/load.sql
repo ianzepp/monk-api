@@ -1,16 +1,16 @@
 -- ============================================================================
--- Monk API - Default Fixture Loader
+-- Monk API - System Fixture Loader
 -- ============================================================================
--- This script loads the default fixture in the correct order
+-- This script loads the system fixture in the correct order
 --
 -- Usage:
---   createdb monk_template_default
---   psql -d monk_template_default -f fixtures/default/load.sql
+--   createdb monk_template_system
+--   psql -d monk_template_system -f fixtures/system/load.sql
 --
 -- Or programmatically via a loader script
 
 \echo '========================================'
-\echo 'Loading Default Fixture'
+\echo 'Loading System Fixture'
 \echo '========================================'
 
 -- PHASE 1: INITIALIZATION
@@ -78,7 +78,7 @@ CREATE TYPE column_type AS ENUM (
 -- SUMMARY
 \echo ''
 \echo '========================================'
-\echo 'Default Fixture Loaded Successfully'
+\echo 'System Fixture Loaded Successfully'
 \echo '========================================'
 
 DO $$

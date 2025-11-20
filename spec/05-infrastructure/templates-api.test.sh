@@ -51,7 +51,7 @@ setup_sudo_auth "Testing templates API access"
 #   - Make GET request to /api/sudo/templates
 #   - Verify 200 status code
 #   - Verify response is array
-#   - Verify array contains at least 'default' template
+#   - Verify array contains at least 'system' template
 #   - Verify each template has required fields:
 #     - id, name, database, description, is_system, created_at
 #   - Verify database names follow monk_template_* pattern
@@ -65,9 +65,9 @@ setup_sudo_auth "Testing templates API access"
 #     - Verify schema_count > 0
 #     - Verify record_count > 0 (testing has sample data)
 #     - Verify created_at is valid timestamp
-#   - For 'default' template:
+#   - For 'system' template:
 #     - Verify is_system = true
-#     - Verify database = 'monk_template_default'
+#     - Verify database = 'monk_template_system'
 
 # Test 1.5: Verify template hierarchy (parent_template)
 # Expected: Non-system templates reference parent
@@ -75,8 +75,8 @@ setup_sudo_auth "Testing templates API access"
 #   - Get templates list
 #   - Find templates with parent_template field
 #   - Verify parent_template references existing template name
-#   - Verify 'default' template has no parent (root template)
-#   - Verify 'testing' template has parent_template = 'default'
+#   - Verify 'system' template has no parent (root template)
+#   - Verify 'testing' template has parent_template = 'system'
 
 # ==============================================================================
 # TEST GROUP 2: Get Template Details (GET /api/sudo/templates/:name)
@@ -90,15 +90,15 @@ setup_sudo_auth "Testing templates API access"
 #   - Verify 404 status code
 #   - Verify error message indicates template not found
 
-# Test 2.2: Get 'default' template details
+# Test 2.2: Get 'system' template details
 # Expected: 200 OK with complete template object
 # TODO: Implement test
 #   - Use sudo token
 #   - Request GET /api/sudo/templates/default
 #   - Verify 200 status code
 #   - Verify response contains:
-#     - name = 'default'
-#     - database = 'monk_template_default'
+#     - name = 'system'
+#     - database = 'monk_template_system'
 #     - is_system = true
 #     - parent_template is null or undefined
 #     - schema_count >= 3 (system tables)
@@ -115,7 +115,7 @@ setup_sudo_auth "Testing templates API access"
 #     - name = 'testing'
 #     - database = 'monk_template_testing'
 #     - is_system = false
-#     - parent_template = 'default'
+#     - parent_template = 'system'
 #     - schema_count > 3 (system + test schemas)
 #     - record_count > 0 (has sample data)
 #     - description exists

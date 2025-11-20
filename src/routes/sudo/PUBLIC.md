@@ -61,7 +61,7 @@ Authorization: Bearer <sudo_token>
 
 - **Location**: `monk_template_*` databases
 - **Purpose**: Pre-configured schemas and data for fast tenant provisioning
-- **Default**: `default` template (minimal system tables)
+- **Default**: `system` template (minimal system tables)
 - **Examples**: `testing` (with test data), `demo` (with sample data)
 
 ### Sandboxes
@@ -105,7 +105,7 @@ Authorization: Bearer <sudo_token>
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "default",
-      "database": "monk_template_default",
+      "database": "monk_template_system",
       "description": "Minimal system template",
       "is_system": true,
       "schema_count": 3,
@@ -850,7 +850,7 @@ Sandboxes belong to the **parent tenant**, not individual users:
 ## Best Practices
 
 ### Template Usage
-- Use `default` template for production tenants (minimal overhead)
+- Use `system` template for production tenants (minimal overhead)
 - Use `testing` template for development/test environments
 - Create custom templates for specific use cases
 

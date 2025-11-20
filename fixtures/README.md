@@ -9,7 +9,7 @@ The fixtures system uses PostgreSQL's `CREATE DATABASE WITH TEMPLATE` to clone p
 Monk API provides four types of database entities for different purposes:
 
 ### Templates (Immutable Prototypes)
-- **Database**: `monk_template_*` (e.g., `monk_template_default`, `monk_template_testing`)
+- **Database**: `monk_template_*` (e.g., `monk_template_system`, `monk_template_testing`)
 - **Registry**: `templates` table in central `monk` database
 - **Purpose**: Pre-configured schemas and data for fast cloning
 - **Lifecycle**: Immutable, created via fixtures build process
@@ -247,7 +247,7 @@ psql -d monk -c "SELECT name, database, tenant_type FROM tenants WHERE tenant_ty
 ## Architecture
 
 ### Database Structure
-- **Template DBs:** `monk_template_default`, `monk_template_testing`, `monk_template_testing_xl`
+- **Template DBs:** `monk_template_system`, `monk_template_testing`, `monk_template_testing_xl`
 - **Tenant DBs:** `tenant_*` (production databases)
 - **Sandbox DBs:** `sandbox_*` (temporary testing environments)
 - **Snapshot DBs:** `snapshot_*` (point-in-time backups)

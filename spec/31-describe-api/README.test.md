@@ -42,7 +42,7 @@ npm run test:ts 31 -- --reporter=verbose
 
 ### Template Strategy
 
-All tests use the **'default' template** which includes:
+All tests use the **'system' template** which includes:
 - System schemas (schemas, columns, users, acls)
 - Root user with full permissions
 - No pre-populated test data

@@ -49,7 +49,7 @@ export class SchemaCache {
         // Extract database name from the connection or use a simple identifier
         try {
             // Try to get database info from the session
-            const sessionInfo = (dtx as any)?.session?.connection?.database || (dtx as any)?.connection?.database || 'default';
+            const sessionInfo = (dtx as any)?.session?.connection?.database || (dtx as any)?.connection?.database || 'system';
             return sessionInfo;
         } catch (error) {
             // Fallback to a simple identifier based on object reference

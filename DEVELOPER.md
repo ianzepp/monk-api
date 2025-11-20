@@ -231,7 +231,7 @@ Monk API implements a sophisticated multi-database architecture with four entity
 #### Infrastructure Entities
 
 **Templates** (Immutable Prototypes)
-- **Database**: `monk_template_*` (e.g., `monk_template_default`)
+- **Database**: `monk_template_*` (e.g., `monk_template_system`)
 - **Registry**: `templates` table in central `monk` database
 - **Purpose**: Pre-configured schemas for fast tenant/sandbox provisioning
 - **Lifecycle**: Immutable, created via fixtures build process

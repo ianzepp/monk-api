@@ -80,10 +80,10 @@ setup_sudo_auth "Testing sandboxes API operations"
 #   - Verify database was cloned from monk_template_testing
 #   - Verify sandbox has same schemas as template
 
-# Test 1.5: Create sandbox from 'default' template
+# Test 1.5: Create sandbox from 'system' template
 # Expected: Minimal sandbox with only system tables
 # TODO: Implement test
-#   - POST sandbox with template: 'default'
+#   - POST sandbox with template: 'system'
 #   - Verify creation successful
 #   - Verify sandbox has minimal schema count
 #   - Verify record_count is minimal (only system data)

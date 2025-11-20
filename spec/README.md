@@ -709,7 +709,7 @@ This prevents test runs from interfering with active development.
 
 When you register a new tenant via `/auth/register`, you specify a template to clone from:
 
-#### 'default' Template (Always Available)
+#### 'system' Template (Always Available)
 - **What it includes:**
   - System schemas: `schemas`, `columns`, `users`, `acls`
   - Default 'root' user with full permissions
@@ -745,7 +745,7 @@ When you register a new tenant via `/auth/register`, you specify a template to c
 
 #### 'testing' Template (Requires Setup)
 - **What it includes:**
-  - Everything from 'default' template
+  - Everything from 'system' template
   - Pre-populated test data (accounts, contacts, relationships)
   - Sample records for query testing
 - **When to use:**
@@ -772,7 +772,7 @@ When you register a new tenant via `/auth/register`, you specify a template to c
 
 ### Choosing a Template Strategy
 
-**Use 'default' template when:**
+**Use 'system' template when:**
 - Testing core API functionality (CRUD operations)
 - You want predictable, controlled test data
 - You don't want to depend on external fixtures
@@ -784,7 +784,7 @@ When you register a new tenant via `/auth/register`, you specify a template to c
 - Performance testing with realistic data volumes
 - You want faster tests (data already exists)
 
-**Recommendation:** Start with 'default' template for most tests. Only use 'testing' when you need pre-populated data for queries.
+**Recommendation:** Start with 'system' template for most tests. Only use 'testing' when you need pre-populated data for queries.
 
 ## Writing TypeScript Tests
 

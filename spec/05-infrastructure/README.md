@@ -23,7 +23,7 @@ Infrastructure tests covering database entity management, connectivity, and serv
 
 ### Templates (Immutable Prototypes)
 - **Purpose**: Pre-configured databases for fast tenant/sandbox provisioning
-- **Database**: `monk_template_*` (e.g., `monk_template_default`)
+- **Database**: `monk_template_*` (e.g., `monk_template_system`)
 - **Registry**: `templates` table in central `monk` database
 - **Performance**: Instant cloning via `CREATE DATABASE WITH TEMPLATE` (30x faster)
 - **API**: `/api/sudo/templates/*` (read-only)

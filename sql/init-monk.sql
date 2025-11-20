@@ -129,7 +129,7 @@ COMMENT ON COLUMN "sandboxes"."last_accessed_at" IS 'Last access time for usage 
 -- - Automatic cleanup when tenant is deleted
 -- - Consistent with Monk's tenant-scoped architecture
 --
--- See fixtures/default/describe/snapshots.sql for snapshot table definition
+-- See fixtures/system/describe/snapshots.sql for snapshot table definition
 --
 -- ============================================================================
 -- REQUEST TRACKING TABLE
@@ -271,26 +271,26 @@ END $$;
 
 -- ============================================================================
 -- SEED DATA
--- Create default template registry entry
+-- Create system template registry entry
 -- ============================================================================
 
 DO $$
 BEGIN
-    -- Create default template entry (database will be created by autoinstall)
+    -- Create system template entry (database will be created by autoinstall)
     INSERT INTO "templates" ("name", "database", "description", "is_system", "schema_count")
     VALUES (
-        'default',
-        'monk_template_default',
-        'Default empty template for new tenants and sandboxes',
+        'system',
+        'monk_template_system',
+        'System template with core infrastructure for new tenants and sandboxes',
         true,
         4  -- schemas, columns, users, history
     )
     ON CONFLICT ("name") DO NOTHING;
 
     IF FOUND THEN
-        RAISE NOTICE 'Created default template entry. Database monk_template_default will be created by autoinstall.';
+        RAISE NOTICE 'Created system template entry. Database monk_template_system will be created by autoinstall.';
     ELSE
-        RAISE NOTICE 'Default template entry already exists.';
+        RAISE NOTICE 'System template entry already exists.';
     END IF;
 END $$;
 

@@ -10,7 +10,7 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
  * server is running in personal mode (TENANT_NAMING_MODE=personal).
  *
  * Templates are pre-built database schemas that can be cloned for fast tenant
- * creation. Common templates include 'default' (minimal setup) and 'testing'
+ * creation. Common templates include 'system' (minimal setup) and 'testing'
  * (includes sample data for development).
  *
  * In enterprise mode, this endpoint returns a 403 error for security reasons

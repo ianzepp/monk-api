@@ -44,7 +44,7 @@ export class TestHelpers {
      * so you don't need to manually add Authorization headers.
      *
      * Template Options:
-     * - 'default' (default) - Always available, includes system schemas + root user
+     * - 'system' (default) - Always available, includes system schemas + root user
      *   - Use when: Testing API functionality with your own test data
      *   - Benefits: No fixture setup required, predictable baseline
      *   - Root user can create schemas/columns/records as needed
@@ -55,7 +55,7 @@ export class TestHelpers {
      *   - Contains: Sample accounts, contacts, relationships
      *
      * @param testName - Short name for this test (e.g., 'basic-find')
-     * @param template - Template name to clone from (default: 'default')
+     * @param template - Template name to clone from (default: 'system')
      * @param username - Username for the tenant admin (default: 'root')
      * @returns Promise with tenant information including auth token
      *

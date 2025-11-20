@@ -494,8 +494,8 @@ fi
 # Starting: Build Default Template Database
 print_header "Starting: Build Default Template Database"
 
-print_step "Checking if default template database exists..."
-template_db_name="monk_template_default"
+print_step "Checking if system template database exists..."
+template_db_name="monk_template_system"
 
 if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_name" 2>/dev/null; then
     print_success "Default template database already exists"
@@ -508,7 +508,7 @@ if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_na
         print_step "Registering template in monk.templates..."
         psql -d monk -c "
             INSERT INTO templates (name, database, description, is_system, schema_count)
-            VALUES ('default', '$template_db_name', 'Default template with core infrastructure', true, 4)
+            VALUES ('system', '$template_db_name', 'System template with core infrastructure', true, 4)
             ON CONFLICT (name) DO NOTHING;
         " >/dev/null 2>&1
         print_success "Template registered successfully"
@@ -524,16 +524,16 @@ else
     fi
     
     print_step "Initializing default template schema..."
-    if psql -d "$template_db_name" -f fixtures/default/load.sql >/dev/null 2>&1; then
+    if psql -d "$template_db_name" -f fixtures/system/load.sql >/dev/null 2>&1; then
         print_success "Default template initialized successfully"
     else
-        handle_error "Default template initialization" "Check fixtures/default/load.sql exists"
+        handle_error "System template initialization" "Check fixtures/system/load.sql exists"
     fi
     
     print_step "Registering template in monk.templates..."
     if psql -d monk -c "
         INSERT INTO templates (name, database, description, is_system, schema_count)
-        VALUES ('default', '$template_db_name', 'Default template with core infrastructure', true, 4)
+        VALUES ('system', '$template_db_name', 'System template with core infrastructure', true, 4)
         ON CONFLICT (name) DO NOTHING;
     " >/dev/null 2>&1; then
         print_success "Template registered in monk.templates"

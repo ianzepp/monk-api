@@ -78,7 +78,7 @@ export class DatabaseTemplate {
                 throw HttpErrors.notFound(`Template '${template_name}' not found`, 'TEMPLATE_NOT_FOUND');
             }
 
-            const templateDatabase = templateResult.rows[0].database; // monk_template_default, monk_template_testing, etc.
+            const templateDatabase = templateResult.rows[0].database; // monk_template_system, monk_template_testing, etc.
 
             // 2. Generate tenant name if not provided
             let tenantName = options.tenant_name;
