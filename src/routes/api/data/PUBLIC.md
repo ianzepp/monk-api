@@ -96,6 +96,38 @@ PUT /api/data/audit_log/abc-123
 - `include_deleted=true` - Include permanently deleted records (root access only)
 - `permanent=true` - Perform permanent delete operations (root access only)
 
+## Data API Error Codes Reference
+
+All error responses from the Data API include `error_code` and `error` fields. Use the error_code for programmatic error handling.
+
+**Naming Convention**:
+- `AUTH_` prefix: Authentication and authorization errors (token validation, access control)
+- `REQUEST_` prefix: Request format and validation errors
+- `SCHEMA_` prefix: Schema-related errors (not found, frozen, protection)
+- `RECORD_` prefix: Record-level errors (not found, validation)
+- `RELATIONSHIP_` prefix: Relationship-specific errors
+- `ACCESS_` prefix: Permission and access control errors
+
+| Error Code | Status | Message | Endpoint(s) | Condition |
+|------------|--------|---------|-------------|-----------|
+| `REQUEST_INVALID_FORMAT` | 400 | "Request body must be an array of records" | `POST /api/data/:schema` | Body is not an array |
+| `REQUEST_INVALID_FORMAT` | 400 | "Request body must be an array of update records with id fields" | `PUT /api/data/:schema` | Body is not an array or missing id fields |
+| `REQUEST_INVALID_FORMAT` | 400 | "Request body must be an array of records with id fields" | `DELETE /api/data/:schema` | Body is not an array or missing id fields |
+| `INVALID_BODY_FORMAT` | 400 | "Request body must be a single object" | Relationship routes | Array sent instead of object for nested routes |
+| `AUTH_TOKEN_REQUIRED` | 401 | "Authorization token required" | All endpoints | No Bearer token in Authorization header |
+| `AUTH_TOKEN_INVALID` | 401 | "Invalid token" | All endpoints | Token malformed or bad signature |
+| `AUTH_TOKEN_EXPIRED` | 401 | "Token has expired" | All endpoints | Token well-formed but past expiration |
+| `ACCESS_DENIED` | 403 | "Insufficient permissions for permanent delete" | `DELETE` operations with `permanent=true` | permanent=true without root access |
+| `SCHEMA_FROZEN` | 403 | "Schema '{name}' is frozen. All data operations are temporarily disabled." | Write operations on frozen schemas | Attempting POST/PUT/DELETE on schema with freeze=true |
+| `SCHEMA_NOT_FOUND` | 404 | "Schema not found" | All endpoints | Invalid schema name in path |
+| `RECORD_NOT_FOUND` | 404 | "Record not found" | Single record endpoints | Record ID does not exist or is inaccessible |
+| `RELATIONSHIP_NOT_FOUND` | 404 | "Relationship '{name}' not found for schema '{schema}'" | Relationship routes | Invalid relationship name in path |
+
+**Additional Schema Protection Errors** (thrown by observer pipeline):
+- **Sudo-protected schemas**: Operations on schemas with `sudo=true` require sudo token from `/api/user/sudo`
+- **Sudo-protected fields**: Modifying fields with `sudo=true` requires sudo token even if schema doesn't
+- **Immutable fields**: Attempting to modify fields with `immutable=true` after initial creation
+
 ---
 
 ## POST /api/data/:schema
