@@ -57,12 +57,12 @@ See individual endpoint documentation for detailed examples.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/data/:schema/:record/:relationship` | List all child records for a parent relationship. |
-| POST | `/api/data/:schema/:record/:relationship` | Create a child record with automatic parent foreign key assignment. |
-| DELETE | `/api/data/:schema/:record/:relationship` | Remove or detach multiple child records from parent. |
-| GET | `/api/data/:schema/:record/:relationship/:child` | Fetch a specific child record through parent relationship. |
-| PUT | `/api/data/:schema/:record/:relationship/:child` | Update a specific child record while preserving parent relationship. |
-| DELETE | `/api/data/:schema/:record/:relationship/:child` | Soft delete or permanently remove a specific child record. |
+| GET | [`/api/data/:schema/:record/:relationship`](:schema/:record/:relationship/GET.md) | List all child records for a parent relationship. |
+| POST | [`/api/data/:schema/:record/:relationship`](:schema/:record/:relationship/POST.md) | Create a child record with automatic parent foreign key assignment. |
+| DELETE | [`/api/data/:schema/:record/:relationship`](:schema/:record/:relationship/DELETE.md) | Remove or detach multiple child records from parent. |
+| GET | [`/api/data/:schema/:record/:relationship/:child`](:schema/:record/:relationship/:child/GET.md) | Fetch a specific child record through parent relationship. |
+| PUT | [`/api/data/:schema/:record/:relationship/:child`](:schema/:record/:relationship/:child/PUT.md) | Update a specific child record while preserving parent relationship. |
+| DELETE | [`/api/data/:schema/:record/:relationship/:child`](:schema/:record/:relationship/:child/DELETE.md) | Soft delete or permanently remove a specific child record. |
 
 ## Delete Operations
 
