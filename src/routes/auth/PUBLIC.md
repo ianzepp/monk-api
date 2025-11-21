@@ -1,11 +1,10 @@
 # Auth API
 
-The Auth API covers both **public token acquisition routes** and **protected user management routes**. Public endpoints issue JWT tokens to unauthenticated callers, while protected endpoints operate on authenticated users and handle privilege escalation.
+The Auth API handles authentication and tenant registration. All endpoints are public (no JWT required) and issue tokens for accessing protected APIs.
 
-## Base Paths
+## Base Path
 
-- **Public routes**: `/auth/*` (no authentication required)
-- **Protected routes**: `/api/auth/*` and `/api/user/*` (JWT required)
+`/auth/*` (no authentication required)
 
 ## Content Type
 
@@ -33,8 +32,6 @@ Set persistent format preference by including `format` field in login request. T
 
 ## Endpoints
 
-### Public Authentication Routes (No JWT Required)
-
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | [`/auth/login`](login/POST.md) | Authenticate against an existing tenant and issue a JWT token. |
@@ -42,14 +39,6 @@ Set persistent format preference by including `format` field in login request. T
 | POST | [`/auth/register`](register/POST.md) | Provision a new tenant from a template and return an initial token. |
 | GET | [`/auth/tenants`](tenants/GET.md) | List available tenants (personal mode only). |
 | GET | [`/auth/templates`](templates/GET.md) | List available templates (personal mode only). |
-
-### Protected Authentication Routes (JWT Required)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/user/whoami` | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
-| POST | `/api/user/sudo` | Get short-lived sudo token for dangerous operations (root/full users only). |
-| POST | [`/api/auth/fake`](fake/POST.md) | Impersonate another user for debugging and support (root only). |
 
 ## Token Lifecycle
 
@@ -73,26 +62,6 @@ The server administrator configures the naming mode via `TENANT_NAMING_MODE` env
 - `username` optional in registration (defaults to 'root')
 - Tenant/template listing enabled
 - Optimal for personal PaaS deployments
-
-## Sudo Access Model
-
-The sudo model follows Linux conventions where root users have implicit sudo access, while privileged users can elevate temporarily.
-
-| Access Level | Sudo at Login | Can Request Sudo | Use Case |
-|--------------|---------------|------------------|----------|
-| `root` | ✅ Automatic (`is_sudo=true`) | ✅ Yes (for audit trail) | System administrators |
-| `full` | ❌ No | ✅ Yes (15-min token) | Team leads, senior devs |
-| `edit` | ❌ No | ❌ No | Regular users |
-| `read` | ❌ No | ❌ No | Read-only access |
-| `deny` | ❌ No | ❌ No | Blocked users |
-
-### Protected Operations
-
-Operations requiring `is_sudo=true` in JWT:
-- Modifying schemas with `sudo=true` flag
-- Creating/updating/deleting records in sudo-protected schemas
-- Modifying fields with `sudo=true` flag
-- User management operations
 
 ## Quick Start
 
@@ -136,7 +105,7 @@ curl -X GET "http://localhost:9001/api/describe?format=json" \
 
 ## Related Documentation
 
-- **Data Operations**: [`/docs/data`](../data/PUBLIC.md) - Working with schema-backed data
-- **Describe Operations**: [`/docs/describe`](../describe/PUBLIC.md) - Managing schemas
-- **Find Operations**: [`/docs/find`](../find/PUBLIC.md) - Advanced search and filtering
-- **Bulk Operations**: [`/docs/bulk`](../bulk/PUBLIC.md) - Multi-schema batch processing
+- **User API**: `/docs/user` - User identity and account management
+- **Sudo API**: `/docs/sudo` - Privilege escalation and user impersonation
+- **Data API**: [`../data/PUBLIC.md`](../data/PUBLIC.md) - Working with schema-backed data
+- **Describe API**: [`../describe/PUBLIC.md`](../describe/PUBLIC.md) - Managing schemas
