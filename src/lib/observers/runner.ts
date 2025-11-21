@@ -7,6 +7,7 @@
 
 import type { System } from '@src/lib/system.js';
 import { Schema } from '@src/lib/schema.js';
+import { SchemaRecord } from '@src/lib/schema-record.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
 import type {
     Observer,
@@ -38,7 +39,7 @@ export class ObserverRunner {
         system: System,
         operation: OperationType,
         schema: Schema,
-        data: any[],
+        data: SchemaRecord[],
         existing?: any[],
         depth: number = 0,
         filter?: any
@@ -88,7 +89,7 @@ export class ObserverRunner {
         system: System,
         operation: OperationType,
         schema: Schema,
-        data: any[],
+        data: SchemaRecord[],
         existing?: any[],
         filter?: any
     ): ObserverContext {
@@ -96,9 +97,9 @@ export class ObserverRunner {
             system,
             operation,
             schema,
-            data, // For create/update operations, or populated by ring 5 for select
+            data, // For create/update operations (now SchemaRecord[])
             filter, // For select operations (rings 0-4), undefined for other operations
-            existing, // For update operations
+            existing, // DEPRECATED - RecordPreloader uses SchemaRecord.load() instead
             result: undefined,
             metadata: new Map(),
             errors: [],

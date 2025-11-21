@@ -53,6 +53,11 @@ export default class DataValidator extends BaseObserver {
     async execute(context: ObserverContext): Promise<void> {
         const { schema, data } = context;
 
+        // Check if data exists
+        if (!data || data.length === 0) {
+            return;
+        }
+
         // Get pre-merged validation fields (already excludes system fields)
         const validationFields = schema.getValidationFields();
 
@@ -67,13 +72,13 @@ export default class DataValidator extends BaseObserver {
         // OPTIMIZED: Single loop over records, single loop over relevant fields
         for (const [recordIndex, record] of data.entries()) {
             for (const field of validationFields) {
-                const value = record[field.fieldName];
+                const value = record.get(field.fieldName);
                 this.validateField(field, value, recordIndex, errors);
             }
         }
 
         // Throw if any validation errors occurred
-        this.throwIfErrors(errors, schema.schema_name, data.length, validationFields.length);
+        this.throwIfErrors(errors, schema.schema_name, data?.length || 0, validationFields.length);
     }
 
     /**

@@ -37,6 +37,11 @@ export default class ColumnSudoValidator extends BaseObserver {
         const { schema, system, data, operation } = context;
         const schemaName = schema.schema_name;
 
+        // Check if data exists
+        if (!data || data.length === 0) {
+            return;
+        }
+
         // Get sudo-protected fields from cached schema metadata (O(1))
         const sudoFields = schema.getSudoFields();
 
@@ -54,8 +59,11 @@ export default class ColumnSudoValidator extends BaseObserver {
 
         // Check each record for sudo field modifications
         for (const record of data) {
+            // Convert to plain object to iterate fields
+            const plainRecord = record.toObject();
+
             // Check each field in the record
-            for (const fieldName of Object.keys(record)) {
+            for (const fieldName of Object.keys(plainRecord)) {
                 // Skip non-sudo fields
                 if (!sudoFields.has(fieldName)) {
                     continue;
@@ -74,7 +82,7 @@ export default class ColumnSudoValidator extends BaseObserver {
                 schemaName,
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
-                recordCount: data.length,
+                recordCount: data?.length || 0,
                 userId: system.getUser?.()?.id
             });
 
@@ -92,7 +100,7 @@ export default class ColumnSudoValidator extends BaseObserver {
                 schemaName,
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
-                recordCount: data.length,
+                recordCount: data?.length || 0,
                 userId: system.getUser?.()?.id,
                 elevation_reason: jwtPayload.elevation_reason
             });

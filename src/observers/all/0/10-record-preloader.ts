@@ -2,19 +2,19 @@
  * Record Preloader Observer
  *
  * Efficiently preloads existing records for operations that need them (update, delete, revert).
- * Performs single database query to fetch all needed records and stores them as read-only
- * metadata for other observers to consume, preventing duplicate queries.
+ * Performs single database query to fetch all needed records and injects them into SchemaRecord
+ * instances via load() method, enabling change tracking and diff computation.
  *
- * Multiple observers need existing records (soft delete protection, existence validation,
- * update merging). Rather than each observer re-selecting data, this observer loads
- * everything once and provides it as frozen objects for data safety.
+ * NEW DESIGN: Uses SchemaRecord.load() to inject existing data directly into record instances
+ * rather than storing in metadata. Each SchemaRecord now holds both current and original data.
  *
- * Ring: 0 (Validation) - Schema: all - Operations: update, delete, revert
+ * Ring: 0 (DataPreparation) - Schema: all - Operations: update, delete, revert
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class RecordPreloader extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation;
@@ -22,11 +22,18 @@ export default class RecordPreloader extends BaseObserver {
     readonly priority = 10;  // High priority - must run before other observers that need existing records
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, operation, data, metadata } = context;
+        const { system, operation, data } = context;
         const schemaName = context.schema.schema_name;
 
-        // Extract record IDs that need existing data lookup
-        const recordIds = this.extractRecordIds(data, operation);
+        if (!data || data.length === 0) {
+            console.info('No records to preload', { schemaName, operation });
+            return;
+        }
+
+        // Extract record IDs from SchemaRecord instances
+        const recordIds = data
+            .map(record => record.get('id'))
+            .filter(id => id && typeof id === 'string' && id.trim().length > 0);
 
         if (recordIds.length === 0) {
             console.info('No record IDs found for preloading', { schemaName, operation });
@@ -50,25 +57,26 @@ export default class RecordPreloader extends BaseObserver {
                 }
             });
 
-            // Store as READ-ONLY data in context metadata for other observers
-            const frozenRecords = Object.freeze(existingRecords.map(record => Object.freeze(record)));
-            const frozenById = Object.freeze(
-                existingRecords.reduce((acc, record) => {
-                    acc[record.id] = Object.freeze(record);
-                    return acc;
-                }, {} as Record<string, any>)
-            );
+            // Build lookup map for efficient matching
+            const existingById = existingRecords.reduce((acc, record) => {
+                acc[record.id] = record;
+                return acc;
+            }, {} as Record<string, any>);
 
-            // Store as frozen data for other observers (data sharing pattern)
-            metadata.set('existing_records', frozenRecords);
-            metadata.set('existing_records_by_id', frozenById);
+            // Inject existing data into SchemaRecord instances
+            for (const record of data) {
+                const id = record.get('id');
+                if (id && existingById[id]) {
+                    record.load(existingById[id]);  // Inject original data into SchemaRecord
+                }
+            }
 
             console.info(`Successfully preloaded ${existingRecords.length} existing records`, {
                 schemaName,
                 operation,
                 requestedCount: recordIds.length,
                 foundCount: existingRecords.length,
-                frozenRecords: true
+                injectedIntoRecords: true
             });
 
         } catch (error) {
@@ -79,59 +87,46 @@ export default class RecordPreloader extends BaseObserver {
                 error: error instanceof Error ? error.message : String(error)
             });
 
-            // Set empty metadata so other observers can safely access it
-            metadata.set('existing_records', Object.freeze([]));
-            metadata.set('existing_records_by_id', Object.freeze({}));
+            // Records will remain with null original data (isNew() will return true)
+            // This is handled gracefully by SchemaRecord methods
         }
     }
 
     /**
-     * Extract record IDs from data based on operation type
-     */
-    private extractRecordIds(data: any[], operation: string): string[] {
-        const ids: string[] = [];
-
-        for (const record of data) {
-            switch (operation) {
-                case 'update':
-                case 'delete':
-                    // For update/delete, ID should be in record.id
-                    if (record.id) {
-                        ids.push(record.id);
-                    }
-                    break;
-
-                case 'revert':
-                    // For revert, data might be IDs directly or objects with ID
-                    if (typeof record === 'string') {
-                        ids.push(record);
-                    } else if (record.id) {
-                        ids.push(record.id);
-                    }
-                    break;
-            }
-        }
-
-        // Remove duplicates and filter out empty values
-        return Array.from(new Set(ids)).filter(id => id && id.trim().length > 0);
-    }
-
-    /**
-     * Helper method for other observers to get preloaded records
-     *
-     * This method can be called statically by other observers to safely
-     * access preloaded record data with proper error handling.
+     * DEPRECATED: Helper method for backward compatibility
+     * Use SchemaRecord.getOriginal() instead
      */
     static getPreloadedRecords(context: ObserverContext): readonly any[] {
-        const records = context.metadata.get('existing_records');
-        return records || [];
+        console.warn('RecordPreloader.getPreloadedRecords() is deprecated. Use SchemaRecord.getOriginal() instead.');
+        return context.data?.map(record => {
+            const original: Record<string, any> = {};
+            // Build object from SchemaRecord's original data
+            const changes = record.getChanges();
+            for (const field in changes) {
+                original[field] = changes[field].old;
+            }
+            return Object.freeze(original);
+        }) || [];
     }
 
     /**
-     * Helper method for other observers to get preloaded records by ID
+     * DEPRECATED: Helper method for backward compatibility
+     * Use SchemaRecord.getOriginal() instead
      */
     static getPreloadedRecordsById(context: ObserverContext): Readonly<Record<string, any>> {
-        const recordsById = context.metadata.get('existing_records_by_id');
-        return recordsById || {};
+        console.warn('RecordPreloader.getPreloadedRecordsById() is deprecated. Use SchemaRecord.getOriginal() instead.');
+        const recordsById: Record<string, any> = {};
+        context.data?.forEach(record => {
+            const id = record.get('id');
+            if (id) {
+                const original: Record<string, any> = {};
+                const changes = record.getChanges();
+                for (const field in changes) {
+                    original[field] = changes[field].old;
+                }
+                recordsById[id] = Object.freeze(original);
+            }
+        });
+        return Object.freeze(recordsById);
     }
 }

@@ -33,6 +33,11 @@ export default class ImmutableValidator extends BaseObserver {
         const { schema, data, operation } = context;
         const schemaName = schema.schema_name;
 
+        // Check if data exists
+        if (!data || data.length === 0) {
+            return;
+        }
+
         // Get immutable fields from cached schema metadata (O(1))
         const immutableFields = schema.getImmutableFields();
 
@@ -58,7 +63,8 @@ export default class ImmutableValidator extends BaseObserver {
 
         // Check each record for immutable field violations
         for (const record of data) {
-            const existingRecord = existingRecordsById[record.id];
+            const recordId = record.get('id');
+            const existingRecord = existingRecordsById[recordId];
 
             if (!existingRecord) {
                 // Record doesn't exist yet - should not happen in update operation
@@ -66,21 +72,24 @@ export default class ImmutableValidator extends BaseObserver {
                 continue;
             }
 
+            // Convert to plain object to iterate fields
+            const plainRecord = record.toObject();
+
             // Check each changed field
-            for (const fieldName of Object.keys(record)) {
+            for (const fieldName of Object.keys(plainRecord)) {
                 // Skip non-immutable fields
                 if (!immutableFields.has(fieldName)) {
                     continue;
                 }
 
                 const oldValue = existingRecord[fieldName];
-                const newValue = record[fieldName];
+                const newValue = record.get(fieldName);
 
                 // Allow setting immutable field if it was null/undefined (first write)
                 if (oldValue === null || oldValue === undefined) {
                     console.info('Allowing first write to immutable field', {
                         schemaName,
-                        recordId: record.id,
+                        recordId,
                         field: fieldName,
                         newValue
                     });
@@ -90,7 +99,7 @@ export default class ImmutableValidator extends BaseObserver {
                 // Check if value is actually changing
                 if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
                     violations.push({
-                        recordId: record.id,
+                        recordId,
                         field: fieldName,
                         oldValue,
                         newValue
@@ -128,7 +137,7 @@ export default class ImmutableValidator extends BaseObserver {
         console.info('Immutable field validation passed', {
             schemaName,
             operation,
-            recordsChecked: data.length,
+            recordsChecked: data?.length || 0,
             immutableFields: immutableFields.size
         });
     }

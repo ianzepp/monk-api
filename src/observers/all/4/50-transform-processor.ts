@@ -31,6 +31,12 @@ export default class TransformProcessor extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { schema, data } = context;
+
+        // Check if data exists
+        if (!data || data.length === 0) {
+            return;
+        }
+
         const transformFields = schema.getTransformFields();
 
         // Early exit if no transform fields defined
@@ -44,16 +50,17 @@ export default class TransformProcessor extends BaseObserver {
         for (const record of data) {
             for (const [fieldName, transformType] of transformFields) {
                 // Skip if field not present or null/undefined
-                if (record[fieldName] === null || record[fieldName] === undefined) {
+                const value = record.get(fieldName);
+                if (value === null || value === undefined) {
                     continue;
                 }
 
                 // Apply transform and update field in-place
-                const originalValue = record[fieldName];
+                const originalValue = value;
                 const transformedValue = applyTransform(originalValue, transformType);
 
                 if (transformedValue !== originalValue) {
-                    record[fieldName] = transformedValue;
+                    record.set(fieldName, transformedValue);
                     transformCount++;
                 }
             }
@@ -62,7 +69,7 @@ export default class TransformProcessor extends BaseObserver {
         if (transformCount > 0) {
             console.info('Field transforms applied', {
                 schemaName: schema.schema_name,
-                recordCount: data.length,
+                recordCount: data?.length || 0,
                 transformCount,
             });
         }

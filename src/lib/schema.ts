@@ -302,6 +302,27 @@ export class Schema {
         return this.validationFields;
     }
 
+    /**
+     * Check if a column exists in this schema
+     * Returns true if the field is either a system column or has metadata
+     */
+    hasColumn(fieldName: string): boolean {
+        // System columns always exist
+        if (SYSTEM_COLUMNS.has(fieldName)) {
+            return true;
+        }
+
+        // Check if field has any metadata (type, immutable, sudo, etc.)
+        return this.typedFields.has(fieldName) ||
+               this.immutableFields.has(fieldName) ||
+               this.sudoFields.has(fieldName) ||
+               this.requiredFields.has(fieldName) ||
+               this.trackedFields.has(fieldName) ||
+               this.rangeFields.has(fieldName) ||
+               this.enumFields.has(fieldName) ||
+               this.transformFields.has(fieldName);
+    }
+
     get schema_name(): SchemaName {
         return this.schemaName;
     }

@@ -33,6 +33,11 @@ export default class UuidArrayProcessor extends BaseObserver {
         const { operation, data, metadata } = context;
         const schemaName = context.schema.schema_name;
 
+        // Check if data exists
+        if (!data || data.length === 0) {
+            return;
+        }
+
         let processedFields = 0;
         let processedRecords = 0;
 
@@ -41,7 +46,8 @@ export default class UuidArrayProcessor extends BaseObserver {
             let recordHasUuidArrays = false;
 
             for (const fieldName of this.UUID_ARRAY_FIELDS) {
-                if (record[fieldName] && Array.isArray(record[fieldName])) {
+                const value = record.get(fieldName);
+                if (value && Array.isArray(value)) {
                     // Set metadata flag for SQL observers to use PostgreSQL array format
                     processedFields++;
                     recordHasUuidArrays = true;
@@ -61,7 +67,7 @@ export default class UuidArrayProcessor extends BaseObserver {
                 operation,
                 processedFields,
                 processedRecords,
-                totalRecords: data.length
+                totalRecords: data?.length || 0
             });
         }
     }

@@ -27,12 +27,15 @@ export default class SqlCreateObserver extends BaseObserver {
         const timestamp = new Date().toISOString();
 
         for (const recordData of data) {
+            // Convert SchemaRecord to plain object for SQL operations
+            const plainRecord = recordData.toObject();
+
             // Set up record with required system fields
             const record = {
-                id: recordData.id || SqlUtils.generateId(),
-                created_at: recordData.created_at || timestamp,
-                updated_at: recordData.updated_at || timestamp,
-                ...recordData,
+                id: plainRecord.id || SqlUtils.generateId(),
+                created_at: plainRecord.created_at || timestamp,
+                updated_at: plainRecord.updated_at || timestamp,
+                ...plainRecord,
             };
 
             // Process UUID arrays if flagged by UuidArrayProcessor

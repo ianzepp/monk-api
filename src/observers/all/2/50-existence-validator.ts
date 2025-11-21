@@ -25,6 +25,10 @@ export default class ExistenceValidator extends BaseObserver {
         const { operation, data, metadata } = context;
         const schemaName = context.schema.schema_name;
 
+        if (!data || data.length === 0) {
+            return;
+        }
+
         // Extract the record IDs we're trying to operate on
         const requestedIds = this.extractRecordIds(data, operation);
 

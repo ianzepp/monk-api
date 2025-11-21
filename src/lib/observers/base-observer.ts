@@ -101,8 +101,15 @@ export abstract class BaseObserver implements Observer {
      * - Add warnings to context.warnings for non-blocking issues
      */
     async execute(context: ObserverContext): Promise<void> {
+        const { data } = context;
+
+        // Check if data exists
+        if (!data || data.length === 0) {
+            return;
+        }
+
         // Default implementation: process each record sequentially
-        for (const record of context.data) {
+        for (const record of data) {
             await this.executeOne(record, context);
         }
     }

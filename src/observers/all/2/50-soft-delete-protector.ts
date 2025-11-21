@@ -54,7 +54,7 @@ export default class SoftDeleteProtector extends BaseObserver {
                 operation,
                 trashedRecords: trashedIds.length,
                 trashedIds: trashedIds.slice(0, 5), // First 5 for logging
-                totalRequested: data.length
+                totalRequested: data?.length || 0
             });
 
             throw new SecurityError(
@@ -78,7 +78,7 @@ export default class SoftDeleteProtector extends BaseObserver {
                 operation,
                 deletedRecords: deletedIds.length,
                 deletedIds: deletedIds.slice(0, 5),
-                totalRequested: data.length
+                totalRequested: data?.length || 0
             });
 
             throw new SecurityError(
@@ -95,7 +95,7 @@ export default class SoftDeleteProtector extends BaseObserver {
             schemaName,
             operation,
             checkedRecords: existingRecords.length,
-            requestedRecords: data.length,
+            requestedRecords: data?.length || 0,
             trashedRecords: 0,
             deletedRecords: 0
         });

@@ -18,17 +18,15 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         const { result, existing, metadata, operation, data } = context;
         const schemaName = context.schema.schema_name;
 
-        // Process data as array if needed
-        const recordsToProcess = Array.isArray(data) ? data : [{ result, existing }];
-
         try {
             // Invalidate schema-level caches (once per execution)
             await this.invalidateSchemaCache(schemaName);
 
-            // Process each record
-            for (const record of recordsToProcess) {
-                const recordResult = record.result || result;
-                const recordExisting = record.existing || existing;
+            // Process result records (which come from context.result after DB operations)
+            const resultsToProcess = Array.isArray(result) ? result : (result ? [result] : []);
+
+            for (const recordResult of resultsToProcess) {
+                const recordExisting = existing;
 
                 // Invalidate record-level caches
                 const recordId = this.getRecordId(recordResult, recordExisting);

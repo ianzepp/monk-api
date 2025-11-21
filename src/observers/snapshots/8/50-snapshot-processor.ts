@@ -40,11 +40,12 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
         // Process each snapshot (usually just one)
         for (const snapshot of snapshots) {
             // Only process pending snapshots
-            if (snapshot.status !== 'pending') {
+            const status = snapshot.get('status');
+            if (status !== 'pending') {
                 console.info('Skipping snapshot - not pending', {
-                    snapshot_id: snapshot.id,
-                    snapshot_name: snapshot.name,
-                    status: snapshot.status
+                    snapshot_id: snapshot.get('id'),
+                    snapshot_name: snapshot.get('name'),
+                    status
                 });
                 continue;
             }

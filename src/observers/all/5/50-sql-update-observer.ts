@@ -27,11 +27,14 @@ export default class SqlUpdateObserver extends BaseObserver {
         const results = [];
 
         for (const record of data) {
-            if (!record.id) {
+            // Convert SchemaRecord to plain object for SQL operations
+            const plainRecord = record.toObject();
+
+            if (!plainRecord.id) {
                 throw new SystemError('Update record must have id field');
             }
 
-            const { id, ...updateFields } = record;
+            const { id, ...updateFields } = plainRecord;
 
             // Process UUID arrays if flagged by UuidArrayProcessor
             let processedFields = SqlUtils.processUuidArrays(updateFields, metadata);

@@ -3,6 +3,7 @@ import type { DbContext, TxContext } from '@src/db/index.js';
 
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { Schema, type SchemaName } from '@src/lib/schema.js';
+import { SchemaRecord } from '@src/lib/schema-record.js';
 import { Filter, type AggregateSpec } from '@src/lib/filter.js';
 import type { FilterData } from '@src/lib/filter-types.js';
 import type { FilterWhereOptions } from '@src/lib/filter-types.js';
@@ -485,14 +486,17 @@ export class Database {
      * Execute observer pipeline within existing transaction context
      */
     private async executeObserverPipeline(operation: OperationType, schema: Schema, data: any[], depth: number): Promise<any[]> {
+        // Wrap input data in SchemaRecord instances
+        const records = data.map(d => new SchemaRecord(schema, d));
+
         const runner = new ObserverRunner();
 
         const result = await runner.execute(
             this.system as any, // TODO: Fix System vs SystemContext type mismatch
             operation,
             schema,
-            data,
-            undefined, // existing records (for updates)
+            records,  // Pass SchemaRecord[] instead of any[]
+            undefined, // existing records (DEPRECATED - RecordPreloader will inject into SchemaRecord.load())
             depth
         );
 
@@ -524,7 +528,9 @@ export class Database {
             );
         }
 
-        return result.result || data;
+        // Unwrap SchemaRecord instances back to plain objects
+        const resultRecords = result.result || records;
+        return resultRecords.map((r: SchemaRecord) => r.toObject());
     }
 
     // Database class doesn't handle transactions - System class does

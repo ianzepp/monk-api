@@ -1,16 +1,17 @@
 /**
  * Observer Framework Interfaces
- * 
+ *
  * Core interfaces for the observer ring system including context sharing,
  * observer definitions, and execution contracts.
  */
 
 import type { System } from '@src/lib/system.js';
 import type { Schema } from '@src/lib/schema.js';
-import type { 
-    ObserverRing, 
-    OperationType, 
-    ObserverResult 
+import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type {
+    ObserverRing,
+    OperationType,
+    ObserverResult
 } from '@src/lib/observers/types.js';
 import type { ValidationError, ValidationWarning } from '@src/lib/observers/errors.js';
 
@@ -28,8 +29,8 @@ export interface ObserverContext {
     /** Loaded Schema object with validation and metadata */
     schema: Schema;
 
-    /** Input data for create/update operations */
-    data?: any;
+    /** Input data for create/update/delete operations (wrapped in SchemaRecord instances) */
+    data?: SchemaRecord[];
 
     /** Filter criteria for select operations (rings 0-4), becomes data after ring 5 */
     filter?: any;
@@ -37,11 +38,11 @@ export interface ObserverContext {
     /** Target record ID for update/delete/select operations */
     recordId?: string;
 
-    /** Existing record data (loaded for update operations) */
+    /** Existing record data (DEPRECATED - use SchemaRecord.getOriginal() instead) */
     existing?: any;
 
     /** Database operation result (available in post-database rings) */
-    result?: any;
+    result?: SchemaRecord[];
 
     /** Cross-observer communication and computed values */
     metadata: Map<string, any>;
