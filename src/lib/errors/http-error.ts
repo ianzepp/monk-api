@@ -1,34 +1,34 @@
 /**
  * HttpError - Structured HTTP error handling for API responses
- * 
+ *
  * IMPLEMENTATION PLAN:
- * 
+ *
  * Phase 1: Core Error Class
  * - Create HttpError class extending Error
  * - Add statusCode, errorCode properties
  * - Export common error factory methods
- * 
+ *
  * Phase 2: Update Describe Operations
  * - Replace all 'throw new Error()' calls in describe.ts with HttpError
  * - Map business logic errors to appropriate HTTP status codes:
  *   - 400: Schema validation, parsing, required field errors
- *   - 403: Protected schema modification attempts  
+ *   - 403: Protected schema modification attempts
  *   - 404: Schema not found errors
  *   - 409: Schema already exists (if applicable)
  *   - 422: Invalid schema content/structure
- * 
+ *
  * Phase 3: Update Middleware
  * - Modify responseYamlMiddleware in system-context.ts
  * - Add instanceof HttpError detection
  * - Use error.statusCode for HTTP response status
  * - Include error.errorCode in JSON error response
  * - Keep 500 default for unexpected Error instances
- * 
+ *
  * Phase 4: Extend to Other APIs (Future)
  * - Apply HttpError pattern to data API routes
  * - Apply to auth API routes
  * - Standardize error response format across all APIs
- * 
+ *
  * Phase 5: Enhanced Error Context (Future)
  * - Add validation details for schema errors
  * - Add request context (tenant, user, operation)
@@ -37,13 +37,13 @@
 
 /**
  * Structured HTTP error for API responses
- * 
+ *
  * Separates business logic errors from HTTP transport concerns.
  * Business logic throws semantic errors, middleware handles HTTP details.
  */
 export class HttpError extends Error {
     public readonly name = 'HttpError';
-    
+
     constructor(
         public readonly statusCode: number,
         message: string,
@@ -51,11 +51,11 @@ export class HttpError extends Error {
         public readonly details?: Record<string, any>
     ) {
         super(message);
-        
+
         // Maintain proper prototype chain for instanceof checks
         Object.setPrototypeOf(this, HttpError.prototype);
     }
-    
+
     /**
      * Convert to JSON-serializable object for API responses
      */
@@ -77,36 +77,36 @@ export class HttpErrors {
     static badRequest(message: string, errorCode = 'BAD_REQUEST', details?: Record<string, any>) {
         return new HttpError(400, message, errorCode, details);
     }
-    
+
     static unauthorized(message = 'Unauthorized', errorCode = 'UNAUTHORIZED') {
         return new HttpError(401, message, errorCode);
     }
-    
+
     static forbidden(message = 'Forbidden', errorCode = 'FORBIDDEN') {
         return new HttpError(403, message, errorCode);
     }
-    
+
     static notFound(message = 'Not found', errorCode = 'NOT_FOUND') {
         return new HttpError(404, message, errorCode);
     }
-    
+
     static conflict(message: string, errorCode = 'CONFLICT', details?: Record<string, any>) {
         return new HttpError(409, message, errorCode, details);
     }
-    
+
     static unprocessableEntity(message: string, errorCode = 'UNPROCESSABLE_ENTITY', details?: Record<string, any>) {
         return new HttpError(422, message, errorCode, details);
     }
-    
+
     static methodNotAllowed(message = 'Method not allowed', errorCode = 'METHOD_NOT_ALLOWED') {
         return new HttpError(405, message, errorCode);
     }
-    
+
     static unsupportedMediaType(message: string, errorCode = 'UNSUPPORTED_MEDIA_TYPE', details?: Record<string, any>) {
         return new HttpError(415, message, errorCode, details);
     }
-    
-    static requestEntityTooLarge(message = 'Request entity too large', errorCode = 'REQUEST_ENTITY_TOO_LARGE', details?: Record<string, any>) {
+
+    static requestEntityTooLarge(message = 'Request entity too large', errorCode = 'BODY_TOO_LARGE', details?: Record<string, any>) {
         return new HttpError(413, message, errorCode, details);
     }
 

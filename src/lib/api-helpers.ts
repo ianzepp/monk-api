@@ -41,7 +41,7 @@ export enum ApiErrorCode {
     INTERNAL_ERROR = 'INTERNAL_ERROR',
     JSON_PARSE_ERROR = 'JSON_PARSE_ERROR',
     MISSING_CONTENT_TYPE = 'MISSING_CONTENT_TYPE',
-    REQUEST_BODY_TOO_LARGE = 'REQUEST_BODY_TOO_LARGE',
+    BODY_TOO_LARGE = 'BODY_TOO_LARGE',
     UNSUPPORTED_CONTENT_TYPE = 'UNSUPPORTED_CONTENT_TYPE',
     UNSUPPORTED_METHOD = 'UNSUPPORTED_METHOD',
 }
@@ -129,7 +129,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
                 if (contentLength && parseInt(contentLength) > maxSize) {
                     throw HttpErrors.requestEntityTooLarge(
                         'Request body too large',
-                        'REQUEST_BODY_TOO_LARGE',
+                        'BODY_TOO_LARGE',
                         {
                             maxSize: maxSize,
                             actualSize: parseInt(contentLength)

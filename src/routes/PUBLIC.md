@@ -540,7 +540,7 @@ All API endpoints return consistent error responses:
 | `404` | Not Found | Resource does not exist | `NOT_FOUND`, `SCHEMA_NOT_FOUND`, `RECORD_NOT_FOUND` |
 | `405` | Method Not Allowed | HTTP method not supported | `UNSUPPORTED_METHOD` |
 | `409` | Conflict | Request conflicts with current state | `CONFLICT`, `DEPENDENCY_ERROR` |
-| `413` | Request Too Large | Request body exceeds size limit | `REQUEST_BODY_TOO_LARGE` |
+| `413` | Request Too Large | Request body exceeds size limit | `BODY_TOO_LARGE` |
 | `415` | Unsupported Media | Content-Type not supported | `UNSUPPORTED_CONTENT_TYPE` |
 | `422` | Unprocessable Entity | Well-formed but semantically invalid | `UNPROCESSABLE_ENTITY` |
 | `500` | Internal Server Error | Unexpected server error | `INTERNAL_ERROR`, `DATABASE_ERROR` |
@@ -572,7 +572,7 @@ All API endpoints return consistent error responses:
 | `JSON_PARSE_ERROR` | Invalid JSON format | 400 |
 | `MISSING_CONTENT_TYPE` | Content-Type header missing | 400 |
 | `UNSUPPORTED_CONTENT_TYPE` | Content-Type not supported | 415 |
-| `REQUEST_BODY_TOO_LARGE` | Request exceeds 10MB limit | 413 |
+| `BODY_TOO_LARGE` | Request exceeds 10MB limit | 413 |
 
 #### Data Operation Errors
 | Error Code | Description | HTTP Status |
