@@ -1,64 +1,47 @@
-# 32-Data API Tests
+# 32-data-api: Data CRUD Operations
 
-Comprehensive test suite for the Data API covering CRUD operations, relationship management, bulk operations, and soft delete functionality.
+**Priority**: CRITICAL
+**Coverage**: 60% (9 of 13 endpoints tested)
+**Status**: Good record-level coverage, missing bulk operations
 
-## Test Coverage
+## Critical / Smoke Tests
 
-### Core CRUD Operations
-- **create-record.test.sh** - Single and bulk record creation
-- **select-record.test.sh** - Record retrieval and filtering
-- **update-record.test.sh** - Single and bulk record updates
-- **delete-record.test.sh** - Soft delete functionality
+### Existing Tests (10 total: 9 shell, 1 TypeScript)
+- POST /api/data/:schema - Create single record with validation (create-record.test.sh)
+- GET /api/data/:schema/:record - Retrieve single record by ID (select-record.test.sh)
+- PUT /api/data/:schema/:record - Update single record fields (update-record.test.sh)
+- DELETE /api/data/:schema/:record - Soft delete single record (delete-record.test.sh)
+- POST /api/data/:schema/:record/:relationship - Add relationship children (create-relationship-post.test.sh)
+- PUT /api/data/:schema/:record/:relationship/:child - Update relationship child (update-relationship-post.test.sh)
+- DELETE /api/data/:schema/:record/:relationship/:child - Remove relationship child (delete-relationship-post.test.sh)
+- System field filtering (_id, _created_at, _updated_at, _deleted_at) (system-field-filtering.test.ts)
 
-### Relationship Management
-- **create-relationship-post.test.sh** - Creating relationships via POST
-- **update-relationship-post.test.sh** - Updating relationship data
-- **delete-relationship-post.test.sh** - Removing individual relationships
-- **delete-relationship-array.test.sh** - Bulk relationship removal
+### Missing Critical Tests (4)
+- GET /api/data/:schema - List all records for schema (bulk retrieval)
+- PUT /api/data/:schema - Bulk update with filter (mass updates)
+- DELETE /api/data/:schema - Bulk delete with filter (mass deletion)
+- GET /api/data/:schema/:record/:relationship - List relationship children
 
-## Test Environment
+## Additional Tests
 
-Tests run against a dedicated test tenant with pre-configured schemas:
-- `users` - User management schema
-- `posts` - Content schema with relationships
-- `comments` - Related content schema
-- Test data is automatically cleaned up after each test run
+### Existing Coverage
+- Single record creation with multiple fields
+- Bulk record creation (multiple records in one request)
+- Relationship management (create, update, delete)
+- Array-based relationship removal
+- System field behavior
 
-## Key Test Scenarios
+### Missing Coverage
+- Bulk operations via schema-level endpoints (critical for data management)
+- Pagination for large result sets
+- Complex filter conditions for bulk operations
+- Transaction rollback on bulk operation failures
+- Performance testing with large datasets
 
-### Data Validation
-- Required field validation
-- Data type constraints
-- Unique field constraints
-- Relationship integrity
+## Notes
 
-### Bulk Operations
-- Array-based record creation
-- Filter-based bulk updates
-- Filter-based bulk deletes
-- Transaction rollback on errors
-
-### Soft Delete System
-- Three-tier access pattern validation
-- Exclusion from list operations
-- Preservation of direct access
-- Update blocking for trashed records
-
-### Error Handling
-- Record not found scenarios
-- Validation error responses
-- Permission denied cases
-- Invalid relationship operations
-
-## Running Tests
-
-Individual test files can be run directly:
-```bash
-./spec/32-data-api/create-record.test.sh
-./spec/32-data-api/select-record.test.sh
-```
-
-Or run the complete test suite:
-```bash
-cd spec/32-data-api && for test in *.test.sh; do ./"$test"; done
-```
+- Strong coverage for single-record operations
+- Relationship handling well-tested
+- Missing bulk operations are critical for production data management
+- Tests use shell scripts for API validation
+- System field filtering has dedicated TypeScript test

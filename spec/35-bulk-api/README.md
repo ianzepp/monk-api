@@ -1,59 +1,36 @@
-# 35-Bulk API Tests
+# 35-bulk-api: Bulk Operations
 
-Comprehensive test suite for the Bulk API covering transaction safety, rollback scenarios, and mixed operation types.
+**Priority**: MODERATE
+**Coverage**: 70% (Good transaction coverage)
+**Status**: Transaction safety well-tested, missing bulk update/delete
 
-## Test Coverage
+## Critical / Smoke Tests
 
-### Core Bulk Operations
-- **create-accounts-simple.test.sh** - Basic bulk creation with multiple records
-- **rollback-check.test.sh** - Transaction rollback on validation failures
-- **rollback-mixed-operations.test.sh** - Mixed operation rollback across schemas
-- **update-and-aggregate.test.sh** - Validation coverage for update variants and aggregate helper
+### Existing Tests (4)
+- POST /api/bulk - Bulk creation with multiple records (create-accounts-simple.test.sh)
+- POST /api/bulk - Transaction rollback on validation failures (rollback-check.test.sh)
+- POST /api/bulk - Mixed operations rollback across schemas (rollback-mixed-operations.test.sh)
+- POST /api/bulk - Update variants validation and aggregate helper (update-and-aggregate.test.sh)
 
-## Test Environment
+## Additional Tests
 
-Tests run against a dedicated test tenant with pre-configured schemas:
-- `account` - Account management schema with validation rules
-- `contact` - Contact schema for relationship testing
-- Test data is automatically cleaned up after each test run
-- Templates provide consistent test datasets
-
-## Key Test Scenarios
-
-### Transaction Safety
-- All-or-nothing execution guarantee
-- Automatic rollback on any operation failure
-- Data consistency verification after rollback
-- Baseline comparison before and after operations
-
-### Rollback Scenarios
-- Validation failure during bulk creation
-- Invalid data causing operation failure
-- Mixed operations with partial failure
-- Cross-schema transaction rollback
-
-### Bulk Creation
-- Multiple record creation in single operation
-- Record structure validation
-- Field requirement verification
-- Bulk response format validation
-
-### Mixed Operations
-- Create, update, and delete in single transaction
+### Existing Coverage
+- All-or-nothing transaction guarantee
+- Automatic rollback on operation failure
+- Data consistency after rollback
+- Mixed operations (create, update, delete) in single transaction
 - Cross-schema operations with dependencies
-- Operation ordering and dependencies
-- Complex business workflow simulation
+- Validation failure handling
 
-## Running Tests
+### Missing Tests (3)
+- Bulk update operations (mass field updates across records)
+- Bulk delete operations (mass deletion with filters)
+- Performance testing with large batches (>1000 records in one transaction)
 
-Individual test files can be run directly:
-```bash
-./spec/35-bulk-api/create-accounts-simple.test.sh
-./spec/35-bulk-api/rollback-check.test.sh
-./spec/35-bulk-api/rollback-mixed-operations.test.sh
-```
+## Notes
 
-Or run the complete test suite:
-```bash
-cd spec/35-bulk-api && for test in *.test.sh; do ./"$test"; done
-```
+- Excellent transaction safety and rollback testing
+- Missing dedicated bulk update/delete endpoint testing
+- Transaction integrity well-validated
+- Good coverage for mixed operations
+- Performance testing would validate scalability

@@ -1,32 +1,38 @@
-# 31-Describe API: Schema Management API Tests
+# 31-describe-api: Schema Management API
 
-Tests for the Describe API endpoints handling schema operations and metadata management.
+**Priority**: CRITICAL
+**Coverage**: 100% (Complete)
+**Status**: GOLD STANDARD - Comprehensive test coverage
 
-**Scope:**
-- Schema creation and management
-- Schema validation and DDL generation
-- Schema lifecycle operations (CRUD)
-- Column metadata and population
-- Relationship definition and validation
-- Schema protection mechanisms
-- Nested relationship discovery
+## Critical / Smoke Tests
 
-**Test Focus:**
-- Schema creation from JSON with various field types and constraints
-- Schema retrieval, listing, and metadata extraction
-- Schema updates and structural modifications
-- Schema deletion and soft delete functionality
-- Column population and metadata accuracy
-- Relationship types (belongs_to, has_many, many_to_many)
-- Nested relationship traversal and data integrity
-- System schema protection and permission validation
-- Schema caching and performance optimization
+### Existing Tests (109 total across 9 TypeScript files)
+- GET /api/describe - List all schemas (5 tests)
+- POST /api/describe/:schema - Create schema with flags (sudo/frozen/immutable) (13 tests)
+- GET /api/describe/:schema - Retrieve schema definition (10 tests)
+- PUT /api/describe/:schema - Update schema metadata (12 tests)
+- DELETE /api/describe/:schema - Delete schema (11 tests)
+- POST /api/describe/:schema/:column - Create columns with all data types and constraints (22 tests)
+- GET /api/describe/:schema/:column - Retrieve column definition (9 tests)
+- PUT /api/describe/:schema/:column - Update column properties (16 tests)
+- DELETE /api/describe/:schema/:column - Delete column (11 tests)
 
-**Test Files:**
-- `create-schema.test.sh` - Basic schema creation and validation
-- `select-schema.test.sh` - Schema retrieval and listing operations
-- `update-schema.test.sh` - Schema modification and DDL updates
-- `delete-schema.test.sh` - Schema deletion and soft delete functionality
-- `columns-population.test.sh` - Column metadata extraction and population
-- `nested-relationships.test.sh` - Complex nested relationship testing
-- `relationship-types.test.sh` - Various relationship type validation
+## Additional Tests
+
+### Comprehensive Coverage Includes
+- All PostgreSQL data types (text, integer, boolean, json, jsonb, timestamp, uuid, etc.)
+- Column constraints (NOT NULL, UNIQUE, DEFAULT values, CHECK constraints)
+- Foreign key relationships and cascades
+- Schema flags (sudo, frozen, immutable, system)
+- Validation and error handling for invalid schema names
+- Force override mechanisms
+- System field handling (_id, _created_at, _updated_at, _deleted_at)
+
+## Notes
+
+- This is the best-tested component in the entire API
+- Well-documented with README.test.md
+- Tests use TypeScript/Vitest for comprehensive validation
+- Covers all CRUD operations for both schemas and columns
+- Excellent error handling and edge case coverage
+- No missing tests identified

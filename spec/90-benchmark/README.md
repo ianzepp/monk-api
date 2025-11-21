@@ -1,58 +1,43 @@
-# Performance Benchmarks
+# 90-benchmark: Performance Benchmarks
 
-Performance benchmarks for Monk API operations.
+**Priority**: NICE TO HAVE
+**Coverage**: Basic (2 tests)
+**Status**: Basic performance validation
 
-## Usage
+## Critical / Smoke Tests
 
-Run individual benchmarks:
-```bash
-./spec/90-benchmark/data-api.test.sh
-./spec/90-benchmark/describe-api.test.sh
-```
+### Existing Tests (2)
+- Data API performance (CRUD operations) (data-api.test.sh)
+- Describe API performance (schema operations) (describe-api.test.sh)
 
-Run all benchmarks:
-```bash
-npm run test:sh 90-benchmark
-```
+## Additional Tests
 
-## Benchmarks
+### Existing Coverage
+- Single record creation (~15-40ms baseline)
+- Bulk record creation (~10-20ms per record amortized)
+- Record retrieval (~5-15ms)
+- Record updates (similar to creates)
+- Simple schema creation (~50-150ms with 2 columns)
+- Complex schema creation (~100-300ms with 10 columns)
+- Column additions (~30-80ms ALTER TABLE)
+- Schema retrieval (~5-15ms cached)
 
-### Data API (`data-api.test.sh`)
-Tests CRUD operations on existing schemas (minimal observer overhead):
-- **Single record creation** - Baseline performance, typical CRUD overhead
-- **Bulk record creation** - Amortized cost when creating multiple records
-- **Record retrieval** - Read operations (no observer pipeline)
-- **Record updates** - Similar overhead to creates
+### Missing Coverage
+- Find API performance (complex queries, large datasets)
+- Aggregate API performance (GROUP BY, COUNT, SUM operations)
+- Bulk API performance (transaction rollback timing)
+- Large dataset operations (10k+, 100k+ records)
+- Connection pool performance under load
+- Concurrent request performance
+- Memory usage profiling
+- Query plan analysis
 
-**Expected Performance:**
-- Single creates: ~15-40ms (observer pipeline + database)
-- Reads: ~5-15ms (no observers, just database)
-- Bulk creates: ~10-20ms per record (amortized)
+## Notes
 
-### Describe API (`describe-api.test.sh`)
-Tests schema operations with full validation pipeline:
-- **Simple schema creation** - 2 columns, basic validation
-- **Complex schema creation** - 10 columns with constraints/relationships
-- **Column additions** - ALTER TABLE operations
-- **Schema retrieval** - Cached reads
-
-**Expected Performance:**
-- Simple schema: ~50-150ms (validation + DDL + metadata)
-- Complex schema: ~100-300ms (10 columns with full validation)
-- Column addition: ~30-80ms (ALTER TABLE + validation)
-- Schema reads: ~5-15ms (cached)
-
-## Performance Considerations
-
-**Observer Pipeline Overhead:**
-- Ring 1: Input validation (~2-5ms)
-- Ring 2: Business logic checks (~5-15ms for DB lookups)
-- Ring 5: Database writes (~5-20ms)
-- Ring 6: DDL execution (~20-50ms for schema changes)
-- Ring 7-8: Async operations (~2-5ms)
-
-**Optimization Tips:**
-- Use bulk operations when creating multiple records
-- Schema operations are expensive - cache schema definitions
-- Read operations bypass most observer overhead
-- Connection pooling helps with concurrent requests
+- Good baseline performance validation
+- Documents expected performance ranges
+- Useful for regression detection
+- Observer pipeline overhead documented (Ring 1-8)
+- Optimization tips included (bulk operations, caching, connection pooling)
+- Should expand to test all major API endpoints
+- Performance tests optional but valuable for production readiness
