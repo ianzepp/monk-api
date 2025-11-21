@@ -8,8 +8,15 @@ Query all records in a schema with optional filtering for soft-deleted and perma
 
 ## Query Parameters
 
+### Filtering Parameters
 - `include_trashed=true` - Include soft-deleted records (`trashed_at IS NOT NULL`)
 - `include_deleted=true` - Include permanently deleted records (`deleted_at IS NOT NULL`) - requires root access
+
+### Response Transformation Parameters
+- `unwrap` - Remove envelope, return data array directly
+- `select=field1,field2` - Return only specified fields (implies unwrap)
+- `stat=false` - Exclude timestamp fields (created_at, updated_at, trashed_at, deleted_at)
+- `access=false` - Exclude ACL fields (access_read, access_edit, access_full)
 
 ## Request Body
 
@@ -113,6 +120,134 @@ curl -X GET "http://localhost:9001/api/data/users?include_deleted=true" \
     }
   ]
 }
+```
+
+## Response Transformation Examples
+
+### Unwrap Response Envelope
+
+By default, responses are wrapped in a success envelope. Use `?unwrap` to get just the data:
+
+```bash
+curl -X GET "http://localhost:9001/api/data/users?unwrap" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Standard response (without unwrap):**
+```json
+{
+  "success": true,
+  "data": [
+    {"id": "user-1", "name": "Alice"},
+    {"id": "user-2", "name": "Bob"}
+  ]
+}
+```
+
+**Unwrapped response:**
+```json
+[
+  {"id": "user-1", "name": "Alice"},
+  {"id": "user-2", "name": "Bob"}
+]
+```
+
+### Select Specific Fields
+
+Use `?select=` to return only specific fields (automatically unwraps):
+
+```bash
+curl -X GET "http://localhost:9001/api/data/users?select=id,name,email" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response (unwrapped with only selected fields):**
+```json
+[
+  {
+    "id": "user-1",
+    "name": "Alice",
+    "email": "alice@example.com"
+  },
+  {
+    "id": "user-2",
+    "name": "Bob",
+    "email": "bob@example.com"
+  }
+]
+```
+
+**Use case:** Reduce payload size when you only need specific fields for a UI table or export.
+
+### Exclude Timestamp Fields
+
+Use `?stat=false` to remove timestamp fields:
+
+```bash
+curl -X GET "http://localhost:9001/api/data/users?stat=false" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response (excludes created_at, updated_at, trashed_at, deleted_at):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "user-1",
+      "name": "Alice",
+      "email": "alice@example.com",
+      "department": "Engineering"
+    }
+  ]
+}
+```
+
+**Use case:** Cleaner output for user-facing displays where timestamps aren't needed.
+
+### Exclude ACL Fields
+
+Use `?access=false` to remove access control fields:
+
+```bash
+curl -X GET "http://localhost:9001/api/data/users?access=false" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response (excludes access_read, access_edit, access_full):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "user-1",
+      "name": "Alice",
+      "email": "alice@example.com",
+      "department": "Engineering",
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+**Use case:** Simplified data for public-facing APIs or when ACL data isn't needed.
+
+### Combine Multiple Transformations
+
+Query parameters can be combined:
+
+```bash
+# Get only id and name, exclude timestamps, unwrap envelope
+curl -X GET "http://localhost:9001/api/data/users?select=id,name&stat=false" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+```json
+[
+  {"id": "user-1", "name": "Alice"},
+  {"id": "user-2", "name": "Bob"}
+]
 ```
 
 ## Use Cases
