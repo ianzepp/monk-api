@@ -26,7 +26,7 @@ export default async function (context: Context) {
     let publicDocsPath: string;
 
     // Standard protected API documentation
-    publicDocsPath = join(process.cwd(), baseDir, 'routes', apiLowercase, 'PUBLIC.md');
+    publicDocsPath = join(process.cwd(), baseDir, 'routes/api', apiLowercase, 'PUBLIC.md');
 
     // Check if documentation exists
     if (!existsSync(publicDocsPath)) {

@@ -41,8 +41,6 @@ import { ObserverValidator } from '@src/lib/observers/validator.js';
 // Middleware
 import * as middleware from '@src/lib/middleware/index.js';
 
-// Root API
-
 // Route handlers
 import * as authRoutes from '@src/routes/auth/routes.js';
 import * as userRoutes from '@src/routes/api/user/routes.js';
@@ -92,20 +90,20 @@ app.use('*', async (c, next) => {
 });
 
 // Root endpoint
-app.get('/', c => {
-    const response = {
+app.get('/', context => {
+    return createSuccessResponse(context, {
         name: 'Monk API (Hono)',
         version: packageJson.version,
         description: 'Lightweight PaaS backend API built with Hono',
-        health: '/health',
-        auth: [
-            '/auth/login',
-            '/auth/register',
-            '/auth/refresh',
-            '/auth/tenants',
-            '/auth/templates'
-        ],
-        apis: {
+        endpoints: {
+            health: ['/health'],
+            auth: [
+                '/auth/login',
+                '/auth/register',
+                '/auth/refresh',
+                '/auth/tenants',
+                '/auth/templates'
+            ],
             describe: [
                 '/api/describe',
                 '/api/describe/:schema',
@@ -153,8 +151,6 @@ app.get('/', c => {
                 '/api/sudo/users/',
                 '/api/sudo/users/:id',
             ],
-        },
-        apps: {
             extracts: [
                 '/app/extracts/:id/run',
                 '/app/extracts/:id/cancel',
@@ -174,35 +170,28 @@ app.get('/', c => {
         documentation: {
             home: ['/README.md'],
             auth: ['/docs/auth'],
-            api: {
-                describe: ['/docs/describe'],
-                data: ['/docs/data'],
-                find: ['/docs/find'],
-                aggregate: ['/docs/aggregate'],
-                bulk: ['/docs/bulk'],
-                user: ['/docs/user'],
-                acls: ['/docs/acls'],
-                stat: ['/docs/stat'],
-                history: ['/docs/history'],
-                sudo: ['/docs/sudo']
-            },
-            apps: {
-                extracts: ['/docs/extracts'],
-                restores: ['/docs/restores'],
-                grids: ['/docs/grids']
-            }
+            describe: ['/docs/describe'],
+            data: ['/docs/data'],
+            find: ['/docs/find'],
+            aggregate: ['/docs/aggregate'],
+            bulk: ['/docs/bulk'],
+            user: ['/docs/user'],
+            acls: ['/docs/acls'],
+            stat: ['/docs/stat'],
+            history: ['/docs/history'],
+            sudo: ['/docs/sudo'],
+            extracts: ['/docs/extracts'],
+            restores: ['/docs/restores'],
+            grids: ['/docs/grids']
         },
-    };
-
-    return createSuccessResponse(c, response);
+    });
 });
 
 // Health check endpoint (public, no authentication required)
-app.get('/health', c => {
-    return createSuccessResponse(c, {
+app.get('/health', content => {
+    return createSuccessResponse(content, {
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: packageJson.version,
         uptime: process.uptime()
     });
 });
