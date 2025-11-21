@@ -116,6 +116,81 @@ curl http://localhost:9001/
 }
 ```
 
+## Documentation Navigation
+
+This API is fully self-documenting with three levels of documentation depth.
+
+**You are here**: `/docs` (API Discovery - Level 1)
+
+This page lists all available APIs. See the `documentation` section above for API-specific documentation URLs.
+
+### Next: Explore API Overviews (Level 2)
+
+Navigate to `/docs/{api}` for any API listed above to see:
+- Complete endpoint table with all operations
+- Request/response formats and examples
+- Authentication requirements
+- Quick start guides
+
+**Available API Documentation**:
+- `/docs/describe` - Schema and column management
+- `/docs/data` - CRUD operations on records
+- `/docs/find` - Advanced querying with filters
+- `/docs/aggregate` - Data aggregation and analytics
+- `/docs/bulk` - Batch operations across schemas
+- `/docs/acls` - Access control management
+- `/docs/stat` - Record metadata access
+- `/docs/history` - Change tracking and audit trails
+- `/docs/auth` - User account management
+- `/docs/sudo` - Administrative operations
+
+### Then: Access Endpoint-Specific Docs (Level 3)
+
+From an API overview page, you'll see an endpoint table like:
+
+```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/describe/:schema | Get schema metadata |
+```
+
+To get detailed documentation for a specific endpoint, construct the URL:
+
+**Mapping Rules**:
+1. Take the API endpoint: `GET /api/describe/:schema`
+2. Remove `/api/` prefix: `describe/:schema`
+3. Replace parameter placeholders with literal names:
+   - `:schema` → `schema`
+   - `:column` → `column`
+   - `:record` → `record`
+   - `:relationship` → `relationship`
+   - `:child` → `child`
+4. Append HTTP method: `describe/schema/GET`
+5. Add `/docs/` prefix: `/docs/describe/schema/GET`
+
+**Examples**:
+```
+API Endpoint                              → Documentation URL
+----------------------------------------- → ----------------------------------
+GET    /api/describe                      → /docs/describe/GET
+GET    /api/describe/:schema              → /docs/describe/schema/GET
+POST   /api/describe/:schema              → /docs/describe/schema/POST
+GET    /api/describe/:schema/:column      → /docs/describe/schema/column/GET
+DELETE /api/describe/:schema/:column      → /docs/describe/schema/column/DELETE
+
+GET    /api/data/:schema                  → /docs/data/schema/GET
+POST   /api/data/:schema                  → /docs/data/schema/POST
+GET    /api/data/:schema/:record          → /docs/data/schema/record/GET
+GET    /api/data/:schema/:record/:rel     → /docs/data/schema/record/relationship/GET
+```
+
+**Exploration Workflow**:
+1. **(You are here)** Read `/docs` to discover available APIs
+2. Navigate to `/docs/describe` to see Describe API endpoint table
+3. Find endpoint: `GET /api/describe/:schema`
+4. Apply mapping rules → `/docs/describe/schema/GET`
+5. Access `/docs/describe/schema/GET` for complete endpoint documentation with examples, error codes, and use cases
+
 ## Documentation Guide
 
 ### Getting Started Documentation

@@ -211,7 +211,8 @@ app.use('/api/*', middleware.systemContextMiddleware);
 
 // 40-docs-api: Public docs routes (no authentication required)
 app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
-app.get('/docs/:api', docsRoutes.ApiGet); // GET /docs/:api
+app.get('/docs/:api/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/:api/* (endpoint-specific docs)
+app.get('/docs/:api', docsRoutes.ApiGet); // GET /docs/:api (API overview)
 
 // 30-auth-api: Public auth routes (token acquisition)
 app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
