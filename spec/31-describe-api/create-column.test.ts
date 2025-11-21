@@ -50,11 +50,11 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
     it('should create column with default value', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/in_stock', {
             type: 'boolean',
-            default_value: 'true'
+            default_value: true
         });
 
         expectSuccess(response);
-        expect(response.data.default_value).toBe('true');
+        expect(response.data.default_value).toBe(true);
     });
 
     it('should create column with description', async () => {
@@ -171,23 +171,23 @@ describe('POST /api/describe/:schema/:column - Create Column', () => {
 
     it('should create columns with various data types', async () => {
         const types = [
-            { name: 'text_col', type: 'text' },
-            { name: 'int_col', type: 'integer' },
-            { name: 'dec_col', type: 'decimal' },
-            { name: 'bool_col', type: 'boolean' },
-            { name: 'ts_col', type: 'timestamp' },
-            { name: 'date_col', type: 'date' },
-            { name: 'uuid_col', type: 'uuid' },
-            { name: 'json_col', type: 'jsonb' }
+            { name: 'text_col', type: 'text', expected: 'text' },
+            { name: 'int_col', type: 'integer', expected: 'integer' },
+            { name: 'dec_col', type: 'decimal', expected: 'numeric' }, // PostgreSQL normalizes decimal to numeric
+            { name: 'bool_col', type: 'boolean', expected: 'boolean' },
+            { name: 'ts_col', type: 'timestamp', expected: 'timestamp' },
+            { name: 'date_col', type: 'date', expected: 'date' },
+            { name: 'uuid_col', type: 'uuid', expected: 'uuid' },
+            { name: 'json_col', type: 'jsonb', expected: 'jsonb' }
         ];
 
-        for (const { name, type } of types) {
+        for (const { name, type, expected } of types) {
             const response = await tenant.httpClient.post(`/api/describe/products/${name}`, {
                 type
             });
 
             expectSuccess(response);
-            expect(response.data.type).toBe(type);
+            expect(response.data.type).toBe(expected);
         }
     });
 

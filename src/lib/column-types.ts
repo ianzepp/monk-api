@@ -50,7 +50,9 @@ export const USER_TYPES = {
 export const USER_TO_PG_TYPE_MAP: Record<string, string> = {
     'text': PG_TYPES.TEXT,
     'integer': PG_TYPES.INTEGER,
+    'bigserial': PG_TYPES.BIGSERIAL,  // Accept bigserial (maps to itself)
     'decimal': PG_TYPES.NUMERIC,
+    'numeric': PG_TYPES.NUMERIC,  // Accept numeric (already PostgreSQL form)
     'boolean': PG_TYPES.BOOLEAN,
     'timestamp': PG_TYPES.TIMESTAMP,
     'date': PG_TYPES.DATE,
@@ -59,6 +61,7 @@ export const USER_TO_PG_TYPE_MAP: Record<string, string> = {
     'text[]': PG_TYPES.TEXT_ARRAY,
     'integer[]': PG_TYPES.INTEGER_ARRAY,
     'decimal[]': PG_TYPES.NUMERIC_ARRAY,
+    'numeric[]': PG_TYPES.NUMERIC_ARRAY,  // Accept numeric[] (already PostgreSQL form)
     'uuid[]': PG_TYPES.UUID_ARRAY,
 } as const;
 
