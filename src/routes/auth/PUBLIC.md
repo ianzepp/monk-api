@@ -3,55 +3,12 @@
 The Auth API covers both **public token acquisition routes** and **protected user management routes**. Public endpoints issue JWT tokens to unauthenticated callers, while protected endpoints operate on authenticated users and handle privilege escalation.
 
 ## Base Paths
+
 - **Public routes**: `/auth/*` (no authentication required)
-- **Protected routes**: `/api/auth/*` (JWT required)
-
-## Endpoint Summary
-
-| Method | Path | Access | Description |
-|--------|------|--------|-------------|
-| POST | [`/auth/login`](#post-authlogin) | Public | Authenticate against an existing tenant and issue a JWT token. |
-| POST | [`/auth/refresh`](#post-authrefresh) | Public | Exchange an existing token for a fresh one with the same scope. |
-| POST | [`/auth/register`](#post-authregister) | Public | Provision a new tenant from the default template and return an initial token. |
-| GET | [`/auth/tenants`](#get-authtenants) | Public | List available tenants (personal mode only). |
-| GET | [`/api/user/whoami`](#get-apiauthwhoami) | Protected | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
-| POST | [`/api/user/sudo`](#post-apiauthsudo) | Protected | Get short-lived sudo token for dangerous operations (user management). |
-| POST | [`/api/auth/fake`](#post-apiauthfake) | Protected (Root) | Impersonate another user for debugging and support (root only). |
-
-## Auth API Error Codes Reference
-
-All error responses from the Auth API include `error_code` and `error` fields. Use the error_code for programmatic error handling.
-
-**Naming Convention**:
-- `AUTH_` prefix: Error codes directly thrown by Auth API routers (validation, access control, JWT operations)
-- `DATABASE_` prefix: Error codes from database operations (template cloning, tenant creation, database existence checks)
-- No prefix: JWT and general errors that span multiple layers
-
-| Error Code | Status | Message | Endpoint(s) | Condition |
-|------------|--------|---------|-------------|-----------|
-| `AUTH_TENANT_MISSING` | 400 | "Tenant is required" | `/auth/login`, `/auth/register` | Missing tenant field in request |
-| `AUTH_USERNAME_MISSING` | 400 | "Username is required" | `/auth/login`, `/auth/register` (enterprise mode) | Missing username field or required in enterprise mode |
-| `AUTH_TOKEN_REQUIRED` | 400 | "Token is required for refresh" | `/auth/refresh` | Missing token field in request |
-| `AUTH_TARGET_USER_MISSING` | 400 | "Either user_id or username is required to identify target user" | `/api/auth/fake` | Neither user_id nor username provided |
-| `AUTH_CANNOT_FAKE_SELF` | 400 | "Cannot fake your own user - you are already authenticated as this user" | `/api/auth/fake` | Attempting to impersonate own user account |
-| `AUTH_DATABASE_NOT_ALLOWED` | 400 | "database parameter can only be specified when server is in personal mode" | `/auth/register` | Custom database name provided in enterprise mode |
-| `AUTH_LOGIN_FAILED` | 401 | "Authentication failed" | `/auth/login` | Invalid credentials or tenant not found |
-| `AUTH_TOKEN_REQUIRED` | 401 | "Authorization token required" | Any protected endpoint | No Bearer token in Authorization header |
-| `AUTH_TOKEN_INVALID` | 401 | "Invalid token" | Any protected endpoint, `/auth/refresh` | Token malformed or bad signature |
-| `AUTH_TOKEN_EXPIRED` | 401 | "Token has expired" | Any protected endpoint | Token well-formed but past expiration |
-| `AUTH_TOKEN_REFRESH_FAILED` | 401 | "Token refresh failed" | `/auth/refresh` | Token valid but user/tenant no longer exists |
-| `AUTH_FAKE_ACCESS_DENIED` | 403 | "User impersonation requires root access" | `/api/auth/fake` | User account lacks root access level |
-| `AUTH_TENANT_LIST_NOT_AVAILABLE` | 403 | "Tenant listing is only available in personal mode" | `/auth/tenants` | Endpoint called on enterprise mode server |
-| `AUTH_TEMPLATE_LIST_NOT_AVAILABLE` | 403 | "Template listing is only available in personal mode" | `/auth/templates` | Endpoint called on enterprise mode server |
-| `AUTH_SUDO_ACCESS_DENIED` | 403 | "Insufficient privileges for sudo - requires 'root' or 'full' access level" | `/api/user/sudo` | User account has edit/read/deny access only |
-| `DATABASE_TEMPLATE_NOT_FOUND` | 404 | "Template '{name}' not found" | `/auth/register` | Specified template does not exist |
-| `AUTH_TARGET_USER_NOT_FOUND` | 404 | "Target user not found: {identifier}" | `/api/auth/fake` | Target user does not exist or is deleted |
-| `AUTH_USER_NOT_FOUND` | 404 | "User not found or inactive" | `/api/user/whoami` | JWT user doesn't exist in tenant DB |
-| `DATABASE_TENANT_EXISTS` | 409 | "Tenant '{name}' already exists" | `/auth/register` | Tenant name already registered |
-| `DATABASE_EXISTS` | 409 | "Database '{name}' already exists" | `/auth/register` (personal mode) | Database name collision in personal mode |
-| `DATABASE_TEMPLATE_CLONE_FAILED` | 500 | "Failed to clone template database: ..." | `/auth/register` | Template cloning operation failed |
+- **Protected routes**: `/api/auth/*` and `/api/user/*` (JWT required)
 
 ## Content Type
+
 - **Request**: `application/json`
 - **Response**: `application/json` (default), `text/plain` (TOON), or `application/yaml` (YAML)
 
@@ -68,620 +25,58 @@ The Auth API supports three response formats optimized for different clients:
 
 ### Supported Formats
 
-**JSON (Default)**
-```bash
-GET /api/user/whoami?format=json
-```
-Standard JSON - widely supported, ideal for web/mobile apps.
+- **JSON** - Standard JSON format (default)
+- **TOON** - Token-Oriented Object Notation (30-60% smaller, optimized for LLM agents)
+- **YAML** - Human-readable format (ideal for configuration and DevOps tools)
 
-**TOON (Token-Oriented Object Notation)**
-```bash
-GET /api/user/whoami?format=toon
-```
-Ultra-compact format - 30-60% smaller than JSON, optimized for LLM agents.
+Set persistent format preference by including `format` field in login request. The JWT token will include this preference for all subsequent API calls unless overridden.
 
-**YAML (Yet Another Markup Language)**
-```bash
-GET /api/user/whoami?format=yaml
-```
-Human-readable format - ideal for configuration, DevOps tools, and documentation.
+## Endpoints
 
-### Setting Persistent Format Preference
+### Public Authentication Routes (No JWT Required)
 
-Include `format` field in login request to set default format for all API calls:
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | [`/auth/login`](login/POST.md) | Authenticate against an existing tenant and issue a JWT token. |
+| POST | [`/auth/refresh`](refresh/POST.md) | Exchange an existing token for a fresh one with the same scope. |
+| POST | [`/auth/register`](register/POST.md) | Provision a new tenant from a template and return an initial token. |
+| GET | [`/auth/tenants`](tenants/GET.md) | List available tenants (personal mode only). |
+| GET | [`/auth/templates`](templates/GET.md) | List available templates (personal mode only). |
 
-```json
-POST /auth/login
-{
-  "tenant": "my-tenant",
-  "username": "root",
-  "format": "toon"
-}
-```
+### Protected Authentication Routes (JWT Required)
 
-The JWT token will include this preference, and all subsequent requests automatically use TOON format unless overridden with `?format=json` or `?format=yaml`.
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/user/whoami` | Return canonical identity, tenant routing data, and ACL arrays for the caller. |
+| POST | `/api/user/sudo` | Get short-lived sudo token for dangerous operations (root/full users only). |
+| POST | [`/api/auth/fake`](fake/POST.md) | Impersonate another user for debugging and support (root only). |
 
-**Use Cases:**
-- `format: "toon"` - LLM agents, AI assistants, token-constrained environments
-- `format: "json"` - Web apps, mobile apps, standard REST clients
-- `format: "yaml"` - DevOps tools, configuration export, human-readable docs
+## Token Lifecycle
 
----
-
-## Public Authentication Routes (No JWT Required)
-
-Public routes issue tokens and can be called without prior authentication. They form the first step in every workflow before accessing protected APIs.
-
-### POST /auth/login
-
-Authenticate a user against an existing tenant and receive a fresh JWT token scoped to that tenant. The login route validates the credentials, resolves tenant routing metadata, and issues the token that enables access to protected `/api/*` routes.
-
-#### Request Body
-```json
-{
-  "tenant": "string",     // Required: Tenant identifier
-  "username": "string",   // Required: Username for authentication
-  "format": "string"      // Optional: Preferred response format ("json", "toon", or "yaml")
-}
-```
-
-#### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "username": "john.doe",
-      "tenant": "my-company",
-      "database": "tenant_a1b2c3d4",
-      "access": "full",
-      "format": "toon"  // Included if format was provided in request
-    },
-    "expires_in": 3600
-  }
-}
-```
-
-**Note:** The `format` field in the response echoes back the preference you provided. This preference is embedded in the JWT token and will be used for all subsequent API requests unless overridden.
-
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 400 | `TENANT_MISSING` | "Tenant is required" | Missing tenant field |
-| 400 | `USERNAME_MISSING` | "Username is required" | Missing username field |
-| 401 | `AUTH_FAILED` | "Authentication failed" | Invalid credentials |
-
----
-
-### POST /auth/refresh
-
-Exchange an existing JWT token (even if expired) for a new token while preserving the original tenant, user, and access scope. The refresh route validates signature integrity, re-hydrates the user context, and re-issues a token with a new expiration window.
-
-#### Request Body
-```json
-{
-  "token": "string"    // Required: Current JWT token (may be expired)
-}
-```
-
-#### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expires_in": 3600
-  }
-}
-```
-
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 400 | `AUTH_TOKEN_REQUIRED` | "Token is required for refresh" | Missing token field |
-| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Invalid or corrupted token |
-| 401 | `AUTH_TOKEN_REFRESH_FAILED` | "Token refresh failed" | Token valid but user/tenant no longer exists |
-
----
-
-### POST /auth/register
-
-Create an empty tenant (cloned from the default template) and bootstrap a full-access user. A JWT token for the new user is returned so the caller can immediately interact with protected APIs.
-
-**Note**: The API server administrator controls the database naming mode via the `TENANT_NAMING_MODE` environment variable. This is not client-configurable for security reasons.
-
-#### Request Body
-```json
-{
-  "tenant": "string",        // Required: Tenant identifier
-  "username": "string",      // Optional: Desired username
-                             //           Required when server is in enterprise mode
-                             //           Defaults to 'root' when server is in personal mode
-  "database": "string",      // Optional: Custom database name (only when server is in personal mode)
-                             //           Defaults to sanitized tenant name if not provided
-  "description": "string"    // Optional: Human-readable description of the tenant
-}
-```
-
-#### Server Naming Modes
-
-The server administrator configures the database naming strategy via the `TENANT_NAMING_MODE` environment variable:
-
-**Enterprise Mode (Default - `TENANT_NAMING_MODE=enterprise`)**
-- Database names are SHA256 hashes (e.g., "tenant_a1b2c3d4e5f6789a")
-- Prevents collisions, opaque naming
-- Any Unicode characters allowed in tenant name
-- Most secure for multi-tenant SaaS deployments
-- `username` parameter is **required**
-
-**Personal Mode (`TENANT_NAMING_MODE=personal`)**
-- Database names are human-readable (e.g., "monk-irc" → "tenant_monk_irc")
-- Useful for personal PaaS deployments where you control all tenants
-- `username` parameter is **optional** (defaults to `'root'`)
-- `database` parameter is **optional** (defaults to sanitized `tenant` name)
-- Stricter tenant name validation (alphanumeric, hyphens, underscores, spaces only)
-
-#### Example Usage
-
-**Enterprise Mode Server:**
-```bash
-POST /auth/register
-{
-  "tenant": "acme-corp",
-  "username": "full"
-}
-# Results: database = "tenant_a1b2c3d4e5f6789a" (hash)
-```
-
-**Personal Mode Server (minimal):**
-```bash
-POST /auth/register
-{
-  "tenant": "monk-irc"
-}
-# Results: username = "root", database = "tenant_monk_irc"
-```
-
-**Personal Mode Server (with description):**
-```bash
-POST /auth/register
-{
-  "tenant": "monk-irc",
-  "description": "IRC bridge for Slack integration"
-}
-# Results: username = "root", database = "tenant_monk_irc"
-```
-
-**Personal Mode Server (custom database):**
-```bash
-POST /auth/register
-{
-  "tenant": "monk-irc",
-  "username": "full",
-  "database": "my-irc-bridge",
-  "description": "IRC bridge for Slack integration"
-}
-# Results: username = "full", database = "tenant_my_irc_bridge"
-```
-
-#### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "tenant": "string",     // Tenant name that was provisioned
-    "database": "string",   // Backing database the tenant maps to
-    "username": "string",   // Auth identifier for the newly created user
-    "token": "string",      // JWT token for immediate access
-    "expires_in": 86400     // Token lifetime in seconds (24h)
-  }
-}
-```
-
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 400 | `TENANT_MISSING` | "Tenant is required" | Missing tenant field |
-| 400 | `USERNAME_MISSING` | "Username is required" | Missing username when server is in enterprise mode |
-| 400 | `DATABASE_NOT_ALLOWED` | "database parameter can only be specified when server is in personal mode" | database provided when server is in enterprise mode |
-| 404 | `TEMPLATE_NOT_FOUND` | "Template 'empty' not found" | Default template missing |
-| 409 | `TENANT_EXISTS` | "Tenant '<name>' already exists" | Tenant name already registered |
-| 409 | `DATABASE_EXISTS` | "Database '<name>' already exists" | Database name collision (personal mode) |
-| 500 | `TEMPLATE_CLONE_FAILED` | "Failed to clone template database: ..." | Template cloning failed |
-
----
-
-### GET /auth/tenants
-
-List all available tenants (personal mode only). This endpoint provides tenant discovery for personal PaaS deployments where a single administrator manages multiple tenants.
-
-**Security Note**: This endpoint is only available when the server is running in `TENANT_NAMING_MODE=personal`. In enterprise mode, it returns a 403 error to prevent tenant enumeration in multi-tenant SaaS environments.
-
-#### Request Body
-None - GET request with no body.
-
-#### Success Response (200)
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "name": "monk-irc",
-      "description": "IRC bridge for Slack integration",
-      "users": ["root", "full"]
-    },
-    {
-      "name": "my-app",
-      "description": null,
-      "users": ["root"]
-    },
-    {
-      "name": "test-tenant",
-      "description": "Testing environment",
-      "users": ["root", "testuser"]
-    }
-  ]
-}
-```
-
-#### Response Fields
-- **name** (string): The tenant identifier used for login
-- **description** (string|null): Optional human-readable description
-- **users** (string[]): Array of available usernames for login (sorted alphabetically)
-
-#### Filtering
-The endpoint automatically filters:
-- Only returns active tenants (`is_active = true`)
-- Excludes template tenants (`tenant_type = 'normal'`)
-- Excludes soft-deleted tenants (`trashed_at IS NULL`)
-- Excludes hard-deleted tenants (`deleted_at IS NULL`)
-- Tenants sorted alphabetically by name
-- Users array: Limited to 10 users per tenant, sorted by creation date (oldest first)
-- Users array includes only active, non-deleted users
-
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 403 | `TENANT_LIST_NOT_AVAILABLE` | "Tenant listing is only available in personal mode" | Server is in enterprise mode |
-
-#### Example Usage
-
-```bash
-# List all tenants (personal mode server)
-curl -X GET http://localhost:9001/auth/tenants
-
-# Use with jq to extract tenant names
-curl -X GET http://localhost:9001/auth/tenants | jq -r '.data[].name'
-```
-
-#### Use Cases
-- **Tenant discovery**: List available tenants before login
-- **Admin tools**: Build management interfaces for personal PaaS
-- **CLI integration**: Provide autocomplete for tenant selection
-- **Documentation**: Generate tenant inventory
-
----
-
-## Token Usage
-
-Once you have obtained a JWT token from a public endpoint, use it to access protected APIs:
-
-### Making Authenticated Requests
-```bash
-# Use the token in Authorization header for all /api/* endpoints
-curl -X GET http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-
-# Access user account management
-curl -X GET http://localhost:9001/api/user/whoami \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
-### Token Lifecycle
-1. **Login**: Get initial JWT token with tenant and username
+1. **Login**: Get initial JWT token with [`POST /auth/login`](login/POST.md)
 2. **Use token**: Access protected APIs with Bearer token in Authorization header
-3. **Refresh**: When token nears expiration, use refresh endpoint
+3. **Refresh**: When token nears expiration, use [`POST /auth/refresh`](refresh/POST.md)
 4. **Logout**: Tokens are stateless - simply discard client-side
 
-## Integration Examples
+## Server Modes
 
-### Standard JSON Integration
+The server administrator configures the naming mode via `TENANT_NAMING_MODE` environment variable:
 
-```javascript
-// 1. Login and store token
-const loginResponse = await fetch('/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ tenant: 'acme', username: 'john.doe' })
-});
-const { token } = (await loginResponse.json()).data;
-localStorage.setItem('access_token', token);
+### Enterprise Mode (Default)
+- Database names are SHA256 hashes for security
+- `username` required in registration
+- Tenant/template listing disabled (403 error)
+- Optimal for multi-tenant SaaS deployments
 
-// 2. Use token for API calls
-const apiResponse = await fetch('/api/data/users', {
-  headers: { 'Authorization': `Bearer ${token}` }
-});
-
-// 3. Handle token refresh
-if (apiResponse.status === 401) {
-  const refreshResponse = await fetch('/auth/refresh', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token })
-  });
-
-  if (refreshResponse.ok) {
-    const { token: newToken } = (await refreshResponse.json()).data;
-    localStorage.setItem('access_token', newToken);
-    // Retry original request with new token
-  }
-}
-```
-
-### LLM Agent Integration (TOON Format)
-
-```javascript
-// 1. Login with TOON format preference for token efficiency
-const loginResponse = await fetch('/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    tenant: 'acme',
-    username: 'llm-agent',
-    format: 'toon'  // Prefer TOON for all responses
-  })
-});
-const { token } = (await loginResponse.json()).data;
-
-// 2. All API calls now return TOON format automatically
-const response = await fetch('/api/describe', {
-  headers: { 'Authorization': `Bearer ${token}` }
-});
-
-// Response is TOON format (text/plain):
-// success: true
-// data[4]: columns,definitions,schemas,users
-
-// 3. Override to JSON for specific calls when needed
-const jsonResponse = await fetch('/api/describe?format=json', {
-  headers: { 'Authorization': `Bearer ${token}` }
-});
-// Returns standard JSON
-
-// 4. Parse TOON responses (if needed)
-import { decode } from '@toon-format/toon';
-const toonText = await response.text();
-const data = decode(toonText);  // Convert TOON to JavaScript object
-```
-
-### Hybrid Integration (Format Per Request)
-
-```bash
-# Web dashboard - always use JSON
-curl -X GET "http://localhost:9001/api/data/users?format=json" \
-  -H "Authorization: Bearer $TOKEN"
-
-# LLM agent - use TOON for efficiency
-curl -X GET "http://localhost:9001/api/data/users?format=toon" \
-  -H "Authorization: Bearer $TOKEN"
-
-# Or use Accept header for content negotiation
-curl -X GET http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/toon"
-```
-
----
-
-## Protected Authentication Routes (JWT Required)
-
-Protected routes operate on authenticated users. They require a valid Bearer token obtained from the public routes above.
-
-### GET /api/user/whoami
-
-Return the fully hydrated user identity for the active JWT, including tenant metadata, ACL lists, and record status flags. Clients typically call this at startup to confirm the token is valid, discover the backing database, and personalize UI according to the access arrays.
-
-#### Request Body
-None - GET request with no body.
-
-#### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "username": "john.doe",
-    "tenant": "my-company",
-    "database": "tenant_a1b2c3d4",
-    "access": "full",
-    "access_read": ["uuid1", "uuid2"],
-    "access_edit": ["uuid3"],
-    "access_full": ["uuid4"],
-    "is_active": true
-  }
-}
-```
-
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token provided |
-| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Bad JWT signature or malformed |
-| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 404 | `AUTH_USER_NOT_FOUND` | "User not found or inactive" | User doesn't exist in tenant DB |
-
----
-
-### POST /api/user/sudo
-
-Request a short-lived sudo token for protected operations requiring elevated privileges. Both root and full users can request sudo tokens, with root users receiving automatic sudo access at login as a convenience.
-
-**Access Model** (Linux-inspired):
-- **`access='root'`**: Automatically has `is_sudo=true` at login (like Linux root user)
-  - Can still call this endpoint to generate time-limited sudo token with audit trail
-- **`access='full'`**: Must call this endpoint to get `is_sudo=true` (like Linux sudoers)
-  - Generates 15-minute sudo token for protected operations
-- **`access='edit'|'read'|'deny'`**: Cannot request sudo tokens (403 error)
-
-#### Request Body
-```json
-{
-  "reason": "string"    // Optional: Reason for sudo elevation (for audit trail)
-}
-```
-
-#### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "sudo_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expires_in": 900,
-    "token_type": "Bearer",
-    "access_level": "root",
-    "is_sudo": true,
-    "warning": "Sudo token expires in 15 minutes",
-    "reason": "User management operation"
-  }
-}
-```
-
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No valid user JWT |
-| 403 | `AUTH_SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo - requires 'root' or 'full' access level" | User has edit/read/deny access |
-
----
-
-### POST /api/auth/fake
-
-Impersonate another user by generating a JWT with their identity and permissions. This is useful for debugging user-specific issues, customer support troubleshooting, and testing user permissions without knowing their credentials.
-
-**Security**:
-- Only users with `access='root'` can use this endpoint
-- Shorter-lived token (1 hour vs 24 hours for normal login)
-- Full audit logging with `is_fake` metadata in JWT
-- Cannot fake yourself (use your regular token instead)
-
-**Use Cases**:
-- Debugging user-specific permission issues
-- Customer support troubleshooting
-- Testing features as different user roles
-- Reproducing user-reported bugs
-
-#### Request Body
-```json
-{
-  "user_id": "uuid",      // Optional: Target user's ID
-  "username": "string"    // Optional: Target user's auth identifier
-}
-```
-
-**Note**: Either `user_id` or `username` must be provided.
-
-#### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "fake_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expires_in": 3600,
-    "token_type": "Bearer",
-    "target_user": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "John Doe",
-      "auth": "john@example.com",
-      "access": "full"
-    },
-    "warning": "Fake token expires in 1 hour",
-    "faked_by": {
-      "id": "root-user-id",
-      "name": "Root Admin"
-    }
-  }
-}
-```
-
-#### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 400 | `AUTH_TARGET_USER_MISSING` | "Either user_id or username is required to identify target user" | Neither user_id nor username provided |
-| 400 | `AUTH_CANNOT_FAKE_SELF` | "Cannot fake your own user - you are already authenticated as this user" | Trying to fake yourself |
-| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No valid user JWT |
-| 403 | `AUTH_FAKE_ACCESS_DENIED` | "User impersonation requires root access" | User lacks root access |
-| 404 | `AUTH_TARGET_USER_NOT_FOUND` | "Target user not found: {identifier}" | User doesn't exist or is deleted |
-
-#### JWT Payload for Fake Tokens
-
-The fake token includes special metadata for audit tracking:
-```json
-{
-  "sub": "target-user-id",
-  "user_id": "target-user-id",
-  "access": "full",
-  "is_sudo": false,
-  "is_fake": true,
-  "faked_by_user_id": "root-user-id",
-  "faked_by_username": "Root Admin",
-  "faked_at": "2025-11-15T10:30:00Z",
-  "exp": 1234567890
-}
-```
-
-#### Example Usage
-
-**Fake by user ID:**
-```bash
-curl -X POST http://localhost:9001/api/auth/fake \
-  -H "Authorization: Bearer ROOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "550e8400-e29b-41d4-a716-446655440000"}'
-```
-
-**Fake by username:**
-```bash
-curl -X POST http://localhost:9001/api/auth/fake \
-  -H "Authorization: Bearer ROOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "john@example.com"}'
-```
-
-**Use fake token:**
-```bash
-# The fake token works like any other JWT
-curl -X GET http://localhost:9001/api/data/accounts \
-  -H "Authorization: Bearer FAKE_TOKEN"
-
-# Whoami will show the faked user's identity
-curl -X GET http://localhost:9001/api/user/whoami \
-  -H "Authorization: Bearer FAKE_TOKEN"
-```
-
-#### Security Considerations
-
-1. **Audit Trail**: All fake operations are logged with the root user's identity
-2. **Time-Limited**: Fake tokens expire after 1 hour to limit exposure
-3. **Metadata**: JWT includes `is_fake`, `faked_by_user_id`, and `faked_at` for tracking
-4. **Root Only**: Only root users can impersonate - full users cannot
-5. **No Self-Fake**: Cannot fake your own account (prevents confusion)
-
----
+### Personal Mode
+- Database names are human-readable
+- `username` optional in registration (defaults to 'root')
+- Tenant/template listing enabled
+- Optimal for personal PaaS deployments
 
 ## Sudo Access Model
 
 The sudo model follows Linux conventions where root users have implicit sudo access, while privileged users can elevate temporarily.
-
-### Access Levels and Sudo Behavior
 
 | Access Level | Sudo at Login | Can Request Sudo | Use Case |
 |--------------|---------------|------------------|----------|
@@ -691,118 +86,57 @@ The sudo model follows Linux conventions where root users have implicit sudo acc
 | `read` | ❌ No | ❌ No | Read-only access |
 | `deny` | ❌ No | ❌ No | Blocked users |
 
-### Root Users (Automatic Sudo)
-- Login JWT includes `is_sudo: true` automatically
-- Can perform sudo operations immediately without calling `/api/user/sudo`
-- Can still call `/api/user/sudo` to get time-limited token with `elevation_reason` for audit trail
-- Like Linux root user - inherently trusted
-
-### Full Users (Temporary Sudo)
-- Login JWT has `is_sudo: false`
-- Must call POST `/api/user/sudo` to get 15-minute sudo token
-- Sudo token includes `is_sudo: true` and audit metadata
-- Like Linux user in sudoers file - can elevate when needed
-
 ### Protected Operations
+
 Operations requiring `is_sudo=true` in JWT:
-- Modifying schemas with `sudo=true` flag (via Describe API)
-- Creating/updating/deleting records in sudo schemas (via Data API)
+- Modifying schemas with `sudo=true` flag
+- Creating/updating/deleting records in sudo-protected schemas
+- Modifying fields with `sudo=true` flag
 - User management operations
-- Other system-critical operations
 
-### Token Management Strategy
-```javascript
-// For root users - immediate sudo access
-const rootToken = loginResponse.data.token;  // Already has is_sudo=true
-localStorage.setItem('token', rootToken);
+## Quick Start
 
-// For full users - must elevate when needed
-const userToken = loginResponse.data.token;  // is_sudo=false
-localStorage.setItem('user_token', userToken);
+### Standard JSON Integration
 
-// Request sudo when needed
-const sudoResponse = await fetch('/api/user/sudo', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${userToken}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ reason: 'User management' })
-});
-const sudoToken = sudoResponse.data.sudo_token;  // is_sudo=true, 15-min expiry
-sessionStorage.setItem('sudo_token', sudoToken);
-```
-
-### Sudo Workflow Examples
-
-**Root User Workflow** (Immediate Access):
 ```bash
-# 1. Login as root user
+# 1. Login and get token
 curl -X POST http://localhost:9001/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"tenant": "acme", "username": "root"}'
-# Returns: token with is_sudo=true
+  -d '{"tenant": "my-company", "username": "john.doe"}'
 
-# 2. Use token directly for sudo operations
-curl -X POST http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer ROOT_TOKEN" \
+# 2. Use token for API calls
+curl -X GET http://localhost:9001/api/data/users \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# 3. Refresh when needed
+curl -X POST http://localhost:9001/auth/refresh \
   -H "Content-Type: application/json" \
-  -d '{"name": "John Doe", "auth": "john@example.com", "access": "full"}'
+  -d '{"token": "YOUR_JWT_TOKEN"}'
 ```
 
-**Full User Workflow** (Must Elevate):
+### LLM Agent Integration (TOON Format)
+
 ```bash
-# 1. Login as full user
+# 1. Login with TOON format preference
 curl -X POST http://localhost:9001/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"tenant": "acme", "username": "full"}'
-# Returns: token with is_sudo=false
+  -d '{"tenant": "my-company", "username": "llm-agent", "format": "toon"}'
 
-# 2. Request sudo token
-curl -X POST http://localhost:9001/api/user/sudo \
-  -H "Authorization: Bearer FULL_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"reason": "Creating new team member"}'
-# Returns: sudo_token with is_sudo=true (15-min expiry)
+# 2. All API calls now return TOON format automatically
+curl -X GET http://localhost:9001/api/describe \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# 3. Use sudo token for protected operations
-curl -X POST http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer SUDO_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "John Doe", "auth": "john@example.com", "access": "full"}'
+# Response: success: true
+#           data[4]: columns,definitions,schemas,users
+
+# 3. Override to JSON for specific calls
+curl -X GET "http://localhost:9001/api/describe?format=json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
-
-## Security Model
-
-### Sudo Security Features
-- **Role-based access**: Only root and full users can have sudo access
-- **Automatic for root**: Root users have implicit sudo (like Linux root)
-- **Explicit for full**: Full users must actively request sudo elevation
-- **Time-limited**: Sudo tokens from `/api/user/sudo` expire after 15 minutes
-- **Audit logging**: All sudo requests logged with reason and user context
-- **Tenant-scoped**: Sudo operations restricted to user's tenant
-
-### Best Practices
-
-**For Root Users:**
-1. **Use login token directly**: No need to call `/api/user/sudo` for normal operations
-2. **Optional sudo request**: Call `/api/user/sudo` when you want explicit audit trail
-3. **Long-lived access**: Root login tokens last 24 hours with continuous sudo
-
-**For Full Users:**
-1. **Request sudo only when needed**: Don't preemptively escalate
-2. **Provide clear reasons**: Include meaningful `elevation_reason` for audit trail
-3. **Handle expiration**: Sudo tokens expire after 15 minutes - be prepared to re-request
-4. **Separate storage**: Keep user token (long-lived) and sudo token (short-lived) separate
-
-## Error Response Format
-
-All error responses follow the standardized format documented in the main error handling specification.
 
 ## Related Documentation
 
-- **Data Operations**: `/docs/data` - Working with schema-backed data
-- **Describe Operations**: `/docs/describe` - Managing schemas
-- **Sudo Operations**: `/docs/sudo` - User management requiring sudo tokens
-
-The Auth API provides both the public token issuance flows and the protected account management capabilities required to access every other part of the Monk platform.
+- **Data Operations**: [`/docs/data`](../data/PUBLIC.md) - Working with schema-backed data
+- **Describe Operations**: [`/docs/describe`](../describe/PUBLIC.md) - Managing schemas
+- **Find Operations**: [`/docs/find`](../find/PUBLIC.md) - Advanced search and filtering
+- **Bulk Operations**: [`/docs/bulk`](../bulk/PUBLIC.md) - Multi-schema batch processing
