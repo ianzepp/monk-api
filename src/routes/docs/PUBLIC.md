@@ -102,15 +102,15 @@ curl http://localhost:9001/
     },
     "documentation": {
       "auth": ["/docs/auth"],
-      "describe": ["/docs/describe"],
-      "data": ["/docs/data"],
-      "find": ["/docs/find"],
-      "aggregate": ["/docs/aggregate"],
-      "bulk": ["/docs/bulk"],
-      "acls": ["/docs/acls"],
-      "stat": ["/docs/stat"],
-      "history": ["/docs/history"],
-      "sudo": ["/docs/sudo"]
+      "describe": ["/docs/api/describe"],
+      "data": ["/docs/api/data"],
+      "find": ["/docs/api/find"],
+      "aggregate": ["/docs/api/aggregate"],
+      "bulk": ["/docs/api/bulk"],
+      "acls": ["/docs/api/acls"],
+      "stat": ["/docs/api/stat"],
+      "history": ["/docs/api/history"],
+      "sudo": ["/docs/api/sudo"]
     }
   }
 }
@@ -126,23 +126,24 @@ This page lists all available APIs. See the `documentation` section above for AP
 
 ### Next: Explore API Overviews (Level 2)
 
-Navigate to `/docs/{api}` for any API listed above to see:
+Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authentication to see:
 - Complete endpoint table with all operations
 - Request/response formats and examples
 - Authentication requirements
 - Quick start guides
 
 **Available API Documentation**:
-- `/docs/describe` - Schema and column management
-- `/docs/data` - CRUD operations on records
-- `/docs/find` - Advanced querying with filters
-- `/docs/aggregate` - Data aggregation and analytics
-- `/docs/bulk` - Batch operations across schemas
-- `/docs/acls` - Access control management
-- `/docs/stat` - Record metadata access
-- `/docs/history` - Change tracking and audit trails
-- `/docs/auth` - User account management
-- `/docs/sudo` - Administrative operations
+- `/docs/api/describe` - Schema and column management
+- `/docs/api/data` - CRUD operations on records
+- `/docs/api/find` - Advanced querying with filters
+- `/docs/api/aggregate` - Data aggregation and analytics
+- `/docs/api/bulk` - Batch operations across schemas
+- `/docs/api/acls` - Access control management
+- `/docs/api/stat` - Record metadata access
+- `/docs/api/history` - Change tracking and audit trails
+- `/docs/auth` - Authentication and token management
+- `/docs/api/user` - User account management
+- `/docs/api/sudo` - Administrative operations
 
 ### Then: Access Endpoint-Specific Docs (Level 3)
 
@@ -158,67 +159,70 @@ To get detailed documentation for a specific endpoint, construct the URL:
 
 **Mapping Rules**:
 1. Take the API endpoint: `GET /api/describe/:schema`
-2. Remove `/api/` prefix: `describe/:schema`
-3. Replace parameter placeholders with literal names:
+2. Replace parameter placeholders with literal names:
    - `:schema` → `schema`
    - `:column` → `column`
    - `:record` → `record`
    - `:relationship` → `relationship`
    - `:child` → `child`
-4. Append HTTP method: `describe/schema/GET`
-5. Add `/docs/` prefix: `/docs/describe/schema/GET`
+3. Append HTTP method: `api/describe/schema/GET`
+4. Add `/docs/` prefix: `/docs/api/describe/schema/GET`
 
 **Examples**:
 ```
 API Endpoint                              → Documentation URL
 ----------------------------------------- → ----------------------------------
-GET    /api/describe                      → /docs/describe/GET
-GET    /api/describe/:schema              → /docs/describe/schema/GET
-POST   /api/describe/:schema              → /docs/describe/schema/POST
-GET    /api/describe/:schema/:column      → /docs/describe/schema/column/GET
-DELETE /api/describe/:schema/:column      → /docs/describe/schema/column/DELETE
+GET    /api/describe                      → /docs/api/describe/GET
+GET    /api/describe/:schema              → /docs/api/describe/schema/GET
+POST   /api/describe/:schema              → /docs/api/describe/schema/POST
+GET    /api/describe/:schema/:column      → /docs/api/describe/schema/column/GET
+DELETE /api/describe/:schema/:column      → /docs/api/describe/schema/column/DELETE
 
-GET    /api/data/:schema                  → /docs/data/schema/GET
-POST   /api/data/:schema                  → /docs/data/schema/POST
-GET    /api/data/:schema/:record          → /docs/data/schema/record/GET
-GET    /api/data/:schema/:record/:rel     → /docs/data/schema/record/relationship/GET
+GET    /api/data/:schema                  → /docs/api/data/schema/GET
+POST   /api/data/:schema                  → /docs/api/data/schema/POST
+GET    /api/data/:schema/:record          → /docs/api/data/schema/record/GET
+GET    /api/data/:schema/:record/:rel     → /docs/api/data/schema/record/relationship/GET
+
+GET    /auth/login                        → /docs/auth/login/GET
+POST   /auth/login                        → /docs/auth/login/POST
+POST   /auth/register                     → /docs/auth/register/POST
 ```
 
 **Exploration Workflow**:
 1. **(You are here)** Read `/docs` to discover available APIs
-2. Navigate to `/docs/describe` to see Describe API endpoint table
+2. Navigate to `/docs/api/describe` to see Describe API endpoint table
 3. Find endpoint: `GET /api/describe/:schema`
-4. Apply mapping rules → `/docs/describe/schema/GET`
-5. Access `/docs/describe/schema/GET` for complete endpoint documentation with examples, error codes, and use cases
+4. Apply mapping rules → `/docs/api/describe/schema/GET`
+5. Access `/docs/api/describe/schema/GET` for complete endpoint documentation with examples, error codes, and use cases
 
 ## Documentation Guide
 
 ### Getting Started Documentation
 - **Token Operations**: `/docs/auth` - Login, register, refresh workflows
-- **User Management**: `/docs/user` - Account management and privilege escalation
+- **User Management**: `/docs/api/user` - Account management and privilege escalation
 
 ### Core API Documentation
-- **Data Management**: `/docs/data` - CRUD operations and record management
-- **Schema Management**: `/docs/describe` - Schema definition and column management
-- **Access Control**: `/docs/acls` - Record-level ACL management and permissions
-- **Metadata Access**: `/docs/stat` - Record metadata without user data
+- **Data Management**: `/docs/api/data` - CRUD operations and record management
+- **Schema Management**: `/docs/api/describe` - Schema definition and column management
+- **Access Control**: `/docs/api/acls` - Record-level ACL management and permissions
+- **Metadata Access**: `/docs/api/stat` - Record metadata without user data
 
 ### Advanced Operations
-- **Complex Search**: `/docs/find` - Advanced filtering with 25+ operators
-- **Data Aggregation**: `/docs/aggregate` - Analytics and aggregation operations
-- **Batch Processing**: `/docs/bulk` - Multi-schema transaction operations
-- **Change Tracking**: `/docs/history` - Audit trails and change history
-- **Administration**: `/docs/sudo` - User management and administrative operations
+- **Complex Search**: `/docs/api/find` - Advanced filtering with 25+ operators
+- **Data Aggregation**: `/docs/api/aggregate` - Analytics and aggregation operations
+- **Batch Processing**: `/docs/api/bulk` - Multi-schema transaction operations
+- **Change Tracking**: `/docs/api/history` - Audit trails and change history
+- **Administration**: `/docs/api/sudo` - User management and administrative operations
 
 ## Quick Start Workflow
 
 1. **Health Check**: `GET /health` to verify system status
 2. **Explore APIs**: `GET /` to discover available endpoints and documentation
 3. **Authentication**: Follow `/docs/auth` to obtain JWT tokens
-4. **Schema Setup**: Use `/docs/describe` to define your data structures
-5. **Data Operations**: Use `/docs/data` for standard CRUD operations
-6. **Advanced Features**: Explore `/docs/find`, `/docs/aggregate`, `/docs/bulk` for sophisticated data access
-7. **Security & Auditing**: Use `/docs/acls` for permissions and `/docs/history` for audit trails
+4. **Schema Setup**: Use `/docs/api/describe` to define your data structures
+5. **Data Operations**: Use `/docs/api/data` for standard CRUD operations
+6. **Advanced Features**: Explore `/docs/api/find`, `/docs/api/aggregate`, `/docs/api/bulk` for sophisticated data access
+7. **Security & Auditing**: Use `/docs/api/acls` for permissions and `/docs/api/history` for audit trails
 
 ## Response Format
 
