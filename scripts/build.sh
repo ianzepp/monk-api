@@ -71,17 +71,17 @@ main() {
     log_info "Checking for additional assets to copy..."
 
     # Copy markdown documentation files
-    if [[ -n "$(find src -name 'PUBLIC.md' 2>/dev/null)" ]]; then
+    if [[ -n "$(find src -name '*.md' 2>/dev/null)" ]]; then
         log_info "Copying documentation files..."
         # Preserve directory structure for documentation
-        find src -name 'PUBLIC.md' -type f | while read -r file; do
+        find src -name '*.md' -type f | while read -r file; do
             # Get relative path from src/
             rel_path="${file#src/}"
             dest_dir="dist/$(dirname "$rel_path")"
             mkdir -p "$dest_dir"
             cp "$file" "$dest_dir/"
         done
-        log_info "Copied $(find src -name 'PUBLIC.md' | wc -l | tr -d ' ') documentation files"
+        log_info "Copied $(find src -name '*.md' | wc -l | tr -d ' ') documentation files"
     else
         log_info "No documentation files to copy"
     fi
