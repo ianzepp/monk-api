@@ -4,6 +4,29 @@ import type { SystemContextWithInfrastructure } from '@src/lib/system-context-ty
 export type SchemaName = string;
 
 /**
+ * Special schemas that are fundamental to the platform and cannot be modified
+ */
+export const SYSTEM_SCHEMAS = new Set([
+    'schemas',
+    'columns',
+]);
+
+/**
+ * Predefined columns that exist on every schema
+ */
+export const SYSTEM_COLUMNS = new Set([
+     'id',
+     'created_at',
+     'updated_at',
+     'deleted_at',
+     'trashed_at',
+     'access_deny',
+     'access_edit',
+     'access_full',
+     'access_read',
+ ]);
+
+/**
  * Merged validation configuration for a single field
  * Pre-calculated once per schema to avoid redundant loops during validation
  */
@@ -147,18 +170,6 @@ export class Schema {
      * Automatically excludes system fields
      */
     private buildValidationFields(): FieldValidationConfig[] {
-        const systemFields = new Set([
-            'id',
-            'created_at',
-            'updated_at',
-            'deleted_at',
-            'trashed_at',
-            'access_deny',
-            'access_edit',
-            'access_full',
-            'access_read',
-        ]);
-
         const fields: FieldValidationConfig[] = [];
 
         // Collect all unique field names that have any validation metadata
@@ -172,7 +183,7 @@ export class Schema {
         // Build config for each field (excluding system fields)
         for (const fieldName of allFieldNames) {
             // Skip system fields
-            if (systemFields.has(fieldName)) {
+            if (SYSTEM_COLUMNS.has(fieldName)) {
                 continue;
             }
 

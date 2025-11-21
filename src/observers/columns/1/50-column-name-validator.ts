@@ -9,19 +9,7 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
-
-// System fields managed by the platform - user columns cannot use these names
-const SYSTEM_FIELDS = new Set([
-    'id',
-    'access_read',
-    'access_edit',
-    'access_full',
-    'access_deny',
-    'created_at',
-    'updated_at',
-    'trashed_at',
-    'deleted_at'
-]);
+import { SYSTEM_COLUMNS } from '@src/lib/schema.js';
 
 // PostgreSQL reserved words
 const RESERVED_WORDS = new Set([
@@ -68,7 +56,7 @@ export default class ColumnNameValidator extends BaseObserver {
         }
 
         // Check for system field conflicts
-        if (SYSTEM_FIELDS.has(columnName.toLowerCase())) {
+        if (SYSTEM_COLUMNS.has(columnName.toLowerCase())) {
             throw new ValidationError(
                 `Column name '${columnName}' conflicts with system field`,
                 'column_name'
