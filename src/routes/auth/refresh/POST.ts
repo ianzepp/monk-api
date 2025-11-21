@@ -1,13 +1,19 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@src/lib/middleware/index.js';
+import { verify, sign } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
+import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 
 /**
- * POST /auth/refresh - Refresh JWT token using refresh token
+ * POST /auth/refresh - Refresh JWT token using valid token
+ *
+ * Accepts a valid JWT token and issues a new token with extended expiration.
+ * Verifies that the user and tenant still exist and are active before issuing
+ * a new token. This allows clients to extend their session without re-authenticating.
  *
  * Error codes:
  * - AUTH_TOKEN_MISSING: Missing token field (400)
- * - AUTH_TOKEN_REFRESH_FAILED: Invalid or corrupted token (401)
+ * - AUTH_TOKEN_REFRESH_FAILED: Invalid, expired, or corrupted token (401)
  *
  * @see docs/routes/AUTH_API.md
  */
@@ -19,5 +25,99 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Token is required for refresh', 'AUTH_TOKEN_MISSING');
     }
 
-    throw new Error('Unimplemented: /auth/refresh');
+    let payload: JWTPayload;
+
+    // Verify and decode the token
+    try {
+        payload = (await verify(token, process.env.JWT_SECRET!)) as JWTPayload;
+    } catch (error: any) {
+        // Handle JWT verification errors (invalid signature, expired, malformed)
+        // This includes tampered tokens, invalid format, expiration, etc.
+        return context.json(
+            {
+                success: false,
+                error: 'Invalid or expired token',
+                error_code: 'AUTH_TOKEN_REFRESH_FAILED',
+            },
+            401
+        );
+    }
+
+    // Verify tenant still exists and is active
+    const authDb = DatabaseConnection.getMainPool();
+    const tenantResult = await authDb.query(
+        'SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
+        [payload.tenant]
+    );
+
+    if (!tenantResult.rows || tenantResult.rows.length === 0) {
+        return context.json(
+            {
+                success: false,
+                error: 'Invalid or expired token',
+                error_code: 'AUTH_TOKEN_REFRESH_FAILED',
+            },
+            401
+        );
+    }
+
+    const { name: tenantName, database } = tenantResult.rows[0];
+
+    // Verify user still exists and is not deleted
+    const tenantDb = DatabaseConnection.getTenantPool(database);
+    const userResult = await tenantDb.query(
+        'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+        [payload.sub]
+    );
+
+    if (!userResult.rows || userResult.rows.length === 0) {
+        return context.json(
+            {
+                success: false,
+                error: 'Invalid or expired token',
+                error_code: 'AUTH_TOKEN_REFRESH_FAILED',
+            },
+            401
+        );
+    }
+
+    const user = userResult.rows[0];
+
+    // Generate new JWT token with refreshed expiration
+    const newPayload: JWTPayload = {
+        sub: user.id,
+        user_id: user.id,
+        tenant: tenantName,
+        database: database,
+        access: user.access,
+        access_read: user.access_read || [],
+        access_edit: user.access_edit || [],
+        access_full: user.access_full || [],
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
+        is_sudo: user.access === 'root',
+        // Preserve optional fields from original token
+        ...(payload.format && { format: payload.format }),
+        ...(payload.is_fake && { is_fake: payload.is_fake }),
+        ...(payload.faked_by_user_id && { faked_by_user_id: payload.faked_by_user_id }),
+        ...(payload.faked_by_username && { faked_by_username: payload.faked_by_username }),
+    };
+
+    const newToken = await sign(newPayload, process.env.JWT_SECRET!);
+
+    return context.json({
+        success: true,
+        data: {
+            token: newToken,
+            expires_in: 24 * 60 * 60, // seconds
+            user: {
+                id: user.id,
+                username: user.name,
+                tenant: tenantName,
+                database: database,
+                access: user.access,
+                ...(newPayload.format && { format: newPayload.format }),
+            },
+        },
+    });
 }
