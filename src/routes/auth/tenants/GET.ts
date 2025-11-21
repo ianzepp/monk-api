@@ -38,8 +38,7 @@ export default async function (context: Context) {
         `
         SELECT name, database, description
         FROM tenants
-        WHERE tenant_type = 'normal'
-          AND is_active = true
+        WHERE is_active = true
           AND trashed_at IS NULL
           AND deleted_at IS NULL
         ORDER BY name ASC
