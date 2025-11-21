@@ -21,6 +21,15 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * - database (optional): Custom database name (personal mode only). Defaults to sanitized tenant name
  * - description (optional): Human-readable description of the tenant
  *
+ * Error codes:
+ * - AUTH_TENANT_MISSING: Missing tenant field (400)
+ * - AUTH_USERNAME_MISSING: Missing username when server is in enterprise mode (400)
+ * - AUTH_DATABASE_NOT_ALLOWED: database parameter provided when server is in enterprise mode (400)
+ * - DATABASE_TEMPLATE_NOT_FOUND: Template does not exist (404)
+ * - DATABASE_TENANT_EXISTS: Tenant name already registered (409)
+ * - DATABASE_EXISTS: Database name already exists (409)
+ * - DATABASE_TEMPLATE_CLONE_FAILED: Template cloning operation failed (500)
+ *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
@@ -28,22 +37,22 @@ export default async function (context: Context) {
 
     // Input validation
     if (!tenant) {
-        throw HttpErrors.badRequest('Tenant is required', 'TENANT_MISSING');
+        throw HttpErrors.badRequest('Tenant is required', 'AUTH_TENANT_MISSING');
     }
 
     // Determine mode from server configuration (not client-controlled)
     const serverMode = (process.env.TENANT_NAMING_MODE || 'enterprise') as 'enterprise' | 'personal';
-    
+
     // Username is required in enterprise mode, optional in personal mode (defaults to 'root')
     if (!username && serverMode !== 'personal') {
-        throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
+        throw HttpErrors.badRequest('Username is required', 'AUTH_USERNAME_MISSING');
     }
 
     // Validate database only allowed in personal mode
     if (database && serverMode !== 'personal') {
         throw HttpErrors.badRequest(
             'database parameter can only be specified when server is in personal mode',
-            'DATABASE_NOT_ALLOWED'
+            'AUTH_DATABASE_NOT_ALLOWED'
         );
     }
 

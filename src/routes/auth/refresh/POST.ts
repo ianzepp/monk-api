@@ -4,6 +4,11 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
  * POST /auth/refresh - Refresh JWT token using refresh token
+ *
+ * Error codes:
+ * - AUTH_TOKEN_MISSING: Missing token field (400)
+ * - AUTH_TOKEN_REFRESH_FAILED: Invalid or corrupted token (401)
+ *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
@@ -11,7 +16,7 @@ export default async function (context: Context) {
 
     // Input validation
     if (!token) {
-        throw HttpErrors.badRequest('Token is required for refresh', 'TOKEN_MISSING');
+        throw HttpErrors.badRequest('Token is required for refresh', 'AUTH_TOKEN_MISSING');
     }
 
     throw new Error('Unimplemented: /auth/refresh');

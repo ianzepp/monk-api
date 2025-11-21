@@ -6,6 +6,12 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 
 /**
  * POST /auth/login - Authenticate user with tenant and username
+ *
+ * Error codes:
+ * - AUTH_TENANT_MISSING: Missing tenant field (400)
+ * - AUTH_USERNAME_MISSING: Missing username field (400)
+ * - AUTH_LOGIN_FAILED: Invalid credentials or tenant not found (401)
+ *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
@@ -15,11 +21,11 @@ export default async function (context: Context) {
 
     // Input validation
     if (!tenant) {
-        throw HttpErrors.badRequest('Tenant is required', 'TENANT_MISSING');
+        throw HttpErrors.badRequest('Tenant is required', 'AUTH_TENANT_MISSING');
     }
 
     if (!username) {
-        throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
+        throw HttpErrors.badRequest('Username is required', 'AUTH_USERNAME_MISSING');
     }
 
     // Look up tenant record to get database name
@@ -31,7 +37,7 @@ export default async function (context: Context) {
             {
                 success: false,
                 error: 'Authentication failed',
-                error_code: 'AUTH_FAILED',
+                error_code: 'AUTH_LOGIN_FAILED',
             },
             401
         );
@@ -52,7 +58,7 @@ export default async function (context: Context) {
             {
                 success: false,
                 error: 'Authentication failed',
-                error_code: 'AUTH_FAILED',
+                error_code: 'AUTH_LOGIN_FAILED',
             },
             401
         );

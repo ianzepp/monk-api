@@ -13,6 +13,9 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
  * In enterprise mode, this endpoint returns a 403 error for security reasons
  * (tenant discovery should not be exposed in multi-tenant SaaS environments).
  *
+ * Error codes:
+ * - AUTH_TENANT_LIST_NOT_AVAILABLE: Endpoint called on enterprise mode server (403)
+ *
  * @returns Array of tenant objects with name, description, and users array
  * @see docs/routes/AUTH_API.md
  */
@@ -23,7 +26,7 @@ export default async function (context: Context) {
     if (serverMode !== 'personal') {
         throw HttpErrors.forbidden(
             'Tenant listing is only available in personal mode',
-            'TENANT_LIST_NOT_AVAILABLE'
+            'AUTH_TENANT_LIST_NOT_AVAILABLE'
         );
     }
 

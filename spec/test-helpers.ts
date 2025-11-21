@@ -117,26 +117,26 @@ export class TestHelpers {
 
         const authClient = new AuthClient(TEST_CONFIG.API_URL);
 
-        try {
-            // Register tenant via AuthClient (automatically caches JWT)
-            const response = await authClient.register({
-                tenant: tenantName,
-                template: template,
-                username: username,
-            });
+        // Register tenant via AuthClient (automatically caches JWT)
+        const response = await authClient.register({
+            tenant: tenantName,
+            template: template,
+            username: username,
+        });
 
-            return {
-                tenantName: response.data.tenant,
-                databaseName: response.data.database,
-                username: response.data.username,
-                token: response.data.token,
-                httpClient: authClient.client,
-            };
-        } catch (error) {
+        if (!response.success) {
             throw new Error(
-                `Failed to create test tenant '${tenantName}' from template '${template}': ${error instanceof Error ? error.message : String(error)}`
+                `Failed to create test tenant '${tenantName}' from template '${template}': ${response.error} (${response.error_code})`
             );
         }
+
+        return {
+            tenantName: response.data!.tenant,
+            databaseName: response.data!.database,
+            username: response.data!.username,
+            token: response.data!.token,
+            httpClient: authClient.client,
+        };
     }
 
     /**
@@ -160,18 +160,18 @@ export class TestHelpers {
     ): Promise<string> {
         const authClient = new AuthClient(TEST_CONFIG.API_URL);
 
-        try {
-            const response = await authClient.login({
-                tenant: tenantName,
-                username: username,
-            });
+        const response = await authClient.login({
+            tenant: tenantName,
+            username: username,
+        });
 
-            return response.data.token;
-        } catch (error) {
+        if (!response.success) {
             throw new Error(
-                `Failed to login to tenant '${tenantName}' as '${username}': ${error instanceof Error ? error.message : String(error)}`
+                `Failed to login to tenant '${tenantName}' as '${username}': ${response.error} (${response.error_code})`
             );
         }
+
+        return response.data!.token;
     }
 
     /**

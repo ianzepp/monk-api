@@ -34,11 +34,13 @@ export interface RegistrationParams {
 }
 
 /**
- * Authentication response
+ * Authentication response (success or error)
  */
 export interface AuthResponse {
     success: boolean;
-    data: {
+    error?: string;
+    error_code?: string;
+    data?: {
         tenant: string;
         database: string;
         username: string;
@@ -88,9 +90,7 @@ export class AuthClient {
         const response = await this.httpClient.post('/auth/login', credentials);
 
         if (!response.success) {
-            throw new Error(
-                `Login failed: ${response.error?.message || JSON.stringify(response)}`
-            );
+            return response as AuthResponse;
         }
 
         // Automatically cache the token
@@ -125,9 +125,7 @@ export class AuthClient {
         const response = await this.httpClient.post('/auth/register', params);
 
         if (!response.success) {
-            throw new Error(
-                `Registration failed: ${response.error?.message || JSON.stringify(response)}`
-            );
+            return response as AuthResponse;
         }
 
         // Automatically cache the token

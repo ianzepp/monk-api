@@ -16,6 +16,9 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
  * In enterprise mode, this endpoint returns a 403 error for security reasons
  * (template discovery should not be exposed in multi-tenant SaaS environments).
  *
+ * Error codes:
+ * - AUTH_TEMPLATE_LIST_NOT_AVAILABLE: Endpoint called on enterprise mode server (403)
+ *
  * @returns Array of template objects with name and description
  * @see docs/routes/AUTH_API.md
  */
@@ -26,7 +29,7 @@ export default async function (context: Context) {
     if (serverMode !== 'personal') {
         throw HttpErrors.forbidden(
             'Template listing is only available in personal mode',
-            'TEMPLATE_LIST_NOT_AVAILABLE'
+            'AUTH_TEMPLATE_LIST_NOT_AVAILABLE'
         );
     }
 

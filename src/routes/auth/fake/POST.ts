@@ -20,20 +20,27 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * - Debugging user-specific issues
  * - Customer support troubleshooting
  * - Testing user permissions
+ *
+ * Error codes:
+ * - AUTH_TARGET_USER_MISSING: Neither user_id nor username provided (400)
+ * - AUTH_CANNOT_FAKE_SELF: Attempting to fake own user (400)
+ * - AUTH_USER_JWT_REQUIRED: No valid user JWT provided (401)
+ * - AUTH_FAKE_ACCESS_DENIED: User lacks root access (403)
+ * - AUTH_TARGET_USER_NOT_FOUND: Target user does not exist (404)
  */
 export default async function (context: Context) {
     const currentUser = context.get('user');
     const currentJwt = context.get('jwtPayload');
 
     if (!currentUser || !currentJwt) {
-        throw HttpErrors.unauthorized('Valid user JWT required', 'USER_JWT_REQUIRED');
+        throw HttpErrors.unauthorized('Valid user JWT required', 'AUTH_USER_JWT_REQUIRED');
     }
 
     // Only root users can fake other users
     if (currentUser.access !== 'root') {
         throw HttpErrors.forbidden(
             `User impersonation requires root access (current: '${currentUser.access}')`,
-            'FAKE_ACCESS_DENIED'
+            'AUTH_FAKE_ACCESS_DENIED'
         );
     }
 
@@ -44,7 +51,7 @@ export default async function (context: Context) {
     if (!user_id && !username) {
         throw HttpErrors.badRequest(
             'Either user_id or username is required to identify target user',
-            'TARGET_USER_MISSING'
+            'AUTH_TARGET_USER_MISSING'
         );
     }
 
@@ -69,7 +76,7 @@ export default async function (context: Context) {
     if (!targetUser) {
         throw HttpErrors.notFound(
             `Target user not found: ${user_id || username}`,
-            'TARGET_USER_NOT_FOUND'
+            'AUTH_TARGET_USER_NOT_FOUND'
         );
     }
 
@@ -77,7 +84,7 @@ export default async function (context: Context) {
     if (targetUser.id === currentUser.id) {
         throw HttpErrors.badRequest(
             'Cannot fake your own user - you are already authenticated as this user',
-            'CANNOT_FAKE_SELF'
+            'AUTH_CANNOT_FAKE_SELF'
         );
     }
 

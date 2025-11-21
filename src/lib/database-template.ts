@@ -75,7 +75,7 @@ export class DatabaseTemplate {
             const templateResult = await mainPool.query(templateQuery, [template_name]);
 
             if (templateResult.rows.length === 0) {
-                throw HttpErrors.notFound(`Template '${template_name}' not found`, 'TEMPLATE_NOT_FOUND');
+                throw HttpErrors.notFound(`Template '${template_name}' not found`, 'DATABASE_TEMPLATE_NOT_FOUND');
             }
 
             const templateDatabase = templateResult.rows[0].database; // monk_template_system, monk_template_testing, etc.
@@ -120,7 +120,7 @@ export class DatabaseTemplate {
             ]);
 
             if (existingCheck.rows[0].count > 0) {
-                throw HttpErrors.conflict(`Tenant '${tenantName}' already exists`, 'TENANT_EXISTS');
+                throw HttpErrors.conflict(`Tenant '${tenantName}' already exists`, 'DATABASE_TENANT_EXISTS');
             }
 
             // 6. Check if database already exists (critical for personal mode)
@@ -140,7 +140,7 @@ export class DatabaseTemplate {
             try {
                 await execAsync(`createdb "${databaseName}" -T "${templateDatabase}"`);
             } catch (error) {
-                throw HttpErrors.internal(`Failed to clone template database: ${error}`, 'TEMPLATE_CLONE_FAILED');
+                throw HttpErrors.internal(`Failed to clone template database: ${error}`, 'DATABASE_TEMPLATE_CLONE_FAILED');
             }
 
             // 8. Register tenant in main database with owner_id, source_template, naming mode and description

@@ -18,6 +18,38 @@ The Auth API covers both **public token acquisition routes** and **protected use
 | POST | [`/api/user/sudo`](#post-apiauthsudo) | Protected | Get short-lived sudo token for dangerous operations (user management). |
 | POST | [`/api/auth/fake`](#post-apiauthfake) | Protected (Root) | Impersonate another user for debugging and support (root only). |
 
+## Auth API Error Codes Reference
+
+All error responses from the Auth API include `error_code` and `error` fields. Use the error_code for programmatic error handling.
+
+**Naming Convention**:
+- `AUTH_` prefix: Error codes directly thrown by Auth API routers (validation, access control, JWT operations)
+- `DATABASE_` prefix: Error codes from database operations (template cloning, tenant creation, database existence checks)
+- No prefix: JWT and general errors that span multiple layers
+
+| Error Code | Status | Message | Endpoint(s) | Condition |
+|------------|--------|---------|-------------|-----------|
+| `AUTH_TENANT_MISSING` | 400 | "Tenant is required" | `/auth/login`, `/auth/register` | Missing tenant field in request |
+| `AUTH_USERNAME_MISSING` | 400 | "Username is required" | `/auth/login`, `/auth/register` (enterprise mode) | Missing username field or required in enterprise mode |
+| `AUTH_TOKEN_MISSING` | 400 | "Token is required for refresh" | `/auth/refresh` | Missing token field in request |
+| `AUTH_TARGET_USER_MISSING` | 400 | "Either user_id or username is required to identify target user" | `/api/auth/fake` | Neither user_id nor username provided |
+| `AUTH_CANNOT_FAKE_SELF` | 400 | "Cannot fake your own user - you are already authenticated as this user" | `/api/auth/fake` | Attempting to impersonate own user account |
+| `AUTH_DATABASE_NOT_ALLOWED` | 400 | "database parameter can only be specified when server is in personal mode" | `/auth/register` | Custom database name provided in enterprise mode |
+| `AUTH_LOGIN_FAILED` | 401 | "Authentication failed" | `/auth/login` | Invalid credentials or tenant not found |
+| `AUTH_TOKEN_REFRESH_FAILED` | 401 | "Token refresh failed" | `/auth/refresh` | Invalid or corrupted token signature |
+| `AUTH_USER_JWT_REQUIRED` | 401 | "Valid user JWT required" | `/api/auth/fake`, `/api/user/whoami`, `/api/user/sudo` | No Bearer token provided or invalid JWT |
+| `AUTH_FAKE_ACCESS_DENIED` | 403 | "User impersonation requires root access" | `/api/auth/fake` | User account lacks root access level |
+| `AUTH_TENANT_LIST_NOT_AVAILABLE` | 403 | "Tenant listing is only available in personal mode" | `/auth/tenants` | Endpoint called on enterprise mode server |
+| `AUTH_TEMPLATE_LIST_NOT_AVAILABLE` | 403 | "Template listing is only available in personal mode" | `/auth/templates` | Endpoint called on enterprise mode server |
+| `AUTH_SUDO_ACCESS_DENIED` | 403 | "Insufficient privileges for sudo - requires 'root' or 'full' access level" | `/api/user/sudo` | User account has edit/read/deny access only |
+| `DATABASE_TEMPLATE_NOT_FOUND` | 404 | "Template '{name}' not found" | `/auth/register` | Specified template does not exist |
+| `AUTH_TARGET_USER_NOT_FOUND` | 404 | "Target user not found: {identifier}" | `/api/auth/fake` | Target user does not exist or is deleted |
+| `AUTH_USER_NOT_FOUND` | 404 | "User not found or inactive" | `/api/user/whoami` | JWT user doesn't exist in tenant DB |
+| `DATABASE_TENANT_EXISTS` | 409 | "Tenant '{name}' already exists" | `/auth/register` | Tenant name already registered |
+| `DATABASE_EXISTS` | 409 | "Database '{name}' already exists" | `/auth/register` (personal mode) | Database name collision in personal mode |
+| `DATABASE_TEMPLATE_CLONE_FAILED` | 500 | "Failed to clone template database: ..." | `/auth/register` | Template cloning operation failed |
+| `TOKEN_INVALID` | 401 | "Invalid or expired token" | Any protected endpoint | Bad JWT signature or token expired |
+
 ## Content Type
 - **Request**: `application/json`
 - **Response**: `application/json` (default), `text/plain` (TOON), or `application/yaml` (YAML)
