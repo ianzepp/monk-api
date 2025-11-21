@@ -10,21 +10,19 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * Creates a new tenant from a specified template with a user-specified tenant name.
  * Returns a JWT token for immediate access to the new tenant.
  *
- * The server's TENANT_NAMING_MODE environment variable controls the database naming strategy:
- * - enterprise mode: Database names are SHA256 hashes, username required
- * - personal mode: Database names are human-readable, username defaults to 'root'
+ * Database names are always generated using SHA256 hashing to ensure:
+ * - Environment isolation (same tenant in dev/test/prod gets same hash)
+ * - No naming conflicts between environments
+ * - Privacy (tenant name not exposed in database name)
  *
  * Request body:
  * - tenant (required): User-facing tenant name
- * - template (optional): Template name to use (defaults to 'system'). Available templates can be listed via GET /auth/templates
- * - username (optional): Username for the tenant admin. Defaults to 'root' in personal mode, required in enterprise mode
- * - database (optional): Custom database name (personal mode only). Defaults to sanitized tenant name
+ * - template (optional): Template name to use (defaults to 'system')
+ * - username (optional): Username for the tenant admin (defaults to 'root')
  * - description (optional): Human-readable description of the tenant
  *
  * Error codes:
  * - AUTH_TENANT_MISSING: Missing tenant field (400)
- * - AUTH_USERNAME_MISSING: Missing username when server is in enterprise mode (400)
- * - AUTH_DATABASE_NOT_ALLOWED: database parameter provided when server is in enterprise mode (400)
  * - DATABASE_TEMPLATE_NOT_FOUND: Template does not exist (404)
  * - DATABASE_TENANT_EXISTS: Tenant name already registered (409)
  * - DATABASE_EXISTS: Database name already exists (409)
@@ -33,27 +31,11 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, template, username, database, description } = await context.req.json();
+    const { tenant, template, username, description } = await context.req.json();
 
     // Input validation
     if (!tenant) {
         throw HttpErrors.badRequest('Tenant is required', 'AUTH_TENANT_MISSING');
-    }
-
-    // Determine mode from server configuration (not client-controlled)
-    const serverMode = (process.env.TENANT_NAMING_MODE || 'enterprise') as 'enterprise' | 'personal';
-
-    // Username is required in enterprise mode, optional in personal mode (defaults to 'root')
-    if (!username && serverMode !== 'personal') {
-        throw HttpErrors.badRequest('Username is required', 'AUTH_USERNAME_MISSING');
-    }
-
-    // Validate database only allowed in personal mode
-    if (database && serverMode !== 'personal') {
-        throw HttpErrors.badRequest(
-            'database parameter can only be specified when server is in personal mode',
-            'AUTH_DATABASE_NOT_ALLOWED'
-        );
     }
 
     // Clone specified template (defaults to 'system') with user-provided tenant name
@@ -62,10 +44,8 @@ export default async function (context: Context) {
     const cloneResult = await DatabaseTemplate.cloneTemplate({
         template_name: templateName,
         tenant_name: tenant,
-        username: username,
+        username: username || 'root',
         user_access: 'root',
-        naming_mode: serverMode,
-        database: database,
         description: description,
     });
 

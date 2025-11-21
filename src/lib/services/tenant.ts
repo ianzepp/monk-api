@@ -16,7 +16,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { sign, verify } from 'hono/jwt';
-import { DatabaseConnection, MONK_DB_MAIN_NAME } from '@src/lib/database-connection.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { DatabaseNaming } from '@src/lib/database-naming.js';
 import { Describe } from '@src/lib/describe.js';
 import pg from 'pg';
@@ -79,7 +79,8 @@ export class TenantService {
      * Create one-time client for auth database operations
      */
     private static createAuthClient(): pg.Client {
-        return DatabaseConnection.getClient(MONK_DB_MAIN_NAME);
+        const mainDbName = DatabaseConnection.getMainDatabaseName();
+        return DatabaseConnection.getClient(mainDbName);
     }
 
     /**

@@ -32,3 +32,16 @@ export async function checkDatabaseConnection(): Promise<boolean> {
 export async function closeDatabaseConnection(): Promise<void> {
     await DatabaseConnection.closeConnections();
 }
+
+// Pool management for tests
+export async function closeTestDatabasePools(): Promise<void> {
+    await DatabaseConnection.closePoolsByPrefix('test_');
+}
+
+export async function closeDatabasePool(databaseName: string): Promise<void> {
+    await DatabaseConnection.closePool(databaseName);
+}
+
+export function getDatabasePoolStats() {
+    return DatabaseConnection.getPoolStats();
+}

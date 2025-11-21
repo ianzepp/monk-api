@@ -6,15 +6,124 @@ This directory contains the complete test suite - organized shell integration te
 
 ## Table of Contents
 
-1. [Quick Start](#quick-start)
-2. [Test Execution](#test-execution)
-3. [Test Organization](#test-organization)
-4. [Test Selection](#test-selection)
-5. [Helper Functions](#helper-functions)
-6. [Writing Tests](#writing-tests)
-7. [Environment Variables](#environment-variables)
-8. [Troubleshooting](#troubleshooting)
-9. [Best Practices](#best-practices)
+1. [Test Infrastructure](#test-infrastructure) ⚠️ **READ THIS FIRST**
+2. [Quick Start](#quick-start)
+3. [Test Execution](#test-execution)
+4. [Test Organization](#test-organization)
+5. [Test Selection](#test-selection)
+6. [Helper Functions](#helper-functions)
+7. [Writing Tests](#writing-tests)
+8. [Environment Variables](#environment-variables)
+9. [Troubleshooting](#troubleshooting)
+10. [Best Practices](#best-practices)
+
+## Test Infrastructure
+
+⚠️ **REQUIRED READING**: Understand the test infrastructure before running or debugging tests.
+
+### Test Suites
+
+The project has two test suites that both require a running test server:
+
+- **Shell Tests** (`spec/**/*.test.sh`) - End-to-end integration tests using bash/curl
+- **TypeScript Tests** (`spec/**/*.test.ts`) - Unit/integration tests using Vitest
+
+### Build System
+
+**Application Build** (`npm run build`):
+- Compiles TypeScript source code (`src/` → `dist/`)
+- Required before starting ANY server
+- Outputs JavaScript files to `dist/` directory
+
+**Test Type-Checking** (`npm run build:tests`):
+- Type-checks test files (`spec/**/*.ts`)
+- Does NOT compile tests (Vitest runs them directly)
+- Validates TypeScript types in test code
+
+⚠️ **CRITICAL**: These are DIFFERENT commands with DIFFERENT purposes. Both are required.
+
+### Server Environments
+
+**Production Server (Port 8000)**:
+- Managed with pm2
+- Uses `.env.production` → `monk` database
+- **NOT used for development or testing**
+
+**Development Server (Port 9001)**:
+```bash
+npm start          # Foreground
+npm run start:bg   # Background
+```
+- Uses `.env.development` (or `.env` symlink) → `monk_development` database
+- For local development only
+- **NOT used for testing**
+
+**Test Server (Port 9002)**:
+```bash
+npm run test:startup    # Build + start test server
+npm run test:cleanup    # Stop test server
+```
+- Uses `.env.test` → `monk_test` database
+- Dedicated server for running tests
+- Must be running before executing ANY tests
+
+⚠️ **COMMON MISTAKE**: Do not use production (8000) or development (9001) servers for testing. Always use the dedicated test server on port 9002.
+
+### Test Execution Lifecycle
+
+**Correct workflow for running tests:**
+
+```bash
+# 1. Start test infrastructure (builds app + starts server on 9002)
+npm run test:startup
+
+# 2. Run tests
+npm run test:ts        # TypeScript tests
+npm run test:sh        # Shell tests
+
+# 3. Cleanup (stops server on 9002)
+npm run test:cleanup
+```
+
+**What `npm run test:startup` does:**
+1. Runs `npm run build` (compile application)
+2. Runs `npm run build:tests` (type-check tests)
+3. Kills existing servers on port 9002
+4. Starts new server on port 9002
+5. Logs to `logs/test-server.log`
+
+**What `npm run test:cleanup` does:**
+1. Kills server on port 9002
+2. Does NOT drop test databases (those accumulate)
+
+### Database Connection Management
+
+Tests create temporary tenant databases, each with connection pools. To avoid exhausting PostgreSQL's connection limit:
+
+- **Test DB pools**: 2 connections each (reduced from default 5)
+- **Max concurrent tests**: 5 files (configured in `vitest.config.ts`)
+- **Pool cleanup**: Automatic via `/test/pools` endpoint at test completion
+
+**If you see "too many clients already":**
+```bash
+# Stop server to release all pools
+npm run test:cleanup
+
+# Drop accumulated test databases
+psql -c "SELECT 'DROP DATABASE \"' || datname || '\";' FROM pg_database WHERE datname LIKE 'tenant_test_%';" | grep DROP | psql
+
+# Restart
+npm run test:startup
+```
+
+### Common Mistakes to Avoid
+
+1. ❌ Running `npm start` instead of `npm run test:startup`
+2. ❌ Running `npx vitest` directly without server
+3. ❌ Using pm2 or wrong ports (pm2 is for production on 8000, dev is 9001, tests are 9002)
+4. ❌ Forgetting to rebuild after source changes
+5. ❌ Confusing `npm run build` with `npm run build:tests`
+6. ❌ Stopping server and forgetting to restart before next test run
 
 ## Quick Start
 

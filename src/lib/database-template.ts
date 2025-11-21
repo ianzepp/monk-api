@@ -13,10 +13,8 @@ const execAsync = promisify(exec);
 export interface TemplateCloneOptions {
     template_name: string;
     tenant_name?: string; // Optional - will be generated if not provided
-    username?: string; // Optional - defaults to 'root' in personal mode
+    username?: string; // Optional - defaults to 'root'
     user_access?: string; // Default: 'full'
-    naming_mode?: 'enterprise' | 'personal'; // Database naming mode (default: enterprise or from env)
-    database?: string; // Custom database name (personal mode only, defaults to sanitized tenant_name)
     description?: string; // Optional tenant description
     // Future extensibility:
     // email?: string;
@@ -89,30 +87,12 @@ export class DatabaseTemplate {
                 tenantName = `demo_${timestamp}_${random}`;
             }
 
-            // 3. Determine naming mode
-            const defaultMode = (process.env.TENANT_NAMING_MODE || 'enterprise') as 'enterprise' | 'personal';
-            const namingMode = options.naming_mode || defaultMode;
-            const mode =
-                namingMode === 'personal' ? TenantNamingMode.PERSONAL : TenantNamingMode.ENTERPRISE;
+            // 3. Set username (defaults to 'root' if not provided)
+            const username = options.username || 'root';
 
-            // 3a. Set default username for personal mode
-            const username = options.username || (mode === TenantNamingMode.PERSONAL ? 'root' : undefined);
-
-            if (!username) {
-                throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
-            }
-
-            // 4. Generate database name
-            let databaseName: string;
-
-            if (mode === TenantNamingMode.PERSONAL && options.database) {
-                // Personal mode with explicit database name
-                databaseName = DatabaseNaming.generateDatabaseName(options.database, mode);
-            } else {
-                // Generate from tenant name (works for both modes)
-                // In personal mode, if database not specified, uses sanitized tenant name
-                databaseName = DatabaseNaming.generateDatabaseName(tenantName, mode);
-            }
+            // 4. Generate database name using SHA256 hash
+            // Always uses enterprise mode for consistent, environment-isolated names
+            const databaseName = DatabaseNaming.generateDatabaseName(tenantName, TenantNamingMode.ENTERPRISE);
 
             // 5. Check if tenant name already exists
             const existingCheck = await mainPool.query('SELECT COUNT(*) FROM tenants WHERE name = $1', [
@@ -148,8 +128,8 @@ export class DatabaseTemplate {
             // This is a temporary placeholder - ideally we'd have the owner_id passed in options
             const tenantInsertResult = await mainPool.query(
                 `
-                INSERT INTO tenants (name, database, description, source_template, owner_id, host, is_active, naming_mode)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                INSERT INTO tenants (name, database, description, source_template, owner_id, host, is_active)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id
             `,
                 [
@@ -160,7 +140,6 @@ export class DatabaseTemplate {
                     '00000000-0000-0000-0000-000000000000', // Placeholder - will update after user creation
                     'localhost',
                     true,
-                    namingMode,
                 ]
             );
 

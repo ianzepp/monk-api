@@ -69,8 +69,9 @@ print_step "Server output logged to: $LOG_FILE"
 # Add timestamp header to log file
 echo "=== Test server started at $(date) ===" >> "$LOG_FILE"
 
-# Start server on port 9002 and capture all output
-PORT=9002 node dist/index.js >> "$LOG_FILE" 2>&1 &
+# Start server on port 9002 with test environment
+# Uses .env.test for database isolation (monk_test instead of monk)
+NODE_ENV=test PORT=9002 node -r dotenv/config dist/index.js dotenv_config_path=.env.test >> "$LOG_FILE" 2>&1 &
 
 # Get process ID for reference
 readonly SERVER_PID=$!

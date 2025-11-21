@@ -2,7 +2,6 @@ import pg from 'pg';
 
 const { Pool, Client } = pg;
 
-export const MONK_DB_MAIN_NAME = 'monk';
 export const MONK_DB_TENANT_PREFIX = 'tenant_';
 export const MONK_DB_TEST_PREFIX = 'test_';
 export const MONK_DB_TEST_TEMPLATE_PREFIX = 'test_template_';
@@ -18,15 +17,39 @@ export const MONK_DB_TEST_TEMPLATE_PREFIX = 'test_template_';
 export class DatabaseConnection {
     private static pools = new Map<string, pg.Pool>();
 
+    /**
+     * Get the main database name from DATABASE_URL
+     * Extracts database name from connection string for environment isolation:
+     * - Production: monk
+     * - Development: monk_development
+     * - Test: monk_test
+     */
+    static getMainDatabaseName(): string {
+        const databaseUrl = this.getDatabaseURL();
+        const url = new URL(databaseUrl);
+        const dbName = url.pathname.slice(1); // Remove leading '/'
+
+        if (!dbName) {
+            throw new Error('DATABASE_URL must include a database name in the path');
+        }
+
+        return dbName;
+    }
+
     /** Get connection pool for the primary monk database */
     static getMainPool(): pg.Pool {
-        return this.getPool(MONK_DB_MAIN_NAME, 10);
+        const mainDbName = this.getMainDatabaseName();
+        return this.getPool(mainDbName, 10);
     }
 
     /** Get tenant-specific database pool */
     static getTenantPool(databaseName: string): pg.Pool {
         this.validateTenantDatabaseName(databaseName);
-        return this.getPool(databaseName);
+
+        // Use smaller pool size for test databases to conserve PostgreSQL connections
+        const maxConnections = databaseName.startsWith(MONK_DB_TEST_PREFIX) ? 2 : 5;
+
+        return this.getPool(databaseName, maxConnections);
     }
 
     /** Convenience helper for postgres sudo client */
@@ -110,6 +133,69 @@ export class DatabaseConnection {
         this.pools.clear();
         await Promise.all(closePromises);
         console.info('All database connections closed');
+    }
+
+    /** Close a specific database pool */
+    static async closePool(databaseName: string): Promise<void> {
+        const pool = this.pools.get(databaseName);
+        if (!pool) {
+            return;
+        }
+
+        try {
+            await pool.end();
+            this.pools.delete(databaseName);
+            console.info('Database pool closed', { database: databaseName });
+        } catch (error) {
+            console.warn('Failed to close database pool', {
+                database: databaseName,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    /** Close all pools matching a prefix pattern */
+    static async closePoolsByPrefix(prefix: string): Promise<void> {
+        const closePromises: Promise<void>[] = [];
+        const databasesToClose: string[] = [];
+
+        for (const databaseName of this.pools.keys()) {
+            if (databaseName.startsWith(prefix)) {
+                databasesToClose.push(databaseName);
+            }
+        }
+
+        for (const databaseName of databasesToClose) {
+            closePromises.push(this.closePool(databaseName));
+        }
+
+        await Promise.all(closePromises);
+
+        if (databasesToClose.length > 0) {
+            console.info('Closed database pools by prefix', {
+                prefix,
+                count: databasesToClose.length,
+            });
+        }
+    }
+
+    /** Get pool statistics for debugging */
+    static getPoolStats(): {
+        totalPools: number;
+        testPools: number;
+        tenantPools: number;
+        databases: string[];
+    } {
+        const databases = Array.from(this.pools.keys());
+        const testPools = databases.filter(db => db.startsWith(MONK_DB_TEST_PREFIX)).length;
+        const tenantPools = databases.filter(db => db.startsWith(MONK_DB_TENANT_PREFIX)).length;
+
+        return {
+            totalPools: databases.length,
+            testPools,
+            tenantPools,
+            databases,
+        };
     }
 
     /** Attach tenant database pool to Hono context */

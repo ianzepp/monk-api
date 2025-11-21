@@ -70,6 +70,7 @@ export class TestInfrastructure {
      *
      * This is called once at the end of the test suite (via globalSetup teardown).
      * It performs cleanup tasks like:
+     * - Closing all test database connection pools
      * - Cleaning up all test tenants (tenants with names starting with 'test_')
      *
      * NOTE: This does NOT stop the server - that's done by test-ts.sh wrapper.
@@ -78,15 +79,19 @@ export class TestInfrastructure {
         console.log(`\n🧹 Cleaning up test infrastructure...`);
 
         try {
-            // Clean up all test tenants via the cleanup helper
-            // This matches the shell script's cleanup_all_test_databases function
-            const response = await fetch(`${TEST_CONFIG.API_URL}/`, {
-                method: 'GET',
+            // Close all test database pools first to free up PostgreSQL connections
+            const poolsResponse = await fetch(`${TEST_CONFIG.API_URL}/test/pools`, {
+                method: 'DELETE',
             });
 
-            if (response.ok) {
-                console.log(`✅ Test infrastructure cleanup completed\n`);
+            if (poolsResponse.ok) {
+                const poolsData = await poolsResponse.json() as any;
+                if (poolsData.success && poolsData.data?.poolsClosed > 0) {
+                    console.log(`✅ Closed ${poolsData.data.poolsClosed} test database pool(s)`);
+                }
             }
+
+            console.log(`✅ Test infrastructure cleanup completed\n`);
         } catch (error) {
             console.warn(`⚠️  Cleanup encountered issues (may be expected): ${error}\n`);
         }

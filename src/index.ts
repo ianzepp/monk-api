@@ -43,6 +43,7 @@ import * as middleware from '@src/lib/middleware/index.js';
 
 // Route handlers
 import * as authRoutes from '@src/routes/auth/routes.js';
+import * as testRoutes from '@src/routes/test/routes.js';
 import * as userRoutes from '@src/routes/api/user/routes.js';
 import * as dataRoutes from '@src/routes/api/data/routes.js';
 import * as describeRoutes from '@src/routes/api/describe/routes.js';
@@ -64,7 +65,7 @@ import AggregateSchemaPost from '@src/routes/api/aggregate/:schema/POST.js'; // 
 console.info('Checking database connection:');
 console.info('- NODE_ENV:', process.env.NODE_ENV);
 console.info('- DATABASE_URL:', process.env.DATABASE_URL);
-console.info('- TENANT_NAMING_MODE:', process.env.TENANT_NAMING_MODE || 'default (enterprise)');
+console.info('- Tenant naming: SHA256 hashing (environment-isolated)');
 checkDatabaseConnection();
 
 // Create Hono app
@@ -199,6 +200,9 @@ app.get('/health', content => {
 app.use('/auth/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
 app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for responses
 app.use('/auth/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
+app.use('/test/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
+app.use('/test/*', middleware.formatDetectionMiddleware); // Detect format for responses
+app.use('/test/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
 // Protected API routes - require JWT authentication from /auth
@@ -220,6 +224,10 @@ app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
 app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
 app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
 app.get('/auth/templates', authRoutes.TemplatesGet); // GET /auth/templates
+
+// Test utilities (dev/test environments only)
+app.get('/test/pools', testRoutes.PoolsGet); // GET /test/pools
+app.delete('/test/pools', testRoutes.PoolsDelete); // DELETE /test/pools
 
 // 31-describe-api: Describe API routes
 app.get('/api/describe', describeRoutes.SchemaList); // Lists all schemas

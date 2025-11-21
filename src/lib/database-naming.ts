@@ -15,6 +15,9 @@ import { createHash } from 'crypto';
 
 /**
  * Tenant database naming modes
+ *
+ * Note: Previously supported PERSONAL mode (human-readable names) was removed
+ * to ensure database name isolation across environments and avoid naming conflicts.
  */
 export enum TenantNamingMode {
     /**
@@ -23,14 +26,6 @@ export enum TenantNamingMode {
      * Example: "My Company" → "tenant_a1b2c3d4e5f6789a"
      */
     ENTERPRISE = 'enterprise',
-
-    /**
-     * Personal mode: Uses sanitized tenant name directly
-     * Format: tenant_<sanitized-name>
-     * Example: "monk-irc" → "tenant_monk_irc"
-     * (Reserved for Phase 2 implementation)
-     */
-    PERSONAL = 'personal',
 }
 
 /**
@@ -43,47 +38,34 @@ export class DatabaseNaming {
     /**
      * Generate tenant database name
      *
-     * Supports two modes:
-     * - ENTERPRISE: SHA256 hash (tenant_<16-char-hex>) - Default, secure, collision-resistant
-     * - PERSONAL: Sanitized tenant name (tenant_<sanitized-name>) - Human-readable, requires uniqueness checks
+     * Uses SHA256 hashing to ensure:
+     * - Consistent database names regardless of Unicode variations
+     * - Protection from reserved name conflicts
+     * - Database name privacy (tenant name not exposed in DB name)
+     * - No collision risk (16 hex chars = 64 bits of entropy)
+     * - Environment isolation (same tenant name in dev/test/prod gets same hash)
      *
-     * Algorithm (Enterprise Mode):
+     * Algorithm:
      * 1. Normalize Unicode input (NFC normalization)
      * 2. Trim whitespace
      * 3. Generate SHA256 hash
      * 4. Take first 16 hex characters
      * 5. Add 'tenant_' prefix
      *
-     * Algorithm (Personal Mode):
-     * 1. Normalize and trim input
-     * 2. Convert to lowercase
-     * 3. Replace non-alphanumeric with underscores
-     * 4. Collapse multiple underscores
-     * 5. Add 'tenant_' prefix if not present
-     *
-     * Examples (Enterprise):
+     * Examples:
      *   "My Cool App" → "tenant_a1b2c3d4e5f6789a"
      *   "测试应用" → "tenant_f9e8d7c6b5a49382"
      *   "🚀 Rocket" → "tenant_d4c9b8a7f6e51203"
      *
-     * Examples (Personal):
-     *   "monk-irc" → "tenant_monk_irc"
-     *   "My Company" → "tenant_my_company"
-     *   "test-db" → "tenant_test_db"
-     *
      * @param tenantName - User-facing tenant name (any Unicode string)
-     * @param mode - Naming mode (ENTERPRISE or PERSONAL)
+     * @param mode - Naming mode (kept for backward compatibility, always uses ENTERPRISE)
      * @returns PostgreSQL database name with tenant_ prefix
      */
     static generateDatabaseName(
         tenantName: string,
         mode: TenantNamingMode = TenantNamingMode.ENTERPRISE,
     ): string {
-        if (mode === TenantNamingMode.PERSONAL) {
-            return this.generatePersonalModeName(tenantName);
-        }
-
-        // Enterprise mode: SHA256 hashing
+        // Always use SHA256 hashing for consistent, collision-resistant names
         // Normalize Unicode for consistent hashing
         // NFC (Canonical Decomposition, followed by Canonical Composition)
         // ensures that "é" and "e + ´" produce the same hash
@@ -95,43 +77,6 @@ export class DatabaseNaming {
 
         // Add prefix to distinguish from test databases (which use test_*)
         return `tenant_${hash}`;
-    }
-
-    /**
-     * Generate database name for personal mode
-     *
-     * Personal mode creates human-readable database names from tenant names.
-     * This is useful for personal PaaS deployments where you want the database
-     * name to match the tenant name (e.g., "monk-irc" → "tenant_monk_irc").
-     *
-     * Sanitization rules:
-     * - Convert to lowercase
-     * - Replace non-alphanumeric (except underscore) with underscore
-     * - Collapse multiple underscores to single underscore
-     * - Remove leading/trailing underscores
-     * - Ensure tenant_ prefix
-     *
-     * @param tenantName - User-facing tenant name
-     * @returns Sanitized database name with tenant_ prefix
-     */
-    private static generatePersonalModeName(tenantName: string): string {
-        // Normalize and trim
-        const normalized = tenantName.trim().normalize('NFC');
-
-        // Convert to lowercase and replace non-alphanumeric with underscores
-        // Allow letters, numbers, and underscores only
-        const sanitized = normalized
-            .toLowerCase()
-            .replace(/[^a-z0-9_]/g, '_') // Replace non-alphanumeric with underscore
-            .replace(/_+/g, '_') // Collapse multiple underscores
-            .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
-
-        // Ensure tenant_ prefix
-        if (sanitized.startsWith('tenant_')) {
-            return sanitized;
-        }
-
-        return `tenant_${sanitized}`;
     }
 
     /**
@@ -154,7 +99,7 @@ export class DatabaseNaming {
     }
 
     /**
-     * Extract hash from enterprise mode database name
+     * Extract hash from database name
      *
      * @param databaseName - Database name in format tenant_<hash>
      * @returns Hash portion, or null if not a valid tenant database
