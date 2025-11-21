@@ -194,8 +194,8 @@ GET    /api/data/:schema/:record/:rel     → /docs/data/schema/record/relations
 ## Documentation Guide
 
 ### Getting Started Documentation
-- **Token Operations**: `/docs/public-auth` - Login, register, refresh workflows
-- **User Management**: `/docs/auth` - Account management and privilege escalation
+- **Token Operations**: `/docs/auth` - Login, register, refresh workflows
+- **User Management**: `/docs/user` - Account management and privilege escalation
 
 ### Core API Documentation
 - **Data Management**: `/docs/data` - CRUD operations and record management

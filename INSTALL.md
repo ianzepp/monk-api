@@ -244,7 +244,7 @@ npm run test:sh 10        # Authentication tests
 npm run test:sh 31-32     # Meta and data API tests
 
 # Individual test
-# npm run test:sh spec/10-auth/public-auth.test.sh
+# npm run test:sh spec/10-auth/auth.test.sh
 ```
 
 ## Performance

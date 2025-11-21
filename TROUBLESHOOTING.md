@@ -204,7 +204,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:9001/api/user/whoami
 echo $JWT_SECRET
 
 # Get fresh token
-npm run test:sh 10-auth/public-auth.test.sh
+npm run test:sh 10-auth/auth.test.sh
 ```
 
 ## Configuration Issues
