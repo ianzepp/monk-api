@@ -29,11 +29,11 @@ export default class RecordPreloader extends BaseObserver {
         const recordIds = this.extractRecordIds(data, operation);
 
         if (recordIds.length === 0) {
-            logger.info('No record IDs found for preloading', { schemaName, operation });
+            console.info('No record IDs found for preloading', { schemaName, operation });
             return;
         }
 
-        logger.info(`Preloading ${recordIds.length} existing records for ${operation}`, {
+        console.info(`Preloading ${recordIds.length} existing records for ${operation}`, {
             schemaName,
             operation,
             recordIds: recordIds.slice(0, 5), // First 5 for logging
@@ -63,7 +63,7 @@ export default class RecordPreloader extends BaseObserver {
             metadata.set('existing_records', frozenRecords);
             metadata.set('existing_records_by_id', frozenById);
 
-            logger.info(`Successfully preloaded ${existingRecords.length} existing records`, {
+            console.info(`Successfully preloaded ${existingRecords.length} existing records`, {
                 schemaName,
                 operation,
                 requestedCount: recordIds.length,
@@ -72,7 +72,7 @@ export default class RecordPreloader extends BaseObserver {
             });
 
         } catch (error) {
-            logger.warn('Failed to preload existing records', {
+            console.warn('Failed to preload existing records', {
                 schemaName,
                 operation,
                 recordIds: recordIds.slice(0, 3), // First 3 for debugging

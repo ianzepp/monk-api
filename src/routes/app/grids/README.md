@@ -346,7 +346,7 @@ async executeOne(record: any, context: ObserverContext): Promise<void> {
 
     // Skip DDL operations for external schemas (managed elsewhere)
     if (record.external === true) {
-        logger.info(`Skipping DDL operation for external schema: ${schemaName}`);
+        console.info(`Skipping DDL operation for external schema: ${schemaName}`);
         return;
     }
 
@@ -376,7 +376,7 @@ async executeOne(record: any, context: ObserverContext): Promise<void> {
 
     // Skip DDL operations for external schemas (managed elsewhere)
     if (schema.external === true) {
-        logger.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
+        console.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
         return;
     }
 

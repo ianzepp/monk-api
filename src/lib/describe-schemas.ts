@@ -1,6 +1,5 @@
 import type { System } from '@src/lib/system.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { logger } from '@src/lib/logger.js';
 import type { FilterData } from '@src/lib/filter-types.js';
 import type {
     SchemaRecord,
@@ -48,7 +47,7 @@ export class DescribeSchemas {
             );
         }
 
-        logger.info('Sudo access validated for system schema modification', {
+        console.info('Sudo access validated for system schema modification', {
             schemaName,
             userId: this.system.getUser?.()?.id,
             elevation_reason: jwtPayload.elevation_reason
@@ -89,7 +88,7 @@ export class DescribeSchemas {
             throw HttpErrors.badRequest('schema_name is required', 'MISSING_REQUIRED_FIELDS');
         }
 
-        logger.info('Creating schema via observer pipeline', { schemaName: data.schema_name });
+        console.info('Creating schema via observer pipeline', { schemaName: data.schema_name });
 
         // Delegate to database
         return this.system.database.createOne<Omit<SchemaRecord, keyof SystemFields>>('schemas', data) as Promise<SchemaRecord>;
@@ -109,7 +108,7 @@ export class DescribeSchemas {
             throw HttpErrors.badRequest('No valid fields to update', 'NO_UPDATES');
         }
 
-        logger.info('Updating schema metadata', { schemaName, updates });
+        console.info('Updating schema metadata', { schemaName, updates });
 
         return await this.system.database.update404<SchemaRecord>('schemas', filter, updates, message)
             .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'SCHEMA_NOT_FOUND'));
@@ -125,7 +124,7 @@ export class DescribeSchemas {
         // Extract schema name for logging
         const schemaName = filter.where?.schema_name;
 
-        logger.info('Deleting schema via observer pipeline', { schemaName });
+        console.info('Deleting schema via observer pipeline', { schemaName });
 
         return await this.system.database.delete404<SchemaRecord>('schemas', filter, message)
             .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'SCHEMA_NOT_FOUND'));

@@ -29,7 +29,7 @@ export default class UpdateMerger extends BaseObserver {
         const schemaName = context.schema.schema_name;
 
         if (!Array.isArray(data) || data.length === 0) {
-            logger.info('No update data found for merging', { schemaName, operation });
+            console.info('No update data found for merging', { schemaName, operation });
             return;
         }
 
@@ -38,7 +38,7 @@ export default class UpdateMerger extends BaseObserver {
 
         // Check if any records were preloaded
         if (Object.keys(existingRecordsById).length === 0 && data.some(d => d?.id)) {
-            logger.warn('Cannot merge update data - no existing records preloaded', {
+            console.warn('Cannot merge update data - no existing records preloaded', {
                 schemaName,
                 operation,
                 updateRecords: data.length
@@ -60,7 +60,7 @@ export default class UpdateMerger extends BaseObserver {
             const updateData = data[i];
 
             if (!updateData || !updateData.id) {
-                logger.warn('Skipping update record without ID', {
+                console.warn('Skipping update record without ID', {
                     schemaName,
                     operation,
                     recordIndex: i,
@@ -73,7 +73,7 @@ export default class UpdateMerger extends BaseObserver {
             const existingRecord = existingRecordsById[updateData.id];
 
             if (!existingRecord) {
-                logger.warn('Skipping update - existing record not found', {
+                console.warn('Skipping update - existing record not found', {
                     schemaName,
                     operation,
                     recordId: updateData.id,
@@ -104,7 +104,7 @@ export default class UpdateMerger extends BaseObserver {
             mergedCount++;
         }
 
-        logger.info('Update merge completed successfully', {
+        console.info('Update merge completed successfully', {
             schemaName,
             operation,
             totalRecords: data.length,

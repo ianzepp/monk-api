@@ -1,7 +1,3 @@
-// Set up global logger instance
-import { logger } from '@src/lib/logger.js';
-global.logger = logger;
-
 // Import process environment as early as possible
 import dotenv from 'dotenv';
 dotenv.config({ debug: true });
@@ -67,10 +63,10 @@ import FindSchemaPost from '@src/routes/api/find/:schema/POST.js'; // POST /api/
 import AggregateSchemaPost from '@src/routes/api/aggregate/:schema/POST.js'; // POST /api/aggregate/:schema
 
 // Check database connection before doing anything else
-logger.info('Checking database connection:');
-logger.info('- NODE_ENV:', process.env.NODE_ENV);
-logger.info('- DATABASE_URL:', process.env.DATABASE_URL);
-logger.info('- TENANT_NAMING_MODE:', process.env.TENANT_NAMING_MODE || 'default (enterprise)');
+console.info('Checking database connection:');
+console.info('- NODE_ENV:', process.env.NODE_ENV);
+console.info('- DATABASE_URL:', process.env.DATABASE_URL);
+console.info('- TENANT_NAMING_MODE:', process.env.TENANT_NAMING_MODE || 'default (enterprise)');
 checkDatabaseConnection();
 
 // Create Hono app
@@ -90,7 +86,7 @@ app.use('*', async (c, next) => {
     const duration = Date.now() - start;
     const status = c.res.status;
 
-    logger.info('Request completed', { method, path, status, duration });
+    console.info('Request completed', { method, path, status, duration });
 
     return result;
 });
@@ -345,7 +341,7 @@ app.notFound(c => {
 const port = Number(process.env.PORT || 9001);
 
 // Initialize observer system
-logger.info('Preloading observer system');
+console.info('Preloading observer system');
 try {
     // Validate observer files before loading
     const validationResult = await ObserverValidator.validateAll();
@@ -355,44 +351,44 @@ try {
     }
 
     await ObserverLoader.preloadObservers();
-    logger.info('Observer system ready', {
+    console.info('Observer system ready', {
         observersValidated: validationResult.filesChecked,
         warnings: validationResult.warnings.length
     });
 } catch (error) {
     console.error(`❌ Observer system initialization failed:`, error);
-    logger.warn('Continuing without observer system');
+    console.warn('Continuing without observer system');
 }
 
 // Check for --no-startup flag
 if (process.argv.includes('--no-startup')) {
-    logger.info('✅ Startup test successful - all modules loaded without errors');
+    console.info('✅ Startup test successful - all modules loaded without errors');
     process.exit(0);
 }
 
 // Start HTTP server only
-logger.info('Starting Monk HTTP API Server (Hono)');
-logger.info('For FS server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
-logger.info('For FS-like interaction via the commandline, see monk-cli project: https://github.com/ianzepp/monk-cli');
+console.info('Starting Monk HTTP API Server (Hono)');
+console.info('For FS server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
+console.info('For FS-like interaction via the commandline, see monk-cli project: https://github.com/ianzepp/monk-cli');
 
 const server = serve({
     fetch: app.fetch,
     port,
 });
 
-logger.info('HTTP API server running', { port, url: `http://localhost:${port}` });
+console.info('HTTP API server running', { port, url: `http://localhost:${port}` });
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-    logger.info('Shutting down HTTP API server gracefully');
+    console.info('Shutting down HTTP API server gracefully');
 
     // Stop HTTP server
     server.close();
-    logger.info('HTTP server stopped');
+    console.info('HTTP server stopped');
 
     // Close database connections
     await closeDatabaseConnection();
-    logger.info('Database connections closed');
+    console.info('Database connections closed');
 
     process.exit(0);
 };

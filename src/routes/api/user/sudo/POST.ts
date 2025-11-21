@@ -57,7 +57,7 @@ export default async function (context: Context) {
     const sudoToken = await sign(payload, process.env['JWT_SECRET']!);
 
     // Log sudo escalation for security audit
-    logger.warn('Sudo elevation granted', {
+    console.warn('Sudo elevation granted', {
         user_id: user.id,
         tenant: user.tenant,
         access_level: user.access,

@@ -72,7 +72,7 @@ export default class HistoryTracker extends BaseObserver {
         // Determine record ID
         const recordId = result?.id || existing?.id || record?.id;
         if (!recordId) {
-            logger.warn('History tracker: Cannot track change without record ID', { schemaName, operation });
+            console.warn('History tracker: Cannot track change without record ID', { schemaName, operation });
             return;
         }
 
@@ -106,7 +106,7 @@ export default class HistoryTracker extends BaseObserver {
 
         // Create history record using raw SQL to avoid observer recursion
         try {
-            logger.info('Creating history record', {
+            console.info('Creating history record', {
                 schemaName,
                 recordId,
                 operation,
@@ -139,14 +139,14 @@ export default class HistoryTracker extends BaseObserver {
                 ]
             );
 
-            logger.info('History record created successfully', {
+            console.info('History record created successfully', {
                 schemaName,
                 recordId,
                 operation,
                 trackedFieldCount: Object.keys(changes).length
             });
         } catch (error) {
-            logger.error('Failed to create history record', {
+            console.error('Failed to create history record', {
                 schemaName,
                 recordId,
                 operation,
@@ -187,7 +187,7 @@ export default class HistoryTracker extends BaseObserver {
             case 'update':
                 // For updates, store old and new values for changed tracked columns
                 if (!existing) {
-                    logger.warn('History tracker: Cannot compute update changes without existing record', { operation });
+                    console.warn('History tracker: Cannot compute update changes without existing record', { operation });
                     break;
                 }
 

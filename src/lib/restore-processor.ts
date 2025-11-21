@@ -1,5 +1,4 @@
 import type { System } from '@src/lib/system.js';
-import { logger } from '@src/lib/logger.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { YamlFormatter } from '@src/lib/formatters/yaml.js';
 import { createReadStream, createWriteStream, mkdirSync } from 'fs';
@@ -29,7 +28,7 @@ export class RestoreProcessor {
         try {
             mkdirSync(this.restoresDir, { recursive: true });
         } catch (err) {
-            logger.error('Failed to create restores directory', { err });
+            console.error('Failed to create restores directory', { err });
         }
     }
 
@@ -91,7 +90,7 @@ export class RestoreProcessor {
 
         // Execute in background (don't await)
         this.executeRestoreJob(run.id, restore).catch(err => {
-            logger.error('Restore job failed', { runId: run.id, err });
+            console.error('Restore job failed', { runId: run.id, err });
         });
 
         return run.id;
@@ -250,7 +249,7 @@ export class RestoreProcessor {
                 records_updated: recordsUpdated
             });
 
-            logger.info('Restore job completed', {
+            console.info('Restore job completed', {
                 runId,
                 duration,
                 schemasCreated,
@@ -264,7 +263,7 @@ export class RestoreProcessor {
             const duration = Math.floor((Date.now() - startTime) / 1000);
             const errorMessage = error instanceof Error ? error.message : String(error);
 
-            logger.error('Restore job failed', { runId, error: errorMessage });
+            console.error('Restore job failed', { runId, error: errorMessage });
 
             await this.log(runId, 'error', null, null, null, `Restore failed: ${errorMessage}`, {
                 stack: error instanceof Error ? error.stack : undefined

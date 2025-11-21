@@ -60,7 +60,7 @@ export default class TransformProcessor extends BaseObserver {
         }
 
         if (transformCount > 0) {
-            logger.info('Field transforms applied', {
+            console.info('Field transforms applied', {
                 schemaName: schema.schema_name,
                 recordCount: data.length,
                 transformCount,
@@ -97,7 +97,7 @@ function applyTransform(value: any, transformType: string): any {
             return normalizeEmail(strValue);
 
         default:
-            logger.warn('Unknown transform type', { transformType });
+            console.warn('Unknown transform type', { transformType });
             return value; // Return original if unknown
     }
 }

@@ -8,7 +8,6 @@
 import type { System } from '@src/lib/system.js';
 import { Schema } from '@src/lib/schema.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
-import { Logger } from '@src/lib/logger.js';
 import type {
     Observer,
     ObserverContext,
@@ -55,7 +54,7 @@ export class ObserverRunner {
             // Get relevant rings for this operation (selective execution)
             const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
 
-            logger.info('Observer rings executing', {
+            console.info('Observer rings executing', {
                 operation,
                 schemaName: schema.schema_name,
                 ringCount: relevantRings.length,
@@ -134,7 +133,7 @@ export class ObserverRunner {
             stats
         };
 
-        logger.info('Observer execution completed', {
+        console.info('Observer execution completed', {
             success,
             operation: context.operation,
             schemaName: context.schema.schema_name,
@@ -162,7 +161,7 @@ export class ObserverRunner {
         error: unknown,
         totalTime: number
     ): ObserverResult {
-        logger.warn('Observer execution failed', {
+        console.warn('Observer execution failed', {
             operation: context.operation,
             schemaName: context.schema.schema_name,
             totalTimeMs: totalTime,

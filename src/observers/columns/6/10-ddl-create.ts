@@ -27,13 +27,13 @@ export default class DdlCreateObserver extends BaseObserver {
 
         // Skip DDL operations for external schemas (managed elsewhere)
         if (schema.external === true) {
-            logger.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
+            console.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
             return;
         }
 
         // Skip system fields - they're already defined in the table
         if (isSystemField(columnName)) {
-            logger.warn(`Skipping DDL for system field: ${columnName}`);
+            console.warn(`Skipping DDL for system field: ${columnName}`);
             return;
         }
 
@@ -62,7 +62,7 @@ export default class DdlCreateObserver extends BaseObserver {
         // Execute DDL
         try {
             await SqlUtils.getPool(system).query(ddl);
-            logger.info(`Added column to table: ${schemaName}.${columnName}`);
+            console.info(`Added column to table: ${schemaName}.${columnName}`);
         } catch (error) {
             throw new SystemError(
                 `Failed to add column '${columnName}' to table '${schemaName}': ${error instanceof Error ? error.message : String(error)}`

@@ -169,7 +169,7 @@ export class InfrastructureService {
             sourceDatabase = tenant.database;
             parentTemplate = null;
         }
-        
+
         // Sandbox always belongs to the tenant (for team collaboration)
         const parentTenantId = tenant.id;
 
@@ -289,14 +289,14 @@ export class InfrastructureService {
 
         try {
             // Step 1: pg_dump source database (transaction-safe, doesn't block)
-            logger.info('Starting pg_dump', { source_database, target_database, dumpFile });
-            
+            console.info('Starting pg_dump', { source_database, target_database, dumpFile });
+
             // Get connection parameters from DATABASE_URL
             const { host, port, user } = DatabaseConnection.getConnectionParams();
             const hostArg = host ? `-h ${host}` : '';
             const portArg = port ? `-p ${port}` : '';
             const userArg = user ? `-U ${user}` : '';
-            
+
             await execAsync(
                 `pg_dump ${hostArg} ${portArg} ${userArg} ` +
                 `-d "${source_database}" ` +
@@ -306,11 +306,11 @@ export class InfrastructureService {
             );
 
             // Step 2: Create empty target database
-            logger.info('Creating target database', { target_database });
+            console.info('Creating target database', { target_database });
             await execAsync(`createdb ${hostArg} ${portArg} ${userArg} "${target_database}"`);
 
             // Step 3: Restore dump to target
-            logger.info('Restoring dump to target', { target_database });
+            console.info('Restoring dump to target', { target_database });
             await execAsync(
                 `pg_restore ${hostArg} ${portArg} ${userArg} ` +
                 `-d "${target_database}" ` +
@@ -325,11 +325,11 @@ export class InfrastructureService {
             // Step 5: Cleanup dump file
             await execAsync(`rm -f "${dumpFile}"`);
 
-            logger.info('Snapshot created successfully', { 
-                source_database, 
-                target_database, 
-                size_bytes, 
-                record_count 
+            console.info('Snapshot created successfully', {
+                source_database,
+                target_database,
+                size_bytes,
+                record_count
             });
 
             return { size_bytes, record_count };
@@ -338,7 +338,7 @@ export class InfrastructureService {
             // Cleanup on failure
             await execAsync(`rm -f "${dumpFile}"`).catch(() => {});
             await execAsync(`dropdb --if-exists "${target_database}"`).catch(() => {});
-            
+
             throw HttpErrors.internal(
                 `Failed to create snapshot: ${error}`,
                 'SNAPSHOT_CREATION_FAILED'
@@ -353,7 +353,7 @@ export class InfrastructureService {
     static async deleteSnapshotDatabase(database: string) {
         try {
             await execAsync(`dropdb "${database}"`);
-            logger.info('Snapshot database dropped', { database });
+            console.info('Snapshot database dropped', { database });
         } catch (error) {
             throw HttpErrors.internal(
                 `Failed to drop snapshot database: ${error}`,
@@ -422,13 +422,13 @@ export class InfrastructureService {
 
         try {
             await snapshotPool.query(
-                `UPDATE snapshots 
+                `UPDATE snapshots
                  SET status = $1, size_bytes = $2, record_count = $3, updated_at = CURRENT_TIMESTAMP
                  WHERE id = $4`,
                 [options.status, options.size_bytes, options.record_count, options.snapshot_id]
             );
 
-            logger.info('Updated snapshot database metadata', {
+            console.info('Updated snapshot database metadata', {
                 database: options.database,
                 snapshot_id: options.snapshot_id,
                 status: options.status
@@ -445,7 +445,7 @@ export class InfrastructureService {
     static async lockSnapshotDatabase(database: string): Promise<void> {
         const { Pool } = await import('pg');
         const { host, port, user } = DatabaseConnection.getConnectionParams();
-        
+
         // Must connect to postgres database to run ALTER DATABASE
         const postgresPool = new Pool({
             host: host || 'localhost',
@@ -459,10 +459,10 @@ export class InfrastructureService {
                 `ALTER DATABASE "${database}" SET default_transaction_read_only = on`
             );
 
-            logger.info('Locked snapshot database as read-only', { database });
+            console.info('Locked snapshot database as read-only', { database });
         } catch (error) {
             // Log warning but don't fail - snapshot is still usable
-            logger.warn('Failed to lock snapshot database', {
+            console.warn('Failed to lock snapshot database', {
                 database,
                 error: error instanceof Error ? error.message : String(error)
             });

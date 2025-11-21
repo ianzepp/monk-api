@@ -35,7 +35,7 @@ export default class FrozenValidator extends BaseObserver {
         if (schema.isFrozen()) {
             const schemaName = schema.schema_name;
 
-            logger.warn(`Blocked ${operation} on frozen schema`, {
+            console.warn(`Blocked ${operation} on frozen schema`, {
                 schemaName,
                 operation,
                 recordCount: data.length,

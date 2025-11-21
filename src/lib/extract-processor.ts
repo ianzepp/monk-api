@@ -1,5 +1,4 @@
 import type { System } from '@src/lib/system.js';
-import { logger } from '@src/lib/logger.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 import { YamlFormatter } from '@src/lib/formatters/yaml.js';
@@ -26,7 +25,7 @@ export class ExtractProcessor {
         try {
             mkdirSync(this.extractsDir, { recursive: true });
         } catch (err) {
-            logger.error('Failed to create extracts directory', { err });
+            console.error('Failed to create extracts directory', { err });
         }
     }
 
@@ -85,7 +84,7 @@ export class ExtractProcessor {
 
         // Execute in background (don't await)
         this.executeExtractJob(run.id, extract).catch(err => {
-            logger.error('Extract job failed', { runId: run.id, err });
+            console.error('Extract job failed', { runId: run.id, err });
         });
 
         return run.id;
@@ -128,7 +127,7 @@ export class ExtractProcessor {
 
             // Export describe metadata
             if (include.includes('describe')) {
-                logger.info('Exporting describe metadata', { runId });
+                console.info('Exporting describe metadata', { runId });
 
                 const artifact = await this.exportDescribeMetadata(
                     runId,
@@ -149,7 +148,7 @@ export class ExtractProcessor {
 
             // Export data
             if (include.includes('data')) {
-                logger.info('Exporting data', { runId, schemas: schemasToExport.length });
+                console.info('Exporting data', { runId, schemas: schemasToExport.length });
 
                 for (const schemaName of schemasToExport) {
                     const artifact = await this.exportSchemaData(
@@ -207,7 +206,7 @@ export class ExtractProcessor {
                 successful_runs: (extractConfig.successful_runs || 0) + 1
             });
 
-            logger.info('Extract job completed', {
+            console.info('Extract job completed', {
                 runId,
                 duration,
                 artifacts: artifacts.length,
@@ -219,7 +218,7 @@ export class ExtractProcessor {
             const duration = Math.floor((Date.now() - startTime) / 1000);
             const errorMessage = error instanceof Error ? error.message : String(error);
 
-            logger.error('Extract job failed', { runId, error: errorMessage });
+            console.error('Extract job failed', { runId, error: errorMessage });
 
             await this.system.database.updateOne('extract_runs', runId, {
                 status: 'failed',

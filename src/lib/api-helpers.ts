@@ -4,7 +4,6 @@ import type { SystemOptions } from '@src/lib/system-context-types.js';
 import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError, HttpErrors } from '@src/lib/errors/http-error.js';
 import { createSchema } from '@src/lib/schema.js';
-import { logger } from '@src/lib/logger.js';
 
 /**
  * API Request/Response Helpers
@@ -92,7 +91,7 @@ function extractPositionFromError(errorMessage: string): { line?: number; column
     const positionMatch = errorMessage.match(/position (\d+)/);
     const lineMatch = errorMessage.match(/line (\d+)/);
     const columnMatch = errorMessage.match(/column (\d+)/);
-    
+
     return {
         position: positionMatch ? parseInt(positionMatch[1]) : undefined,
         line: lineMatch ? parseInt(lineMatch[1]) : undefined,
@@ -147,11 +146,11 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
                     'text/plain',
                     'text/html'
                 ];
-                
-                const isSupported = supportedContentTypes.some(type => 
+
+                const isSupported = supportedContentTypes.some(type =>
                     params.contentType.includes(type)
                 );
-                
+
                 if (!isSupported) {
                     throw HttpErrors.unsupportedMediaType(
                         `Unsupported content type: ${params.contentType}`,
@@ -197,7 +196,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
                             }
                         );
                     }
-                    
+
                     // Handle other parsing errors (binary, text)
                     if (error instanceof TypeError && error.message.includes('body')) {
                         throw HttpErrors.badRequest(
@@ -206,7 +205,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
                             { details: error.message }
                         );
                     }
-                    
+
                     // Re-throw other parsing errors
                     throw error;
                 }
@@ -223,11 +222,11 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
             if (params.record) logData.record = params.record;
             if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
 
-            logger.info('Route operation completed', logData);
+            console.info('Route operation completed', logData);
 
             // Call the actual handler
             await handler(context, params);
-            
+
         } catch (error) {
             // Enhanced error categorization for better debugging
             if (error instanceof SyntaxError) {
@@ -242,7 +241,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
                     );
                 }
             }
-            
+
             if (error instanceof TypeError && error.message.includes('body')) {
                 throw HttpErrors.badRequest(
                     'Invalid request body format',
@@ -250,7 +249,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
                     { details: error.message }
                 );
             }
-            
+
             // Re-throw other errors for global handler to process
             throw error;
         }
@@ -280,7 +279,7 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
         await tx.query('BEGIN');
         system.tx = tx;
 
-        logger.info('Transaction started for route', {
+        console.info('Transaction started for route', {
             method: params.method,
             schema: params.schema,
             record: params.record
@@ -292,7 +291,7 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
 
             // Always commit (we always start the transaction)
             await tx.query('COMMIT');
-            logger.info('Transaction committed successfully', {
+            console.info('Transaction committed successfully', {
                 method: params.method,
                 schema: params.schema
             });
@@ -301,13 +300,13 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
             // Always rollback on error (we always start the transaction)
             try {
                 await tx.query('ROLLBACK');
-                logger.info('Transaction rolled back due to error', {
+                console.info('Transaction rolled back due to error', {
                     method: params.method,
                     schema: params.schema,
                     error: error instanceof Error ? error.message : String(error)
                 });
             } catch (rollbackError) {
-                logger.warn('Failed to rollback transaction', {
+                console.warn('Failed to rollback transaction', {
                     rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
                 });
             }

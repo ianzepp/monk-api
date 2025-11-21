@@ -8,7 +8,7 @@
  * Async observers:
  * - Execute via setImmediate() - don't block pipeline response
  * - Run outside transaction context - errors don't trigger rollback
- * - Failed executions logged via logger.warn() - no pipeline impact
+ * - Failed executions logged via console.warn() - no pipeline impact
  * - Perfect for Rings 6-9 (PostDatabase, Audit, Integration, Notification)
  */
 
@@ -37,7 +37,6 @@ export abstract class BaseAsyncObserver implements Observer {
      * allowing the main pipeline to complete and respond quickly.
      */
     async executeTry(context: ObserverContext): Promise<void> {
-        const startTime = process.hrtime.bigint();
         const observerName = this.constructor.name;
         const { system, operation, schema } = context;
         const schemaName = schema.schema_name;
@@ -51,8 +50,8 @@ export abstract class BaseAsyncObserver implements Observer {
                     this.createTimeoutPromise(observerName)
                 ]);
 
-                // Log successful async execution timing
-                logger.time(`AsyncObserver: ${observerName}`, startTime, {
+                // // Log successful async execution timing
+                console.info(`AsyncObserver: ${observerName}`, {
                     ring: this.ring,
                     operation,
                     schemaName,
@@ -61,7 +60,7 @@ export abstract class BaseAsyncObserver implements Observer {
 
             } catch (error) {
                 // Log failed async execution timing
-                logger.time(`AsyncObserver: ${observerName}`, startTime, {
+                console.info(`AsyncObserver: ${observerName}`, {
                     ring: this.ring,
                     operation,
                     schemaName,
@@ -70,7 +69,7 @@ export abstract class BaseAsyncObserver implements Observer {
                 });
 
                 // Async errors are logged but don't affect transaction or response
-                logger.warn(`Async observer failed: ${observerName}`, {
+                console.warn(`Async observer failed: ${observerName}`, {
                     ring: this.ring,
                     operation,
                     schemaName,

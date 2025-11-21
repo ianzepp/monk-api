@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
-import { logger } from '@src/lib/logger.js';
 
 // Cached schema entry
 interface CachedSchema {
@@ -121,7 +120,7 @@ export class SchemaCache {
                 if (cached && cached.updatedAt !== row.updated_at) {
                     // Timestamp mismatch - invalidate cache entry
                     dbCache.schemas.delete(row.schema_name);
-                    logger.info('Schema cache invalidated', { schemaName: row.schema_name, reason: 'timestamp changed' });
+                    console.info('Schema cache invalidated', { schemaName: row.schema_name, reason: 'timestamp changed' });
                 } else if (!cached) {
                     // New schema found - add minimal cache entry
                     dbCache.schemas.set(row.schema_name, {
@@ -129,7 +128,7 @@ export class SchemaCache {
                         columns: null, // Lazy load with schema
                         updatedAt: row.updated_at,
                     });
-                    logger.info('Schema cache entry created', { schemaName: row.schema_name });
+                    console.info('Schema cache entry created', { schemaName: row.schema_name });
                 }
             }
 
@@ -138,7 +137,7 @@ export class SchemaCache {
                 dbCache.lastChecksumRefresh = now;
             }
         } catch (error) {
-            logger.warn('Failed to validate schema checksums', { error: error instanceof Error ? error.message : String(error) });
+            console.warn('Failed to validate schema checksums', { error: error instanceof Error ? error.message : String(error) });
             // Fail gracefully - don't break the request
         }
     }
@@ -193,13 +192,13 @@ export class SchemaCache {
         // 1. Check cache first - trust it if present
         const cached = dbCache.schemas.get(schemaName);
         if (cached?.schema && cached?.columns) {
-            logger.info('Schema cache hit', { schemaName });
+            console.info('Schema cache hit', { schemaName });
             // Return schema with columns attached for performance
             return { ...cached.schema, _columns: cached.columns };
         }
 
         // 2. Cache miss - load full schema and columns from database
-        logger.info('Schema cache miss - loading from database', { schemaName });
+        console.info('Schema cache miss - loading from database', { schemaName });
         const { schema, columns } = await this.loadFullSchema(system.db, schemaName);
 
         // 3. Store in cache
@@ -219,7 +218,7 @@ export class SchemaCache {
     invalidateSchema(system: SystemContextWithInfrastructure, schemaName: string): void {
         const dbCache = this.getDatabaseCache(system.db);
         dbCache.schemas.delete(schemaName);
-        logger.info('Schema cache invalidated manually', { schemaName });
+        console.info('Schema cache invalidated manually', { schemaName });
     }
 
     /**

@@ -30,13 +30,13 @@ export default class DdlUpdateObserver extends BaseObserver {
 
         // Skip DDL operations for external schemas (managed elsewhere)
         if (schema.external === true) {
-            logger.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
+            console.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
             return;
         }
 
         // Skip system fields - they cannot be altered
         if (isSystemField(columnName)) {
-            logger.warn(`Skipping DDL for system field: ${columnName}`);
+            console.warn(`Skipping DDL for system field: ${columnName}`);
             return;
         }
 
@@ -44,7 +44,7 @@ export default class DdlUpdateObserver extends BaseObserver {
         const oldRecord = context.metadata.get('preloaded_records')?.[0];
 
         if (!oldRecord) {
-            logger.warn(`No old record found for column update: ${schemaName}.${columnName}`);
+            console.warn(`No old record found for column update: ${schemaName}.${columnName}`);
             return;
         }
 
@@ -94,14 +94,14 @@ export default class DdlUpdateObserver extends BaseObserver {
 
         // Execute all DDL commands
         if (ddlCommands.length === 0) {
-            logger.debug(`No DDL changes needed for column: ${schemaName}.${columnName}`);
+            console.debug(`No DDL changes needed for column: ${schemaName}.${columnName}`);
             return;
         }
 
         for (const ddl of ddlCommands) {
             try {
                 await SqlUtils.getPool(system).query(ddl);
-                logger.info(`Altered column: ${schemaName}.${columnName} - ${ddl}`);
+                console.info(`Altered column: ${schemaName}.${columnName} - ${ddl}`);
             } catch (error) {
                 throw new SystemError(
                     `Failed to alter column '${columnName}' in table '${schemaName}': ${error instanceof Error ? error.message : String(error)}`

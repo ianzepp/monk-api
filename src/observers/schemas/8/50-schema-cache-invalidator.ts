@@ -28,7 +28,7 @@ export default class SchemaCacheInvalidator extends BaseObserver {
         const schemaName = record.schema_name;
 
         if (!schemaName) {
-            logger.warn('Cannot invalidate schema cache - no schema_name in record', {
+            console.warn('Cannot invalidate schema cache - no schema_name in record', {
                 record,
                 operation: context.operation
             });
@@ -39,7 +39,7 @@ export default class SchemaCacheInvalidator extends BaseObserver {
         const schemaCache = SchemaCache.getInstance();
         schemaCache.invalidateSchema(context.system, schemaName);
 
-        logger.info('Schema cache invalidated by observer', {
+        console.info('Schema cache invalidated by observer', {
             operation: context.operation,
             schemaName,
             ring: this.ring,

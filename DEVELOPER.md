@@ -403,7 +403,7 @@ git checkout main && git pull
 
 **Logging**
 - Use global `logger` consistently
-- Include structured metadata: `logger.info('message', { context })`
+- Include structured metadata: `console.info('message', { context })`
 - Never log secrets or sensitive data
 
 **Security**

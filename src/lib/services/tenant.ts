@@ -169,7 +169,7 @@ export class TenantService {
                 await this.deleteTenant(tenantName, true);
             } catch (error) {
                 // Ignore errors during cleanup - database might not exist
-                logger.warn(`Warning during cleanup: ${error}`);
+                console.warn(`Warning during cleanup: ${error}`);
             }
         }
 
@@ -201,7 +201,7 @@ export class TenantService {
             try {
                 await this.dropDatabase(databaseName);
             } catch (cleanupError) {
-                logger.warn(`Failed to cleanup database after error: ${cleanupError}`);
+                console.warn(`Failed to cleanup database after error: ${cleanupError}`);
             }
             throw error;
         }
@@ -308,7 +308,7 @@ export class TenantService {
             await authClient.query('DELETE FROM tenants WHERE name = $1', [tenantName]);
         } catch (error) {
             if (!force) throw error;
-            logger.warn(`Warning removing tenant record: ${error}`);
+            console.warn(`Warning removing tenant record: ${error}`);
         } finally {
             await authClient.end();
         }
@@ -318,7 +318,7 @@ export class TenantService {
             await this.dropDatabase(databaseName);
         } catch (error) {
             if (!force) throw error;
-            logger.warn(`Warning dropping database: ${error}`);
+            console.warn(`Warning dropping database: ${error}`);
         }
     }
 
@@ -556,9 +556,9 @@ export class TenantService {
             // Create user schema via describe (proper DDL generation + schema registration)
             // await describe.createOne('schemas', userSchemaYaml);
 
-            logger.info('User schema created via describe', { databaseName });
+            console.info('User schema created via describe', { databaseName });
         } catch (error) {
-            logger.warn('Failed to create user schema via describe', { databaseName, error });
+            console.warn('Failed to create user schema via describe', { databaseName, error });
             throw new Error(`Failed to create user schema: ${error}`);
         }
     }

@@ -5,7 +5,6 @@
  * Handles bidirectional conversion between PostgreSQL wire format and JavaScript/Monk types.
  */
 
-import { logger } from '@src/lib/logger.js';
 
 /**
  * PostgreSQL column types (as stored in database)
@@ -134,7 +133,7 @@ export function convertColumnPgToMonk(value: any, columnType: string): any {
                 try {
                     return JSON.parse(value);
                 } catch (error) {
-                    logger.warn('Failed to parse JSONB field', {
+                    console.warn('Failed to parse JSONB field', {
                         value,
                         columnType,
                         error: error instanceof Error ? error.message : String(error),

@@ -1,5 +1,4 @@
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { logger } from '@src/lib/logger.js';
 import { FilterOp, type FilterWhereInfo, type FilterWhereOptions } from '@src/lib/filter-types.js';
 
 /**
@@ -46,11 +45,11 @@ export class FilterWhere {
         try {
             // Validate the WHERE data before processing
             FilterWhere.validateWhereData(whereData);
-            
+
             const filterWhere = new FilterWhere(startingParamIndex);
             return filterWhere.build(whereData, options);
         } catch (error) {
-            logger.warn('FilterWhere validation failed', {
+            console.warn('FilterWhere validation failed', {
                 error: error instanceof Error ? error.message : String(error)
             });
             throw error;
@@ -112,11 +111,11 @@ export class FilterWhere {
             if (!Array.isArray(value)) {
                 throw HttpErrors.badRequest(`${operator} operator requires an array of conditions`, 'FILTER_INVALID_LOGICAL_OPERATOR');
             }
-            
+
             if (value.length === 0) {
                 throw HttpErrors.badRequest(`${operator} operator cannot have empty conditions array`, 'FILTER_EMPTY_LOGICAL_ARRAY');
             }
-            
+
             // Recursively validate each condition
             value.forEach((condition: any, index: number) => {
                 if (typeof condition !== 'object' || condition === null) {
@@ -177,7 +176,7 @@ export class FilterWhere {
         if (operator === FilterOp.NULL && typeof data !== 'boolean') {
             throw HttpErrors.badRequest('$null operator requires boolean value', 'FILTER_NULL_REQUIRES_BOOLEAN');
         }
-        
+
         if (operator === FilterOp.EXISTS && typeof data !== 'boolean') {
             throw HttpErrors.badRequest('$exists operator requires boolean value', 'FILTER_EXISTS_REQUIRES_BOOLEAN');
         }
@@ -272,7 +271,7 @@ export class FilterWhere {
         if (operator === FilterOp.NOT && !Array.isArray(data) && typeof data === 'object' && data !== null) {
             data = [data]; // Convert object to single-item array for consistent processing
         }
-        
+
         if (!Array.isArray(data)) {
             throw new Error(`Logical operator ${operator} requires array of conditions`);
         }
@@ -451,7 +450,7 @@ export class FilterWhere {
                 return `${quotedColumn} ILIKE ${this.PARAM(`%${data}%`)}`;
 
             default:
-                logger.warn('Unsupported filter operator', { operator });
+                console.warn('Unsupported filter operator', { operator });
                 return null;
         }
     }

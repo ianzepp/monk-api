@@ -46,7 +46,7 @@ export default class ImmutableValidator extends BaseObserver {
 
         // If preload failed, we can't validate - let other observers handle
         if (Object.keys(existingRecordsById).length === 0) {
-            logger.warn('Cannot validate immutable fields - preload failed', {
+            console.warn('Cannot validate immutable fields - preload failed', {
                 schemaName,
                 operation
             });
@@ -78,7 +78,7 @@ export default class ImmutableValidator extends BaseObserver {
 
                 // Allow setting immutable field if it was null/undefined (first write)
                 if (oldValue === null || oldValue === undefined) {
-                    logger.info('Allowing first write to immutable field', {
+                    console.info('Allowing first write to immutable field', {
                         schemaName,
                         recordId: record.id,
                         field: fieldName,
@@ -111,7 +111,7 @@ export default class ImmutableValidator extends BaseObserver {
                 ? `${violationSummary}... and ${totalViolations - 5} more violations`
                 : violationSummary;
 
-            logger.warn('Blocked update to immutable fields', {
+            console.warn('Blocked update to immutable fields', {
                 schemaName,
                 operation,
                 violations: totalViolations,
@@ -125,7 +125,7 @@ export default class ImmutableValidator extends BaseObserver {
         }
 
         // No violations - allow operation to continue
-        logger.info('Immutable field validation passed', {
+        console.info('Immutable field validation passed', {
             schemaName,
             operation,
             recordsChecked: data.length,

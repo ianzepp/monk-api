@@ -29,7 +29,7 @@ export default class ExistenceValidator extends BaseObserver {
         const requestedIds = this.extractRecordIds(data, operation);
 
         if (requestedIds.length === 0) {
-            logger.info('No record IDs found for existence validation', { schemaName, operation });
+            console.info('No record IDs found for existence validation', { schemaName, operation });
             return;
         }
 
@@ -39,7 +39,7 @@ export default class ExistenceValidator extends BaseObserver {
 
         // If preloading failed, we can't validate existence
         if (Object.keys(RecordPreloader.getPreloadedRecordsById(context)).length === 0) {
-            logger.warn('Cannot validate record existence - preload failed', {
+            console.warn('Cannot validate record existence - preload failed', {
                 schemaName,
                 operation,
                 requestedIds: requestedIds.length,
@@ -58,7 +58,7 @@ export default class ExistenceValidator extends BaseObserver {
 
         if (missingIds.length > 0) {
             // Some records are missing - this is an error
-            logger.warn(`${operation} operation failed - records not found`, {
+            console.warn(`${operation} operation failed - records not found`, {
                 schemaName,
                 operation,
                 requestedCount: requestedIds.length,
@@ -88,7 +88,7 @@ export default class ExistenceValidator extends BaseObserver {
             if (nonTrashedRecords.length > 0) {
                 const nonTrashedIds = nonTrashedRecords.map(record => record.id);
 
-                logger.warn('Revert operation failed - records are not trashed', {
+                console.warn('Revert operation failed - records are not trashed', {
                     schemaName,
                     operation,
                     nonTrashedCount: nonTrashedIds.length,
@@ -107,7 +107,7 @@ export default class ExistenceValidator extends BaseObserver {
 
         // All records exist and are valid for the operation
 
-        logger.info('Record existence validation passed', {
+        console.info('Record existence validation passed', {
             schemaName,
             operation,
             requestedCount: requestedIds.length,

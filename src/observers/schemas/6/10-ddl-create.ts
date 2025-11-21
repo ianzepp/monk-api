@@ -11,7 +11,6 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField, SYSTEM_FIELDS } from '@src/lib/describe.js';
-import { logger } from '@src/lib/logger.js';
 
 export default class DdlCreateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
@@ -24,7 +23,7 @@ export default class DdlCreateObserver extends BaseObserver {
 
         // Skip DDL operations for external schemas (managed elsewhere)
         if (record.external === true) {
-            logger.info(`Skipping DDL operation for external schema: ${schemaName}`);
+            console.info(`Skipping DDL operation for external schema: ${schemaName}`);
             return;
         }
 
@@ -43,12 +42,12 @@ export default class DdlCreateObserver extends BaseObserver {
             ddl += `    "deleted_at" TIMESTAMP`;
             ddl += `\n);`;
 
-            logger.info('Executing DDL:');
-            logger.info(ddl);
+            console.info('Executing DDL:');
+            console.info(ddl);
 
             // Execute DDL
             await SqlUtils.getPool(system).query(ddl);
-            logger.info(`Created table for schema: ${schemaName}`);
+            console.info(`Created table for schema: ${schemaName}`);
         } catch (error) {
             throw new SystemError(
                 `Failed to create table for schema '${schemaName}': ${error instanceof Error ? error.message : String(error)}`

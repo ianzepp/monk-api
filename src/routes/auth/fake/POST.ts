@@ -105,7 +105,7 @@ export default async function (context: Context) {
     const fakeToken = await sign(payload, process.env['JWT_SECRET']!);
 
     // Log impersonation for security audit
-    logger.warn('User impersonation granted', {
+    console.warn('User impersonation granted', {
         real_user_id: currentUser.id,
         real_user_name: currentUser.name,
         fake_user_id: targetUser.id,

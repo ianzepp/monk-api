@@ -27,13 +27,13 @@ export default class DdlDeleteObserver extends BaseObserver {
 
         // Skip DDL operations for external schemas (managed elsewhere)
         if (schema.external === true) {
-            logger.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
+            console.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
             return;
         }
 
         // Skip system fields - they cannot be dropped
         if (isSystemField(columnName)) {
-            logger.warn(`Skipping DDL for system field: ${columnName}`);
+            console.warn(`Skipping DDL for system field: ${columnName}`);
             return;
         }
 
@@ -43,7 +43,7 @@ export default class DdlDeleteObserver extends BaseObserver {
         // Execute DDL
         try {
             await SqlUtils.getPool(system).query(ddl);
-            logger.info(`Dropped column from table: ${schemaName}.${columnName}`);
+            console.info(`Dropped column from table: ${schemaName}.${columnName}`);
         } catch (error) {
             throw new SystemError(
                 `Failed to drop column '${columnName}' from table '${schemaName}': ${error instanceof Error ? error.message : String(error)}`

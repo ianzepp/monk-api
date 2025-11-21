@@ -58,7 +58,7 @@ export default class DataValidator extends BaseObserver {
 
         // Early exit if no fields require validation
         if (validationFields.length === 0) {
-            logger.info('No validation fields defined', { schemaName: schema.schema_name });
+            console.info('No validation fields defined', { schemaName: schema.schema_name });
             return;
         }
 
@@ -294,7 +294,7 @@ export default class DataValidator extends BaseObserver {
     ): void {
         if (errors.length === 0) {
             // All validation passed
-            logger.info('Data validation passed', {
+            console.info('Data validation passed', {
                 schemaName,
                 recordCount,
                 validatedFields: validatedFieldCount,
@@ -310,7 +310,7 @@ export default class DataValidator extends BaseObserver {
             errorsByRecord.set(error.record, recordErrors);
         }
 
-        logger.warn('Data validation failed', {
+        console.warn('Data validation failed', {
             schemaName,
             totalRecords: recordCount,
             failedRecords: errorsByRecord.size,

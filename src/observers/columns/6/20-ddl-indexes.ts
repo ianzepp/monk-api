@@ -29,7 +29,7 @@ export default class DdlIndexesObserver extends BaseObserver {
 
         // Skip DDL operations for external schemas (managed elsewhere)
         if (schema.external === true) {
-            logger.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
+            console.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
             return;
         }
 
@@ -62,7 +62,7 @@ export default class DdlIndexesObserver extends BaseObserver {
 
             try {
                 await pool.query(ddl);
-                logger.info(`Created unique index: ${indexName}`);
+                console.info(`Created unique index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
                     `Failed to create unique index on ${schemaName}.${columnName}: ${error instanceof Error ? error.message : String(error)}`
@@ -77,7 +77,7 @@ export default class DdlIndexesObserver extends BaseObserver {
 
             try {
                 await pool.query(ddl);
-                logger.info(`Created index: ${indexName}`);
+                console.info(`Created index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
                     `Failed to create index on ${schemaName}.${columnName}: ${error instanceof Error ? error.message : String(error)}`
@@ -92,7 +92,7 @@ export default class DdlIndexesObserver extends BaseObserver {
 
             try {
                 await pool.query(ddl);
-                logger.info(`Created full-text search index: ${indexName}`);
+                console.info(`Created full-text search index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
                     `Failed to create search index on ${schemaName}.${columnName}: ${error instanceof Error ? error.message : String(error)}`
@@ -109,7 +109,7 @@ export default class DdlIndexesObserver extends BaseObserver {
         const oldRecord = context.metadata.get('preloaded_records')?.[0];
 
         if (!oldRecord) {
-            logger.warn(`No old record found for index update: ${schemaName}.${columnName}`);
+            console.warn(`No old record found for index update: ${schemaName}.${columnName}`);
             return;
         }
 
@@ -173,12 +173,12 @@ export default class DdlIndexesObserver extends BaseObserver {
             if (newValue === true) {
                 // Flag changed from false to true - create index
                 await pool.query(createDdl);
-                logger.info(`Created ${flagName} index: ${indexName}`);
+                console.info(`Created ${flagName} index: ${indexName}`);
             } else {
                 // Flag changed from true to false - drop index
                 const dropDdl = `DROP INDEX IF EXISTS "${indexName}"`;
                 await pool.query(dropDdl);
-                logger.info(`Dropped ${flagName} index: ${indexName}`);
+                console.info(`Dropped ${flagName} index: ${indexName}`);
             }
         } catch (error) {
             throw new SystemError(
@@ -205,10 +205,10 @@ export default class DdlIndexesObserver extends BaseObserver {
             try {
                 const ddl = `DROP INDEX IF EXISTS "${indexName}"`;
                 await pool.query(ddl);
-                logger.debug(`Dropped index if exists: ${indexName}`);
+                console.debug(`Dropped index if exists: ${indexName}`);
             } catch (error) {
                 // Log but don't throw - index might not exist
-                logger.warn(`Could not drop index ${indexName}: ${error instanceof Error ? error.message : String(error)}`);
+                console.warn(`Could not drop index ${indexName}: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
     }

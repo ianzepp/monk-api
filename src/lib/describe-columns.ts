@@ -1,6 +1,5 @@
 import type { System } from '@src/lib/system.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { logger } from '@src/lib/logger.js';
 import type { FilterData } from '@src/lib/filter-types.js';
 import type {
     ColumnRecord,
@@ -43,7 +42,7 @@ export class DescribeColumns {
             );
         }
 
-        logger.info('Sudo access validated for protected schema modification', {
+        console.info('Sudo access validated for protected schema modification', {
             schemaName,
             userId: this.system.getUser?.()?.id,
             elevation_reason: jwtPayload.elevation_reason
@@ -118,7 +117,7 @@ export class DescribeColumns {
             this.validateColumnName(data.column_name);
         }
 
-        logger.info('Creating column via observer pipeline', {
+        console.info('Creating column via observer pipeline', {
             schemaName: data.schema_name,
             columnName: data.column_name
         });
@@ -143,7 +142,7 @@ export class DescribeColumns {
             await this.validateSchemaProtection(schemaName);
         }
 
-        logger.info('Updating column via observer pipeline', {
+        console.info('Updating column via observer pipeline', {
             schemaName,
             columnName: filter.where?.column_name
         });
@@ -165,7 +164,7 @@ export class DescribeColumns {
             await this.validateSchemaProtection(schemaName);
         }
 
-        logger.info('Deleting column via observer pipeline', {
+        console.info('Deleting column via observer pipeline', {
             schemaName,
             columnName: filter.where?.column_name
         });

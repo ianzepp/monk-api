@@ -128,7 +128,7 @@ export class Schema {
                         try {
                             range.pattern = new RegExp(column.pattern);
                         } catch (error) {
-                            logger.warn(`Invalid regex pattern for ${fieldName}`, { pattern: column.pattern });
+                            console.warn(`Invalid regex pattern for ${fieldName}`, { pattern: column.pattern });
                         }
                     }
                     this.rangeFields.set(fieldName, range);
@@ -149,7 +149,7 @@ export class Schema {
         // Build merged validation field configs (optimized for single-loop validation)
         this.validationFields = this.buildValidationFields();
 
-        logger.info('Schema initialized with metadata', {
+        console.info('Schema initialized with metadata', {
             schemaName: this.schemaName,
             frozen: this.frozen,
             immutableFields: this.immutableFields.size,

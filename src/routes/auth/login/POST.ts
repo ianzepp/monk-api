@@ -11,7 +11,7 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
 export default async function (context: Context) {
     const { tenant, username, format } = await context.req.json();
 
-    logger.info('/auth/login', { tenant, username, format });
+    console.info('/auth/login', { tenant, username, format });
 
     // Input validation
     if (!tenant) {
@@ -36,7 +36,7 @@ export default async function (context: Context) {
             401
         );
     } else {
-        logger.info('Found tenant record:', { tenant: tenantResult.rows[0] });
+        console.info('Found tenant record:', { tenant: tenantResult.rows[0] });
     }
 
     const { name, database } = tenantResult.rows[0];
@@ -57,7 +57,7 @@ export default async function (context: Context) {
             401
         );
     } else {
-        logger.info('Found user record:', { user: userResult.rows[0] });
+        console.info('Found user record:', { user: userResult.rows[0] });
     }
 
     const user = userResult.rows[0];

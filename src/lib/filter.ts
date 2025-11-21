@@ -2,7 +2,6 @@ import { FilterWhere } from '@src/lib/filter-where.js';
 import { FilterOrder } from '@src/lib/filter-order.js';
 import { FilterOp, type FilterWhereInfo, type FilterWhereOptions, type FilterData, type ConditionNode, type FilterOrderInfo, type AggregateSpec, type AggregateFunction } from '@src/lib/filter-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { logger } from '@src/lib/logger.js';
 import type { SystemContext } from '@src/lib/system-context-types.js';
 
 // Re-export types for convenience
@@ -34,12 +33,12 @@ export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterO
 
 /**
  * Filter - Handles database query building with proper validation and execution
- * 
+ *
  * Provides clean separation of concerns:
  * - Filter data validation and normalization
  * - SQL generation with proper parameterization
  * - Query execution via consistent API patterns
- * 
+ *
  * Designed for integration with observer pipeline and ACL systems.
  */
 export class Filter {
@@ -53,7 +52,7 @@ export class Filter {
     private _lookups: any[] = [];
     private _related: any[] = [];
     private _softDeleteOptions: FilterWhereOptions = {};
-    
+
     // System context for automatic soft delete handling
     private readonly system?: SystemContext;
 
@@ -80,17 +79,17 @@ export class Filter {
         try {
             // Validate and normalize input
             const normalizedSource = this.validateAndNormalizeInput(source);
-            
+
             // Process the normalized data
             this.processFilterData(normalizedSource);
-            
-            logger.debug('Filter assignment completed', {
+
+            console.debug('Filter assignment completed', {
                 tableName: this._tableName,
                 sourceType: Array.isArray(source) ? 'array' : typeof source
             });
-            
+
         } catch (error) {
-            logger.warn('Filter assignment failed', {
+            console.warn('Filter assignment failed', {
                 tableName: this._tableName,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -107,7 +106,7 @@ export class Filter {
         if (!tableName || typeof tableName !== 'string') {
             throw HttpErrors.badRequest('Table name must be a non-empty string', 'FILTER_INVALID_TABLE');
         }
-        
+
         // Basic SQL injection protection for table names
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
             throw HttpErrors.badRequest('Invalid table name format', 'FILTER_INVALID_TABLE_FORMAT');
@@ -157,7 +156,7 @@ export class Filter {
         if (source.limit !== undefined && (!Number.isInteger(source.limit) || source.limit < 0)) {
             throw HttpErrors.badRequest('Limit must be a non-negative integer', 'FILTER_INVALID_LIMIT');
         }
-        
+
         if (source.offset !== undefined && (!Number.isInteger(source.offset) || source.offset < 0)) {
             throw HttpErrors.badRequest('Offset must be a non-negative integer', 'FILTER_INVALID_OFFSET');
         }
@@ -193,7 +192,7 @@ export class Filter {
             // TODO: LOOKUPS and RELATED
             // if (source.lookups) this.processLookups(source.lookups);
             // if (source.related) this.processRelated(source.related);
-            
+
         } catch (error) {
             throw error; // Re-throw validation errors
         }
@@ -214,12 +213,12 @@ export class Filter {
         if (!Array.isArray(columns)) {
             throw HttpErrors.badRequest('Select columns must be an array', 'FILTER_INVALID_SELECT_TYPE');
         }
-        
+
         for (const column of columns) {
             if (typeof column !== 'string' || !column.trim()) {
                 throw HttpErrors.badRequest('All select columns must be non-empty strings', 'FILTER_INVALID_COLUMN_NAME');
             }
-            
+
             // Basic SQL injection protection for column names
             if (column !== '*' && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
                 throw HttpErrors.badRequest(`Invalid column name format: ${column}`, 'FILTER_INVALID_COLUMN_FORMAT');
@@ -299,7 +298,7 @@ export class Filter {
      */
     private normalizeOrderSpecToArray(orderSpecs: any[]): FilterOrderInfo[] {
         const result: FilterOrderInfo[] = [];
-        
+
         for (const spec of orderSpecs) {
             if (typeof spec === 'string') {
                 const parts = spec.split(' ');
@@ -309,23 +308,23 @@ export class Filter {
             } else if (typeof spec === 'object' && spec !== null) {
                 if (spec.column && spec.sort) {
                     const sort = spec.sort.toLowerCase();
-                    result.push({ 
-                        column: spec.column, 
-                        sort: (sort === 'desc' || sort === 'descending') ? 'desc' : 'asc' 
+                    result.push({
+                        column: spec.column,
+                        sort: (sort === 'desc' || sort === 'descending') ? 'desc' : 'asc'
                     });
                 } else {
                     // Process all entries in the object: { name: 'asc', created_at: 'desc' }
                     for (const [column, sort] of Object.entries(spec)) {
                         const normalizedSort = (sort as string).toLowerCase();
-                        result.push({ 
-                            column, 
-                            sort: (normalizedSort === 'desc' || normalizedSort === 'descending') ? 'desc' : 'asc' 
+                        result.push({
+                            column,
+                            sort: (normalizedSort === 'desc' || normalizedSort === 'descending') ? 'desc' : 'asc'
                         });
                     }
                 }
             }
         }
-        
+
         return result;
     }
 
@@ -344,7 +343,7 @@ export class Filter {
         if (!Number.isInteger(limit) || limit < 0) {
             throw HttpErrors.badRequest('Limit must be a non-negative integer', 'FILTER_INVALID_LIMIT_VALUE');
         }
-        
+
         if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) {
             throw HttpErrors.badRequest('Offset must be a non-negative integer', 'FILTER_INVALID_OFFSET_VALUE');
         }
@@ -390,7 +389,7 @@ export class Filter {
 
             // Use FilterWhere for WHERE clause with soft delete options
             const { whereClause, params: whereParams } = FilterWhere.generate(
-                this._whereData, 
+                this._whereData,
                 0,
                 options
             );
@@ -411,14 +410,14 @@ export class Filter {
                 limitClause
             ].filter(Boolean).join(' ');
 
-            logger.debug('SQL query generated successfully', {
+            console.debug('SQL query generated successfully', {
                 tableName: this._tableName,
                 paramCount: whereParams.length
             });
 
             return { query, params: whereParams };
         } catch (error) {
-            logger.warn('SQL query generation failed', {
+            console.warn('SQL query generation failed', {
                 tableName: this._tableName,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -433,7 +432,7 @@ export class Filter {
         if (this._select.length === 0 || this._select.includes('*')) {
             return '*';
         }
-        
+
         return this._select.map(col => `"${col}"`).join(', ');
     }
 
@@ -451,18 +450,18 @@ export class Filter {
                 includeDeleted: this.system.options.deleted || false,
                 ...this._softDeleteOptions
             } : this._softDeleteOptions;
-            
+
             // Use FilterWhere for consistent WHERE clause generation
             const result = FilterWhere.generate(this._whereData, 0, options);
-            
-            logger.debug('WHERE clause generated successfully', {
+
+            console.debug('WHERE clause generated successfully', {
                 tableName: this._tableName,
                 paramCount: result.params.length
             });
-            
+
             return result;
         } catch (error) {
-            logger.warn('WHERE clause generation failed', {
+            console.warn('WHERE clause generation failed', {
                 tableName: this._tableName,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -487,14 +486,14 @@ export class Filter {
                 query += ` WHERE ${whereClause}`;
             }
 
-            logger.debug('COUNT query generated successfully', {
+            console.debug('COUNT query generated successfully', {
                 tableName: this._tableName,
                 paramCount: params.length
             });
 
             return { query, params };
         } catch (error) {
-            logger.warn('COUNT query generation failed', {
+            console.warn('COUNT query generation failed', {
                 tableName: this._tableName,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -512,24 +511,24 @@ export class Filter {
         try {
             // Build aggregation SELECT clause
             const aggregateClause = this.buildAggregateClause(aggregations);
-            
+
             // Build GROUP BY clause if provided
             const groupByClause = this.buildGroupByClause(groupBy);
-            
+
             // Get WHERE clause with parameters
             const { whereClause, params } = this.toWhereSQL();
-            
+
             // Build complete query
             const selectParts: string[] = [];
-            
+
             // Add GROUP BY columns to SELECT
             if (groupBy && groupBy.length > 0) {
                 selectParts.push(...groupBy.map(col => `"${this.sanitizeColumnName(col)}"`));
             }
-            
+
             // Add aggregations to SELECT
             selectParts.push(aggregateClause);
-            
+
             const query = [
                 `SELECT ${selectParts.join(', ')}`,
                 `FROM "${this._tableName}"`,
@@ -537,7 +536,7 @@ export class Filter {
                 groupByClause
             ].filter(Boolean).join(' ');
 
-            logger.debug('Aggregation query generated successfully', {
+            console.debug('Aggregation query generated successfully', {
                 tableName: this._tableName,
                 aggregationCount: Object.keys(aggregations).length,
                 groupByColumns: groupBy?.length || 0,
@@ -546,7 +545,7 @@ export class Filter {
 
             return { query, params };
         } catch (error) {
-            logger.warn('Aggregation query generation failed', {
+            console.warn('Aggregation query generation failed', {
                 tableName: this._tableName,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -559,11 +558,11 @@ export class Filter {
      */
     private buildAggregateClause(aggregations: AggregateSpec): string {
         const aggregateParts: string[] = [];
-        
+
         for (const [alias, aggFunc] of Object.entries(aggregations)) {
             // Validate alias
             const sanitizedAlias = this.sanitizeColumnName(alias);
-            
+
             // Extract function and field
             if ('$count' in aggFunc) {
                 const field = aggFunc.$count;
@@ -592,11 +591,11 @@ export class Filter {
                 throw HttpErrors.badRequest(`Unknown aggregation function for alias '${alias}'`, 'FILTER_INVALID_AGGREGATION');
             }
         }
-        
+
         if (aggregateParts.length === 0) {
             throw HttpErrors.badRequest('At least one aggregation function required', 'FILTER_NO_AGGREGATIONS');
         }
-        
+
         return aggregateParts.join(', ');
     }
 
@@ -607,13 +606,13 @@ export class Filter {
         if (!groupBy || groupBy.length === 0) {
             return '';
         }
-        
+
         // Validate and sanitize column names
         const sanitizedColumns = groupBy.map(col => {
             const sanitized = this.sanitizeColumnName(col);
             return `"${sanitized}"`;
         });
-        
+
         return `GROUP BY ${sanitizedColumns.join(', ')}`;
     }
 
@@ -624,12 +623,12 @@ export class Filter {
         if (!column || typeof column !== 'string') {
             throw HttpErrors.badRequest('Column name must be a non-empty string', 'FILTER_INVALID_COLUMN');
         }
-        
+
         // Allow alphanumeric and underscore only
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
             throw HttpErrors.badRequest(`Invalid column name format: ${column}`, 'FILTER_INVALID_COLUMN_FORMAT');
         }
-        
+
         return column;
     }
 
@@ -644,12 +643,12 @@ export class Filter {
                 includeDeleted: this.system.options.deleted || false,
                 ...this._softDeleteOptions
             } : this._softDeleteOptions;
-            
+
             // Use FilterWhere for consistent WHERE clause generation
             const { whereClause } = FilterWhere.generate(this._whereData, 0, options);
             return whereClause || '1=1';
         } catch (error) {
-            logger.warn('WHERE clause extraction failed', {
+            console.warn('WHERE clause extraction failed', {
                 tableName: this._tableName,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -669,7 +668,7 @@ export class Filter {
             // Remove "ORDER BY" prefix since getOrderClause() returns just the clause part
             return orderClause.replace(/^ORDER BY\s+/, '');
         } catch (error) {
-            logger.warn('ORDER clause extraction failed', {
+            console.warn('ORDER clause extraction failed', {
                 tableName: this._tableName,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -702,7 +701,7 @@ export class Filter {
             }
             return '';
         } catch (error) {
-            logger.warn('LIMIT clause generation failed', {
+            console.warn('LIMIT clause generation failed', {
                 tableName: this._tableName,
                 error: error instanceof Error ? error.message : String(error)
             });
@@ -719,7 +718,7 @@ export class Filter {
         if (typeof str !== 'string') {
             return false;
         }
-        
+
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         return uuidRegex.test(str);
     }

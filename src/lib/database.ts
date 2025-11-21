@@ -439,7 +439,7 @@ export class Database {
 
         const startTime = Date.now();
 
-        logger.info('Observer pipeline started', {
+        console.info('Observer pipeline started', {
             operation,
             schemaName,
             recordCount: data.length,
@@ -457,7 +457,7 @@ export class Database {
 
             // Performance timing for successful pipeline
             const duration = Date.now() - startTime;
-            logger.info('Observer pipeline completed', {
+            console.info('Observer pipeline completed', {
                 operation,
                 schemaName: schema.schema_name,
                 recordCount: data.length,
@@ -467,7 +467,7 @@ export class Database {
 
             return result;
         } catch (error) {
-            logger.warn('Observer pipeline failed', {
+            console.warn('Observer pipeline failed', {
                 operation,
                 schemaName: schema.schema_name,
                 recordCount: data.length,
@@ -548,7 +548,7 @@ export class Database {
             if (allowedFields.includes(key)) {
                 filteredChanges[key] = value;
             } else {
-                logger.warn('Ignoring non-access field in accessOne', { field: key });
+                console.warn('Ignoring non-access field in accessOne', { field: key });
             }
         }
 

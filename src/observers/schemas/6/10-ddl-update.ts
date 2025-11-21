@@ -22,13 +22,13 @@ export default class DdlUpdateObserver extends BaseObserver {
 
         // Skip DDL operations for external schemas (managed elsewhere)
         if (record.external === true) {
-            logger.info(`Skipping DDL operation for external schema: ${schemaName}`);
+            console.info(`Skipping DDL operation for external schema: ${schemaName}`);
             return;
         }
 
         // Schema updates only affect metadata (status field)
         // No DDL operations needed - table structure is managed by column operations
-        logger.debug(`Schema metadata updated: ${schemaName}`, {
+        console.debug(`Schema metadata updated: ${schemaName}`, {
             status: record.status
         });
 

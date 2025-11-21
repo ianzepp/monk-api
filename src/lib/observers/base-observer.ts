@@ -53,7 +53,6 @@ export abstract class BaseObserver implements Observer {
      * execute() method with consistent error handling, logging, and execution profiling.
      */
     async executeTry(context: ObserverContext): Promise<void> {
-        const startTime = process.hrtime.bigint();
         const observerName = this.constructor.name;
         const { system, operation, schema } = context;
         const schemaName = schema.schema_name;
@@ -66,7 +65,7 @@ export abstract class BaseObserver implements Observer {
             ]);
 
             // Log successful execution with precise timing
-            logger.time(`Observer: ${observerName}`, startTime, {
+            console.info(`Observer: ${observerName}`, {
                 ring: this.ring,
                 operation,
                 schemaName,
@@ -75,7 +74,7 @@ export abstract class BaseObserver implements Observer {
 
         } catch (error) {
             // Log failed execution with precise timing
-            logger.time(`Observer: ${observerName}`, startTime, {
+            console.info(`Observer: ${observerName}`, {
                 ring: this.ring,
                 operation,
                 schemaName,
@@ -151,7 +150,7 @@ export abstract class BaseObserver implements Observer {
 
         } else if (error instanceof SystemError || error instanceof ObserverTimeoutError) {
             // Unrecoverable system errors - should rollback entire transaction
-            logger.warn('Observer system error', {
+            console.warn('Observer system error', {
                 observerName,
                 operation: context.operation,
                 schemaName: context.schema.schema_name,
@@ -168,7 +167,7 @@ export abstract class BaseObserver implements Observer {
                 'UNKNOWN_ERROR'
             );
             context.warnings.push(warning);
-            logger.warn('Observer unknown error', {
+            console.warn('Observer unknown error', {
                 observerName,
                 operation: context.operation,
                 schemaName: context.schema.schema_name,
@@ -184,7 +183,7 @@ export abstract class BaseObserver implements Observer {
                 'UNKNOWN_ERROR'
             );
             context.warnings.push(warning);
-            logger.warn('Observer unknown error (non-Error object)', {
+            console.warn('Observer unknown error (non-Error object)', {
                 observerName,
                 operation: context.operation,
                 schemaName: context.schema.schema_name,

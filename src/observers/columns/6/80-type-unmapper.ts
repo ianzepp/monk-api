@@ -75,7 +75,7 @@ export default class TypeUnmapperObserver extends BaseObserver {
             record.type = userType;
         } else {
             // Unknown type - log warning but don't fail
-            logger.warn('Unknown PostgreSQL type encountered in type unmapping', {
+            console.warn('Unknown PostgreSQL type encountered in type unmapping', {
                 pgType,
                 schemaName: context.schema.schema_name,
                 columnName: record.column_name

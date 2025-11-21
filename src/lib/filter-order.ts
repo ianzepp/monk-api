@@ -1,22 +1,21 @@
 import { type SortDirection, type FilterOrderInfo } from '@src/lib/filter-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { logger } from '@src/lib/logger.js';
 
 /**
  * FilterOrder - Schema-independent ORDER BY clause generation
- * 
+ *
  * The authoritative implementation for ORDER BY clause logic including validation,
  * sanitization, and SQL generation. Matches FilterWhere design patterns for
  * consistency and security.
- * 
+ *
  * Features: Comprehensive validation, SQL injection protection, multiple input formats,
  * proper error handling and logging.
- * 
+ *
  * Quick Examples:
  * - String: `FilterOrder.generate('created_at desc')`
  * - Array: `FilterOrder.generate([{ column: 'priority', sort: 'desc' }])`
  * - Object: `FilterOrder.generate({ created_at: 'desc', name: 'asc' })`
- * 
+ *
  * See docs/FILTER.md for complete examples and security features.
  */
 
@@ -80,7 +79,7 @@ export class FilterOrder {
                 if (entries.length === 0) {
                     throw HttpErrors.badRequest('Order object cannot be empty', 'FILTER_EMPTY_ORDER_OBJECT');
                 }
-                
+
                 for (const [column, sort] of entries) {
                     FilterOrder.validateColumnName(column);
                     FilterOrder.validateSortDirection(sort as string);
@@ -102,13 +101,13 @@ export class FilterOrder {
         const parts = orderString.trim().split(/\s+/);
         const column = parts[0];
         const sort = parts[1];
-        
+
         if (!column) {
             throw HttpErrors.badRequest('Order string must contain a column name', 'FILTER_MISSING_ORDER_COLUMN');
         }
-        
+
         FilterOrder.validateColumnName(column);
-        
+
         if (sort) {
             FilterOrder.validateSortDirection(sort);
         }
@@ -170,7 +169,7 @@ export class FilterOrder {
             // Handle array format: [{ column: 'name', sort: 'asc' }]
             orderData.forEach(item => {
                 if (!item) return; // Skip null/undefined items
-                
+
                 if (typeof item === 'string') {
                     this.parseOrderString(item);
                 } else if (item.column && item.sort) {

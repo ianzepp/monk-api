@@ -20,7 +20,6 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
-import { logger } from '@src/lib/logger.js';
 
 export default class SchemaSudoValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
@@ -46,14 +45,14 @@ export default class SchemaSudoValidator extends BaseObserver {
             return;
         }
 
-        logger.info('Validating sudo access for protected schema', {
+        console.info('Validating sudo access for protected schema', {
             operation: context.operation,
             schemaName: schema.schema_name
         });
 
         // Use isSudo() helper which checks: root user, is_sudo flag, or as_sudo flag
         const isSudo = system.context.get('isSudo') as (() => boolean);
-        
+
         if (!isSudo || !isSudo()) {
             throw new SystemError(
                 `Schema '${schema.schema_name}' requires sudo access. Root users have automatic access, others must use POST /api/user/sudo.`
@@ -61,7 +60,7 @@ export default class SchemaSudoValidator extends BaseObserver {
         }
 
         const jwtPayload = system.context.get('jwtPayload');
-        logger.info('Sudo access validated for protected schema', {
+        console.info('Sudo access validated for protected schema', {
             operation: context.operation,
             schemaName: schema.schema_name,
             userId: system.getUser?.()?.id,

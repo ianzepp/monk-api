@@ -56,7 +56,7 @@ export default class UuidArrayProcessor extends BaseObserver {
         // Log processing summary for audit
 
         if (processedFields > 0) {
-            logger.info('UUID array processing completed', {
+            console.info('UUID array processing completed', {
                 schemaName,
                 operation,
                 processedFields,

@@ -32,7 +32,7 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
     async execute(context: ObserverContext): Promise<void> {
         // In Ring 8, context.result contains the created records
         const snapshots = context.result || [];
-        
+
         if (!Array.isArray(snapshots) || snapshots.length === 0) {
             return;
         }
@@ -41,7 +41,7 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
         for (const snapshot of snapshots) {
             // Only process pending snapshots
             if (snapshot.status !== 'pending') {
-                logger.info('Skipping snapshot - not pending', {
+                console.info('Skipping snapshot - not pending', {
                     snapshot_id: snapshot.id,
                     snapshot_name: snapshot.name,
                     status: snapshot.status
@@ -54,7 +54,7 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
     }
 
     private async processSnapshot(snapshot: any, context: ObserverContext): Promise<void> {
-        logger.info('Processing snapshot via async observer', {
+        console.info('Processing snapshot via async observer', {
             snapshot_id: snapshot.id,
             snapshot_name: snapshot.name,
             target_database: snapshot.database
@@ -73,7 +73,7 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
             const dbResult = await pool.query('SELECT current_database() as name');
             const sourceDatabase = dbResult.rows[0].name;
 
-            logger.info('Starting pg_dump for snapshot', {
+            console.info('Starting pg_dump for snapshot', {
                 snapshot_name: snapshot.name,
                 source: sourceDatabase,
                 target: snapshot.database
@@ -104,7 +104,7 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
                 record_count: stats.record_count
             });
 
-            logger.info('Snapshot created successfully', {
+            console.info('Snapshot created successfully', {
                 snapshot_name: snapshot.name,
                 database: snapshot.database,
                 size_bytes: stats.size_bytes,
@@ -113,7 +113,7 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
             });
 
         } catch (error) {
-            logger.error('Snapshot creation failed', {
+            console.error('Snapshot creation failed', {
                 snapshot_name: snapshot.name,
                 database: snapshot.database,
                 error: error instanceof Error ? error.message : String(error)

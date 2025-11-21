@@ -22,7 +22,7 @@ export default class DdlDeleteObserver extends BaseObserver {
 
         // Skip DDL operations for external schemas (managed elsewhere)
         if (record.external === true) {
-            logger.info(`Skipping DDL operation for external schema: ${schemaName}`);
+            console.info(`Skipping DDL operation for external schema: ${schemaName}`);
             return;
         }
 
@@ -32,7 +32,7 @@ export default class DdlDeleteObserver extends BaseObserver {
         // Execute DDL
         try {
             await SqlUtils.getPool(system).query(ddl);
-            logger.info(`Dropped table for schema: ${schemaName}`);
+            console.info(`Dropped table for schema: ${schemaName}`);
         } catch (error) {
             throw new SystemError(
                 `Failed to drop table for schema '${schemaName}': ${error instanceof Error ? error.message : String(error)}`

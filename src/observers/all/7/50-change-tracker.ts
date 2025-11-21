@@ -1,9 +1,9 @@
 /**
  * Change Tracker Observer
- * 
+ *
  * Universal audit observer that tracks all data changes
  * Ring: 7 (Audit) - Schema: % (all schemas) - Operations: create, update, delete
- * 
+ *
  * TODO: Re-enable when audit_log table is added to init-tenant.sql
  */
 
@@ -18,17 +18,17 @@ export default class ChangeTracker extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, operation, schema, result, existing, data, metadata } = context;
-        
+
         // TODO: Temporarily disabled for testing - re-enable when audit_log table is created
-        logger.info(`📝 Change tracker triggered for ${schema} ${operation} (disabled for testing)`);
-        
+        console.info(`📝 Change tracker triggered for ${schema} ${operation} (disabled for testing)`);
+
         // Early return - disabled for testing
         return;
     }
 
     private async createAuditRecord(context: ObserverContext): Promise<any> {
         const { system, operation, schema, result, existing, data, metadata } = context;
-        
+
         const auditRecord: any = {
             // Core audit fields
             operation,
@@ -36,13 +36,13 @@ export default class ChangeTracker extends BaseObserver {
             record_id: this.getRecordId(result, existing, data),
             user_id: system.getUser?.()?.id || 'system',
             timestamp: new Date().toISOString(),
-            
+
             // Change details
             changes: this.computeChanges(operation, existing, result, data),
-            
+
             // Additional context
             metadata: this.extractAuditMetadata(metadata),
-            
+
             // Request tracking
             request_id: this.generateRequestId(),
             session_id: this.getSessionId(system),
@@ -56,13 +56,13 @@ export default class ChangeTracker extends BaseObserver {
                 auditRecord.action = 'CREATE';
                 auditRecord.new_values = result || data;
                 break;
-                
+
             case 'update':
                 auditRecord.action = 'UPDATE';
                 auditRecord.old_values = existing;
                 auditRecord.new_values = result;
                 break;
-                
+
             case 'delete':
                 auditRecord.action = 'DELETE';
                 auditRecord.old_values = existing;
@@ -80,18 +80,18 @@ export default class ChangeTracker extends BaseObserver {
                     type: 'create',
                     fields_added: Object.keys(result || data || {})
                 };
-                
+
             case 'update':
                 if (!existing) return null;
-                
+
                 const changes: any = {
                     type: 'update',
                     fields_changed: [],
                     changes_detail: {}
                 };
-                
+
                 const newData = result || data || {};
-                
+
                 for (const [key, newValue] of Object.entries(newData)) {
                     const oldValue = existing[key];
                     if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
@@ -102,15 +102,15 @@ export default class ChangeTracker extends BaseObserver {
                         };
                     }
                 }
-                
+
                 return changes;
-                
+
             case 'delete':
                 return {
                     type: 'delete',
                     fields_removed: Object.keys(existing || {})
                 };
-                
+
             default:
                 return null;
         }
@@ -118,7 +118,7 @@ export default class ChangeTracker extends BaseObserver {
 
     private extractAuditMetadata(metadata: Map<string, any>): any {
         const auditMetadata: any = {};
-        
+
         // Extract relevant metadata for audit trail
         const auditKeys = [
             'balance_change',
@@ -130,13 +130,13 @@ export default class ChangeTracker extends BaseObserver {
             'creator_role',
             'target_role'
         ];
-        
+
         for (const key of auditKeys) {
             if (metadata.has(key)) {
                 auditMetadata[key] = metadata.get(key);
             }
         }
-        
+
         return Object.keys(auditMetadata).length > 0 ? auditMetadata : null;
     }
 

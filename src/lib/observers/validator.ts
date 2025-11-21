@@ -16,7 +16,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { logger } from '@src/lib/logger.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 
 interface ValidationError {
@@ -57,13 +56,13 @@ export class ObserverValidator {
         const valid = errors.length === 0;
 
         if (!valid) {
-            logger.error('Observer validation failed', {
+            console.error('Observer validation failed', {
                 errorCount: errors.length,
                 warningCount: warnings.length,
                 filesChecked
             });
         } else {
-            logger.info('Observer validation passed', {
+            console.info('Observer validation passed', {
                 filesChecked,
                 warningCount: warnings.length
             });

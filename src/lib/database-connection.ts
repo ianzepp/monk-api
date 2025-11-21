@@ -1,5 +1,4 @@
 import pg from 'pg';
-import { logger } from '@src/lib/logger.js';
 
 const { Pool, Client } = pg;
 
@@ -98,9 +97,9 @@ export class DatabaseConnection {
             closePromises.push(
                 pool
                     .end()
-                    .then(() => logger.info('Database pool closed', { database: databaseName }))
+                    .then(() => console.info('Database pool closed', { database: databaseName }))
                     .catch(error => {
-                        logger.warn('Failed to close database pool', {
+                        console.warn('Failed to close database pool', {
                             database: databaseName,
                             error: error instanceof Error ? error.message : String(error),
                         });
@@ -110,7 +109,7 @@ export class DatabaseConnection {
 
         this.pools.clear();
         await Promise.all(closePromises);
-        logger.info('All database connections closed');
+        console.info('All database connections closed');
     }
 
     /** Attach tenant database pool to Hono context */
@@ -130,7 +129,7 @@ export class DatabaseConnection {
             const pool = new Pool(config);
 
             this.pools.set(databaseName, pool);
-            logger.info('Database pool created', { database: databaseName });
+            console.info('Database pool created', { database: databaseName });
         }
 
         return this.pools.get(databaseName)!;
@@ -206,7 +205,7 @@ export class DatabaseConnection {
     static getConnectionParams(): { host?: string; port?: string; user?: string } {
         const databaseUrl = this.getDatabaseURL();
         const url = new URL(databaseUrl);
-        
+
         return {
             host: url.hostname || undefined,
             port: url.port || undefined,

@@ -65,7 +65,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         ];
 
         await this.invalidateKeys(cacheKeys);
-        logger.info('Cache invalidated for schema', { schema });
+        console.info('Cache invalidated for schema', { schema });
     }
 
     private async invalidateRecordCache(schema: string, recordId: string): Promise<void> {
@@ -77,7 +77,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         ];
 
         await this.invalidateKeys(cacheKeys);
-        logger.info('Cache invalidated for record', { schema, recordId });
+        console.info('Cache invalidated for record', { schema, recordId });
     }
 
     private async invalidateRelationshipCaches(schema: string, result: any, existing: any): Promise<void> {
@@ -107,7 +107,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
 
         if (cacheKeys.length > 0) {
             await this.invalidateKeys(cacheKeys);
-            logger.info('Cache invalidated for relationships', { schema });
+            console.info('Cache invalidated for relationships', { schema });
         }
     }
 
@@ -131,7 +131,7 @@ export default class CacheInvalidator extends BaseAsyncObserver {
             ]);
         }
 
-        logger.info('Cache invalidated for search', { schema });
+        console.info('Cache invalidated for search', { schema });
     }
 
     private async invalidateKeys(keys: string[]): Promise<void> {
@@ -141,11 +141,11 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         for (const key of keys) {
             if (key.includes('*')) {
                 // Pattern-based invalidation
-                logger.info('Cache pattern invalidated', { key });
+                console.info('Cache pattern invalidated', { key });
                 // await cache.deletePattern(key);
             } else {
                 // Specific key invalidation
-                logger.info('Cache key invalidated', { key });
+                console.info('Cache key invalidated', { key });
                 // await cache.delete(key);
             }
         }

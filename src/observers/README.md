@@ -183,7 +183,7 @@ export default class CustomValidator extends BaseObserver {
 
         // Record validation metadata for audit
         metadata.set('custom_validation', 'passed');
-        logger.info('Custom validation completed', {
+        console.info('Custom validation completed', {
             schemaName: schema.schema_name,
             recordCount: data.length
         });

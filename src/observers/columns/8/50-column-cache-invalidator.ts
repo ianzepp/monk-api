@@ -27,7 +27,7 @@ export default class ColumnCacheInvalidator extends BaseObserver {
         const schemaName = record.schema_name;
 
         if (!schemaName) {
-            logger.warn('Cannot invalidate schema cache - no schema_name in column record', {
+            console.warn('Cannot invalidate schema cache - no schema_name in column record', {
                 record,
                 operation: context.operation,
                 columnName: record.column_name
@@ -46,7 +46,7 @@ export default class ColumnCacheInvalidator extends BaseObserver {
         const schemaCache = SchemaCache.getInstance();
         schemaCache.invalidateSchema(context.system, schemaName);
 
-        logger.info('Schema cache invalidated by column change', {
+        console.info('Schema cache invalidated by column change', {
             operation: context.operation,
             schemaName,
             columnName: record.column_name,

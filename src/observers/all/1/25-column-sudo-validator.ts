@@ -70,7 +70,7 @@ export default class ColumnSudoValidator extends BaseObserver {
         if (sudoFieldsModified.size > 0 && !hasSudo) {
             const fieldList = Array.from(sudoFieldsModified).join(', ');
 
-            logger.warn(`Blocked ${operation} on sudo-protected fields`, {
+            console.warn(`Blocked ${operation} on sudo-protected fields`, {
                 schemaName,
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
@@ -88,7 +88,7 @@ export default class ColumnSudoValidator extends BaseObserver {
 
         // Either no sudo fields modified, or user has valid sudo token
         if (sudoFieldsModified.size > 0) {
-            logger.info('Sudo access validated for protected fields', {
+            console.info('Sudo access validated for protected fields', {
                 schemaName,
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
