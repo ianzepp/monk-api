@@ -175,7 +175,7 @@ If any observer throws an error, the transaction rolls back and no records are u
 
 ### Frozen Schemas
 
-Schemas with `freeze=true` reject all update operations:
+Schemas with `frozen=true` reject all update operations:
 
 ```bash
 PUT /api/data/audit_log
@@ -196,15 +196,27 @@ PUT /api/data/financial_accounts
 Authorization: Bearer SUDO_TOKEN
 ```
 
-### Immutable Fields
+### Immutable Schemas and Fields
 
-Fields marked with `immutable=true` **cannot be changed** after creation:
+**Schema-level immutability** (`schemas.immutable=true`):
+- Entire records cannot be modified after creation
+- All update operations will fail
+- Use for audit logs, blockchain-style records
+
+**Field-level immutability** (`columns.immutable=true`):
+- Specific fields cannot be changed after creation
+- Other fields in the record can still be updated
+- Use for transaction IDs, immutable identifiers
 
 ```bash
 PUT /api/data/transactions
 [{"id": "tx-123", "transaction_id": "NEW-ID"}]
 
 # Error: Cannot modify immutable fields: transaction_id
+
+# But if schema.immutable=false, other fields can be updated:
+PUT /api/data/transactions
+[{"id": "tx-123", "amount": 1500}]  # OK: amount is not immutable
 ```
 
 ## Validation Examples
@@ -289,35 +301,16 @@ Most system fields are **protected** and cannot be updated:
 
 - ✅ **1-100 records**: Optimal performance
 - ⚠️ **100-1000 records**: Good, but consider chunking
-- ❌ **1000+ records**: Use chunking strategy (see below)
+- ❌ **1000+ records**: Consider using background job or chunking into smaller batches
 
-### Large Update Strategy
+### Large Dataset Operations
 
-```javascript
-async function bulkUpdate(updates, batchSize = 100) {
-  const results = [];
+For very large updates beyond typical API usage:
 
-  for (let i = 0; i < updates.length; i += batchSize) {
-    const batch = updates.slice(i, i + batchSize);
+- **Extracts API** - Export large datasets for offline processing
+- **Restores API** - Import updated datasets with optimized bulk loading
 
-    const response = await fetch('/api/data/users', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(batch)
-    });
-
-    const { data } = await response.json();
-    results.push(...data);
-
-    console.log(`Updated ${i + batch.length}/${updates.length} records`);
-  }
-
-  return results;
-}
-```
+See the Extracts and Restores API documentation for handling high-volume data operations.
 
 ## Related Endpoints
 

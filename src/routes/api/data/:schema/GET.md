@@ -386,7 +386,7 @@ See [`POST /api/find/:schema`](../../find/:schema/POST.md) for details.
 
 This endpoint respects schema-level protection:
 
-- **Frozen schemas** (`freeze=true`): Read operations are allowed
+- **Frozen schemas** (`frozen=true`): Read operations are allowed
 - **Sudo-protected schemas** (`sudo=true`): No special requirements for read operations
 - **ACL filtering**: Results automatically filtered based on user's `access_read` permissions
 

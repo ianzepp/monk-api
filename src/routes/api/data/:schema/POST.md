@@ -189,7 +189,7 @@ If any observer throws an error, the transaction rolls back and no records are c
 
 ### Frozen Schemas
 
-Schemas with `freeze=true` **reject all create operations**:
+Schemas with `frozen=true` **reject all create operations**:
 
 ```bash
 POST /api/data/audit_log
@@ -211,9 +211,17 @@ POST /api/data/financial_accounts
 Authorization: Bearer SUDO_TOKEN
 ```
 
-### Immutable Fields
+### Immutable Schemas and Fields
 
-Fields marked with `immutable=true` can be set during creation, but cannot be changed later:
+**Schema-level immutability** (`schemas.immutable=true`):
+- Entire records can be created once but never modified
+- No updates allowed to any field after creation
+- Use for audit logs, blockchain-style records
+
+**Field-level immutability** (`columns.immutable=true`):
+- Specific fields can be set once during creation but never modified
+- Other fields in the record can still be updated
+- Use for transaction IDs, immutable identifiers
 
 ```json
 // Allowed: Set immutable field during creation
@@ -222,6 +230,10 @@ Fields marked with `immutable=true` can be set during creation, but cannot be ch
 // Later update attempt will fail:
 PUT /api/data/transactions/abc-123
 {"transaction_id": "TX456"}  // Error: Cannot modify immutable field
+
+// But if schema.immutable=false, other fields can be updated:
+PUT /api/data/transactions/abc-123
+{"amount": 1500}  // OK: amount is not immutable
 ```
 
 ## Field Defaults and Auto-Generation
@@ -309,39 +321,14 @@ POST /api/data/users
 - ⚠️ **100-1000 records**: Good, but consider chunking for UI feedback
 - ❌ **1000+ records**: Consider using background job or chunking into smaller batches
 
-### Large Batch Strategy
+### Large Dataset Operations
 
-For very large imports, chunk into smaller batches:
+For very large imports or exports beyond typical API usage:
 
-```javascript
-async function bulkCreate(records, batchSize = 100) {
-  const results = [];
+- **Extracts API** - Export large datasets efficiently
+- **Restores API** - Import large datasets with optimized bulk loading
 
-  for (let i = 0; i < records.length; i += batchSize) {
-    const batch = records.slice(i, i + batchSize);
-
-    const response = await fetch('/api/data/users', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(batch)
-    });
-
-    const { data } = await response.json();
-    results.push(...data);
-
-    console.log(`Created ${i + batch.length}/${records.length} records`);
-  }
-
-  return results;
-}
-
-// Usage
-const users = [...]; // 5000 records
-const created = await bulkCreate(users, 100); // Creates in batches of 100
-```
+See the Extracts and Restores API documentation for handling high-volume data operations.
 
 ## Related Endpoints
 

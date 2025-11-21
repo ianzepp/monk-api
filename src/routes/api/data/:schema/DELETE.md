@@ -238,7 +238,7 @@ If any observer throws an error, the transaction rolls back and no records are d
 
 ### Frozen Schemas
 
-Schemas with `freeze=true` reject all delete operations:
+Schemas with `frozen=true` reject all delete operations:
 
 ```bash
 DELETE /api/data/audit_log
@@ -326,28 +326,16 @@ DELETE /api/data/users
 
 - ✅ **1-100 records**: Optimal performance
 - ⚠️ **100-1000 records**: Good, but consider chunking
-- ❌ **1000+ records**: Use chunking strategy
+- ❌ **1000+ records**: Consider using background job or chunking into smaller batches
 
-### Large Delete Strategy
+### Large Dataset Operations
 
-```javascript
-async function bulkDelete(ids, batchSize = 100) {
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const batch = ids.slice(i, i + batchSize);
+For very large deletions beyond typical API usage:
 
-    await fetch('/api/data/users', {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(batch.map(id => ({ id })))
-    });
+- **Extracts API** - Export records for analysis before deletion
+- **Restores API** - Bulk restore operations if needed
 
-    console.log(`Deleted ${i + batch.length}/${ids.length} records`);
-  }
-}
-```
+See the Extracts and Restores API documentation for handling high-volume data operations.
 
 ## Data Retention Policy Example
 
