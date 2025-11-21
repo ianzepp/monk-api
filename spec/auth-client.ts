@@ -20,6 +20,7 @@ import { TEST_CONFIG } from './test-config.js';
 export interface LoginCredentials {
     tenant: string;
     username: string;
+    format?: string;
 }
 
 /**
@@ -35,17 +36,26 @@ export interface RegistrationParams {
 
 /**
  * Authentication response (success or error)
+ * Can be either login or register response format
  */
 export interface AuthResponse {
     success: boolean;
     error?: string;
     error_code?: string;
     data?: {
-        tenant: string;
-        database: string;
-        username: string;
+        tenant?: string;
+        database?: string;
+        username?: string;
         token: string;
-        expires_in: number;
+        expires_in?: number;
+        user?: {
+            id: string;
+            username: string;
+            tenant: string;
+            database: string;
+            access: string;
+            format?: string;
+        };
     };
 }
 

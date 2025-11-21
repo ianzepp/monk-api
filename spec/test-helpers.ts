@@ -131,9 +131,9 @@ export class TestHelpers {
         }
 
         return {
-            tenantName: response.data!.tenant,
-            databaseName: response.data!.database,
-            username: response.data!.username,
+            tenantName: response.data!.tenant!,
+            databaseName: response.data!.database!,
+            username: response.data!.username!,
             token: response.data!.token,
             httpClient: authClient.client,
         };
