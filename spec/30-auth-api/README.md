@@ -23,8 +23,8 @@
   - Tests: Token validation (missing, empty, null), refresh operations (valid, invalid format, tampered), response format (structure, expires_in, uniqueness), security (access preservation, timestamp updates)
   - Skipped: Expired token (requires manual TTL), format preference (login limitation), rate limiting (requires middleware)
 
-### Not Yet Tested (1)
-- POST /auth/fake - Debug endpoint for user impersonation tokens (testing/dev workflow)
+### Endpoints Moved to Protected Routes
+- POST /auth/fake - User impersonation (moved to protected endpoint, not in auth module)
 
 ## Additional Tests
 
