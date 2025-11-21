@@ -47,17 +47,17 @@ export async function jwtValidationMiddleware(context: Context, next: Next) {
     try {
         const authHeader = context.req.header('Authorization');
         if (!authHeader?.startsWith('Bearer ')) {
-            throw HttpErrors.unauthorized('Authorization header required', 'TOKEN_MISSING');
+            throw HttpErrors.unauthorized('Authorization token required', 'AUTH_TOKEN_REQUIRED');
         }
-        
+
         const token = authHeader.substring(7);
         const payload = await verify(token, getJwtSecret()) as JWTPayload;
-        
+
         // Store JWT payload and context values
         context.set('jwtPayload', payload);
         context.set('tenant', payload.tenant);
         context.set('database', payload.database);
-        
+
         // Add isSudo() helper to context
         // Checks if user has sudo access via any method:
         // 1. access='root' (automatic sudo)
@@ -73,12 +73,18 @@ export async function jwtValidationMiddleware(context: Context, next: Next) {
         return await next();
 
     } catch (error: any) {
-        // Convert JWT verification errors to proper HttpErrors
-        if (error.name === 'JwtTokenExpired' || error.name === 'JwtTokenInvalid' || 
-            error.message?.includes('jwt') || error.message === 'Unauthorized') {
-            throw HttpErrors.unauthorized('Invalid or expired token', 'TOKEN_INVALID');
+        // Convert JWT verification errors to proper HttpErrors with specific error codes
+
+        // Token expired - can be refreshed
+        if (error.name === 'JwtTokenExpired') {
+            throw HttpErrors.unauthorized('Token has expired', 'AUTH_TOKEN_EXPIRED');
         }
-        
+
+        // Token invalid - malformed or bad signature
+        if (error.name === 'JwtTokenInvalid' || error.message?.includes('jwt') || error.message === 'Unauthorized') {
+            throw HttpErrors.unauthorized('Invalid token', 'AUTH_TOKEN_INVALID');
+        }
+
         // Re-throw HttpErrors and other errors
         throw error;
     }

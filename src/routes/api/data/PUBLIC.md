@@ -154,7 +154,9 @@ Always expects an array of record objects:
 |--------|------------|---------|-----------|
 | 400 | `REQUEST_INVALID_FORMAT` | "Request body must be an array of records" | Body is not an array |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Missing or invalid Authorization header |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 
 ---
 
@@ -193,7 +195,9 @@ None - GET request with no body.
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Missing or invalid Authorization header |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 
 ---
 
@@ -251,7 +255,9 @@ PATCH /api/data/users?include_trashed=true
 |--------|------------|---------|-----------|
 | 400 | `REQUEST_INVALID_FORMAT` | "Request body must be an array of update records with id fields" | Body is not an array or missing id fields |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Missing or invalid Authorization header |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 
 ---
 
@@ -322,7 +328,9 @@ Always expects an array of record objects with `id` fields:
 | 400 | `REQUEST_INVALID_FORMAT` | "Request body must be an array of records with id fields" | Body is not an array or missing id fields |
 | 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Missing or invalid Authorization header |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 
 ---
 
@@ -360,7 +368,9 @@ None - GET request with no body.
 |--------|------------|---------|-----------|
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Missing or invalid Authorization header |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 
 ---
 
@@ -409,7 +419,9 @@ PATCH /api/data/users/550e8400-e29b-41d4-a716-446655440000?include_trashed=true
 |--------|------------|---------|-----------|
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Missing or invalid Authorization header |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 
 ---
 
@@ -466,7 +478,9 @@ None - DELETE request with no body.
 | 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Missing or invalid Authorization header |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 
 ---
 

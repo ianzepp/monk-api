@@ -145,8 +145,9 @@ All bulk requests execute inside a transaction created by the route (`withTransa
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 401 | `TOKEN_MISSING` | "Authorization header required" | Missing bearer token |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Token validation failed |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 | 403 | `PERMISSION_DENIED` | "Operation not authorized" | Lacking schema permission |
 
 ## Usage Examples

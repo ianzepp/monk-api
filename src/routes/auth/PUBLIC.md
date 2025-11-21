@@ -31,13 +31,15 @@ All error responses from the Auth API include `error_code` and `error` fields. U
 |------------|--------|---------|-------------|-----------|
 | `AUTH_TENANT_MISSING` | 400 | "Tenant is required" | `/auth/login`, `/auth/register` | Missing tenant field in request |
 | `AUTH_USERNAME_MISSING` | 400 | "Username is required" | `/auth/login`, `/auth/register` (enterprise mode) | Missing username field or required in enterprise mode |
-| `AUTH_TOKEN_MISSING` | 400 | "Token is required for refresh" | `/auth/refresh` | Missing token field in request |
+| `AUTH_TOKEN_REQUIRED` | 400 | "Token is required for refresh" | `/auth/refresh` | Missing token field in request |
 | `AUTH_TARGET_USER_MISSING` | 400 | "Either user_id or username is required to identify target user" | `/api/auth/fake` | Neither user_id nor username provided |
 | `AUTH_CANNOT_FAKE_SELF` | 400 | "Cannot fake your own user - you are already authenticated as this user" | `/api/auth/fake` | Attempting to impersonate own user account |
 | `AUTH_DATABASE_NOT_ALLOWED` | 400 | "database parameter can only be specified when server is in personal mode" | `/auth/register` | Custom database name provided in enterprise mode |
 | `AUTH_LOGIN_FAILED` | 401 | "Authentication failed" | `/auth/login` | Invalid credentials or tenant not found |
-| `AUTH_TOKEN_REFRESH_FAILED` | 401 | "Token refresh failed" | `/auth/refresh` | Invalid or corrupted token signature |
-| `AUTH_USER_JWT_REQUIRED` | 401 | "Valid user JWT required" | `/api/auth/fake`, `/api/user/whoami`, `/api/user/sudo` | No Bearer token provided or invalid JWT |
+| `AUTH_TOKEN_REQUIRED` | 401 | "Authorization token required" | Any protected endpoint | No Bearer token in Authorization header |
+| `AUTH_TOKEN_INVALID` | 401 | "Invalid token" | Any protected endpoint, `/auth/refresh` | Token malformed or bad signature |
+| `AUTH_TOKEN_EXPIRED` | 401 | "Token has expired" | Any protected endpoint | Token well-formed but past expiration |
+| `AUTH_TOKEN_REFRESH_FAILED` | 401 | "Token refresh failed" | `/auth/refresh` | Token valid but user/tenant no longer exists |
 | `AUTH_FAKE_ACCESS_DENIED` | 403 | "User impersonation requires root access" | `/api/auth/fake` | User account lacks root access level |
 | `AUTH_TENANT_LIST_NOT_AVAILABLE` | 403 | "Tenant listing is only available in personal mode" | `/auth/tenants` | Endpoint called on enterprise mode server |
 | `AUTH_TEMPLATE_LIST_NOT_AVAILABLE` | 403 | "Template listing is only available in personal mode" | `/auth/templates` | Endpoint called on enterprise mode server |
@@ -48,7 +50,6 @@ All error responses from the Auth API include `error_code` and `error` fields. U
 | `DATABASE_TENANT_EXISTS` | 409 | "Tenant '{name}' already exists" | `/auth/register` | Tenant name already registered |
 | `DATABASE_EXISTS` | 409 | "Database '{name}' already exists" | `/auth/register` (personal mode) | Database name collision in personal mode |
 | `DATABASE_TEMPLATE_CLONE_FAILED` | 500 | "Failed to clone template database: ..." | `/auth/register` | Template cloning operation failed |
-| `TOKEN_INVALID` | 401 | "Invalid or expired token" | Any protected endpoint | Bad JWT signature or token expired |
 
 ## Content Type
 - **Request**: `application/json`
@@ -181,8 +182,9 @@ Exchange an existing JWT token (even if expired) for a new token while preservin
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `TOKEN_MISSING` | "Token is required for refresh" | Missing token field |
-| 401 | `TOKEN_REFRESH_FAILED` | "Token refresh failed" | Invalid or corrupted token |
+| 400 | `AUTH_TOKEN_REQUIRED` | "Token is required for refresh" | Missing token field |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Invalid or corrupted token |
+| 401 | `AUTH_TOKEN_REFRESH_FAILED` | "Token refresh failed" | Token valid but user/tenant no longer exists |
 
 ---
 
@@ -510,9 +512,10 @@ None - GET request with no body.
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 401 | `TOKEN_MISSING` | "Authorization header required" | No Bearer token provided |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Bad JWT signature or expired |
-| 401 | `USER_NOT_FOUND` | "User not found or inactive" | User doesn't exist in tenant DB |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token provided |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Bad JWT signature or malformed |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
+| 404 | `AUTH_USER_NOT_FOUND` | "User not found or inactive" | User doesn't exist in tenant DB |
 
 ---
 
@@ -554,8 +557,8 @@ Request a short-lived sudo token for protected operations requiring elevated pri
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 401 | `USER_JWT_REQUIRED` | "Valid user JWT required for privilege escalation" | No valid user JWT |
-| 403 | `SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo - requires 'root' or 'full' access level" | User has edit/read/deny access |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No valid user JWT |
+| 403 | `AUTH_SUDO_ACCESS_DENIED` | "Insufficient privileges for sudo - requires 'root' or 'full' access level" | User has edit/read/deny access |
 
 ---
 
@@ -612,11 +615,11 @@ Impersonate another user by generating a JWT with their identity and permissions
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `TARGET_USER_MISSING` | "Either user_id or username is required to identify target user" | Neither user_id nor username provided |
-| 400 | `CANNOT_FAKE_SELF` | "Cannot fake your own user - you are already authenticated as this user" | Trying to fake yourself |
-| 401 | `USER_JWT_REQUIRED` | "Valid user JWT required" | No valid user JWT |
-| 403 | `FAKE_ACCESS_DENIED` | "User impersonation requires root access" | User lacks root access |
-| 404 | `TARGET_USER_NOT_FOUND` | "Target user not found: {identifier}" | User doesn't exist or is deleted |
+| 400 | `AUTH_TARGET_USER_MISSING` | "Either user_id or username is required to identify target user" | Neither user_id nor username provided |
+| 400 | `AUTH_CANNOT_FAKE_SELF` | "Cannot fake your own user - you are already authenticated as this user" | Trying to fake yourself |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No valid user JWT |
+| 403 | `AUTH_FAKE_ACCESS_DENIED` | "User impersonation requires root access" | User lacks root access |
+| 404 | `AUTH_TARGET_USER_NOT_FOUND` | "Target user not found: {identifier}" | User doesn't exist or is deleted |
 
 #### JWT Payload for Fake Tokens
 

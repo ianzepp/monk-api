@@ -24,7 +24,7 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * Error codes:
  * - AUTH_TARGET_USER_MISSING: Neither user_id nor username provided (400)
  * - AUTH_CANNOT_FAKE_SELF: Attempting to fake own user (400)
- * - AUTH_USER_JWT_REQUIRED: No valid user JWT provided (401)
+ * - AUTH_TOKEN_REQUIRED: No valid user JWT provided (401)
  * - AUTH_FAKE_ACCESS_DENIED: User lacks root access (403)
  * - AUTH_TARGET_USER_NOT_FOUND: Target user does not exist (404)
  */
@@ -33,7 +33,7 @@ export default async function (context: Context) {
     const currentJwt = context.get('jwtPayload');
 
     if (!currentUser || !currentJwt) {
-        throw HttpErrors.unauthorized('Valid user JWT required', 'AUTH_USER_JWT_REQUIRED');
+        throw HttpErrors.unauthorized('Authorization token required', 'AUTH_TOKEN_REQUIRED');
     }
 
     // Only root users can fake other users

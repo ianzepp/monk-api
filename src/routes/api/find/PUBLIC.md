@@ -272,7 +272,9 @@ curl -X POST http://localhost:9001/api/find/documents \
 | 400 | `REQUEST_INVALID_FORMAT` | "Request body must be an array of operations" | Invalid request structure |
 | 400 | `OPERATION_MISSING_FIELDS` | "Operation missing required fields" | Missing operation or schema |
 | 400 | `OPERATION_MISSING_ID` | "ID required for operation" | Single-record operation without ID |
-| 401 | `TOKEN_INVALID` | "Invalid or expired token" | Authentication failure |
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Target schema doesn't exist |
 | 422 | `OPERATION_UNSUPPORTED` | "Unsupported operation" | Invalid operation type |
 

@@ -12,8 +12,9 @@ import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
  * a new token. This allows clients to extend their session without re-authenticating.
  *
  * Error codes:
- * - AUTH_TOKEN_MISSING: Missing token field (400)
- * - AUTH_TOKEN_REFRESH_FAILED: Invalid, expired, or corrupted token (401)
+ * - AUTH_TOKEN_REQUIRED: Missing token field (400)
+ * - AUTH_TOKEN_INVALID: Invalid or corrupted token (401)
+ * - AUTH_TOKEN_REFRESH_FAILED: Token valid but user/tenant no longer exists (401)
  *
  * @see docs/routes/AUTH_API.md
  */
@@ -22,7 +23,7 @@ export default async function (context: Context) {
 
     // Input validation
     if (!token) {
-        throw HttpErrors.badRequest('Token is required for refresh', 'AUTH_TOKEN_MISSING');
+        throw HttpErrors.badRequest('Token is required for refresh', 'AUTH_TOKEN_REQUIRED');
     }
 
     let payload: JWTPayload;
@@ -31,13 +32,14 @@ export default async function (context: Context) {
     try {
         payload = (await verify(token, process.env.JWT_SECRET!)) as JWTPayload;
     } catch (error: any) {
-        // Handle JWT verification errors (invalid signature, expired, malformed)
-        // This includes tampered tokens, invalid format, expiration, etc.
+        // Handle JWT verification errors (invalid signature, malformed)
+        // Note: Refresh endpoint accepts expired tokens - that's the whole point
+        // Only reject if token is invalid (bad signature, corrupted)
         return context.json(
             {
                 success: false,
-                error: 'Invalid or expired token',
-                error_code: 'AUTH_TOKEN_REFRESH_FAILED',
+                error: 'Invalid token',
+                error_code: 'AUTH_TOKEN_INVALID',
             },
             401
         );

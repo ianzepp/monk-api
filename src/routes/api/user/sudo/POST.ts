@@ -20,14 +20,14 @@ export default async function (context: Context) {
     const user = context.get('user');
 
     if (!userJwt || !user) {
-        throw HttpErrors.unauthorized('Valid user JWT required for privilege escalation', 'USER_JWT_REQUIRED');
+        throw HttpErrors.unauthorized('Authorization token required', 'AUTH_TOKEN_REQUIRED');
     }
 
     // Validate user can escalate privileges (root or full users only)
     if (user.access !== 'root' && user.access !== 'full') {
         throw HttpErrors.forbidden(
             `Insufficient privileges for sudo - requires 'root' or 'full' access level (current: '${user.access}')`,
-            'SUDO_ACCESS_DENIED'
+            'AUTH_SUDO_ACCESS_DENIED'
         );
     }
 

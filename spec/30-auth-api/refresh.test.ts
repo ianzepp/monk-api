@@ -27,7 +27,7 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
 
             expect(response.success).toBe(false);
             expect(response.error).toContain('required');
-            expect(response.error_code).toBe('AUTH_TOKEN_MISSING');
+            expect(response.error_code).toBe('AUTH_TOKEN_REQUIRED');
         });
 
         it('should reject empty token field', async () => {
@@ -39,7 +39,7 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
 
             expect(response.success).toBe(false);
             expect(response.error).toContain('required');
-            expect(response.error_code).toBe('AUTH_TOKEN_MISSING');
+            expect(response.error_code).toBe('AUTH_TOKEN_REQUIRED');
         });
 
         it('should reject null token field', async () => {
@@ -50,7 +50,7 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
             });
 
             expect(response.success).toBe(false);
-            expect(response.error_code).toBe('AUTH_TOKEN_MISSING');
+            expect(response.error_code).toBe('AUTH_TOKEN_REQUIRED');
         });
     });
 
@@ -77,7 +77,7 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
             });
 
             expect(response.success).toBe(false);
-            expect(response.error_code).toBe('AUTH_TOKEN_REFRESH_FAILED');
+            expect(response.error_code).toBe('AUTH_TOKEN_INVALID');
         });
 
         it('should reject tampered token', async () => {
@@ -91,7 +91,7 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
             });
 
             expect(response.success).toBe(false);
-            expect(response.error_code).toBe('AUTH_TOKEN_REFRESH_FAILED');
+            expect(response.error_code).toBe('AUTH_TOKEN_INVALID');
         });
 
         it.skip('should reject expired token', async () => {
@@ -111,7 +111,7 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
             });
 
             expect(response.success).toBe(false);
-            expect(response.error_code).toBe('AUTH_TOKEN_REFRESH_FAILED');
+            expect(response.error_code).toBe('AUTH_TOKEN_INVALID');
         });
 
         it.skip('should include format preference in refreshed token', async () => {
