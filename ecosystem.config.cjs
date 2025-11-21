@@ -42,6 +42,9 @@ module.exports = {
 
       // Environment variables - loaded from .env.production
       // No defaults - application will fail fast if required vars are missing
+      env: {
+        NODE_ENV: 'production',
+      },
       env_file: '.env.production',
 
       // Logging
