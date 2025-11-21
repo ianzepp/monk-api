@@ -50,9 +50,9 @@ import * as aclsRoutes from '@src/routes/api/acls/routes.js';
 import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as historyRoutes from '@src/routes/api/history/routes.js';
-import * as extractRoutes from '@src/routes/app/extracts/routes.js';
-import * as restoreRoutes from '@src/routes/app/restores/routes.js';
-import * as gridRoutes from '@src/routes/app/grids/routes.js';
+import * as extractRoutes from '@src/routes/api/extracts/routes.js';
+import * as restoreRoutes from '@src/routes/api/restores/routes.js';
+import * as gridRoutes from '@src/routes/api/grids/routes.js';
 import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Special protected endpoints
@@ -97,6 +97,20 @@ app.get('/', context => {
         description: 'Lightweight PaaS backend API built with Hono',
         endpoints: {
             health: ['/health'],
+            docs: [
+                '/docs',
+                '/docs/auth',
+                '/docs/describe',
+                '/docs/data',
+                '/docs/find',
+                '/docs/aggregate',
+                '/docs/bulk',
+                '/docs/user',
+                '/docs/acls',
+                '/docs/stat',
+                '/docs/history',
+                '/docs/sudo',
+            ],
             auth: [
                 '/auth/login',
                 '/auth/register',
@@ -152,37 +166,20 @@ app.get('/', context => {
                 '/api/sudo/users/:id',
             ],
             extracts: [
-                '/app/extracts/:id/run',
-                '/app/extracts/:id/cancel',
-                '/app/extracts/runs/:runId/download',
-                '/app/extracts/artifacts/:artifactId/download'
+                '/api/extracts/:id/run',
+                '/api/extracts/:id/cancel',
+                '/api/extracts/runs/:runId/download',
+                '/api/extracts/artifacts/:artifactId/download'
             ],
             restores: [
-                '/app/restores/:id/run',
-                '/app/restores/:id/cancel',
-                '/app/restores/import'
+                '/api/restores/:id/run',
+                '/api/restores/:id/cancel',
+                '/api/restores/import'
             ],
             grids: [
-                '/app/grids/:id/:range',
-                '/app/grids/:id/cells'
+                '/api/grids/:id/:range',
+                '/api/grids/:id/cells'
             ]
-        },
-        documentation: {
-            home: ['/README.md'],
-            auth: ['/docs/auth'],
-            describe: ['/docs/describe'],
-            data: ['/docs/data'],
-            find: ['/docs/find'],
-            aggregate: ['/docs/aggregate'],
-            bulk: ['/docs/bulk'],
-            user: ['/docs/user'],
-            acls: ['/docs/acls'],
-            stat: ['/docs/stat'],
-            history: ['/docs/history'],
-            sudo: ['/docs/sudo'],
-            extracts: ['/docs/extracts'],
-            restores: ['/docs/restores'],
-            grids: ['/docs/grids']
         },
     });
 });
@@ -212,16 +209,8 @@ app.use('/api/*', middleware.formatDetectionMiddleware);
 app.use('/api/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
 app.use('/api/*', middleware.systemContextMiddleware);
 
-// Protected App routes - application features (same authentication as API routes)
-app.use('/app/*', middleware.requestBodyParserMiddleware);
-app.use('/app/*', middleware.jwtValidationMiddleware);
-app.use('/app/*', middleware.userValidationMiddleware);
-app.use('/app/*', middleware.formatDetectionMiddleware);
-app.use('/app/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
-app.use('/app/*', middleware.systemContextMiddleware);
-
 // 40-docs-api: Public docs routes (no authentication required)
-app.get('/README.md', docsRoutes.ReadmeGet); // GET /README.md
+app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
 app.get('/docs/:api', docsRoutes.ApiGet); // GET /docs/:api
 
 // 30-auth-api: Public auth routes (token acquisition)
@@ -295,21 +284,21 @@ app.get('/api/history/:schema/:record', historyRoutes.RecordHistoryGet); // List
 app.get('/api/history/:schema/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
 
 // 50-extracts-app: Extract application (data export jobs)
-app.post('/app/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job
-app.post('/app/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
-app.get('/app/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
-app.get('/app/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
+app.post('/api/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job
+app.post('/api/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
+app.get('/api/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
+app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
 
 // 51-restores-app: Restore application (data import jobs)
-app.post('/app/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
-app.post('/app/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
-app.post('/app/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
+app.post('/api/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
+app.post('/api/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
+app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
 
 // 52-grids-app: Grid application (spreadsheet-like cell storage)
-app.get('/app/grids/:id/:range', gridRoutes.RangeGet); // Read cells (A1, A1:Z100, A:A, 5:5)
-app.put('/app/grids/:id/:range', gridRoutes.RangePut); // Update cells/range
-app.delete('/app/grids/:id/:range', gridRoutes.RangeDelete); // Clear cells/range
-app.post('/app/grids/:id/cells', gridRoutes.CellsPost); // Bulk upsert cells
+app.get('/api/grids/:id/:range', gridRoutes.RangeGet); // Read cells (A1, A1:Z100, A:A, 5:5)
+app.put('/api/grids/:id/:range', gridRoutes.RangePut); // Update cells/range
+app.delete('/api/grids/:id/:range', gridRoutes.RangeDelete); // Clear cells/range
+app.post('/api/grids/:id/cells', gridRoutes.CellsPost); // Bulk upsert cells
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

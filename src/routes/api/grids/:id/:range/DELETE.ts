@@ -1,23 +1,22 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { parseRange, validateRangeBounds, formatCells } from '@src/routes/app/grids/range-parser.js';
+import { parseRange, validateRangeBounds } from '@src/routes/api/grids/range-parser.js';
 
 /**
- * GET /app/grids/:id/:range - Read cells from grid
+ * DELETE /api/grids/:id/:range - Clear cells in range
  *
- * Supports Excel-style range notation:
- * - Single cell: /app/grids/:id/A1
- * - Range: /app/grids/:id/A1:Z100
- * - Row: /app/grids/:id/5:5
- * - Column: /app/grids/:id/A:A
+ * Supports all range formats:
+ * - Single cell: /api/grids/:id/A1
+ * - Range: /api/grids/:id/A1:Z100
+ * - Row: /api/grids/:id/5:5
+ * - Column: /api/grids/:id/A:A
  *
- * Returns sparse array (only non-empty cells)
+ * Returns count of deleted cells
  */
-export default withParams(async (context, { system }) => {
+export default withTransactionParams(async (context, { system }) => {
     const gridId = context.req.param('id');
     const rangeStr = context.req.param('range');
-    const format = context.req.query('format');
 
     // 1. Load grid (validates existence + gets constraints)
     const grid = await system.database.select404('grids', {
@@ -30,27 +29,26 @@ export default withParams(async (context, { system }) => {
     // 3. Validate against grid constraints
     validateRangeBounds(range, grid.row_max, grid.col_max);
 
-    // 4. Build SQL query (transaction-aware)
-    const dbContext = system.tx || system.db;
-    const { query, params } = buildSelectQuery(gridId, range);
+    // 4. Build DELETE query (transaction-aware)
+    const dbContext = system.tx!; // withTransactionParams ensures tx exists
+    const { query, params } = buildDeleteQuery(gridId, range);
 
-    // 5. Execute query
-    const result = await dbContext.query(query, params)
-    const cells = formatCells(result.rows, format);
+    // 5. Execute delete
+    const result = await dbContext.query(query, params);
 
     // 6. Return with metadata
     setRouteResult(context, {
         grid_id: gridId,
         range: rangeStr,
-        cells: cells
+        deleted: result.rowCount || 0
     });
 });
 
 /**
- * Build SELECT query based on range type
+ * Build DELETE query based on range type
  */
-function buildSelectQuery(gridId: string, range: any): { query: string; params: any[] } {
-    let query = 'SELECT row, col, value FROM grid_cells WHERE grid_id = $1';
+function buildDeleteQuery(gridId: string, range: any): { query: string; params: any[] } {
+    let query = 'DELETE FROM grid_cells WHERE grid_id = $1';
     const params: any[] = [gridId];
     let paramIndex = 2;
 
@@ -64,7 +62,6 @@ function buildSelectQuery(gridId: string, range: any): { query: string; params: 
             query += ` AND row BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
             query += ` AND col BETWEEN $${paramIndex + 2} AND $${paramIndex + 3}`;
             params.push(range.startRow, range.endRow, range.startCol, range.endCol);
-            query += ' ORDER BY row, col';
             break;
 
         case 'row':
@@ -77,7 +74,6 @@ function buildSelectQuery(gridId: string, range: any): { query: string; params: 
                 query += ` AND row BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
                 params.push(range.startRow, range.endRow);
             }
-            query += ' ORDER BY col';
             break;
 
         case 'col':
@@ -90,7 +86,6 @@ function buildSelectQuery(gridId: string, range: any): { query: string; params: 
                 query += ` AND col BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
                 params.push(range.startCol, range.endCol);
             }
-            query += ' ORDER BY row';
             break;
     }
 

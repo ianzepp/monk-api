@@ -2,17 +2,17 @@ import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { parseRange, validateRangeBounds } from '@src/routes/app/grids/range-parser.js';
+import { parseRange, validateRangeBounds } from '@src/routes/api/grids/range-parser.js';
 
 /**
- * PUT /app/grids/:id/:range - Update cells in grid
+ * PUT /api/grids/:id/:range - Update cells in grid
  *
  * Single cell:
- * PUT /app/grids/:id/A1
+ * PUT /api/grids/:id/A1
  * Body: {"value": "Name"}
  *
  * Range:
- * PUT /app/grids/:id/A1:B2
+ * PUT /api/grids/:id/A1:B2
  * Body: {"cells": [{row: 1, col: "A", value: "Name"}, ...]}
  *
  * Null values delete the cell (sparse storage)

@@ -4,7 +4,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /app/grids/:id/cells - Bulk upsert cells
+ * POST /api/grids/:id/cells - Bulk upsert cells
  *
  * Body: {"cells": [{row: 1, col: "A", value: "Name"}, ...]}
  *

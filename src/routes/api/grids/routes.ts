@@ -27,7 +27,7 @@
  */
 
 // Cell operations
-export { default as RangeGet } from '@src/routes/app/grids/:id/:range/GET.js';
-export { default as RangePut } from '@src/routes/app/grids/:id/:range/PUT.js';
-export { default as RangeDelete } from '@src/routes/app/grids/:id/:range/DELETE.js';
-export { default as CellsPost } from '@src/routes/app/grids/:id/cells/POST.js';
+export { default as RangeGet } from '@src/routes/api/grids/:id/:range/GET.js';
+export { default as RangePut } from '@src/routes/api/grids/:id/:range/PUT.js';
+export { default as RangeDelete } from '@src/routes/api/grids/:id/:range/DELETE.js';
+export { default as CellsPost } from '@src/routes/api/grids/:id/cells/POST.js';

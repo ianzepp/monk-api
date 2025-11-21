@@ -3,7 +3,7 @@
 Excel-like spreadsheet functionality for exploratory data work. Store and manipulate tabular data with cell-based operations using familiar spreadsheet notation.
 
 ## Base Path
-All Grid application routes are prefixed with `/app/grids`
+All Grid application routes are prefixed with `/api/grids`
 
 Grid metadata management uses: `/api/data/grids` (Data API)
 
@@ -11,10 +11,10 @@ Grid metadata management uses: `/api/data/grids` (Data API)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/app/grids/:id/:range`](#get-apigrididrange) | Read cells from a range |
-| PUT | [`/app/grids/:id/:range`](#put-apigrididrange) | Update cells in a range |
-| DELETE | [`/app/grids/:id/:range`](#delete-apigrididrange) | Clear cells in a range |
-| POST | [`/app/grids/:id/cells`](#post-apigrididcells) | Bulk upsert cells |
+| GET | [`/api/grids/:id/:range`](#get-apigrididrange) | Read cells from a range |
+| PUT | [`/api/grids/:id/:range`](#put-apigrididrange) | Update cells in a range |
+| DELETE | [`/api/grids/:id/:range`](#delete-apigrididrange) | Clear cells in a range |
+| POST | [`/api/grids/:id/cells`](#post-apigrididcells) | Bulk upsert cells |
 
 **Note:** Grid configuration management (create, read, update, delete grids) is handled via the standard Data API at `/api/data/grids`.
 
@@ -54,7 +54,7 @@ Grid application uses Excel-style range notation for cell operations:
 
 ---
 
-## GET /app/grids/:id/:range
+## GET /api/grids/:id/:range
 
 Read cells from a grid. Returns only populated cells (sparse storage).
 
@@ -116,25 +116,25 @@ Read cells from a grid. Returns only populated cells (sparse storage).
 
 ```bash
 # Read single cell
-curl http://localhost:9001/app/grids/abc123/A1 \
+curl http://localhost:9001/api/grids/abc123/A1 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Read range
-curl http://localhost:9001/app/grids/abc123/A1:Z100 \
+curl http://localhost:9001/api/grids/abc123/A1:Z100 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Read entire row
-curl http://localhost:9001/app/grids/abc123/5:5 \
+curl http://localhost:9001/api/grids/abc123/5:5 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Read entire column
-curl http://localhost:9001/app/grids/abc123/A:A \
+curl http://localhost:9001/api/grids/abc123/A:A \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ---
 
-## PUT /app/grids/:id/:range
+## PUT /api/grids/:id/:range
 
 Update cells in a grid. Uses UPSERT pattern (insert if new, update if exists).
 
@@ -202,13 +202,13 @@ Returns updated cells (excluding deleted cells):
 
 ```bash
 # Update single cell
-curl -X PUT http://localhost:9001/app/grids/abc123/A1 \
+curl -X PUT http://localhost:9001/api/grids/abc123/A1 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"value": "Hello"}'
 
 # Update range
-curl -X PUT http://localhost:9001/app/grids/abc123/A1:B2 \
+curl -X PUT http://localhost:9001/api/grids/abc123/A1:B2 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -219,7 +219,7 @@ curl -X PUT http://localhost:9001/app/grids/abc123/A1:B2 \
   }'
 
 # Delete cell (set to null)
-curl -X PUT http://localhost:9001/app/grids/abc123/A1 \
+curl -X PUT http://localhost:9001/api/grids/abc123/A1 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"value": null}'
@@ -227,7 +227,7 @@ curl -X PUT http://localhost:9001/app/grids/abc123/A1 \
 
 ---
 
-## DELETE /app/grids/:id/:range
+## DELETE /api/grids/:id/:range
 
 Clear cells in a range. Actually removes cells from storage (sparse storage).
 
@@ -263,25 +263,25 @@ Clear cells in a range. Actually removes cells from storage (sparse storage).
 
 ```bash
 # Clear single cell
-curl -X DELETE http://localhost:9001/app/grids/abc123/A1 \
+curl -X DELETE http://localhost:9001/api/grids/abc123/A1 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Clear range
-curl -X DELETE http://localhost:9001/app/grids/abc123/A1:Z100 \
+curl -X DELETE http://localhost:9001/api/grids/abc123/A1:Z100 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Clear entire row
-curl -X DELETE http://localhost:9001/app/grids/abc123/5:5 \
+curl -X DELETE http://localhost:9001/api/grids/abc123/5:5 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Clear entire column
-curl -X DELETE http://localhost:9001/app/grids/abc123/A:A \
+curl -X DELETE http://localhost:9001/api/grids/abc123/A:A \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ---
 
-## POST /app/grids/:id/cells
+## POST /api/grids/:id/cells
 
 Bulk upsert cells. Efficient for updating many cells at once.
 
@@ -343,7 +343,7 @@ Returns created/updated cells (excluding deleted cells):
 ### Usage Example
 
 ```bash
-curl -X POST http://localhost:9001/app/grids/abc123/cells \
+curl -X POST http://localhost:9001/api/grids/abc123/cells \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -426,7 +426,7 @@ POST /api/data/grids
 [{"name": "Revenue Exploration", "description": "Testing different metrics"}]
 
 # Add headers
-PUT /app/grids/{id}/A1:C1
+PUT /api/grids/{id}/A1:C1
 {"cells": [
   {"row": 1, "col": "A", "value": "Region"},
   {"row": 1, "col": "B", "value": "Revenue"},
@@ -434,7 +434,7 @@ PUT /app/grids/{id}/A1:C1
 ]}
 
 # Add data as you discover patterns
-POST /app/grids/{id}/cells
+POST /api/grids/{id}/cells
 {"cells": [
   {"row": 2, "col": "A", "value": "West"},
   {"row": 2, "col": "B", "value": "150000"},
@@ -452,7 +452,7 @@ POST /api/data/grids
 [{"name": "Team Contact List", "row_max": 100}]
 
 # Populate with bulk operation
-POST /app/grids/{id}/cells
+POST /api/grids/{id}/cells
 {"cells": [
   {"row": 1, "col": "A", "value": "Name"},
   {"row": 1, "col": "B", "value": "Email"},
@@ -468,7 +468,7 @@ Store form responses in rows:
 
 ```bash
 # Each row is a form submission
-POST /app/grids/{id}/cells
+POST /api/grids/{id}/cells
 {"cells": [
   {"row": 1, "col": "A", "value": "Timestamp"},
   {"row": 1, "col": "B", "value": "Name"},
@@ -571,14 +571,14 @@ All Grid application endpoints support an optional `grid-compact` format for red
 **Usage:**
 ```bash
 # Add ?format=grid-compact to any Grid application request
-curl http://localhost:9001/app/grids/abc123/A1:Z100?format=grid-compact \
+curl http://localhost:9001/api/grids/abc123/A1:Z100?format=grid-compact \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 **Client Consumption:**
 ```javascript
 // Easy array destructuring in JavaScript
-const response = await fetch('/app/grids/abc123/A1:Z100?format=grid-compact', {
+const response = await fetch('/api/grids/abc123/A1:Z100?format=grid-compact', {
     headers: { 'Authorization': 'Bearer YOUR_JWT_TOKEN' }
 });
 
@@ -626,7 +626,7 @@ All Grid application errors are prefixed with `GRID_`:
 ## Performance Notes
 
 - **Sparse storage**: Only populated cells consume storage
-- **Bulk operations**: Use POST /app/grids/:id/cells for multiple cells
+- **Bulk operations**: Use POST /api/grids/:id/cells for multiple cells
 - **Range queries**: Indexed for efficient retrieval
 - **Transactions**: All operations atomic (commit or rollback together)
 

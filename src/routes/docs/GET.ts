@@ -4,14 +4,14 @@ import { join } from 'path';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * GET /README.md - Get main API documentation as markdown
+ * GET /docs - Get main API documentation as markdown
  * @see Self-documenting API pattern for CLI and AI integration
  */
 export default async function (context: Context) {
     // Determine documentation path based on environment
     const isDevelopment = process.env.NODE_ENV === 'development';
     const baseDir = isDevelopment ? 'src' : 'dist';
-    const publicDocsPath = join(process.cwd(), baseDir, 'routes', 'PUBLIC.md');
+    const publicDocsPath = join(process.cwd(), baseDir, 'routes', 'docs', 'PUBLIC.md');
 
     // Check if documentation exists
     if (!existsSync(publicDocsPath)) {

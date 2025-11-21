@@ -8,10 +8,10 @@
 
 ### Missing Critical Tests (8+ for core functionality)
 - POST /api/data/grids - Create grid via Data API
-- GET /app/grids/:id/:range - Read cells (single, range, row, column)
-- PUT /app/grids/:id/:range - Write cells (single and range)
-- DELETE /app/grids/:id/:range - Delete cells
-- POST /app/grids/:id/cells - Bulk upsert cells
+- GET /api/grids/:id/:range - Read cells (single, range, row, column)
+- PUT /api/grids/:id/:range - Write cells (single and range)
+- DELETE /api/grids/:id/:range - Delete cells
+- POST /api/grids/:id/cells - Bulk upsert cells
 - Range notation parsing (A1, A1:Z100, 5:5, A:A)
 - Bounds validation (row_max, col_max enforcement)
 - Sparse storage verification (empty cells not stored)

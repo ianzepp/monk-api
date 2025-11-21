@@ -9,9 +9,9 @@
 
 ## TODO: Migrate to App Endpoint
 
-**Future Migration:** This API should be moved from `/app/grids/*` to `/app/grids/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
+**Future Migration:** This API should be moved from `/api/grids/*` to `/api/grids/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
 
-**Target Path:** `/app/grids/:id/:range`
+**Target Path:** `/api/grids/:id/:range`
 **Rationale:** Grid API is an application-level feature (spreadsheet functionality) rather than a direct data model operation, making it a better fit for the `/app` namespace.
 
 ## Overview
@@ -113,12 +113,12 @@ PRIMARY KEY: (grid_id, row, col)
 - GRID_* prefixed error codes (consistent error handling)
 
 **Key Files:**
-- `/src/routes/app/grids/range-parser.ts` - Range parsing and validation
-- `/src/routes/app/grids/:id/:range/GET.ts` - Read cells handler
-- `/src/routes/app/grids/:id/:range/PUT.ts` - Update cells handler (UPSERT)
-- `/src/routes/app/grids/:id/:range/DELETE.ts` - Delete cells handler
-- `/src/routes/app/grids/:id/cells/POST.ts` - Bulk upsert handler
-- `/src/routes/app/grids/routes.ts` - Barrel exports
+- `/src/routes/api/grids/range-parser.ts` - Range parsing and validation
+- `/src/routes/api/grids/:id/:range/GET.ts` - Read cells handler
+- `/src/routes/api/grids/:id/:range/PUT.ts` - Update cells handler (UPSERT)
+- `/src/routes/api/grids/:id/:range/DELETE.ts` - Delete cells handler
+- `/src/routes/api/grids/:id/cells/POST.ts` - Bulk upsert handler
+- `/src/routes/api/grids/routes.ts` - Barrel exports
 - `/src/index.ts` - Route registration (45-grid-api section)
 - `/spec/45-grid-api/README.md` - Comprehensive test specification
 
@@ -155,17 +155,17 @@ Ready to implement formulas, Monk references, and schema export when needed.
 
 **Grid API Endpoints:**
 ```
-GET    /app/grids/:id/:range          # Read cells (A1, A1:Z100, A:A, 5:5)
-PUT    /app/grids/:id/:range          # Update cells/range
-DELETE /app/grids/:id/:range          # Clear cells/range
-POST   /app/grids/:id/cells           # Bulk upsert (body contains cells)
+GET    /api/grids/:id/:range          # Read cells (A1, A1:Z100, A:A, 5:5)
+PUT    /api/grids/:id/:range          # Update cells/range
+DELETE /api/grids/:id/:range          # Clear cells/range
+POST   /api/grids/:id/cells           # Bulk upsert (body contains cells)
 ```
 
 **Range Notation (Excel-style):**
-- Single cell: `/app/grids/abc123/A1`
-- Range: `/app/grids/abc123/A1:Z100`
-- Entire column: `/app/grids/abc123/A:A`
-- Entire row: `/app/grids/abc123/5:5`
+- Single cell: `/api/grids/abc123/A1`
+- Range: `/api/grids/abc123/A1:Z100`
+- Entire column: `/api/grids/abc123/A:A`
+- Entire row: `/api/grids/abc123/5:5`
 
 **Grid Management:**
 - Grids managed via existing Data API: `/api/data/grids`
@@ -320,7 +320,7 @@ CREATE TABLE grid_cells (
 
 CREATE INDEX idx_grid_range ON grid_cells(grid_id, row, col);
 
-COMMENT ON TABLE grid_cells IS 'Grid cell storage for Grid API (external schema - see /app/grids/*)';
+COMMENT ON TABLE grid_cells IS 'Grid cell storage for Grid API (external schema - see /api/grids/*)';
 ```
 
 **Note:** Schema definitions go in `/fixtures/system/describe/` which becomes the root for all fixtures/tenants/sandboxes. DDL runs after metadata insertion in the same fixture file.
@@ -478,7 +478,7 @@ const result = await dbContext.query(query, [gridId, startRow, endRow, startCol,
   "success": false,
   "error": "Schema 'grid_cells' is externally managed",
   "error_code": "SCHEMA_EXTERNAL",
-  "message": "This schema is managed by a specialized API. Use /app/grids/* endpoints instead."
+  "message": "This schema is managed by a specialized API. Use /api/grids/* endpoints instead."
 }
 ```
 
@@ -580,7 +580,7 @@ function parseRange(rangeStr: string): ParsedRange {
 ### SQL Query Patterns
 
 ```typescript
-// Single cell: GET /app/grids/:id/A1
+// Single cell: GET /api/grids/:id/A1
 const query = `
     SELECT row, col, value
     FROM grid_cells
@@ -588,7 +588,7 @@ const query = `
 `;
 const params = [gridId, 1, 'A'];
 
-// Range: GET /app/grids/:id/A1:Z100
+// Range: GET /api/grids/:id/A1:Z100
 const query = `
     SELECT row, col, value
     FROM grid_cells
@@ -599,7 +599,7 @@ const query = `
 `;
 const params = [gridId, 1, 100, 'A', 'Z'];
 
-// Row range: GET /app/grids/:id/5:5
+// Row range: GET /api/grids/:id/5:5
 const query = `
     SELECT row, col, value
     FROM grid_cells
@@ -608,7 +608,7 @@ const query = `
 `;
 const params = [gridId, 5];
 
-// Column range: GET /app/grids/:id/A:A
+// Column range: GET /api/grids/:id/A:A
 const query = `
     SELECT row, col, value
     FROM grid_cells
@@ -620,7 +620,7 @@ const params = [gridId, 'A'];
 
 ### Request/Response Formats
 
-**GET /app/grids/:id/A1 (single cell)**
+**GET /api/grids/:id/A1 (single cell)**
 ```json
 Response:
 {
@@ -632,7 +632,7 @@ Response:
 }
 ```
 
-**GET /app/grids/:id/A1:B2 (range)**
+**GET /api/grids/:id/A1:B2 (range)**
 ```json
 Response:
 {
@@ -647,7 +647,7 @@ Response:
 }
 ```
 
-**PUT /app/grids/:id/A1 (single cell)**
+**PUT /api/grids/:id/A1 (single cell)**
 ```json
 Request:
 {"value": "Name"}
@@ -662,7 +662,7 @@ Response:
 }
 ```
 
-**PUT /app/grids/:id/A1:B2 (range)**
+**PUT /api/grids/:id/A1:B2 (range)**
 ```json
 Request:
 {
@@ -687,7 +687,7 @@ Response:
 }
 ```
 
-**POST /app/grids/:id/cells (bulk)**
+**POST /api/grids/:id/cells (bulk)**
 ```json
 Request:
 {
@@ -709,7 +709,7 @@ Response:
 }
 ```
 
-**DELETE /app/grids/:id/A1:B2**
+**DELETE /api/grids/:id/A1:B2**
 ```json
 Response:
 {
@@ -756,7 +756,7 @@ if (value === null) {
 ### Delete Operations
 
 ```typescript
-// DELETE /app/grids/:id/A1:B2
+// DELETE /api/grids/:id/A1:B2
 const query = `
     DELETE FROM grid_cells
     WHERE grid_id = $1
@@ -912,13 +912,13 @@ POST /api/data/grids
 
 **Set single cell:**
 ```bash
-PUT /app/grids/grid_abc123/A1
+PUT /api/grids/grid_abc123/A1
 {"value": "Name"}
 ```
 
 **Set range:**
 ```bash
-PUT /app/grids/grid_abc123/A1:B2
+PUT /api/grids/grid_abc123/A1:B2
 {
   "cells": [
     {"row": 1, "col": "A", "value": "Name"},
@@ -931,7 +931,7 @@ PUT /app/grids/grid_abc123/A1:B2
 
 **Get range:**
 ```bash
-GET /app/grids/grid_abc123/A1:Z100
+GET /api/grids/grid_abc123/A1:Z100
 → {
   "cells": [
     {"row": 1, "col": "A", "value": "Name"},
@@ -1020,12 +1020,12 @@ ORDER BY row, col;
 - Both tables created in system template, propagate to all tenants
 
 ### Phase 2: Grid API - Basic Operations ✅ COMPLETE
-- [x] Create `/src/routes/app/grids/` directory
+- [x] Create `/src/routes/api/grids/` directory
 - [x] Implement range parser (A1:Z100 → coordinates)
-- [x] GET `/app/grids/:id/:range` - Read cells
-- [x] PUT `/app/grids/:id/:range` - Update cells/range
-- [x] POST `/app/grids/:id/cells` - Bulk upsert
-- [x] DELETE `/app/grids/:id/:range` - Clear cells
+- [x] GET `/api/grids/:id/:range` - Read cells
+- [x] PUT `/api/grids/:id/:range` - Update cells/range
+- [x] POST `/api/grids/:id/cells` - Bulk upsert
+- [x] DELETE `/api/grids/:id/:range` - Clear cells
 - [x] Add Grid API routes to `/src/index.ts`
 - [x] Create comprehensive test specification (spec/45-grid-api/README.md)
 
@@ -1082,7 +1082,7 @@ ORDER BY row, col;
 **Usage:**
 ```bash
 # Standard response format
-GET /app/grids/:id/A1:Z100
+GET /api/grids/:id/A1:Z100
 {
   "grid_id": "abc123",
   "range": "A1:Z100",
@@ -1093,7 +1093,7 @@ GET /app/grids/:id/A1:Z100
 }
 
 # Compact response format (60% smaller)
-GET /app/grids/:id/A1:Z100?format=grid-compact
+GET /api/grids/:id/A1:Z100?format=grid-compact
 {
   "grid_id": "abc123",
   "range": "A1:Z100",
@@ -1107,7 +1107,7 @@ GET /app/grids/:id/A1:Z100?format=grid-compact
 **Client Consumption:**
 ```javascript
 // Easy array destructuring
-const { cells } = await fetch('/app/grids/abc123/A1:Z100?format=grid-compact')
+const { cells } = await fetch('/api/grids/abc123/A1:Z100?format=grid-compact')
     .then(r => r.json());
 
 cells.forEach(([row, col, value]) => {

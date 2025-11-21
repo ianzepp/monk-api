@@ -4,9 +4,9 @@ The Extract API provides data export functionality with background job processin
 
 ## TODO: Migrate to App Endpoint
 
-**Future Migration:** This API should be moved from `/api/extracts/*` to `/app/extracts/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
+**Future Migration:** This API should be moved from `/api/extracts/*` to `/api/extracts/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
 
-**Target Path:** `/app/extracts/:id/*`
+**Target Path:** `/api/extracts/:id/*`
 **Rationale:** Extract API is an application-level feature (background jobs, file generation) rather than a direct data model operation, making it a better fit for the `/app` namespace.
 
 ## Architecture
