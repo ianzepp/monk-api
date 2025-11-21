@@ -102,7 +102,7 @@ All error responses from the Data API include `error_code` and `error` fields. U
 
 **Naming Convention**:
 - `AUTH_` prefix: Authentication and authorization errors (token validation, access control)
-- `REQUEST_` prefix: Request format and validation errors
+- `BODY_` prefix: Request body format and validation errors
 - `SCHEMA_` prefix: Schema-related errors (not found, frozen, protection)
 - `RECORD_` prefix: Record-level errors (not found, validation)
 - `RELATIONSHIP_` prefix: Relationship-specific errors
@@ -110,10 +110,9 @@ All error responses from the Data API include `error_code` and `error` fields. U
 
 | Error Code | Status | Message | Endpoint(s) | Condition |
 |------------|--------|---------|-------------|-----------|
-| `REQUEST_INVALID_FORMAT` | 400 | "Request body must be an array of records" | `POST /api/data/:schema` | Body is not an array |
-| `REQUEST_INVALID_FORMAT` | 400 | "Request body must be an array of update records with id fields" | `PUT /api/data/:schema` | Body is not an array or missing id fields |
-| `REQUEST_INVALID_FORMAT` | 400 | "Request body must be an array of records with id fields" | `DELETE /api/data/:schema` | Body is not an array or missing id fields |
-| `INVALID_BODY_FORMAT` | 400 | "Request body must be a single object" | Relationship routes | Array sent instead of object for nested routes |
+| `BODY_NOT_ARRAY` | 400 | "Request body must be an array of records" | `POST /api/data/:schema`, `PUT /api/data/:schema`, `DELETE /api/data/:schema` | Body is not an array when array expected |
+| `BODY_NOT_OBJECT` | 400 | "Request body must be an object" | Relationship routes | Body is not an object when object expected |
+| `BODY_MISSING_FIELD` | 400 | "Request body must contain required field" | Various | Required field missing from body |
 | `AUTH_TOKEN_REQUIRED` | 401 | "Authorization token required" | All endpoints | No Bearer token in Authorization header |
 | `AUTH_TOKEN_INVALID` | 401 | "Invalid token" | All endpoints | Token malformed or bad signature |
 | `AUTH_TOKEN_EXPIRED` | 401 | "Token has expired" | All endpoints | Token well-formed but past expiration |
@@ -184,7 +183,7 @@ Always expects an array of record objects:
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `REQUEST_INVALID_FORMAT` | "Request body must be an array of records" | Body is not an array |
+| 400 | `BODY_NOT_ARRAY` | "Request body must be an array of records" | Body is not an array |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
@@ -285,7 +284,7 @@ PATCH /api/data/users?include_trashed=true
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `REQUEST_INVALID_FORMAT` | "Request body must be an array of update records with id fields" | Body is not an array or missing id fields |
+| 400 | `BODY_NOT_ARRAY` | "Request body must be an array of update records with id fields" | Body is not an array or missing id fields |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
@@ -357,7 +356,7 @@ Always expects an array of record objects with `id` fields:
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `REQUEST_INVALID_FORMAT` | "Request body must be an array of records with id fields" | Body is not an array or missing id fields |
+| 400 | `BODY_NOT_ARRAY` | "Request body must be an array of records with id fields" | Body is not an array or missing id fields |
 | 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
@@ -589,7 +588,7 @@ try {
 
   if (!result.success) {
     switch (result.error_code) {
-      case 'REQUEST_INVALID_FORMAT':
+      case 'BODY_NOT_ARRAY':
         console.error('Invalid request format');
         break;
       case 'SCHEMA_NOT_FOUND':

@@ -10,7 +10,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 export default withTransactionParams(async (context, { system, schema, body, method }) => {
     // Always expect array input for PUT/PATCH /api/data/:schema
     if (!Array.isArray(body)) {
-        throw HttpErrors.badRequest('Request body must be an array of update records with id fields', 'REQUEST_INVALID_FORMAT');
+        throw HttpErrors.badRequest('Request body must be an array of records', 'BODY_NOT_ARRAY');
     }
 
     let result;

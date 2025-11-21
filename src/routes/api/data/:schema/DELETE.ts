@@ -12,7 +12,7 @@ export default withTransactionParams(async (context, { system, schema, body }) =
 
     // Always expect array input for DELETE /api/data/:schema
     if (!Array.isArray(body)) {
-        throw HttpErrors.badRequest('Request body must be an array of records with id fields', 'REQUEST_INVALID_FORMAT');
+        throw HttpErrors.badRequest('Request body must be an array of records', 'BODY_NOT_ARRAY');
     }
 
     let result;

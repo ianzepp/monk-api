@@ -7,12 +7,12 @@ export default withParams(async (context, { system, schema, body, options }) => 
 
     // Validate request body
     if (!body || typeof body !== 'object') {
-        throw HttpErrors.badRequest('Request body must be a valid JSON object', 'REQUEST_INVALID_BODY');
+        throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
     }
 
     // Validate aggregations
     if (!body.aggregate || typeof body.aggregate !== 'object' || Object.keys(body.aggregate).length === 0) {
-        throw HttpErrors.badRequest('Request must include "aggregate" object with at least one aggregation function', 'REQUEST_MISSING_AGGREGATIONS');
+        throw HttpErrors.badRequest('Request must include "aggregate" field with at least one aggregation function', 'BODY_MISSING_FIELD');
     }
 
     // Extract parameters

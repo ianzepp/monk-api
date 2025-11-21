@@ -269,7 +269,7 @@ curl -X POST http://localhost:9001/api/find/documents \
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `REQUEST_INVALID_FORMAT` | "Request body must be an array of operations" | Invalid request structure |
+| 400 | `BODY_NOT_ARRAY` | "Request body must be an array of operations" | Body is not an array when array expected |
 | 400 | `OPERATION_MISSING_FIELDS` | "Operation missing required fields" | Missing operation or schema |
 | 400 | `OPERATION_MISSING_ID` | "ID required for operation" | Single-record operation without ID |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |

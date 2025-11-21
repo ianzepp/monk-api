@@ -205,7 +205,8 @@ All bulk requests execute inside a transaction created by the route (`withTransa
 ### Validation Errors
 | Error Code | Description | Trigger |
 |------------|-------------|---------|
-| `REQUEST_INVALID_FORMAT` | Body missing `operations` array or not an object. | Missing top-level structure |
+| `BODY_NOT_OBJECT` | Body is not an object. | Body is not an object when object expected |
+| `BODY_MISSING_FIELD` | Body missing `operations` array. | Missing operations field |
 | `OPERATION_MISSING_FIELDS` | Missing `operation` or `schema`. | Incomplete operation entry |
 | `OPERATION_MISSING_ID` | Required `id` missing or blank. | `*-one`, array entries that require `id` |
 | `OPERATION_MISSING_DATA` | Required `data` missing. | Mutations without payload |

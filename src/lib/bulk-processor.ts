@@ -97,11 +97,11 @@ export class BulkProcessor {
      */
     private validateRequest(requestBody: any): BulkOperation[] {
         if (!requestBody || typeof requestBody !== 'object') {
-            throw HttpErrors.badRequest('Request body must be an object with operations array', 'REQUEST_INVALID_FORMAT');
+            throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
         }
 
         if (!requestBody.operations || !Array.isArray(requestBody.operations)) {
-            throw HttpErrors.badRequest('Request body must contain an operations array', 'REQUEST_INVALID_FORMAT');
+            throw HttpErrors.badRequest('Request body must contain an operations array', 'BODY_MISSING_FIELD');
         }
 
         return requestBody.operations;

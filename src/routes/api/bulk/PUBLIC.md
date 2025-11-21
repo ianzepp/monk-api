@@ -130,7 +130,8 @@ All bulk requests execute inside a transaction created by the route (`withTransa
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `REQUEST_INVALID_FORMAT` | "Request body must contain an operations array" | Missing/invalid payload wrapper |
+| 400 | `BODY_NOT_OBJECT` | "Request body must be an object" | Body is not an object when object expected |
+| 400 | `BODY_MISSING_FIELD` | "Request body must contain an operations array" | Missing operations field |
 | 400 | `OPERATION_MISSING_FIELDS` | "Operation missing required fields" | Missing `operation` or `schema` |
 | 400 | `OPERATION_MISSING_ID` | "ID required for operation" | `*-one` without `id` or array entries without `id` |
 | 400 | `OPERATION_MISSING_DATA` | "Operation requires data field" | Mutation without payload |
