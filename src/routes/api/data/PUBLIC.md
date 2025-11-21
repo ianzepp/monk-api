@@ -13,70 +13,19 @@ All Data API routes are prefixed with `/api/data`
 All Data API routes require authentication via JWT token in the Authorization header.
 - **Header**: `Authorization: Bearer <jwt_token>`
 
-## Schema Protection
+## Query Parameters
 
-Data operations respect schema-level and field-level protection configured via the Describe API:
-
-### Frozen Schemas
-Schemas with `freeze=true` **block all data operations**:
-- ❌ POST (create) - blocked
-- ❌ PUT (update) - blocked
-- ❌ DELETE (delete) - blocked
-- ✅ GET (read) - allowed
-
-**Error Response**:
-```json
-{
-  "success": false,
-  "error": "Schema 'audit_log' is frozen. All data operations are temporarily disabled.",
-  "error_code": "SCHEMA_FROZEN"
-}
-```
-
-### Sudo-Protected Schemas
-Schemas with `sudo=true` require a short-lived sudo token from `POST /api/user/sudo`:
-```bash
-# Get sudo token first
-POST /api/user/sudo
-{"reason": "Update financial records"}
-
-# Then use returned token for data operations
-PUT /api/data/financial_accounts/123
-Authorization: Bearer <sudo_token>
-```
-
-### Sudo-Protected Fields
-Individual fields marked with `sudo=true` require sudo token to modify, even if the schema doesn't require sudo:
-```json
-// Allowed without sudo
-PUT /api/data/employees/123
-{"title": "Senior Engineer"}
-
-// Requires sudo token
-PUT /api/data/employees/123
-{"salary": 150000}
-// Error: Cannot modify sudo-protected fields [salary] without sudo access
-```
-
-### Immutable Fields
-Fields marked with `immutable=true` can be set once but never changed:
-```json
-// First write - allowed
-POST /api/data/audit_log
-[{"transaction_id": "TX123", "amount": 1000}]
-
-// Change attempt - blocked
-PUT /api/data/audit_log/abc-123
-{"transaction_id": "TX456"}
-// Error: Cannot modify immutable fields: transaction_id
-```
+### Global Query Parameters
+- `include_trashed=true` - Include soft-deleted records in results
+- `include_deleted=true` - Include permanently deleted records (root access only)
+- `permanent=true` - Perform permanent delete operations (root access only)
 
 ## Endpoint Summary
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | [`/api/data/:schema`](#post-apidataschema) | Bulk-insert records into a schema while running the full observer pipeline. |
 | GET | [`/api/data/:schema`](#get-apidataschema) | Query collections with filtering, pagination, and soft-delete aware options. |
+| POST | [`/api/data/:schema`](#post-apidataschema) | Bulk-insert records into a schema while running the full observer pipeline. |
 | PUT | [`/api/data/:schema`](#put-apidataschema) | Apply updates or patches to all records matching a filter in one request. |
 | DELETE | [`/api/data/:schema`](#delete-apidataschema) | Soft-delete or permanently remove many records based on filter criteria. |
 | GET | [`/api/data/:schema/:id`](#get-apidataschemaid) | Retrieve a single record (optionally including trashed metadata) by its UUID. |
@@ -88,13 +37,6 @@ PUT /api/data/audit_log/abc-123
 | GET | [`/api/data/:schema/:record/:relationship/:child`](#get-apidataschemarecordrelationshipchild) | Fetch a specific related child record by ID. |
 | PUT | [`/api/data/:schema/:record/:relationship/:child`](#put-apidataschemarecordrelationshipchild) | Update a related child record in-place through the relationship route. |
 | DELETE | [`/api/data/:schema/:record/:relationship/:child`](#delete-apidataschemarecordrelationshipchild) | Delete or detach a specific related child record. |
-
-## Query Parameters
-
-### Global Query Parameters
-- `include_trashed=true` - Include soft-deleted records in results
-- `include_deleted=true` - Include permanently deleted records (root access only)
-- `permanent=true` - Perform permanent delete operations (root access only)
 
 ## Data API Error Codes Reference
 
@@ -110,22 +52,63 @@ All error responses from the Data API include `error_code` and `error` fields. U
 
 | Error Code | Status | Message | Endpoint(s) | Condition |
 |------------|--------|---------|-------------|-----------|
+| `ACCESS_DENIED` | 403 | "Insufficient permissions for permanent delete" | `DELETE` operations with `permanent=true` | permanent=true without root access |
+| `AUTH_TOKEN_EXPIRED` | 401 | "Token has expired" | All endpoints | Token well-formed but past expiration |
+| `AUTH_TOKEN_INVALID` | 401 | "Invalid token" | All endpoints | Token malformed or bad signature |
+| `AUTH_TOKEN_REQUIRED` | 401 | "Authorization token required" | All endpoints | No Bearer token in Authorization header |
+| `BODY_MISSING_FIELD` | 400 | "Request body must contain required field" | Various | Required field missing from body |
 | `BODY_NOT_ARRAY` | 400 | "Request body must be an array of records" | `POST /api/data/:schema`, `PUT /api/data/:schema`, `DELETE /api/data/:schema` | Body is not an array when array expected |
 | `BODY_NOT_OBJECT` | 400 | "Request body must be an object" | Relationship routes | Body is not an object when object expected |
-| `BODY_MISSING_FIELD` | 400 | "Request body must contain required field" | Various | Required field missing from body |
-| `AUTH_TOKEN_REQUIRED` | 401 | "Authorization token required" | All endpoints | No Bearer token in Authorization header |
-| `AUTH_TOKEN_INVALID` | 401 | "Invalid token" | All endpoints | Token malformed or bad signature |
-| `AUTH_TOKEN_EXPIRED` | 401 | "Token has expired" | All endpoints | Token well-formed but past expiration |
-| `ACCESS_DENIED` | 403 | "Insufficient permissions for permanent delete" | `DELETE` operations with `permanent=true` | permanent=true without root access |
-| `SCHEMA_FROZEN` | 403 | "Schema '{name}' is frozen. All data operations are temporarily disabled." | Write operations on frozen schemas | Attempting POST/PUT/DELETE on schema with freeze=true |
-| `SCHEMA_NOT_FOUND` | 404 | "Schema not found" | All endpoints | Invalid schema name in path |
 | `RECORD_NOT_FOUND` | 404 | "Record not found" | Single record endpoints | Record ID does not exist or is inaccessible |
 | `RELATIONSHIP_NOT_FOUND` | 404 | "Relationship '{name}' not found for schema '{schema}'" | Relationship routes | Invalid relationship name in path |
+| `SCHEMA_FROZEN` | 403 | "Schema '{name}' is frozen. All data operations are temporarily disabled." | Write operations on frozen schemas | Attempting POST/PUT/DELETE on schema with freeze=true |
+| `SCHEMA_NOT_FOUND` | 404 | "Schema not found" | All endpoints | Invalid schema name in path |
 
 **Additional Schema Protection Errors** (thrown by observer pipeline):
 - **Sudo-protected schemas**: Operations on schemas with `sudo=true` require sudo token from `/api/user/sudo`
 - **Sudo-protected fields**: Modifying fields with `sudo=true` requires sudo token even if schema doesn't
 - **Immutable fields**: Attempting to modify fields with `immutable=true` after initial creation
+
+---
+
+## GET /api/data/:schema
+
+Query the schema with flexible filtering, sorting, and pagination controls. This endpoint backs list views, exports, and analytics screens by letting clients decide which fields to select, whether to include trashed rows, and how to order the results.
+
+### Query Parameters
+- `include_trashed=true` - Include soft-deleted records
+- `include_deleted=true` - Include permanently deleted records (root access only)
+
+### Request Body
+None - GET request with no body.
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "department": "Engineering",
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z",
+      "trashed_at": null,
+      "deleted_at": null
+    }
+  ]
+}
+```
+
+### Error Responses
+
+| Status | Error Code | Message | Condition |
+|--------|------------|---------|-----------|
+| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
+| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
+| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 
 ---
 
@@ -184,51 +167,10 @@ Always expects an array of record objects:
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `BODY_NOT_ARRAY` | "Request body must be an array of records" | Body is not an array |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-
----
-
-## GET /api/data/:schema
-
-Query the schema with flexible filtering, sorting, and pagination controls. This endpoint backs list views, exports, and analytics screens by letting clients decide which fields to select, whether to include trashed rows, and how to order the results.
-
-### Query Parameters
-- `include_trashed=true` - Include soft-deleted records
-- `include_deleted=true` - Include permanently deleted records (root access only)
-
-### Request Body
-None - GET request with no body.
-
-### Success Response (200)
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "John Doe",
-      "email": "john@example.com",
-      "department": "Engineering",
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z",
-      "trashed_at": null,
-      "deleted_at": null
-    }
-  ]
-}
-```
-
-### Error Responses
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
 | 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
-| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
-| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 
 ---
 
@@ -285,10 +227,10 @@ PATCH /api/data/users?include_trashed=true
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `BODY_NOT_ARRAY` | "Request body must be an array of update records with id fields" | Body is not an array or missing id fields |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
+| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 
 ---
 
@@ -357,11 +299,11 @@ Always expects an array of record objects with `id` fields:
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `BODY_NOT_ARRAY` | "Request body must be an array of records with id fields" | Body is not an array or missing id fields |
-| 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
+| 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
+| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 
 ---
 
@@ -397,11 +339,11 @@ None - GET request with no body.
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
+| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
 
 ---
 
@@ -448,11 +390,11 @@ PATCH /api/data/users/550e8400-e29b-41d4-a716-446655440000?include_trashed=true
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
+| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
 
 ---
 
@@ -506,14 +448,328 @@ None - DELETE request with no body.
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
-| 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
+| 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
+| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
 
 ---
+
+## GET /api/data/:schema/:record/:relationship
+
+List every child record tied to the specified parent through a relationship defined in schema relationships. The route automatically applies the parent filter, enforces ACL inheritance, and supports the same trashed/deleted flags as top-level queries.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+
+### Query Parameters
+- `include_trashed=true` - Include soft-deleted child records
+- `include_deleted=true` - Include permanently deleted child records (root access only)
+
+### Request Body
+None - GET request with no body.
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "comment-1",
+      "text": "Great post!",
+      "post_id": "post-123",
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z",
+      "trashed_at": null,
+      "deleted_at": null
+    },
+    {
+      "id": "comment-2",
+      "text": "Thanks for sharing",
+      "post_id": "post-123",
+      "created_at": "2024-01-15T10:31:00Z",
+      "updated_at": "2024-01-15T10:31:00Z",
+      "trashed_at": null,
+      "deleted_at": null
+    }
+  ]
+}
+```
+
+### Example
+```bash
+GET /api/data/posts/post-123/comments
+```
+Returns all comments belonging to post "post-123".
+
+---
+
+## POST /api/data/:schema/:record/:relationship
+
+Create new child records that automatically inherit the parent foreign key and observer context. This route keeps relationship logic server-side—clients only send the child payload, and the API links it to the parent atomically.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+
+### Request Body
+Single child record object (foreign key automatically set):
+```json
+{
+  "text": "This is a new comment",
+  "status": "published"
+}
+```
+
+### Success Response (201)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "comment-3",
+    "text": "This is a new comment",
+    "status": "published",
+    "post_id": "post-123",
+    "created_at": "2024-01-15T10:32:00Z",
+    "updated_at": "2024-01-15T10:32:00Z",
+    "trashed_at": null,
+    "deleted_at": null
+  }
+}
+```
+
+### Example
+```bash
+POST /api/data/posts/post-123/comments
+```
+Creates a new comment for post "post-123" with `post_id` automatically set.
+
+---
+
+## DELETE /api/data/:schema/:record/:relationship
+
+Remove or detach multiple child records for a given parent relationship in one request. Combine it with query filters to target only a subset of children (for example, orphaning draft comments while leaving published ones untouched).
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+
+### Query Parameters
+- `permanent=true` - Perform permanent delete (requires root access)
+
+### Request Body
+None - DELETE request with no body.
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "comment-1",
+      "text": "Great post!",
+      "post_id": "post-123",
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:30:00Z",
+      "trashed_at": "2024-01-15T12:00:00Z",
+      "deleted_at": null
+    }
+  ]
+}
+```
+
+### Example
+```bash
+DELETE /api/data/posts/post-123/comments
+```
+Soft deletes all comments belonging to post "post-123".
+
+---
+
+## GET /api/data/:schema/:record/:relationship/:child
+
+Fetch a specific child resource while guaranteeing it belongs to the parent referenced in the URL. This prevents leaking related records between parents and exposes trashed/permanent flags for child-level recovery flows.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+- `:child` - Child record ID
+
+### Query Parameters
+- `include_trashed=true` - Include soft-deleted records
+- `include_deleted=true` - Include permanently deleted records (root access only)
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "comment-1",
+    "text": "Great post!",
+    "post_id": "post-123",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "trashed_at": null,
+    "deleted_at": null
+  }
+}
+```
+
+### Example
+```bash
+GET /api/data/posts/post-123/comments/comment-1
+```
+Returns comment "comment-1" if it belongs to post "post-123".
+
+---
+
+## PUT /api/data/:schema/:record/:relationship/:child
+
+Modify a child resource in place while preserving the parent relationship. The server prevents reassignment to a different parent and ensures only allowed fields per the relationship schema are updated.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+- `:child` - Child record ID
+
+### Request Body
+Child record update object (foreign key preserved automatically):
+```json
+{
+  "text": "Updated comment text",
+  "status": "edited"
+}
+```
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "comment-1",
+    "text": "Updated comment text",
+    "status": "edited",
+    "post_id": "post-123",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T11:00:00Z",
+    "trashed_at": null,
+    "deleted_at": null
+  }
+}
+```
+
+### Example
+```bash
+PUT /api/data/posts/post-123/comments/comment-1
+```
+Updates comment "comment-1" while preserving its relationship to post "post-123".
+
+---
+
+## DELETE /api/data/:schema/:record/:relationship/:child
+
+Soft-delete or permanently remove an individual child while ensuring it belongs to the provided parent. Useful for UI actions that remove a single attachment/comment without touching the rest of the relationship set.
+
+### Path Parameters
+- `:schema` - Parent schema name
+- `:record` - Parent record ID
+- `:relationship` - Relationship name defined in child schema
+- `:child` - Child record ID
+
+### Query Parameters
+- `permanent=true` - Perform permanent delete (requires root access)
+
+### Success Response (200)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "comment-1",
+    "text": "Great post!",
+    "post_id": "post-123",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "trashed_at": "2024-01-15T12:00:00Z",
+    "deleted_at": null
+  }
+}
+```
+
+### Example
+```bash
+DELETE /api/data/posts/post-123/comments/comment-1
+```
+Soft deletes comment "comment-1" if it belongs to post "post-123".
+
+---
+
+# Additional Information
+
+## Schema Protection
+
+Data operations respect schema-level and field-level protection configured via the Describe API:
+
+### Frozen Schemas
+Schemas with `freeze=true` **block all data operations**:
+- ❌ POST (create) - blocked
+- ❌ PUT (update) - blocked
+- ❌ DELETE (delete) - blocked
+- ✅ GET (read) - allowed
+
+**Error Response**:
+```json
+{
+  "success": false,
+  "error": "Schema 'audit_log' is frozen. All data operations are temporarily disabled.",
+  "error_code": "SCHEMA_FROZEN"
+}
+```
+
+### Sudo-Protected Schemas
+Schemas with `sudo=true` require a short-lived sudo token from `POST /api/user/sudo`:
+```bash
+# Get sudo token first
+POST /api/user/sudo
+{"reason": "Update financial records"}
+
+# Then use returned token for data operations
+PUT /api/data/financial_accounts/123
+Authorization: Bearer <sudo_token>
+```
+
+### Sudo-Protected Fields
+Individual fields marked with `sudo=true` require sudo token to modify, even if the schema doesn't require sudo:
+```json
+// Allowed without sudo
+PUT /api/data/employees/123
+{"title": "Senior Engineer"}
+
+// Requires sudo token
+PUT /api/data/employees/123
+{"salary": 150000}
+// Error: Cannot modify sudo-protected fields [salary] without sudo access
+```
+
+### Immutable Fields
+Fields marked with `immutable=true` can be set once but never changed:
+```json
+// First write - allowed
+POST /api/data/audit_log
+[{"transaction_id": "TX123", "amount": 1000}]
+
+// Change attempt - blocked
+PUT /api/data/audit_log/abc-123
+{"transaction_id": "TX456"}
+// Error: Cannot modify immutable fields: transaction_id
+```
 
 ## Delete Operations Explained
 
@@ -547,6 +803,32 @@ PATCH /api/data/users?include_trashed=true
 ```bash
 PATCH /api/data/users/550e8400-e29b-41d4-a716-446655440000?include_trashed=true
 ```
+
+## Relationship Schema Requirements
+
+To use nested relationship routes, child schemas must define relationships using the `x-monk-relationship` extension:
+
+```json
+{
+  "title": "Comments",
+  "type": "object",
+  "properties": {
+    "text": {"type": "string"},
+    "post_id": {
+      "type": "string",
+      "x-monk-relationship": {
+        "type": "owned",
+        "schema": "posts",
+        "name": "comments"
+      }
+    }
+  }
+}
+```
+
+### Relationship Types
+- **`owned`** - Child belongs to parent, enables nested routes
+- **`referenced`** - Loose reference, no nested route support
 
 ## Error Response Format
 
@@ -655,311 +937,9 @@ const response = await fetch('/api/data/users?include_trashed=true', {
 });
 ```
 
----
+### Relationship Usage Examples
 
-# Nested Relationship Routes
-
-The Data API also provides complete CRUD operations for managing nested resources through parent-child relationships. These routes work with schemas that define `x-monk-relationship` extensions to establish owned relationships between entities.
-
-## Relationship Routes Overview
-
-All relationship routes follow the pattern `/api/data/:parent_schema/:parent_id/:relationship_name` and automatically enforce parent-child constraints.
-
----
-
-## GET /api/data/:schema/:record/:relationship
-
-List every child record tied to the specified parent through a relationship defined in schema relationships. The route automatically applies the parent filter, enforces ACL inheritance, and supports the same trashed/deleted flags as top-level queries.
-
-### Path Parameters
-- `:schema` - Parent schema name
-- `:record` - Parent record ID
-- `:relationship` - Relationship name defined in child schema
-
-### Query Parameters
-- `include_trashed=true` - Include soft-deleted child records
-- `include_deleted=true` - Include permanently deleted child records (root access only)
-
-### Request Body
-None - GET request with no body.
-
-### Success Response (200)
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "comment-1",
-      "text": "Great post!",
-      "post_id": "post-123",
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z",
-      "trashed_at": null,
-      "deleted_at": null
-    },
-    {
-      "id": "comment-2", 
-      "text": "Thanks for sharing",
-      "post_id": "post-123",
-      "created_at": "2024-01-15T10:31:00Z",
-      "updated_at": "2024-01-15T10:31:00Z",
-      "trashed_at": null,
-      "deleted_at": null
-    }
-  ]
-}
-```
-
-### Example
-```bash
-GET /api/data/posts/post-123/comments
-```
-Returns all comments belonging to post "post-123".
-
----
-
-## POST /api/data/:schema/:record/:relationship
-
-Create new child records that automatically inherit the parent foreign key and observer context. This route keeps relationship logic server-side—clients only send the child payload, and the API links it to the parent atomically.
-
-### Path Parameters
-- `:schema` - Parent schema name
-- `:record` - Parent record ID
-- `:relationship` - Relationship name defined in child schema
-
-### Request Body
-Single child record object (foreign key automatically set):
-```json
-{
-  "text": "This is a new comment",
-  "status": "published"
-}
-```
-
-### Success Response (201)
-```json
-{
-  "success": true,
-  "data": {
-    "id": "comment-3",
-    "text": "This is a new comment", 
-    "status": "published",
-    "post_id": "post-123",
-    "created_at": "2024-01-15T10:32:00Z",
-    "updated_at": "2024-01-15T10:32:00Z",
-    "trashed_at": null,
-    "deleted_at": null
-  }
-}
-```
-
-### Example
-```bash
-POST /api/data/posts/post-123/comments
-```
-Creates a new comment for post "post-123" with `post_id` automatically set.
-
----
-
-## DELETE /api/data/:schema/:record/:relationship
-
-Remove or detach multiple child records for a given parent relationship in one request. Combine it with query filters to target only a subset of children (for example, orphaning draft comments while leaving published ones untouched).
-
-### Path Parameters
-- `:schema` - Parent schema name  
-- `:record` - Parent record ID
-- `:relationship` - Relationship name defined in child schema
-
-### Query Parameters
-- `permanent=true` - Perform permanent delete (requires root access)
-
-### Request Body
-None - DELETE request with no body.
-
-### Success Response (200)
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "comment-1",
-      "text": "Great post!",
-      "post_id": "post-123", 
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z",
-      "trashed_at": "2024-01-15T12:00:00Z",
-      "deleted_at": null
-    }
-  ]
-}
-```
-
-### Example
-```bash
-DELETE /api/data/posts/post-123/comments
-```
-Soft deletes all comments belonging to post "post-123".
-
----
-
-## GET /api/data/:schema/:record/:relationship/:child
-
-Fetch a specific child resource while guaranteeing it belongs to the parent referenced in the URL. This prevents leaking related records between parents and exposes trashed/permanent flags for child-level recovery flows.
-
-### Path Parameters
-- `:schema` - Parent schema name
-- `:record` - Parent record ID  
-- `:relationship` - Relationship name defined in child schema
-- `:child` - Child record ID
-
-### Query Parameters
-- `include_trashed=true` - Include soft-deleted records
-- `include_deleted=true` - Include permanently deleted records (root access only)
-
-### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "id": "comment-1",
-    "text": "Great post!",
-    "post_id": "post-123",
-    "created_at": "2024-01-15T10:30:00Z", 
-    "updated_at": "2024-01-15T10:30:00Z",
-    "trashed_at": null,
-    "deleted_at": null
-  }
-}
-```
-
-### Example
-```bash
-GET /api/data/posts/post-123/comments/comment-1
-```
-Returns comment "comment-1" if it belongs to post "post-123".
-
----
-
-## PUT /api/data/:schema/:record/:relationship/:child
-
-Modify a child resource in place while preserving the parent relationship. The server prevents reassignment to a different parent and ensures only allowed fields per the relationship schema are updated.
-
-### Path Parameters
-- `:schema` - Parent schema name
-- `:record` - Parent record ID
-- `:relationship` - Relationship name defined in child schema  
-- `:child` - Child record ID
-
-### Request Body
-Child record update object (foreign key preserved automatically):
-```json
-{
-  "text": "Updated comment text",
-  "status": "edited"
-}
-```
-
-### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "id": "comment-1",
-    "text": "Updated comment text",
-    "status": "edited", 
-    "post_id": "post-123",
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T11:00:00Z",
-    "trashed_at": null,
-    "deleted_at": null
-  }
-}
-```
-
-### Example
-```bash  
-PUT /api/data/posts/post-123/comments/comment-1
-```
-Updates comment "comment-1" while preserving its relationship to post "post-123".
-
----
-
-## DELETE /api/data/:schema/:record/:relationship/:child
-
-Soft-delete or permanently remove an individual child while ensuring it belongs to the provided parent. Useful for UI actions that remove a single attachment/comment without touching the rest of the relationship set.
-
-### Path Parameters
-- `:schema` - Parent schema name
-- `:record` - Parent record ID
-- `:relationship` - Relationship name defined in child schema
-- `:child` - Child record ID
-
-### Query Parameters
-- `permanent=true` - Perform permanent delete (requires root access)
-
-### Success Response (200)
-```json
-{
-  "success": true,
-  "data": {
-    "id": "comment-1",
-    "text": "Great post!",
-    "post_id": "post-123",
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z", 
-    "trashed_at": "2024-01-15T12:00:00Z",
-    "deleted_at": null
-  }
-}
-```
-
-### Example
-```bash
-DELETE /api/data/posts/post-123/comments/comment-1  
-```
-Soft deletes comment "comment-1" if it belongs to post "post-123".
-
----
-
-## Relationship Error Responses
-
-All relationship routes include these additional error conditions:
-
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship 'name' not found for schema 'schema'" | Invalid relationship name |
-| 404 | `RECORD_NOT_FOUND` | "Record not found" | Parent or child record doesn't exist |
-| 400 | `INVALID_BODY_FORMAT` | "Request body must be a single object" | Array sent instead of object |
-
-## Relationship Schema Requirements
-
-To use nested relationship routes, child schemas must define relationships using the `x-monk-relationship` extension:
-
-```json
-{
-  "title": "Comments",
-  "type": "object",
-  "properties": {
-    "text": {"type": "string"},
-    "post_id": {
-      "type": "string",
-      "x-monk-relationship": {
-        "type": "owned",
-        "schema": "posts", 
-        "name": "comments"
-      }
-    }
-  }
-}
-```
-
-### Relationship Types
-- **`owned`** - Child belongs to parent, enables nested routes
-- **`referenced`** - Loose reference, no nested route support
-
-## Relationship Usage Examples
-
-### Creating Related Records
+#### Creating Related Records
 ```javascript
 // Create a comment for a specific post
 const response = await fetch('/api/data/posts/post-123/comments', {
@@ -975,11 +955,11 @@ const response = await fetch('/api/data/posts/post-123/comments', {
 });
 ```
 
-### Updating Nested Resources
+#### Updating Nested Resources
 ```javascript
 // Update a specific comment
 const response = await fetch('/api/data/posts/post-123/comments/comment-1', {
-  method: 'PUT', 
+  method: 'PUT',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer your-jwt-token'
@@ -991,7 +971,7 @@ const response = await fetch('/api/data/posts/post-123/comments/comment-1', {
 });
 ```
 
-### Bulk Operations on Relationships
+#### Bulk Operations on Relationships
 ```javascript
 // Delete all comments for a post
 const response = await fetch('/api/data/posts/post-123/comments', {
