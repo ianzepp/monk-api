@@ -292,6 +292,77 @@ const trashedDocs = documents.filter(doc =>
 renderTrashBin(trashedDocs);
 ```
 
+## Alternative Response Formats
+
+### CSV Format
+
+Use `?format=csv` to get results as comma-separated values (automatically unwraps envelope):
+
+```bash
+curl -X GET "http://localhost:9001/api/data/users?format=csv" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response (text/csv):**
+```csv
+id,name,email,department,created_at
+550e8400-e29b-41d4-a716-446655440000,John Doe,john@example.com,Engineering,2024-01-15T10:30:00Z
+550e8400-e29b-41d4-a716-446655440001,Jane Smith,jane@example.com,Marketing,2024-01-15T10:30:01Z
+```
+
+**Use cases:**
+- Export to Excel/Google Sheets
+- Import into analytics tools
+- Generate reports
+- Data migration
+
+**Note:** CSV format automatically removes the envelope wrapper, returning just the data records.
+
+### MessagePack Format
+
+Use `?format=msgpack` to get results in binary MessagePack format (smaller, faster):
+
+```bash
+curl -X GET "http://localhost:9001/api/data/users?format=msgpack" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  --output users.msgpack
+```
+
+**Response:** Binary MessagePack data (application/msgpack)
+
+**Use cases:**
+- High-performance APIs (30-50% smaller than JSON)
+- Low-bandwidth environments
+- Binary data transfer
+- Language-agnostic serialization
+
+**Decoding MessagePack (JavaScript):**
+```javascript
+import { decode } from '@msgpack/msgpack';
+
+const response = await fetch('/api/data/users?format=msgpack', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+
+const buffer = await response.arrayBuffer();
+const data = decode(new Uint8Array(buffer));
+console.log(data); // Parsed JavaScript object
+```
+
+**Decoding MessagePack (Python):**
+```python
+import msgpack
+import requests
+
+response = requests.get(
+    'http://localhost:9001/api/data/users?format=msgpack',
+    headers={'Authorization': f'Bearer {token}'}
+)
+
+data = msgpack.unpackb(response.content)
+print(data)
+```
+
 ## Advanced Queries
 
 For more sophisticated filtering, sorting, and pagination, use the **Find API** instead:
