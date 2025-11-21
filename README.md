@@ -4,6 +4,10 @@
 
 **Modern PaaS Backend Framework** - Ultra-lightweight Platform-as-a-Service API built with Hono and TypeScript, featuring schema-first development, multi-tenant architecture, and ring-based observer system for building high-performance SaaS applications.
 
+## For AI Agents & Contributors
+
+IMPORTANT: Before starting any task, read [AGENTS.md](./AGENTS.md) for project-specific instructions and patterns.
+
 ### Project Overview
 - **Language**: TypeScript with Hono ultra-fast web framework
 - **Purpose**: Lightweight PaaS backend for rapid SaaS application development
@@ -25,12 +29,10 @@
 - **Observer System**: Ring-based execution model for predictable business logic flow
 - **CLI Integration**: Complete management via monk-cli standalone tool
 
-**Detailed Architecture**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for comprehensive technical specifications
+**Detailed Architecture**: See [DEVELOPER.md](DEVELOPER.md) for comprehensive technical specifications
 
 ### Ring-Based Observer Architecture
 **Execution Rings (0-9)**: Input validation → Business logic → Database execution → Audit → Integrations
-
-**Complete Observer Guide**: See [docs/OBSERVERS.md](docs/OBSERVERS.md) for detailed ring system documentation
 
 ### Multi-Tenant Capabilities
 - **Database Isolation**: Dedicated PostgreSQL per tenant with JWT-based routing
@@ -40,7 +42,7 @@
 - **Snapshots**: Point-in-time backups with async processing for disaster recovery
 - **Performance**: SHA256 caching provides 15x faster schema access
 
-**Multi-Tenant Architecture**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for detailed tenant management
+**Multi-Tenant Architecture**: See [DEVELOPER.md](DEVELOPER.md) for detailed tenant management
 
 ### API Design Patterns
 **Consistent Array/Object Patterns**:
@@ -57,14 +59,14 @@ PUT  /api/data/users/123  # Update specific user (object input)
 - **Testing**: Comprehensive test suite with shell script coverage
 - **Multi-Runtime**: Node.js, Bun, Deno, Cloudflare Workers support
 
-**Development Guide**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for complete development workflows
+**Development Guide**: See [DEVELOPER.md](DEVELOPER.md) for complete development workflows
 
 ### Performance Optimizations
 - **Ultra-Lightweight**: ~50KB Hono framework vs traditional heavy frameworks
 - **Schema Caching**: 15x performance improvement with SHA256-based caching
 - **Raw SQL**: Direct execution without ORM overhead
 
-**Performance Details**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for optimization strategies
+**Performance Details**: See [DEVELOPER.md](DEVELOPER.md) for optimization strategies
 
 ### Enterprise Features
 - **Security**: Built-in auth, JWT-based tenant routing, sudo escalation, comprehensive audit trails
@@ -86,7 +88,7 @@ PUT  /api/data/users/123  # Update specific user (object input)
 - **TypeScript**: Type-safe development with modern language features
 - **PostgreSQL**: Advanced multi-tenant database architecture
 
-**Complete Stack**: See [docs/DEVELOPER.md](docs/DEVELOPER.md) for detailed technology specifications
+**Complete Stack**: See [DEVELOPER.md](DEVELOPER.md) for detailed technology specifications
 
 ### Archive Value
 Excellent reference for modern TypeScript API development, multi-tenant architecture, schema-first development, observer patterns, and high-performance API design.
@@ -97,9 +99,9 @@ Excellent reference for modern TypeScript API development, multi-tenant architec
 
 **🚀 Quick Start**: Follow the installation guide above to get Monk API running.
 
-**📚 Deep Dive**: For comprehensive technical documentation, architecture details, development workflows, and advanced features, see **[docs/DEVELOPER.md](docs/DEVELOPER.md)**.
+**📚 Deep Dive**: For comprehensive technical documentation, architecture details, development workflows, and advanced features, see **[DEVELOPER.md](DEVELOPER.md)**.
 
-**🔍 API Reference**: For complete endpoint documentation and usage examples, see **[docs/API.md](docs/API.md)**.
+**🔍 API Reference**: For complete endpoint documentation and usage examples, see **[src/routes/docs/PUBLIC.md](src/routes/docs/PUBLIC.md)**.
 
 Happy coding! 🎯
 
@@ -111,23 +113,16 @@ Happy coding! 🎯
 - **[INSTALL.md](INSTALL.md)** - Installation, setup, and quick start guide
 
 ### Development
-- **[docs/DEVELOPER.md](docs/DEVELOPER.md)** - Comprehensive developer guide and architecture
-- **[docs/OBSERVERS.md](docs/OBSERVERS.md)** - Observer system development guide
-- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
-- **[docs/TEST.md](docs/TEST.md)** - Testing guide and common commands
+- **[DEVELOPER.md](DEVELOPER.md)** - Comprehensive developer guide and architecture
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Systematic debugging and issue resolution
+- **[spec/README.md](spec/README.md)** - Testing guide and common commands
 
 ### Testing Status
 - **✅ Shell Tests**: Comprehensive end-to-end integration tests
 - **🚧 TypeScript Tests**: Planned unit tests (Vitest)
 - **📋 Coverage**: Complete API and workflow validation
 
-**Testing Guide**: See [docs/TEST.md](docs/TEST.md) for comprehensive testing strategies
+**Testing Guide**: See [spec/README.md](spec/README.md) for comprehensive testing strategies
 
 ### API Reference
-- **[docs/API.md](docs/API.md)** - Complete API endpoints, patterns, and examples
-- **[Live API Docs](src/routes/PUBLIC.md)** - Auto-generated API documentation
-
-**Complete API Documentation**: See [docs/API.md](docs/API.md) and [src/routes/PUBLIC.md](src/routes/PUBLIC.md) for detailed endpoint specifications
-
-### Technical Specifications
-- **[docs/TEST.md](docs/TEST.md)** - Complete testing strategies and patterns
+- **[Live API Docs](src/routes/docs/PUBLIC.md)** - Auto-generated API documentation

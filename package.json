@@ -2,6 +2,7 @@
     "name": "monk-api",
     "version": "3.0.0",
     "description": "Lightweight PaaS backend API built with Hono",
+    "agents": "IMPORTANT: Before starting ANY task, READ ./AGENTS.md for project-specific instructions and patterns",
     "main": "dist/index.js",
     "type": "module",
     "scripts": {
