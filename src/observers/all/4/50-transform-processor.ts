@@ -49,8 +49,8 @@ export default class TransformProcessor extends BaseObserver {
         // Apply transforms to each record
         for (const record of data) {
             for (const [fieldName, transformType] of transformFields) {
-                // Skip if field not present or null/undefined
-                const value = record.get(fieldName);
+                // Skip if field not being set in this operation (only transform new values)
+                const value = record.new(fieldName);
                 if (value === null || value === undefined) {
                     continue;
                 }

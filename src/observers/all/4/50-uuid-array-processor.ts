@@ -46,7 +46,8 @@ export default class UuidArrayProcessor extends BaseObserver {
             let recordHasUuidArrays = false;
 
             for (const fieldName of this.UUID_ARRAY_FIELDS) {
-                const value = record.get(fieldName);
+                // Only check fields being set in this operation
+                const value = record.new(fieldName);
                 if (value && Array.isArray(value)) {
                     // Set metadata flag for SQL observers to use PostgreSQL array format
                     processedFields++;

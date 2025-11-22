@@ -51,12 +51,36 @@ export class SchemaRecord {
     }
 
     /**
-     * Get the current value of a field
+     * Get the effective current value of a field (merged view)
+     * For UPDATE operations, returns the new value if changed, otherwise the original value
+     * For CREATE operations, returns the new value
      * @param field The field name
-     * @returns The current value, or undefined if not set
+     * @returns The effective value (current overrides original)
      */
     get(field: string): any {
+        // Return current value if set, otherwise fall back to original
+        return this._current[field] ?? this._original?.[field];
+    }
+
+    /**
+     * Get only the new/updated value of a field (current-only view)
+     * Returns undefined if field is not being changed in this operation
+     * Useful for transforms and processors that only operate on changed data
+     * @param field The field name
+     * @returns The new value being set, or undefined if not changing
+     */
+    new(field: string): any {
         return this._current[field];
+    }
+
+    /**
+     * Get the original value of a field from the database (original-only view)
+     * Alias for getOriginal() with shorter name for symmetry with new()
+     * @param field The field name
+     * @returns The original value from DB, or undefined if new record
+     */
+    old(field: string): any {
+        return this._original?.[field];
     }
 
     /**

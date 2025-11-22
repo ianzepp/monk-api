@@ -63,7 +63,7 @@ export default class ImmutableValidator extends BaseObserver {
 
         // Check each record for immutable field violations
         for (const record of data) {
-            const recordId = record.get('id');
+            const recordId = record.get('id'); // Merged view - ID may be in original
             const existingRecord = existingRecordsById[recordId];
 
             if (!existingRecord) {
@@ -83,7 +83,7 @@ export default class ImmutableValidator extends BaseObserver {
                 }
 
                 const oldValue = existingRecord[fieldName];
-                const newValue = record.get(fieldName);
+                const newValue = record.new(fieldName); // Only check if field is being changed
 
                 // Allow setting immutable field if it was null/undefined (first write)
                 if (oldValue === null || oldValue === undefined) {

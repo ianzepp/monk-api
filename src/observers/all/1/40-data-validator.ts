@@ -72,6 +72,13 @@ export default class DataValidator extends BaseObserver {
         // OPTIMIZED: Single loop over records, single loop over relevant fields
         for (const [recordIndex, record] of data.entries()) {
             for (const field of validationFields) {
+                // For UPDATE operations, only validate fields being updated
+                // Existing DB values are already valid, no need to re-validate
+                if (context.operation === 'update' && !record.has(field.fieldName)) {
+                    continue; // Skip fields not in update payload
+                }
+
+                // Get merged view: new value if changed, otherwise original value
                 const value = record.get(field.fieldName);
                 this.validateField(field, value, recordIndex, errors);
             }
