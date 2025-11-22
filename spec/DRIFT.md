@@ -145,13 +145,46 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ---
 
+## Data API (spec/32-data-api)
+
+### Empty Array Validation
+
+**Documentation**: `src/routes/api/data/:schema/POST.md` implies arrays should contain records
+**Implementation**: Empty arrays are accepted and return success with empty data array
+**Impact**: Low - May be intentional (idempotent no-op)
+**Affected endpoints**:
+- `POST /api/data/:schema`
+
+**Tests skipped**:
+- `spec/32-data-api/data-post.test.ts:127` - Empty array test
+
+**Resolution**: Document whether empty arrays are intentionally allowed
+
+---
+
+### Error Codes: Non-Existent Schema (Data API)
+
+**Documentation**: Should return `SCHEMA_NOT_FOUND`
+**Implementation**: Returns `INTERNAL_ERROR` for non-existent schema
+**Impact**: Low - Error handling works but codes differ
+**Affected endpoints**:
+- `POST /api/data/:schema`
+- Likely affects other Data API endpoints
+
+**Test adjustments**:
+- `spec/32-data-api/data-post.test.ts:165` - Adjusted to expect INTERNAL_ERROR
+
+**Resolution**: Return more specific error code or update documentation
+
+---
+
 ## Summary Statistics
 
-**Total Discrepancies**: 9
+**Total Discrepancies**: 11 (9 Describe API + 2 Data API)
 **Impact Levels**:
 - High: 1 (System fields in responses)
 - Medium: 4 (Field naming, default values, soft delete, trashed filtering)
-- Low: 4 (Empty updates, type normalization, column without type, error codes)
+- Low: 6 (Empty updates/arrays, type normalization, column without type, error codes)
 
 **Tests Skipped Due to Drift**: 5
 **Test Adjustments Made**: Multiple (documented in test files with comments)
