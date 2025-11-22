@@ -228,43 +228,4 @@ export abstract class BaseObserver implements Observer {
         }
     }
 
-    /**
-     * Signal that this observer requires a transaction for ACID compliance
-     * Multiple observers can request transactions - reasons are accumulated
-     */
-    protected needsTransaction(context: ObserverContext, reason?: string): void {
-        context.metadata.set('transaction_required', true);
-
-        // Accumulate reasons from multiple observers
-        const existingReasons = context.metadata.get('transaction_reasons') || [];
-        const newReason = reason || this.constructor.name;
-
-        existingReasons.push({
-            observer: this.constructor.name,
-            ring: this.ring,
-            reason: newReason,
-            timestamp: Date.now()
-        });
-
-        context.metadata.set('transaction_reasons', existingReasons);
-    }
-
-    /**
-     * Get all transaction reasons from observers
-     */
-    protected static getTransactionReasons(context: ObserverContext): Array<{
-        observer: string;
-        ring: number;
-        reason: string;
-        timestamp: number;
-    }> {
-        return context.metadata.get('transaction_reasons') || [];
-    }
-
-    /**
-     * Check if any observer has requested a transaction
-     */
-    protected static isTransactionRequired(context: ObserverContext): boolean {
-        return context.metadata.get('transaction_required') === true;
-    }
 }

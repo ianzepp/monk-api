@@ -28,17 +28,18 @@ export class SqlUtils {
     /**
      * Process UUID arrays for PostgreSQL compatibility
      *
-     * Converts JavaScript arrays to PostgreSQL array literals for UUID fields
-     * based on metadata flags set by UuidArrayProcessor in Ring 4.
+     * Converts JavaScript arrays to PostgreSQL array literals for UUID fields.
+     * Automatically detects UUID array fields by checking if the field name
+     * is a known UUID array field and the value is an array.
      */
-    static processUuidArrays(record: any, metadata: Map<string, any>): any {
+    static processUuidArrays(record: any): any {
         const processed = { ...record };
 
         // Check each potential UUID array field
         const uuidFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
 
         for (const fieldName of uuidFields) {
-            if (metadata.get(`${fieldName}_is_uuid_array`) && Array.isArray(processed[fieldName])) {
+            if (Array.isArray(processed[fieldName])) {
                 // Convert JavaScript array to PostgreSQL array literal
                 processed[fieldName] = `{${processed[fieldName].join(',')}}`;
             }

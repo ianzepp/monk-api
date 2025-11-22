@@ -79,6 +79,16 @@ export class SchemaRecord {
     }
 
     /**
+     * Replace entire current state with new data (used by SQL observers after DB operations)
+     * Updates _current with final database state (e.g., updated timestamps, generated IDs)
+     * Preserves _original for change tracking
+     * @param data The complete record data from database
+     */
+    setCurrent(data: Record<string, any>): void {
+        this._current = { ...data };
+    }
+
+    /**
      * Check if a field exists in the current data
      * @param field The field name
      * @returns true if field exists (even if undefined)

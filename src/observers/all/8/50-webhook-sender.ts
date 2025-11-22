@@ -48,7 +48,7 @@ export default class WebhookSender extends BaseAsyncObserver {
     ];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, operation, metadata } = context;
+        const { schema, operation } = context;
 
         // TODO: Temporarily disabled for testing - re-enable when webhook endpoints are configured
         console.info(`📡 Webhook observer triggered for ${schema} ${operation} (disabled for testing)`);
@@ -130,12 +130,12 @@ export default class WebhookSender extends BaseAsyncObserver {
     }
 
     private createWebhookPayload(context: ObserverContext): any {
-        const { operation, schema, result, existing, data, metadata } = context;
+        const { operation, schema, data } = context;
 
         return {
             // Event metadata
             event: {
-                type: `${schema}.${operation}`,
+                type: `${schema.schema_name}.${operation}`,
                 timestamp: new Date().toISOString(),
                 source: 'monk-api',
                 version: '1.0'
@@ -143,45 +143,55 @@ export default class WebhookSender extends BaseAsyncObserver {
 
             // Operation details
             operation,
-            schema,
+            schema: schema.schema_name,
 
             // Data payload based on operation type
-            data: this.getDataPayload(operation, result, existing, data),
+            data: this.getDataPayload(operation, data),
 
             // Additional context from observers
             context: {
                 user_id: context.system.getUser?.()?.id || null,
-                metadata: this.extractWebhookMetadata(metadata)
+                metadata: null
             }
         };
     }
 
-    private getDataPayload(operation: string, result: any, existing: any, data: any): any {
+    private getDataPayload(operation: string, data: any): any {
+        // data is SchemaRecord[] with both original and current state
+        const records = Array.isArray(data) ? data : (data ? [data] : []);
+        const recordData = records.map(r => r.toObject());
+
         switch (operation) {
             case 'create':
                 return {
-                    record: result || data
+                    record: recordData
                 };
 
             case 'update':
-                return {
-                    record: result,
-                    previous: existing,
-                    changes: this.computeChanges(existing, result)
-                };
+                // Extract changes from SchemaRecord instances
+                const changes = records.map(r => ({
+                    record: r.toObject(),
+                    changes: r.getChanges()
+                }));
+                return { updates: changes };
 
             case 'delete':
                 return {
-                    record: existing,
+                    record: recordData,
                     soft_delete: true // Assuming soft deletes
                 };
 
             default:
-                return { record: result || existing || data };
+                return { record: recordData };
         }
     }
 
-    private computeChanges(existing: any, result: any): any {
+    private computeChanges(record: any): any {
+        // No longer needed - SchemaRecord.getChanges() handles this
+        return record.getChanges?.() || null;
+    }
+
+    private _computeChangesOld(existing: any, result: any): any {
         if (!existing || !result) return null;
 
         const changes: any = {};
@@ -212,24 +222,4 @@ export default class WebhookSender extends BaseAsyncObserver {
         return processed;
     }
 
-    private extractWebhookMetadata(metadata: Map<string, any>): any {
-        const webhookMetadata: any = {};
-
-        // Extract relevant metadata for webhooks
-        const webhookKeys = [
-            'balance_change',
-            'transaction_type',
-            'role_change',
-            'requires_audit',
-            'large_transaction'
-        ];
-
-        for (const key of webhookKeys) {
-            if (metadata.has(key)) {
-                webhookMetadata[key] = metadata.get(key);
-            }
-        }
-
-        return Object.keys(webhookMetadata).length > 0 ? webhookMetadata : null;
-    }
 }

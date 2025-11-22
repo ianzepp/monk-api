@@ -30,7 +30,7 @@ export default class UuidArrayProcessor extends BaseObserver {
     ];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { operation, data, metadata } = context;
+        const { operation, data } = context;
         const schemaName = context.schema.schema_name;
 
         // Check if data exists

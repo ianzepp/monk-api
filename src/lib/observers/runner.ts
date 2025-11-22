@@ -99,9 +99,6 @@ export class ObserverRunner {
             schema,
             data, // For create/update operations (now SchemaRecord[])
             filter, // For select operations (rings 0-4), undefined for other operations
-            existing, // DEPRECATED - RecordPreloader uses SchemaRecord.load() instead
-            result: undefined,
-            metadata: new Map(),
             errors: [],
             warnings: [],
             startTime: Date.now(),
@@ -147,10 +144,8 @@ export class ObserverRunner {
 
         return {
             success,
-            result: context.result,
             errors: context.errors,
-            warnings: context.warnings,
-            metadata: context.metadata
+            warnings: context.warnings
         };
     }
 
@@ -171,13 +166,11 @@ export class ObserverRunner {
 
         return {
             success: false,
-            result: undefined,
             errors: [{
                 message: `Observer execution failed: ${error}`,
                 code: 'OBSERVER_EXECUTION_ERROR'
             }],
-            warnings: context.warnings,
-            metadata: context.metadata
+            warnings: context.warnings
         };
     }
 
@@ -309,7 +302,6 @@ export class ObserverRunner {
             context.system &&
             context.operation &&
             context.schema &&
-            context.metadata &&
             context.errors &&
             context.warnings &&
             typeof context.startTime === 'number'

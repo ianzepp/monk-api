@@ -24,7 +24,7 @@ export default class SoftDeleteProtector extends BaseObserver {
     readonly operations = ['update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { operation, data, metadata } = context;
+        const { operation, data } = context;
         const schemaName = context.schema.schema_name;
 
         // Use preloaded existing records to check trashed status
@@ -125,24 +125,4 @@ export default class SoftDeleteProtector extends BaseObserver {
         return !this.isRecordTrashed(record) && !this.isRecordDeleted(record);
     }
 
-    /**
-     * Helper method to get protection stats from context
-     */
-    static getProtectionStats(context: ObserverContext): {
-        wasChecked: boolean;
-        checkedRecords: number;
-        trashedRecords: number;
-        deletedRecords: number;
-        status: string;
-    } {
-        const metadata = context.metadata;
-
-        return {
-            wasChecked: metadata.has('soft_delete_protection'),
-            checkedRecords: metadata.get('protected_record_count') || 0,
-            trashedRecords: metadata.get('trashed_record_count') || 0,
-            deletedRecords: metadata.get('deleted_record_count') || 0,
-            status: metadata.get('soft_delete_protection') || 'not_checked'
-        };
-    }
 }

@@ -20,7 +20,7 @@ export default class HistoryTracker extends BaseObserver {
     private readonly SYSTEM_SCHEMAS = ['schemas', 'columns', 'users', 'history'];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, operation, schema, result, existing, data } = context;
+        const { system, operation, schema, data } = context;
         const schemaName = schema.schema_name;
 
         // Skip system schemas
@@ -35,53 +35,43 @@ export default class HistoryTracker extends BaseObserver {
 
         const trackedColumns = Array.from(schema.trackedFields);
 
-        // Process each record
+        // Process each SchemaRecord (contains both original and current state)
         const records = Array.isArray(data) ? data : [data];
-        const results = Array.isArray(result) ? result : (result ? [result] : []);
-        const existingRecords = Array.isArray(existing) ? existing : (existing ? [existing] : []);
 
-        for (let i = 0; i < Math.max(records.length, results.length, existingRecords.length); i++) {
-            const record = records[i];
-            const recordResult = results[i];
-            const recordExisting = existingRecords[i];
-
+        for (const record of records) {
             await this.createHistoryRecord(
                 system,
                 operation,
                 schemaName,
                 trackedColumns,
-                record,
-                recordResult,
-                recordExisting
+                record
             );
         }
     }
 
     /**
      * Create a history record for a single data change
+     * @param record SchemaRecord with _original (before) and _current (after) state
      */
     private async createHistoryRecord(
         system: any,
         operation: string,
         schemaName: string,
         trackedColumns: string[],
-        record: any,
-        result: any,
-        existing: any
+        record: any
     ): Promise<void> {
-        // Determine record ID
-        const recordId = result?.id || existing?.id || record?.id;
+        // Determine record ID from current state
+        const recordId = record.get('id');
         if (!recordId) {
             console.warn('History tracker: Cannot track change without record ID', { schemaName, operation });
             return;
         }
 
         // Compute changes for tracked columns only
+        // SchemaRecord has getOriginal() and get() for before/after comparison
         const changes = this.computeTrackedChanges(
             operation,
             trackedColumns,
-            existing,
-            result,
             record
         );
 
@@ -159,26 +149,24 @@ export default class HistoryTracker extends BaseObserver {
 
     /**
      * Compute field-level changes for tracked columns only
+     * Uses SchemaRecord's getOriginal() and get() for before/after comparison
      * Returns object with structure: { fieldName: { old: value, new: value } }
      */
     private computeTrackedChanges(
         operation: string,
         trackedColumns: string[],
-        existing: any,
-        result: any,
         record: any
     ): any {
         const changes: any = {};
 
         switch (operation) {
             case 'create':
-                // For creates, store new values for tracked columns
-                const createData = result || record || {};
+                // For creates, store new values for tracked columns (no original values)
                 for (const fieldName of trackedColumns) {
-                    if (fieldName in createData) {
+                    if (record.has(fieldName)) {
                         changes[fieldName] = {
                             old: null,
-                            new: createData[fieldName]
+                            new: record.get(fieldName)
                         };
                     }
                 }
@@ -186,37 +174,24 @@ export default class HistoryTracker extends BaseObserver {
 
             case 'update':
                 // For updates, store old and new values for changed tracked columns
-                if (!existing) {
-                    console.warn('History tracker: Cannot compute update changes without existing record', { operation });
-                    break;
-                }
-
-                const updateData = result || record || {};
                 for (const fieldName of trackedColumns) {
-                    // Only track if the field is in the update data
-                    if (fieldName in updateData) {
-                        const oldValue = existing[fieldName];
-                        const newValue = updateData[fieldName];
-
-                        // Only record if value actually changed
-                        if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-                            changes[fieldName] = {
-                                old: oldValue,
-                                new: newValue
-                            };
-                        }
+                    // Use SchemaRecord's changed() method to detect changes
+                    if (record.changed(fieldName)) {
+                        changes[fieldName] = {
+                            old: record.getOriginal(fieldName),
+                            new: record.get(fieldName)
+                        };
                     }
                 }
                 break;
 
             case 'delete':
-                // For deletes, store old values for tracked columns
-                const deleteData = existing || record || {};
+                // For deletes, store original values (new values are the trashed state)
                 for (const fieldName of trackedColumns) {
-                    if (fieldName in deleteData) {
+                    if (record.has(fieldName)) {
                         changes[fieldName] = {
-                            old: deleteData[fieldName],
-                            new: null
+                            old: record.getOriginal(fieldName) ?? record.get(fieldName),
+                            new: record.get(fieldName)  // Include trashed_at in new state
                         };
                     }
                 }

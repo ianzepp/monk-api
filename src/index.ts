@@ -359,8 +359,10 @@ if (process.argv.includes('--no-startup')) {
 
 // Start HTTP server only
 console.info('Starting Monk HTTP API Server (Hono)');
-console.info('For FS server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
-console.info('For FS-like interaction via the commandline, see monk-cli project: https://github.com/ianzepp/monk-cli');
+console.info('Related ecosystem projects:')
+console.info('- monk-cli: Terminal commands for the API (https://github.com/ianzepp/monk-cli)');
+console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
+console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)');
 
 const server = serve({
     fetch: app.fetch,

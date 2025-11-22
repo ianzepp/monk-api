@@ -11,20 +11,18 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
+import { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class SqlUpdateObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schema, data, metadata } = context;
+        const { system, schema, data } = context;
 
         if (!data || data.length === 0) {
-            context.result = [];
             return;
         }
-
-        const results = [];
 
         for (const record of data) {
             // Convert SchemaRecord to plain object for SQL operations
@@ -36,8 +34,8 @@ export default class SqlUpdateObserver extends BaseObserver {
 
             const { id, ...updateFields } = plainRecord;
 
-            // Process UUID arrays if flagged by UuidArrayProcessor
-            let processedFields = SqlUtils.processUuidArrays(updateFields, metadata);
+            // Process UUID arrays for PostgreSQL compatibility
+            let processedFields = SqlUtils.processUuidArrays(updateFields);
 
             // Process JSONB fields (objects/arrays) for PostgreSQL serialization
             processedFields = SqlUtils.processJsonbFields(processedFields, schema);
@@ -66,10 +64,11 @@ export default class SqlUpdateObserver extends BaseObserver {
                 throw new SystemError(`Update failed - record not found: ${id}`);
             }
 
-            const convertedResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], schema);
-            results.push(convertedResult);
+            // Update the SchemaRecord with final database state (preserves change tracking)
+            const dbResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], schema);
+            record.setCurrent(dbResult);
         }
 
-        context.result = results;
+        // No need to set context.result - context.data now contains updated SchemaRecord instances
     }
 }

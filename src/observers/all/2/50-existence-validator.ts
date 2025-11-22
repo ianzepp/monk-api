@@ -22,7 +22,7 @@ export default class ExistenceValidator extends BaseObserver {
     readonly operations = ['update', 'delete', 'revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { operation, data, metadata } = context;
+        const { operation, data } = context;
         const schemaName = context.schema.schema_name;
 
         if (!data || data.length === 0) {
@@ -167,24 +167,4 @@ export default class ExistenceValidator extends BaseObserver {
         return recordsById[recordId] || null;
     }
 
-    /**
-     * Helper method to get validation stats from context
-     */
-    static getValidationStats(context: ObserverContext): {
-        wasValidated: boolean;
-        requestedCount: number;
-        foundCount: number;
-        missingCount: number;
-        status: string;
-    } {
-        const metadata = context.metadata;
-
-        return {
-            wasValidated: metadata.has('existence_validation'),
-            requestedCount: metadata.get('requested_record_count') || 0,
-            foundCount: metadata.get('validated_record_count') || 0,
-            missingCount: metadata.get('missing_record_count') || 0,
-            status: metadata.get('existence_validation') || 'not_validated'
-        };
-    }
 }

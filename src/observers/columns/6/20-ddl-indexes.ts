@@ -105,24 +105,16 @@ export default class DdlIndexesObserver extends BaseObserver {
      * Update indexes when flags change
      */
     private async handleUpdate(record: any, context: ObserverContext, system: any, schemaName: string, columnName: string): Promise<void> {
-        // Get old record from metadata (preloaded by ring 0)
-        const oldRecord = context.metadata.get('preloaded_records')?.[0];
-
-        if (!oldRecord) {
-            console.warn(`No old record found for index update: ${schemaName}.${columnName}`);
-            return;
-        }
-
         const pool = SqlUtils.getPool(system);
 
-        // Handle unique index changes
+        // Handle unique index changes using SchemaRecord's change tracking
         await this.handleIndexChange(
             pool,
             schemaName,
             columnName,
             'unique',
-            Boolean(oldRecord.unique),
-            Boolean(record.unique),
+            Boolean(record.getOriginal('unique')),
+            Boolean(record.get('unique')),
             `${schemaName}_${columnName}_unique_idx`,
             `CREATE UNIQUE INDEX IF NOT EXISTS "${schemaName}_${columnName}_unique_idx" ON "${schemaName}" ("${columnName}")`
         );
@@ -133,8 +125,8 @@ export default class DdlIndexesObserver extends BaseObserver {
             schemaName,
             columnName,
             'index',
-            Boolean(oldRecord.index),
-            Boolean(record.index),
+            Boolean(record.getOriginal('index')),
+            Boolean(record.get('index')),
             `${schemaName}_${columnName}_idx`,
             `CREATE INDEX IF NOT EXISTS "${schemaName}_${columnName}_idx" ON "${schemaName}" ("${columnName}")`
         );
@@ -145,8 +137,8 @@ export default class DdlIndexesObserver extends BaseObserver {
             schemaName,
             columnName,
             'searchable',
-            Boolean(oldRecord.searchable),
-            Boolean(record.searchable),
+            Boolean(record.getOriginal('searchable')),
+            Boolean(record.get('searchable')),
             `${schemaName}_${columnName}_search_idx`,
             `CREATE INDEX IF NOT EXISTS "${schemaName}_${columnName}_search_idx" ON "${schemaName}" USING GIN (to_tsvector('english', "${columnName}"))`
         );

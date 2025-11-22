@@ -15,27 +15,25 @@ export default class CacheInvalidator extends BaseAsyncObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { result, existing, metadata, operation, data } = context;
+        const { operation, data } = context;
         const schemaName = context.schema.schema_name;
 
         try {
             // Invalidate schema-level caches (once per execution)
             await this.invalidateSchemaCache(schemaName);
 
-            // Process result records (which come from context.result after DB operations)
-            const resultsToProcess = Array.isArray(result) ? result : (result ? [result] : []);
+            // Process records (SchemaRecord instances with both original and current state)
+            const records = Array.isArray(data) ? data : (data ? [data] : []);
 
-            for (const recordResult of resultsToProcess) {
-                const recordExisting = existing;
-
+            for (const record of records) {
                 // Invalidate record-level caches
-                const recordId = this.getRecordId(recordResult, recordExisting);
+                const recordId = record.get('id');
                 if (recordId) {
                     await this.invalidateRecordCache(schemaName, recordId);
                 }
 
                 // Invalidate relationship caches
-                await this.invalidateRelationshipCaches(schemaName, recordResult, recordExisting);
+                await this.invalidateRelationshipCaches(schemaName, record);
             }
 
             // Invalidate search/index caches
@@ -78,17 +76,16 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         console.info('Cache invalidated for record', { schema, recordId });
     }
 
-    private async invalidateRelationshipCaches(schema: string, result: any, existing: any): Promise<void> {
+    private async invalidateRelationshipCaches(schema: string, record: any): Promise<void> {
         // Get relationship fields that might have changed
         const relationships = this.getRelationshipFields(schema);
-        const record = result || existing;
 
         if (!record || relationships.length === 0) return;
 
         const cacheKeys: string[] = [];
 
         for (const relationship of relationships) {
-            const relationshipValue = record[relationship.field];
+            const relationshipValue = record.get(relationship.field);
             if (relationshipValue) {
                 // Invalidate caches for related records
                 if (Array.isArray(relationshipValue)) {
@@ -147,10 +144,6 @@ export default class CacheInvalidator extends BaseAsyncObserver {
                 // await cache.delete(key);
             }
         }
-    }
-
-    private getRecordId(result: any, existing: any): string | null {
-        return result?.id || existing?.id || null;
     }
 
     private getRelationshipFields(schema: string): Array<{field: string, schema: string}> {

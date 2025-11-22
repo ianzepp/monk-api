@@ -30,8 +30,8 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
     protected readonly timeoutMs = 600000; // 10 minutes for large databases
 
     async execute(context: ObserverContext): Promise<void> {
-        // In Ring 8, context.result contains the created records
-        const snapshots = context.result || [];
+        // In Ring 8, context.data contains the created snapshot records
+        const snapshots = context.data || [];
 
         if (!Array.isArray(snapshots) || snapshots.length === 0) {
             return;

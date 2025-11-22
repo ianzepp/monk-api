@@ -10,36 +10,35 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
+import { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class SqlCreateObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['create'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schema, data, metadata } = context;
+        const { system, schema, data } = context;
 
         if (!data || data.length === 0) {
-            context.result = [];
             return;
         }
 
-        const results = [];
         const timestamp = new Date().toISOString();
 
-        for (const recordData of data) {
+        for (const record of data) {
             // Convert SchemaRecord to plain object for SQL operations
-            const plainRecord = recordData.toObject();
+            const plainRecord = record.toObject();
 
             // Set up record with required system fields
-            const record = {
+            const recordWithDefaults = {
                 id: plainRecord.id || SqlUtils.generateId(),
                 created_at: plainRecord.created_at || timestamp,
                 updated_at: plainRecord.updated_at || timestamp,
                 ...plainRecord,
             };
 
-            // Process UUID arrays if flagged by UuidArrayProcessor
-            let processedRecord = SqlUtils.processUuidArrays(record, metadata);
+            // Process UUID arrays for PostgreSQL compatibility
+            let processedRecord = SqlUtils.processUuidArrays(recordWithDefaults);
 
             // Process JSONB fields (objects/arrays) for PostgreSQL serialization
             processedRecord = SqlUtils.processJsonbFields(processedRecord, schema);
@@ -65,10 +64,11 @@ export default class SqlCreateObserver extends BaseObserver {
                 throw new SystemError(`Failed to create record in ${schema.schema_name}`);
             }
 
-            const convertedResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], schema);
-            results.push(convertedResult);
+            // Update the SchemaRecord with final database state
+            const dbResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], schema);
+            record.setCurrent(dbResult);
         }
 
-        context.result = results;
+        // No need to set context.result - context.data now contains updated SchemaRecord instances
     }
 }

@@ -54,7 +54,6 @@ export interface ObserverResult {
     result?: any;
     errors: any[]; // ValidationError instances from errors.js
     warnings: any[]; // ValidationWarning instances from errors.js
-    metadata: Map<string, any>;
 }
 
 /**

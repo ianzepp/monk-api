@@ -17,31 +17,31 @@ export default class ChangeTracker extends BaseObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, operation, schema, result, existing, data, metadata } = context;
+        const { operation, schema } = context;
 
         // TODO: Temporarily disabled for testing - re-enable when audit_log table is created
-        console.info(`📝 Change tracker triggered for ${schema} ${operation} (disabled for testing)`);
+        console.info(`📝 Change tracker triggered for ${schema.schema_name} ${operation} (disabled for testing)`);
 
         // Early return - disabled for testing
         return;
     }
 
     private async createAuditRecord(context: ObserverContext): Promise<any> {
-        const { system, operation, schema, result, existing, data, metadata } = context;
+        const { system, operation, schema, data } = context;
 
         const auditRecord: any = {
             // Core audit fields
             operation,
-            schema,
-            record_id: this.getRecordId(result, existing, data),
+            schema: schema.schema_name,
+            record_id: this.getRecordId(data),
             user_id: system.getUser?.()?.id || 'system',
             timestamp: new Date().toISOString(),
 
             // Change details
-            changes: this.computeChanges(operation, existing, result, data),
+            changes: this.computeChanges(operation, data),
 
-            // Additional context
-            metadata: this.extractAuditMetadata(metadata),
+            // Additional context (metadata removed - was never populated)
+            metadata: null,
 
             // Request tracking
             request_id: this.generateRequestId(),
@@ -50,39 +50,41 @@ export default class ChangeTracker extends BaseObserver {
             user_agent: this.getUserAgent(system),
         };
 
-        // Add operation-specific fields
+        // Add operation-specific fields (data contains SchemaRecord instances)
+        const records = (Array.isArray(data) ? data : [data]).filter((r): r is any => r != null);
         switch (operation) {
             case 'create':
                 auditRecord.action = 'CREATE';
-                auditRecord.new_values = result || data;
+                auditRecord.new_values = records.map(r => r.toObject());
                 break;
 
             case 'update':
                 auditRecord.action = 'UPDATE';
-                auditRecord.old_values = existing;
-                auditRecord.new_values = result;
+                auditRecord.old_values = records.map(r => r.getOriginal ? r.getOriginal('*') : null);
+                auditRecord.new_values = records.map(r => r.toObject());
                 break;
 
             case 'delete':
                 auditRecord.action = 'DELETE';
-                auditRecord.old_values = existing;
-                auditRecord.soft_delete = metadata.get('soft_delete') || false;
+                auditRecord.old_values = records.map(r => r.getOriginal ? r.getOriginal('*') : r.toObject());
+                auditRecord.soft_delete = false;
                 break;
         }
 
         return auditRecord;
     }
 
-    private computeChanges(operation: string, existing: any, result: any, data: any): any {
+    private computeChanges(operation: string, data: any): any {
+        const records = Array.isArray(data) ? data : [data];
         switch (operation) {
             case 'create':
                 return {
                     type: 'create',
-                    fields_added: Object.keys(result || data || {})
+                    fields_added: records.length > 0 ? Object.keys(records[0].toObject() || {}) : []
                 };
 
             case 'update':
-                if (!existing) return null;
+                if (!records || records.length === 0) return null;
 
                 const changes: any = {
                     type: 'update',
@@ -90,17 +92,15 @@ export default class ChangeTracker extends BaseObserver {
                     changes_detail: {}
                 };
 
-                const newData = result || data || {};
+                // Use SchemaRecord's getChanges() method
+                const recordChanges = records[0].getChanges?.() || {};
 
-                for (const [key, newValue] of Object.entries(newData)) {
-                    const oldValue = existing[key];
-                    if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-                        changes.fields_changed.push(key);
-                        changes.changes_detail[key] = {
-                            from: oldValue,
-                            to: newValue
-                        };
-                    }
+                for (const [key, change] of Object.entries(recordChanges)) {
+                    changes.fields_changed.push(key);
+                    changes.changes_detail[key] = {
+                        from: (change as any).old,
+                        to: (change as any).new
+                    };
                 }
 
                 return changes;
@@ -108,7 +108,7 @@ export default class ChangeTracker extends BaseObserver {
             case 'delete':
                 return {
                     type: 'delete',
-                    fields_removed: Object.keys(existing || {})
+                    fields_removed: records.length > 0 ? Object.keys(records[0].toObject() || {}) : []
                 };
 
             default:
@@ -116,32 +116,10 @@ export default class ChangeTracker extends BaseObserver {
         }
     }
 
-    private extractAuditMetadata(metadata: Map<string, any>): any {
-        const auditMetadata: any = {};
 
-        // Extract relevant metadata for audit trail
-        const auditKeys = [
-            'balance_change',
-            'transaction_type',
-            'requires_audit',
-            'large_transaction',
-            'role_change',
-            'significant_role_change',
-            'creator_role',
-            'target_role'
-        ];
-
-        for (const key of auditKeys) {
-            if (metadata.has(key)) {
-                auditMetadata[key] = metadata.get(key);
-            }
-        }
-
-        return Object.keys(auditMetadata).length > 0 ? auditMetadata : null;
-    }
-
-    private getRecordId(result: any, existing: any, data: any): string | null {
-        return result?.id || existing?.id || data?.id || null;
+    private getRecordId(data: any): string | null {
+        const records = Array.isArray(data) ? data : [data];
+        return records.length > 0 ? records[0].get?.('id') || null : null;
     }
 
     private generateRequestId(): string {

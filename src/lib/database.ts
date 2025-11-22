@@ -529,8 +529,9 @@ export class Database {
         }
 
         // Unwrap SchemaRecord instances back to plain objects
-        const resultRecords = result.result || records;
-        return resultRecords.map((r: SchemaRecord) => r.toObject());
+        // context.data is the single array flowing through the pipeline
+        // SQL observers update it in-place with setCurrent()
+        return records.map((r: SchemaRecord) => r.toObject());
     }
 
     // Database class doesn't handle transactions - System class does

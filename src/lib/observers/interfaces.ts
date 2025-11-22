@@ -38,15 +38,6 @@ export interface ObserverContext {
     /** Target record ID for update/delete/select operations */
     recordId?: string;
 
-    /** Existing record data (DEPRECATED - use SchemaRecord.getOriginal() instead) */
-    existing?: any;
-
-    /** Database operation result (available in post-database rings) */
-    result?: SchemaRecord[];
-
-    /** Cross-observer communication and computed values */
-    metadata: Map<string, any>;
-
     /** Accumulated validation errors from all rings */
     errors: ValidationError[];
 

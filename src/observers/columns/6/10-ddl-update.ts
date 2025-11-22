@@ -4,8 +4,8 @@
  * Executes ALTER TABLE ALTER COLUMN DDL after column record is updated in ring 5.
  * Handles type changes, required/NOT NULL changes, and default value changes.
  *
- * Note: This observer needs access to BOTH old and new column data to determine
- * what DDL operations are needed. The context.metadata should contain the old record.
+ * Uses SchemaRecord's change tracking (changed(), get(), getOriginal()) to detect
+ * what DDL operations are needed.
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -40,30 +40,18 @@ export default class DdlUpdateObserver extends BaseObserver {
             return;
         }
 
-        // Get old column data from metadata (preloaded by ring 0 record-preloader)
-        const oldRecord = context.metadata.get('preloaded_records')?.[0];
-
-        if (!oldRecord) {
-            console.warn(`No old record found for column update: ${schemaName}.${columnName}`);
-            return;
-        }
-
         const ddlCommands: string[] = [];
 
-        // Handle type change
+        // Handle type change using SchemaRecord's change tracking
         // Types are already PostgreSQL types (converted by Ring 4 type-mapper)
-        const oldPgType = oldRecord.type;
-        const newPgType = record.type;
-
-        if (oldPgType !== newPgType) {
+        if (record.changed('type')) {
+            const newPgType = record.get('type');
             ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" TYPE ${newPgType}`);
         }
 
         // Handle required (NOT NULL) change
-        const oldRequired = Boolean(oldRecord.required);
-        const newRequired = Boolean(record.required);
-
-        if (oldRequired !== newRequired) {
+        if (record.changed('required')) {
+            const newRequired = Boolean(record.get('required'));
             if (newRequired) {
                 ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" SET NOT NULL`);
             } else {
@@ -72,10 +60,8 @@ export default class DdlUpdateObserver extends BaseObserver {
         }
 
         // Handle default value change
-        const oldDefault = oldRecord.default_value;
-        const newDefault = record.default_value;
-
-        if (oldDefault !== newDefault) {
+        if (record.changed('default_value')) {
+            const newDefault = record.get('default_value');
             if (newDefault === null || newDefault === undefined) {
                 // Remove default
                 ddlCommands.push(`ALTER TABLE "${schemaName}" ALTER COLUMN "${columnName}" DROP DEFAULT`);

@@ -11,6 +11,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class SqlDeleteObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
@@ -20,13 +21,20 @@ export default class SqlDeleteObserver extends BaseObserver {
         const { system, schema, data } = context;
 
         if (!data || data.length === 0) {
-            context.result = [];
             return;
         }
 
-        const ids = data.map((record: any) => record.id).filter((id: any) => id);
-        if (ids.length === 0) {
-            throw new SystemError('Delete records must have id fields');
+        // Build Map for O(1) lookup when matching DB results back to SchemaRecord instances
+        const dataMap = new Map<string, SchemaRecord>();
+        const ids: string[] = [];
+
+        for (const record of data) {
+            const id = record.get('id');
+            if (!id) {
+                throw new SystemError('Delete records must have id fields');
+            }
+            dataMap.set(id, record);
+            ids.push(id);
         }
 
         // Use FilterWhere for consistent WHERE clause generation
@@ -42,6 +50,15 @@ export default class SqlDeleteObserver extends BaseObserver {
             throw new SystemError(`Delete operation affected ${result.rows.length} records, expected ${ids.length}`);
         }
 
-        context.result = result.rows.map((row: any) => SqlUtils.convertPostgreSQLTypes(row, schema));
+        // Update each SchemaRecord with final database state
+        for (const row of result.rows) {
+            const dbResult = SqlUtils.convertPostgreSQLTypes(row, schema);
+            const record = dataMap.get(dbResult.id);
+            if (record) {
+                record.setCurrent(dbResult);
+            }
+        }
+
+        // No need to set context.result - context.data now contains updated SchemaRecord instances
     }
 }
