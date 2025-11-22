@@ -28,8 +28,3 @@ VALUES (
     true,
     'Point-in-time database backups created via async observer pipeline'
 );
-
--- definitions table (schema metadata cache)
-INSERT INTO "schemas" (schema_name, status, sudo)
-VALUES ('definitions', 'system', true)
-ON CONFLICT (schema_name) DO NOTHING;
