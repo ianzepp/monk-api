@@ -1,0 +1,35 @@
+{
+  "name": "MonkAuth",
+  "description": "Generic authentication operations for the Monk API. Supports four actions: register (create new tenant and get JWT token), login (authenticate to existing tenant), refresh (renew JWT token before expiration), and status (check current authentication state). Use MonkAuthRegister or MonkAuthLogin convenience tools for common operations. This tool caches the JWT token in memory for the session, so subsequent API calls automatically include authentication headers. Returns tenant information, username, and token expiration time on successful authentication.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Auth action to perform",
+        "enum": ["register", "login", "refresh", "status"]
+      },
+      "tenant": {
+        "type": "string",
+        "description": "Tenant name (required for register/login)"
+      },
+      "template": {
+        "type": "string",
+        "description": "Template name for new tenant (register only, defaults to \"system\")"
+      },
+      "username": {
+        "type": "string",
+        "description": "Username (defaults to \"root\")"
+      },
+      "password": {
+        "type": "string",
+        "description": "Password (required for login)"
+      },
+      "description": {
+        "type": "string",
+        "description": "Tenant description (register only)"
+      }
+    },
+    "required": ["action"]
+  }
+}

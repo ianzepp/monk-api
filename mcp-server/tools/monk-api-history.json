@@ -1,0 +1,36 @@
+{
+  "name": "MonkApiHistory",
+  "description": "Access audit trails for tracked column changes. When columns are marked with tracked=true, all create, update, and delete operations are captured with field-level deltas, user attribution, and timestamps. Provides column-level tracking with old/new values for each changed field. Returns history entries ordered by change_id descending (newest first). Optionally retrieve a specific history entry by change_id.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "schema": {
+        "type": "string",
+        "description": "Schema/table name"
+      },
+      "record_id": {
+        "type": "string",
+        "description": "Record ID"
+      },
+      "change_id": {
+        "type": "string",
+        "description": "Specific change ID to retrieve (optional - omit to list all changes)"
+      },
+      "options": {
+        "type": "object",
+        "description": "Pagination options (only used when change_id is omitted)",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "description": "Max number of history entries to return"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Number of entries to skip"
+          }
+        }
+      }
+    },
+    "required": ["schema", "record_id"]
+  }
+}

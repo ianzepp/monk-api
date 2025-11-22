@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "monk-api": {
+      "command": "npm",
+      "args": ["run", "mcp:server"],
+      "env": {
+        "TEST_API_URL": "http://localhost:9001"
+      }
+    }
+  }
+}

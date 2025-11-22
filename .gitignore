@@ -23,6 +23,9 @@ rc-cleanup-*
 *.db
 *.db-*
 
+# MCP cache files
+.monk-mcp-cache.json
+
 # Template databases (persistent but not in git)
 # These are created locally via npm run fixtures:build
 *.template-*

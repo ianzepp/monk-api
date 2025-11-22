@@ -1,0 +1,36 @@
+{
+  "name": "MonkApiAggregate",
+  "description": "Perform aggregation queries with optional GROUP BY support. Use for analytics, reporting, and statistical analysis. Supports aggregation functions: $count (count records), $sum (sum values), $avg (average), $min (minimum), $max (maximum), $distinct (count unique values). Can combine multiple aggregations in a single query and group results by one or more columns.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "schema": {
+        "type": "string",
+        "description": "Schema/table name to aggregate"
+      },
+      "query": {
+        "type": "object",
+        "description": "Aggregation query specification",
+        "properties": {
+          "where": {
+            "type": "object",
+            "description": "Filter conditions to apply before aggregation (optional)"
+          },
+          "aggregate": {
+            "type": "object",
+            "description": "Aggregation functions, e.g., {\"total\": {\"$count\": \"*\"}, \"avg_amount\": {\"$avg\": \"amount\"}}"
+          },
+          "groupBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Columns to group by (optional)"
+          }
+        },
+        "required": ["aggregate"]
+      }
+    },
+    "required": ["schema", "query"]
+  }
+}

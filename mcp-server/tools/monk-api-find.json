@@ -1,0 +1,46 @@
+{
+  "name": "MonkApiFind",
+  "description": "Advanced search and filtering for records across schemas. Execute complex queries with sophisticated filtering, sorting, and aggregation operations. Use this when basic Data API filtering is insufficient or when you need analytics-style queries without writing SQL. Supports boolean logic, nested filters, column projection (select), ordering, and pagination.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "schema": {
+        "type": "string",
+        "description": "Schema/table name to search"
+      },
+      "query": {
+        "type": "object",
+        "description": "Query specification",
+        "properties": {
+          "select": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Column names to return (optional - omit for all columns)"
+          },
+          "where": {
+            "type": "object",
+            "description": "Filter conditions with complex operators (optional)"
+          },
+          "order": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Sort order, e.g., [\"created_at desc\", \"name asc\"] (optional)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of records to return (optional)"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Number of records to skip for pagination (optional)"
+          }
+        }
+      }
+    },
+    "required": ["schema", "query"]
+  }
+}
