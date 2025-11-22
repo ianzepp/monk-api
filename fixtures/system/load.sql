@@ -44,7 +44,6 @@ CREATE TYPE column_type AS ENUM (
 \ir describe/columns.sql
 \ir describe/users.sql
 \ir describe/snapshots.sql
-\ir describe/definitions.sql
 \ir describe/extracts.sql
 \ir describe/extract_runs.sql
 \ir describe/extract_artifacts.sql
@@ -53,13 +52,12 @@ CREATE TYPE column_type AS ENUM (
 \ir describe/restore_logs.sql
 \ir describe/grids.sql
 \ir describe/grid_cells.sql
--- Note: history.sql just documents, actual table created via function
+\ir describe/history.sql
 
 -- PHASE 3: FUNCTIONS
 \echo ''
 \echo 'Phase 3: Functions & Triggers'
-\ir functions/create-table-from-schema.sql
-\ir functions/regenerate-schema-definition.sql
+-- No functions needed
 
 -- PHASE 4: DATA (DML)
 \echo ''
@@ -67,7 +65,7 @@ CREATE TYPE column_type AS ENUM (
 \ir data/schemas.sql
 \ir data/columns.sql
 \ir data/users.sql
-\ir data/history.sql        -- Creates history table via function
+\ir data/history.sql
 \ir data/extracts.sql        -- Extracts system (registers schemas + columns)
 \ir data/restores.sql        -- Restores system (registers schemas + columns)
 \ir data/grids.sql           -- Grid API metadata (registers schemas + columns)

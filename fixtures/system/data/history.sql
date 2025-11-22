@@ -1,6 +1,10 @@
 -- ============================================================================
--- DATA: Create history table
+-- DATA: Register history schema
 -- ============================================================================
--- Uses create_table_from_schema() to build table from column definitions
 
-SELECT create_table_from_schema('history');
+INSERT INTO "schemas" (schema_name, status, description)
+VALUES (
+    'history',
+    'system',
+    'Change tracking and audit trail'
+);
