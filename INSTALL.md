@@ -93,7 +93,7 @@ Create and initialize the main database:
 createdb monk
 
 # Initialize schema
-psql -d monk -f sql/init-monk-main.sql
+psql -d monk -f fixtures/infrastructure/init.sql
 ```
 
 ### 5. Create Development Tenant

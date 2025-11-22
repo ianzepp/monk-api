@@ -449,10 +449,10 @@ if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
     else
         print_warning "Monk database exists but may need initialization"
         print_step "Re-initializing monk database schema..."
-        if psql -d monk -f fixtures/init-monk.sql >/dev/null 2>&1; then
+        if psql -d monk -f fixtures/infrastructure/init.sql >/dev/null 2>&1; then
             print_success "Monk database schema updated"
         else
-            handle_error "Monk database schema initialization" "Check fixtures/init-monk.sql file exists and PostgreSQL permissions"
+            handle_error "Monk database schema initialization" "Check fixtures/infrastructure/init.sql file exists and PostgreSQL permissions"
         fi
     fi
 else
@@ -464,11 +464,11 @@ else
     fi
 
     print_step "Initializing monk database schema..."
-    if psql -d monk -f fixtures/init-monk.sql >/dev/null 2>&1; then
+    if psql -d monk -f fixtures/infrastructure/init.sql >/dev/null 2>&1; then
         print_success "Monk database schema initialized"
         print_info "Created infrastructure tables (templates, tenants, sandboxes)"
     else
-        handle_error "Monk database schema initialization" "Check fixtures/init-monk.sql file exists and PostgreSQL permissions"
+        handle_error "Monk database schema initialization" "Check fixtures/infrastructure/init.sql file exists and PostgreSQL permissions"
     fi
 fi
 
@@ -504,9 +504,10 @@ if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_na
         print_success "Template registered in monk.templates"
     else
         print_step "Registering template in monk.templates..."
+        template_version=$(cat fixtures/system/version.txt 2>/dev/null || echo "1")
         psql -d monk -c "
-            INSERT INTO templates (name, database, description, is_system, schema_count)
-            VALUES ('system', '$template_db_name', 'System template with core infrastructure', true, 4)
+            INSERT INTO templates (name, database, version, description, is_system, schema_count)
+            VALUES ('system', '$template_db_name', $template_version, 'System template with core infrastructure', true, 13)
             ON CONFLICT (name) DO NOTHING;
         " >/dev/null 2>&1
         print_success "Template registered successfully"
@@ -529,13 +530,14 @@ else
     fi
 
     print_step "Registering template in monk.templates..."
+    template_version=$(cat fixtures/system/version.txt 2>/dev/null || echo "1")
     if psql -d monk -c "
-        INSERT INTO templates (name, database, description, is_system, schema_count)
-        VALUES ('system', '$template_db_name', 'System template with core infrastructure', true, 4)
+        INSERT INTO templates (name, database, version, description, is_system, schema_count)
+        VALUES ('system', '$template_db_name', $template_version, 'System template with core infrastructure', true, 13)
         ON CONFLICT (name) DO NOTHING;
     " >/dev/null 2>&1; then
         print_success "Template registered in monk.templates"
-        print_info "Template database: $template_db_name ready for fast tenant creation"
+        print_info "Template database: $template_db_name (version $template_version) ready for fast tenant creation"
     else
         print_warning "Failed to register template in monk.templates"
         print_info "Template database created but not registered - manual registration may be needed"

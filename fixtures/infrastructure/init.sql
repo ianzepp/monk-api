@@ -1,9 +1,9 @@
--- Monk API Database Initialization Script
+-- Monk API Infrastructure Database Initialization Script
 -- This script creates the required tables for the monk database
 --
 -- Usage:
 --   createdb monk
---   psql -d monk -f sql/init-monk.sql
+--   psql -d monk -f fixtures/infrastructure/init.sql
 --
 -- The monk database serves as the central registry for multi-tenant operations,
 -- storing infrastructure metadata and routing information for domain-based authentication.
@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS "templates" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "name" VARCHAR(255) NOT NULL UNIQUE,              -- Template identifier (e.g., 'default', 'testing')
     "database" VARCHAR(255) NOT NULL UNIQUE,          -- Database name: monk_template_{name}
+    "version" INTEGER DEFAULT 1 NOT NULL,             -- Template schema version for migrations
     "description" TEXT,                               -- Human-readable description
     "parent_template" VARCHAR(255),                   -- Source template if derived
     "is_system" BOOLEAN DEFAULT false NOT NULL,       -- System template (cannot be deleted)
@@ -33,10 +34,12 @@ CREATE TABLE IF NOT EXISTS "templates" (
 CREATE INDEX "idx_templates_parent" ON "templates" ("parent_template");
 CREATE INDEX "idx_templates_system" ON "templates" ("is_system");
 CREATE INDEX "idx_templates_created_by" ON "templates" ("created_by");
+CREATE INDEX "idx_templates_version" ON "templates" ("version");
 
 COMMENT ON TABLE "templates" IS 'Immutable database templates for cloning tenants and sandboxes';
 COMMENT ON COLUMN "templates"."name" IS 'Template identifier used in API (e.g., default, testing, demo)';
 COMMENT ON COLUMN "templates"."database" IS 'PostgreSQL database name (format: monk_template_{name})';
+COMMENT ON COLUMN "templates"."version" IS 'Template schema version for tracking migrations and feature availability';
 COMMENT ON COLUMN "templates"."parent_template" IS 'Source template if this was derived from another';
 COMMENT ON COLUMN "templates"."is_system" IS 'System template flag (prevents deletion)';
 COMMENT ON COLUMN "templates"."schema_count" IS 'Number of schemas defined in template';
@@ -51,6 +54,7 @@ CREATE TABLE IF NOT EXISTS "tenants" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "name" VARCHAR(255) NOT NULL UNIQUE,              -- Tenant identifier for authentication
     "database" VARCHAR(255) NOT NULL UNIQUE,          -- Database name: tenant_{hash} or tenant_{name}
+    "template_version" INTEGER DEFAULT 1 NOT NULL,    -- Version of template used for creation
     "description" TEXT,                               -- Optional description
     "source_template" VARCHAR(255),                   -- Template used for creation
     "naming_mode" VARCHAR(20) DEFAULT 'enterprise' NOT NULL CHECK (
@@ -74,12 +78,14 @@ CREATE INDEX "idx_tenants_name_active" ON "tenants" ("name", "is_active");
 CREATE INDEX "idx_tenants_database" ON "tenants" ("database");
 CREATE INDEX "idx_tenants_owner" ON "tenants" ("owner_id");
 CREATE INDEX "idx_tenants_source_template" ON "tenants" ("source_template");
+CREATE INDEX "idx_tenants_template_version" ON "tenants" ("template_version");
 CREATE INDEX "idx_tenants_trashed" ON "tenants" ("trashed_at") WHERE "trashed_at" IS NOT NULL;
 CREATE INDEX "idx_tenants_deleted" ON "tenants" ("deleted_at") WHERE "deleted_at" IS NOT NULL;
 
 COMMENT ON TABLE "tenants" IS 'Production tenant databases for users and organizations';
 COMMENT ON COLUMN "tenants"."name" IS 'Unique tenant identifier used in authentication';
 COMMENT ON COLUMN "tenants"."database" IS 'PostgreSQL database name (format: tenant_{hash} or tenant_{name})';
+COMMENT ON COLUMN "tenants"."template_version" IS 'Template schema version this tenant was created with';
 COMMENT ON COLUMN "tenants"."source_template" IS 'Template used to create this tenant';
 COMMENT ON COLUMN "tenants"."naming_mode" IS 'Database naming: enterprise (SHA256 hash) or personal (custom name)';
 COMMENT ON COLUMN "tenants"."owner_id" IS 'UUID of user who owns this tenant';
@@ -194,32 +200,6 @@ CREATE TRIGGER "update_requests_updated_at"
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-
--- -- ============================================================================
--- -- SEED DATA
--- -- Create system template registry entry
--- -- ============================================================================
-
--- DO $$
--- BEGIN
---     -- Create system template entry (database will be created by autoinstall)
---     INSERT INTO "templates" ("name", "database", "description", "is_system", "schema_count")
---     VALUES (
---         'system',
---         'monk_template_system',
---         'System template with core infrastructure for new tenants and sandboxes',
---         true,
---         4  -- schemas, columns, users, history
---     )
---     ON CONFLICT ("name") DO NOTHING;
-
---     IF FOUND THEN
---         RAISE NOTICE 'Created system template entry. Database monk_template_system will be created by autoinstall.';
---     ELSE
---         RAISE NOTICE 'System template entry already exists.';
---     END IF;
--- END $$;
-
 -- ============================================================================
 -- SUMMARY
 -- ============================================================================
@@ -236,7 +216,7 @@ BEGIN
 
     RAISE NOTICE '';
     RAISE NOTICE '========================================';
-    RAISE NOTICE 'Monk Database Initialization Complete';
+    RAISE NOTICE 'Monk Infrastructure Database Ready';
     RAISE NOTICE '========================================';
     RAISE NOTICE 'Templates:  %', template_count;
     RAISE NOTICE 'Tenants:    %', tenant_count;

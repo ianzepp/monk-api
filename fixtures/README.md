@@ -127,9 +127,10 @@ The `load.sql` file orchestrates loading in correct dependency order:
 Templates are registered in the `monk.templates` table:
 
 ```sql
--- fixtures/init-monk.sql defines the templates table
+-- fixtures/infrastructure/init.sql defines the templates table
 CREATE TABLE templates (
     name VARCHAR(255) PRIMARY KEY,
+    version INTEGER DEFAULT 1 NOT NULL,
     database VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
     is_system BOOLEAN DEFAULT false,
@@ -178,14 +179,15 @@ This approach:
 - Templates marked as `tenant_type='template'` in `tenants` table
 
 **After:**
-- `fixtures/init-monk.sql` creates main database structure
+- `fixtures/infrastructure/init.sql` creates main database structure with versioning
 - `fixtures/system/load.sql` creates base schemas
+- `fixtures/system/version.txt` tracks template schema version
 - Templates use `parent` property for inheritance
-- Templates registered in separate `templates` table
+- Templates registered in separate `templates` table with version tracking
 
 ### Breaking Changes
 
-1. **No more sql/ directory** - Moved to `fixtures/init-monk.sql`
+1. **No more sql/ directory** - Moved to `fixtures/infrastructure/init.sql`
 2. **No more init-tenant.sql** - Replaced by `fixtures/system/load.sql`
 3. **load.sql required** - All fixtures must have `load.sql`
 4. **template.json required** - All fixtures must have `template.json`
