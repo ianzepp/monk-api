@@ -208,11 +208,41 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ---
 
+### Relationship Configuration Format
+
+**Documentation**: `src/routes/api/data/:schema/:record/:relationship/GET.md` shows `x-monk-relationship` extension format
+**Implementation**: Actual relationship structure is different from documented format
+**Impact**: High - Documented format is completely invalid
+**Documented format**:
+```json
+{
+  "post_id": {
+    "type": "string",
+    "x-monk-relationship": {
+      "type": "owned",
+      "schema": "posts",
+      "name": "comments"
+    }
+  }
+}
+```
+
+**Actual format**: Unknown - documentation is invalid
+**Affected documentation**:
+- `src/routes/api/data/:schema/:record/:relationship/GET.md` (lines 68-86)
+- Related relationship endpoint documentation
+
+**Discovery source**: User reported during Car Dealership scenario development (2025-01-22)
+
+**Resolution**: Document actual relationship configuration format and update all relationship endpoint documentation
+
+---
+
 ## Summary Statistics
 
-**Total Discrepancies**: 13 (9 Describe API + 4 Data API)
+**Total Discrepancies**: 14 (9 Describe API + 5 Data API)
 **Impact Levels**:
-- High: 1 (System fields in responses)
+- High: 2 (System fields in responses, relationship configuration format)
 - Medium: 4 (Field naming, default values, soft delete, trashed filtering)
 - Low: 8 (Empty updates/arrays, type normalization, column without type, error codes, required field validation)
 
@@ -224,11 +254,12 @@ This document tracks discrepancies between API documentation and actual implemen
 ## Recommendations
 
 1. **Immediate**: Fix field name documentation (freeze → frozen)
-2. **High Priority**: Document Describe API response format (no system fields)
-3. **Medium Priority**: Clarify soft delete behavior and name reuse restrictions
-4. **Medium Priority**: Implement or document trashed item filtering in list endpoints
-5. **Low Priority**: Document default_value validation rules
-6. **Low Priority**: Clarify intentional behaviors (empty updates, type normalization, default types)
+2. **High Priority**: Document actual relationship configuration format (x-monk-relationship is invalid)
+3. **High Priority**: Document Describe API response format (no system fields)
+4. **Medium Priority**: Clarify soft delete behavior and name reuse restrictions
+5. **Medium Priority**: Implement or document trashed item filtering in list endpoints
+6. **Low Priority**: Document default_value validation rules
+7. **Low Priority**: Clarify intentional behaviors (empty updates, type normalization, default types)
 
 ---
 
