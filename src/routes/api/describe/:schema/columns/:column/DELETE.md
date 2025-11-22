@@ -1,4 +1,4 @@
-# DELETE /api/describe/:schema/:column
+# DELETE /api/describe/:schema/columns/:column
 
 Remove a column from the schema. This operation soft-deletes the column metadata (marks as trashed in columns table) and drops the column from the PostgreSQL table, permanently deleting all data in that column.
 
@@ -192,7 +192,7 @@ PUT /api/data/columns/:column_id
 **Important:** This only restores the metadata. The PostgreSQL column and all data are permanently deleted.
 
 To recreate the column with data, you must:
-1. Create new column: `POST /api/describe/:schema/:column`
+1. Create new column: `POST /api/describe/:schema/columns/:column`
 2. Restore data from backups manually
 
 ## System Column Protection
@@ -258,7 +258,7 @@ The `CASCADE` option ensures:
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema/:column`](GET.md) - Get column definition
-- [`POST /api/describe/:schema/:column`](POST.md) - Create new column
-- [`PUT /api/describe/:schema/:column`](PUT.md) - Update column definition
+- [`GET /api/describe/:schema/columns/:column`](GET.md) - Get column definition
+- [`POST /api/describe/:schema/columns/:column`](POST.md) - Create new column
+- [`PUT /api/describe/:schema/columns/:column`](PUT.md) - Update column definition
 - [`DELETE /api/describe/:schema`](../:schema/DELETE.md) - Delete entire schema

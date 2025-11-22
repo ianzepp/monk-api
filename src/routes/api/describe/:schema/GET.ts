@@ -7,7 +7,7 @@ import { stripSystemFields } from '@src/lib/describe.js';
  * GET /api/describe/:schema - Get schema metadata
  *
  * Returns schema record only (without columns).
- * Use GET /api/describe/:schema/:column for individual column definitions.
+ * Use GET /api/describe/:schema/columns/:column for individual column definitions.
  */
 export default withParams(async (context, { system, schema }) => {
     const result = await system.describe.schemas.select404(

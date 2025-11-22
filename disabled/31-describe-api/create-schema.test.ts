@@ -6,7 +6,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
  * POST /api/describe/:schema - Create Schema
  *
  * Tests schema creation endpoint. Creates schema metadata only (no columns).
- * Columns are added separately via POST /api/describe/:schema/:column.
+ * Columns are added separately via POST /api/describe/:schema/columns/:column.
  */
 
 describe('POST /api/describe/:schema - Create Schema', () => {

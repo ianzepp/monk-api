@@ -3,13 +3,13 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * PUT /api/describe/:schema/:column - Update Column
+ * PUT /api/describe/:schema/columns/:column - Update Column
  *
  * Tests updating column properties. Supports both metadata updates
  * and structural changes (which trigger ALTER TABLE).
  */
 
-describe('PUT /api/describe/:schema/:column - Update Column', () => {
+describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {

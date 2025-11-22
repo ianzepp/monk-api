@@ -246,9 +246,9 @@ When immutable is enabled on existing schema:
 
 **Important:** This endpoint updates schema-level metadata only. To modify columns:
 
-- Add column: [`POST /api/describe/:schema/:column`](:column/POST.md)
-- Update column: [`PUT /api/describe/:schema/:column`](:column/PUT.md)
-- Delete column: [`DELETE /api/describe/:schema/:column`](:column/DELETE.md)
+- Add column: [`POST /api/describe/:schema/columns/:column`](:column/POST.md)
+- Update column: [`PUT /api/describe/:schema/columns/:column`](:column/PUT.md)
+- Delete column: [`DELETE /api/describe/:schema/columns/:column`](:column/DELETE.md)
 
 ## System Schema Protection
 
@@ -283,4 +283,4 @@ The endpoint validates:
 - [`GET /api/describe/:schema`](GET.md) - Get schema definition
 - [`POST /api/describe/:schema`](POST.md) - Create new schema
 - [`DELETE /api/describe/:schema`](DELETE.md) - Delete schema
-- [`PUT /api/describe/:schema/:column`](:column/PUT.md) - Update column definition
+- [`PUT /api/describe/:schema/columns/:column`](:column/PUT.md) - Update column definition

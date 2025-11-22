@@ -3,13 +3,13 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * POST /api/describe/:schema/:column - Create Column
+ * POST /api/describe/:schema/columns/:column - Create Column
  *
  * Tests adding columns to existing schemas. This is the new architecture
  * where columns are created individually after schema creation.
  */
 
-describe('POST /api/describe/:schema/:column - Create Column', () => {
+describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {

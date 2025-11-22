@@ -127,7 +127,8 @@ app.get('/', context => {
             describe: [
                 '/api/describe',
                 '/api/describe/:schema',
-                '/api/describe/:schema/:column'
+                '/api/describe/:schema/columns',
+                '/api/describe/:schema/columns/:column'
             ],
             data: [
                 '/api/data/:schema',
@@ -241,10 +242,11 @@ app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema
 app.delete('/api/describe/:schema', describeRoutes.SchemaDelete); // Delete schema
 
 // 31-describe-api: Column-level Describe API routes
-app.post('/api/describe/:schema/:column', describeRoutes.ColumnPost); // Create column
-app.get('/api/describe/:schema/:column', describeRoutes.ColumnGet); // Get column
-app.put('/api/describe/:schema/:column', describeRoutes.ColumnPut); // Update column
-app.delete('/api/describe/:schema/:column', describeRoutes.ColumnDelete); // Delete column
+app.get('/api/describe/:schema/columns', describeRoutes.ColumnsList); // List all columns in schema
+app.post('/api/describe/:schema/columns/:column', describeRoutes.ColumnPost); // Create column
+app.get('/api/describe/:schema/columns/:column', describeRoutes.ColumnGet); // Get column
+app.put('/api/describe/:schema/columns/:column', describeRoutes.ColumnPut); // Update column
+app.delete('/api/describe/:schema/columns/:column', describeRoutes.ColumnDelete); // Delete column
 
 // 32-data-api: Data API routes
 app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records

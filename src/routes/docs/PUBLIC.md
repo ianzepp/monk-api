@@ -175,8 +175,8 @@ API Endpoint                              → Documentation URL
 GET    /api/describe                      → /docs/api/describe/GET
 GET    /api/describe/:schema              → /docs/api/describe/schema/GET
 POST   /api/describe/:schema              → /docs/api/describe/schema/POST
-GET    /api/describe/:schema/:column      → /docs/api/describe/schema/column/GET
-DELETE /api/describe/:schema/:column      → /docs/api/describe/schema/column/DELETE
+GET    /api/describe/:schema/columns/:column      → /docs/api/describe/schema/column/GET
+DELETE /api/describe/:schema/columns/:column      → /docs/api/describe/schema/column/DELETE
 
 GET    /api/data/:schema                  → /docs/api/data/schema/GET
 POST   /api/data/:schema                  → /docs/api/data/schema/POST

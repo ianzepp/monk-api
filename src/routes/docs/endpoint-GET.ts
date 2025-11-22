@@ -142,7 +142,7 @@ function findMethodDocumentation(
     }
 
     // Pattern: schema/record → :schema/:record
-    // Pattern: schema/column → :schema/:column
+    // Pattern: schema/column → :schema/columns/:column
     if (pathSegments.length === 4 && pathSegments[2] === 'schema') {
         const base = pathSegments.slice(0, 2);
         const lastSegment = pathSegments[3];

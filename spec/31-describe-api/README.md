@@ -12,10 +12,10 @@
 - GET /api/describe/:schema - Retrieve schema definition (10 tests)
 - PUT /api/describe/:schema - Update schema metadata (12 tests)
 - DELETE /api/describe/:schema - Delete schema (11 tests)
-- POST /api/describe/:schema/:column - Create columns with all data types and constraints (22 tests)
-- GET /api/describe/:schema/:column - Retrieve column definition (9 tests)
-- PUT /api/describe/:schema/:column - Update column properties (16 tests)
-- DELETE /api/describe/:schema/:column - Delete column (11 tests)
+- POST /api/describe/:schema/columns/:column - Create columns with all data types and constraints (22 tests)
+- GET /api/describe/:schema/columns/:column - Retrieve column definition (9 tests)
+- PUT /api/describe/:schema/columns/:column - Update column properties (16 tests)
+- DELETE /api/describe/:schema/columns/:column - Delete column (11 tests)
 
 ## Additional Tests
 

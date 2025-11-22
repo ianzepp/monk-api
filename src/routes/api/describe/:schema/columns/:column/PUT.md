@@ -1,4 +1,4 @@
-# PUT /api/describe/:schema/:column
+# PUT /api/describe/:schema/columns/:column
 
 Update an existing column's properties. Supports both metadata-only updates (fast) and structural changes that trigger ALTER TABLE (slower).
 
@@ -308,7 +308,7 @@ Updates are validated for:
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema/:column`](GET.md) - Get column definition
-- [`POST /api/describe/:schema/:column`](POST.md) - Create new column
-- [`DELETE /api/describe/:schema/:column`](DELETE.md) - Delete column
+- [`GET /api/describe/:schema/columns/:column`](GET.md) - Get column definition
+- [`POST /api/describe/:schema/columns/:column`](POST.md) - Create new column
+- [`DELETE /api/describe/:schema/columns/:column`](DELETE.md) - Delete column
 - [`PUT /api/describe/:schema`](../:schema/PUT.md) - Update schema metadata

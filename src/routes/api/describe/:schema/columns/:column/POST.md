@@ -1,4 +1,4 @@
-# POST /api/describe/:schema/:column
+# POST /api/describe/:schema/columns/:column
 
 Add a new column to an existing schema. This operation modifies both the columns table (metadata) and the PostgreSQL table structure (ALTER TABLE ADD COLUMN).
 
@@ -388,7 +388,7 @@ Adding a column triggers:
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema/:column`](GET.md) - Get column definition
-- [`PUT /api/describe/:schema/:column`](PUT.md) - Update column
-- [`DELETE /api/describe/:schema/:column`](DELETE.md) - Delete column
+- [`GET /api/describe/:schema/columns/:column`](GET.md) - Get column definition
+- [`PUT /api/describe/:schema/columns/:column`](PUT.md) - Update column
+- [`DELETE /api/describe/:schema/columns/:column`](DELETE.md) - Delete column
 - [`POST /api/describe/:schema`](../:schema/POST.md) - Create schema

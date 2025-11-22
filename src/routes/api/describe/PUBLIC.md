@@ -21,10 +21,10 @@ All Describe API routes are prefixed with `/api/describe`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/describe/:schema/:column`](:schema/:column/GET.md) | Retrieve column definition |
-| POST | [`/api/describe/:schema/:column`](:schema/:column/POST.md) | Add a new column to schema |
-| PUT | [`/api/describe/:schema/:column`](:schema/:column/PUT.md) | Update column properties |
-| DELETE | [`/api/describe/:schema/:column`](:schema/:column/DELETE.md) | Remove column from schema |
+| GET | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/GET.md) | Retrieve column definition |
+| POST | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/POST.md) | Add a new column to schema |
+| PUT | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/PUT.md) | Update column properties |
+| DELETE | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/DELETE.md) | Remove column from schema |
 
 ## Content Type
 - **Request**: `application/json`

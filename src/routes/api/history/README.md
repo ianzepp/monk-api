@@ -581,7 +581,7 @@ See: [32-Data API Documentation](32-data-api.md)
 
 ### Describe API
 
-**PUT /api/describe/:schema/:column**
+**PUT /api/describe/:schema/columns/:column**
 
 Configure column tracking:
 

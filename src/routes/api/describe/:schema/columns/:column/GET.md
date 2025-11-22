@@ -1,4 +1,4 @@
-# GET /api/describe/:schema/:column
+# GET /api/describe/:schema/columns/:column
 
 Retrieve a specific column definition including type, constraints, validation rules, and metadata. This endpoint returns the complete column configuration from the columns table.
 
@@ -301,7 +301,7 @@ When `true`, modifying this field requires a sudo token:
 
 ## Related Endpoints
 
-- [`POST /api/describe/:schema/:column`](POST.md) - Create new column
-- [`PUT /api/describe/:schema/:column`](PUT.md) - Update column definition
-- [`DELETE /api/describe/:schema/:column`](DELETE.md) - Delete column
+- [`POST /api/describe/:schema/columns/:column`](POST.md) - Create new column
+- [`PUT /api/describe/:schema/columns/:column`](PUT.md) - Update column definition
+- [`DELETE /api/describe/:schema/columns/:column`](DELETE.md) - Delete column
 - [`GET /api/describe/:schema`](../:schema/GET.md) - Get schema definition

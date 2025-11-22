@@ -3,13 +3,13 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * DELETE /api/describe/:schema/:column - Delete Column
+ * DELETE /api/describe/:schema/columns/:column - Delete Column
  *
  * Tests column deletion. Performs both soft delete (marks as trashed)
  * and hard delete (DROP COLUMN from PostgreSQL table).
  */
 
-describe('DELETE /api/describe/:schema/:column - Delete Column', () => {
+describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {

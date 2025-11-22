@@ -210,10 +210,10 @@ Schema names must follow PostgreSQL identifier rules:
 **Important:** Schema creation no longer accepts a `columns` array in the request body. After creating the schema, add columns individually:
 
 ```bash
-POST /api/describe/:schema/:column
+POST /api/describe/:schema/columns/:column
 ```
 
-See [`POST /api/describe/:schema/:column`](:column/POST.md) for details.
+See [`POST /api/describe/:schema/columns/:column`](:column/POST.md) for details.
 
 ## Schema Protection Patterns
 
@@ -286,4 +286,4 @@ You cannot create schemas with `status='system'` via the API. System schemas are
 - [`GET /api/describe/:schema`](GET.md) - Get schema definition
 - [`PUT /api/describe/:schema`](PUT.md) - Update schema metadata
 - [`DELETE /api/describe/:schema`](DELETE.md) - Delete schema
-- [`POST /api/describe/:schema/:column`](:column/POST.md) - Add column to schema
+- [`POST /api/describe/:schema/columns/:column`](:column/POST.md) - Add column to schema

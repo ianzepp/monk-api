@@ -5,7 +5,7 @@ import { isSystemField, stripSystemFields } from '@src/lib/describe.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * GET /api/describe/:schema/:column
+ * GET /api/describe/:schema/columns/:column
  *
  * Retrieve column definition in Monk-native format
  *

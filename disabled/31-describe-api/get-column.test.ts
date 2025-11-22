@@ -3,12 +3,12 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * GET /api/describe/:schema/:column - Get Column Details
+ * GET /api/describe/:schema/columns/:column - Get Column Details
  *
  * Tests retrieving individual column definitions from the columns table.
  */
 
-describe('GET /api/describe/:schema/:column - Get Column Details', () => {
+describe('GET /api/describe/:schema/columns/:column - Get Column Details', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
