@@ -42,59 +42,40 @@ The project has two test suites that both require a running test server:
 
 ⚠️ **CRITICAL**: These are DIFFERENT commands with DIFFERENT purposes. Both are required.
 
-### Server Environments
+### Server Environment
 
-**Production Server (Port 8000)**:
-- Managed with pm2
-- Uses `.env.production` → `monk` database
-- **NOT used for development or testing**
-
-**Development Server (Port 9001)**:
+**Single Server (Port 9001)**:
 ```bash
-npm start          # Foreground
-npm run start:bg   # Background
+npm start      # Start server in foreground
+npm run stop   # Stop server
 ```
-- Uses `.env.development` (or `.env` symlink) → `monk_development` database
-- For local development only
-- **NOT used for testing**
-
-**Test Server (Port 9002)**:
-```bash
-npm run test:startup    # Build + start test server
-npm run test:cleanup    # Stop test server
-```
-- Uses `.env.test` → `monk_test` database
-- Dedicated server for running tests
+- Uses `.env` → `monk` database
+- Single port for all environments (development, testing, etc.)
 - Must be running before executing ANY tests
-
-⚠️ **COMMON MISTAKE**: Do not use production (8000) or development (9001) servers for testing. Always use the dedicated test server on port 9002.
 
 ### Test Execution Lifecycle
 
 **Correct workflow for running tests:**
 
 ```bash
-# 1. Start test infrastructure (builds app + starts server on 9002)
-npm run test:startup
+# 1. Build the application
+npm run build
 
-# 2. Run tests
+# 2. Start server on port 9001
+npm start
+
+# 3. Run tests (in another terminal)
 npm run test:ts        # TypeScript tests
 npm run test:sh        # Shell tests
 
-# 3. Cleanup (stops server on 9002)
-npm run test:cleanup
+# 4. Stop server when done
+npm run stop
 ```
 
-**What `npm run test:startup` does:**
-1. Runs `npm run build` (compile application)
-2. Runs `npm run build:tests` (type-check tests)
-3. Kills existing servers on port 9002
-4. Starts new server on port 9002
-5. Logs to `logs/test-server.log`
-
-**What `npm run test:cleanup` does:**
-1. Kills server on port 9002
-2. Does NOT drop test databases (those accumulate)
+**Build steps:**
+- `npm run build` - Compiles application code (src/ → dist/)
+- `npm run build:tests` - Type-checks test files (spec/)
+- Both are required for a complete test run
 
 ### Database Connection Management
 
@@ -107,23 +88,21 @@ Tests create temporary tenant databases, each with connection pools. To avoid ex
 **If you see "too many clients already":**
 ```bash
 # Stop server to release all pools
-npm run test:cleanup
+npm run stop
 
 # Drop accumulated test databases
 psql -c "SELECT 'DROP DATABASE \"' || datname || '\";' FROM pg_database WHERE datname LIKE 'tenant_test_%';" | grep DROP | psql
 
-# Restart
-npm run test:startup
+# Restart server
+npm start
 ```
 
 ### Common Mistakes to Avoid
 
-1. ❌ Running `npm start` instead of `npm run test:startup`
-2. ❌ Running `npx vitest` directly without server
-3. ❌ Using pm2 or wrong ports (pm2 is for production on 8000, dev is 9001, tests are 9002)
-4. ❌ Forgetting to rebuild after source changes
-5. ❌ Confusing `npm run build` with `npm run build:tests`
-6. ❌ Stopping server and forgetting to restart before next test run
+1. ❌ Running `npx vitest` directly without server
+2. ❌ Forgetting to rebuild after source changes
+3. ❌ Confusing `npm run build` with `npm run build:tests`
+4. ❌ Stopping server and forgetting to restart before next test run
 
 ## Quick Start
 
@@ -792,9 +771,9 @@ npm run test:ts 30-39
 
 The `test-ts.sh` script handles all prerequisites:
 1. Builds the code (`npm run build`)
-2. Starts test server on **port 9002** (isolated from dev server on 9001)
+2. Starts test server on **port 9001**
 3. Runs vitest
-4. Stops server and cleanup
+4. Stops server
 
 ### Advanced: Direct Vitest
 
@@ -804,24 +783,22 @@ You can run `npx vitest` directly, but prerequisites must be met:
 # 1. Build code
 npm run build
 
-# 2. Start test server on port 9002
-PORT=9002 npm run start:bg
+# 2. Start server on port 9001
+npm start
 
-# 3. Run tests
+# 3. Run tests (in another terminal)
 npx vitest
 
-# 4. Cleanup
+# 4. Stop server when done
 npm run stop
 ```
 
 **Important**: If you run `npx vitest` without the server running, you'll get a clear error explaining what's missing.
 
-## Test Server Port Isolation
+## Test Server
 
-- **Development server**: Port 9001 (default `npm start`)
-- **Test server**: Port 9002 (isolated, used by `npm run test:ts`)
-
-This prevents test runs from interfering with active development.
+- **Single server**: Port 9001 (used for all environments)
+- Start with `npm start` before running tests
 
 ## Test Templates and Fixtures
 
@@ -1043,7 +1020,7 @@ The TypeScript test framework includes **automatic JWT token caching** to elimin
 
 ### Key Files
 
-- **`spec/test-config.ts`** - Configuration (PORT=9002, API_URL, etc.)
+- **`spec/test-config.ts`** - Configuration (PORT=9001, API_URL, etc.)
 - **`spec/test-infrastructure.ts`** - Global setup/teardown logic
 - **`spec/test-helpers.ts`** - TestHelpers API for test files
 - **`spec/auth-client.ts`** - AuthClient for login/register with auto JWT caching
@@ -1054,7 +1031,7 @@ The TypeScript test framework includes **automatic JWT token caching** to elimin
 ### Architecture
 
 1. **Global Setup** (once for entire test run)
-   - Verifies server is running on port 9002
+   - Verifies server is running on port 9001
    - Throws clear error if prerequisites missing
 
 2. **Per-Test Setup** (each test file's `beforeAll`)
@@ -1062,7 +1039,7 @@ The TypeScript test framework includes **automatic JWT token caching** to elimin
    - Returns tenant info with auth token ready to use
 
 3. **Global Teardown** (once after all tests)
-   - Cleanup handled by `scripts/test-cleanup.sh`
+   - Automatic cleanup of test tenants
 
 ## Benefits Over Direct Database Access
 
@@ -1146,16 +1123,17 @@ tenant = await TestHelpers.createTestTenant('my-test');
 
 ## Troubleshooting TypeScript Tests
 
-### Error: "Test server not running on http://localhost:9002"
+### Error: "Test server not running on http://localhost:9001"
 
 **Solution**: Use the wrapper script:
 ```bash
 npm run test:ts
 ```
 
-Or manually start server on port 9002:
+Or manually start server:
 ```bash
-PORT=9002 npm run start:bg
+npm start
+# Then in another terminal:
 npx vitest
 ```
 
@@ -1169,13 +1147,13 @@ npm run fixtures:build testing
 ### Tests fail with connection errors
 
 **Check**:
-1. Server running on port 9002? `lsof -i :9002`
+1. Server running on port 9001? `lsof -i :9001`
 2. Code built? `ls dist/index.js`
 3. Templates exist? `psql -l | grep monk_template`
 
-### Port 9002 already in use
+### Port 9001 already in use
 
-**Solution**: Stop existing test server:
+**Solution**: Stop existing server:
 ```bash
 npm run stop
 # Or kill manually:
@@ -1210,8 +1188,8 @@ Located in `spec/*/*.test.ts`:
 ### spec/test-config.ts
 ```typescript
 export const TEST_CONFIG = {
-    API_URL: 'http://localhost:9002',  // Test server port
-    PORT: 9002,
+    API_URL: 'http://localhost:9001',  // Test server port
+    PORT: 9001,
     DEFAULT_TEMPLATE: 'testing',
     SERVER_CHECK_TIMEOUT: 5000,
     SERVER_STARTUP_WAIT: 3000,
@@ -1230,7 +1208,7 @@ export const TEST_CONFIG = {
 | **IDE Support** | Basic | Full (debugging, autocomplete) |
 | **Async/Await** | No | Yes |
 | **Best For** | Quick scripts, simple flows | Complex logic, multiple steps |
-| **Port** | 9001 (default) | 9002 (isolated) |
+| **Port** | 9001 | 9001 |
 
 **Recommendation**: Use both!
 - Shell tests for quick validation and simple workflows

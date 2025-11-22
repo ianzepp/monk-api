@@ -187,7 +187,7 @@ export class TestHelpers {
     static async cleanupTestTenant(_tenantName: string): Promise<void> {
         // No-op - global cleanup handles this
         // All test tenants (names starting with 'test_') are cleaned up
-        // by test-cleanup.sh at the end of the test suite
+        // at the end of the test suite
     }
 
     /**

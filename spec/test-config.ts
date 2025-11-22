@@ -8,15 +8,15 @@
 export const TEST_CONFIG = {
     /**
      * API Server URL for tests
-     * Default: http://localhost:9002 (port 9002 to avoid conflicts with dev server on 9001)
+     * Default: http://localhost:9001 (single port for all environments)
      */
-    API_URL: process.env.TEST_API_URL || 'http://localhost:9002',
+    API_URL: process.env.TEST_API_URL || 'http://localhost:9001',
 
     /**
      * API Server Port for tests
-     * Default: 9002 (to avoid conflicts with dev server on 9001)
+     * Default: 9001 (single port for all environments)
      */
-    PORT: parseInt(process.env.TEST_PORT || '9002', 10),
+    PORT: parseInt(process.env.TEST_PORT || '9001', 10),
 
     /**
      * Default template for test tenants

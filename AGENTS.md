@@ -19,12 +19,10 @@ This file contains important instructions for AI agents and assistants working o
 - `npm run build:tests` - Type-checks test files (spec/)
 - These are DIFFERENT and serve different purposes
 
-### Server Environments
-- **Production Server**: Port 8000 (pm2, uses `.env.production` → `monk` database)
-- **Development Server**: Port 9001 (`npm start`, uses `.env.development` → `monk_development` database)
-- **Test Server**: Port 9002 (`npm run test:startup`, uses `.env.test` → `monk_test` database)
-- These are SEPARATE - do not confuse them
-- `.env` symlinks to `.env.development` by default
+### Server Environment
+- **Single Server**: Port 9001 (`npm start`, uses `.env` → `monk` database)
+- All environments use the same port and master `.env` file
+- Use `npm run stop` to kill the server process
 
 ### Documentation Location
 - Project documentation is co-located with code, not in a separate docs/ directory

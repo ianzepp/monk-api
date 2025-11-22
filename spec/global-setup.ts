@@ -18,7 +18,7 @@ import { TestInfrastructure } from './test-infrastructure.js';
  * Setup function - runs once before all tests
  *
  * Verifies that:
- * 1. The test server is running on port 9002
+ * 1. The test server is running on port 9001
  * 2. The server is responding to requests
  *
  * If the server is not running, this throws a clear error explaining
@@ -32,10 +32,8 @@ export async function setup() {
  * Teardown function - runs once after all tests
  *
  * Performs cleanup tasks:
- * - Logs cleanup completion (actual cleanup handled by test-cleanup.sh)
- *
- * Note: The test-ts.sh script runs test-cleanup.sh to remove all
- * test tenants (names starting with 'test_') after the test suite.
+ * - Logs cleanup completion
+ * - Removes test tenants (names starting with 'test_') after the test suite
  */
 export async function teardown() {
     await TestInfrastructure.cleanup();

@@ -15,7 +15,7 @@ export class TestInfrastructure {
      *
      * This is called once at the start of the test suite (via globalSetup).
      * It verifies that:
-     * 1. The API server is running on the test port (9002)
+     * 1. The API server is running on the test port (9001)
      * 2. The server is responding to requests
      *
      * If the server is not running, this throws a clear error message
