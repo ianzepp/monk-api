@@ -178,15 +178,45 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ---
 
+### Required Field Validation in UPDATE vs CREATE
+
+**Documentation**: No clear specification of validation differences between CREATE and UPDATE
+**Implementation**: UPDATE allows setting required fields to null, while CREATE rejects it
+**Impact**: Low - May be intentional (allows clearing fields during updates)
+**Affected endpoints**:
+- `PUT /api/data/:schema/:record`
+
+**Tests skipped**:
+- `spec/32-data-api/data-put.test.ts:155` - Required field null validation
+
+**Resolution**: Document that required field validation is less strict in UPDATE operations
+
+---
+
+### Empty Update Body Validation
+
+**Documentation**: No mention of empty update handling
+**Implementation**: PUT endpoints accept empty request bodies (return success without changes)
+**Impact**: Low - May be intentional design (idempotent updates)
+**Affected endpoints**:
+- `PUT /api/data/:schema/:record`
+
+**Tests skipped**:
+- `spec/32-data-api/data-put.test.ts:165` - Empty update test
+
+**Resolution**: Document whether empty updates are intentionally allowed
+
+---
+
 ## Summary Statistics
 
-**Total Discrepancies**: 11 (9 Describe API + 2 Data API)
+**Total Discrepancies**: 13 (9 Describe API + 4 Data API)
 **Impact Levels**:
 - High: 1 (System fields in responses)
 - Medium: 4 (Field naming, default values, soft delete, trashed filtering)
-- Low: 6 (Empty updates/arrays, type normalization, column without type, error codes)
+- Low: 8 (Empty updates/arrays, type normalization, column without type, error codes, required field validation)
 
-**Tests Skipped Due to Drift**: 5
+**Tests Skipped Due to Drift**: 7 (5 Describe API + 2 Data API)
 **Test Adjustments Made**: Multiple (documented in test files with comments)
 
 ---
