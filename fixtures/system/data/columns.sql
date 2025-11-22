@@ -14,7 +14,8 @@ INSERT INTO "columns" (schema_name, column_name, type, required, default_value, 
     ('schemas', 'description', 'text', false, NULL, 'Human-readable description of the schema'),
     ('schemas', 'sudo', 'boolean', false, NULL, 'Whether schema modifications require sudo access'),
     ('schemas', 'frozen', 'boolean', false, NULL, 'Whether all data changes are prevented on this schema'),
-    ('schemas', 'immutable', 'boolean', false, NULL, 'Whether records are write-once (can be created but never modified)');
+    ('schemas', 'immutable', 'boolean', false, NULL, 'Whether records are write-once (can be created but never modified)'),
+    ('schemas', 'external', 'boolean', false, NULL, 'Whether schema is managed externally (skip DDL operations)');
 
 -- ============================================================================
 -- COLUMNS FOR: columns
