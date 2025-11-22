@@ -66,12 +66,23 @@ function applyFieldExtraction(data: any, context: Context): any {
         return data;
     }
 
+    // Query options
     const unwrapParam = context.req.query('unwrap');
     const selectParam = context.req.query('select');
     const statParam = context.req.query('stat');
     const accessParam = context.req.query('access');
 
-    let result = data;
+    // Define the result, while injecting the HTTP method, path, stat, and access
+    let result = {
+        success: true,
+        method: context.req.method,
+        path: context.req.path,
+        stat: statParam,
+        access: accessParam,
+        ...data
+    };
+
+    console.info('INJECT:', context.req.method, context.req.path, result);
 
     // Step 1a: System field filtering (applied to data before unwrap/select)
     if (statParam === 'false' || accessParam === 'false') {

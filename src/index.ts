@@ -95,14 +95,22 @@ app.use('*', async (c, next) => {
     return result;
 });
 
+// Apply response pipeline to root and health endpoints
+app.use('/', middleware.formatDetectionMiddleware);
+app.use('/', middleware.responsePipelineMiddleware);
+app.use('/health', middleware.formatDetectionMiddleware);
+app.use('/health', middleware.responsePipelineMiddleware);
+
 // Root endpoint
 app.get('/', context => {
-    return createSuccessResponse(context, {
-        name: 'Monk API (Hono)',
-        version: packageJson.version,
-        description: 'Lightweight PaaS backend API built with Hono',
-        endpoints: {
-            health: ['/health'],
+    return context.json({
+        success: true,
+        data: {
+            name: 'Monk API (Hono)',
+            version: packageJson.version,
+            description: 'Lightweight PaaS backend API built with Hono',
+            endpoints: {
+                health: ['/health'],
             docs: [
                 '/docs',
                 '/docs/auth',
@@ -187,16 +195,20 @@ app.get('/', context => {
                 '/api/grids/:id/:range',
                 '/api/grids/:id/cells'
             ]
-        },
+        }
+        }
     });
 });
 
 // Health check endpoint (public, no authentication required)
-app.get('/health', content => {
-    return createSuccessResponse(content, {
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+app.get('/health', context => {
+    return context.json({
+        success: true,
+        data: {
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
+        }
     });
 });
 
