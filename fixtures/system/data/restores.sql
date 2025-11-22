@@ -81,10 +81,3 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('restore_logs', 'record_id', 'text', false, 'Record being processed'),
     ('restore_logs', 'message', 'text', true, 'Log message'),
     ('restore_logs', 'detail', 'jsonb', false, 'Additional context');
-
--- ============================================================================
--- Regenerate schema metadatas
--- ============================================================================
-SELECT regenerate_schema_definition('restores');
-SELECT regenerate_schema_definition('restore_runs');
-SELECT regenerate_schema_definition('restore_logs');

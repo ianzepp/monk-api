@@ -93,10 +93,3 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('extract_artifacts', 'accessed_at', 'timestamp', false, 'Last download time'),
     ('extract_artifacts', 'download_count', 'integer', false, 'Number of downloads'),
     ('extract_artifacts', 'is_primary', 'boolean', false, 'Primary downloadable artifact');
-
--- ============================================================================
--- Regenerate schema metadatas
--- ============================================================================
-SELECT regenerate_schema_definition('extracts');
-SELECT regenerate_schema_definition('extract_runs');
-SELECT regenerate_schema_definition('extract_artifacts');

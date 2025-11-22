@@ -19,8 +19,3 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('grid_cells', 'row', 'integer', true, 'Row number (1-based)'),
     ('grid_cells', 'col', 'text', true, 'Column letter (A-Z)'),
     ('grid_cells', 'value', 'text', false, 'Cell value (stored as text)');
-
--- ============================================================================
--- Regenerate schema metadata
--- ============================================================================
-SELECT regenerate_schema_definition('grid_cells');
