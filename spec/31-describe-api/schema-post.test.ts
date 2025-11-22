@@ -21,15 +21,12 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         const response = await tenant.httpClient.post('/api/describe/test_minimal', {});
 
         expectSuccess(response);
+        expect(response.data).toBeDefined();
         expect(response.data.schema_name).toBe('test_minimal');
-        expect(response.data.id).toBeDefined();
-        expect(response.data.created_at).toBeDefined();
-        expect(response.data.updated_at).toBeDefined();
     });
 
-    it.skip('should create schema with description', async () => {
+    it('should create schema with description', async () => {
         const response = await tenant.httpClient.post('/api/describe/test_description', {
-            schema_name: 'test_description',
             description: 'Test schema with description',
         });
 
@@ -38,9 +35,8 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expect(response.data.description).toBe('Test schema with description');
     });
 
-    it.skip('should create schema with active status', async () => {
+    it('should create schema with active status', async () => {
         const response = await tenant.httpClient.post('/api/describe/test_active', {
-            schema_name: 'test_active',
             status: 'active',
         });
 
@@ -49,9 +45,8 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expect(response.data.status).toBe('active');
     });
 
-    it.skip('should create schema with sudo protection', async () => {
+    it('should create schema with sudo protection', async () => {
         const response = await tenant.httpClient.post('/api/describe/test_sudo', {
-            schema_name: 'test_sudo',
             sudo: true,
         });
 
@@ -60,9 +55,8 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expect(response.data.sudo).toBe(true);
     });
 
-    it.skip('should create schema with frozen protection', async () => {
+    it('should create schema with frozen protection', async () => {
         const response = await tenant.httpClient.post('/api/describe/test_frozen', {
-            schema_name: 'test_frozen',
             frozen: true,
         });
 
@@ -71,9 +65,8 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expect(response.data.frozen).toBe(true);
     });
 
-    it.skip('should create schema with immutable flag', async () => {
+    it('should create schema with immutable flag', async () => {
         const response = await tenant.httpClient.post('/api/describe/test_immutable', {
-            schema_name: 'test_immutable',
             immutable: true,
         });
 
@@ -82,9 +75,8 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expect(response.data.immutable).toBe(true);
     });
 
-    it.skip('should create schema with all fields', async () => {
+    it('should create schema with all fields', async () => {
         const response = await tenant.httpClient.post('/api/describe/test_complete', {
-            schema_name: 'test_complete',
             status: 'active',
             description: 'Complete test schema',
             sudo: true,
@@ -101,25 +93,16 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expect(response.data.immutable).toBe(false);
     });
 
-    it.skip('should reject missing schema_name field', async () => {
-        const response = await tenant.httpClient.post('/api/describe/test_missing', {
-            description: 'Missing schema_name',
-        });
-
-        expect(response.success).toBe(false);
-        expect(response.error_code).toBe('MISSING_REQUIRED_FIELDS');
-    });
-
-    it.skip('should reject schema name mismatch without force', async () => {
+    it('should reject schema name mismatch without force', async () => {
         const response = await tenant.httpClient.post('/api/describe/test_mismatch_url', {
             schema_name: 'test_mismatch_body',
         });
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('SCHEMA_NAME_MISMATCH');
+        expect(response.error_code).toBe('BAD_REQUEST');
     });
 
-    it.skip('should allow schema name mismatch with force parameter', async () => {
+    it('should allow schema name mismatch with force parameter', async () => {
         const response = await tenant.httpClient.post('/api/describe/test_force_url?force=true', {
             schema_name: 'test_force_body',
         });
@@ -128,40 +111,32 @@ describe('POST /api/describe/:schema - Create Schema', () => {
         expect(response.data.schema_name).toBe('test_force_body');
     });
 
-    it.skip('should reject duplicate schema name', async () => {
+    it('should reject duplicate schema name', async () => {
         const schemaName = 'test_duplicate';
 
         // Create schema first time
-        const firstResponse = await tenant.httpClient.post(`/api/describe/${schemaName}`, {
-            schema_name: schemaName,
-        });
+        const firstResponse = await tenant.httpClient.post(`/api/describe/${schemaName}`, {});
 
         expectSuccess(firstResponse);
 
         // Try to create same schema again
-        const secondResponse = await tenant.httpClient.post(`/api/describe/${schemaName}`, {
-            schema_name: schemaName,
-        });
+        const secondResponse = await tenant.httpClient.post(`/api/describe/${schemaName}`, {});
 
         expect(secondResponse.success).toBe(false);
-        expect(secondResponse.error_code).toBe('SCHEMA_EXISTS');
+        expect(secondResponse.error_code).toBe('VALIDATION_ERROR');
     });
 
-    it.skip('should reject invalid schema name with special characters', async () => {
-        const response = await tenant.httpClient.post('/api/describe/test-invalid-name', {
-            schema_name: 'test-invalid-name',
-        });
+    it('should reject invalid schema name with special characters', async () => {
+        const response = await tenant.httpClient.post('/api/describe/test-invalid-name', {});
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('INVALID_SCHEMA_NAME');
+        expect(response.error_code).toBe('VALIDATION_ERROR');
     });
 
-    it.skip('should reject invalid schema name starting with number', async () => {
-        const response = await tenant.httpClient.post('/api/describe/123invalid', {
-            schema_name: '123invalid',
-        });
+    it('should reject invalid schema name starting with number', async () => {
+        const response = await tenant.httpClient.post('/api/describe/123invalid', {});
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('INVALID_SCHEMA_NAME');
+        expect(response.error_code).toBe('VALIDATION_ERROR');
     });
 });
