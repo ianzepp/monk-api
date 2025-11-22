@@ -91,42 +91,4 @@ export default class RecordPreloader extends BaseObserver {
             // This is handled gracefully by SchemaRecord methods
         }
     }
-
-    // /**
-    //  * DEPRECATED: Helper method for backward compatibility
-    //  * Use SchemaRecord.getOriginal() instead
-    //  */
-    // static getPreloadedRecords(context: ObserverContext): readonly any[] {
-    //     console.warn('RecordPreloader.getPreloadedRecords() is deprecated. Use SchemaRecord.getOriginal() instead.');
-    //     return context.data?.map(record => {
-    //         const original: Record<string, any> = {};
-    //         // Build object from SchemaRecord's original data
-    //         const changes = record.getChanges();
-    //         for (const field in changes) {
-    //             original[field] = changes[field].old;
-    //         }
-    //         return Object.freeze(original);
-    //     }) || [];
-    // }
-
-    // /**
-    //  * DEPRECATED: Helper method for backward compatibility
-    //  * Use SchemaRecord.getOriginal() instead
-    //  */
-    // static getPreloadedRecordsById(context: ObserverContext): Readonly<Record<string, any>> {
-    //     console.warn('RecordPreloader.getPreloadedRecordsById() is deprecated. Use SchemaRecord.getOriginal() instead.');
-    //     const recordsById: Record<string, any> = {};
-    //     context.data?.forEach(record => {
-    //         const id = record.get('id');
-    //         if (id) {
-    //             const original: Record<string, any> = {};
-    //             const changes = record.getChanges();
-    //             for (const field in changes) {
-    //                 original[field] = changes[field].old;
-    //             }
-    //             recordsById[id] = Object.freeze(original);
-    //         }
-    //     });
-    //     return Object.freeze(recordsById);
-    // }
 }
