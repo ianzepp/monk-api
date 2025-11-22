@@ -1,6 +1,58 @@
 import type { Schema } from '@src/lib/schema.js';
 
 /**
+ * Proxy handler for SchemaRecord that enables property accessor syntax
+ * Intercepts property access and delegates to get()/set() methods
+ * Validates that accessed properties are valid schema columns
+ */
+const SchemaRecordProxyHandler: ProxyHandler<SchemaRecord> = {
+    get(target, prop, receiver) {
+        // If prop is a symbol or a known method/property, use default behavior
+        if (typeof prop === 'symbol' || prop in target) {
+            return Reflect.get(target, prop, receiver);
+        }
+
+        // Validate column exists in schema
+        if (!target.schema.hasColumn(prop)) {
+            const error = new Error(
+                `Column '${prop}' not found on schema '${target.schema.schema_name}'`
+            );
+            (error as any).code = 'COLUMN_NOT_FOUND';
+            (error as any).schema = target.schema.schema_name;
+            (error as any).column = prop;
+            (error as any).availableColumns = Array.from(target.schema.getTypedFields().keys());
+            throw error;
+        }
+
+        // Delegate to get() method
+        return target.get(prop);
+    },
+
+    set(target, prop, value, receiver) {
+        // If prop is a symbol or a known property, use default behavior
+        if (typeof prop === 'symbol' || prop in target) {
+            return Reflect.set(target, prop, value, receiver);
+        }
+
+        // Validate column exists in schema
+        if (!target.schema.hasColumn(prop)) {
+            const error = new Error(
+                `Column '${prop}' not found on schema '${target.schema.schema_name}'`
+            );
+            (error as any).code = 'COLUMN_NOT_FOUND';
+            (error as any).schema = target.schema.schema_name;
+            (error as any).column = prop;
+            (error as any).availableColumns = Array.from(target.schema.getTypedFields().keys());
+            throw error;
+        }
+
+        // Delegate to set() method
+        target.set(prop, value);
+        return true;
+    }
+};
+
+/**
  * First-class record object that wraps data being created/updated
  * and tracks changes against original database state.
  *
@@ -10,11 +62,15 @@ import type { Schema } from '@src/lib/schema.js';
  * - Validates field writes against schema
  * - Provides diff/rollback/clone capabilities
  * - Knows its schema for validation and metadata access
+ * - Supports property accessor syntax (record.field instead of record.get('field'))
  */
 export class SchemaRecord {
     readonly schema: Schema;
     private _current: Record<string, any>;
     private _original: Record<string, any> | null;
+
+    // Index signature for dynamic field access via Proxy
+    [field: string]: any;
 
     /**
      * Create a new SchemaRecord wrapping input data
@@ -25,6 +81,9 @@ export class SchemaRecord {
         this.schema = schema;
         this._current = { ...data };  // Shallow copy
         this._original = null;  // Will be set by RecordPreloader for updates
+
+        // Return a Proxy that enables property accessor syntax
+        return new Proxy(this, SchemaRecordProxyHandler) as this;
     }
 
     /**
