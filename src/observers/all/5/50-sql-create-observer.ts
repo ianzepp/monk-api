@@ -43,6 +43,9 @@ export default class SqlCreateObserver extends BaseObserver {
             // Process JSONB fields (objects/arrays) for PostgreSQL serialization
             processedRecord = SqlUtils.processJsonbFields(processedRecord, schema);
 
+            console.info('SqlCreateObserver: source record', plainRecord);
+            console.info('SqlCreateObserver: create record', processedRecord);
+
             // Build parameterized INSERT query
             const fields = Object.keys(processedRecord);
             const values = Object.values(processedRecord);

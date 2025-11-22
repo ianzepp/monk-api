@@ -340,13 +340,13 @@ All schema and column DDL observers need external schema guard clauses to skip o
 
 **Pattern:**
 ```typescript
-async executeOne(record: any, context: ObserverContext): Promise<void> {
+async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
     const { system } = context;
-    const schemaName = record.schema_name;
+    const { schema_name, external } = record;
 
     // Skip DDL operations for external schemas (managed elsewhere)
-    if (record.external === true) {
-        console.info(`Skipping DDL operation for external schema: ${schemaName}`);
+    if (external === true) {
+        console.info(`Skipping DDL operation for external schema: ${schema_name}`);
         return;
     }
 
@@ -365,18 +365,18 @@ async executeOne(record: any, context: ObserverContext): Promise<void> {
 
 **Pattern:**
 ```typescript
-async executeOne(record: any, context: ObserverContext): Promise<void> {
+async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
     const { system } = context;
-    const { schema_name: schemaName, column_name: columnName } = record;
+    const { schema_name, column_name } = record;
 
     // Load schema to check if external
     const schema = await system.database.select404('schemas', {
-        where: { schema_name: schemaName }
+        where: { schema_name }
     });
 
     // Skip DDL operations for external schemas (managed elsewhere)
     if (schema.external === true) {
-        console.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
+        console.info(`Skipping DDL operation for external schema column: ${schema_name}.${columnName}`);
         return;
     }
 

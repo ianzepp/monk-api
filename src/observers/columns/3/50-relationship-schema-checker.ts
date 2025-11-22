@@ -10,14 +10,15 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class RelationshipSchemaChecker extends BaseObserver {
     readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
         const { system } = context;
-        const { relationship_type, related_schema, relationship_name } = record;
+        const { relationship_type, related_schema, relationship_name } = record.toObject();
 
         // Skip if not a relationship column
         if (!relationship_type) {

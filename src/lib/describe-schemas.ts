@@ -88,7 +88,7 @@ export class DescribeSchemas {
             throw HttpErrors.badRequest('schema_name is required', 'MISSING_REQUIRED_FIELDS');
         }
 
-        console.info('Creating schema via observer pipeline', { schemaName: data.schema_name });
+        console.info('Creating schema via observer pipeline', data);
 
         // Delegate to database
         return this.system.database.createOne<Omit<SchemaRecord, keyof SystemFields>>('schemas', data) as Promise<SchemaRecord>;

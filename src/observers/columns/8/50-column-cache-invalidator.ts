@@ -18,19 +18,20 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class ColumnCacheInvalidator extends BaseObserver {
     readonly ring = ObserverRing.Integration;  // Ring 8
     readonly operations = ['create', 'update', 'delete'] as const;
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        const schemaName = record.schema_name;
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        const { schema_name, column_name } = record;
 
-        if (!schemaName) {
+        if (!schema_name) {
             console.warn('Cannot invalidate schema cache - no schema_name in column record', {
                 record,
                 operation: context.operation,
-                columnName: record.column_name
+                column_name
             });
             return;
         }
@@ -38,18 +39,18 @@ export default class ColumnCacheInvalidator extends BaseObserver {
         // Update parent schema's updated_at timestamp in database
         // This ensures timestamp-based cache validation detects column changes
         const query = `UPDATE schemas SET updated_at = now() WHERE schema_name = $1`;
-        await SqlUtils.getPool(context.system).query(query, [schemaName]);
+        await SqlUtils.getPool(context.system).query(query, [schema_name]);
 
         // Invalidate the parent schema's in-memory cache
         // Column changes affect the schema's cached metadata, so we must
         // invalidate the schema cache to ensure fresh schema definitions are loaded
         const schemaCache = SchemaCache.getInstance();
-        schemaCache.invalidateSchema(context.system, schemaName);
+        schemaCache.invalidateSchema(context.system, schema_name);
 
         console.info('Schema cache invalidated by column change', {
             operation: context.operation,
-            schemaName,
-            columnName: record.column_name,
+            schema_name,
+            column_name,
             ring: this.ring,
             reason: 'column definition modified'
         });

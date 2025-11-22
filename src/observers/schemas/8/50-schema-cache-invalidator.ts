@@ -19,15 +19,16 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class SchemaCacheInvalidator extends BaseObserver {
     readonly ring = ObserverRing.Integration;  // Ring 8
     readonly operations = ['create', 'update', 'delete'] as const;
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        const schemaName = record.schema_name;
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        const { schema_name } = record;
 
-        if (!schemaName) {
+        if (!schema_name) {
             console.warn('Cannot invalidate schema cache - no schema_name in record', {
                 record,
                 operation: context.operation
@@ -37,11 +38,11 @@ export default class SchemaCacheInvalidator extends BaseObserver {
 
         // Invalidate the schema cache
         const schemaCache = SchemaCache.getInstance();
-        schemaCache.invalidateSchema(context.system, schemaName);
+        schemaCache.invalidateSchema(context.system, schema_name);
 
         console.info('Schema cache invalidated by observer', {
             operation: context.operation,
-            schemaName,
+            schema_name,
             ring: this.ring,
             reason: 'schema metadata modified'
         });

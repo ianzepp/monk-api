@@ -11,24 +11,25 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField, SYSTEM_FIELDS } from '@src/lib/describe.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class DdlCreateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['create'] as const;
     readonly priority = 10;  // High priority - DDL should run before data transformations
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
         const { system } = context;
-        const schemaName = record.schema_name;
+        const { schema_name, external } = record;
 
         // Skip DDL operations for external schemas (managed elsewhere)
-        if (record.external === true) {
-            console.info(`Skipping DDL operation for external schema: ${schemaName}`);
+        if (external === true) {
+            console.info(`Skipping DDL operation for external schema: ${schema_name}`);
             return;
         }
 
         try {
-            let ddl = `CREATE TABLE "${schemaName}" (\n`;
+            let ddl = `CREATE TABLE "${schema_name}" (\n`;
 
             // Standard system fields
             ddl += `    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n`;
@@ -47,10 +48,10 @@ export default class DdlCreateObserver extends BaseObserver {
 
             // Execute DDL
             await SqlUtils.getPool(system).query(ddl);
-            console.info(`Created table for schema: ${schemaName}`);
+            console.info(`Created table for schema: ${schema_name}`);
         } catch (error) {
             throw new SystemError(
-                `Failed to create table for schema '${schemaName}': ${error instanceof Error ? error.message : String(error)}`
+                `Failed to create table for schema '${schema_name}': ${error instanceof Error ? error.message : String(error)}`
             );
         }
     }

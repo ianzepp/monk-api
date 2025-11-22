@@ -35,6 +35,7 @@
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 /**
  * Map PostgreSQL column_type values back to user-facing type names
@@ -62,12 +63,14 @@ export default class TypeUnmapperObserver extends BaseObserver {
     readonly operations = ['select', 'create', 'update', 'delete'] as const;  // All operations that return data
     readonly priority = 80;  // Run after DDL observers (priority 10)
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        if (!record || !record.type) {
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        const { schema_name, column_name, type } = record;
+
+        if (!type) {
             return; // Skip if no type field
         }
 
-        const pgType = record.type;
+        const pgType = type;
         const userType = REVERSE_TYPE_MAPPING[pgType];
 
         if (userType) {
@@ -77,8 +80,8 @@ export default class TypeUnmapperObserver extends BaseObserver {
             // Unknown type - log warning but don't fail
             console.warn('Unknown PostgreSQL type encountered in type unmapping', {
                 pgType,
-                schemaName: context.schema.schema_name,
-                columnName: record.column_name
+                schema_name,
+                column_name
             });
             // Keep original value
         }

@@ -1,6 +1,6 @@
 /**
  * Email Validation Observer
- * 
+ *
  * Validates email format for user operations
  * Ring: 0 (Validation) - Schema: users - Operations: create, update
  */
@@ -9,13 +9,14 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class EmailValidator extends BaseObserver {
     ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        if (!record || !record.email) {
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        if (!record.email) {
             return; // No email to validate
         }
 

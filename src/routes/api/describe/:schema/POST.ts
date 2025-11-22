@@ -22,10 +22,18 @@ export default withTransactionParams(async (context, { system, schema, body }) =
     }
 
     // Create schema record via wrapper
-    const result = await system.describe.schemas.createOne({
+    const dataToCreate = {
         schema_name: schemaName,
         ...body
+    };
+
+    console.log('POST /api/describe/:schema - Creating schema:', {
+        schemaFromUrl: schemaName,
+        body,
+        dataToCreate
     });
+
+    const result = await system.describe.schemas.createOne(dataToCreate);
 
     // Strip system fields before returning
     setRouteResult(context, stripSystemFields(result));

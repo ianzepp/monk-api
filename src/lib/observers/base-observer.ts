@@ -7,6 +7,7 @@
 
 import type { Observer, ObserverContext } from '@src/lib/observers/interfaces.js';
 import type { ObserverRing, OperationType } from '@src/lib/observers/types.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 import {
     ValidationError,
     BusinessLogicError,
@@ -69,7 +70,8 @@ export abstract class BaseObserver implements Observer {
                 ring: this.ring,
                 operation,
                 schemaName,
-                status: 'success'
+                status: 'success',
+                length: context.data?.length || 0
             });
 
         } catch (error) {
@@ -79,6 +81,7 @@ export abstract class BaseObserver implements Observer {
                 operation,
                 schemaName,
                 status: 'failed',
+                length: context.data?.length || 0,
                 error: error instanceof Error ? error.message : String(error)
             });
 
@@ -122,7 +125,7 @@ export abstract class BaseObserver implements Observer {
      *
      * For complex observers that need cross-record logic, override execute() instead.
      */
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
         // Default implementation: no-op
         // Observers can implement this for simple per-record processing
     }

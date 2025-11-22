@@ -11,25 +11,26 @@
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class DdlUpdateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['update'] as const;
     readonly priority = 10;  // High priority - DDL should run before data transformations
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        const schemaName = record.schema_name;
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        const { schema_name, external, status } = record;
 
         // Skip DDL operations for external schemas (managed elsewhere)
-        if (record.external === true) {
-            console.info(`Skipping DDL operation for external schema: ${schemaName}`);
+        if (external === true) {
+            console.info(`Skipping DDL operation for external schema: ${schema_name}`);
             return;
         }
 
         // Schema updates only affect metadata (status field)
         // No DDL operations needed - table structure is managed by column operations
-        console.debug(`Schema metadata updated: ${schemaName}`, {
-            status: record.status
+        console.debug(`Schema metadata updated: ${schema_name}`, {
+            status
         });
 
         // No DDL execution - this is intentionally a no-op

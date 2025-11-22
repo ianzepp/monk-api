@@ -20,18 +20,21 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import { USER_TO_PG_TYPE_MAP, VALID_USER_TYPES } from '@src/lib/column-types.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class TypeMapperObserver extends BaseObserver {
     readonly ring = ObserverRing.Enrichment;  // Ring 4
     readonly operations = ['create', 'update'] as const;
     readonly priority = 90;  // Run late in Ring 4, just before database (Ring 5)
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        if (!record || !record.type) {
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        const { type } = record;
+
+        if (!type) {
             return; // Skip if no type field
         }
 
-        const userType = record.type;
+        const userType = type;
         const pgType = USER_TO_PG_TYPE_MAP[userType];
 
         if (!pgType) {

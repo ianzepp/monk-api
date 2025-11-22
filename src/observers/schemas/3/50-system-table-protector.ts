@@ -10,6 +10,7 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 // System tables and schemas that are protected
 const SYSTEM_TABLES = new Set([
@@ -25,18 +26,18 @@ export default class SystemTableProtector extends BaseObserver {
     readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create'] as const;
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
         const { system } = context;
-        const schemaName = record.schema_name?.toLowerCase();
+        const { schema_name } = record;
 
-        if (!schemaName) {
+        if (!schema_name) {
             return; // Required field validation handled elsewhere
         }
 
         // Check against known system tables
-        if (SYSTEM_TABLES.has(schemaName)) {
+        if (SYSTEM_TABLES.has(schema_name)) {
             throw new ValidationError(
-                `Cannot create schema '${schemaName}': conflicts with PostgreSQL system schema`,
+                `Cannot create schema '${schema_name}': conflicts with PostgreSQL system schema`,
                 'schema_name'
             );
         }
@@ -47,12 +48,12 @@ export default class SystemTableProtector extends BaseObserver {
              UNION
              SELECT table_name FROM information_schema.tables WHERE table_name = $1
              LIMIT 1`,
-            [schemaName]
+            [schema_name]
         );
 
         if (result.rows.length > 0) {
             throw new ValidationError(
-                `Cannot create schema '${schemaName}': conflicts with existing system table`,
+                `Cannot create schema '${schema_name}': conflicts with existing system table`,
                 'schema_name'
             );
         }

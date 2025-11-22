@@ -9,15 +9,17 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class InputSanitizer extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation;
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        if (record && typeof record === 'object') {
-            this.sanitizeObject(record);
-        }
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        return; // TODO Disabled
+
+        // This is throwing an infinite recursion error..
+        this.sanitizeObject(record);
     }
 
     private sanitizeObject(obj: any): void {

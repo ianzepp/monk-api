@@ -10,6 +10,7 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import { SYSTEM_COLUMNS } from '@src/lib/schema.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 // PostgreSQL reserved words
 const RESERVED_WORDS = new Set([
@@ -28,19 +29,19 @@ const RESERVED_WORDS = new Set([
     'when', 'where', 'window', 'with'
 ]);
 
-export default class ColumnNameValidator extends BaseObserver {
+export default class column_nameValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        const columnName = record.column_name;
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        const { column_name } = record;
 
-        if (!columnName) {
+        if (!column_name) {
             return; // Required field validation handled by Ajv
         }
 
         // Validate length
-        if (columnName.length > 63) {
+        if (column_name.length > 63) {
             throw new ValidationError(
                 'Column name must be 63 characters or less (PostgreSQL identifier limit)',
                 'column_name'
@@ -48,7 +49,7 @@ export default class ColumnNameValidator extends BaseObserver {
         }
 
         // Validate format: lowercase letters, numbers, underscores only
-        if (!/^[a-z][a-z0-9_]*$/.test(columnName)) {
+        if (!/^[a-z][a-z0-9_]*$/.test(column_name)) {
             throw new ValidationError(
                 'Column name must start with a letter and contain only lowercase letters, numbers, and underscores',
                 'column_name'
@@ -56,23 +57,23 @@ export default class ColumnNameValidator extends BaseObserver {
         }
 
         // Check for system field conflicts
-        if (SYSTEM_COLUMNS.has(columnName.toLowerCase())) {
+        if (SYSTEM_COLUMNS.has(column_name.toLowerCase())) {
             throw new ValidationError(
-                `Column name '${columnName}' conflicts with system field`,
+                `Column name '${column_name}' conflicts with system field`,
                 'column_name'
             );
         }
 
         // Check for reserved words
-        if (RESERVED_WORDS.has(columnName.toLowerCase())) {
+        if (RESERVED_WORDS.has(column_name.toLowerCase())) {
             throw new ValidationError(
-                `Column name '${columnName}' is a PostgreSQL reserved word`,
+                `Column name '${column_name}' is a PostgreSQL reserved word`,
                 'column_name'
             );
         }
 
         // Prevent double underscores (often used for system fields)
-        if (columnName.includes('__')) {
+        if (column_name.includes('__')) {
             throw new ValidationError(
                 'Column name cannot contain double underscores (reserved for system use)',
                 'column_name'

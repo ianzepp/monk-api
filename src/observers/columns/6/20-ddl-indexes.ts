@@ -14,88 +14,89 @@ import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField } from '@src/lib/describe.js';
 import { SchemaCache } from '@src/lib/schema-cache.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 export default class DdlIndexesObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['create', 'update', 'delete'] as const;
     readonly priority = 20;  // After column DDL (priority 10)
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
         const { system } = context;
-        const { schema_name: schemaName, column_name: columnName } = record;
+        const { schema_name, column_name } = record;
 
         // Load schema from cache to check if external
-        const schema = await SchemaCache.getInstance().getSchema(system, schemaName);
+        const schema = await SchemaCache.getInstance().getSchema(system, schema_name);
 
         // Skip DDL operations for external schemas (managed elsewhere)
         if (schema.external === true) {
-            console.info(`Skipping DDL operation for external schema column: ${schemaName}.${columnName}`);
+            console.info(`Skipping DDL operation for external schema column: ${schema_name}.${column_name}`);
             return;
         }
 
         // Skip system fields - they cannot have user-defined indexes
-        if (isSystemField(columnName)) {
+        if (isSystemField(column_name)) {
             return;
         }
 
         const operation = context.operation;
 
         if (operation === 'create') {
-            await this.handleCreate(record, system, schemaName, columnName);
+            await this.handleCreate(record, system, schema_name, column_name);
         } else if (operation === 'update') {
-            await this.handleUpdate(record, context, system, schemaName, columnName);
+            await this.handleUpdate(record, context, system, schema_name, column_name);
         } else if (operation === 'delete') {
-            await this.handleDelete(record, system, schemaName, columnName);
+            await this.handleDelete(record, system, schema_name, column_name);
         }
     }
 
     /**
      * Create indexes on column creation if flags are set
      */
-    private async handleCreate(record: any, system: any, schemaName: string, columnName: string): Promise<void> {
+    private async handleCreate(record: any, system: any, schema_name: string, column_name: string): Promise<void> {
         const pool = SqlUtils.getPool(system);
 
         // Create unique index if unique flag is set
         if (record.unique === true) {
-            const indexName = `${schemaName}_${columnName}_unique_idx`;
-            const ddl = `CREATE UNIQUE INDEX IF NOT EXISTS "${indexName}" ON "${schemaName}" ("${columnName}")`;
+            const indexName = `${schema_name}_${column_name}_unique_idx`;
+            const ddl = `CREATE UNIQUE INDEX IF NOT EXISTS "${indexName}" ON "${schema_name}" ("${column_name}")`;
 
             try {
                 await pool.query(ddl);
                 console.info(`Created unique index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
-                    `Failed to create unique index on ${schemaName}.${columnName}: ${error instanceof Error ? error.message : String(error)}`
+                    `Failed to create unique index on ${schema_name}.${column_name}: ${error instanceof Error ? error.message : String(error)}`
                 );
             }
         }
 
         // Create standard index if index flag is set
         if (record.index === true) {
-            const indexName = `${schemaName}_${columnName}_idx`;
-            const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${schemaName}" ("${columnName}")`;
+            const indexName = `${schema_name}_${column_name}_idx`;
+            const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${schema_name}" ("${column_name}")`;
 
             try {
                 await pool.query(ddl);
                 console.info(`Created index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
-                    `Failed to create index on ${schemaName}.${columnName}: ${error instanceof Error ? error.message : String(error)}`
+                    `Failed to create index on ${schema_name}.${column_name}: ${error instanceof Error ? error.message : String(error)}`
                 );
             }
         }
 
         // Create full-text search index if searchable flag is set
         if (record.searchable === true) {
-            const indexName = `${schemaName}_${columnName}_search_idx`;
-            const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${schemaName}" USING GIN (to_tsvector('english', "${columnName}"))`;
+            const indexName = `${schema_name}_${column_name}_search_idx`;
+            const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${schema_name}" USING GIN (to_tsvector('english', "${column_name}"))`;
 
             try {
                 await pool.query(ddl);
                 console.info(`Created full-text search index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
-                    `Failed to create search index on ${schemaName}.${columnName}: ${error instanceof Error ? error.message : String(error)}`
+                    `Failed to create search index on ${schema_name}.${column_name}: ${error instanceof Error ? error.message : String(error)}`
                 );
             }
         }
@@ -104,43 +105,43 @@ export default class DdlIndexesObserver extends BaseObserver {
     /**
      * Update indexes when flags change
      */
-    private async handleUpdate(record: any, context: ObserverContext, system: any, schemaName: string, columnName: string): Promise<void> {
+    private async handleUpdate(record: any, context: ObserverContext, system: any, schema_name: string, column_name: string): Promise<void> {
         const pool = SqlUtils.getPool(system);
 
         // Handle unique index changes using SchemaRecord's change tracking
         await this.handleIndexChange(
             pool,
-            schemaName,
-            columnName,
+            schema_name,
+            column_name,
             'unique',
             Boolean(record.getOriginal('unique')),
             Boolean(record.get('unique')),
-            `${schemaName}_${columnName}_unique_idx`,
-            `CREATE UNIQUE INDEX IF NOT EXISTS "${schemaName}_${columnName}_unique_idx" ON "${schemaName}" ("${columnName}")`
+            `${schema_name}_${column_name}_unique_idx`,
+            `CREATE UNIQUE INDEX IF NOT EXISTS "${schema_name}_${column_name}_unique_idx" ON "${schema_name}" ("${column_name}")`
         );
 
         // Handle standard index changes
         await this.handleIndexChange(
             pool,
-            schemaName,
-            columnName,
+            schema_name,
+            column_name,
             'index',
             Boolean(record.getOriginal('index')),
             Boolean(record.get('index')),
-            `${schemaName}_${columnName}_idx`,
-            `CREATE INDEX IF NOT EXISTS "${schemaName}_${columnName}_idx" ON "${schemaName}" ("${columnName}")`
+            `${schema_name}_${column_name}_idx`,
+            `CREATE INDEX IF NOT EXISTS "${schema_name}_${column_name}_idx" ON "${schema_name}" ("${column_name}")`
         );
 
         // Handle searchable index changes
         await this.handleIndexChange(
             pool,
-            schemaName,
-            columnName,
+            schema_name,
+            column_name,
             'searchable',
             Boolean(record.getOriginal('searchable')),
             Boolean(record.get('searchable')),
-            `${schemaName}_${columnName}_search_idx`,
-            `CREATE INDEX IF NOT EXISTS "${schemaName}_${columnName}_search_idx" ON "${schemaName}" USING GIN (to_tsvector('english', "${columnName}"))`
+            `${schema_name}_${column_name}_search_idx`,
+            `CREATE INDEX IF NOT EXISTS "${schema_name}_${column_name}_search_idx" ON "${schema_name}" USING GIN (to_tsvector('english', "${column_name}"))`
         );
     }
 
@@ -149,8 +150,8 @@ export default class DdlIndexesObserver extends BaseObserver {
      */
     private async handleIndexChange(
         pool: any,
-        schemaName: string,
-        columnName: string,
+        schema_name: string,
+        column_name: string,
         flagName: string,
         oldValue: boolean,
         newValue: boolean,
@@ -174,7 +175,7 @@ export default class DdlIndexesObserver extends BaseObserver {
             }
         } catch (error) {
             throw new SystemError(
-                `Failed to ${newValue ? 'create' : 'drop'} ${flagName} index on ${schemaName}.${columnName}: ${error instanceof Error ? error.message : String(error)}`
+                `Failed to ${newValue ? 'create' : 'drop'} ${flagName} index on ${schema_name}.${column_name}: ${error instanceof Error ? error.message : String(error)}`
             );
         }
     }
@@ -183,14 +184,14 @@ export default class DdlIndexesObserver extends BaseObserver {
      * Drop indexes when column is deleted
      * Note: DROP COLUMN should cascade to indexes, but we explicitly drop for clarity
      */
-    private async handleDelete(record: any, system: any, schemaName: string, columnName: string): Promise<void> {
+    private async handleDelete(record: any, system: any, schema_name: string, column_name: string): Promise<void> {
         const pool = SqlUtils.getPool(system);
 
         // Drop all possible indexes for this column
         const indexNames = [
-            `${schemaName}_${columnName}_unique_idx`,
-            `${schemaName}_${columnName}_idx`,
-            `${schemaName}_${columnName}_search_idx`
+            `${schema_name}_${column_name}_unique_idx`,
+            `${schema_name}_${column_name}_idx`,
+            `${schema_name}_${column_name}_search_idx`
         ];
 
         for (const indexName of indexNames) {

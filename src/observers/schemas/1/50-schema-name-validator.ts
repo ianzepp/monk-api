@@ -9,6 +9,7 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 
 // PostgreSQL reserved words that should not be used as schema names
 const RESERVED_WORDS = new Set([
@@ -30,15 +31,15 @@ const RESERVED_WORDS = new Set([
 // System table prefixes that should not be used
 const SYSTEM_PREFIXES = ['pg_', 'information_schema', 'sql_', 'sys_'];
 
-export default class SchemaNameValidator extends BaseObserver {
+export default class schema_nameValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: any, context: ObserverContext): Promise<void> {
-        const schemaName = record.schema_name;
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        const { schema_name } = record;
 
         // Validate required field (previously handled by Ajv, now done explicitly)
-        if (!schemaName || schemaName.trim() === '') {
+        if (!schema_name || schema_name.trim() === '') {
             throw new ValidationError(
                 'schema_name is required',
                 'schema_name'
@@ -46,7 +47,7 @@ export default class SchemaNameValidator extends BaseObserver {
         }
 
         // Validate length
-        if (schemaName.length > 63) {
+        if (schema_name.length > 63) {
             throw new ValidationError(
                 'Schema name must be 63 characters or less (PostgreSQL identifier limit)',
                 'schema_name'
@@ -54,7 +55,7 @@ export default class SchemaNameValidator extends BaseObserver {
         }
 
         // Validate format: lowercase letters, numbers, underscores only
-        if (!/^[a-z][a-z0-9_]*$/.test(schemaName)) {
+        if (!/^[a-z][a-z0-9_]*$/.test(schema_name)) {
             throw new ValidationError(
                 'Schema name must start with a letter and contain only lowercase letters, numbers, and underscores',
                 'schema_name'
@@ -62,16 +63,16 @@ export default class SchemaNameValidator extends BaseObserver {
         }
 
         // Check for reserved words
-        if (RESERVED_WORDS.has(schemaName.toLowerCase())) {
+        if (RESERVED_WORDS.has(schema_name.toLowerCase())) {
             throw new ValidationError(
-                `Schema name '${schemaName}' is a PostgreSQL reserved word`,
+                `Schema name '${schema_name}' is a PostgreSQL reserved word`,
                 'schema_name'
             );
         }
 
         // Check for system prefixes
         for (const prefix of SYSTEM_PREFIXES) {
-            if (schemaName.toLowerCase().startsWith(prefix)) {
+            if (schema_name.toLowerCase().startsWith(prefix)) {
                 throw new ValidationError(
                     `Schema name cannot start with reserved prefix '${prefix}'`,
                     'schema_name'
@@ -80,7 +81,7 @@ export default class SchemaNameValidator extends BaseObserver {
         }
 
         // Prevent double underscores (often used for system schemas)
-        if (schemaName.includes('__')) {
+        if (schema_name.includes('__')) {
             throw new ValidationError(
                 'Schema name cannot contain double underscores (reserved for system use)',
                 'schema_name'
