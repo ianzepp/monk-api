@@ -8,6 +8,49 @@ import { DatabaseNaming, TenantNamingMode } from './database-naming.js';
 const execAsync = promisify(exec);
 
 /**
+ * Semaphore to limit concurrent tenant creation operations
+ *
+ * Each tenant creation via createdb uses 3-5 PostgreSQL connections:
+ * - Connections to template database (read)
+ * - Connections to postgres system database
+ * - Connections to new database (create)
+ *
+ * Limiting to 3 concurrent creations prevents connection exhaustion:
+ * 3 operations × 5 connections = 15 connections (safe for default max_connections=100)
+ */
+class TenantCreationSemaphore {
+    private queue: Array<() => void> = [];
+    private running = 0;
+    private readonly maxConcurrent: number;
+
+    constructor(maxConcurrent: number = 3) {
+        this.maxConcurrent = maxConcurrent;
+    }
+
+    async acquire(): Promise<void> {
+        if (this.running < this.maxConcurrent) {
+            this.running++;
+            return Promise.resolve();
+        }
+
+        return new Promise<void>((resolve) => {
+            this.queue.push(resolve);
+        });
+    }
+
+    release(): void {
+        this.running--;
+        const next = this.queue.shift();
+        if (next) {
+            this.running++;
+            next();
+        }
+    }
+}
+
+const tenantCreationSemaphore = new TenantCreationSemaphore(3);
+
+/**
  * Options for cloning a template database
  */
 export interface TemplateCloneOptions {
@@ -58,10 +101,12 @@ export class DatabaseTemplate {
     static async cloneTemplate(options: TemplateCloneOptions): Promise<TemplateCloneResult> {
         const { template_name, user_access = 'root' } = options;
 
-        // Get main database connection for tenant registry operations
-        const mainPool = DatabaseConnection.getMainPool();
+        // Acquire semaphore to limit concurrent tenant creations
+        await tenantCreationSemaphore.acquire();
 
         try {
+            // Get main database connection for tenant registry operations
+            const mainPool = DatabaseConnection.getMainPool();
             // 1. Validate template exists in new templates table
             const templateQuery = `
                 SELECT database
@@ -191,6 +236,9 @@ export class DatabaseTemplate {
                 template_used: template_name,
             };
         } finally {
+            // Release semaphore to allow next tenant creation
+            tenantCreationSemaphore.release();
+
             // Database connections are managed by DatabaseConnection class
             // No need to manually close pools here
         }
