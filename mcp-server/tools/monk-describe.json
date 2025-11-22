@@ -1,0 +1,23 @@
+{
+  "name": "MonkDescribe",
+  "description": "Schema management operations. Create, read, update, delete schemas and columns. Operations: list (all schemas), get (single schema metadata), create (new schema), update (schema metadata), delete (drop schema), addColumn (add column to schema), updateColumn (modify column definition), deleteColumn (remove column). Requires authentication. Use this for schema introspection and DDL operations. Returns data in format set during auth (default: TOON).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "operation": {
+        "type": "string",
+        "enum": ["list", "get", "create", "update", "delete", "addColumn", "updateColumn", "deleteColumn"],
+        "description": "Schema operation to perform"
+      },
+      "schema": {
+        "type": "string",
+        "description": "Schema name (required for all operations except 'list')"
+      },
+      "params": {
+        "type": "object",
+        "description": "Operation-specific parameters. For column operations: {column_name, type, required, default_value, description}. For schema operations: {description, ...metadata}."
+      }
+    },
+    "required": ["operation"]
+  }
+}

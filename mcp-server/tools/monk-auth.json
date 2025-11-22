@@ -1,6 +1,6 @@
 {
   "name": "MonkAuth",
-  "description": "Generic authentication operations for the Monk API. Supports four actions: register (create new tenant and get JWT token), login (authenticate to existing tenant), refresh (renew JWT token before expiration), and status (check current authentication state). Use MonkAuthRegister or MonkAuthLogin convenience tools for common operations. This tool caches the JWT token in memory for the session, so subsequent API calls automatically include authentication headers. Returns tenant information, username, and token expiration time on successful authentication.",
+  "description": "Authentication for Monk API. Caches JWT token in memory for the session. Actions: register (create new tenant), login (authenticate to existing tenant), refresh (renew token before expiration), status (check current auth state). Sets response_format preference (toon/yaml/json) which is saved to JWT and applies to all subsequent API responses. Default format is 'toon' for optimal LLM token efficiency (40% reduction vs JSON). Returns tenant information, username, and token expiration metadata.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -13,21 +13,26 @@
         "type": "string",
         "description": "Tenant name (required for register/login)"
       },
-      "template": {
-        "type": "string",
-        "description": "Template name for new tenant (register only, defaults to \"system\")"
-      },
-      "username": {
-        "type": "string",
-        "description": "Username (defaults to \"root\")"
-      },
       "password": {
         "type": "string",
         "description": "Password (required for login)"
       },
+      "username": {
+        "type": "string",
+        "description": "Username (defaults to 'root')"
+      },
+      "template": {
+        "type": "string",
+        "description": "Template name for database schema (register only, defaults to 'system')"
+      },
       "description": {
         "type": "string",
-        "description": "Tenant description (register only)"
+        "description": "Human-readable tenant description (register only)"
+      },
+      "format": {
+        "type": "string",
+        "enum": ["toon", "yaml", "json"],
+        "description": "Response format preference (defaults to 'toon' for LLM efficiency). TOON provides 40% token reduction and higher parsing accuracy."
       }
     },
     "required": ["action"]

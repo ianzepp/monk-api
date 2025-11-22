@@ -2,10 +2,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -20,270 +17,282 @@ const API_BASE_URL = process.env.TEST_API_URL || 'http://localhost:9001';
 // Authentication state (cached in memory for session)
 let currentToken: string | null = null;
 let currentTenant: string | null = null;
+let currentFormat: string = 'toon'; // Response format preference (toon, yaml, json)
 
 // ============================================
 // LOAD TOOL DEFINITIONS
 // ============================================
 function loadToolDefinitions(): any[] {
-  const toolsDir = join(__dirname, 'tools');
-  const toolFiles = readdirSync(toolsDir).filter((file) => file.endsWith('.json'));
+    const toolsDir = join(__dirname, 'tools');
+    const toolFiles = readdirSync(toolsDir).filter(file => file.endsWith('.json'));
 
-  return toolFiles.map((file) => {
-    const toolPath = join(toolsDir, file);
-    const toolContent = readFileSync(toolPath, 'utf-8');
-    return JSON.parse(toolContent);
-  });
+    return toolFiles.map(file => {
+        const toolPath = join(toolsDir, file);
+        const toolContent = readFileSync(toolPath, 'utf-8');
+        return JSON.parse(toolContent);
+    });
 }
 
 // ============================================
 // CORE HELPER: Low-level HTTP requests
 // ============================================
-async function monkHttp(
-  method: string,
-  path: string,
-  body?: any,
-  requireAuth: boolean = true
-): Promise<any> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+async function monkHttp(method: string, path: string, query?: Record<string, string>, body?: any, requireAuth: boolean = true, customHeaders?: Record<string, string>): Promise<any> {
+    const headers: Record<string, string> = {
+        Accept: `application/${currentFormat}`, // Request TOON/YAML/JSON based on preference
+        ...customHeaders, // Allow overriding any headers
+    };
 
-  if (requireAuth && currentToken) {
-    headers['Authorization'] = `Bearer ${currentToken}`;
-  }
+    if (requireAuth && currentToken) {
+        headers['Authorization'] = `Bearer ${currentToken}`;
+    }
 
-  const url = `${API_BASE_URL}${path}`;
+    // Build URL with query parameters
+    let url = `${API_BASE_URL}${path}`;
+    if (query && Object.keys(query).length > 0) {
+        const params = new URLSearchParams(query);
+        url += `?${params.toString()}`;
+    }
 
-  const options: RequestInit = {
-    method,
-    headers,
-  };
+    const options: RequestInit = {
+        method,
+        headers,
+    };
 
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
+    // Only add body for non-GET/HEAD requests
+    if (body && !['GET', 'HEAD'].includes(method)) {
+        headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(body);
+    }
 
-  const response = await fetch(url, options);
-  const data = await response.json();
+    const response = await fetch(url, options);
 
-  if (!response.ok) {
-    throw new Error(`API Error (${response.status}): ${JSON.stringify(data)}`);
-  }
+    // Return text (TOON/YAML) or JSON based on content-type
+    const contentType = response.headers.get('content-type') || '';
+    let data: any;
 
-  return data;
+    if (contentType.includes('application/json')) {
+        data = await response.json();
+    } else {
+        data = await response.text();
+    }
+
+    if (!response.ok) {
+        throw new Error(`API Error (${response.status}): ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+    }
+
+    return data;
 }
 
 // ============================================
 // SEMANTIC WRAPPERS: Higher-level operations
 // ============================================
 async function monkAuth(action: string, params: any): Promise<any> {
-  let endpoint: string;
-  let body: any;
+    let endpoint: string;
+    let body: any;
 
-  switch (action) {
-    case 'register':
-      endpoint = '/auth/register';
-      body = {
-        tenant: params.tenant,
-        template: params.template,
-        username: params.username,
-        description: params.description,
-      };
-      break;
-
-    case 'login':
-      endpoint = '/auth/login';
-      body = {
-        tenant: params.tenant,
-        username: params.username || 'root',
-        password: params.password,
-      };
-      break;
-
-    case 'refresh':
-      endpoint = '/auth/refresh';
-      body = {};
-      break;
-
-    case 'status':
-      return {
-        authenticated: !!currentToken,
-        tenant: currentTenant,
-        has_token: !!currentToken,
-      };
-
-    default:
-      throw new Error(`Unknown auth action: ${action}`);
-  }
-
-  const response = await monkHttp('POST', endpoint, body, false);
-
-  // Cache token for subsequent requests
-  if (response.data?.token) {
-    currentToken = response.data.token;
-    currentTenant = response.data.tenant || params.tenant;
-    return {
-      ...response,
-      message: 'Authentication token cached for subsequent requests',
-    };
-  }
-
-  return response;
-}
-
-async function monkApiData(
-  method: string,
-  schema: string,
-  recordId?: string,
-  data?: any,
-  options?: any
-): Promise<any> {
-  if (!currentToken) {
-    throw new Error('Not authenticated. Use MonkAuth with action "register" or "login" first.');
-  }
-
-  let path = `/api/data/${schema}`;
-
-  if (recordId) {
-    path += `/${recordId}`;
-  }
-
-  // Handle query parameters for GET requests
-  if (method === 'GET' && options) {
-    const params = new URLSearchParams();
-    if (options.limit) params.append('limit', options.limit.toString());
-    if (options.offset) params.append('offset', options.offset.toString());
-    if (params.toString()) {
-      path += `?${params.toString()}`;
+    // Set format preference (default to 'toon')
+    if (params.format) {
+        currentFormat = params.format;
     }
-  }
 
-  return monkHttp(method, path, data);
-}
+    switch (action) {
+        case 'register':
+            endpoint = '/auth/register';
+            body = {
+                tenant: params.tenant,
+                template: params.template,
+                username: params.username,
+                description: params.description,
+                preferences: {
+                    response_format: currentFormat,
+                },
+            };
+            break;
 
-async function monkApiDescribe(schema?: string): Promise<any> {
-  if (!currentToken) {
-    throw new Error('Not authenticated. Use MonkAuth first.');
-  }
+        case 'login':
+            endpoint = '/auth/login';
+            body = {
+                tenant: params.tenant,
+                username: params.username || 'root',
+                password: params.password,
+                preferences: {
+                    response_format: currentFormat,
+                },
+            };
+            break;
 
-  const path = schema ? `/api/schema/${schema}` : '/api/schema';
-  return monkHttp('GET', path);
-}
+        case 'refresh':
+            endpoint = '/auth/refresh';
+            body = {};
+            break;
 
-async function monkDocs(endpoint?: string): Promise<any> {
-  const path = endpoint ? `/docs${endpoint}` : '/docs';
+        case 'status':
+            return {
+                authenticated: !!currentToken,
+                tenant: currentTenant,
+                format: currentFormat,
+                has_token: !!currentToken,
+            };
 
-  // Docs endpoint returns markdown text, not JSON
-  const headers: Record<string, string> = {};
-  const url = `${API_BASE_URL}${path}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers,
-  });
-
-  // Get text content (not JSON)
-  const content = await response.text();
-
-  if (!response.ok) {
-    throw new Error(`API Error (${response.status}): ${content}`);
-  }
-
-  // Return as structured object for MCP
-  return {
-    endpoint: path,
-    content_type: response.headers.get('content-type'),
-    documentation: content,
-  };
-}
-
-async function monkApiFind(
-  schema: string,
-  query: {
-    select?: string[];
-    where?: any;
-    order?: string[];
-    limit?: number;
-    offset?: number;
-  }
-): Promise<any> {
-  if (!currentToken) {
-    throw new Error('Not authenticated. Use MonkAuth first.');
-  }
-
-  return monkHttp('POST', `/api/find/${schema}`, query);
-}
-
-async function monkApiAggregate(
-  schema: string,
-  query: {
-    where?: any;
-    aggregate: Record<string, any>;
-    groupBy?: string[];
-  }
-): Promise<any> {
-  if (!currentToken) {
-    throw new Error('Not authenticated. Use MonkAuth first.');
-  }
-
-  return monkHttp('POST', `/api/aggregate/${schema}`, query);
-}
-
-async function monkApiStat(schema: string, recordId: string): Promise<any> {
-  if (!currentToken) {
-    throw new Error('Not authenticated. Use MonkAuth first.');
-  }
-
-  return monkHttp('GET', `/api/stat/${schema}/${recordId}`);
-}
-
-async function monkApiHistory(
-  schema: string,
-  recordId: string,
-  changeId?: string,
-  options?: { limit?: number; offset?: number }
-): Promise<any> {
-  if (!currentToken) {
-    throw new Error('Not authenticated. Use MonkAuth first.');
-  }
-
-  let path = `/api/history/${schema}/${recordId}`;
-
-  if (changeId) {
-    path += `/${changeId}`;
-  } else if (options) {
-    // Add query parameters for pagination
-    const params = new URLSearchParams();
-    if (options.limit) params.append('limit', options.limit.toString());
-    if (options.offset) params.append('offset', options.offset.toString());
-    if (params.toString()) {
-      path += `?${params.toString()}`;
+        default:
+            throw new Error(`Unknown auth action: ${action}`);
     }
-  }
 
-  return monkHttp('GET', path);
+    // Auth responses should always be JSON for proper token extraction
+    const response = await monkHttp('POST', endpoint, undefined, body, false, { 'Accept': 'application/json' });
+
+    // Cache token for subsequent requests
+    if (response.data?.token) {
+        currentToken = response.data.token;
+        currentTenant = response.data.tenant || params.tenant;
+        return {
+            ...response,
+            message: `Authentication token cached. Response format: ${currentFormat}`,
+        };
+    }
+
+    return response;
+}
+
+/**
+ * MonkData - High-level data operations mirroring database.ts methods
+ * Operations: selectAny, selectOne, select404, createAll, updateAll, deleteAll, count, aggregate
+ */
+async function monkData(operation: string, schema: string, params: any = {}): Promise<any> {
+    if (!currentToken) {
+        throw new Error('Not authenticated. Use MonkAuth with action "register" or "login" first.');
+    }
+
+    switch (operation) {
+        // SELECT operations
+        case 'selectAny':
+        case 'selectOne':
+        case 'select404':
+            // Use Find API for flexible queries
+            const findResult = await monkHttp('POST', `/api/find/${schema}`, undefined, params);
+            if (operation === 'selectOne' || operation === 'select404') {
+                // Return single record or throw
+                if (typeof findResult === 'string') {
+                    // TOON/YAML response - return as-is
+                    return findResult;
+                }
+                if (!findResult.data || findResult.data.length === 0) {
+                    if (operation === 'select404') {
+                        throw new Error('Record not found');
+                    }
+                    return null;
+                }
+                return findResult.data[0];
+            }
+            return findResult;
+
+        // CREATE operations
+        case 'createAll':
+            // params should be array of records
+            return monkHttp('POST', `/api/data/${schema}`, undefined, params);
+
+        // UPDATE operations
+        case 'updateAll':
+            // params should be array of updates with id field
+            return monkHttp('PUT', `/api/data/${schema}`, undefined, params);
+
+        // DELETE operations
+        case 'deleteAll':
+            // params should be array of {id: ...} objects
+            return monkHttp('DELETE', `/api/data/${schema}`, undefined, params);
+
+        // ANALYTICS operations
+        case 'count':
+            return monkHttp('POST', `/api/find/${schema}`, undefined, {
+                where: params.where,
+                select: ['count(*)'],
+            });
+
+        case 'aggregate':
+            return monkHttp('POST', `/api/aggregate/${schema}`, undefined, params);
+
+        default:
+            throw new Error(`Unknown MonkData operation: ${operation}. Supported: selectAny, selectOne, select404, createAll, updateAll, deleteAll, count, aggregate`);
+    }
+}
+
+/**
+ * MonkDescribe - Schema operations
+ * Operations: list, get, create, update, delete, addColumn, updateColumn, deleteColumn
+ */
+async function monkDescribe(operation: string, schema?: string, params: any = {}): Promise<any> {
+    if (!currentToken) {
+        throw new Error('Not authenticated. Use MonkAuth first.');
+    }
+
+    switch (operation) {
+        case 'list':
+            // List all schemas
+            return monkHttp('GET', '/api/schema');
+
+        case 'get':
+            // Get specific schema
+            if (!schema) throw new Error('schema parameter required for "get" operation');
+            return monkHttp('GET', `/api/schema/${schema}`);
+
+        case 'create':
+            // Create new schema
+            if (!schema) throw new Error('schema parameter required for "create" operation');
+            return monkHttp('POST', `/api/describe/${schema}`, undefined, params);
+
+        case 'update':
+            // Update schema metadata
+            if (!schema) throw new Error('schema parameter required for "update" operation');
+            return monkHttp('PUT', `/api/describe/${schema}`, undefined, params);
+
+        case 'delete':
+            // Delete schema
+            if (!schema) throw new Error('schema parameter required for "delete" operation');
+            return monkHttp('DELETE', `/api/describe/${schema}`);
+
+        case 'addColumn':
+            // Add column to schema
+            if (!schema) throw new Error('schema parameter required for "addColumn" operation');
+            if (!params.column_name) throw new Error('params.column_name required for "addColumn" operation');
+            return monkHttp('POST', `/api/describe/${schema}/columns/${params.column_name}`, undefined, params);
+
+        case 'updateColumn':
+            // Update column definition
+            if (!schema) throw new Error('schema parameter required for "updateColumn" operation');
+            if (!params.column_name) throw new Error('params.column_name required for "updateColumn" operation');
+            return monkHttp('PUT', `/api/describe/${schema}/columns/${params.column_name}`, undefined, params);
+
+        case 'deleteColumn':
+            // Delete column
+            if (!schema) throw new Error('schema parameter required for "deleteColumn" operation');
+            if (!params.column_name) throw new Error('params.column_name required for "deleteColumn" operation');
+            return monkHttp('DELETE', `/api/describe/${schema}/columns/${params.column_name}`);
+
+        default:
+            throw new Error(`Unknown MonkDescribe operation: ${operation}. Supported: list, get, create, update, delete, addColumn, updateColumn, deleteColumn`);
+    }
 }
 
 // ============================================
 // MCP SERVER SETUP
 // ============================================
 const server = new Server(
-  {
-    name: 'monk-api-tools',
-    version: '1.0.0',
-  },
-  {
-    capabilities: {
-      tools: {},
+    {
+        name: 'monk-api-tools',
+        version: '1.0.0',
     },
-  }
+    {
+        capabilities: {
+            tools: {},
+        },
+    }
 );
 
 // Define tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: loadToolDefinitions(),
-  };
+    return {
+        tools: loadToolDefinitions(),
+    };
 });
 
 // LEGACY: Old hardcoded definitions (replaced by JSON files in tools/)
@@ -602,113 +611,72 @@ const LEGACY_TOOLS = [
 */
 
 // Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+server.setRequestHandler(CallToolRequestSchema, async request => {
+    const { name, arguments: args } = request.params;
 
-  try {
-    let result: any;
+    try {
+        let result: any;
 
-    switch (name) {
-      case 'MonkHttp':
-        result = await monkHttp(
-          args.method,
-          args.path,
-          args.body,
-          args.requireAuth ?? true
-        );
-        break;
+        switch (name) {
+            case 'MonkAuth':
+                result = await monkAuth(args.action, args);
+                break;
 
-      case 'MonkAuthRegister':
-        result = await monkAuth('register', args);
-        break;
+            case 'MonkHttp':
+                result = await monkHttp(args.method, args.path, args.query, args.body, args.requireAuth ?? true, args.headers);
+                break;
 
-      case 'MonkAuthLogin':
-        result = await monkAuth('login', args);
-        break;
+            case 'MonkData':
+                result = await monkData(args.operation, args.schema, args.params);
+                break;
 
-      case 'MonkAuth':
-        result = await monkAuth(args.action, args);
-        break;
+            case 'MonkDescribe':
+                result = await monkDescribe(args.operation, args.schema, args.params);
+                break;
 
-      case 'MonkApiData':
-        result = await monkApiData(
-          args.method,
-          args.schema,
-          args.record_id,
-          args.data,
-          args.options
-        );
-        break;
+            default:
+                throw new Error(`Unknown tool: ${name}`);
+        }
 
-      case 'MonkApiDescribe':
-        result = await monkApiDescribe(args.schema);
-        break;
+        // Return result as text (handles TOON/YAML/JSON)
+        const resultText = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
 
-      case 'MonkDocs':
-        result = await monkDocs(args.endpoint);
-        break;
-
-      case 'MonkApiFind':
-        result = await monkApiFind(args.schema, args.query);
-        break;
-
-      case 'MonkApiAggregate':
-        result = await monkApiAggregate(args.schema, args.query);
-        break;
-
-      case 'MonkApiStat':
-        result = await monkApiStat(args.schema, args.record_id);
-        break;
-
-      case 'MonkApiHistory':
-        result = await monkApiHistory(
-          args.schema,
-          args.record_id,
-          args.change_id,
-          args.options
-        );
-        break;
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: resultText,
+                },
+            ],
+        };
+    } catch (error) {
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: JSON.stringify(
+                        {
+                            error: true,
+                            message: error instanceof Error ? error.message : String(error),
+                        },
+                        null,
+                        2
+                    ),
+                },
+            ],
+            isError: true,
+        };
     }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
-  } catch (error) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              error: true,
-              message: error instanceof Error ? error.message : String(error),
-            },
-            null,
-            2
-          ),
-        },
-      ],
-      isError: true,
-    };
-  }
 });
 
 // Start server
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('Monk API MCP Server running on stdio');
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('Monk API MCP Server running on stdio');
 }
 
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
+main().catch(error => {
+    console.error('Fatal error:', error);
+    process.exit(1);
 });

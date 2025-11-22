@@ -1,284 +1,257 @@
 # Monk API MCP Tools
 
-Custom MCP (Model Context Protocol) tools for interacting with the Monk API from Claude Code.
+Model Context Protocol (MCP) server for the Monk API, optimized for Claude Code integration.
 
 ## Overview
 
-This MCP server provides a clean, layered interface to the Monk API, replacing manual `curl` commands with semantic tool calls that handle authentication, headers, and URL construction automatically.
+This MCP server provides **4 focused tools** that solve the core problem: **JWT token management** and **LLM-optimized data transfer**. Everything else is accessible through these primitives.
+
+### Design Philosophy
+
+1. **JWT caching**: Authenticate once, token persists for the session
+2. **TOON format**: 40% token reduction, higher parsing accuracy for LLMs
+3. **Minimal permissions**: 4 tools instead of 30+ (better UX)
+4. **Maximum flexibility**: Direct API access via MonkHttp escape hatch
+
+## The 4 Tools
+
+### 1. MonkAuth - Authentication & Session Management
+
+**Purpose:** Create/authenticate tenants, cache JWT token, set response format preference.
+
+**Actions:**
+- `register` - Create new tenant and get JWT
+- `login` - Authenticate to existing tenant
+- `refresh` - Renew JWT before expiration
+- `status` - Check current auth state
+
+**Format Preference:**
+- `toon` (default) - 40% fewer tokens, better LLM parsing
+- `yaml` - Human-readable, less verbose than JSON
+- `json` - Standard format
+
+**Example:**
+```typescript
+// Register new tenant with TOON format
+MonkAuth({
+  action: 'register',
+  tenant: 'acme-corp',
+  format: 'toon'  // Optional, defaults to 'toon'
+})
+
+// Login to existing tenant
+MonkAuth({
+  action: 'login',
+  tenant: 'acme-corp',
+  password: 'secret123'
+})
+
+// Check auth status
+MonkAuth({ action: 'status' })
+```
+
+### 2. MonkHttp - Raw API Access
+
+**Purpose:** Low-level HTTP access to any Monk API endpoint. The escape hatch.
+
+**Features:**
+- Auto-injects JWT token (if authenticated)
+- Auto-sets Accept header based on format preference
+- Supports query parameters
+- Handles any request body type (object or array)
+
+**Example:**
+```typescript
+// GET request with query params
+MonkHttp({
+  method: 'GET',
+  path: '/api/schema',
+  query: { limit: '10' }
+})
+
+// POST request with array body (bulk insert)
+MonkHttp({
+  method: 'POST',
+  path: '/api/data/users',
+  body: [
+    { name: 'Alice', email: 'alice@example.com' },
+    { name: 'Bob', email: 'bob@example.com' }
+  ]
+})
+
+// Advanced query
+MonkHttp({
+  method: 'POST',
+  path: '/api/find/orders',
+  body: {
+    where: { status: 'pending', total: { $gte: 100 } },
+    order: ['created_at desc'],
+    limit: 50
+  }
+})
+```
+
+### 3. MonkData - High-Level Data Operations
+
+**Purpose:** Semantic wrappers around common CRUD patterns, mirroring `src/lib/database.ts` methods.
+
+**Operations:**
+- `selectAny` - Flexible query with filters
+- `selectOne` - Single record or null
+- `select404` - Single record or throw error
+- `createAll` - Bulk insert (array of records)
+- `updateAll` - Bulk update (array with id + changes)
+- `deleteAll` - Bulk soft-delete (array of {id})
+- `count` - Count records with filters
+- `aggregate` - Analytics with GROUP BY
+
+**Example:**
+```typescript
+// Query users with filters
+MonkData({
+  operation: 'selectAny',
+  schema: 'users',
+  params: {
+    where: { active: true, age: { $gte: 18 } },
+    order: ['name asc'],
+    limit: 100
+  }
+})
+
+// Bulk insert
+MonkData({
+  operation: 'createAll',
+  schema: 'products',
+  params: [
+    { name: 'Widget', price: 19.99, sku: 'WDG-001' },
+    { name: 'Gadget', price: 29.99, sku: 'GDG-002' }
+  ]
+})
+
+// Aggregate analytics
+MonkData({
+  operation: 'aggregate',
+  schema: 'sales',
+  params: {
+    where: { date: { $gte: '2025-01-01' } },
+    aggregate: {
+      total_sales: { $sum: 'amount' },
+      avg_sale: { $avg: 'amount' },
+      order_count: { $count: '*' }
+    },
+    groupBy: ['region']
+  }
+})
+```
+
+### 4. MonkDescribe - Schema Management
+
+**Purpose:** Create, read, update, delete schemas and columns.
+
+**Operations:**
+- `list` - List all schemas
+- `get` - Get schema metadata
+- `create` - Create new schema
+- `update` - Update schema metadata
+- `delete` - Drop schema
+- `addColumn` - Add column to schema
+- `updateColumn` - Modify column definition
+- `deleteColumn` - Remove column
+
+**Example:**
+```typescript
+// List all schemas
+MonkDescribe({ operation: 'list' })
+
+// Get schema details
+MonkDescribe({
+  operation: 'get',
+  schema: 'users'
+})
+
+// Create new schema
+MonkDescribe({
+  operation: 'create',
+  schema: 'products',
+  params: {
+    description: 'Product catalog'
+  }
+})
+
+// Add column
+MonkDescribe({
+  operation: 'addColumn',
+  schema: 'products',
+  params: {
+    column_name: 'price',
+    type: 'decimal',
+    required: true,
+    description: 'Product price in USD'
+  }
+})
+```
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────┐
-│  Tool Layer (MCP)                   │
-│  - MonkHttp                         │
-│  - MonkAuth                         │
-│  - MonkApiData                      │
-│  - MonkApiDescribe                  │
-│  - MonkDocs                         │
+│  Claude Code (MCP Client)           │
 └─────────────┬───────────────────────┘
-              │
+              │ JSON-RPC
 ┌─────────────▼───────────────────────┐
-│  Semantic Wrappers                  │
-│  - monkAuth()                       │
-│  - monkApiData()                    │
-│  - monkApiDescribe()                │
-│  - monkDocs()                       │
+│  MCP Server (4 Tools)                │
+│  - MonkAuth  (auth + JWT cache)     │
+│  - MonkHttp  (raw HTTP)              │
+│  - MonkData  (CRUD operations)       │
+│  - MonkDescribe (schema mgmt)        │
 └─────────────┬───────────────────────┘
-              │
+              │ HTTP + JWT
+              │ Accept: application/toon
 ┌─────────────▼───────────────────────┐
-│  Core HTTP Layer                    │
-│  - monkHttp()                       │
-│  - JWT caching (in-memory)          │
+│  Monk API (REST)                     │
+│  - Returns TOON/YAML/JSON            │
+│  - Format saved in JWT               │
 └─────────────────────────────────────┘
 ```
 
-## Available Tools
+## TOON Format Benefits
 
-### MonkAuthRegister
-**[Convenience]** Register a new tenant and get JWT token.
+**What is TOON?**
+- Token-Oriented Object Notation
+- Designed specifically for LLM input
+- Tabular format for arrays of objects
+- Explicit length/field declarations
 
-**Parameters:**
-- `tenant`: Tenant name (required)
-- `template`: Template name (defaults to "system")
-- `username`: Admin username (defaults to "root")
-- `description`: Tenant description (optional)
-
-**Example:**
-```javascript
-MonkAuthRegister({ tenant: 'my-tenant' })
-```
-
-### MonkAuthLogin
-**[Convenience]** Login to existing tenant and get JWT token.
-
-**Parameters:**
-- `tenant`: Tenant name (required)
-- `password`: Password (required)
-- `username`: Username (defaults to "root")
+**Benefits:**
+- **40% fewer tokens** than JSON
+- **73.9% parsing accuracy** vs 69.7% for JSON
+- **Faster responses** (less data transfer)
+- **Lower costs** (fewer tokens = cheaper API calls)
 
 **Example:**
-```javascript
-MonkAuthLogin({ tenant: 'my-tenant', password: 'secret' })
+
+JSON (verbose):
+```json
+{
+  "users": [
+    {"id": "1", "name": "Alice", "age": 30, "active": true},
+    {"id": "2", "name": "Bob", "age": 25, "active": false},
+    {"id": "3", "name": "Charlie", "age": 35, "active": true}
+  ]
+}
 ```
 
-### MonkHttp
-**[Low-level]** Make raw HTTP requests. Use for custom API calls not covered by other tools.
-
-**Parameters:**
-- `method`: HTTP method (GET, POST, PUT, DELETE, PATCH)
-- `path`: API path (e.g., `/api/data/users`)
-- `body`: Request body (optional)
-- `requireAuth`: Include JWT token (default: true)
-
-**Example:**
-```javascript
-MonkHttp('GET', '/api/data/users', null, true)
+TOON (compact):
 ```
-
-### MonkAuth
-**[Generic]** Authentication operations. Use MonkAuthRegister/MonkAuthLogin for common use cases.
-
-**Actions:**
-- `register`: Create new tenant and get JWT
-- `login`: Login to existing tenant
-- `refresh`: Refresh JWT token
-- `status`: Get current auth status
-
-**Parameters:**
-- `action`: Auth action to perform
-- `tenant`: Tenant name (for register/login)
-- `template`: Template name (for register, defaults to "system")
-- `username`: Username (defaults to "root")
-- `password`: Password (for login)
-- `description`: Tenant description (for register)
-
-**Examples:**
-```javascript
-// Register new tenant
-MonkAuth('register', { tenant: 'my-tenant' })
-
-// Login
-MonkAuth('login', { tenant: 'my-tenant', password: 'secret' })
-
-// Check status
-MonkAuth('status', {})
-```
-
-### MonkApiData
-Generic CRUD operations on data schemas.
-
-**Parameters:**
-- `method`: HTTP method (GET, POST, PUT, DELETE)
-- `schema`: Schema/table name
-- `record_id`: Record ID (for single record operations)
-- `data`: Record data (for POST/PUT)
-- `options`: Query options (limit, offset)
-
-**Examples:**
-```javascript
-// List all users
-MonkApiData('GET', 'users', null, null, { limit: 10 })
-
-// Get single user
-MonkApiData('GET', 'users', '123')
-
-// Create user
-MonkApiData('POST', 'users', null, { name: 'John', email: 'john@example.com' })
-
-// Update user
-MonkApiData('PUT', 'users', '123', { name: 'Jane' })
-
-// Delete user
-MonkApiData('DELETE', 'users', '123')
-```
-
-### MonkApiDescribe
-Get schema information.
-
-**Parameters:**
-- `schema`: Schema name (optional - omit to list all schemas)
-
-**Examples:**
-```javascript
-// List all schemas
-MonkApiDescribe()
-
-// Get schema details
-MonkApiDescribe('users')
-```
-
-### MonkDocs
-Get API documentation.
-
-**Parameters:**
-- `endpoint`: Specific endpoint path (optional)
-
-**Examples:**
-```javascript
-// Get all docs
-MonkDocs()
-
-// Get specific endpoint docs
-MonkDocs('/api/data')
-```
-
-### MonkApiFind
-**[Advanced]** Execute complex search queries with filtering, sorting, and pagination.
-
-**Parameters:**
-- `schema`: Schema/table name
-- `query`: Query specification
-  - `select`: Column names to return (optional)
-  - `where`: Filter conditions (optional)
-  - `order`: Sort order array (optional)
-  - `limit`: Max records (optional)
-  - `offset`: Pagination offset (optional)
-
-**Examples:**
-```javascript
-// Find users created in last 30 days, sorted by name
-MonkApiFind('users', {
-  where: { created_at: { $gte: '2025-01-01' } },
-  order: ['name asc'],
-  limit: 50
-})
-
-// Select specific columns
-MonkApiFind('users', {
-  select: ['id', 'name', 'email'],
-  where: { status: 'active' }
-})
-```
-
-### MonkApiAggregate
-**[Analytics]** Perform aggregation queries with GROUP BY support.
-
-**Parameters:**
-- `schema`: Schema/table name
-- `query`: Aggregation specification
-  - `where`: Filter conditions (optional)
-  - `aggregate`: Aggregation functions (required)
-  - `groupBy`: Group by columns (optional)
-
-**Aggregation Functions:**
-- `$count`: Count records
-- `$sum`: Sum values
-- `$avg`: Average
-- `$min`: Minimum
-- `$max`: Maximum
-- `$distinct`: Count unique values
-
-**Examples:**
-```javascript
-// Simple count
-MonkApiAggregate('orders', {
-  aggregate: { total: { $count: '*' } }
-})
-
-// Multiple aggregations with grouping
-MonkApiAggregate('orders', {
-  where: { status: 'paid' },
-  aggregate: {
-    order_count: { $count: '*' },
-    total_revenue: { $sum: 'amount' },
-    avg_amount: { $avg: 'amount' }
-  },
-  groupBy: ['country', 'status']
-})
-```
-
-### MonkApiStat
-**[Metadata]** Get record metadata without fetching full record data.
-
-**Parameters:**
-- `schema`: Schema/table name
-- `record_id`: Record ID
-
-**Returns:**
-- `id`: Record identifier
-- `created_at`: Creation timestamp
-- `updated_at`: Last modification timestamp
-- `trashed_at`: Soft delete timestamp (null if active)
-- `etag`: Entity tag for caching
-- `size`: Record size in bytes
-
-**Examples:**
-```javascript
-// Check if record exists and get metadata
-MonkApiStat('users', 'user-123')
-
-// Check if record was soft-deleted
-MonkApiStat('users', 'user-456')
-```
-
-### MonkApiHistory
-**[Audit Trail]** Access audit trails for tracked column changes.
-
-**Parameters:**
-- `schema`: Schema/table name
-- `record_id`: Record ID
-- `change_id`: Specific change ID (optional)
-- `options`: Pagination options (optional)
-  - `limit`: Max entries to return
-  - `offset`: Entries to skip
-
-**Examples:**
-```javascript
-// Get all history for a record
-MonkApiHistory('account', 'acc-123')
-
-// Get paginated history
-MonkApiHistory('account', 'acc-123', null, { limit: 10, offset: 0 })
-
-// Get specific change
-MonkApiHistory('account', 'acc-123', 'change-456')
+users[3]{id,name,age,active}:
+  1,Alice,30,true
+  2,Bob,25,false
+  3,Charlie,35,true
 ```
 
 ## Configuration
 
-The MCP server is configured in `.mcp.json`:
-
+**`.mcp.json`:**
 ```json
 {
   "mcpServers": {
@@ -293,31 +266,57 @@ The MCP server is configured in `.mcp.json`:
 }
 ```
 
-## Usage in Claude Code
+## Usage Workflow
 
-1. Start the Monk API server: `npm start`
-2. Start Claude Code (MCP server starts automatically)
-3. Authenticate: Use `MonkAuth` to register or login
-4. Make API calls: Use other tools as needed
+1. **Start Monk API server:**
+   ```bash
+   npm start
+   ```
 
-**JWT Token Caching:**
-- Token is cached in memory for the Claude Code session
-- Survives across multiple tool calls
-- Lost when Claude Code exits (need to re-authenticate next session)
+2. **Start Claude Code** (MCP server auto-starts)
 
-## Adding New Tools
+3. **Authenticate:**
+   ```typescript
+   MonkAuth({
+     action: 'register',
+     tenant: 'my-app',
+     format: 'toon'  // Set format preference
+   })
+   // Token cached, subsequent calls auto-authenticated
+   ```
 
-To add semantic layers (e.g., `MonkApiDataDelete`):
+4. **Use the API:**
+   ```typescript
+   // High-level: Use MonkData/MonkDescribe
+   MonkData({ operation: 'selectAny', schema: 'users' })
 
-1. Create helper function:
+   // Low-level: Use MonkHttp for anything else
+   MonkHttp({ method: 'GET', path: '/api/schema' })
+   ```
+
+## Token Caching
+
+**How it works:**
+- JWT token stored in memory after first auth
+- Token automatically injected into all subsequent requests
+- Format preference (toon/yaml/json) saved in JWT
+- Persists for entire Claude Code session
+- Lost when Claude Code exits (re-auth next session)
+
+**Status check:**
 ```typescript
-async function monkApiDataDelete(schema: string, recordId: string): Promise<any> {
-  return monkApiData('DELETE', schema, recordId);
-}
+MonkAuth({ action: 'status' })
+// Returns: { authenticated: true, tenant: 'my-app', format: 'toon' }
 ```
 
-2. Add tool definition in `ListToolsRequestSchema`
-3. Add case in `CallToolRequestSchema` handler
+## When to Use Each Tool
+
+| Tool | Use Case |
+|------|----------|
+| **MonkAuth** | First action in session, format preference |
+| **MonkData** | Common CRUD (select, create, update, delete, aggregate) |
+| **MonkDescribe** | Schema operations (introspection, DDL) |
+| **MonkHttp** | Everything else (custom endpoints, one-off operations) |
 
 ## Development
 
@@ -326,17 +325,44 @@ async function monkApiDataDelete(schema: string, recordId: string): Promise<any>
 npm run mcp:server
 ```
 
-**Test with curl:**
+**Test with MCP Inspector:**
 ```bash
-# Server runs on stdio, so you'll need to send JSON-RPC messages
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | npm run mcp:server
+npx @modelcontextprotocol/inspector npm run mcp:server
 ```
+
+**Add new operation to MonkData/MonkDescribe:**
+1. Add case to switch statement in `monk-api-tools.ts`
+2. Add to enum in tool JSON file
+3. Restart MCP server
+
+## Migration from Previous Version
+
+**Old (11 tools):**
+- MonkAuthRegister, MonkAuthLogin → **MonkAuth**
+- MonkApiData → **MonkData** (operation-based)
+- MonkApiDescribe → **MonkDescribe** (operation-based)
+- MonkApiFind, MonkApiAggregate → **MonkData** or **MonkHttp**
+- MonkApiStat, MonkApiHistory, MonkDocs → **MonkHttp**
+
+**Benefits:**
+- 4 tools vs 11 (fewer permission prompts)
+- TOON format support (40% token savings)
+- Clearer operation semantics
+- Better alignment with database.ts methods
 
 ## Transport
 
-Currently uses **stdio transport** (communicates via stdin/stdout):
+**Current:** stdio (auto-starts with Claude Code)
 - ✅ Fast, local, no port needed
 - ✅ Auto-starts/stops with Claude Code
-- ❌ Local only (can't share across machines)
+- ❌ Local only
 
-To switch to HTTP transport, update the server to use `HttpServerTransport` and update `.mcp.json` to connect via URL instead of command.
+**Future:** HTTP transport for remote access
+- Update server to use `HttpServerTransport`
+- Update `.mcp.json` to connect via URL
+
+## Resources
+
+- [MCP Documentation](https://modelcontextprotocol.io/)
+- [TOON Format](https://github.com/toon-format/toon)
+- [Monk API Documentation](../README.md)

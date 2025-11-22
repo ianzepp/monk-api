@@ -1,25 +1,38 @@
 {
   "name": "MonkHttp",
-  "description": "Make a raw HTTP request to the Monk API. Low-level tool for custom requests.",
+  "description": "Raw HTTP requests to Monk API. Automatically injects JWT token (if authenticated) and Accept header for response format (toon/yaml/json based on auth preference). This is the primary low-level tool - all API functionality is accessible through this tool. Use MonkData and MonkDescribe for common operations with better ergonomics. Supports all HTTP methods (GET, POST, PUT, DELETE, PATCH) and arbitrary API paths. Returns responses in the format set during authentication (default: TOON for optimal LLM parsing).",
   "inputSchema": {
     "type": "object",
     "properties": {
       "method": {
         "type": "string",
-        "description": "HTTP method (GET, POST, PUT, DELETE, etc.)",
-        "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+        "description": "HTTP method"
       },
       "path": {
         "type": "string",
-        "description": "API path (e.g., /api/data/users or /auth/register)"
+        "description": "API path (e.g., /api/data/users, /api/find/orders, /api/schema)"
+      },
+      "query": {
+        "type": "object",
+        "description": "URL query parameters (optional). Object with string key-value pairs.",
+        "additionalProperties": {
+          "type": "string"
+        }
       },
       "body": {
-        "type": "object",
-        "description": "Request body as JSON object (optional)"
+        "description": "Request body (optional, not allowed for GET/HEAD). Can be object or array. For POST /api/data/:schema use array of records."
       },
       "requireAuth": {
         "type": "boolean",
-        "description": "Whether to include JWT token in Authorization header (default: true)"
+        "description": "Whether to include JWT token in Authorization header (default: true). Set to false for public endpoints."
+      },
+      "headers": {
+        "type": "object",
+        "description": "Custom HTTP headers to include in the request (optional). Useful for overriding Accept header or adding custom headers.",
+        "additionalProperties": {
+          "type": "string"
+        }
       }
     },
     "required": ["method", "path"]
