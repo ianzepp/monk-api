@@ -78,7 +78,7 @@ These fields trigger PostgreSQL ALTER TABLE:
 ### Update Description (Metadata Only)
 
 ```bash
-curl -X PUT http://localhost:9001/api/describe/users/email \
+curl -X PUT http://localhost:9001/api/describe/users/columns/email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -89,7 +89,7 @@ curl -X PUT http://localhost:9001/api/describe/users/email \
 ### Update Validation Pattern
 
 ```bash
-curl -X PUT http://localhost:9001/api/describe/users/email \
+curl -X PUT http://localhost:9001/api/describe/users/columns/email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -100,7 +100,7 @@ curl -X PUT http://localhost:9001/api/describe/users/email \
 ### Make Column Required (ALTER TABLE)
 
 ```bash
-curl -X PUT http://localhost:9001/api/describe/users/name \
+curl -X PUT http://localhost:9001/api/describe/users/columns/name \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

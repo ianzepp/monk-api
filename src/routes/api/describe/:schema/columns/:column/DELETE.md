@@ -43,7 +43,7 @@ None - DELETE request with no body.
 ### Delete Column
 
 ```bash
-curl -X DELETE http://localhost:9001/api/describe/users/phone \
+curl -X DELETE http://localhost:9001/api/describe/users/columns/phone \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -62,7 +62,7 @@ curl -X DELETE http://localhost:9001/api/describe/users/phone \
 
 ```javascript
 async function deleteColumn(schemaName, columnName) {
-  const response = await fetch(`/api/describe/${schemaName}/${columnName}`, {
+  const response = await fetch(`/api/describe/${schemaName}/columns/${columnName}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`

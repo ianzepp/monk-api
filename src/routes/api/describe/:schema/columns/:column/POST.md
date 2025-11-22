@@ -103,7 +103,7 @@ None
 ### Add Simple Text Column
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/users/bio \
+curl -X POST http://localhost:9001/api/describe/users/columns/bio \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -115,7 +115,7 @@ curl -X POST http://localhost:9001/api/describe/users/bio \
 ### Add Required Email Column
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/users/email \
+curl -X POST http://localhost:9001/api/describe/users/columns/email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -131,7 +131,7 @@ curl -X POST http://localhost:9001/api/describe/users/email \
 ### Add Integer Column with Constraints
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/products/price \
+curl -X POST http://localhost:9001/api/describe/products/columns/price \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -146,7 +146,7 @@ curl -X POST http://localhost:9001/api/describe/products/price \
 ### Add Column with Enum Values
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/users/role \
+curl -X POST http://localhost:9001/api/describe/users/columns/role \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -161,7 +161,7 @@ curl -X POST http://localhost:9001/api/describe/users/role \
 ### Add Full-Text Searchable Column
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/articles/content \
+curl -X POST http://localhost:9001/api/describe/articles/columns/content \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -174,7 +174,7 @@ curl -X POST http://localhost:9001/api/describe/articles/content \
 ### Add Relationship Column
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/posts/author_id \
+curl -X POST http://localhost:9001/api/describe/posts/columns/author_id \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

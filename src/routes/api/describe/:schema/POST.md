@@ -149,7 +149,7 @@ async function createUserSchema() {
 // Step 2: Add columns (one at a time)
 async function addUserColumns() {
   // Add name column
-  await fetch('/api/describe/users/name', {
+  await fetch('/api/describe/users/columns/name', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -163,7 +163,7 @@ async function addUserColumns() {
   });
 
   // Add email column
-  await fetch('/api/describe/users/email', {
+  await fetch('/api/describe/users/columns/email', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

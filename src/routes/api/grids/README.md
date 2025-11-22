@@ -498,13 +498,13 @@ const result = await dbContext.query(query, [gridId, startRow, endRow, startCol,
 GET /api/describe/grid_cells
 → Returns schema definition (external: true)
 
-GET /api/describe/grid_cells/value
+GET /api/describe/grid_cells/columns/value
 → Returns column definition
 ```
 
 **Write access (allowed):**
 ```bash
-POST /api/describe/grid_cells/:column
+POST /api/describe/grid_cells/columns/:column
 → Can add/modify column definitions
 
 PUT /api/describe/grid_cells

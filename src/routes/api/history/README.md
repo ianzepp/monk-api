@@ -160,7 +160,7 @@ To enable history tracking for a column, set `tracked=true` on the column defini
 **Using Describe API:**
 ```bash
 # Mark email column as tracked
-PUT /api/describe/account/email
+PUT /api/describe/account/columns/email
 Authorization: Bearer <jwt>
 Content-Type: application/json
 
@@ -299,8 +299,8 @@ Track changes to sensitive fields for regulatory compliance:
 
 ```bash
 # Mark sensitive columns as tracked
-PUT /api/describe/medical_records/ssn {"tracked": true}
-PUT /api/describe/medical_records/diagnosis {"tracked": true}
+PUT /api/describe/medical_records/columns/ssn {"tracked": true}
+PUT /api/describe/medical_records/columns/diagnosis {"tracked": true}
 
 # Query audit trail for specific record
 GET /api/history/medical_records/patient-123
@@ -586,7 +586,7 @@ See: [32-Data API Documentation](32-data-api.md)
 Configure column tracking:
 
 ```bash
-PUT /api/describe/account/email
+PUT /api/describe/account/columns/email
 {"tracked": true}
 → Enables history tracking for email column
 ```

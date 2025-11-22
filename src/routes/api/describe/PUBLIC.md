@@ -21,6 +21,7 @@ All Describe API routes are prefixed with `/api/describe`
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | [`/api/describe/:schema/columns`](:schema/columns/GET.md) | List all columns in schema |
 | GET | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/GET.md) | Retrieve column definition |
 | POST | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/POST.md) | Add a new column to schema |
 | PUT | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/PUT.md) | Update column properties |
@@ -50,7 +51,7 @@ curl -X POST http://localhost:9001/api/describe/users \
   }'
 
 # Step 2: Add name column
-curl -X POST http://localhost:9001/api/describe/users/name \
+curl -X POST http://localhost:9001/api/describe/users/columns/name \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -60,7 +61,7 @@ curl -X POST http://localhost:9001/api/describe/users/name \
   }'
 
 # Step 3: Add email column
-curl -X POST http://localhost:9001/api/describe/users/email \
+curl -X POST http://localhost:9001/api/describe/users/columns/email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

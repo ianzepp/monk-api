@@ -16,7 +16,7 @@
 |-----|-----------|---------|
 | **Auth API** | `/api/auth/*` | User account management and privilege escalation |
 | **Data API** | `/api/data/:schema[/:record]` | CRUD operations for schema records |
-| **Describe API** | `/api/describe/:schema[/:column]` | Schema definition and column management |
+| **Describe API** | `/api/describe/:schema[/columns[/:column]]` | Schema definition and column management |
 | **Find API** | `/api/find/:schema` | Advanced search and filtering with 25+ operators |
 | **Aggregate API** | `/api/aggregate/:schema` | Data aggregation and analytics operations |
 | **Bulk API** | `/api/bulk` | Batch operations across multiple schemas |
@@ -175,6 +175,7 @@ API Endpoint                              → Documentation URL
 GET    /api/describe                      → /docs/api/describe/GET
 GET    /api/describe/:schema              → /docs/api/describe/schema/GET
 POST   /api/describe/:schema              → /docs/api/describe/schema/POST
+GET    /api/describe/:schema/columns      → /docs/api/describe/schema/columns/GET
 GET    /api/describe/:schema/columns/:column      → /docs/api/describe/schema/column/GET
 DELETE /api/describe/:schema/columns/:column      → /docs/api/describe/schema/column/DELETE
 

@@ -224,7 +224,8 @@ Perfect for audit logs, blockchain-style records, or compliance requirements.
 
 **Note:** This endpoint returns schema-level metadata only. To retrieve column definitions:
 
-- Use [`GET /api/describe/:schema/columns/:column`](:column/GET.md) for individual columns
+- Use [`GET /api/describe/:schema/columns`](columns/GET.md) for all columns
+- Use [`GET /api/describe/:schema/columns/:column`](columns/:column/GET.md) for individual columns
 - Query the `columns` table via Data API: `GET /api/data/columns?where={"schema_name":"users"}`
 
 ## System Schema Protection

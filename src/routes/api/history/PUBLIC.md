@@ -185,7 +185,7 @@ The `changes` object contains field-level deltas for tracked columns:
 To enable history tracking for a column, mark it with `tracked=true` using the Describe API:
 
 ```bash
-curl -X PUT http://localhost:9001/api/describe/account/email \
+curl -X PUT http://localhost:9001/api/describe/account/columns/email \
   -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"tracked": true}'
@@ -199,8 +199,8 @@ After marking columns as tracked, any create, update, or delete operations on th
 Track changes to sensitive fields for regulatory requirements (HIPAA, SOX, GDPR):
 ```bash
 # Mark sensitive columns as tracked
-PUT /api/describe/medical_records/ssn {"tracked": true}
-PUT /api/describe/medical_records/diagnosis {"tracked": true}
+PUT /api/describe/medical_records/columns/ssn {"tracked": true}
+PUT /api/describe/medical_records/columns/diagnosis {"tracked": true}
 
 # Query audit trail
 GET /api/history/medical_records/patient-123
