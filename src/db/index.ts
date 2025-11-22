@@ -35,7 +35,9 @@ export async function closeDatabaseConnection(): Promise<void> {
 
 // Pool management for tests
 export async function closeTestDatabasePools(): Promise<void> {
+    // Close both test_ and tenant_ prefixed pools (tenant_ pools created by test registration)
     await DatabaseConnection.closePoolsByPrefix('test_');
+    await DatabaseConnection.closePoolsByPrefix('tenant_');
 }
 
 export async function closeDatabasePool(databaseName: string): Promise<void> {

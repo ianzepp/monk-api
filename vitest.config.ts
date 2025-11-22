@@ -11,11 +11,11 @@ export default defineConfig({
         typecheck: {
             tsconfig: './tsconfig.spec.json',
         },
-        // Limit concurrent test files to prevent PostgreSQL connection exhaustion
+        // Run test files sequentially to prevent PostgreSQL connection exhaustion
         // Each test file creates multiple tenant databases, each with connection pools
-        // Math: 5 files × ~3 tenants × 2 connections = ~30 concurrent connections (safe)
-        fileParallelism: true,
-        maxConcurrency: 5,
+        // Running sequentially ensures we don't exceed max_connections
+        fileParallelism: false,
+        maxConcurrency: 1,
     },
     resolve: {
         alias: {
