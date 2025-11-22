@@ -7,6 +7,66 @@ export const MONK_DB_TEST_PREFIX = 'test_';
 export const MONK_DB_TEST_TEMPLATE_PREFIX = 'test_template_';
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CRITICAL PRODUCTION SCALABILITY CONCERN: PostgreSQL Connection Pool Exhaustion
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * PROBLEM:
+ * Each tenant database gets its own connection pool. With default PostgreSQL
+ * max_connections=100, you will hit connection limits quickly:
+ *
+ *   Main database:     10 connections
+ *   Per tenant:         5 connections
+ *   Per test tenant:    2 connections
+ *
+ *   Math: 10 + (20 active tenants × 5) = 110 connections → EXCEEDS LIMIT
+ *
+ * SYMPTOMS:
+ * - "sorry, too many clients already" errors
+ * - Failed tenant registrations during burst signups
+ * - Cascading failures as pools can't be created
+ *
+ * SOLUTIONS (in order of recommendation):
+ *
+ * 1. PgBouncer (RECOMMENDED for production):
+ *    - Connection pooler sits between app and PostgreSQL
+ *    - 1000 app connections → 25 PostgreSQL connections
+ *    - Pool mode: 'transaction' (required for multi-database)
+ *    - No code changes needed
+ *    - Industry standard solution
+ *
+ * 2. Reduce pool sizes (INTERIM solution):
+ *    - Change getTenantPool() from 5 → 2 connections
+ *    - Allows ~45 concurrent tenants with default max_connections
+ *    - May impact performance under heavy load per tenant
+ *
+ * 3. Pool eviction (CODE change required):
+ *    - Close pools for tenants inactive >5 minutes
+ *    - Requires background job and idle tracking
+ *    - See database-template.ts for semaphore pattern
+ *
+ * 4. Increase PostgreSQL max_connections:
+ *    - ALTER SYSTEM SET max_connections = 500;
+ *    - Trade-off: ~400KB memory per connection
+ *    - Still eventually hits limits without pooler
+ *
+ * CURRENT MITIGATIONS:
+ * - Idle timeout: 30 seconds (helps but insufficient)
+ * - Tenant creation semaphore: limits concurrent database creation
+ *
+ * MONITORING RECOMMENDATIONS:
+ * - Track active pool count via getPoolStats()
+ * - Alert when total connections > 80% of max_connections
+ * - Monitor tenant creation queue depth
+ *
+ * SEE ALSO:
+ * - database-template.ts: TenantCreationSemaphore for signup throttling
+ * - Docker: Add pgbouncer service to docker-compose.yml
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+/**
  * Centralized Database Connection Manager
  *
  * CRITICAL: This is the ONLY file in the entire codebase that should:
