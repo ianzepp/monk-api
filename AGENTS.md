@@ -16,7 +16,7 @@ This file contains important instructions for AI agents and assistants working o
 
 ### Build System
 - `npm run build` - Compiles TypeScript application code (src/ → dist/)
-- `npm run build:tests` - Type-checks test files (spec/)
+- `npm run build:spec` - Type-checks test files (spec/)
 - These are DIFFERENT and serve different purposes
 
 ### Server Environment

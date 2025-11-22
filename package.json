@@ -11,7 +11,7 @@
         "stop": "pkill -f 'node.*dist/index.js' || pkill -f 'nodemon.*build' || true",
         "build": "scripts/build.sh",
         "build:watch": "nodemon --watch src --ext ts --exec 'npm run build'",
-        "build:tests": "scripts/build-tests.sh",
+        "build:spec": "scripts/build-spec.sh",
         "autoinstall": "scripts/autoinstall.sh",
         "fixtures:build": "scripts/fixtures-build.sh",
         "fixtures:generate": "node scripts/fixtures-generate.js",
@@ -21,7 +21,7 @@
         "version:patch": "npm version patch",
         "version:minor": "npm version minor",
         "version:major": "npm version major",
-        "preversion": "npm run build && npm run build:tests && npm run test:sh",
+        "preversion": "npm run build && npm run build:spec && npm run test:sh",
         "postversion": "git push && git push --tags && gh release create v$npm_package_version --generate-notes"
     },
     "keywords": [

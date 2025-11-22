@@ -35,7 +35,7 @@ The project has two test suites that both require a running test server:
 - Required before starting ANY server
 - Outputs JavaScript files to `dist/` directory
 
-**Test Type-Checking** (`npm run build:tests`):
+**Test Type-Checking** (`npm run build:spec`):
 - Type-checks test files (`spec/**/*.ts`)
 - Does NOT compile tests (Vitest runs them directly)
 - Validates TypeScript types in test code
@@ -74,7 +74,7 @@ npm run stop
 
 **Build steps:**
 - `npm run build` - Compiles application code (src/ → dist/)
-- `npm run build:tests` - Type-checks test files (spec/)
+- `npm run build:spec` - Type-checks test files (spec/)
 - Both are required for a complete test run
 
 ### Database Connection Management
@@ -101,7 +101,7 @@ npm start
 
 1. ❌ Running `npx vitest` directly without server
 2. ❌ Forgetting to rebuild after source changes
-3. ❌ Confusing `npm run build` with `npm run build:tests`
+3. ❌ Confusing `npm run build` with `npm run build:spec`
 4. ❌ Stopping server and forgetting to restart before next test run
 
 ## Quick Start
