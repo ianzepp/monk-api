@@ -7,7 +7,7 @@
  * Performance:
  * - Zero database queries: uses Schema.getImmutableFields() from cached column metadata
  * - O(n) field check: iterates over changed fields only (not all fields)
- * - Uses RecordPreloader's cached existing records to check current values
+ * - Uses SchemaRecord.old() to access original values loaded by RecordPreloader
  *
  * Use cases:
  * - Audit fields (created_by, created_at) that should never change
@@ -19,24 +19,19 @@
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import type { SchemaRecord } from '@src/lib/schema-record.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
-import RecordPreloader from '@src/observers/all/0/10-record-preloader.js';
 
 export default class ImmutableValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
     readonly operations = ['update'] as const;
     readonly priority = 30;
 
-    async execute(context: ObserverContext): Promise<void> {
-        const { schema, data, operation } = context;
+    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+        const { schema } = context;
         const schemaName = schema.schema_name;
-
-        // Check if data exists
-        if (!data || data.length === 0) {
-            return;
-        }
 
         // Get immutable fields from cached schema metadata (O(1))
         const immutableFields = schema.getImmutableFields();
@@ -46,99 +41,66 @@ export default class ImmutableValidator extends BaseObserver {
             return;
         }
 
-        // Get preloaded existing records for comparison (no DB query)
-        const existingRecordsById = RecordPreloader.getPreloadedRecordsById(context);
-
-        // If preload failed, we can't validate - let other observers handle
-        if (Object.keys(existingRecordsById).length === 0) {
-            console.warn('Cannot validate immutable fields - preload failed', {
-                schemaName,
-                operation
-            });
+        // Check if record has original data (should be loaded by RecordPreloader)
+        if (record.isNew()) {
+            // New records don't have immutability constraints
             return;
         }
 
-        // Track violations for detailed error reporting
-        const violations: Array<{ recordId: string; field: string; oldValue: any; newValue: any }> = [];
+        const recordId = record.get('id');
+        const violations: Array<{ field: string; oldValue: any; newValue: any }> = [];
 
-        // Check each record for immutable field violations
-        for (const record of data) {
-            const recordId = record.get('id'); // Merged view - ID may be in original
-            const existingRecord = existingRecordsById[recordId];
+        // Get only the fields being changed in this update
+        const changedFields = record.getChangedFields();
 
-            if (!existingRecord) {
-                // Record doesn't exist yet - should not happen in update operation
-                // but UpdateMerger will handle this case
+        // Check each changed field for immutability violations
+        for (const fieldName of changedFields) {
+            // Skip non-immutable fields
+            if (!immutableFields.has(fieldName)) {
                 continue;
             }
 
-            // Convert to plain object to iterate fields
-            const plainRecord = record.toObject();
+            const oldValue = record.old(fieldName);
+            const newValue = record.new(fieldName);
 
-            // Check each changed field
-            for (const fieldName of Object.keys(plainRecord)) {
-                // Skip non-immutable fields
-                if (!immutableFields.has(fieldName)) {
-                    continue;
-                }
+            // Allow setting immutable field if it was null/undefined (first write)
+            if (oldValue === null || oldValue === undefined) {
+                console.info('Allowing first write to immutable field', {
+                    schemaName,
+                    recordId,
+                    field: fieldName,
+                    newValue
+                });
+                continue;
+            }
 
-                const oldValue = existingRecord[fieldName];
-                const newValue = record.new(fieldName); // Only check if field is being changed
-
-                // Allow setting immutable field if it was null/undefined (first write)
-                if (oldValue === null || oldValue === undefined) {
-                    console.info('Allowing first write to immutable field', {
-                        schemaName,
-                        recordId,
-                        field: fieldName,
-                        newValue
-                    });
-                    continue;
-                }
-
-                // Check if value is actually changing
-                if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-                    violations.push({
-                        recordId,
-                        field: fieldName,
-                        oldValue,
-                        newValue
-                    });
-                }
+            // Check if value is actually changing (deep comparison for objects/arrays)
+            if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+                violations.push({
+                    field: fieldName,
+                    oldValue,
+                    newValue
+                });
             }
         }
 
         // If violations found, throw detailed error
         if (violations.length > 0) {
             const violationSummary = violations
-                .slice(0, 5) // Show first 5 violations
-                .map(v => `${v.field} on record ${v.recordId} (was: ${JSON.stringify(v.oldValue)}, attempted: ${JSON.stringify(v.newValue)})`)
+                .map(v => `${v.field} (was: ${JSON.stringify(v.oldValue)}, attempted: ${JSON.stringify(v.newValue)})`)
                 .join('; ');
-
-            const totalViolations = violations.length;
-            const message = totalViolations > 5
-                ? `${violationSummary}... and ${totalViolations - 5} more violations`
-                : violationSummary;
 
             console.warn('Blocked update to immutable fields', {
                 schemaName,
-                operation,
-                violations: totalViolations,
-                details: violations.slice(0, 5)
+                recordId,
+                violations: violations.length,
+                details: violations
             });
 
             throw new ValidationError(
-                `Cannot modify immutable fields: ${message}`,
+                `Cannot modify immutable field${violations.length > 1 ? 's' : ''} on record ${recordId}: ${violationSummary}`,
                 violations[0].field // First violated field
             );
         }
-
-        // No violations - allow operation to continue
-        console.info('Immutable field validation passed', {
-            schemaName,
-            operation,
-            recordsChecked: data?.length || 0,
-            immutableFields: immutableFields.size
-        });
     }
 }
