@@ -160,7 +160,7 @@ export abstract class BaseObserver implements Observer {
             console.warn('Observer system error', {
                 observerName,
                 operation: context.operation,
-                schemaName: context.schema.schema_name,
+                schemaName: context.schema?.schema_name ?? 'unknown',
                 error: error.message,
                 durationMs: duration
             });
@@ -177,7 +177,7 @@ export abstract class BaseObserver implements Observer {
             console.warn('Observer unknown error', {
                 observerName,
                 operation: context.operation,
-                schemaName: context.schema.schema_name,
+                schemaName: context.schema?.schema_name ?? 'unknown',
                 error: error.message,
                 durationMs: duration
             });
@@ -193,7 +193,7 @@ export abstract class BaseObserver implements Observer {
             console.warn('Observer unknown error (non-Error object)', {
                 observerName,
                 operation: context.operation,
-                schemaName: context.schema.schema_name,
+                schemaName: context.schema?.schema_name ?? 'unknown',
                 error: String(error),
                 durationMs: duration
             });
