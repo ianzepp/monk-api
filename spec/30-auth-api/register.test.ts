@@ -19,10 +19,9 @@ describe('POST /auth/register - Register New Tenant', () => {
 
         expectSuccess(response);
         expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.db).toBeDefined();
-        expect(response.data!.ns).toBeDefined();
         expect(response.data!.token).toBeDefined();
         expect(response.data!.username).toBeDefined();
+        expect(response.data!.expires_in).toBeDefined();
     });
 
     it('should register with tenant name and custom user name', async () => {
@@ -49,8 +48,6 @@ describe('POST /auth/register - Register New Tenant', () => {
 
         expectSuccess(response);
         expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.db).toBeDefined();
-        expect(response.data!.ns).toBeDefined();
         expect(response.data!.token).toBeDefined();
     });
 
@@ -64,8 +61,6 @@ describe('POST /auth/register - Register New Tenant', () => {
 
         expectSuccess(response);
         expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.db).toBeDefined();
-        expect(response.data!.ns).toBeDefined();
         expect(response.data!.token).toBeDefined();
     });
 

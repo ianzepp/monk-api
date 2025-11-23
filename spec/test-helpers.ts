@@ -16,8 +16,6 @@ import { TEST_CONFIG } from './test-config.js';
  */
 export interface TestTenant {
     tenantName: string;
-    dbName: string;
-    nsName: string;
     username: string;
     token: string;
     httpClient: HttpClient;
@@ -133,8 +131,6 @@ export class TestHelpers {
 
         return {
             tenantName: response.data!.tenant!,
-            dbName: response.data!.db!,
-            nsName: response.data!.ns!,
             username: response.data!.username!,
             token: response.data!.token,
             httpClient: authClient.client,
