@@ -255,6 +255,8 @@ app.delete('/api/describe/:schema', describeRoutes.SchemaDelete); // Delete sche
 
 // 31-describe-api: Column-level Describe API routes
 app.get('/api/describe/:schema/columns', describeRoutes.ColumnsList); // List all columns in schema
+app.post('/api/describe/:schema/columns', describeRoutes.ColumnsPost); // Create columns in bulk
+app.put('/api/describe/:schema/columns', describeRoutes.ColumnsPut); // Update columns in bulk
 app.post('/api/describe/:schema/columns/:column', describeRoutes.ColumnPost); // Create column
 app.get('/api/describe/:schema/columns/:column', describeRoutes.ColumnGet); // Get column
 app.put('/api/describe/:schema/columns/:column', describeRoutes.ColumnPut); // Update column

@@ -15,6 +15,8 @@ export { default as SchemaDelete } from '@src/routes/api/describe/:schema/DELETE
 
 // Column management operations
 export { default as ColumnsList } from '@src/routes/api/describe/:schema/columns/GET.js';
+export { default as ColumnsPost } from '@src/routes/api/describe/:schema/columns/POST.js';
+export { default as ColumnsPut } from '@src/routes/api/describe/:schema/columns/PUT.js';
 export { default as ColumnGet } from '@src/routes/api/describe/:schema/columns/:column/GET.js';
 export { default as ColumnPost } from '@src/routes/api/describe/:schema/columns/:column/POST.js';
 export { default as ColumnPut } from '@src/routes/api/describe/:schema/columns/:column/PUT.js';

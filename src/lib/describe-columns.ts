@@ -4,6 +4,7 @@ import type { FilterData } from '@src/lib/filter-types.js';
 import type {
     ColumnRecord,
     DbCreateInput,
+    DbUpdateInput,
     SystemFields,
 } from '@src/lib/database-types.js';
 
@@ -127,6 +128,59 @@ export class DescribeColumns {
             ...data,
             type: data.type || 'text'
         }) as Promise<ColumnRecord>;
+    }
+
+    /**
+     * Create multiple columns in bulk
+     *
+     * Validates schema protection and column names for all columns, then creates column records.
+     * Observer pipeline will handle DDL (ALTER TABLE ADD COLUMN) and type mapping for each.
+     */
+    async createAll(dataArray: DbCreateInput<Omit<ColumnRecord, keyof SystemFields>>[]): Promise<ColumnRecord[]> {
+        // Validate all schemas and column names before creating
+        for (const data of dataArray) {
+            if (data.schema_name) {
+                await this.validateSchemaProtection(data.schema_name);
+            }
+            if (data.column_name) {
+                this.validateColumnName(data.column_name);
+            }
+        }
+
+        console.info('Creating columns in bulk via observer pipeline', {
+            columnCount: dataArray.length
+        });
+
+        // Add default type for any columns missing it
+        const dataWithDefaults = dataArray.map(data => ({
+            ...data,
+            type: data.type || 'text'
+        }));
+
+        // Delegate to database (observer pipeline handles type mapping and DDL)
+        return this.system.database.createAll<Omit<ColumnRecord, keyof SystemFields>>('columns', dataWithDefaults) as Promise<ColumnRecord[]>;
+    }
+
+    /**
+     * Update multiple columns in bulk
+     *
+     * Validates schema protection for all columns before updating.
+     * Observer pipeline handles structural changes (ALTER TABLE) and type mapping.
+     */
+    async updateAll(updates: DbUpdateInput<ColumnRecord>[]): Promise<ColumnRecord[]> {
+        // Validate all schemas before updating
+        for (const update of updates) {
+            if (update.schema_name) {
+                await this.validateSchemaProtection(update.schema_name);
+            }
+        }
+
+        console.info('Updating columns in bulk via observer pipeline', {
+            columnCount: updates.length
+        });
+
+        // Delegate to database (observer pipeline handles DDL and type mapping)
+        return this.system.database.updateAll<ColumnRecord>('columns', updates);
     }
 
     /**
