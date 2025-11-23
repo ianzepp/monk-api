@@ -1,10 +1,8 @@
 import { randomBytes } from 'crypto';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { DatabaseNaming, TenantNamingMode } from '@src/lib/database-naming.js';
-
-const execAsync = promisify(exec);
+import { DatabaseNaming } from '@src/lib/database-naming.js';
+import { NamespaceManager } from '@src/lib/namespace-manager.js';
+import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
 
 /**
  * Test Tenant Configuration
@@ -19,7 +17,8 @@ export interface TestTenantConfig {
  */
 export interface TestTenantResult {
     tenantName: string;
-    databaseName: string;
+    dbName: string;
+    nsName: string;
 }
 
 /**
@@ -30,69 +29,56 @@ export interface TestTenantResult {
  */
 export class TestDatabaseHelper {
     /**
-     * Create a test tenant from a template database
+     * Create a test tenant using namespace architecture
      *
-     * This matches the shell function: create_test_tenant_from_template()
+     * NEW: Uses namespace-based architecture instead of database cloning
      * - Generates tenant name: test_{testName}_{timestamp}_{random}
-     * - Clones from template: monk_template_{template}
-     * - Uses production hashing for database name: tenant_{16-char-hash}
+     * - Creates namespace in db_test: ns_test_{8-char-hash}
+     * - Deploys fixtures to namespace
      * - Registers tenant in monk.tenants table
      *
      * @param config - Test tenant configuration
-     * @returns Promise with tenant name and database name
+     * @returns Promise with tenant name, database name, and namespace name
      */
     static async createTestTenant(config: TestTenantConfig): Promise<TestTenantResult> {
         const { testName, template = 'testing' } = config;
 
-        // Generate test tenant name (matches shell: test_${test_name}_${timestamp}_${random})
+        // Generate test tenant name
         const timestamp = Date.now();
         const random = randomBytes(4).toString('hex');
         const tenantName = `test_${testName}_${timestamp}_${random}`;
 
-        // Generate hashed database name using production logic
-        const databaseName = DatabaseNaming.generateDatabaseName(tenantName, TenantNamingMode.ENTERPRISE);
-
-        // Template database name (matches shell: monk_template_$template_name)
-        const templateDatabaseName = `monk_template_${template}`;
+        // Use db_test database and generate namespace name
+        const dbName = 'db_test';
+        const nsName = DatabaseNaming.generateTestNsName();
 
         const mainPool = DatabaseConnection.getMainPool();
 
         try {
-            // 1. Validate template exists
-            const templateCheck = await mainPool.query(
-                'SELECT COUNT(*) FROM pg_database WHERE datname = $1',
-                [templateDatabaseName]
-            );
+            // 1. Create namespace in db_test
+            await NamespaceManager.createNamespace(dbName, nsName);
 
-            if (templateCheck.rows[0].count === '0') {
-                throw new Error(
-                    `Template database '${templateDatabaseName}' not found. ` +
-                        `Run 'npm run fixtures:build ${template}' to create it.`
-                );
-            }
+            // 2. Deploy fixtures to namespace
+            // System fixture is always deployed first, then the requested template
+            const fixtures = template === 'system' ? ['system'] : ['system', template];
+            await FixtureDeployer.deployMultiple(fixtures, { dbName, nsName });
 
-            // 2. Clone database from template using createdb command (same as shell tests)
-            try {
-                await execAsync(`createdb "${databaseName}" -T "${templateDatabaseName}"`);
-            } catch (error) {
-                throw new Error(`Failed to clone from template database: ${error}`);
-            }
-
-            // 3. Register tenant in main database (matches shell INSERT statement)
+            // 3. Register tenant in main database
             await mainPool.query(
-                `INSERT INTO tenants (name, database, host, is_active, tenant_type)
-                 VALUES ($1, $2, $3, $4, $5)`,
-                [tenantName, databaseName, 'localhost', true, 'normal']
+                `INSERT INTO tenants (name, database, schema, host, is_active, tenant_type)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [tenantName, dbName, nsName, 'localhost', true, 'normal']
             );
 
             return {
                 tenantName,
-                databaseName,
+                dbName,
+                nsName,
             };
         } catch (error) {
             // Cleanup on failure
             try {
-                await execAsync(`dropdb "${databaseName}" 2>/dev/null || true`);
+                await NamespaceManager.dropNamespace(dbName, nsName);
             } catch {
                 // Ignore cleanup errors
             }
@@ -103,36 +89,27 @@ export class TestDatabaseHelper {
     /**
      * Clean up a test tenant
      *
-     * This matches the shell cleanup logic:
-     * - Terminates active connections
-     * - Drops the database
+     * NEW: Namespace-based cleanup
+     * - Drops the namespace (schema) and all objects within it
      * - Removes tenant from registry
      *
      * @param tenantName - Tenant name to clean up
-     * @param databaseName - Database name to drop
+     * @param dbName - Database name (e.g., db_test)
+     * @param nsName - Namespace name (e.g., ns_test_abc123)
      */
-    static async cleanupTestTenant(tenantName: string, databaseName: string): Promise<void> {
+    static async cleanupTestTenant(tenantName: string, dbName: string, nsName: string): Promise<void> {
         const mainPool = DatabaseConnection.getMainPool();
 
         try {
-            // 1. Terminate active connections (matches shell: pg_terminate_backend)
-            await mainPool.query(
-                `SELECT pg_terminate_backend(pid)
-                 FROM pg_stat_activity
-                 WHERE datname = $1
-                   AND pid <> pg_backend_pid()`,
-                [databaseName]
-            );
-
-            // 2. Drop database
+            // 1. Drop namespace (CASCADE drops all objects within it)
             try {
-                await execAsync(`dropdb "${databaseName}"`);
+                await NamespaceManager.dropNamespace(dbName, nsName);
             } catch (error) {
-                // Database might not exist, that's ok
-                console.warn(`Warning: Failed to drop database ${databaseName}:`, error);
+                // Namespace might not exist, that's ok
+                console.warn(`Warning: Failed to drop namespace ${dbName}.${nsName}:`, error);
             }
 
-            // 3. Remove tenant from registry
+            // 2. Remove tenant from registry
             await mainPool.query('DELETE FROM tenants WHERE name = $1', [tenantName]);
         } catch (error) {
             console.error(`Error cleaning up test tenant ${tenantName}:`, error);
@@ -143,7 +120,7 @@ export class TestDatabaseHelper {
     /**
      * Clean up all test tenants
      *
-     * This matches shell: cleanup_all_test_databases()
+     * NEW: Namespace-based cleanup
      * Removes all tenants with names starting with "test_"
      */
     static async cleanupAllTestTenants(): Promise<void> {
@@ -152,12 +129,12 @@ export class TestDatabaseHelper {
         try {
             // Get all test tenants
             const result = await mainPool.query(
-                `SELECT name, database FROM tenants WHERE name LIKE 'test_%'`
+                `SELECT name, database, schema FROM tenants WHERE name LIKE 'test_%'`
             );
 
             // Clean up each tenant
             for (const row of result.rows) {
-                await this.cleanupTestTenant(row.name, row.database);
+                await this.cleanupTestTenant(row.name, row.database, row.schema);
             }
         } catch (error) {
             console.error('Error cleaning up test tenants:', error);
