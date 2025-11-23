@@ -149,22 +149,24 @@ export class SchemaCache {
         // Load schema metadata
         const schemaResult = await dtx.query(
             `
-            SELECT s.*
-            FROM schemas s
-            WHERE s.schema_name = $1 AND s.status IN ('active', 'system')
+            SELECT *
+            FROM schemas
+            WHERE schema_name = $1
+            AND status IN ('active', 'system')
+            AND trashed_at IS NULL
+            AND deleted_at IS NULL
         `,
             [schemaName]
         );
 
         if (schemaResult.rows.length === 0) {
-            throw new Error(`Schema '${schemaName}' not found`);
+            throw new Error(`Schema '${schemaName}' not found or trashed/deleted`);
         }
 
-        // Load column metadata for performance-critical validations (frozen/immutable/sudo/tracked/required/type/range/enum/transform)
+        // Load all column metadata (using SELECT * for future-proofing)
         const columnsResult = await dtx.query(
             `
-            SELECT column_name, immutable, sudo, required, type, is_array, tracked,
-                   minimum, maximum, pattern, enum_values, transform
+            SELECT *
             FROM columns
             WHERE schema_name = $1
             AND trashed_at IS NULL
@@ -175,7 +177,7 @@ export class SchemaCache {
 
         return {
             schema: schemaResult.rows[0],
-            columns: columnsResult.rows
+            columns: columnsResult.rows,
         };
     }
 
