@@ -65,8 +65,8 @@ export default async function (context: Context) {
         success: true,
         data: {
             tenant: cloneResult.tenant,
-            dbName: cloneResult.dbName,
-            nsName: cloneResult.nsName,
+            db: cloneResult.dbName,
+            ns: cloneResult.nsName,
             username: cloneResult.user.auth,
             token: token,
             expires_in: 24 * 60 * 60,

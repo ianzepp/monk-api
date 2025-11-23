@@ -10,7 +10,7 @@ import { expectSuccess } from '../test-assertions.js';
  */
 
 describe('POST /auth/register - Register New Tenant', () => {
-    it('should register with only a new tenant name', async () => {
+    it.only('should register with only a new tenant name', async () => {
         const authClient = new AuthClient();
 
         const response = await authClient.register({
