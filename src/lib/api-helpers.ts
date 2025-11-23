@@ -4,6 +4,7 @@ import type { SystemOptions } from '@src/lib/system-context-types.js';
 import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError, HttpErrors } from '@src/lib/errors/http-error.js';
 import { createModel } from '@src/lib/model.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 /**
  * API Request/Response Helpers
@@ -277,12 +278,23 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
         const pool = system.db;
         const tx = await pool.connect();
         await tx.query('BEGIN');
+
+        // Set search_path for the entire transaction to scope all queries to tenant's namespace
+        const nsName = context.get('nsName');
+        if (!nsName) {
+            await tx.query('ROLLBACK');
+            tx.release();
+            throw HttpErrors.internal('Transaction started without namespace context', 'NAMESPACE_MISSING');
+        }
+        await DatabaseConnection.setLocalSearchPath(tx, nsName);
+
         system.tx = tx;
 
         console.info('Transaction started for route', {
             method: params.method,
             model: params.model,
-            record: params.record
+            record: params.record,
+            namespace: nsName
         });
 
         try {

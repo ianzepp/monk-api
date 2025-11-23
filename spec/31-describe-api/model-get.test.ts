@@ -78,11 +78,12 @@ describe('GET /api/describe/:model - Get Model Details', () => {
 
     it('should retrieve model with protection flags', async () => {
         // Create a test model with protection flags
-        await tenant.httpClient.post('/api/describe/test_protected', {
+        const createResponse = await tenant.httpClient.post('/api/describe/test_protected', {
             sudo: true,
             frozen: false,
             immutable: true,
         });
+        expectSuccess(createResponse);
 
         const response = await tenant.httpClient.get('/api/describe/test_protected');
 
@@ -95,9 +96,10 @@ describe('GET /api/describe/:model - Get Model Details', () => {
 
     it('should retrieve model with description', async () => {
         // Create a test model with description
-        await tenant.httpClient.post('/api/describe/test_described', {
+        const createResponse = await tenant.httpClient.post('/api/describe/test_described', {
             description: 'Test model description',
         });
+        expectSuccess(createResponse);
 
         const response = await tenant.httpClient.get('/api/describe/test_described');
 

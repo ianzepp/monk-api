@@ -42,18 +42,29 @@ export default class SystemTableProtector extends BaseObserver {
             );
         }
 
-        // Query PostgreSQL system catalog for any table/model conflicts
+        // Get current namespace to check for table conflicts within this schema only
+        // Note: search_path is set for regular queries, but pg_tables/information_schema
+        // show ALL schemas, so we must explicitly filter by schemaname
+        const nsName = system.context.get('nsName');
+        if (!nsName) {
+            throw new ValidationError(
+                'Cannot validate table conflicts: namespace not set in context',
+                'model_name'
+            );
+        }
+
+        // Query PostgreSQL system catalog for table conflicts in the current schema only
         const result = await SqlUtils.getPool(system).query(
-            `SELECT tablename FROM pg_tables WHERE tablename = $1
+            `SELECT tablename FROM pg_tables WHERE tablename = $1 AND schemaname = $2
              UNION
-             SELECT table_name FROM information_schema.tables WHERE table_name = $1
+             SELECT table_name FROM information_schema.tables WHERE table_name = $1 AND table_schema = $2
              LIMIT 1`,
-            [model_name]
+            [model_name, nsName]
         );
 
         if (result.rows.length > 0) {
             throw new ValidationError(
-                `Cannot create model '${model_name}': conflicts with existing system table`,
+                `Cannot create model '${model_name}': conflicts with existing table in this namespace`,
                 'model_name'
             );
         }
