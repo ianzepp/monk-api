@@ -4,6 +4,7 @@
   "parent": null,
   "version": "1.0.0",
   "is_system": true,
+  "dependencies": [],
   "models": 4,
   "features": [
     "core-infrastructure",

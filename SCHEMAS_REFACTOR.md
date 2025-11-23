@@ -1661,41 +1661,47 @@ await client.query('COMMIT');  // search_path reverts
 - [x] Update `src/lib/database-types.ts`:
   - [x] No changes needed (types will be updated in service layer phases)
 
-### Phase 3: Fixture System
+### Phase 3: Fixture System ✅ COMPLETE
 
-- [ ] Create `src/lib/fixtures/builder.ts`:
-  - [ ] Implement `FixtureBuilder` class
-  - [ ] Implement `build()` method
-  - [ ] Implement `inlineIncludes()` method (handles `\ir` directives)
-  - [ ] Implement `addParameterization()` method
-  - [ ] Add placeholder for `optimize()` method
-  - [ ] Add tests
+- [x] Create `src/lib/fixtures/builder.ts`:
+  - [x] Implement `FixtureBuilder` class
+  - [x] Implement `build()` method
+  - [x] Implement `inlineIncludes()` method (handles `\ir` directives)
+  - [x] Implement `addParameterization()` method
+  - [x] Convert psql meta-commands (`\echo`, `\set`) to SQL comments
+  - [x] Add placeholder for `optimize()` method
+  - [ ] Add tests (deferred)
 
-- [ ] Create `src/lib/fixtures/deployer.ts`:
-  - [ ] Implement `FixtureDeployer` class
-  - [ ] Implement `deploy()` method
-  - [ ] Add parameter injection (`:database`, `:schema`)
-  - [ ] Support multiple fixture deployment
-  - [ ] Add tests
+- [x] Create `src/lib/fixtures/deployer.ts`:
+  - [x] Implement `FixtureDeployer` class
+  - [x] Implement `deploy()` method
+  - [x] Add parameter injection with proper identifier quoting
+  - [x] Add `deployMultiple()` method for multiple fixtures
+  - [x] Add dotenv support for environment variables
+  - [ ] Add tests (deferred)
 
-- [ ] Update existing fixture `template.json` files:
-  - [ ] Add `dependencies` field to `fixtures/system/template.json`
-  - [ ] Create `fixtures/crm/template.json` (example optional fixture)
-  - [ ] Create `fixtures/testing/template.json` (test data fixture)
+- [x] Update existing fixture `template.json` files:
+  - [x] Add `dependencies` field to `fixtures/system/template.json`
+  - [x] Add `dependencies` field to `fixtures/demo/template.json`
+  - [x] Add `dependencies` field to `fixtures/testing/template.json`
+  - [x] Add `is_system` and `features` fields for consistency
 
-- [ ] Create `scripts/fixtures-build.ts`:
-  - [ ] CLI argument parsing
-  - [ ] Error handling
-  - [ ] Usage documentation
+- [x] Create `scripts/fixtures-build.ts`:
+  - [x] CLI argument parsing (supports single fixture or "all")
+  - [x] Error handling
+  - [x] Usage documentation
+  - [x] Auto-discovery of available fixtures
 
-- [ ] Create `scripts/fixtures-deploy.ts`:
-  - [ ] CLI argument parsing
-  - [ ] Error handling
-  - [ ] Usage documentation
+- [x] Create `scripts/fixtures-deploy.ts`:
+  - [x] CLI argument parsing (--database, --schema)
+  - [x] Error handling
+  - [x] Usage documentation
+  - [x] Environment variable loading (dotenv)
 
-- [ ] Update `package.json`:
-  - [ ] Add `fixtures:build` script
-  - [ ] Add `fixtures:deploy` script
+- [x] Update `package.json`:
+  - [x] Add `fixtures:build` script (tsx-based, new architecture)
+  - [x] Add `fixtures:deploy` script (tsx-based, new architecture)
+  - [x] Renamed old script to `fixtures:build:legacy`
 
 - [ ] Build all fixtures:
   ```bash
