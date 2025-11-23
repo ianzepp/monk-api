@@ -85,11 +85,18 @@ export class FixtureBuilder {
         const result: string[] = [];
 
         for (let line of lines) {
-            // Match: \ir path/to/file.sql
+            // Match: \ir path/to/file.sql (with optional inline comments)
             const includeMatch = line.match(/^\\ir\s+(.+)$/);
 
             if (includeMatch) {
-                const relativePath = includeMatch[1].trim();
+                // Extract path and strip inline SQL comments
+                let relativePath = includeMatch[1].trim();
+
+                // Remove inline comments (-- ...)
+                const commentIndex = relativePath.indexOf('--');
+                if (commentIndex !== -1) {
+                    relativePath = relativePath.substring(0, commentIndex).trim();
+                }
                 const fullPath = join(basePath, relativePath);
 
                 try {
