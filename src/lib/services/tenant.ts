@@ -12,12 +12,15 @@
  * - TenantManager (tenant CRUD operations)
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, readFile } from 'fs';
+import { promises as fsPromises } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { sign, verify } from 'hono/jwt';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { DatabaseNaming } from '@src/lib/database-naming.js';
+import { NamespaceManager } from '@src/lib/namespace-manager.js';
+import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
+import { JWTGenerator } from '@src/lib/jwt-generator.js';
 import { Describe } from '@src/lib/describe.js';
 import pg from 'pg';
 
@@ -26,17 +29,28 @@ export interface TenantInfo {
     name: string;
     host: string;
     database: string;
+    schema?: string;
+    fixtures?: string[];
     created_at?: string;
     updated_at?: string;
     trashed_at?: string;
     deleted_at?: string;
 }
 
+export interface TenantCreateOptions {
+    name: string;
+    host?: string;
+    fixtures?: string[];
+    dbName?: string;
+    force?: boolean;
+}
+
 export interface JWTPayload {
     sub: string; // Subject/system identifier
     user_id: string | null; // User ID for database records (null for root/system)
     tenant: string; // Tenant name
-    database: string; // Database name (converted)
+    db: string; // Database name (compact JWT field: db_main, db_test, etc.)
+    ns: string; // Namespace name (compact JWT field: ns_tenant_<hash-8>)
     access: string; // Access level (deny/read/edit/full/root)
     access_read: string[]; // ACL read access
     access_edit: string[]; // ACL edit access
@@ -52,7 +66,8 @@ export interface LoginResult {
         id: string;
         username: string;
         tenant: string;
-        database: string;
+        dbName: string;
+        nsName: string;
         access: string;
     };
 }
@@ -149,60 +164,73 @@ export class TenantService {
     }
 
     /**
-     * Create new tenant with database and auth record
+     * Create new tenant with namespace and fixtures
      */
-    static async createTenant(tenantName: string, host: string = 'localhost', force: boolean = false): Promise<TenantInfo> {
-        const databaseName = this.tenantNameToDatabase(tenantName);
+    static async createTenant(options: TenantCreateOptions | string, hostLegacy?: string, forceLegacy?: boolean): Promise<TenantInfo> {
+        // Support legacy signature: createTenant(tenantName, host, force)
+        const opts: TenantCreateOptions =
+            typeof options === 'string'
+                ? { name: options, host: hostLegacy || 'localhost', force: forceLegacy || false }
+                : { host: 'localhost', fixtures: [], dbName: 'db_main', force: false, ...options };
+
+        const { name, host = 'localhost', fixtures = [], dbName = 'db_main', force = false } = opts;
+
+        // Generate namespace name
+        const nsName = DatabaseNaming.generateTenantNsName(name);
 
         // Check if tenant already exists
-        if (!force && (await this.tenantExists(tenantName))) {
-            throw new Error(`Tenant '${tenantName}' already exists (use force=true to override)`);
+        if (!force && (await this.tenantExists(name))) {
+            throw new Error(`Tenant '${name}' already exists (use force=true to override)`);
         }
 
-        // Check if database already exists
-        if (!force && (await this.databaseExists(databaseName))) {
-            throw new Error(`Database '${databaseName}' already exists (use force=true to override)`);
+        // Check if namespace already exists in target database
+        if (!force && (await NamespaceManager.namespaceExists(dbName, nsName))) {
+            throw new Error(`Namespace '${nsName}' already exists in ${dbName}`);
         }
 
         // If forcing and tenant exists, delete it first
         if (force) {
             try {
-                await this.deleteTenant(tenantName, true);
+                await this.deleteTenant(name, true);
             } catch (error) {
-                // Ignore errors during cleanup - database might not exist
+                // Ignore errors during cleanup
                 console.warn(`Warning during cleanup: ${error}`);
             }
         }
 
-        // Create the PostgreSQL database
-        await this.createDatabase(databaseName);
-
         try {
-            // Initialize tenant database model
-            await this.initializeTenantModel(databaseName);
+            // 1. Resolve fixture dependencies (system is always first)
+            const resolvedFixtures = await this.resolveFixtureDependencies(fixtures);
+            console.info('Deploying fixtures:', resolvedFixtures);
 
-            // Create user model via describe (API-managed user table)
-            // DISABLED: User table is already created by init-tenant.sql during initializeTenantModel()
-            // This was redundant model creation that caused mockContext architectural issues
-            // await this.createUserModel(databaseName);
+            // 2. Create namespace
+            await NamespaceManager.createNamespace(dbName, nsName);
 
-            // Create root user via API (goes through observer pipeline)
-            await this.createRootUser(databaseName, tenantName);
+            // 3. Deploy fixtures in dependency order
+            await FixtureDeployer.deployMultiple(resolvedFixtures, { dbName, nsName });
 
-            // Insert tenant record in auth database
-            await this.insertTenantRecord(tenantName, host, databaseName);
+            // 4. Create root user in tenant namespace
+            await this.createRootUser(dbName, nsName, name);
+
+            // 5. Insert tenant record
+            const tenantId = await this.insertTenantRecord(name, host, dbName, nsName);
+
+            // 6. Record deployed fixtures
+            await this.recordFixtures(tenantId, resolvedFixtures);
 
             return {
-                name: tenantName,
-                host: host,
-                database: databaseName,
+                name,
+                host,
+                database: dbName,
+                schema: nsName,
+                fixtures: resolvedFixtures,
             };
         } catch (error) {
-            // Clean up database if initialization failed
+            // Clean up namespace if initialization failed
             try {
-                await this.dropDatabase(databaseName);
+                await NamespaceManager.dropNamespace(dbName, nsName);
             } catch (cleanupError) {
-                console.warn(`Failed to cleanup database after error: ${cleanupError}`);
+                console.warn(`Failed to cleanup namespace: ${cleanupError}`);
             }
             throw error;
         }
@@ -333,13 +361,14 @@ export class TenantService {
             await client.connect();
 
             const result = await client.query(
-                'SELECT id, name, host, database, created_at, updated_at, trashed_at, deleted_at FROM tenants WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
+                'SELECT id, name, host, database, schema, created_at, updated_at, trashed_at, deleted_at FROM tenants WHERE trashed_at IS NULL AND deleted_at IS NULL ORDER BY name'
             );
 
             return result.rows.map(row => ({
                 name: row.name,
                 host: row.host,
                 database: row.database,
+                schema: row.schema,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
                 trashed_at: row.trashed_at,
@@ -359,7 +388,7 @@ export class TenantService {
         try {
             await client.connect();
 
-            const result = await client.query('SELECT id, name, host, database FROM tenants WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL', [tenantName]);
+            const result = await client.query('SELECT id, name, host, database, schema FROM tenants WHERE name = $1 AND trashed_at IS NULL AND deleted_at IS NULL', [tenantName]);
 
             if (result.rows.length === 0) {
                 return null;
@@ -369,6 +398,7 @@ export class TenantService {
                 name: result.rows[0].name,
                 host: result.rows[0].host,
                 database: result.rows[0].database,
+                schema: result.rows[0].schema,
             };
         } finally {
             await client.end();
@@ -381,29 +411,30 @@ export class TenantService {
 
     /**
      * Generate JWT token for user
+     *
+     * @deprecated Use JWTGenerator.generateToken() directly
      */
     static async generateToken(user: any): Promise<string> {
-        const payload: JWTPayload = {
-            sub: user.id,
-            user_id: user.user_id || null, // User ID for database records (null for root/system)
+        return JWTGenerator.generateToken({
+            id: user.id,
+            user_id: user.user_id || null,
             tenant: user.tenant,
-            database: user.database,
-            access: user.access || 'root', // Access level for API operations
+            dbName: user.dbName,
+            nsName: user.nsName,
+            access: user.access || 'root',
             access_read: user.access_read || [],
             access_edit: user.access_edit || [],
             access_full: user.access_full || [],
-            iat: Math.floor(Date.now() / 1000),
-            exp: Math.floor(Date.now() / 1000) + this.tokenExpiry,
-        };
-
-        return await sign(payload, this.getJwtSecret());
+        });
     }
 
     /**
      * Verify and decode JWT token
+     *
+     * @deprecated Use JWTGenerator.verifyToken() directly
      */
     static async verifyToken(token: string): Promise<JWTPayload> {
-        return (await verify(token, this.getJwtSecret())) as JWTPayload;
+        return JWTGenerator.verifyToken(token);
     }
 
     /**
@@ -414,19 +445,20 @@ export class TenantService {
             return null; // Both tenant and username required
         }
 
-        // Look up tenant record to get database name
+        // Look up tenant record to get database and schema
         const authDb = this.getAuthPool();
-        const tenantResult = await authDb.query('SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
+        const tenantResult = await authDb.query('SELECT name, database, schema FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
 
         if (!tenantResult.rows || tenantResult.rows.length === 0) {
             return null; // Tenant not found or inactive
         }
 
-        const { name, database } = tenantResult.rows[0];
+        const { name, database, schema } = tenantResult.rows[0];
 
-        // Look up user in the tenant's database (using new auth field)
-        const tenantDb = DatabaseConnection.getTenantPool(database);
-        const userResult = await tenantDb.query(
+        // Look up user in the tenant's namespace
+        const userResult = await DatabaseConnection.queryInNamespace(
+            database,
+            schema,
             'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
             [username]
         );
@@ -437,12 +469,13 @@ export class TenantService {
 
         const user = userResult.rows[0];
 
-        // Create user object for JWT
+        // Create user object for JWT (using dbName/nsName in code)
         const authUser = {
             id: user.id,
             user_id: user.id,
             tenant: name,
-            database: database,
+            dbName: database, // Use dbName in code (maps to 'db' in JWT)
+            nsName: schema, // Use nsName in code (maps to 'ns' in JWT)
             username: user.auth,
             access: user.access,
             access_read: user.access_read || [],
@@ -461,7 +494,8 @@ export class TenantService {
                 id: authUser.id,
                 username: authUser.username,
                 tenant: authUser.tenant,
-                database: authUser.database,
+                dbName: authUser.dbName,
+                nsName: authUser.nsName,
                 access: authUser.access,
             },
         };
@@ -469,13 +503,11 @@ export class TenantService {
 
     /**
      * Validate JWT token and return payload
+     *
+     * @deprecated Use JWTGenerator.validateToken() directly
      */
     static async validateToken(token: string): Promise<JWTPayload | null> {
-        try {
-            return await this.verifyToken(token);
-        } catch (error) {
-            return null; // Invalid token
-        }
+        return JWTGenerator.validateToken(token);
     }
 
     // ==========================================
@@ -565,33 +597,105 @@ export class TenantService {
     }
 
     /**
-     * Create root user in tenant database
+     * Create root user in tenant namespace
      */
-    private static async createRootUser(databaseName: string, tenantName: string): Promise<void> {
-        const client = this.createTenantClient(databaseName);
+    private static async createRootUser(dbName: string, nsName: string, tenantName: string): Promise<void> {
+        await DatabaseConnection.queryInNamespace(
+            dbName,
+            nsName,
+            'INSERT INTO users (name, auth, access) VALUES ($1, $2, $3)',
+            ['Root User', 'root', 'root']
+        );
+    }
+
+    /**
+     * Insert tenant record in auth database
+     */
+    private static async insertTenantRecord(tenantName: string, host: string, dbName: string, nsName: string): Promise<string> {
+        const client = this.createAuthClient();
 
         try {
             await client.connect();
 
-            // Create root user using new user table format (no tenant_name field)
-            await client.query('INSERT INTO users (name, auth, access) VALUES ($1, $2, $3)', ['Root User', 'root', 'root']);
+            const result = await client.query(
+                'INSERT INTO tenants (name, host, database, schema) VALUES ($1, $2, $3, $4) RETURNING id',
+                [tenantName, host, dbName, nsName]
+            );
+
+            if (!result.rows[0]?.id) {
+                throw new Error('Failed to insert tenant record');
+            }
+
+            return result.rows[0].id;
         } finally {
             await client.end();
         }
     }
 
     /**
-     * Insert tenant record in auth database
+     * Resolve fixture dependencies by reading template.json files
+     * System fixture is always included first
      */
-    private static async insertTenantRecord(tenantName: string, host: string, databaseName: string): Promise<void> {
-        const client = this.createAuthClient();
+    private static async resolveFixtureDependencies(requested: string[]): Promise<string[]> {
+        const resolved = new Set<string>(['system']); // System always required
+        const queue = [...requested];
 
-        try {
-            await client.connect();
+        while (queue.length > 0) {
+            const fixtureName = queue.shift()!;
 
-            await client.query('INSERT INTO tenants (name, host, database) VALUES ($1, $2, $3)', [tenantName, host, databaseName]);
-        } finally {
-            await client.end();
+            if (resolved.has(fixtureName)) continue;
+
+            // Read template.json to get dependencies
+            const metadata = await this.getFixtureMetadata(fixtureName);
+
+            // Add dependencies to queue
+            for (const dep of metadata.dependencies || []) {
+                if (!resolved.has(dep)) {
+                    queue.push(dep);
+                }
+            }
+
+            resolved.add(fixtureName);
+        }
+
+        // Return in dependency order (system first, then others)
+        return this.topologicalSort(Array.from(resolved));
+    }
+
+    /**
+     * Sort fixtures in dependency order
+     * System always first, rest maintain order
+     */
+    private static topologicalSort(fixtures: string[]): string[] {
+        // Simple implementation: system first, rest maintain order
+        // Future: Full topological sort if complex dependencies needed
+        const sorted: string[] = fixtures.filter(f => f === 'system');
+        sorted.push(...fixtures.filter(f => f !== 'system'));
+        return sorted;
+    }
+
+    /**
+     * Read fixture metadata from template.json
+     */
+    private static async getFixtureMetadata(fixtureName: string): Promise<{
+        name: string;
+        dependencies: string[];
+        features: string[];
+    }> {
+        const metadataPath = join(process.cwd(), 'fixtures', fixtureName, 'template.json');
+
+        const content = await fsPromises.readFile(metadataPath, 'utf-8');
+        return JSON.parse(content);
+    }
+
+    /**
+     * Record deployed fixtures for this tenant
+     */
+    private static async recordFixtures(tenantId: string, fixtures: string[]): Promise<void> {
+        const mainPool = DatabaseConnection.getMainPool();
+
+        for (const fixtureName of fixtures) {
+            await mainPool.query('INSERT INTO tenant_fixtures (tenant_id, fixture_name) VALUES ($1, $2)', [tenantId, fixtureName]);
         }
     }
 }

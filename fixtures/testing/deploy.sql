@@ -1,5 +1,5 @@
 -- Compiled Fixture: testing
--- Generated: 2025-11-23T15:17:45.482Z
+-- Generated: 2025-11-23T17:42:02.516Z
 -- Parameters: :database, :schema
 --
 -- Usage:

@@ -94,7 +94,33 @@ main() {
         log_info "Copied $(find sql -name '*.sql' | wc -l | tr -d ' ') SQL files"
     fi
 
-    # Step 5: Validation
+    # Step 5: Copy compiled fixtures (deploy.sql and template.json)
+    if [[ -d "fixtures" ]]; then
+        log_info "Copying compiled fixtures..."
+        mkdir -p "dist/fixtures"
+
+        # Copy each fixture directory (preserving structure)
+        for fixture_dir in fixtures/*/; do
+            if [[ -d "$fixture_dir" ]]; then
+                fixture_name=$(basename "$fixture_dir")
+                mkdir -p "dist/fixtures/$fixture_name"
+
+                # Copy deploy.sql (compiled fixture)
+                if [[ -f "$fixture_dir/deploy.sql" ]]; then
+                    cp "$fixture_dir/deploy.sql" "dist/fixtures/$fixture_name/"
+                fi
+
+                # Copy template.json (metadata needed for dependency resolution)
+                if [[ -f "$fixture_dir/template.json" ]]; then
+                    cp "$fixture_dir/template.json" "dist/fixtures/$fixture_name/"
+                fi
+            fi
+        done
+
+        log_info "Copied $(find fixtures -name 'deploy.sql' | wc -l | tr -d ' ') compiled fixtures"
+    fi
+
+    # Step 6: Validation
     log_info "Validating compilation output..."
 
     if [[ ! -f "dist/index.js" ]]; then
@@ -111,6 +137,7 @@ main() {
     log_info "  Metadata files: $(find dist/describedata -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  Documentation files: $(find dist -name 'PUBLIC.md' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  SQL files: $(find dist/sql -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')"
+    log_info "  Fixture files: $(find dist/fixtures -name 'deploy.sql' 2>/dev/null | wc -l | tr -d ' ')"
 
     log_info "Compilation completed successfully!"
 }

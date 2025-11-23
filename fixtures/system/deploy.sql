@@ -1,5 +1,5 @@
 -- Compiled Fixture: system
--- Generated: 2025-11-23T15:32:30.391Z
+-- Generated: 2025-11-23T17:41:10.236Z
 -- Parameters: :database, :schema
 --
 -- Usage:

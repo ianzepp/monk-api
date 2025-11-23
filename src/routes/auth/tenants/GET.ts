@@ -36,7 +36,7 @@ export default async function (context: Context) {
     // Query all active tenants (excluding templates and trashed)
     const result = await mainPool.query(
         `
-        SELECT name, database, description
+        SELECT name, database, schema, description
         FROM tenants
         WHERE is_active = true
           AND trashed_at IS NULL
@@ -45,15 +45,14 @@ export default async function (context: Context) {
         `
     );
 
-    // For each tenant, fetch available usernames from their database
+    // For each tenant, fetch available usernames from their namespace
     const tenantsWithUsers = await Promise.all(
         result.rows.map(async (row) => {
             try {
-                // Get connection to tenant database
-                const tenantPool = DatabaseConnection.getTenantPool(row.database);
-
                 // Query active users (non-deleted), limit to 10, oldest first
-                const usersResult = await tenantPool.query(
+                const usersResult = await DatabaseConnection.queryInNamespace(
+                    row.database,
+                    row.schema,
                     `
                     SELECT auth
                     FROM users
@@ -73,7 +72,7 @@ export default async function (context: Context) {
                     users: users,
                 };
             } catch (error) {
-                // If tenant database is unreachable, return empty users array
+                // If tenant namespace is unreachable, return empty users array
                 return {
                     name: row.name,
                     description: row.description || null,

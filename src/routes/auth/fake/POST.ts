@@ -1,8 +1,7 @@
 import type { Context } from 'hono';
-import { sign } from 'hono/jwt';
 import { setRouteResult } from '@src/lib/middleware/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
+import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
 /**
  * POST /api/auth/fake - Impersonate another user (root only)
@@ -89,27 +88,24 @@ export default async function (context: Context) {
     }
 
     // Generate fake JWT with 1-hour expiration
-    const payload: JWTPayload = {
-        sub: targetUser.id,
-        user_id: targetUser.id,
-        tenant: currentJwt.tenant,
-        database: currentJwt.database,
-        access: targetUser.access,
-        access_read: targetUser.access_read || [],
-        access_edit: targetUser.access_edit || [],
-        access_full: targetUser.access_full || [],
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
-        // Target user gets is_sudo if they're root
-        is_sudo: targetUser.access === 'root',
-        // Fake/impersonation metadata for audit trail
-        is_fake: true,
-        faked_by_user_id: currentUser.id,
-        faked_by_username: currentUser.name,
-        faked_at: new Date().toISOString(),
-    };
-
-    const fakeToken = await sign(payload, process.env['JWT_SECRET']!);
+    const fakeToken = await JWTGenerator.generateFakeToken(
+        {
+            id: targetUser.id,
+            access: targetUser.access,
+            access_read: targetUser.access_read || [],
+            access_edit: targetUser.access_edit || [],
+            access_full: targetUser.access_full || [],
+        },
+        {
+            tenant: currentJwt.tenant,
+            dbName: currentJwt.db, // Extract from JWT compact field
+            nsName: currentJwt.ns, // Extract from JWT compact field
+        },
+        {
+            faked_by_user_id: currentUser.id,
+            faked_by_username: currentUser.name,
+        }
+    );
 
     // Log impersonation for security audit
     console.warn('User impersonation granted', {

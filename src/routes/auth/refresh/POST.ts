@@ -48,7 +48,7 @@ export default async function (context: Context) {
     // Verify tenant still exists and is active
     const authDb = DatabaseConnection.getMainPool();
     const tenantResult = await authDb.query(
-        'SELECT name, database FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
+        'SELECT name, database, schema FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
         [payload.tenant]
     );
 
@@ -63,11 +63,12 @@ export default async function (context: Context) {
         );
     }
 
-    const { name: tenantName, database } = tenantResult.rows[0];
+    const { name: tenantName, database: dbName, schema: nsName } = tenantResult.rows[0];
 
     // Verify user still exists and is not deleted
-    const tenantDb = DatabaseConnection.getTenantPool(database);
-    const userResult = await tenantDb.query(
+    const userResult = await DatabaseConnection.queryInNamespace(
+        dbName,
+        nsName,
         'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
         [payload.sub]
     );
@@ -90,7 +91,8 @@ export default async function (context: Context) {
         sub: user.id,
         user_id: user.id,
         tenant: tenantName,
-        database: database,
+        db: dbName, // Compact JWT field
+        ns: nsName, // Compact JWT field
         access: user.access,
         access_read: user.access_read || [],
         access_edit: user.access_edit || [],
@@ -116,7 +118,6 @@ export default async function (context: Context) {
                 id: user.id,
                 username: user.name,
                 tenant: tenantName,
-                database: database,
                 access: user.access,
                 ...(newPayload.format && { format: newPayload.format }),
             },

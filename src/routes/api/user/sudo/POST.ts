@@ -1,8 +1,7 @@
 import type { Context } from 'hono';
-import { sign } from 'hono/jwt';
 import { setRouteResult } from '@src/lib/middleware/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
+import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
 /**
  * POST /api/user/sudo - Elevate user privileges to sudo level
@@ -35,26 +34,20 @@ export default async function (context: Context) {
     const { reason } = await context.req.json().catch(() => ({ reason: 'Administrative operation' }));
 
     // Generate short-lived sudo token (15 minutes)
-    // Keep original access level, just set is_sudo=true
-    const payload: JWTPayload = {
-        sub: user.id,
-        user_id: user.id,
-        tenant: user.tenant,
-        database: user.database,
-        access: user.access, // Keep original access level (root or full)
-        access_read: user.access_read || [],
-        access_edit: user.access_edit || [],
-        access_full: user.access_full || [],
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 900, // 15 minutes
-        // Sudo elevation metadata
-        is_sudo: true,
-        elevated_from: user.access,
-        elevated_at: new Date().toISOString(),
-        elevation_reason: reason
-    };
-
-    const sudoToken = await sign(payload, process.env['JWT_SECRET']!);
+    const sudoToken = await JWTGenerator.generateSudoToken(
+        {
+            id: user.id,
+            user_id: user.id,
+            tenant: user.tenant,
+            dbName: user.db, // Extract from JWT compact field
+            nsName: user.ns, // Extract from JWT compact field
+            access: user.access,
+            access_read: user.access_read || [],
+            access_edit: user.access_edit || [],
+            access_full: user.access_full || [],
+        },
+        { reason }
+    );
 
     // Log sudo escalation for security audit
     console.warn('Sudo elevation granted', {

@@ -1,5 +1,5 @@
 -- Compiled Fixture: demo
--- Generated: 2025-11-23T15:17:45.266Z
+-- Generated: 2025-11-23T17:41:22.244Z
 -- Parameters: :database, :schema
 --
 -- Usage:

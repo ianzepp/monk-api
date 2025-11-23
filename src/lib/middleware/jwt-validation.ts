@@ -13,7 +13,8 @@ export interface JWTPayload {
     sub: string;
     user_id: string | null;
     tenant: string;
-    database: string;
+    db: string; // Database name (compact JWT field: db_main, db_test, etc.)
+    ns: string; // Namespace name (compact JWT field: ns_tenant_<hash-8>)
     access: string;
     access_read: string[];
     access_edit: string[];
@@ -56,7 +57,8 @@ export async function jwtValidationMiddleware(context: Context, next: Next) {
         // Store JWT payload and context values
         context.set('jwtPayload', payload);
         context.set('tenant', payload.tenant);
-        context.set('database', payload.database);
+        context.set('dbName', payload.db); // Extract from compact JWT field
+        context.set('nsName', payload.ns); // Extract from compact JWT field
 
         // Add isSudo() helper to context
         // Checks if user has sudo access via any method:
