@@ -2,7 +2,7 @@
 set -e
 
 # Find API Where Array Operators Test
-# Tests $in, $nin array membership operators with POST /api/find/:schema
+# Tests $in, $nin array membership operators with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

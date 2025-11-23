@@ -34,14 +34,14 @@ system (no parent)
 
 When building a template:
 - If `parent: null` → Builds from scratch
-- If `parent: "system"` → Clones from `monk_template_system` then adds schemas/data
+- If `parent: "system"` → Clones from `monk_template_system` then adds models/data
 
 ### Available Templates
 
-| Template | Parent | Schemas | Purpose | Build Time |
+| Template | Parent | Models | Purpose | Build Time |
 |----------|--------|---------|---------|------------|
-| `system` | none | 4 core | Base infrastructure (schemas, columns, users, history) | ~0.3s |
-| `testing` | `system` | +2 | Test suite with account/contact schemas | ~0.1s |
+| `system` | none | 4 core | Base infrastructure (models, fields, users, history) | ~0.3s |
+| `testing` | `system` | +2 | Test suite with account/contact models | ~0.1s |
 | `demo` | `system` | +12 | Demo environment with workspaces, teams, repos, etc. | ~0.2s |
 
 ## Fixture Directory Structure
@@ -52,9 +52,9 @@ Each fixture directory must contain:
 fixtures/TEMPLATE_NAME/
 ├── template.json          # Required - Template metadata
 ├── load.sql              # Required - Load script
-├── describe/             # Schema definitions (SQL)
-│   ├── schema1.sql
-│   └── schema2.sql
+├── describe/             # Model definitions (SQL)
+│   ├── model1.sql
+│   └── model2.sql
 └── data/                 # Sample data (SQL)
     ├── data1.sql
     └── data2.sql
@@ -65,10 +65,10 @@ fixtures/TEMPLATE_NAME/
 ```json
 {
   "name": "testing",
-  "description": "Testing template with sample schemas",
+  "description": "Testing template with sample models",
   "parent": "system",
   "version": "1.0.0",
-  "schemas": 2,
+  "models": 2,
   "sample_data": true,
   "features": ["account-management", "contact-management"]
 }
@@ -81,7 +81,7 @@ fixtures/TEMPLATE_NAME/
 
 **Optional Fields:**
 - `version` - Template version
-- `schemas` - Number of additional schemas (not counting system)
+- `models` - Number of additional models (not counting system)
 - `sample_data` - Whether template includes data
 - `features` - Array of feature tags
 - `is_system` - Mark as system template (true for system fixture only)
@@ -94,7 +94,7 @@ The `load.sql` file orchestrates loading in correct dependency order:
 -- Phase 1: User initialization (if needed)
 \ir init.sql
 
--- Phase 2: Schema definitions
+-- Phase 2: Model definitions
 \ir describe/workspaces.sql
 \ir describe/teams.sql
 \ir describe/members.sql
@@ -106,7 +106,7 @@ The `load.sql` file orchestrates loading in correct dependency order:
 
 **Best Practices:**
 - Use `\echo` statements to show progress
-- Load schemas in dependency order (foreign keys)
+- Load models in dependency order (foreign keys)
 - Number data files for clarity (01-, 02-, etc.)
 - Comment phases for maintainability
 
@@ -134,7 +134,7 @@ CREATE TABLE templates (
     database VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
     is_system BOOLEAN DEFAULT false,
-    schema_count INTEGER,
+    model_count INTEGER,
     created_at TIMESTAMP DEFAULT NOW()
 );
 ```
@@ -147,9 +147,9 @@ CREATE TABLE templates (
 
 The `system` template is the foundation:
 - **Parent:** `null` (builds from scratch)
-- **Contains:** 4 core schemas (schemas, columns, users, history)
+- **Contains:** 4 core models (models, fields, users, history)
 - **File:** `fixtures/system/load.sql`
-- **Status:** All 4 schemas have `status='system'` for protection
+- **Status:** All 4 models have `status='system'` for protection
 
 ### Extending Templates
 
@@ -159,13 +159,13 @@ Child templates clone from parent then add features:
 # Build system first
 npm run fixtures:build system
 
-# Build testing (clones system, adds account/contact schemas)
+# Build testing (clones system, adds account/contact models)
 npm run fixtures:build testing
 ```
 
 This approach:
 - ✅ Faster builds (clone vs create from scratch)
-- ✅ Consistent base schemas across all templates
+- ✅ Consistent base models across all templates
 - ✅ Modular feature additions
 - ✅ Easy to maintain
 
@@ -174,14 +174,14 @@ This approach:
 ### What Changed
 
 **Before:**
-- `sql/init-tenant.sql` created base schemas
+- `sql/init-tenant.sql` created base models
 - `fixtures-build.sh` ran init-tenant.sql then loaded fixtures
 - Templates marked as `tenant_type='template'` in `tenants` table
 
 **After:**
 - `fixtures/infrastructure/init.sql` creates main database structure with versioning
-- `fixtures/system/load.sql` creates base schemas
-- `fixtures/system/version.txt` tracks template schema version
+- `fixtures/system/load.sql` creates base models
+- `fixtures/system/version.txt` tracks template model version
 - Templates use `parent` property for inheritance
 - Templates registered in separate `templates` table with version tracking
 
@@ -209,12 +209,12 @@ mkdir -p fixtures/my_template/{describe,data}
   "description": "My custom template",
   "parent": "system",
   "version": "1.0.0",
-  "schemas": 3,
+  "models": 3,
   "sample_data": true
 }
 ```
 
-### Step 3: Create Schema Definitions
+### Step 3: Create Model Definitions
 
 ```sql
 -- fixtures/my_template/describe/products.sql
@@ -224,7 +224,7 @@ CREATE TABLE products (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-INSERT INTO schemas (schema_name, status)
+INSERT INTO models (model_name, status)
 VALUES ('products', 'active');
 ```
 

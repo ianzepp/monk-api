@@ -6,7 +6,7 @@
 -- Extends: system template
 --
 -- Load Order:
--- 1. Schema definitions (describe/*.sql) - ordered by dependencies
+-- 1. Model definitions (describe/*.sql) - ordered by dependencies
 -- 2. Sample data (data/*.sql) - numbered for dependency order
 
 \echo ''
@@ -15,36 +15,36 @@
 \echo '=========================================='
 \echo ''
 
--- Phase 1: Schema definitions (ordered by foreign key dependencies)
-\echo '→ Phase 1: Schema definitions'
+-- Phase 1: Model definitions (ordered by foreign key dependencies)
+\echo '→ Phase 1: Model definitions'
 
--- Base schemas (no dependencies)
+-- Base models (no dependencies)
 \ir describe/workspaces.sql
 \ir describe/teams.sql
 
--- Member schema (depends on workspaces, teams)
+-- Member model (depends on workspaces, teams)
 \ir describe/members.sql
 
--- Repository schemas (depend on workspaces)
+-- Repository models (depend on workspaces)
 \ir describe/repositories.sql
 \ir describe/releases.sql
 
--- Project and task schemas (depend on workspaces, repositories)
+-- Project and task models (depend on workspaces, repositories)
 \ir describe/projects.sql
 \ir describe/tasks.sql
 
--- Issue schemas (depend on repositories)
+-- Issue models (depend on repositories)
 \ir describe/issues.sql
 \ir describe/issue_comments.sql
 
--- Communication schemas (depend on workspaces, members)
+-- Communication models (depend on workspaces, members)
 \ir describe/conversations.sql
 \ir describe/messages.sql
 
--- Documentation schema (depends on workspaces)
+-- Documentation model (depends on workspaces)
 \ir describe/docs.sql
 
-\echo '✓ Schemas loaded: 12'
+\echo '✓ Models loaded: 12'
 \echo ''
 
 -- Phase 2: Sample data (numbered for dependency order)

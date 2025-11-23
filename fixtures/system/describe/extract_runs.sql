@@ -1,5 +1,5 @@
 -- ============================================================================
--- SCHEMA: extract_runs
+-- MODEL: extract_runs
 -- ============================================================================
 -- Individual execution runs of extract jobs
 
@@ -31,7 +31,7 @@ CREATE TABLE "extract_runs" (
 
 	-- Results
 	"records_exported" integer DEFAULT 0,
-	"schemas_exported" integer DEFAULT 0,
+	"models_exported" integer DEFAULT 0,
 	"artifacts_created" integer DEFAULT 0,
 	"total_size_bytes" bigint DEFAULT 0,
 

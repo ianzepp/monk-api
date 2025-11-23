@@ -1,10 +1,10 @@
-# GET /api/data/:schema/:record
+# GET /api/data/:model/:record
 
 Retrieve a single record by its UUID, including all fields, system metadata, and optional trashed/permanently deleted states. This endpoint is ideal for detail pages, edit forms, or any view that needs the complete authoritative state of a specific record.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 - `:record` - Record UUID (required)
 
 ## Query Parameters
@@ -43,7 +43,7 @@ None - GET request with no body.
 
 ### Response Fields
 
-- All schema-defined fields
+- All model-defined fields
 - **id** - Record UUID
 - **created_at** - Timestamp when record was created
 - **updated_at** - Timestamp when record was last modified
@@ -57,7 +57,7 @@ None - GET request with no body.
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist or is inaccessible |
 
 ## Example Usage
@@ -267,17 +267,17 @@ This endpoint respects Access Control Lists (ACLs):
 - Returns 404 if user lacks read permission (does not reveal record existence)
 - Root users bypass ACL checks
 
-## Schema Protection
+## Model Protection
 
-This endpoint respects schema-level protection:
+This endpoint respects model-level protection:
 
-- **Frozen schemas** (`frozen=true`): Read operations are **allowed**
-- **Sudo-protected schemas** (`sudo=true`): No special requirements for read operations
-- **Immutable schemas/fields**: No restrictions on read operations
+- **Frozen models** (`frozen=true`): Read operations are **allowed**
+- **Sudo-protected models** (`sudo=true`): No special requirements for read operations
+- **Immutable models/fields**: No restrictions on read operations
 
 ## Related Endpoints
 
-- [`PUT /api/data/:schema/:record`](PUT.md) - Update single record
-- [`DELETE /api/data/:schema/:record`](DELETE.md) - Delete single record
-- [`GET /api/data/:schema`](../:schema/GET.md) - Query all records in schema
-- [`POST /api/find/:schema`](../../find/:schema/POST.md) - Advanced queries with filtering
+- [`PUT /api/data/:model/:record`](PUT.md) - Update single record
+- [`DELETE /api/data/:model/:record`](DELETE.md) - Delete single record
+- [`GET /api/data/:model`](../:model/GET.md) - Query all records in model
+- [`POST /api/find/:model`](../../find/:model/POST.md) - Advanced queries with filtering

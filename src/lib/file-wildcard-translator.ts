@@ -2,19 +2,19 @@
  * WildcardTranslator - Advanced Wildcard Translation Engine
  *
  * Converts FS filesystem patterns into efficient database queries using enhanced Filter operators.
- * Supports complex patterns including multiple wildcards, cross-schema operations, and pattern alternatives.
+ * Supports complex patterns including multiple wildcards, cross-model operations, and pattern alternatives.
  *
  * ## Pattern Support
  * - Simple wildcards: prefix matching and suffix patterns
  * - Multiple wildcards: complex patterns with multiple wildcard components
- * - Cross-schema: patterns spanning multiple database schemas
+ * - Cross-model: patterns spanning multiple database models
  * - Pattern alternatives: alternative pattern matching with OR logic
  * - Range patterns: numeric and date range expansion
  *
  * ## Performance Features
  * - Query optimization: Converts complex patterns to index-friendly operations
  * - Pattern caching: Caches translated patterns for repeated operations
- * - Batch processing: Combines multiple cross-schema operations
+ * - Batch processing: Combines multiple cross-model operations
  * - Parameter management: Efficient SQL parameterization for complex queries
  */
 
@@ -31,9 +31,9 @@ export interface WhereCondition {
 import { FilterOp } from '@src/lib/filter-types.js';
 
 export interface WildcardTranslation {
-    schemas: string[]; // Affected schemas
+    models: string[]; // Affected models
     filter: FilterData; // Database filter using enhanced operators
-    cross_schema: boolean; // Requires multiple schema queries
+    cross_model: boolean; // Requires multiple model queries
     complexity: 'simple' | 'complex' | 'cross';
     optimization_applied: string[]; // Applied optimization techniques
     estimated_cost: number; // Query complexity estimate (1-100)
@@ -49,10 +49,10 @@ export interface PatternComponent {
     range_end?: string;
 }
 
-export interface CrossSchemaQuery {
-    schemas: string[];
+export interface CrossModelQuery {
+    models: string[];
     shared_filter: FilterData;
-    schema_specific_filters: { [schema: string]: FilterData };
+    model_specific_filters: { [model: string]: FilterData };
 }
 
 /**
@@ -75,9 +75,9 @@ export class WildcardTranslator {
         // Skip root-level paths that don't contain data operations
         if (parts.length === 0 || (parts.length === 1 && (parts[0] === 'data' || parts[0] === 'describe'))) {
             return {
-                schemas: [],
+                models: [],
                 filter: {},
-                cross_schema: false,
+                cross_model: false,
                 complexity: 'simple',
                 optimization_applied: [],
                 estimated_cost: 1,
@@ -87,19 +87,19 @@ export class WildcardTranslator {
         // Handle different path structures
         if (parts[0] === 'data') {
             if (parts.length === 2) {
-                // /data/schema or /data/* (schema-level wildcards)
-                return this.translateSchemaLevel(parts[1]);
+                // /data/model or /data/* (model-level wildcards)
+                return this.translateModelLevel(parts[1]);
             } else if (parts.length >= 3) {
-                // /data/schema/record or complex patterns
+                // /data/model/record or complex patterns
                 return this.translateRecordLevel(parts[1], parts.slice(2));
             }
         }
 
         // Default fallback for unrecognized patterns
         return {
-            schemas: [],
+            models: [],
             filter: {},
-            cross_schema: false,
+            cross_model: false,
             complexity: 'simple',
             optimization_applied: ['fallback'],
             estimated_cost: 1,
@@ -107,41 +107,41 @@ export class WildcardTranslator {
     }
 
     /**
-     * Handle schema-level wildcard patterns: /data/* or /data/user*
+     * Handle model-level wildcard patterns: /data/* or /data/user*
      */
-    private static translateSchemaLevel(schemaPattern: string): WildcardTranslation {
-        const components = this.parsePatternComponents(schemaPattern);
+    private static translateModelLevel(modelPattern: string): WildcardTranslation {
+        const components = this.parsePatternComponents(modelPattern);
 
         if (components.some(c => c.type === 'wildcard')) {
-            // Cross-schema wildcard: /data/*
-            if (schemaPattern === '*') {
+            // Cross-model wildcard: /data/*
+            if (modelPattern === '*') {
                 return {
-                    schemas: ['*'], // Special marker for all schemas
+                    models: ['*'], // Special marker for all models
                     filter: {},
-                    cross_schema: true,
+                    cross_model: true,
                     complexity: 'cross',
-                    optimization_applied: ['cross_schema_all'],
+                    optimization_applied: ['cross_model_all'],
                     estimated_cost: 80,
                 };
             } else {
-                // Schema name pattern: /data/user*
+                // Model name pattern: /data/user*
                 return {
-                    schemas: [schemaPattern], // Will be resolved at runtime
+                    models: [modelPattern], // Will be resolved at runtime
                     filter: {},
-                    cross_schema: true,
+                    cross_model: true,
                     complexity: 'complex',
-                    optimization_applied: ['schema_name_pattern'],
+                    optimization_applied: ['model_name_pattern'],
                     estimated_cost: 60,
                 };
             }
         } else {
-            // Literal schema name: /data/users
+            // Literal model name: /data/users
             return {
-                schemas: [schemaPattern],
+                models: [modelPattern],
                 filter: {},
-                cross_schema: false,
+                cross_model: false,
                 complexity: 'simple',
-                optimization_applied: ['literal_schema'],
+                optimization_applied: ['literal_model'],
                 estimated_cost: 10,
             };
         }
@@ -150,7 +150,7 @@ export class WildcardTranslator {
     /**
      * Handle record-level and field-level wildcard patterns
      */
-    private static translateRecordLevel(schema: string, pathParts: string[]): WildcardTranslation {
+    private static translateRecordLevel(model: string, pathParts: string[]): WildcardTranslation {
         const filters: any[] = [];
         const optimizations: string[] = [];
         let complexity: 'simple' | 'complex' | 'cross' = 'simple';
@@ -188,9 +188,9 @@ export class WildcardTranslator {
         }
 
         return {
-            schemas: [schema],
+            models: [model],
             filter: combinedFilter,
-            cross_schema: false,
+            cross_model: false,
             complexity,
             optimization_applied: optimizations,
             estimated_cost: Math.min(estimatedCost, 100),
@@ -488,17 +488,17 @@ export class WildcardTranslator {
     }
 
     /**
-     * Cross-schema wildcard support
+     * Cross-model wildcard support
      */
-    static translateCrossSchema(pattern: string): WildcardTranslation[] {
+    static translateCrossModel(pattern: string): WildcardTranslation[] {
         const translation = this.translatePath(pattern);
 
-        if (!translation.cross_schema) {
+        if (!translation.cross_model) {
             return [translation];
         }
 
-        // For cross-schema operations, we need to return multiple translations
-        // This would be expanded based on available schemas at runtime
+        // For cross-model operations, we need to return multiple translations
+        // This would be expanded based on available models at runtime
         return [translation];
     }
 
@@ -541,39 +541,39 @@ export class WildcardTranslator {
      */
     private static convertToIndexFriendly(filter: FilterData): void {
         // This would convert patterns like "%value" to more index-friendly alternatives
-        // when the database schema supports it
+        // when the database model supports it
     }
 
     /**
-     * Batch cross-schema queries for performance
+     * Batch cross-model queries for performance
      */
-    static batchCrossSchemaQueries(translations: WildcardTranslation[]): WildcardTranslation[] {
+    static batchCrossModelQueries(translations: WildcardTranslation[]): WildcardTranslation[] {
         const batched: WildcardTranslation[] = [];
-        const crossSchemaGroups: { [key: string]: WildcardTranslation[] } = {};
+        const crossModelGroups: { [key: string]: WildcardTranslation[] } = {};
 
         for (const translation of translations) {
-            if (translation.cross_schema) {
+            if (translation.cross_model) {
                 const key = JSON.stringify(translation.filter);
-                if (!crossSchemaGroups[key]) {
-                    crossSchemaGroups[key] = [];
+                if (!crossModelGroups[key]) {
+                    crossModelGroups[key] = [];
                 }
-                crossSchemaGroups[key].push(translation);
+                crossModelGroups[key].push(translation);
             } else {
                 batched.push(translation);
             }
         }
 
-        // Combine cross-schema translations with identical filters
-        for (const group of Object.values(crossSchemaGroups)) {
+        // Combine cross-model translations with identical filters
+        for (const group of Object.values(crossModelGroups)) {
             if (group.length === 1) {
                 batched.push(group[0]);
             } else {
                 const combined: WildcardTranslation = {
-                    schemas: group.flatMap(t => t.schemas),
+                    models: group.flatMap(t => t.models),
                     filter: group[0].filter,
-                    cross_schema: true,
+                    cross_model: true,
                     complexity: 'cross',
-                    optimization_applied: [...group[0].optimization_applied, 'batched_cross_schema'],
+                    optimization_applied: [...group[0].optimization_applied, 'batched_cross_model'],
                     estimated_cost: Math.max(...group.map(t => t.estimated_cost)),
                 };
                 batched.push(combined);

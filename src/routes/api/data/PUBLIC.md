@@ -1,6 +1,6 @@
 # Data API
 
-The Data API provides CRUD operations for schema records, supporting both bulk operations and single-record manipulation. All operations support soft delete functionality with optional permanent delete capabilities.
+The Data API provides CRUD operations for model records, supporting both bulk operations and single-record manipulation. All operations support soft delete functionality with optional permanent delete capabilities.
 
 ## Base Path
 
@@ -36,33 +36,33 @@ See individual endpoint documentation for detailed examples.
 
 ## Endpoints
 
-### Bulk Operations (Schema-Level)
+### Bulk Operations (Model-Level)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/data/:schema`](:schema/GET.md) | Query all records in a schema with optional filtering for trashed/deleted records. |
-| POST | [`/api/data/:schema`](:schema/POST.md) | Create one or more records in a schema with full observer pipeline validation. |
-| PUT | [`/api/data/:schema`](:schema/PUT.md) | Update multiple records by ID, or use PATCH + include_trashed=true to revert trashed records. |
-| DELETE | [`/api/data/:schema`](:schema/DELETE.md) | Soft delete or permanently remove multiple records (permanent=true requires root). |
+| GET | [`/api/data/:model`](:model/GET.md) | Query all records in a model with optional filtering for trashed/deleted records. |
+| POST | [`/api/data/:model`](:model/POST.md) | Create one or more records in a model with full observer pipeline validation. |
+| PUT | [`/api/data/:model`](:model/PUT.md) | Update multiple records by ID, or use PATCH + include_trashed=true to revert trashed records. |
+| DELETE | [`/api/data/:model`](:model/DELETE.md) | Soft delete or permanently remove multiple records (permanent=true requires root). |
 
 ### Single Record Operations
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/data/:schema/:record`](:schema/:record/GET.md) | Retrieve a single record by UUID with optional trashed/deleted metadata. |
-| PUT | [`/api/data/:schema/:record`](:schema/:record/PUT.md) | Update a single record (full replacement or partial patch). |
-| DELETE | [`/api/data/:schema/:record`](:schema/:record/DELETE.md) | Soft delete or permanently remove a single record (permanent=true requires root). |
+| GET | [`/api/data/:model/:record`](:model/:record/GET.md) | Retrieve a single record by UUID with optional trashed/deleted metadata. |
+| PUT | [`/api/data/:model/:record`](:model/:record/PUT.md) | Update a single record (full replacement or partial patch). |
+| DELETE | [`/api/data/:model/:record`](:model/:record/DELETE.md) | Soft delete or permanently remove a single record (permanent=true requires root). |
 
 ### Relationship Operations
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/data/:schema/:record/:relationship`](:schema/:record/:relationship/GET.md) | List all child records for a parent relationship. |
-| POST | [`/api/data/:schema/:record/:relationship`](:schema/:record/:relationship/POST.md) | Create a child record with automatic parent foreign key assignment. |
-| DELETE | [`/api/data/:schema/:record/:relationship`](:schema/:record/:relationship/DELETE.md) | Remove or detach multiple child records from parent. |
-| GET | [`/api/data/:schema/:record/:relationship/:child`](:schema/:record/:relationship/:child/GET.md) | Fetch a specific child record through parent relationship. |
-| PUT | [`/api/data/:schema/:record/:relationship/:child`](:schema/:record/:relationship/:child/PUT.md) | Update a specific child record while preserving parent relationship. |
-| DELETE | [`/api/data/:schema/:record/:relationship/:child`](:schema/:record/:relationship/:child/DELETE.md) | Soft delete or permanently remove a specific child record. |
+| GET | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/GET.md) | List all child records for a parent relationship. |
+| POST | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/POST.md) | Create a child record with automatic parent foreign key assignment. |
+| DELETE | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/DELETE.md) | Remove or detach multiple child records from parent. |
+| GET | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/GET.md) | Fetch a specific child record through parent relationship. |
+| PUT | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/PUT.md) | Update a specific child record while preserving parent relationship. |
+| DELETE | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/DELETE.md) | Soft delete or permanently remove a specific child record. |
 
 ## Delete Operations
 
@@ -93,15 +93,15 @@ PATCH /api/data/users?include_trashed=true
 PATCH /api/data/users/user-1?include_trashed=true
 ```
 
-## Schema Protection
+## Model Protection
 
-Data operations respect schema-level and field-level protection:
+Data operations respect model-level and field-level protection:
 
-- **Frozen schemas** (`frozen=true`) - Block all write operations (POST/PUT/DELETE), allow reads
-- **Sudo-protected schemas** (`sudo=true`) - Require sudo token from `POST /api/user/sudo`
+- **Frozen models** (`frozen=true`) - Block all write operations (POST/PUT/DELETE), allow reads
+- **Sudo-protected models** (`sudo=true`) - Require sudo token from `POST /api/user/sudo`
 - **Sudo-protected fields** - Individual fields marked `sudo=true` require sudo token to modify
-- **Immutable schemas** (`schemas.immutable=true`) - Records can be created once but never modified
-- **Immutable fields** (`columns.immutable=true`) - Fields can be set once during creation but never modified
+- **Immutable models** (`models.immutable=true`) - Records can be created once but never modified
+- **Immutable fields** (`fields.immutable=true`) - Fields can be set once during creation but never modified
 
 ## Quick Start
 
@@ -169,7 +169,7 @@ curl -X DELETE "http://localhost:9001/api/data/users?permanent=true" \
 
 ## Related Documentation
 
-- **Describe API**: [`../describe/PUBLIC.md`](../describe/PUBLIC.md) - Schema management and metadata
+- **Describe API**: [`../describe/PUBLIC.md`](../describe/PUBLIC.md) - Model management and metadata
 - **Find API**: [`../find/PUBLIC.md`](../find/PUBLIC.md) - Advanced queries with filtering, sorting, and pagination
-- **Bulk API**: [`../bulk/PUBLIC.md`](../bulk/PUBLIC.md) - Multi-schema batch operations
+- **Bulk API**: [`../bulk/PUBLIC.md`](../bulk/PUBLIC.md) - Multi-model batch operations
 - **User API**: `/docs/user` - User identity and sudo token management

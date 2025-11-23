@@ -4,18 +4,18 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
- * PUT /api/describe/:schema/columns/:column
+ * PUT /api/describe/:model/fields/:field
  *
- * Update an existing column in Monk-native format
+ * Update an existing field in Monk-native format
  *
- * Request body: Column definition updates in Monk format
- * @returns Updated column record from columns table
+ * Request body: Field definition updates in Monk format
+ * @returns Updated field record from fields table
  */
-export default withTransactionParams(async (context, { system, schema, column, body }) => {
-    const result = await system.describe.columns.update404(
-        { where: { schema_name: schema, column_name: column } },
+export default withTransactionParams(async (context, { system, model, field, body }) => {
+    const result = await system.describe.fields.update404(
+        { where: { model_name: model, field_name: field } },
         body,
-        `Column '${column}' not found in schema '${schema}'`
+        `Field '${field}' not found in model '${model}'`
     );
 
     // Strip system fields before returning

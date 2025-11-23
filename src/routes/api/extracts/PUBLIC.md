@@ -1,6 +1,6 @@
 # Extract Application
 
-Execute data extraction jobs to export schemas and data with background processing and downloadable artifacts.
+Execute data extraction jobs to export models and data with background processing and downloadable artifacts.
 
 ## Base Path
 Extract execution and download endpoints use: `/api/extracts`
@@ -106,7 +106,7 @@ Content-Disposition: attachment; filename="ExtractName-2025-01-19-abc12345.zip"
 **ZIP Contents:**
 ```
 ExtractName-2025-01-19-abc12345.zip
-├── describe.yaml          # Schema and column definitions
+├── describe.yaml          # Model and field definitions
 ├── users.jsonl            # User data (one JSON object per line)
 ├── orders.jsonl           # Order data
 ├── products.jsonl         # Product data
@@ -175,10 +175,10 @@ POST /api/data/extracts
 ```json
 {
   "name": "Daily Backup",
-  "description": "Full export of all schemas and data",
+  "description": "Full export of all models and data",
   "format": "jsonl",
   "include": ["describe", "data"],
-  "schemas": ["users", "orders", "products"],
+  "models": ["users", "orders", "products"],
   "retention_days": 7,
   "enabled": true
 }
@@ -192,10 +192,10 @@ POST /api/data/extracts
 | `description` | string | No | null | Optional notes |
 | `format` | string | No | 'jsonl' | Output format: yaml, json, jsonl, archive |
 | `include` | array | No | ['describe', 'data'] | What to export |
-| `schemas` | array | No | null | Specific schemas (null = all non-system) |
-| `filter` | object | No | null | Per-schema filters (future) |
+| `models` | array | No | null | Specific models (null = all non-system) |
+| `filter` | object | No | null | Per-model filters (future) |
 | `compress` | boolean | No | true | Gzip output (future) |
-| `split_files` | boolean | No | false | One file per schema (future) |
+| `split_files` | boolean | No | false | One file per model (future) |
 | `schedule` | string | No | null | Cron expression (future) |
 | `schedule_enabled` | boolean | No | false | Enable scheduling (future) |
 | `retention_days` | number | No | 7 | How long to keep artifacts |
@@ -255,14 +255,14 @@ GET /api/data/extract_runs/:runId
     "progress": 67,
     "progress_detail": {
       "phase": "exporting_data",
-      "schemas_total": 10,
-      "schemas_completed": 7,
-      "current_schema": "orders",
+      "models_total": 10,
+      "models_completed": 7,
+      "current_model": "orders",
       "records_exported": 25000
     },
     "started_at": "2025-01-19T10:00:00Z",
     "records_exported": 25000,
-    "schemas_exported": 7,
+    "models_exported": 7,
     "artifacts_created": 0,
     "created_at": "2025-01-19T10:00:00Z"
   }
@@ -277,8 +277,8 @@ The `progress_detail` field provides real-time execution status:
 ```json
 {
   "phase": "exported_describe",
-  "schemas_total": 10,
-  "schemas_completed": 0
+  "models_total": 10,
+  "models_completed": 0
 }
 ```
 
@@ -286,9 +286,9 @@ The `progress_detail` field provides real-time execution status:
 ```json
 {
   "phase": "exporting_data",
-  "schemas_total": 10,
-  "schemas_completed": 7,
-  "current_schema": "orders",
+  "models_total": 10,
+  "models_completed": 7,
+  "current_model": "orders",
   "records_exported": 25000
 }
 ```
@@ -303,8 +303,8 @@ Each extract run generates multiple artifacts. Query via Data API at `/api/data/
 
 | Type | Description | Format |
 |------|-------------|--------|
-| `describe` | Schema and column definitions | YAML |
-| `data-{schema}` | Data for specific schema | JSONL |
+| `describe` | Model and field definitions | YAML |
+| `data-{model}` | Data for specific model | JSONL |
 | `manifest` | Export metadata | JSON |
 
 ### List Artifacts for Run
@@ -406,7 +406,7 @@ curl http://localhost:9001/api/data/extract_runs/run_xyz789 \
     "progress": 67,
     "progress_detail": {
       "phase": "exporting_data",
-      "current_schema": "orders",
+      "current_model": "orders",
       "records_exported": 50000
     }
   }
@@ -421,7 +421,7 @@ curl http://localhost:9001/api/data/extract_runs/run_xyz789 \
     "status": "completed",
     "progress": 100,
     "records_exported": 125000,
-    "schemas_exported": 10,
+    "models_exported": 10,
     "artifacts_created": 12,
     "duration_seconds": 45
   }
@@ -519,7 +519,7 @@ GET /api/data/extract_runs?filter[where][status]=failed
 
 - Scheduled execution (cron)
 - Compression (gzip)
-- Split files (one per schema)
+- Split files (one per model)
 - Cloud storage (S3, GCS, Azure)
 - Incremental exports
-- Custom filters per schema
+- Custom filters per model

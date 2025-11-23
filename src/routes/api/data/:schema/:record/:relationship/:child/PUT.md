@@ -1,12 +1,12 @@
-# PUT /api/data/:schema/:record/:relationship/:child
+# PUT /api/data/:model/:record/:relationship/:child
 
 Update a specific child record while preserving its relationship to the parent. The server prevents reassignment to a different parent and ensures the foreign key remains intact throughout the update operation.
 
 ## Path Parameters
 
-- `:schema` - Parent schema name (required)
+- `:model` - Parent model name (required)
 - `:record` - Parent record UUID (required)
-- `:relationship` - Relationship name defined in child schema (required)
+- `:relationship` - Relationship name defined in child model (required)
 - `:child` - Child record UUID (required)
 
 ## Request Body
@@ -59,15 +59,15 @@ The updated child record includes:
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 403 | `SCHEMA_FROZEN` | "Schema is frozen" | Child schema has frozen=true |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid parent schema name |
+| 403 | `MODEL_FROZEN` | "Model is frozen" | Child model has frozen=true |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid parent model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Parent or child record does not exist, or child doesn't belong to parent |
-| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for schema '{schema}'" | Invalid relationship name or not an owned relationship |
+| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for model '{model}'" | Invalid relationship name or not an owned relationship |
 | 422 | Validation errors | Various | Observer validation failures |
 
 ## Relationship Requirements
 
-This endpoint only works with **owned relationships** defined in the child schema:
+This endpoint only works with **owned relationships** defined in the child model:
 
 ```json
 {
@@ -78,7 +78,7 @@ This endpoint only works with **owned relationships** defined in the child schem
       "type": "string",
       "x-monk-relationship": {
         "type": "owned",
-        "schema": "posts",
+        "model": "posts",
         "name": "comments"
       }
     }
@@ -242,7 +242,7 @@ Updates are **merged** with existing child record—only the fields you specify 
 Updated child records pass through the full observer pipeline:
 
 ### Pre-Update Observers
-- **Validation** - Schema validation, required fields, data types
+- **Validation** - Model validation, required fields, data types
 - **Security** - Check permissions, verify ACLs
 - **Business Logic** - Custom validation rules
 - **Immutability Check** - Prevent changes to immutable fields
@@ -331,20 +331,20 @@ async function moderateComment(postId, commentId, action) {
 }
 ```
 
-## Schema Protection
+## Model Protection
 
-### Frozen Child Schemas
+### Frozen Child Models
 
-Child schemas with `frozen=true` reject all update operations:
+Child models with `frozen=true` reject all update operations:
 
 ```bash
 PUT /api/data/posts/post-123/archived_comments/comment-456
-# Error 403: SCHEMA_FROZEN
+# Error 403: MODEL_FROZEN
 ```
 
-### Sudo-Protected Child Schemas
+### Sudo-Protected Child Models
 
-Child schemas with `sudo=true` require a sudo token:
+Child models with `sudo=true` require a sudo token:
 
 ```bash
 # Get sudo token first
@@ -438,7 +438,7 @@ Use the direct route when:
 
 ## Related Endpoints
 
-- [`GET /api/data/:schema/:record/:relationship/:child`](GET.md) - Get specific child record
-- [`DELETE /api/data/:schema/:record/:relationship/:child`](DELETE.md) - Delete specific child record
-- [`GET /api/data/:schema/:record/:relationship`](../GET.md) - List all child records
-- [`PUT /api/data/:schema/:record`](../../PUT.md) - Update parent record
+- [`GET /api/data/:model/:record/:relationship/:child`](GET.md) - Get specific child record
+- [`DELETE /api/data/:model/:record/:relationship/:child`](DELETE.md) - Delete specific child record
+- [`GET /api/data/:model/:record/:relationship`](../GET.md) - List all child records
+- [`PUT /api/data/:model/:record`](../../PUT.md) - Update parent record

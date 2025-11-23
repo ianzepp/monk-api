@@ -10,7 +10,7 @@ import { parseRange, validateRangeBounds, formatCells } from '@src/routes/api/gr
  * - Single cell: /api/grids/:id/A1
  * - Range: /api/grids/:id/A1:Z100
  * - Row: /api/grids/:id/5:5
- * - Column: /api/grids/:id/A:A
+ * - Field: /api/grids/:id/A:A
  *
  * Returns sparse array (only non-empty cells)
  */
@@ -82,11 +82,11 @@ function buildSelectQuery(gridId: string, range: any): { query: string; params: 
 
         case 'col':
             if (range.startCol === range.endCol) {
-                // Single column
+                // Single field
                 query += ` AND col = $${paramIndex}`;
                 params.push(range.col);
             } else {
-                // Column range
+                // Field range
                 query += ` AND col BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
                 params.push(range.startCol, range.endCol);
             }

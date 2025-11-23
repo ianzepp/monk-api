@@ -1,5 +1,5 @@
 -- ============================================================================
--- SCHEMA: history
+-- MODEL: history
 -- ============================================================================
 -- Change tracking and audit trail table
 
@@ -17,7 +17,7 @@ CREATE TABLE "history" (
 
 	-- History-specific fields
 	"change_id" bigserial NOT NULL,
-	"schema_name" text NOT NULL,
+	"model_name" text NOT NULL,
 	"record_id" uuid NOT NULL,
 	"operation" text NOT NULL,
 	"changes" jsonb NOT NULL,
@@ -27,4 +27,4 @@ CREATE TABLE "history" (
 );
 
 -- Composite index for efficient history queries
-CREATE INDEX idx_history_schema_record ON history(schema_name, record_id, change_id DESC);
+CREATE INDEX idx_history_model_record ON history(model_name, record_id, change_id DESC);

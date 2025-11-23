@@ -1,11 +1,11 @@
-# PUT /api/describe/:schema/columns/:column
+# PUT /api/describe/:model/fields/:field
 
-Update an existing column's properties. Supports both metadata-only updates (fast) and structural changes that trigger ALTER TABLE (slower).
+Update an existing field's properties. Supports both metadata-only updates (fast) and structural changes that trigger ALTER TABLE (slower).
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
-- `:column` - Column name (required)
+- `:model` - Model name (required)
+- `:field` - Field name (required)
 
 ## Query Parameters
 
@@ -22,7 +22,7 @@ None
 ```
 
 ### Metadata-Only Updates (Fast)
-These fields update only the columns table metadata:
+These fields update only the fields table metadata:
 - **description** - Human-readable description
 - **pattern** - Regular expression validation
 - **minimum** - Minimum value constraint
@@ -32,11 +32,11 @@ These fields update only the columns table metadata:
 - **sudo** - Sudo requirement for this field
 - **tracked** - Change tracking
 - **transform** - Data transformation
-- Relationship fields (relationship_type, related_schema, etc.)
+- Relationship fields (relationship_type, related_model, etc.)
 
 ### Structural Updates (ALTER TABLE)
 These fields trigger PostgreSQL ALTER TABLE:
-- **type** - Change column data type
+- **type** - Change field data type
 - **required** - Add/remove NOT NULL constraint
 - **default_value** - Add/change DEFAULT constraint
 - **unique** - Add/remove UNIQUE constraint
@@ -50,8 +50,8 @@ These fields trigger PostgreSQL ALTER TABLE:
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "schema_name": "users",
-    "column_name": "email",
+    "model_name": "users",
+    "field_name": "email",
     "type": "text",
     "required": true,
     "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
@@ -67,18 +67,18 @@ These fields trigger PostgreSQL ALTER TABLE:
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `NO_UPDATES` | "No valid fields to update" | Empty request body |
-| 400 | `INVALID_TYPE` | "Invalid column type" | Unsupported data type |
+| 400 | `INVALID_TYPE` | "Invalid field type" | Unsupported data type |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token |
-| 403 | `SCHEMA_PROTECTED` | "Schema is protected" | System schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema |
-| 404 | `COLUMN_NOT_FOUND` | "Column not found" | Invalid column |
+| 403 | `MODEL_PROTECTED` | "Model is protected" | System model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model |
+| 404 | `FIELD_NOT_FOUND` | "Field not found" | Invalid field |
 
 ## Example Usage
 
 ### Update Description (Metadata Only)
 
 ```bash
-curl -X PUT http://localhost:9001/api/describe/users/columns/email \
+curl -X PUT http://localhost:9001/api/describe/users/fields/email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -89,7 +89,7 @@ curl -X PUT http://localhost:9001/api/describe/users/columns/email \
 ### Update Validation Pattern
 
 ```bash
-curl -X PUT http://localhost:9001/api/describe/users/columns/email \
+curl -X PUT http://localhost:9001/api/describe/users/fields/email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -97,10 +97,10 @@ curl -X PUT http://localhost:9001/api/describe/users/columns/email \
   }'
 ```
 
-### Make Column Required (ALTER TABLE)
+### Make Field Required (ALTER TABLE)
 
 ```bash
-curl -X PUT http://localhost:9001/api/describe/users/columns/name \
+curl -X PUT http://localhost:9001/api/describe/users/fields/name \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -166,9 +166,9 @@ async function improveEmailValidation() {
 ### Add Performance Index
 
 ```javascript
-// Add index to frequently queried column
-async function optimizeQuery(schemaName, columnName) {
-  const response = await fetch(`/api/describe/${schemaName}/${columnName}`, {
+// Add index to frequently queried field
+async function optimizeQuery(modelName, fieldName) {
+  const response = await fetch(`/api/describe/${modelName}/${fieldName}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -177,7 +177,7 @@ async function optimizeQuery(schemaName, columnName) {
     body: JSON.stringify({ index: true })
   });
 
-  console.log(`Index added to ${schemaName}.${columnName}`);
+  console.log(`Index added to ${modelName}.${fieldName}`);
 }
 ```
 
@@ -185,8 +185,8 @@ async function optimizeQuery(schemaName, columnName) {
 
 ```javascript
 // Enable audit trail for sensitive field
-async function enableAudit(schemaName, columnName) {
-  await fetch(`/api/describe/${schemaName}/${columnName}`, {
+async function enableAudit(modelName, fieldName) {
+  await fetch(`/api/describe/${modelName}/${fieldName}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -204,8 +204,8 @@ async function enableAudit(schemaName, columnName) {
 
 ```javascript
 // Protect field from future changes
-async function lockField(schemaName, columnName) {
-  await fetch(`/api/describe/${schemaName}/${columnName}`, {
+async function lockField(modelName, fieldName) {
+  await fetch(`/api/describe/${modelName}/${fieldName}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -222,14 +222,14 @@ async function lockField(schemaName, columnName) {
 ## Metadata vs Structural Updates
 
 ### Metadata Updates (Fast, No Table Lock)
-- Updates only the `columns` table
+- Updates only the `fields` table
 - No ALTER TABLE required
 - Immediate effect
 - No table locking
 - Examples: description, pattern, enum_values
 
 ### Structural Updates (Slower, Table Lock)
-- Updates `columns` table AND PostgreSQL table
+- Updates `fields` table AND PostgreSQL table
 - Requires ALTER TABLE
 - May take time on large tables
 - Brief table lock during operation
@@ -276,13 +276,13 @@ When changing `type`, PostgreSQL attempts automatic conversion:
 ```json
 {"index": true}
 ```
-Creates: `CREATE INDEX idx_{schema}_{column} ON {schema}({column});`
+Creates: `CREATE INDEX idx_{model}_{field} ON {model}({field});`
 
 ### Adding Full-Text Index
 ```json
 {"searchable": true}
 ```
-Creates: `CREATE INDEX idx_{schema}_{column}_fts ON {schema} USING gin(to_tsvector('english', {column}));`
+Creates: `CREATE INDEX idx_{model}_{field}_fts ON {model} USING gin(to_tsvector('english', {field}));`
 
 ### Removing Index
 ```json
@@ -301,14 +301,14 @@ Drops the index.
 ## Validation
 
 Updates are validated for:
-- Column exists and is accessible
+- Field exists and is accessible
 - User has permission to modify
 - Type is valid (if changing type)
 - Structural changes are possible (e.g., no NULLs when adding NOT NULL)
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema/columns/:column`](GET.md) - Get column definition
-- [`POST /api/describe/:schema/columns/:column`](POST.md) - Create new column
-- [`DELETE /api/describe/:schema/columns/:column`](DELETE.md) - Delete column
-- [`PUT /api/describe/:schema`](../:schema/PUT.md) - Update schema metadata
+- [`GET /api/describe/:model/fields/:field`](GET.md) - Get field definition
+- [`POST /api/describe/:model/fields/:field`](POST.md) - Create new field
+- [`DELETE /api/describe/:model/fields/:field`](DELETE.md) - Delete field
+- [`PUT /api/describe/:model`](../:model/PUT.md) - Update model metadata

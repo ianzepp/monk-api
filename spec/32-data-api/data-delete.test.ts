@@ -4,26 +4,26 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * DELETE /api/data/:schema/:record - Delete Single Record
+ * DELETE /api/data/:model/:record - Delete Single Record
  *
  * Tests soft delete functionality with trashed_at timestamps and error handling.
  */
 
-describe('DELETE /api/data/:schema/:record - Delete Single Record', () => {
+describe('DELETE /api/data/:model/:record - Delete Single Record', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
         tenant = await TestHelpers.createTestTenant('data-delete');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/products', {});
-        await tenant.httpClient.post('/api/describe/products/columns/name', {
-            column_name: 'name',
+        await tenant.httpClient.post('/api/describe/products/fields/name', {
+            field_name: 'name',
             type: 'text',
             required: true,
         });
-        await tenant.httpClient.post('/api/describe/products/columns/price', {
-            column_name: 'price',
+        await tenant.httpClient.post('/api/describe/products/fields/price', {
+            field_name: 'price',
             type: 'decimal',
         });
     });
@@ -104,7 +104,7 @@ describe('DELETE /api/data/:schema/:record - Delete Single Record', () => {
         expect(response.error_code).toBe('RECORD_NOT_FOUND');
     });
 
-    it('should return error for non-existent schema', async () => {
+    it('should return error for non-existent model', async () => {
         const fakeId = '550e8400-e29b-41d4-a716-446655440000';
         const response = await tenant.httpClient.delete(`/api/data/nonexistent/${fakeId}`);
 

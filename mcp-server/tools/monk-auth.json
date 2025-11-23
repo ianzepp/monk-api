@@ -1,7 +1,7 @@
 {
   "name": "MonkAuth",
   "description": "Authentication for Monk API. Caches JWT token in memory for the session. Actions: register (create new tenant), login (authenticate to existing tenant), refresh (renew token before expiration), status (check current auth state). Sets response_format preference (toon/yaml/json) which is saved to JWT and applies to all subsequent API responses. Default format is 'toon' for optimal LLM token efficiency (40% reduction vs JSON). Returns tenant information, username, and token expiration metadata.",
-  "inputSchema": {
+  "inputModel": {
     "type": "object",
     "properties": {
       "action": {
@@ -23,7 +23,7 @@
       },
       "template": {
         "type": "string",
-        "description": "Template name for database schema (register only, defaults to 'system')"
+        "description": "Template name for database model (register only, defaults to 'system')"
       },
       "description": {
         "type": "string",

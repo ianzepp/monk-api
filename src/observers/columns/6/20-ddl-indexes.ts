@@ -2,9 +2,9 @@
  * DDL Indexes Observer - Ring 6 PostDatabase
  *
  * Manages index creation/deletion based on index, unique, and searchable flags.
- * Runs after column DDL operations to create/drop indexes as needed.
+ * Runs after field DDL operations to create/drop indexes as needed.
  *
- * Priority 20 (after column DDL at priority 10) to ensure column exists first.
+ * Priority 20 (after field DDL at priority 10) to ensure field exists first.
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -13,90 +13,90 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField } from '@src/lib/describe.js';
-import { SchemaCache } from '@src/lib/schema-cache.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import { ModelCache } from '@src/lib/model-cache.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
 export default class DdlIndexesObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['create', 'update', 'delete'] as const;
-    readonly priority = 20;  // After column DDL (priority 10)
+    readonly priority = 20;  // After field DDL (priority 10)
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
         const { system } = context;
-        const { schema_name, column_name } = record;
+        const { model_name, field_name } = record;
 
-        // Load schema from cache to check if external
-        const schema = await SchemaCache.getInstance().getSchema(system, schema_name);
+        // Load model from cache to check if external
+        const model = await ModelCache.getInstance().getModel(system, model_name);
 
-        // Skip DDL operations for external schemas (managed elsewhere)
-        if (schema.external === true) {
-            console.info(`Skipping DDL operation for external schema column: ${schema_name}.${column_name}`);
+        // Skip DDL operations for external models (managed elsewhere)
+        if (model.external === true) {
+            console.info(`Skipping DDL operation for external model field: ${model_name}.${field_name}`);
             return;
         }
 
         // Skip system fields - they cannot have user-defined indexes
-        if (isSystemField(column_name)) {
+        if (isSystemField(field_name)) {
             return;
         }
 
         const operation = context.operation;
 
         if (operation === 'create') {
-            await this.handleCreate(record, system, schema_name, column_name);
+            await this.handleCreate(record, system, model_name, field_name);
         } else if (operation === 'update') {
-            await this.handleUpdate(record, context, system, schema_name, column_name);
+            await this.handleUpdate(record, context, system, model_name, field_name);
         } else if (operation === 'delete') {
-            await this.handleDelete(record, system, schema_name, column_name);
+            await this.handleDelete(record, system, model_name, field_name);
         }
     }
 
     /**
-     * Create indexes on column creation if flags are set
+     * Create indexes on field creation if flags are set
      */
-    private async handleCreate(record: any, system: any, schema_name: string, column_name: string): Promise<void> {
+    private async handleCreate(record: any, system: any, model_name: string, field_name: string): Promise<void> {
         const pool = SqlUtils.getPool(system);
 
         // Create unique index if unique flag is set
         if (record.unique === true) {
-            const indexName = `${schema_name}_${column_name}_unique_idx`;
-            const ddl = `CREATE UNIQUE INDEX IF NOT EXISTS "${indexName}" ON "${schema_name}" ("${column_name}")`;
+            const indexName = `${model_name}_${field_name}_unique_idx`;
+            const ddl = `CREATE UNIQUE INDEX IF NOT EXISTS "${indexName}" ON "${model_name}" ("${field_name}")`;
 
             try {
                 await pool.query(ddl);
                 console.info(`Created unique index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
-                    `Failed to create unique index on ${schema_name}.${column_name}: ${error instanceof Error ? error.message : String(error)}`
+                    `Failed to create unique index on ${model_name}.${field_name}: ${error instanceof Error ? error.message : String(error)}`
                 );
             }
         }
 
         // Create standard index if index flag is set
         if (record.index === true) {
-            const indexName = `${schema_name}_${column_name}_idx`;
-            const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${schema_name}" ("${column_name}")`;
+            const indexName = `${model_name}_${field_name}_idx`;
+            const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${model_name}" ("${field_name}")`;
 
             try {
                 await pool.query(ddl);
                 console.info(`Created index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
-                    `Failed to create index on ${schema_name}.${column_name}: ${error instanceof Error ? error.message : String(error)}`
+                    `Failed to create index on ${model_name}.${field_name}: ${error instanceof Error ? error.message : String(error)}`
                 );
             }
         }
 
         // Create full-text search index if searchable flag is set
         if (record.searchable === true) {
-            const indexName = `${schema_name}_${column_name}_search_idx`;
-            const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${schema_name}" USING GIN (to_tsvector('english', "${column_name}"))`;
+            const indexName = `${model_name}_${field_name}_search_idx`;
+            const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${model_name}" USING GIN (to_tsvector('english', "${field_name}"))`;
 
             try {
                 await pool.query(ddl);
                 console.info(`Created full-text search index: ${indexName}`);
             } catch (error) {
                 throw new SystemError(
-                    `Failed to create search index on ${schema_name}.${column_name}: ${error instanceof Error ? error.message : String(error)}`
+                    `Failed to create search index on ${model_name}.${field_name}: ${error instanceof Error ? error.message : String(error)}`
                 );
             }
         }
@@ -105,43 +105,43 @@ export default class DdlIndexesObserver extends BaseObserver {
     /**
      * Update indexes when flags change
      */
-    private async handleUpdate(record: any, context: ObserverContext, system: any, schema_name: string, column_name: string): Promise<void> {
+    private async handleUpdate(record: any, context: ObserverContext, system: any, model_name: string, field_name: string): Promise<void> {
         const pool = SqlUtils.getPool(system);
 
-        // Handle unique index changes using SchemaRecord's change tracking
+        // Handle unique index changes using ModelRecord's change tracking
         await this.handleIndexChange(
             pool,
-            schema_name,
-            column_name,
+            model_name,
+            field_name,
             'unique',
             Boolean(record.getOriginal('unique')),
             Boolean(record.get('unique')),
-            `${schema_name}_${column_name}_unique_idx`,
-            `CREATE UNIQUE INDEX IF NOT EXISTS "${schema_name}_${column_name}_unique_idx" ON "${schema_name}" ("${column_name}")`
+            `${model_name}_${field_name}_unique_idx`,
+            `CREATE UNIQUE INDEX IF NOT EXISTS "${model_name}_${field_name}_unique_idx" ON "${model_name}" ("${field_name}")`
         );
 
         // Handle standard index changes
         await this.handleIndexChange(
             pool,
-            schema_name,
-            column_name,
+            model_name,
+            field_name,
             'index',
             Boolean(record.getOriginal('index')),
             Boolean(record.get('index')),
-            `${schema_name}_${column_name}_idx`,
-            `CREATE INDEX IF NOT EXISTS "${schema_name}_${column_name}_idx" ON "${schema_name}" ("${column_name}")`
+            `${model_name}_${field_name}_idx`,
+            `CREATE INDEX IF NOT EXISTS "${model_name}_${field_name}_idx" ON "${model_name}" ("${field_name}")`
         );
 
         // Handle searchable index changes
         await this.handleIndexChange(
             pool,
-            schema_name,
-            column_name,
+            model_name,
+            field_name,
             'searchable',
             Boolean(record.getOriginal('searchable')),
             Boolean(record.get('searchable')),
-            `${schema_name}_${column_name}_search_idx`,
-            `CREATE INDEX IF NOT EXISTS "${schema_name}_${column_name}_search_idx" ON "${schema_name}" USING GIN (to_tsvector('english', "${column_name}"))`
+            `${model_name}_${field_name}_search_idx`,
+            `CREATE INDEX IF NOT EXISTS "${model_name}_${field_name}_search_idx" ON "${model_name}" USING GIN (to_tsvector('english', "${field_name}"))`
         );
     }
 
@@ -150,8 +150,8 @@ export default class DdlIndexesObserver extends BaseObserver {
      */
     private async handleIndexChange(
         pool: any,
-        schema_name: string,
-        column_name: string,
+        model_name: string,
+        field_name: string,
         flagName: string,
         oldValue: boolean,
         newValue: boolean,
@@ -175,23 +175,23 @@ export default class DdlIndexesObserver extends BaseObserver {
             }
         } catch (error) {
             throw new SystemError(
-                `Failed to ${newValue ? 'create' : 'drop'} ${flagName} index on ${schema_name}.${column_name}: ${error instanceof Error ? error.message : String(error)}`
+                `Failed to ${newValue ? 'create' : 'drop'} ${flagName} index on ${model_name}.${field_name}: ${error instanceof Error ? error.message : String(error)}`
             );
         }
     }
 
     /**
-     * Drop indexes when column is deleted
-     * Note: DROP COLUMN should cascade to indexes, but we explicitly drop for clarity
+     * Drop indexes when field is deleted
+     * Note: DROP FIELD should cascade to indexes, but we explicitly drop for clarity
      */
-    private async handleDelete(record: any, system: any, schema_name: string, column_name: string): Promise<void> {
+    private async handleDelete(record: any, system: any, model_name: string, field_name: string): Promise<void> {
         const pool = SqlUtils.getPool(system);
 
-        // Drop all possible indexes for this column
+        // Drop all possible indexes for this field
         const indexNames = [
-            `${schema_name}_${column_name}_unique_idx`,
-            `${schema_name}_${column_name}_idx`,
-            `${schema_name}_${column_name}_search_idx`
+            `${model_name}_${field_name}_unique_idx`,
+            `${model_name}_${field_name}_idx`,
+            `${model_name}_${field_name}_search_idx`
         ];
 
         for (const indexName of indexNames) {

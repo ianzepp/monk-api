@@ -1,23 +1,23 @@
 /**
  * Describe API Route Barrel Export
  *
- * Schema management operations using clean naming convention:
- * - Schema operations: SchemaGet, SchemaPost, SchemaPut, SchemaDelete
- * - Column operations: ColumnsList, ColumnGet, ColumnPost, ColumnPut, ColumnDelete
+ * Model management operations using clean naming convention:
+ * - Model operations: ModelGet, ModelPost, ModelPut, ModelDelete
+ * - Field operations: FieldsList, FieldGet, FieldPost, FieldPut, FieldDelete
  */
 
-// Schema management operations
-export { default as SchemaList } from '@src/routes/api/describe/GET.js';
-export { default as SchemaGet } from '@src/routes/api/describe/:schema/GET.js';
-export { default as SchemaPost } from '@src/routes/api/describe/:schema/POST.js';
-export { default as SchemaPut } from '@src/routes/api/describe/:schema/PUT.js';
-export { default as SchemaDelete } from '@src/routes/api/describe/:schema/DELETE.js';
+// Model management operations
+export { default as ModelList } from '@src/routes/api/describe/GET.js';
+export { default as ModelGet } from '@src/routes/api/describe/:model/GET.js';
+export { default as ModelPost } from '@src/routes/api/describe/:model/POST.js';
+export { default as ModelPut } from '@src/routes/api/describe/:model/PUT.js';
+export { default as ModelDelete } from '@src/routes/api/describe/:model/DELETE.js';
 
-// Column management operations
-export { default as ColumnsList } from '@src/routes/api/describe/:schema/columns/GET.js';
-export { default as ColumnsPost } from '@src/routes/api/describe/:schema/columns/POST.js';
-export { default as ColumnsPut } from '@src/routes/api/describe/:schema/columns/PUT.js';
-export { default as ColumnGet } from '@src/routes/api/describe/:schema/columns/:column/GET.js';
-export { default as ColumnPost } from '@src/routes/api/describe/:schema/columns/:column/POST.js';
-export { default as ColumnPut } from '@src/routes/api/describe/:schema/columns/:column/PUT.js';
-export { default as ColumnDelete } from '@src/routes/api/describe/:schema/columns/:column/DELETE.js';
+// Field management operations
+export { default as FieldsList } from '@src/routes/api/describe/:model/fields/GET.js';
+export { default as FieldsPost } from '@src/routes/api/describe/:model/fields/POST.js';
+export { default as FieldsPut } from '@src/routes/api/describe/:model/fields/PUT.js';
+export { default as FieldGet } from '@src/routes/api/describe/:model/fields/:field/GET.js';
+export { default as FieldPost } from '@src/routes/api/describe/:model/fields/:field/POST.js';
+export { default as FieldPut } from '@src/routes/api/describe/:model/fields/:field/PUT.js';
+export { default as FieldDelete } from '@src/routes/api/describe/:model/fields/:field/DELETE.js';

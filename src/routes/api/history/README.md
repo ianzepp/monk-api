@@ -1,8 +1,8 @@
 # 42-History API Documentation
 
-> **Change Tracking and Audit Trails for Column-Level Modifications**
+> **Change Tracking and Audit Trails for Field-Level Modifications**
 >
-> The History API provides access to tracked changes for database records. When columns are marked with `tracked=true`, all create, update, and delete operations are captured with field-level deltas, timestamps, and user attribution.
+> The History API provides access to tracked changes for database records. When fields are marked with `tracked=true`, all create, update, and delete operations are captured with field-level deltas, timestamps, and user attribution.
 
 ## Table of Contents
 
@@ -19,20 +19,20 @@
 
 ## Overview
 
-The History API enables audit trails and change tracking for sensitive data fields. Rather than tracking all changes to all records, tracking is opt-in per column using the `tracked` flag on column definitions.
+The History API enables audit trails and change tracking for sensitive data fields. Rather than tracking all changes to all records, tracking is opt-in per field using the `tracked` flag on field definitions.
 
 ### Key Capabilities
-- **Column-level tracking**: Only track changes to specific columns marked with `tracked=true`
+- **Field-level tracking**: Only track changes to specific fields marked with `tracked=true`
 - **Field-level deltas**: Stores old and new values for changed fields
 - **Operation tracking**: Captures create, update, and delete operations
 - **User attribution**: Records which user made each change
 - **Chronological ordering**: Auto-incrementing `change_id` for simple time-series queries
-- **Minimal overhead**: Only tracked columns consume history storage
+- **Minimal overhead**: Only tracked fields consume history storage
 
 ### Base URLs
 ```
-GET /api/history/:schema/:record           # List all changes for a record
-GET /api/history/:schema/:record/:change   # Get specific change by ID
+GET /api/history/:model/:record           # List all changes for a record
+GET /api/history/:model/:record/:change   # Get specific change by ID
 ```
 
 ## Authentication
@@ -46,11 +46,11 @@ Authorization: Bearer <jwt>
 ### Required Permissions
 - **History Access**: Same `read_data` permission as Data API GET operations
 - **ACL Enforcement**: Record ACL permissions are checked before returning history
-- **Tracked Columns Only**: Only changes to tracked columns are returned
+- **Tracked Fields Only**: Only changes to tracked fields are returned
 
 ## Core Endpoints
 
-### GET /api/history/:schema/:record
+### GET /api/history/:model/:record
 
 Retrieves all history entries for a specific record, ordered by `change_id` descending (newest first).
 
@@ -72,7 +72,7 @@ Authorization: Bearer <jwt>
     {
       "id": "hist-uuid-1",
       "change_id": 42,
-      "schema_name": "account",
+      "model_name": "account",
       "record_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "operation": "update",
       "changes": {
@@ -92,7 +92,7 @@ Authorization: Bearer <jwt>
     {
       "id": "hist-uuid-2",
       "change_id": 41,
-      "schema_name": "account",
+      "model_name": "account",
       "record_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "operation": "create",
       "changes": {
@@ -114,7 +114,7 @@ Authorization: Bearer <jwt>
 }
 ```
 
-### GET /api/history/:schema/:record/:change
+### GET /api/history/:model/:record/:change
 
 Retrieves a specific history entry by its `change_id`.
 
@@ -131,7 +131,7 @@ Authorization: Bearer <jwt>
   "data": {
     "id": "hist-uuid-1",
     "change_id": 42,
-    "schema_name": "account",
+    "model_name": "account",
     "record_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "operation": "update",
     "changes": {
@@ -153,14 +153,14 @@ Authorization: Bearer <jwt>
 
 ## Configuring Tracking
 
-### Marking Columns as Tracked
+### Marking Fields as Tracked
 
-To enable history tracking for a column, set `tracked=true` on the column definition:
+To enable history tracking for a field, set `tracked=true` on the field definition:
 
 **Using Describe API:**
 ```bash
-# Mark email column as tracked
-PUT /api/describe/account/columns/email
+# Mark email field as tracked
+PUT /api/describe/account/fields/email
 Authorization: Bearer <jwt>
 Content-Type: application/json
 
@@ -171,30 +171,30 @@ Content-Type: application/json
 
 **Using SQL:**
 ```sql
--- Mark specific columns as tracked
-UPDATE columns
+-- Mark specific fields as tracked
+UPDATE fields
 SET tracked = true
-WHERE schema_name = 'account'
-  AND column_name IN ('email', 'name', 'balance');
+WHERE model_name = 'account'
+  AND field_name IN ('email', 'name', 'balance');
 ```
 
-### Schema Cache Invalidation
+### Model Cache Invalidation
 
-After updating column tracking settings, the schema cache automatically invalidates to ensure observers see the updated configuration immediately.
+After updating field tracking settings, the model cache automatically invalidates to ensure observers see the updated configuration immediately.
 
 ### What Gets Tracked
 
 **Tracked:**
-- Columns with `tracked=true` flag
+- Fields with `tracked=true` flag
 - Create operations: Records `old=null`, `new=<value>` for tracked fields
 - Update operations: Records `old=<previous>`, `new=<current>` for changed tracked fields
 - Delete operations: Records `old=<value>`, `new=null` for tracked fields
 
 **Not Tracked:**
-- System schemas (schemas, columns, users, history)
-- Columns with `tracked=false` (default)
+- System models (models, fields, users, history)
+- Fields with `tracked=false` (default)
 - System fields (id, created_at, updated_at, etc.) unless explicitly marked tracked
-- Untracked columns in tracked schemas
+- Untracked fields in tracked models
 
 ## Response Format
 
@@ -204,7 +204,7 @@ After updating column tracking settings, the schema cache automatically invalida
 |-------|------|-------------|
 | `id` | string | Unique identifier for the history record (UUID) |
 | `change_id` | number | Auto-incrementing sequence number for chronological ordering |
-| `schema_name` | string | Name of the schema containing the changed record |
+| `model_name` | string | Name of the model containing the changed record |
 | `record_id` | string | ID of the record that was modified |
 | `operation` | string | Type of operation: `create`, `update`, or `delete` |
 | `changes` | object | JSONB object containing field-level deltas (see below) |
@@ -245,7 +245,7 @@ After updating column tracking settings, the schema cache automatically invalida
 
 ## Change Delta Format
 
-The `changes` field is a JSONB object where each key is a tracked column name, and the value is an object with `old` and `new` properties:
+The `changes` field is a JSONB object where each key is a tracked field name, and the value is an object with `old` and `new` properties:
 
 ### Create Operation
 ```json
@@ -289,7 +289,7 @@ The `changes` field is a JSONB object where each key is a tracked column name, a
 
 ### Empty Changes
 
-If an update operation doesn't modify any tracked fields, no history record is created. Only changes to tracked columns trigger history recording.
+If an update operation doesn't modify any tracked fields, no history record is created. Only changes to tracked fields trigger history recording.
 
 ## Use Cases
 
@@ -298,9 +298,9 @@ If an update operation doesn't modify any tracked fields, no history record is c
 Track changes to sensitive fields for regulatory compliance:
 
 ```bash
-# Mark sensitive columns as tracked
-PUT /api/describe/medical_records/columns/ssn {"tracked": true}
-PUT /api/describe/medical_records/columns/diagnosis {"tracked": true}
+# Mark sensitive fields as tracked
+PUT /api/describe/medical_records/fields/ssn {"tracked": true}
+PUT /api/describe/medical_records/fields/diagnosis {"tracked": true}
 
 # Query audit trail for specific record
 GET /api/history/medical_records/patient-123
@@ -413,7 +413,7 @@ if (priceChanges > 10) {
 ```json
 {
   "success": false,
-  "error": "Record account-999999 not found in schema account",
+  "error": "Record account-999999 not found in model account",
   "error_code": "RECORD_NOT_FOUND"
 }
 ```
@@ -423,23 +423,23 @@ if (priceChanges > 10) {
 **Causes:**
 - Record ID doesn't exist
 - Record belongs to different tenant
-- No history exists for record (if no tracked columns or never modified)
+- No history exists for record (if no tracked fields or never modified)
 
-#### Schema Not Found
+#### Model Not Found
 
 ```json
 {
   "success": false,
-  "error": "Schema 'invalid_schema' not found",
-  "error_code": "SCHEMA_NOT_FOUND"
+  "error": "Model 'invalid_model' not found",
+  "error_code": "MODEL_NOT_FOUND"
 }
 ```
 
 **HTTP Status:** 404 Not Found
 
 **Causes:**
-- Schema doesn't exist in tenant database
-- Typo in schema name
+- Model doesn't exist in tenant database
+- Typo in model name
 
 #### Change Not Found
 
@@ -471,7 +471,7 @@ if (priceChanges > 10) {
 **HTTP Status:** 403 Forbidden
 
 **Causes:**
-- User lacks `read_data` permission for the schema
+- User lacks `read_data` permission for the model
 - Record ACLs deny access to user
 - User cannot access the underlying record
 
@@ -503,7 +503,7 @@ if (priceChanges > 10) {
 - Asynchronous to main operation (won't slow down user-facing operations)
 
 **History Querying:**
-- Composite index on `(schema_name, record_id, change_id DESC)`
+- Composite index on `(model_name, record_id, change_id DESC)`
 - Primary key index on `change_id` for direct lookups
 - Timestamp index on `created_at` for all history records
 - Typical query time: <5ms for single record history (dozens of entries)
@@ -530,16 +530,16 @@ Not currently implemented. Future considerations:
 - Compress JSONB changes
 - Partition by date range
 
-### When to Use Tracked Columns
+### When to Use Tracked Fields
 
-**Track columns when:**
+**Track fields when:**
 - Regulatory compliance requires audit trails (HIPAA, SOX, GDPR)
 - Sensitive data needs change attribution
 - Dispute resolution requires historical values
 - Data integrity investigations are common
 - Field changes are infrequent but significant
 
-**Don't track columns when:**
+**Don't track fields when:**
 - Field changes very frequently (counters, timestamps, status flags)
 - Changes aren't meaningful for audit purposes
 - Storage costs outweigh audit value
@@ -548,9 +548,9 @@ Not currently implemented. Future considerations:
 
 ### Optimization Tips
 
-**Minimize Tracked Columns:**
+**Minimize Tracked Fields:**
 - Only mark truly sensitive/auditable fields as tracked
-- Review tracked columns periodically
+- Review tracked fields periodically
 - Don't track computed or derived fields
 
 **Batch History Queries:**
@@ -559,7 +559,7 @@ Not currently implemented. Future considerations:
 - Cache frequently accessed history on client side
 
 **Index Considerations:**
-- Composite index on `(schema_name, record_id, change_id)` is crucial
+- Composite index on `(model_name, record_id, change_id)` is crucial
 - Additional indexes on `created_by` if filtering by user is common
 - Additional indexes on `created_at` if date-range queries are common
 
@@ -567,9 +567,9 @@ Not currently implemented. Future considerations:
 
 ### Data API
 
-**PUT /api/data/:schema/:record**
+**PUT /api/data/:model/:record**
 
-Updates that modify tracked columns automatically create history records:
+Updates that modify tracked fields automatically create history records:
 
 ```bash
 PUT /api/data/account/user-123
@@ -581,21 +581,21 @@ See: [32-Data API Documentation](32-data-api.md)
 
 ### Describe API
 
-**PUT /api/describe/:schema/columns/:column**
+**PUT /api/describe/:model/fields/:field**
 
-Configure column tracking:
+Configure field tracking:
 
 ```bash
-PUT /api/describe/account/columns/email
+PUT /api/describe/account/fields/email
 {"tracked": true}
-→ Enables history tracking for email column
+→ Enables history tracking for email field
 ```
 
 See: [31-Describe API Documentation](31-describe-api.md)
 
 ### ACLs API
 
-**GET /api/acls/:schema/:record**
+**GET /api/acls/:model/:record**
 
 History access respects record-level ACLs. If a user can't read a record, they can't read its history:
 

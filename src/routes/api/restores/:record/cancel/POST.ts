@@ -35,7 +35,7 @@ export default withParams(async (context, { system, record }) => {
         run_id: run.id,
         level: 'warn',
         phase: null,
-        schema_name: null,
+        model_name: null,
         record_id: null,
         message: 'Restore cancelled by user'
     });

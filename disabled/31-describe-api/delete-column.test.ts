@@ -3,21 +3,21 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * DELETE /api/describe/:schema/columns/:column - Delete Column
+ * DELETE /api/describe/:model/fields/:field - Delete Field
  *
- * Tests column deletion. Performs both soft delete (marks as trashed)
- * and hard delete (DROP COLUMN from PostgreSQL table).
+ * Tests field deletion. Performs both soft delete (marks as trashed)
+ * and hard delete (DROP FIELD from PostgreSQL table).
  */
 
-describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
+describe('DELETE /api/describe/:model/fields/:field - Delete Field', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('delete-column');
+        tenant = await TestHelpers.createTestTenant('delete-field');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/products', {
-            schema_name: 'products',
+            model_name: 'products',
             status: 'active'
         });
     });
@@ -26,8 +26,8 @@ describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
         await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
-    it('should delete a column', async () => {
-        // Create column
+    it('should delete a field', async () => {
+        // Create field
         await tenant.httpClient.post('/api/describe/products/deletable', {
             type: 'text'
         });
@@ -36,44 +36,44 @@ describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
         const response = await tenant.httpClient.delete('/api/describe/products/deletable');
 
         expectSuccess(response);
-        expect(response.data.schema_name).toBe('products');
-        expect(response.data.column_name).toBe('deletable');
+        expect(response.data.model_name).toBe('products');
+        expect(response.data.field_name).toBe('deletable');
     });
 
-    it('should prevent retrieval of deleted column', async () => {
-        // Create and delete column
+    it('should prevent retrieval of deleted field', async () => {
+        // Create and delete field
         await tenant.httpClient.post('/api/describe/products/deleted_col', {
             type: 'text'
         });
 
         await tenant.httpClient.delete('/api/describe/products/deleted_col');
 
-        // Try to retrieve deleted column
+        // Try to retrieve deleted field
         const response = await tenant.httpClient.get('/api/describe/products/deleted_col');
 
         expectError(response);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should prevent updating deleted column', async () => {
-        // Create and delete column
+    it('should prevent updating deleted field', async () => {
+        // Create and delete field
         await tenant.httpClient.post('/api/describe/products/update_deleted', {
             type: 'text'
         });
 
         await tenant.httpClient.delete('/api/describe/products/update_deleted');
 
-        // Try to update deleted column
+        // Try to update deleted field
         const response = await tenant.httpClient.put('/api/describe/products/update_deleted', {
             description: 'test'
         });
 
         expectError(response);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should return 404 for already deleted column', async () => {
-        // Create and delete column
+    it('should return 404 for already deleted field', async () => {
+        // Create and delete field
         await tenant.httpClient.post('/api/describe/products/double_delete', {
             type: 'text'
         });
@@ -84,24 +84,24 @@ describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
         const response = await tenant.httpClient.delete('/api/describe/products/double_delete');
 
         expectError(response);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should return 404 for non-existent column', async () => {
+    it('should return 404 for non-existent field', async () => {
         const response = await tenant.httpClient.delete('/api/describe/products/never_existed');
 
         expectError(response);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should return 404 for column in non-existent schema', async () => {
-        const response = await tenant.httpClient.delete('/api/describe/nonexistent/column');
+    it('should return 404 for field in non-existent model', async () => {
+        const response = await tenant.httpClient.delete('/api/describe/nonexistent/field');
 
         expectError(response);
     });
 
-    it('should allow deleting columns with various types', async () => {
-        // Create columns with different types
+    it('should allow deleting fields with various types', async () => {
+        // Create fields with different types
         await tenant.httpClient.post('/api/describe/products/text_delete', {
             type: 'text'
         });
@@ -125,8 +125,8 @@ describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
         expect(response3.success).toBe(true);
     });
 
-    it('should allow deleting required columns', async () => {
-        // Create required column
+    it('should allow deleting required fields', async () => {
+        // Create required field
         await tenant.httpClient.post('/api/describe/products/required_delete', {
             type: 'text',
             required: true
@@ -137,8 +137,8 @@ describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
         expectSuccess(response);
     });
 
-    it('should allow deleting columns with constraints', async () => {
-        // Create column with unique constraint
+    it('should allow deleting fields with constraints', async () => {
+        // Create field with unique constraint
         await tenant.httpClient.post('/api/describe/products/unique_delete', {
             type: 'text',
             unique: true
@@ -149,8 +149,8 @@ describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
         expectSuccess(response);
     });
 
-    it('should permanently remove column from PostgreSQL table', async () => {
-        // Create column
+    it('should permanently remove field from PostgreSQL table', async () => {
+        // Create field
         await tenant.httpClient.post('/api/describe/products/permanent_delete', {
             type: 'text'
         });
@@ -159,7 +159,7 @@ describe('DELETE /api/describe/:schema/columns/:column - Delete Column', () => {
         const deleteResponse = await tenant.httpClient.delete('/api/describe/products/permanent_delete');
         expect(deleteResponse.success).toBe(true);
 
-        // Column should be gone from columns table
+        // Field should be gone from fields table
         const getResponse = await tenant.httpClient.get('/api/describe/products/permanent_delete');
         expect(getResponse.success).toBe(false);
     });

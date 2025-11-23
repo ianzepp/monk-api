@@ -62,7 +62,7 @@ setup_sudo_auth "Testing templates API access"
 #   - Get templates list
 #   - For 'testing' template:
 #     - Verify database = 'monk_template_testing'
-#     - Verify schema_count > 0
+#     - Verify model_count > 0
 #     - Verify record_count > 0 (testing has sample data)
 #     - Verify created_at is valid timestamp
 #   - For 'system' template:
@@ -101,7 +101,7 @@ setup_sudo_auth "Testing templates API access"
 #     - database = 'monk_template_system'
 #     - is_system = true
 #     - parent_template is null or undefined
-#     - schema_count >= 3 (system tables)
+#     - model_count >= 3 (system tables)
 #     - size_bytes > 0
 #     - created_at timestamp
 
@@ -116,7 +116,7 @@ setup_sudo_auth "Testing templates API access"
 #     - database = 'monk_template_testing'
 #     - is_system = false
 #     - parent_template = 'system'
-#     - schema_count > 3 (system + test schemas)
+#     - model_count > 3 (system + test models)
 #     - record_count > 0 (has sample data)
 #     - description exists
 #     - size_bytes > default template size

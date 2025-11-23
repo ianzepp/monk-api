@@ -57,13 +57,13 @@ export default class EmailValidator extends BaseObserver {
 
 #### **ObserverRunner** (`src/lib/observers/runner.ts`)
 - **Ring-Based Execution**: 10 ordered rings (0-9) with selective execution per operation type
-- **File-Based Discovery**: Auto-loads observers from `src/observers/:schema/:ring/:observer.ts`
+- **File-Based Discovery**: Auto-loads observers from `src/observers/:model/:ring/:observer.ts`
 - **Universal Coverage**: All database operations automatically run through observer pipeline
-- **Schema Integration**: Provides Schema objects with validation capabilities to all observers
+- **Model Integration**: Provides Model objects with validation capabilities to all observers
 
 #### **BaseObserver** (`src/lib/observers/base-observer.ts`)
 - **executeTry/execute separation**: Comprehensive error handling with pure business logic
-- **Schema Context**: Access to full Schema objects with `schema.validateOrThrow()`
+- **Model Context**: Access to full Model objects with `model.validateOrThrow()`
 - **Consistent Logging**: Built-in timing and execution tracking with nanosecond precision
 - **Error Classification**: ValidationError, BusinessLogicError, SystemError for proper handling
 - **Timeout Protection**: 5s default timeout for observer execution
@@ -80,7 +80,7 @@ The observer system executes business logic in **10 ordered rings (0-9)** for ev
 
 ```typescript
 Ring 0: DataPreparation // Data loading, merging, input preparation
-Ring 1: InputValidation // Schema validation, format checks, basic integrity
+Ring 1: InputValidation // Model validation, format checks, basic integrity
 Ring 2: Security        // Access control, protection policies, rate limiting
 Ring 3: Business        // Complex business logic, domain rules, workflows
 Ring 4: Enrichment      // Data enrichment, defaults, computed fields
@@ -124,22 +124,22 @@ revert: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  // ALL rings (undoing soft deletes)
 Observers follow a strict directory pattern for auto-discovery:
 
 ```
-src/observers/:schema/:ring/:observer-name.ts
+src/observers/:model/:ring/:observer-name.ts
 
 Examples:
-src/observers/all/0/10-record-preloader.ts       # Ring 0: All schemas, data preparation
-src/observers/all/1/50-data-validator.ts  # Ring 1: All schemas, validation
-src/observers/users/1/50-email-validation.ts     # Ring 1: Users schema only
-src/observers/all/2/50-soft-delete-protector.ts  # Ring 2: All schemas, security
-src/observers/all/5/50-sql-create-observer.ts    # Ring 5: All schemas, SQL execution
-src/observers/all/7/50-change-tracker.ts         # Ring 7: All schemas, audit
-src/observers/all/8/50-webhook-sender.ts         # Ring 8: All schemas, async integration
+src/observers/all/0/10-record-preloader.ts       # Ring 0: All models, data preparation
+src/observers/all/1/50-data-validator.ts  # Ring 1: All models, validation
+src/observers/users/1/50-email-validation.ts     # Ring 1: Users model only
+src/observers/all/2/50-soft-delete-protector.ts  # Ring 2: All models, security
+src/observers/all/5/50-sql-create-observer.ts    # Ring 5: All models, SQL execution
+src/observers/all/7/50-change-tracker.ts         # Ring 7: All models, audit
+src/observers/all/8/50-webhook-sender.ts         # Ring 8: All models, async integration
 ```
 
-### Schema Targeting
+### Model Targeting
 
-- **Specific schema**: `src/observers/users/` → Only applies to "users" schema
-- **All schemas**: `src/observers/all/` → Applies to every schema
+- **Specific model**: `src/observers/users/` → Only applies to "users" model
+- **All models**: `src/observers/all/` → Applies to every model
 - **Auto-discovery**: Observer system loads all observers at server startup
 
 ### Priority System
@@ -170,11 +170,11 @@ export default class CustomValidator extends BaseObserver {
     priority = 50; // Optional: lower numbers execute first
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schema, data, metadata } = context;
+        const { system, model, data, metadata } = context;
 
-        // Access Schema object for validation
+        // Access Model object for validation
         for (const record of data) {
-            schema.validateOrThrow(record);
+            model.validateOrThrow(record);
 
             if (!this.isValid(record)) {
                 throw new ValidationError('Invalid data', 'field');
@@ -184,7 +184,7 @@ export default class CustomValidator extends BaseObserver {
         // Record validation metadata for audit
         metadata.set('custom_validation', 'passed');
         console.info('Custom validation completed', {
-            schemaName: schema.schema_name,
+            modelName: model.model_name,
             recordCount: data.length
         });
     }
@@ -242,13 +242,13 @@ export default class WebhookSender extends BaseAsyncObserver {
     operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { operation, schema, result } = context;
+        const { operation, model, result } = context;
 
         // This executes asynchronously after database commit
         // Failures are logged but don't affect the API response
         try {
             await this.sendWebhook({
-                event: `${schema.schema_name}.${operation}`,
+                event: `${model.model_name}.${operation}`,
                 data: result,
                 timestamp: new Date()
             });
@@ -278,7 +278,7 @@ The `ObserverContext` provides complete access to the operation:
 ```typescript
 interface ObserverContext {
     system: System;                  // Per-request database context
-    schema: Schema;                  // Full Schema object with validation
+    model: Model;                  // Full Model object with validation
     operation: OperationType;        // create, update, delete, select, revert
     data?: any;                      // Input data for create/update
     filter?: any;                    // Filter criteria for select (becomes data after ring 5)
@@ -317,13 +317,13 @@ export default class RecordPreloader extends BaseObserver {
     priority = 10; // Execute first in ring
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schema, data } = context;
+        const { system, model, data } = context;
 
         // Preload existing records for efficient access by other observers
         const ids = data.map(record => record.id).filter(Boolean);
         if (ids.length === 0) return;
 
-        const existingRecords = await system.database.selectAny(schema.schema_name, {
+        const existingRecords = await system.database.selectAny(model.model_name, {
             where: { id: { $in: ids } }
         });
 
@@ -341,11 +341,11 @@ export default class DataValidator extends BaseObserver {
     operations = ['create', 'update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, data } = context;
+        const { model, data } = context;
 
         for (const record of data) {
-            // Use Schema object's built-in validation
-            schema.validateOrThrow(record);
+            // Use Model object's built-in validation
+            model.validateOrThrow(record);
         }
     }
 }
@@ -375,7 +375,7 @@ export default class SoftDeleteProtector extends BaseObserver {
 ### Business Logic Pattern (Ring 3)
 
 ```typescript
-export default class DuplicateSchemaChecker extends BaseObserver {
+export default class DuplicateModelChecker extends BaseObserver {
     ring = ObserverRing.Business;
     operations = ['create'] as const;
 
@@ -383,13 +383,13 @@ export default class DuplicateSchemaChecker extends BaseObserver {
         const { system, data } = context;
 
         for (const record of data) {
-            const existing = await system.database.selectOne('schemas', {
-                where: { schema_name: record.schema_name }
+            const existing = await system.database.selectOne('models', {
+                where: { model_name: record.model_name }
             });
 
             if (existing) {
                 throw new BusinessLogicError(
-                    `Schema '${record.schema_name}' already exists`
+                    `Model '${record.model_name}' already exists`
                 );
             }
         }
@@ -405,7 +405,7 @@ export default class ChangeTracker extends BaseObserver {
     operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, operation, schema, result } = context;
+        const { system, operation, model, result } = context;
         const preloadedRecords = context.metadata.get('preloaded_records');
 
         // Track changes for audit trail
@@ -413,7 +413,7 @@ export default class ChangeTracker extends BaseObserver {
 
         await system.database.createOne('audit_log', {
             operation,
-            schema: schema.schema_name,
+            model: model.model_name,
             record_id: result?.id,
             changes,
             user_id: system.getUserId(),
@@ -442,7 +442,7 @@ describe('EmailValidator Observer', () => {
     test('should validate correct email', async () => {
         const observer = new EmailValidator();
         const context = createMockObserverContext({
-            schema: 'users',
+            model: 'users',
             operation: 'create',
             data: [{ email: 'test@example.com' }]
         });
@@ -453,7 +453,7 @@ describe('EmailValidator Observer', () => {
     test('should throw ValidationError for invalid email', async () => {
         const observer = new EmailValidator();
         const context = createMockObserverContext({
-            schema: 'users',
+            model: 'users',
             operation: 'create',
             data: [{ email: 'invalid-email' }]
         });
@@ -497,10 +497,10 @@ describe('Observer Pipeline Integration', () => {
 All observers are automatically tracked with nanosecond precision:
 
 ```
-[TIME] Observer: RecordPreloader 1.291ms { ring: 0, operation: "update", schemaName: "users", status: "success" }
-[TIME] Observer: DataValidator 0.090ms { ring: 1, operation: "update", schemaName: "users", status: "success" }
-[TIME] Observer: SoftDeleteProtector 0.045ms { ring: 2, operation: "update", schemaName: "users", status: "success" }
-[TIME] Observer: UpdateSqlObserver 3.257ms { ring: 5, operation: "update", schemaName: "users", status: "success" }
+[TIME] Observer: RecordPreloader 1.291ms { ring: 0, operation: "update", modelName: "users", status: "success" }
+[TIME] Observer: DataValidator 0.090ms { ring: 1, operation: "update", modelName: "users", status: "success" }
+[TIME] Observer: SoftDeleteProtector 0.045ms { ring: 2, operation: "update", modelName: "users", status: "success" }
+[TIME] Observer: UpdateSqlObserver 3.257ms { ring: 5, operation: "update", modelName: "users", status: "success" }
 [TIME] AsyncObserver: CacheInvalidator 1.625ms { ring: 8, operation: "update", status: "success" }
 ```
 
@@ -520,10 +520,10 @@ All observers are automatically tracked with nanosecond precision:
 - **Performance**: Use preloaded data when possible, avoid N+1 queries
 - **Logging**: Include relevant context in log messages
 
-### Schema Integration
-- **Use Schema Objects**: Access `context.schema.validateOrThrow()` for validation
-- **System Schema Check**: Use `context.schema.isSystemSchema()` for protection
-- **Schema Context**: Leverage schema information for business logic decisions
+### Model Integration
+- **Use Model Objects**: Access `context.model.validateOrThrow()` for validation
+- **System Model Check**: Use `context.model.isSystemModel()` for protection
+- **Model Context**: Leverage model information for business logic decisions
 
 ### Testing Strategy
 - **Unit Tests First**: Test observer logic without database dependencies
@@ -569,9 +569,9 @@ The observer system provides complete data integrity protection:
 
 ### Phase 1+2 Implementation (Issue #101)
 
-#### **Schema Validation (Rings 0-1)**
-- **SystemSchemaProtector**: Prevents data operations on system schemas
-- **DataValidator**: Validates all data against column metadata
+#### **Model Validation (Rings 0-1)**
+- **SystemModelProtector**: Prevents data operations on system models
+- **DataValidator**: Validates all data against field metadata
 - **RequiredFieldsValidator**: Ensures required fields are present
 
 #### **Data Integrity & Business Logic (Rings 0-3)**
@@ -579,10 +579,10 @@ The observer system provides complete data integrity protection:
 - **UpdateMerger** (Ring 0): Proper record merging preserving unchanged fields
 - **SoftDeleteProtector** (Ring 2): Prevents operations on trashed/deleted records
 - **ExistenceValidator** (Ring 2): Validates records exist before operations
-- **DuplicateChecker** (Ring 3): Prevents duplicate schema/column creation
+- **DuplicateChecker** (Ring 3): Prevents duplicate model/field creation
 
 ### Universal Coverage & Performance
-- **All schemas protected**: Every database operation gets validation, security, business logic automatically
+- **All models protected**: Every database operation gets validation, security, business logic automatically
 - **Single query preloading**: O(1) vs O(N) database calls for multi-record operations
 - **Read-only safety**: Frozen preloaded objects prevent accidental mutation
 - **Clean SQL transport**: SQL observers (Ring 5) handle pure database operations after validation
@@ -592,7 +592,7 @@ The observer system provides complete data integrity protection:
 Observers are **automatically discovered and loaded** at server startup. No manual registration required.
 
 The framework:
-1. **Discovers** observers using file path patterns (`src/observers/:schema/:ring/:file.ts`)
+1. **Discovers** observers using file path patterns (`src/observers/:model/:ring/:file.ts`)
 2. **Validates** observer classes for correct implementation
 3. **Caches** observers in memory for performance
 4. **Executes** observers in ring order for each operation
@@ -605,8 +605,8 @@ The framework:
 npm run start:dev
 
 # Look for:
-# "✅ Observer loaded: EmailValidator (ring 1, schema: users)"
-# "✅ Observer loaded: RecordPreloader (ring 0, schema: all)"
+# "✅ Observer loaded: EmailValidator (ring 1, model: users)"
+# "✅ Observer loaded: RecordPreloader (ring 0, model: all)"
 ```
 
 ---
@@ -618,7 +618,7 @@ npm run start:dev
 | Ring | Name | Purpose | Examples |
 |------|------|---------|----------|
 | 0 | DataPreparation | Load, merge, sanitize | RecordPreloader, UpdateMerger |
-| 1 | InputValidation | Schema validation | DataValidator, EmailValidator |
+| 1 | InputValidation | Model validation | DataValidator, EmailValidator |
 | 2 | Security | Access control, protection | SoftDeleteProtector, ExistenceValidator |
 | 3 | Business | Business rules | DuplicateChecker, BalanceValidator |
 | 4 | Enrichment | Defaults, computed fields | UuidArrayProcessor, DefaultValues |
@@ -647,8 +647,8 @@ const value = context.metadata.get('key');
 // Use preloaded data (efficient)
 const records = context.metadata.get('preloaded_records');
 
-// Schema validation
-context.schema.validateOrThrow(record);
+// Model validation
+context.model.validateOrThrow(record);
 ```
 
 ---

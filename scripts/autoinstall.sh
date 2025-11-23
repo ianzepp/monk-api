@@ -19,7 +19,7 @@ set -e
 # What this script does:
 # 1. Verify PostgreSQL connection (prerequisite check)
 # 2. Compile TypeScript code
-# 3. Initialize auth database with proper schema
+# 3. Initialize auth database with proper model
 # 4. Configure local server settings
 # 5. Create and configure test tenant
 # 6. Verify complete setup by testing connectivity
@@ -448,11 +448,11 @@ if psql -lqt | cut -d'|' -f1 | grep -qw "monk" 2>/dev/null; then
         print_info "Infrastructure: Templates: $template_count, Tenants: $tenant_count, Sandboxes: $sandbox_count"
     else
         print_warning "Monk database exists but may need initialization"
-        print_step "Re-initializing monk database schema..."
+        print_step "Re-initializing monk database model..."
         if psql -d monk -f fixtures/infrastructure/init.sql >/dev/null 2>&1; then
-            print_success "Monk database schema updated"
+            print_success "Monk database model updated"
         else
-            handle_error "Monk database schema initialization" "Check fixtures/infrastructure/init.sql file exists and PostgreSQL permissions"
+            handle_error "Monk database model initialization" "Check fixtures/infrastructure/init.sql file exists and PostgreSQL permissions"
         fi
     fi
 else
@@ -463,12 +463,12 @@ else
         handle_error "Monk database creation" "Check PostgreSQL permissions and that createdb command is available"
     fi
 
-    print_step "Initializing monk database schema..."
+    print_step "Initializing monk database model..."
     if psql -d monk -f fixtures/infrastructure/init.sql >/dev/null 2>&1; then
-        print_success "Monk database schema initialized"
+        print_success "Monk database model initialized"
         print_info "Created infrastructure tables (templates, tenants, sandboxes)"
     else
-        handle_error "Monk database schema initialization" "Check fixtures/infrastructure/init.sql file exists and PostgreSQL permissions"
+        handle_error "Monk database model initialization" "Check fixtures/infrastructure/init.sql file exists and PostgreSQL permissions"
     fi
 fi
 
@@ -506,7 +506,7 @@ if psql -lqt | cut -d'|' -f1 | sed 's/^ *//;s/ *$//' | grep -qx "$template_db_na
         print_step "Registering template in monk.templates..."
         template_version=$(cat fixtures/system/version.txt 2>/dev/null || echo "1")
         psql -d monk -c "
-            INSERT INTO templates (name, database, version, description, is_system, schema_count)
+            INSERT INTO templates (name, database, version, description, is_system, model_count)
             VALUES ('system', '$template_db_name', $template_version, 'System template with core infrastructure', true, 13)
             ON CONFLICT (name) DO NOTHING;
         " >/dev/null 2>&1
@@ -522,7 +522,7 @@ else
         handle_error "Default template database creation" "Check PostgreSQL permissions"
     fi
 
-    print_step "Initializing default template schema..."
+    print_step "Initializing default template model..."
     if psql -d "$template_db_name" -f fixtures/system/load.sql >/dev/null 2>&1; then
         print_success "Default template initialized successfully"
     else
@@ -532,7 +532,7 @@ else
     print_step "Registering template in monk.templates..."
     template_version=$(cat fixtures/system/version.txt 2>/dev/null || echo "1")
     if psql -d monk -c "
-        INSERT INTO templates (name, database, version, description, is_system, schema_count)
+        INSERT INTO templates (name, database, version, description, is_system, model_count)
         VALUES ('system', '$template_db_name', $template_version, 'System template with core infrastructure', true, 13)
         ON CONFLICT (name) DO NOTHING;
     " >/dev/null 2>&1; then
@@ -572,7 +572,7 @@ print_success "Monk API setup completed successfully!"
 echo
 print_info "Environment ready for development:"
 print_info "• PostgreSQL: Connected and configured"
-print_info "• Monk database (monk): Initialized with schema"
+print_info "• Monk database (monk): Initialized with model"
 print_info "• TypeScript: Built and ready"
 print_info "• Local server: http://localhost:9001"
 echo

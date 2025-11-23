@@ -2,7 +2,7 @@
 # Note: Removed set -e to handle errors gracefully and provide better visibility
 
 # Simple Fixtures Build Script
-# Creates template tenant databases with pre-loaded schemas and data for fast test setup
+# Creates template tenant databases with pre-loaded models and data for fast test setup
 
 # Source helpers
 SCRIPT_DIR="$(dirname "$0")"
@@ -194,12 +194,12 @@ if ! createdb "$template_db_name" 2>/dev/null; then
 fi
 print_success "Created database: $template_db_name"
 
-# # Initialize tenant schema (no users - let fixture init.sql handle that)
+# # Initialize tenant model (no users - let fixture init.sql handle that)
 # if ! psql -d "$template_db_name" -f sql/init-tenant.sql; then
 #     dropdb "$template_db_name" 2>/dev/null || true
-#     fail "Failed to initialize tenant schema"
+#     fail "Failed to initialize tenant model"
 # fi
-# print_success "Initialized tenant schema"
+# print_success "Initialized tenant model"
 
 # Register in main database
 if ! psql -d monk -c "INSERT INTO tenants (name, database, host, is_active, tenant_type) VALUES ('$tenant_name', '$template_db_name', 'localhost', true, 'normal')" >/dev/null 2>&1; then
@@ -224,29 +224,29 @@ else
     print_info "No fixture-specific load.sql found (optional)"
 fi
 
-# # Step 2: Load schema definitions via SQL
-# print_step "Loading schemas from $FIXTURES_DIR/describe/"
+# # Step 2: Load model definitions via SQL
+# print_step "Loading models from $FIXTURES_DIR/describe/"
 
-# schema_count=0
-# for schema_file in "$FIXTURES_DIR/describe"/*.sql; do
-#     if [[ ! -f "$schema_file" ]]; then
-#         print_warning "No schema SQL files found in $FIXTURES_DIR/describe/"
+# model_count=0
+# for model_file in "$FIXTURES_DIR/describe"/*.sql; do
+#     if [[ ! -f "$model_file" ]]; then
+#         print_warning "No model SQL files found in $FIXTURES_DIR/describe/"
 #         continue
 #     fi
 
-#     schema_name=$(basename "$schema_file" .sql)
-#     print_step "Loading schema: $schema_name"
+#     model_name=$(basename "$model_file" .sql)
+#     print_step "Loading model: $model_name"
 
-#     if psql -d "$template_db_name" -f "$schema_file"; then
-#         print_success "Schema '$schema_name' loaded successfully"
-#         ((schema_count++))
+#     if psql -d "$template_db_name" -f "$model_file"; then
+#         print_success "Model '$model_name' loaded successfully"
+#         ((model_count++))
 #     else
-#         print_error "Failed to load schema '$schema_name'"
-#         fail "Schema loading failed"
+#         print_error "Failed to load model '$model_name'"
+#         fail "Model loading failed"
 #     fi
 # done
 
-# print_success "Loaded $schema_count schemas"
+# print_success "Loaded $model_count models"
 
 # # Step 3: Load sample data (SQL or JSON based on flag)
 # if [[ "$USE_JSON_IMPORT" == true ]]; then
@@ -284,8 +284,8 @@ fi
 #             continue
 #         fi
 
-#         schema_name=$(basename "$json_file" .json)
-#         print_step "Loading data for schema: $schema_name"
+#         model_name=$(basename "$json_file" .json)
+#         print_step "Loading data for model: $model_name"
 
 #         # Read JSON array from file
 #         json_data=$(cat "$json_file")
@@ -300,27 +300,27 @@ fi
 #         print_info "Payload size: $(echo "$json_data" | wc -c) bytes, records: $record_count"
 
 #         # POST to Data API
-#         response=$(auth_post "api/data/$schema_name" "$json_data")
+#         response=$(auth_post "api/data/$model_name" "$json_data")
 
 #         print_info "Response received: $(echo "$response" | wc -c) bytes"
 
 #         # Check if successful
 #         if echo "$response" | jq -e '.success == true' >/dev/null 2>&1; then
-#             print_success "Data '$schema_name' loaded via API: $record_count records"
+#             print_success "Data '$model_name' loaded via API: $record_count records"
 #             ((data_count++))
 #             if [[ "$record_count" != "unknown" ]]; then
 #                 ((total_records += record_count))
 #             fi
 #         else
-#             print_error "Failed to load data '$schema_name' via API"
+#             print_error "Failed to load data '$model_name' via API"
 #             print_error "Response: $response"
 #             print_error "JWT_TOKEN length: ${#JWT_TOKEN}"
-#             print_error "Endpoint: api/data/$schema_name"
+#             print_error "Endpoint: api/data/$model_name"
 #             fail "Data loading via API failed"
 #         fi
 #     done
 
-#     print_success "Loaded data for $data_count schemas via API: $total_records total records"
+#     print_success "Loaded data for $data_count models via API: $total_records total records"
 # else
 #     print_step "Loading sample data via SQL from $FIXTURES_DIR/data/"
 
@@ -349,7 +349,7 @@ fi
 #         fi
 #     done
 
-#     print_success "Loaded data for $data_count schemas: $total_records total records"
+#     print_success "Loaded data for $data_count models: $total_records total records"
 # fi
 
 # Step 4: Convert to template database
@@ -409,7 +409,7 @@ print_success "Template registered: monk_$TEMPLATE_NAME → $template_db_final"
 print_header "Fixture Template Build Complete"
 echo "Template Name: monk_$TEMPLATE_NAME"
 echo "Database Name: $template_db_final"
-echo "Schemas: $schema_count"
+echo "Models: $model_count"
 echo "Records: $total_records"
 echo ""
 print_success "Template ready for test cloning via PostgreSQL CREATE DATABASE WITH TEMPLATE"

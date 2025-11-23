@@ -3,7 +3,7 @@
   "description": "Comprehensive demo with workspaces, teams, repositories, projects, tasks, issues, conversations, and docs",
   "parent": "system",
   "version": "1.0.0",
-  "schemas": 12,
+  "models": 12,
   "sample_data": true,
   "features": [
     "workspaces",

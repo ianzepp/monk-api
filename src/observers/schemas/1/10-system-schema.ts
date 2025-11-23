@@ -1,5 +1,5 @@
 /**
- * System Schema Validator - On "schemas"
+ * System Model Validator - On "models"
  *
  * TODO: Add description of what this observer does
  *
@@ -16,23 +16,23 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
-import { SYSTEM_SCHEMAS } from '@src/lib/schema.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import { SYSTEM_MODELS } from '@src/lib/model.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
-export default class SystemSchemaValidator extends BaseObserver {
+export default class SystemModelValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
     readonly operations = ['create', 'update', 'delete'] as const;
     readonly priority = 10;
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
-        const { schema_name } = record;
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+        const { model_name } = record;
 
-        if (SYSTEM_SCHEMAS.has(schema_name) === false) {
+        if (SYSTEM_MODELS.has(model_name) === false) {
             return;
         }
 
         throw new SystemError(
-            `Schema "${schema_name}" is restricted and cannot be created, updated, or deleted`
+            `Model "${model_name}" is restricted and cannot be created, updated, or deleted`
         );
     }
 }

@@ -32,9 +32,9 @@ The ACLs API provides fine-grained access control for database records through f
 
 ### Base URLs
 ```
-POST /api/acls/:schema/:record     # Manage ACLs for specific record
-POST /api/acls/:schema            # Bulk ACL operations with filtering
-GET  /api/acls/:schema/:record    # Retrieve current ACLs
+POST /api/acls/:model/:record     # Manage ACLs for specific record
+POST /api/acls/:model            # Bulk ACL operations with filtering
+GET  /api/acls/:model/:record    # Retrieve current ACLs
 ```
 
 ## Authentication
@@ -47,12 +47,12 @@ Authorization: Bearer <jwt>
 
 ### Required Permissions
 - **ACL Management**: `full` or `root` access level required
-- **ACL Viewing**: `read_data` permission for the schema
+- **ACL Viewing**: `read_data` permission for the model
 - **Bulk Operations**: `full` or `root` access level required
 
 ## Core Endpoints
 
-### POST /api/acls/:schema/:record
+### POST /api/acls/:model/:record
 
 Manages ACLs for a specific record, supporting both append (POST) and replace (PUT) operations.
 
@@ -75,7 +75,7 @@ Authorization: Bearer <jwt>
   "success": true,
   "data": {
     "record_id": "user_123456",
-    "schema": "users",
+    "model": "users",
     "access_lists": {
       "access_read": ["user_789", "group_managers"],
       "access_edit": ["user_789"],
@@ -88,7 +88,7 @@ Authorization: Bearer <jwt>
 }
 ```
 
-### PUT /api/acls/:schema/:record
+### PUT /api/acls/:model/:record
 
 Completely replaces ACLs for a specific record.
 
@@ -105,7 +105,7 @@ Authorization: Bearer <jwt>
 }
 ```
 
-### GET /api/acls/:schema/:record
+### GET /api/acls/:model/:record
 
 Retrieves current ACLs for a specific record.
 
@@ -120,7 +120,7 @@ Authorization: Bearer <jwt>
   "success": true,
     "data": {
     "record_id": "user_123456",
-    "schema": "users",
+    "model": "users",
     "access_lists": {
       "access_read": ["user_789", "group_managers"],
       "access_edit": ["user_789"],
@@ -137,7 +137,7 @@ Authorization: Bearer <jwt>
 }
 ```
 
-### POST /api/acls/:schema
+### POST /api/acls/:model
 
 Performs bulk ACL operations with filtering.
 
@@ -335,11 +335,11 @@ Authorization: Bearer <jwt>
 ## Integration with Data API
 
 ### Automatic ACL Inheritance
-Records automatically inherit ACLs from their schema defaults:
+Records automatically inherit ACLs from their model defaults:
 
 ```json
 {
-  "schema_default_acls": {
+  "model_default_acls": {
     "users": {
       "access_read": ["group_public"],
       "access_edit": ["user_owner"],
@@ -398,8 +398,8 @@ Permission resolution follows this hierarchy:
 User Direct Permissions → Group Membership → Role-Based → Default Deny
 ```
 
-### Cross-Schema ACL Management
-Manage ACLs across different schemas:
+### Cross-Model ACL Management
+Manage ACLs across different models:
 
 ```bash
 # Update ACLs for related records
@@ -410,7 +410,7 @@ Authorization: Bearer <jwt>
   "operations": [
     {
       "operation": "update-one",
-      "schema": "users",
+      "model": "users",
       "id": "user_123",
       "data": {
         "access_full": ["user_new_manager"]
@@ -418,7 +418,7 @@ Authorization: Bearer <jwt>
     },
     {
       "operation": "update-all",
-      "schema": "documents",
+      "model": "documents",
       "where": {"owner_id": "user_123"},
       "data": {
         "access_edit": {"$add": ["user_new_manager"]}
@@ -451,9 +451,9 @@ Authorization: Bearer <jwt>
   "success": false,
   "error": {
     "type": "NotFoundError",
-    "message": "Record 'user_999999' not found in schema 'users'",
+    "message": "Record 'user_999999' not found in model 'users'",
     "code": "RECORD_NOT_FOUND",
-    "schema": "users",
+    "model": "users",
     "record_id": "user_999999"
   }
 }

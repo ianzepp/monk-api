@@ -2,7 +2,7 @@
  * Grid API Route Barrel Export
  *
  * Grid API provides Excel-like spreadsheet functionality within Monk API.
- * Fills the gap between unstructured data (JSONB) and formal schemas.
+ * Fills the gap between unstructured data (JSONB) and formal models.
  *
  * Grid Management:
  * - Grids managed via Data API: /api/data/grids
@@ -14,15 +14,15 @@
  * - RangeDelete - Clear cells/range
  * - CellsPost - Bulk upsert (body contains cells)
  *
- * External Schema:
- * - grid_cells table is marked as external schema
+ * External Model:
+ * - grid_cells table is marked as external model
  * - Data managed via Grid API only (not Data API)
  * - Uses raw SQL (bypasses observer pipeline)
  *
  * Range Notation (Excel-style):
  * - Single cell: A1, B5, Z100
  * - Range: A1:Z100, B2:D10
- * - Entire column: A:A, B:Z
+ * - Entire field: A:A, B:Z
  * - Entire row: 5:5, 1:10
  */
 

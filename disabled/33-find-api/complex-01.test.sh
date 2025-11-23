@@ -3,7 +3,7 @@ set -e
 
 # Find API Complex Query Test 01
 # Tests combination of SELECT + WHERE + ORDER + LIMIT in single query
-# Focuses on: Column projection, multiple field filtering, sorting, and result limiting
+# Focuses on: Field projection, multiple field filtering, sorting, and result limiting
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

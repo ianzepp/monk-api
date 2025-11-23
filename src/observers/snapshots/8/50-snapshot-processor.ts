@@ -15,7 +15,7 @@
  * 5. User polls GET /api/sudo/snapshots/:name to check status
  *
  * Ring: 8 (Integration) - After database changes are committed
- * Schema: snapshots
+ * Model: snapshots
  * Operations: create
  */
 

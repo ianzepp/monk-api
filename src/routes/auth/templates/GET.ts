@@ -9,7 +9,7 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
  * used when registering a new tenant. This endpoint is only available when the
  * server is running in personal mode (TENANT_NAMING_MODE=personal).
  *
- * Templates are pre-built database schemas that can be cloned for fast tenant
+ * Templates are pre-built database models that can be cloned for fast tenant
  * creation. Common templates include 'system' (minimal setup) and 'testing'
  * (includes sample data for development).
  *

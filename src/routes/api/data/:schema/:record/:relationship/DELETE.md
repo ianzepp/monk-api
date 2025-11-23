@@ -1,12 +1,12 @@
-# DELETE /api/data/:schema/:record/:relationship
+# DELETE /api/data/:model/:record/:relationship
 
 Remove or detach all child records for a given parent relationship in one request. This endpoint scopes the deletion to only children belonging to the specified parent, making it safe for bulk cleanup operations.
 
 ## Path Parameters
 
-- `:schema` - Parent schema name (required)
+- `:model` - Parent model name (required)
 - `:record` - Parent record UUID (required)
-- `:relationship` - Relationship name defined in child schema (required)
+- `:relationship` - Relationship name defined in child model (required)
 
 ## Query Parameters
 
@@ -77,14 +77,14 @@ Sets both `trashed_at` and `deleted_at` on all child records:
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 | 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
-| 403 | `SCHEMA_FROZEN` | "Schema is frozen" | Child schema has frozen=true |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid parent schema name |
+| 403 | `MODEL_FROZEN` | "Model is frozen" | Child model has frozen=true |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid parent model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Parent record ID does not exist |
-| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for schema '{schema}'" | Invalid relationship name or not an owned relationship |
+| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for model '{model}'" | Invalid relationship name or not an owned relationship |
 
 ## Relationship Requirements
 
-This endpoint only works with **owned relationships** defined in the child schema:
+This endpoint only works with **owned relationships** defined in the child model:
 
 ```json
 {
@@ -95,7 +95,7 @@ This endpoint only works with **owned relationships** defined in the child schem
       "type": "string",
       "x-monk-relationship": {
         "type": "owned",
-        "schema": "posts",
+        "model": "posts",
         "name": "comments"
       }
     }
@@ -348,20 +348,20 @@ async function clearDraftComments(postId) {
 }
 ```
 
-## Schema Protection
+## Model Protection
 
-### Frozen Child Schemas
+### Frozen Child Models
 
-Child schemas with `frozen=true` reject all delete operations:
+Child models with `frozen=true` reject all delete operations:
 
 ```bash
 DELETE /api/data/posts/post-123/archived_comments
-# Error 403: SCHEMA_FROZEN
+# Error 403: MODEL_FROZEN
 ```
 
-### Sudo-Protected Child Schemas
+### Sudo-Protected Child Models
 
-Child schemas with `sudo=true` require a sudo token:
+Child models with `sudo=true` require a sudo token:
 
 ```bash
 # Get sudo token first
@@ -391,7 +391,7 @@ This ensures operations are scoped to valid parents only.
 
 ## Restoring Soft-Deleted Children
 
-Soft-deleted child records can be restored using the bulk revert operation on the child schema:
+Soft-deleted child records can be restored using the bulk revert operation on the child model:
 
 ```bash
 # First, find trashed comments for the post
@@ -405,7 +405,7 @@ PATCH /api/data/comments?include_trashed=true
 
 ## Related Endpoints
 
-- [`GET /api/data/:schema/:record/:relationship`](GET.md) - List all child records
-- [`POST /api/data/:schema/:record/:relationship`](POST.md) - Create child record
-- [`DELETE /api/data/:schema/:record/:relationship/:child`](:child/DELETE.md) - Delete specific child record
-- [`DELETE /api/data/:schema`](../../:schema/DELETE.md) - Bulk delete records
+- [`GET /api/data/:model/:record/:relationship`](GET.md) - List all child records
+- [`POST /api/data/:model/:record/:relationship`](POST.md) - Create child record
+- [`DELETE /api/data/:model/:record/:relationship/:child`](:child/DELETE.md) - Delete specific child record
+- [`DELETE /api/data/:model`](../../:model/DELETE.md) - Bulk delete records

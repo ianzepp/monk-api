@@ -30,7 +30,7 @@ export default withTransactionParams(async (context, { system, body }) => {
     const cells = body.cells;
 
     // 3. Validate bulk limit
-    const maxCells = Math.min(1000, grid.row_max * 26); // 26 columns (A-Z)
+    const maxCells = Math.min(1000, grid.row_max * 26); // 26 fields (A-Z)
     if (cells.length > maxCells) {
         throw HttpErrors.badRequest(
             `Bulk operation limited to ${maxCells} cells`,
@@ -56,19 +56,19 @@ export default withTransactionParams(async (context, { system, body }) => {
             );
         }
 
-        // Validate column bounds
+        // Validate field bounds
         if (cell.col < 'A' || cell.col > grid.col_max) {
             throw HttpErrors.badRequest(
-                `Column ${cell.col} exceeds grid limit ${grid.col_max}`,
-                'GRID_COLUMN_OUT_OF_BOUNDS'
+                `Field ${cell.col} exceeds grid limit ${grid.col_max}`,
+                'GRID_FIELD_OUT_OF_BOUNDS'
             );
         }
 
-        // Validate column is single character
+        // Validate field is single character
         if (cell.col.length !== 1) {
             throw HttpErrors.badRequest(
-                `Column must be a single character A-Z, got: ${cell.col}`,
-                'GRID_INVALID_COLUMN_FORMAT'
+                `Field must be a single character A-Z, got: ${cell.col}`,
+                'GRID_INVALID_FIELD_FORMAT'
             );
         }
     }

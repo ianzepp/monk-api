@@ -10,7 +10,7 @@
 - POST /api/data/restores - Create restore configuration
 - POST /api/restores/:id/run - Execute restore operation
 - POST /api/restores/import - Direct file upload and import
-- Describe import (schema/column creation from YAML)
+- Describe import (model/field creation from YAML)
 - Data import (JSONL record insertion)
 - Conflict strategy handling (replace/upsert/merge/sync/skip/error)
 
@@ -24,7 +24,7 @@
 - Configuration validation (source_type, conflict_strategy, include)
 
 **Restore Execution:**
-- Describe import functionality (schema/column creation, metadata preservation)
+- Describe import functionality (model/field creation, metadata preservation)
 - Data import functionality (JSONL parsing, record creation, batching)
 - Progress tracking (0% → 25% → 99% → 100%)
 - Run status tracking (queued → running → completed/failed)
@@ -33,7 +33,7 @@
 **Conflict Strategies (6 strategies):**
 - **replace**: Delete all existing records before import
 - **upsert**: Update existing records by ID, insert new ones
-- **merge**: Import data for new schemas only, skip existing
+- **merge**: Import data for new models only, skip existing
 - **sync**: Import records with new IDs, skip existing IDs
 - **skip**: Skip records with existing IDs, import new IDs only
 - **error**: Fail immediately on first ID conflict
@@ -52,7 +52,7 @@
 
 **Error Handling:**
 - Invalid YAML/JSON in source files
-- Missing schemas (when create_schemas=false)
+- Missing models (when create_models=false)
 - Database constraint violations
 - Disk full and permission errors
 - Corrupted ZIP files
@@ -60,14 +60,14 @@
 **Edge Cases:**
 - Empty datasets (zero records)
 - Very large datasets (millions of records)
-- Many schemas (100+)
+- Many models (100+)
 - Special characters and Unicode data
 - Concurrent restores
 - Duplicate record IDs in same file
 
-**Schema Creation:**
-- create_schemas=true: Create new schemas and add columns
-- create_schemas=false: Error if schema/column doesn't exist
+**Model Creation:**
+- create_models=true: Create new models and add fields
+- create_models=false: Error if model/field doesn't exist
 
 **Use Case Integration Tests:**
 - Dev workflow (export → wipe → restore → verify match)
@@ -75,7 +75,7 @@
 - Sandbox merge (sandbox changes → sync to parent tenant)
 
 **Security:**
-- ACL-based schema access restriction
+- ACL-based model access restriction
 - Tenant isolation for imports
 - Sudo user access controls
 - Permission validation (create/update rights)

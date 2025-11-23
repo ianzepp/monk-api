@@ -1,4 +1,4 @@
-# PUT /api/acls/:schema/:record
+# PUT /api/acls/:model/:record
 
 **Documentation stub - to be completed**
 

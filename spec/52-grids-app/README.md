@@ -8,7 +8,7 @@
 
 ### Missing Critical Tests (8+ for core functionality)
 - POST /api/data/grids - Create grid via Data API
-- GET /api/grids/:id/:range - Read cells (single, range, row, column)
+- GET /api/grids/:id/:range - Read cells (single, range, row, field)
 - PUT /api/grids/:id/:range - Write cells (single and range)
 - DELETE /api/grids/:id/:range - Delete cells
 - POST /api/grids/:id/cells - Bulk upsert cells
@@ -31,14 +31,14 @@
 - Single cell (A1, Z100)
 - Cell range (A1:Z100, B2:D10)
 - Row range (5:5, 1:10)
-- Column range (A:A, A:Z)
+- Field range (A:A, A:Z)
 - Invalid format rejection (backwards ranges, lowercase, etc.)
 
 **Cell Read Operations:**
 - Read single cell (existing and empty)
 - Read cell range with sparse results
 - Read row range (all cells in row)
-- Read column range (all cells in column)
+- Read field range (all cells in field)
 - Response format: {grid_id, range, cells: [{row, col, value}]}
 
 **Cell Write Operations:**
@@ -52,14 +52,14 @@
 - Delete single cell
 - Delete cell range
 - Delete row range (all cells in row)
-- Delete column range (all cells in column)
+- Delete field range (all cells in field)
 - Response includes deleted count
 
 **Bounds Validation:**
 - Row bounds enforcement (1 to row_max)
-- Column bounds enforcement (A to col_max)
+- Field bounds enforcement (A to col_max)
 - Dynamic bounds changes (cells exist but inaccessible after limit decrease)
-- Error codes: GRID_ROW_OUT_OF_BOUNDS, GRID_COLUMN_OUT_OF_BOUNDS
+- Error codes: GRID_ROW_OUT_OF_BOUNDS, GRID_FIELD_OUT_OF_BOUNDS
 
 **Transaction Support:**
 - All operations use withTransactionParams
@@ -67,10 +67,10 @@
 - Errors trigger rollback
 - No partial data on failure
 
-**External Schema Protection:**
+**External Model Protection:**
 - Data API cannot SELECT/INSERT/UPDATE/DELETE from grid_cells
 - DDL observers skip grid_cells (no automatic table alterations)
-- Error code: SCHEMA_EXTERNAL
+- Error code: MODEL_EXTERNAL
 - Ring 0 guard enforcement
 
 **Sparse Storage:**
@@ -89,10 +89,10 @@
 **Error Handling:**
 - Grid not found (404)
 - Invalid range format (GRID_INVALID_RANGE)
-- Bounds exceeded (GRID_ROW_OUT_OF_BOUNDS, GRID_COLUMN_OUT_OF_BOUNDS)
+- Bounds exceeded (GRID_ROW_OUT_OF_BOUNDS, GRID_FIELD_OUT_OF_BOUNDS)
 - Invalid request body (GRID_INVALID_REQUEST_BODY)
 - Cell outside range (GRID_CELL_OUT_OF_RANGE)
-- Invalid column format (GRID_INVALID_COLUMN_FORMAT)
+- Invalid field format (GRID_INVALID_FIELD_FORMAT)
 
 **Edge Cases:**
 - Special values (empty string, very long text, Unicode, JSON strings)
@@ -109,7 +109,7 @@
 **Use Cases:**
 - Data exploration (ad-hoc tabular data)
 - Simple spreadsheet (headers, rows, bulk import)
-- Form data collection (row per submission, column per field)
+- Form data collection (row per submission, field per field)
 
 **Performance (optional):**
 - Read single cell < 50ms
@@ -123,8 +123,8 @@
 - All test cases marked with checkboxes (none implemented)
 - Excel-like functionality (range notation, sparse storage, calculations)
 - Bypasses observer pipeline (raw SQL operations)
-- External schema pattern prevents accidental Data API access
-- Fills gap between unstructured JSONB and formal schemas
+- External model pattern prevents accidental Data API access
+- Fills gap between unstructured JSONB and formal models
 - Includes helper function specifications
 - Includes test fixture requirements
 - Target: 95%+ code coverage

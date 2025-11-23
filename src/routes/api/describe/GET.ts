@@ -3,12 +3,12 @@ import { withParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
- * GET /api/describe - List all schema names
+ * GET /api/describe - List all model names
  * @see docs/31-describe-api.md
  */
 export default withParams(async (context, { system }) => {
-    const schemas = await system.describe.schemas.selectAny({ order: { schema_name: 'asc' } });
-    // Extract just the schema names from the full schema objects
-    const schemaNames = schemas.map((schema: any) => schema.schema_name);
-    setRouteResult(context, schemaNames);
+    const models = await system.describe.models.selectAny({ order: { model_name: 'asc' } });
+    // Extract just the model names from the full model objects
+    const modelNames = models.map((model: any) => model.model_name);
+    setRouteResult(context, modelNames);
 });

@@ -15,18 +15,18 @@ Each record contains four access control arrays:
 All ACLs API operations require:
 - Valid JWT authentication
 - Admin or root level privileges
-- Target record must exist in the specified schema
+- Target record must exist in the specified model
 
 ## Endpoint Summary
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/acls/:schema/:record`](#get-apiaclsschemarecord) | Retrieve the effective ACL arrays for a specific record. |
-| POST | [`/api/acls/:schema/:record`](#post-apiaclsschemarecord) | Merge additional user IDs into the existing ACL arrays. |
-| PUT | [`/api/acls/:schema/:record`](#put-apiaclsschemarecord) | Replace all ACL arrays in a single operation, overwriting prior values. |
-| DELETE | [`/api/acls/:schema/:record`](#delete-apiaclsschemarecord) | Reset all ACL arrays so the record falls back to role-based defaults. |
+| GET | [`/api/acls/:model/:record`](#get-apiaclsmodelrecord) | Retrieve the effective ACL arrays for a specific record. |
+| POST | [`/api/acls/:model/:record`](#post-apiaclsmodelrecord) | Merge additional user IDs into the existing ACL arrays. |
+| PUT | [`/api/acls/:model/:record`](#put-apiaclsmodelrecord) | Replace all ACL arrays in a single operation, overwriting prior values. |
+| DELETE | [`/api/acls/:model/:record`](#delete-apiaclsmodelrecord) | Reset all ACL arrays so the record falls back to role-based defaults. |
 
-## GET /api/acls/:schema/:record
+## GET /api/acls/:model/:record
 
 Return the explicit ACL arrays for a record so clients can display or audit who can read, edit, fully manage, or is denied access. The response mirrors the exact lists stored alongside the record, making it easy to compare with default role-based permissions.
 
@@ -43,7 +43,7 @@ curl -X GET http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266141
   "success": true,
   "data": {
     "record_id": "123e4567-e89b-12d3-a456-426614174000",
-    "schema": "users",
+    "model": "users",
     "access_lists": {
       "access_read": ["11111111-2222-3333-4444-555555555551", "22222222-3333-4444-5555-666666666662"],
       "access_edit": ["33333333-4444-5555-6666-777777777773"],
@@ -54,7 +54,7 @@ curl -X GET http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266141
 }
 ```
 
-## POST /api/acls/:schema/:record
+## POST /api/acls/:model/:record
 
 Merge one or more user IDs into the ACL arrays without disturbing existing entries. Use this endpoint to append additional readers, editors, or deny rules while preserving the rest of the lists.
 
@@ -70,7 +70,7 @@ curl -X POST http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-426614
   }'
 ```
 
-## PUT /api/acls/:schema/:record
+## PUT /api/acls/:model/:record
 
 Replace the entire set of ACL arrays in a single request. This is useful when syncing permissions from another system or when you need to ensure the record matches an authoritative list without stale entries lingering.
 
@@ -88,9 +88,9 @@ curl -X PUT http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266141
   }'
 ```
 
-## DELETE /api/acls/:schema/:record
+## DELETE /api/acls/:model/:record
 
-Clear every ACL array so the record reverts to the schema's default role permissions. This is the fastest way to undo manual ACL tweaks and let the standard access tiers govern the record again.
+Clear every ACL array so the record reverts to the model's default role permissions. This is the fastest way to undo manual ACL tweaks and let the standard access tiers govern the record again.
 
 ### Example
 
@@ -105,7 +105,7 @@ curl -X DELETE http://localhost:9001/api/acls/users/123e4567-e89b-12d3-a456-4266
   "success": true,
   "data": {
     "record_id": "123e4567-e89b-12d3-a456-426614174000",
-    "schema": "users",
+    "model": "users",
     "status": "default_permissions",
     "access_lists": {
       "access_read": [],
@@ -132,7 +132,7 @@ When ACL arrays are empty (`[]`), the record uses default role-based permissions
 - `400 Bad Request`: Invalid request format or ACL structure
 - `401 Unauthorized`: Missing or invalid authentication
 - `403 Forbidden`: Insufficient privileges (requires admin/root)
-- `404 Not Found`: Schema or record not found
+- `404 Not Found`: Model or record not found
 - `500 Internal Server Error`: Database or system error
 
 ## Security Notes

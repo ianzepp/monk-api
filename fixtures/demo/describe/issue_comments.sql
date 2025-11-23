@@ -1,19 +1,19 @@
--- Schema definition for issue_comments
+-- Model definition for issue_comments
 -- Comments and discussion on issues
 
--- Insert schema record
-INSERT INTO schemas (schema_name, status, description)
+-- Insert model record
+INSERT INTO models (model_name, status, description)
   VALUES ('issue_comments', 'active', 'Comments and discussion on issues');
 
--- Insert column definitions
-INSERT INTO columns (schema_name, column_name, type, required, description)
+-- Insert field definitions
+INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('issue_comments', 'issue_id', 'uuid', 'true', 'Foreign key to issues table');
 
-INSERT INTO columns (schema_name, column_name, type, required, description, maximum)
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
   VALUES ('issue_comments', 'author', 'text', 'true', 'Comment author name', 100);
 
-INSERT INTO columns (schema_name, column_name, type, required, description, maximum)
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
   VALUES ('issue_comments', 'body', 'text', 'true', 'Comment content', 5000);
 
--- Create the actual table from schema definition
-SELECT create_table_from_schema('issue_comments');
+-- Create the actual table from model definition
+SELECT create_table_from_model('issue_comments');

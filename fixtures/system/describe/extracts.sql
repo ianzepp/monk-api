@@ -1,5 +1,5 @@
 -- ============================================================================
--- SCHEMA: extracts
+-- MODEL: extracts
 -- ============================================================================
 -- Data extraction job configurations
 
@@ -20,7 +20,7 @@ CREATE TABLE "extracts" (
 	"description" text,
 	"format" text DEFAULT 'jsonl' NOT NULL CHECK ("format" IN ('yaml', 'json', 'jsonl', 'archive')),
 	"include" text[] DEFAULT ARRAY['describe', 'data']::text[],
-	"schemas" text[],
+	"models" text[],
 	"filter" jsonb,
 	"compress" boolean DEFAULT true,
 	"split_files" boolean DEFAULT false,

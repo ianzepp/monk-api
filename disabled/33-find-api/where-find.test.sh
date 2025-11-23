@@ -2,7 +2,7 @@
 set -e
 
 # Find API Where $find Operator Test
-# Tests $find full-text search operator with POST /api/find/:schema
+# Tests $find full-text search operator with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

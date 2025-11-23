@@ -6,7 +6,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 /**
  * Find API Order Tests
  *
- * Tests basic ordering functionality with POST /api/find/:schema.
+ * Tests basic ordering functionality with POST /api/find/:model.
  * Uses the testing template which provides accounts with different names and balances.
  */
 

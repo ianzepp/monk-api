@@ -1,8 +1,8 @@
 -- ============================================================================
--- DATA: Register history schema
+-- DATA: Register history model
 -- ============================================================================
 
-INSERT INTO "schemas" (schema_name, status, description)
+INSERT INTO "models" (model_name, status, description)
 VALUES (
     'history',
     'system',

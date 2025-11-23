@@ -4,7 +4,7 @@ The Extract API provides data export functionality with background job processin
 
 ## TODO: Migrate to App Endpoint
 
-**Future Migration:** This API should be moved from `/api/extracts/*` to `/api/extracts/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
+**Future Migration:** This API should be moved from `/api/extracts/*` to `/api/extracts/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/model operations.
 
 **Target Path:** `/api/extracts/:id/*`
 **Rationale:** Extract API is an application-level feature (background jobs, file generation) rather than a direct data model operation, making it a better fit for the `/app` namespace.
@@ -28,7 +28,7 @@ POST /api/data/extracts
   "name": "Daily Backup",
   "format": "jsonl",
   "include": ["describe", "data"],
-  "schemas": ["users", "orders"],
+  "models": ["users", "orders"],
   "retention_days": 7
 }
 
@@ -122,8 +122,8 @@ curl http://localhost:9001/api/data/extract_runs/run_xyz789 \
     "progress": 45,
     "progress_detail": {
       "phase": "exporting_data",
-      "schemas_completed": 5,
-      "schemas_total": 10,
+      "models_completed": 5,
+      "models_total": 10,
       "records_exported": 12500
     },
     ...
@@ -145,10 +145,10 @@ curl -O http://localhost:9001/api/extracts/runs/run_xyz789/download \
 | `description` | string | null | Optional notes |
 | `format` | string | 'jsonl' | Output format: yaml, json, jsonl, archive |
 | `include` | array | ['describe', 'data'] | What to export |
-| `schemas` | array | null | Specific schemas (null = all) |
-| `filter` | object | null | Per-schema filters (future) |
+| `models` | array | null | Specific models (null = all) |
+| `filter` | object | null | Per-model filters (future) |
 | `compress` | boolean | true | Gzip output (future) |
-| `split_files` | boolean | false | One file per schema (future) |
+| `split_files` | boolean | false | One file per model (future) |
 | `schedule` | string | null | Cron expression (future) |
 | `schedule_enabled` | boolean | false | Enable scheduling (future) |
 | `retention_days` | number | 7 | How long to keep artifacts |
@@ -167,8 +167,8 @@ curl -O http://localhost:9001/api/extracts/runs/run_xyz789/download \
 
 Each run generates multiple artifacts:
 
-1. **describe.yaml** - Schema + column definitions (if include=['describe'])
-2. **{schema}.jsonl** - Data for each schema (if include=['data'])
+1. **describe.yaml** - Model + field definitions (if include=['describe'])
+2. **{model}.jsonl** - Data for each model (if include=['data'])
 3. **manifest.json** - Metadata about all artifacts
 
 All artifacts include:
@@ -183,9 +183,9 @@ The `progress_detail` field provides real-time status:
 ```json
 {
   "phase": "exporting_data",
-  "schemas_total": 10,
-  "schemas_completed": 7,
-  "current_schema": "orders",
+  "models_total": 10,
+  "models_completed": 7,
+  "current_model": "orders",
   "records_exported": 25000
 }
 ```
@@ -210,7 +210,7 @@ Phases:
 - ⏳ Scheduling (cron)
 - ⏳ Cloud storage (S3, GCS)
 - ⏳ Compression (gzip)
-- ⏳ Split files (one per schema)
+- ⏳ Split files (one per model)
 - ⏳ Retry logic
 - ⏳ Artifact cleanup job
 
@@ -242,6 +242,6 @@ Errors during extraction:
 Common errors:
 - Extract disabled
 - Already running
-- Schema not found
+- Model not found
 - Disk space
 - Permission issues

@@ -4,16 +4,16 @@
 **Scenario:** Building a car dealership management demo app
 **Status:** Blocked at test data population
 **Testing Duration:** ~2 hours
-**API Calls Made:** 50+ for schema creation alone
+**API Calls Made:** 50+ for model creation alone
 
 ---
 
 ## Executive Summary
 
-Attempted to build a car dealership demo with 4 schemas (vehicles, customers, sales, test_drives) to evaluate Monk API capabilities via the MCP server interface. Successfully created tenant and all schemas, but **blocked at data population** due to MCP tool type mismatch with the Data API.
+Attempted to build a car dealership demo with 4 models (vehicles, customers, sales, test_drives) to evaluate Monk API capabilities via the MCP server interface. Successfully created tenant and all models, but **blocked at data population** due to MCP tool type mismatch with the Data API.
 
 **Key Findings:**
-- ✅ Schema creation works but requires 50+ sequential calls (performance concern)
+- ✅ Model creation works but requires 50+ sequential calls (performance concern)
 - ❌ Data insertion blocked: MCP tool type definitions don't match API expectations
 - ⚠️ Relationship documentation is completely invalid (DRIFT issue)
 - ⚠️ Multiple tool usability issues discovered
@@ -25,7 +25,7 @@ Attempted to build a car dealership demo with 4 schemas (vehicles, customers, sa
 ### 1. MonkApiData / MonkHttp Type Mismatch with Data API
 
 **Problem:**
-The Data API `POST /api/data/:schema` endpoint expects an **array of records**, but the MCP tools define their parameters as `"type": "object"`.
+The Data API `POST /api/data/:model` endpoint expects an **array of records**, but the MCP tools define their parameters as `"type": "object"`.
 
 **MCP Tool Definitions:**
 ```typescript
@@ -71,7 +71,7 @@ Content-Type: application/json
 **Root Cause Hypothesis:**
 1. MCP tool is not setting `Content-Type: application/json` header
 2. MCP tool is serializing arrays as nested objects: `{"body": [...]}`
-3. JSON Schema type system limitation: `"type": "object"` doesn't allow arrays
+3. JSON Model type system limitation: `"type": "object"` doesn't allow arrays
 
 **Impact:** **CRITICAL - Cannot populate test data, blocking all scenario testing**
 
@@ -92,23 +92,23 @@ MonkApiDataBulk - for array operations
 
 ---
 
-### 2. Schema Creation Performance - 50+ API Calls
+### 2. Model Creation Performance - 50+ API Calls
 
 **Problem:**
-Creating a simple schema requires many sequential API calls:
-- 1 call to create schema metadata
-- N calls to create N columns (one per column)
+Creating a simple model requires many sequential API calls:
+- 1 call to create model metadata
+- N calls to create N fields (one per field)
 
 **Example:**
 ```typescript
-// Vehicles schema: 17 columns
+// Vehicles model: 17 fields
 POST /api/describe/vehicles {}                           // Call 1
-POST /api/describe/vehicles/columns/vin {...}            // Call 2
-POST /api/describe/vehicles/columns/make {...}           // Call 3
+POST /api/describe/vehicles/fields/vin {...}            // Call 2
+POST /api/describe/vehicles/fields/make {...}           // Call 3
 // ... 15 more calls ...
-POST /api/describe/vehicles/columns/photos {...}         // Call 17
+POST /api/describe/vehicles/fields/photos {...}         // Call 17
 
-// Total: 18 calls for one schema
+// Total: 18 calls for one model
 ```
 
 **Performance Impact:**
@@ -119,27 +119,27 @@ POST /api/describe/vehicles/columns/photos {...}         // Call 17
 - **Total: 50 calls, ~30 seconds**
 
 **User Experience:**
-- Tedious to define schemas
+- Tedious to define models
 - Slow iteration during development
 - ChatGPT token usage is high (many tool invocations)
 
 **Recommended Solutions:**
 
-**Option A: Add Bulk Column Creation Endpoint**
+**Option A: Add Bulk Field Creation Endpoint**
 ```bash
-POST /api/describe/:schema/columns
+POST /api/describe/:model/fields
 [
-  {"column_name": "vin", "type": "text", "required": true},
-  {"column_name": "make", "type": "text", "required": true},
-  {"column_name": "model", "type": "text", "required": true}
+  {"field_name": "vin", "type": "text", "required": true},
+  {"field_name": "make", "type": "text", "required": true},
+  {"field_name": "model", "type": "text", "required": true}
 ]
 ```
 
 **Option B: Add MCP Helper Tool**
 ```typescript
-MonkSchemaBuilder({
-  schema_name: "vehicles",
-  columns: [
+MonkModelBuilder({
+  model_name: "vehicles",
+  fields: [
     {name: "vin", type: "text", required: true},
     {name: "make", type: "text", required: true}
   ]
@@ -148,12 +148,12 @@ MonkSchemaBuilder({
 // Returns when complete
 ```
 
-**Option C: Support Full JSON Schema Format**
+**Option C: Support Full JSON Model Format**
 ```bash
 POST /api/describe/vehicles
 {
-  "schema_name": "vehicles",
-  "columns": [...]  // Define all columns at once
+  "model_name": "vehicles",
+  "fields": [...]  // Define all fields at once
 }
 ```
 
@@ -163,14 +163,14 @@ POST /api/describe/vehicles
 
 ### 3. Relationship Documentation is Invalid
 
-**Documented Format (from `src/routes/api/data/:schema/:record/:relationship/GET.md`):**
+**Documented Format (from `src/routes/api/data/:model/:record/:relationship/GET.md`):**
 ```json
 {
   "post_id": {
     "type": "string",
     "x-monk-relationship": {
       "type": "owned",
-      "schema": "posts",
+      "model": "posts",
       "name": "comments"
     }
   }
@@ -178,15 +178,15 @@ POST /api/describe/vehicles
 ```
 
 **Reality:**
-- Column creation responses include these fields:
+- Field creation responses include these fields:
   - `relationship_type: null`
-  - `related_schema: null`
-  - `related_column: null`
+  - `related_model: null`
+  - `related_field: null`
   - `relationship_name: null`
   - `cascade_delete: false`
   - `required_relationship: false`
 
-- These fields are ALWAYS null in all column creation responses
+- These fields are ALWAYS null in all field creation responses
 - No documentation on how to actually set them
 - No examples of working relationship configuration
 
@@ -194,9 +194,9 @@ POST /api/describe/vehicles
 
 **Tested:**
 ```bash
-POST /api/describe/sales/columns/vehicle_id
+POST /api/describe/sales/fields/vehicle_id
 {
-  "column_name": "vehicle_id",
+  "field_name": "vehicle_id",
   "type": "uuid",
   "description": "Foreign key to vehicles"
 }
@@ -213,16 +213,16 @@ POST /api/describe/sales/columns/vehicle_id
 
 ---
 
-### 4. Schema Format Documentation Mismatch
+### 4. Model Format Documentation Mismatch
 
 **Problem:**
-Documentation implies JSON Schema format, but actual implementation uses different format.
+Documentation implies JSON Model format, but actual implementation uses different format.
 
 **Expected (based on examples):**
 ```json
 POST /api/describe/vehicles
 {
-  "schema_name": "vehicles",
+  "model_name": "vehicles",
   "title": "Vehicles",
   "type": "object",
   "properties": {
@@ -234,25 +234,25 @@ POST /api/describe/vehicles
 
 **Actual:**
 ```bash
-# Error: column "title" of relation "schemas" does not exist
-# Error: column "type" of relation "schemas" does not exist
+# Error: field "title" of relation "models" does not exist
+# Error: field "type" of relation "models" does not exist
 ```
 
 **Actual Format Discovered:**
 ```bash
 POST /api/describe/vehicles
 {}  # Just creates metadata
-# Then add columns individually
+# Then add fields individually
 ```
 
 **Impact:**
 - Confusing for new users
 - Time wasted trying documented format
-- JSON Schema examples are misleading
+- JSON Model examples are misleading
 
 **Recommendation:**
-- Update all schema creation documentation
-- Remove or clarify JSON Schema references
+- Update all model creation documentation
+- Remove or clarify JSON Model references
 - Show actual two-step process clearly
 
 ---
@@ -285,7 +285,7 @@ MonkHttp({
 
 **Available Tools:**
 - `MonkApiData` - For data operations
-- `MonkApiDescribe` - For schema operations
+- `MonkApiDescribe` - For model operations
 - `MonkHttp` - Generic HTTP requests
 - `MonkAuth` - Authentication
 - `MonkAuthLogin` / `MonkAuthRegister` - Shortcuts
@@ -316,24 +316,24 @@ MonkHttp({
    - Subsequent calls use cached token
    - Transparent to user
 
-3. **MonkApiDescribe (GET)** - Reading schemas worked perfectly
+3. **MonkApiDescribe (GET)** - Reading models worked perfectly
    ```typescript
-   MonkApiDescribe({schema: "users"})
-   // ✅ Returns schema metadata
+   MonkApiDescribe({model: "users"})
+   // ✅ Returns model metadata
    ```
 
-4. **Column Creation via MonkHttp** - Once format was discovered
+4. **Field Creation via MonkHttp** - Once format was discovered
    ```typescript
    MonkHttp({
      method: "POST",
-     path: "/api/describe/vehicles/columns/vin",
-     body: {column_name: "vin", type: "text", required: true}
+     path: "/api/describe/vehicles/fields/vin",
+     body: {field_name: "vin", type: "text", required: true}
    })
    // ✅ Worked reliably
    ```
 
 5. **Error Messages from API** - Generally helpful
-   - Clear error codes (`BODY_NOT_ARRAY`, `SCHEMA_NOT_FOUND`)
+   - Clear error codes (`BODY_NOT_ARRAY`, `MODEL_NOT_FOUND`)
    - Useful stack traces in development mode
    - Though some are confusing (see issue #1)
 
@@ -343,24 +343,24 @@ MonkHttp({
 
 ### Scenario Approach
 
-**Goal:** Build realistic multi-schema application to stress-test API
+**Goal:** Build realistic multi-model application to stress-test API
 
-**Schemas Created:**
-1. **Vehicles** (17 columns) - Inventory management
+**Models Created:**
+1. **Vehicles** (17 fields) - Inventory management
    - VIN, make, model, year, status, prices, dates
    - Arrays: features, photos
    - Enums: status (available/sold/reserved)
 
-2. **Customers** (11 columns) - Customer management
+2. **Customers** (11 fields) - Customer management
    - Contact info, preferences, budget range
    - Arrays: preferred vehicle types
 
-3. **Sales** (9 columns) - Transaction tracking
+3. **Sales** (9 fields) - Transaction tracking
    - Foreign keys: vehicle_id, customer_id, salesperson_id
    - Financial: sale_price, commission_amount
    - Enums: financing_type
 
-4. **Test Drives** (9 columns) - Appointment scheduling
+4. **Test Drives** (9 fields) - Appointment scheduling
    - Foreign keys: vehicle_id, customer_id, salesperson_id
    - Timestamps: scheduled_date, actual_date
    - Enums: status
@@ -381,8 +381,8 @@ MonkHttp({
 7. Document findings
 
 **Time Breakdown:**
-- Schema creation: 30 minutes (understanding format)
-- Column creation: 45 minutes (50+ API calls)
+- Model creation: 30 minutes (understanding format)
+- Field creation: 45 minutes (50+ API calls)
 - Data population attempts: 45 minutes (blocked)
 - Documentation and analysis: 30+ minutes
 
@@ -404,7 +404,7 @@ MonkHttp({
 
 ### Medium Term (Performance)
 
-7. **Add MonkSchemaBuilder helper** - Batch column creation
+7. **Add MonkModelBuilder helper** - Batch field creation
 8. **Add query examples** to tool descriptions
 9. **Document tool selection criteria**
 
@@ -412,7 +412,7 @@ MonkHttp({
 
 10. **Work with API team** on relationship documentation
 11. **Request bulk endpoints** from API team
-12. **Standardize schema format** (actual vs documented)
+12. **Standardize model format** (actual vs documented)
 
 ---
 
@@ -420,16 +420,16 @@ MonkHttp({
 
 ### Critical (Documentation Drift)
 
-1. **Document actual schema creation format** - Not JSON Schema
+1. **Document actual model creation format** - Not JSON Model
 2. **Fix relationship documentation** - Current docs are fiction
 3. **Update DRIFT.md** with findings from this scenario
 
 ### High Priority (Usability)
 
-4. **Add bulk column creation endpoint**
+4. **Add bulk field creation endpoint**
    ```bash
-   POST /api/describe/:schema/columns
-   [array of column definitions]
+   POST /api/describe/:model/fields
+   [array of field definitions]
    ```
 
 5. **Clarify array handling** in Data API
@@ -437,7 +437,7 @@ MonkHttp({
 
 ### Medium Priority (Features)
 
-7. **Schema templates** - Common patterns (user management, e-commerce, etc.)
+7. **Model templates** - Common patterns (user management, e-commerce, etc.)
 8. **Better error messages** - "Array not recognized as array" is confusing
 9. **Computed fields** - Or document client-side calculation patterns
 
@@ -447,11 +447,11 @@ MonkHttp({
 
 1. **scenarios/DEALERSHIP.md** - Full scenario specification
 2. **spec/DRIFT.md** - Updated with relationship issue
-3. **4 database schemas** in tenant `acme-auto-dealership`:
-   - vehicles (17 columns)
-   - customers (11 columns)
-   - sales (9 columns)
-   - test_drives (9 columns)
+3. **4 database models** in tenant `acme-auto-dealership`:
+   - vehicles (17 fields)
+   - customers (11 fields)
+   - sales (9 fields)
+   - test_drives (9 fields)
 
 **Not Generated (blocked):**
 - Test data fixtures
@@ -462,7 +462,7 @@ MonkHttp({
 
 ## Conclusion
 
-The MCP server provides a solid foundation for interacting with Monk API, but has **critical type mismatch issues** that block realistic testing scenarios. The schema creation workflow is functional but requires many sequential calls, impacting performance and user experience.
+The MCP server provides a solid foundation for interacting with Monk API, but has **critical type mismatch issues** that block realistic testing scenarios. The model creation workflow is functional but requires many sequential calls, impacting performance and user experience.
 
 **Can the API build a car dealership app?** Unknown - blocked before testing core features (Find API, Aggregate API, relationships).
 
@@ -474,25 +474,25 @@ The MCP server provides a solid foundation for interacting with Monk API, but ha
 
 ## Appendix: Error Messages Encountered
 
-### Schema Creation Errors (Resolved)
+### Model Creation Errors (Resolved)
 
 ```json
 {
-  "error": "Observer execution failed: SystemError: Failed to insert record into schemas: column \"title\" of relation \"schemas\" does not exist",
+  "error": "Observer execution failed: SystemError: Failed to insert record into models: field \"title\" of relation \"models\" does not exist",
   "error_code": "OBSERVER_ERROR"
 }
 ```
 **Cause:** Tried to use `title` field (doesn't exist)
-**Resolution:** Use minimal schema creation `{}`
+**Resolution:** Use minimal model creation `{}`
 
 ```json
 {
-  "error": "Observer execution failed: SystemError: Failed to insert record into schemas: column \"type\" of relation \"schemas\" does not exist",
+  "error": "Observer execution failed: SystemError: Failed to insert record into models: field \"type\" of relation \"models\" does not exist",
   "error_code": "OBSERVER_ERROR"
 }
 ```
 **Cause:** Tried to use `type` field (doesn't exist)
-**Resolution:** Use two-step process (schema + columns)
+**Resolution:** Use two-step process (model + fields)
 
 ### Data Creation Errors (Unresolved)
 

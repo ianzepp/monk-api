@@ -4,31 +4,31 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * POST /api/data/:schema - Create Records
+ * POST /api/data/:model - Create Records
  *
  * Tests record creation with validation, system fields, and error handling.
  * Request body must be an array (even for single record).
  */
 
-describe('POST /api/data/:schema - Create Records', () => {
+describe('POST /api/data/:model - Create Records', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
         tenant = await TestHelpers.createTestTenant('data-post');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/products', {});
-        await tenant.httpClient.post('/api/describe/products/columns/name', {
-            column_name: 'name',
+        await tenant.httpClient.post('/api/describe/products/fields/name', {
+            field_name: 'name',
             type: 'text',
             required: true,
         });
-        await tenant.httpClient.post('/api/describe/products/columns/price', {
-            column_name: 'price',
+        await tenant.httpClient.post('/api/describe/products/fields/price', {
+            field_name: 'price',
             type: 'decimal',
         });
-        await tenant.httpClient.post('/api/describe/products/columns/in_stock', {
-            column_name: 'in_stock',
+        await tenant.httpClient.post('/api/describe/products/fields/in_stock', {
+            field_name: 'in_stock',
             type: 'boolean',
         });
     });
@@ -162,8 +162,8 @@ describe('POST /api/data/:schema - Create Records', () => {
         expect(validCount).toBe(0);
     });
 
-    it('should return error for non-existent schema', async () => {
-        const response = await tenant.httpClient.post('/api/data/nonexistent_schema', [
+    it('should return error for non-existent model', async () => {
+        const response = await tenant.httpClient.post('/api/data/nonexistent_model', [
             { name: 'Test' },
         ]);
 

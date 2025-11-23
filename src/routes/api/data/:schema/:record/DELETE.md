@@ -1,10 +1,10 @@
-# DELETE /api/data/:schema/:record
+# DELETE /api/data/:model/:record
 
 Delete a single record by UUID, defaulting to a reversible soft delete while supporting permanent removal for root users. The response includes the record metadata with updated deletion timestamps, allowing clients to immediately update local caches or display confirmation messages.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 - `:record` - Record UUID (required)
 
 ## Query Parameters
@@ -65,8 +65,8 @@ Sets both `trashed_at` and `deleted_at` to current timestamp:
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 | 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
-| 403 | `SCHEMA_FROZEN` | "Schema is frozen" | Attempting to delete from frozen schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 403 | `MODEL_FROZEN` | "Model is frozen" | Attempting to delete from frozen model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
 
 ## Soft Delete vs Permanent Delete
@@ -201,7 +201,7 @@ curl -X PATCH "http://localhost:9001/api/data/users/user-123?include_trashed=tru
   -H "Content-Type: application/json"
 ```
 
-See [`PUT /api/data/:schema/:record`](PUT.md#smart-routing-revert-operation) for details.
+See [`PUT /api/data/:model/:record`](PUT.md#smart-routing-revert-operation) for details.
 
 ## Observer Pipeline
 
@@ -219,20 +219,20 @@ Deleted records pass through the observer pipeline:
 
 If any observer throws an error, the operation fails and no changes are persisted.
 
-## Schema Protection
+## Model Protection
 
-### Frozen Schemas
+### Frozen Models
 
-Schemas with `frozen=true` reject all delete operations:
+Models with `frozen=true` reject all delete operations:
 
 ```bash
 DELETE /api/data/audit_log/record-123
-# Error 403: SCHEMA_FROZEN
+# Error 403: MODEL_FROZEN
 ```
 
-### Sudo-Protected Schemas
+### Sudo-Protected Models
 
-Schemas with `sudo=true` require a sudo token:
+Models with `sudo=true` require a sudo token:
 
 ```bash
 # Get sudo token first
@@ -311,16 +311,16 @@ DELETE /api/data/users/non-existent-id
 }
 ```
 
-### Frozen Schema
+### Frozen Model
 
 ```bash
 DELETE /api/data/audit_log/record-123
 
-# Error 403: SCHEMA_FROZEN
+# Error 403: MODEL_FROZEN
 {
   "success": false,
-  "error": "Schema 'audit_log' is frozen. All data operations are temporarily disabled.",
-  "error_code": "SCHEMA_FROZEN"
+  "error": "Model 'audit_log' is frozen. All data operations are temporarily disabled.",
+  "error_code": "MODEL_FROZEN"
 }
 ```
 
@@ -426,6 +426,6 @@ async function cleanupOldTrash() {
 
 ## Related Endpoints
 
-- [`GET /api/data/:schema/:record`](GET.md) - Retrieve single record
-- [`PUT /api/data/:schema/:record`](PUT.md) - Update single record (includes revert operation)
-- [`DELETE /api/data/:schema`](../:schema/DELETE.md) - Bulk delete records
+- [`GET /api/data/:model/:record`](GET.md) - Retrieve single record
+- [`PUT /api/data/:model/:record`](PUT.md) - Update single record (includes revert operation)
+- [`DELETE /api/data/:model`](../:model/DELETE.md) - Bulk delete records

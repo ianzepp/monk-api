@@ -45,7 +45,7 @@ export enum BulkOperationType {
  */
 export interface BulkOperation {
     operation: BulkOperationType;
-    schema: string;
+    model: string;
     data?: any;
     filter?: any;
     id?: string;
@@ -119,9 +119,9 @@ export class BulkProcessor {
             const op = operations[i];
 
             // Basic required fields
-            if (!op.operation || !op.schema) {
+            if (!op.operation || !op.model) {
                 throw HttpErrors.badRequest(
-                    `Operation at index ${i} missing required fields: operation and schema are required`,
+                    `Operation at index ${i} missing required fields: operation and model are required`,
                     'OPERATION_MISSING_FIELDS'
                 );
             }
@@ -309,13 +309,13 @@ export class BulkProcessor {
                 console.info('Bulk operation completed', {
                     index: i,
                     operation: operations[i].operation,
-                    schema: operations[i].schema
+                    model: operations[i].model
                 });
             } catch (error) {
                 console.warn('Bulk operation failed', {
                     index: i,
                     operation: operations[i].operation,
-                    schema: operations[i].schema,
+                    model: operations[i].model,
                     error: error instanceof Error ? error.message : String(error)
                 });
                 throw error; // Re-throw to trigger transaction rollback
@@ -327,20 +327,20 @@ export class BulkProcessor {
      * Execute individual operation with proper database method mapping
      */
     private async executeOperation(op: BulkOperation): Promise<any> {
-        const { schema: schemaName, data, filter, id, message } = op;
+        const { model: modelName, data, filter, id, message } = op;
         const filterById = { where: { id: id || null }};
 
         switch (op.operation) {
             // Read operations
             case BulkOperationType.Select:
             case BulkOperationType.SelectAll:
-                return await this.system.database.selectAny(schemaName, filter);
+                return await this.system.database.selectAny(modelName, filter);
 
             case BulkOperationType.SelectOne:
-                return await this.system.database.selectOne(schemaName, filter || filterById);
+                return await this.system.database.selectOne(modelName, filter || filterById);
 
             case BulkOperationType.Select404:
-                return await this.system.database.select404(schemaName, filter || filterById, message);
+                return await this.system.database.select404(modelName, filter || filterById, message);
 
             case BulkOperationType.SelectMax:
                 // TODO: Implement selectMax functionality
@@ -348,7 +348,7 @@ export class BulkProcessor {
                 return [];
 
             case BulkOperationType.Count:
-                return await this.system.database.count(schemaName, filter);
+                return await this.system.database.count(modelName, filter);
 
             case BulkOperationType.Aggregate: {
                 const aggregateFilter = filter || (op.where ? { where: op.where } : {});
@@ -358,7 +358,7 @@ export class BulkProcessor {
                         ? [op.groupBy]
                         : undefined;
                 return await this.system.database.aggregate(
-                    schemaName,
+                    modelName,
                     aggregateFilter,
                     op.aggregate!,
                     groupBy
@@ -368,38 +368,38 @@ export class BulkProcessor {
             // Write operations
             case BulkOperationType.Create:
             case BulkOperationType.CreateOne:
-                return await this.system.database.createOne(schemaName, data);
+                return await this.system.database.createOne(modelName, data);
 
             case BulkOperationType.CreateAll:
-                return await this.system.database.createAll(schemaName, data);
+                return await this.system.database.createAll(modelName, data);
 
             case BulkOperationType.Update:
             case BulkOperationType.UpdateOne:
                 if (!id) throw HttpErrors.badRequest('ID required for updateOne operation', 'OPERATION_MISSING_ID');
-                return await this.system.database.updateOne(schemaName, id, data);
+                return await this.system.database.updateOne(modelName, id, data);
 
             case BulkOperationType.UpdateAll:
-                return await this.system.database.updateAll(schemaName, data);
+                return await this.system.database.updateAll(modelName, data);
 
             case BulkOperationType.UpdateAny:
-                return await this.system.database.updateAny(schemaName, filter, data);
+                return await this.system.database.updateAny(modelName, filter, data);
 
             case BulkOperationType.Update404:
-                return await this.system.database.update404(schemaName, filter || filterById, data, message);
+                return await this.system.database.update404(modelName, filter || filterById, data, message);
 
             case BulkOperationType.Delete:
             case BulkOperationType.DeleteOne:
                 if (!id) throw HttpErrors.badRequest('ID required for deleteOne operation', 'OPERATION_MISSING_ID');
-                return await this.system.database.deleteOne(schemaName, id);
+                return await this.system.database.deleteOne(modelName, id);
 
             case BulkOperationType.DeleteAll:
-                return await this.system.database.deleteAll(schemaName, data);
+                return await this.system.database.deleteAll(modelName, data);
 
             case BulkOperationType.DeleteAny:
-                return await this.system.database.deleteAny(schemaName, filter);
+                return await this.system.database.deleteAny(modelName, filter);
 
             case BulkOperationType.Delete404:
-                return await this.system.database.delete404(schemaName, filter || filterById, message);
+                return await this.system.database.delete404(modelName, filter || filterById, message);
 
             case BulkOperationType.Upsert:
             case BulkOperationType.UpsertOne:
@@ -410,16 +410,16 @@ export class BulkProcessor {
             case BulkOperationType.Access:
             case BulkOperationType.AccessOne:
                 if (!id) throw HttpErrors.badRequest('ID required for accessOne operation', 'OPERATION_MISSING_ID');
-                return await this.system.database.accessOne(schemaName, id, data);
+                return await this.system.database.accessOne(modelName, id, data);
 
             case BulkOperationType.AccessAll:
-                return await this.system.database.accessAll(schemaName, data);
+                return await this.system.database.accessAll(modelName, data);
 
             case BulkOperationType.AccessAny:
-                return await this.system.database.accessAny(schemaName, filter, data);
+                return await this.system.database.accessAny(modelName, filter, data);
 
             case BulkOperationType.Access404:
-                return await this.system.database.access404(schemaName, filter || filterById, data, message);
+                return await this.system.database.access404(modelName, filter || filterById, data, message);
 
             default:
                 throw HttpErrors.unprocessableEntity(`Unsupported operation: ${op.operation}`, 'OPERATION_UNSUPPORTED');

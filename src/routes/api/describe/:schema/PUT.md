@@ -1,10 +1,10 @@
-# PUT /api/describe/:schema
+# PUT /api/describe/:model
 
-Update schema metadata and protection settings. This endpoint modifies schema-level configuration only - use column endpoints to modify column definitions.
+Update model metadata and protection settings. This endpoint modifies model-level configuration only - use field endpoints to modify field definitions.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 
 ## Query Parameters
 
@@ -24,13 +24,13 @@ None
 
 ### Allowed Updates
 
-- **status** - Change schema status (`pending`, `active`)
-- **description** - Update schema description
+- **status** - Change model status (`pending`, `active`)
+- **description** - Update model description
 - **sudo** - Change sudo requirement for data operations
 - **freeze** - Change freeze status (emergency lockdown)
 - **immutable** - Change immutable status (write-once pattern)
 
-**Note:** You cannot change `status` to `system` via the API. System schemas cannot be modified.
+**Note:** You cannot change `status` to `system` via the API. System models cannot be modified.
 
 ## Success Response (200)
 
@@ -39,7 +39,7 @@ None
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "schema_name": "users",
+    "model_name": "users",
     "status": "active",
     "description": "Updated description",
     "sudo": true,
@@ -58,12 +58,12 @@ None
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 403 | `SCHEMA_PROTECTED` | "Schema is protected and cannot be modified" | Attempting to modify system schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 403 | `MODEL_PROTECTED` | "Model is protected and cannot be modified" | Attempting to modify system model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 
 ## Example Usage
 
-### Activate Schema
+### Activate Model
 
 ```bash
 curl -X PUT http://localhost:9001/api/describe/users \
@@ -88,7 +88,7 @@ curl -X PUT http://localhost:9001/api/describe/financial_accounts \
 ### Emergency Freeze
 
 ```bash
-# Freeze schema to prevent data changes during incident
+# Freeze model to prevent data changes during incident
 curl -X PUT http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
@@ -110,12 +110,12 @@ curl -X PUT http://localhost:9001/api/describe/products \
 
 ## Use Cases
 
-### Schema Lifecycle Management
+### Model Lifecycle Management
 
 ```javascript
 // Deploy workflow: pending → active
-async function activateSchema(schemaName) {
-  const response = await fetch(`/api/describe/${schemaName}`, {
+async function activateModel(modelName) {
+  const response = await fetch(`/api/describe/${modelName}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -124,20 +124,20 @@ async function activateSchema(schemaName) {
     body: JSON.stringify({ status: 'active' })
   });
 
-  const { data: schema } = await response.json();
-  console.log(`Schema '${schema.schema_name}' is now active`);
-  return schema;
+  const { data: model } = await response.json();
+  console.log(`Model '${model.model_name}' is now active`);
+  return model;
 }
 ```
 
 ### Emergency Lockdown
 
 ```javascript
-// Freeze schema during security incident
-async function emergencyFreeze(schemaName, reason) {
-  console.log(`EMERGENCY: Freezing ${schemaName} - ${reason}`);
+// Freeze model during security incident
+async function emergencyFreeze(modelName, reason) {
+  console.log(`EMERGENCY: Freezing ${modelName} - ${reason}`);
 
-  const response = await fetch(`/api/describe/${schemaName}`, {
+  const response = await fetch(`/api/describe/${modelName}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -149,17 +149,17 @@ async function emergencyFreeze(schemaName, reason) {
     })
   });
 
-  const { data: schema } = await response.json();
+  const { data: model } = await response.json();
 
   // Notify team
-  await notifyTeam(`Schema ${schemaName} has been frozen: ${reason}`);
+  await notifyTeam(`Model ${modelName} has been frozen: ${reason}`);
 
-  return schema;
+  return model;
 }
 
 // Later: Unfreeze after incident resolved
-async function unfreezeSchema(schemaName) {
-  return await fetch(`/api/describe/${schemaName}`, {
+async function unfreezeModel(modelName) {
+  return await fetch(`/api/describe/${modelName}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -170,12 +170,12 @@ async function unfreezeSchema(schemaName) {
 }
 ```
 
-### Add sudo Protection to Existing Schema
+### Add sudo Protection to Existing Model
 
 ```javascript
-// Upgrade schema to require sudo
-async function enableSudo(schemaName) {
-  const response = await fetch(`/api/describe/${schemaName}`, {
+// Upgrade model to require sudo
+async function enableSudo(modelName) {
+  const response = await fetch(`/api/describe/${modelName}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -184,18 +184,18 @@ async function enableSudo(schemaName) {
     body: JSON.stringify({ sudo: true })
   });
 
-  const { data: schema } = await response.json();
-  console.log(`Schema '${schema.schema_name}' now requires sudo token`);
-  return schema;
+  const { data: model } = await response.json();
+  console.log(`Model '${model.model_name}' now requires sudo token`);
+  return model;
 }
 ```
 
-### Convert to Immutable Schema
+### Convert to Immutable Model
 
 ```javascript
-// Make existing schema immutable for compliance
-async function makeImmutable(schemaName) {
-  const response = await fetch(`/api/describe/${schemaName}`, {
+// Make existing model immutable for compliance
+async function makeImmutable(modelName) {
+  const response = await fetch(`/api/describe/${modelName}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -207,25 +207,25 @@ async function makeImmutable(schemaName) {
     })
   });
 
-  const { data: schema } = await response.json();
-  console.log(`Schema '${schema.schema_name}' is now immutable`);
-  return schema;
+  const { data: model } = await response.json();
+  console.log(`Model '${model.model_name}' is now immutable`);
+  return model;
 }
 ```
 
-## Schema Status Transitions
+## Model Status Transitions
 
 Valid status transitions:
-- `pending` → `active` (schema is ready for use)
+- `pending` → `active` (model is ready for use)
 - `active` → `pending` (rollback activation)
 
 **Cannot transition to:**
-- `system` (reserved for internal schemas)
+- `system` (reserved for internal models)
 
 ## Protection Flag Behavior
 
 ### Enabling sudo
-When sudo is enabled on an existing schema:
+When sudo is enabled on an existing model:
 - **Immediate effect**: All subsequent data operations require sudo token
 - **Active sessions**: Existing requests without sudo token will fail
 - **Use case**: Upgrade security for sensitive data
@@ -237,50 +237,50 @@ When freeze is enabled:
 - **Use case**: Emergency lockdown, maintenance windows, incident response
 
 ### Enabling immutable
-When immutable is enabled on existing schema:
+When immutable is enabled on existing model:
 - **New records**: Can be created
 - **Existing records**: Can no longer be modified
 - **Use case**: Convert audit log to write-once after initial data load
 
-## Modifying Columns
+## Modifying Fields
 
-**Important:** This endpoint updates schema-level metadata only. To modify columns:
+**Important:** This endpoint updates model-level metadata only. To modify fields:
 
-- Add column: [`POST /api/describe/:schema/columns/:column`](:column/POST.md)
-- Update column: [`PUT /api/describe/:schema/columns/:column`](:column/PUT.md)
-- Delete column: [`DELETE /api/describe/:schema/columns/:column`](:column/DELETE.md)
+- Add field: [`POST /api/describe/:model/fields/:field`](:field/POST.md)
+- Update field: [`PUT /api/describe/:model/fields/:field`](:field/PUT.md)
+- Delete field: [`DELETE /api/describe/:model/fields/:field`](:field/DELETE.md)
 
-## System Schema Protection
+## System Model Protection
 
-Schemas with `status='system'` cannot be modified:
-- `PUT` operations return `403 SCHEMA_PROTECTED`
-- Only root users can access system schemas
-- System schema protection is permanent
+Models with `status='system'` cannot be modified:
+- `PUT` operations return `403 MODEL_PROTECTED`
+- Only root users can access system models
+- System model protection is permanent
 
-Examples of system schemas:
-- `schemas` - Schema metadata
-- `columns` - Column definitions
+Examples of system models:
+- `models` - Model metadata
+- `fields` - Field definitions
 - `users` - User accounts
 - `sessions` - Active sessions
 
 ## Performance Considerations
 
-- Schema metadata updates are fast (< 10ms)
+- Model metadata updates are fast (< 10ms)
 - No DDL operations required (no ALTER TABLE)
 - Changes take effect immediately
-- Schema cache is invalidated and refreshed
+- Model cache is invalidated and refreshed
 
 ## Validation
 
 The endpoint validates:
-- Schema exists and is accessible
-- User has permission to modify schema
+- Model exists and is accessible
+- User has permission to modify model
 - Status values are valid (`pending`, `active`)
 - Boolean values for protection flags
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema`](GET.md) - Get schema definition
-- [`POST /api/describe/:schema`](POST.md) - Create new schema
-- [`DELETE /api/describe/:schema`](DELETE.md) - Delete schema
-- [`PUT /api/describe/:schema/columns/:column`](:column/PUT.md) - Update column definition
+- [`GET /api/describe/:model`](GET.md) - Get model definition
+- [`POST /api/describe/:model`](POST.md) - Create new model
+- [`DELETE /api/describe/:model`](DELETE.md) - Delete model
+- [`PUT /api/describe/:model/fields/:field`](:field/PUT.md) - Update field definition

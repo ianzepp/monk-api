@@ -2,7 +2,7 @@
  * Webhook Sender Observer
  *
  * Universal integration observer that sends webhooks for data changes
- * Ring: 8 (Integration) - Schema: % (all schemas) - Operations: create, update, delete
+ * Ring: 8 (Integration) - Model: % (all models) - Operations: create, update, delete
  *
  * TODO: Re-enable when webhook endpoints are configured
  */
@@ -14,7 +14,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 
 interface WebhookEndpoint {
     url: string;
-    schemas: string[];
+    models: string[];
     operations: string[];
     headers?: Record<string, string>;
     timeout?: number;
@@ -29,7 +29,7 @@ export default class WebhookSender extends BaseAsyncObserver {
     private readonly webhookEndpoints: WebhookEndpoint[] = [
         {
             url: 'https://api.external-service.com/webhooks/data-changes',
-            schemas: ['user', 'account'],
+            models: ['user', 'account'],
             operations: ['create', 'update', 'delete'],
             headers: {
                 'Authorization': 'Bearer ${WEBHOOK_TOKEN}',
@@ -40,7 +40,7 @@ export default class WebhookSender extends BaseAsyncObserver {
         },
         {
             url: 'https://analytics.company.com/events',
-            schemas: ['*'], // All schemas
+            models: ['*'], // All models
             operations: ['create', 'delete'],
             timeout: 3000,
             retries: 1
@@ -48,22 +48,22 @@ export default class WebhookSender extends BaseAsyncObserver {
     ];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, operation } = context;
+        const { model, operation } = context;
 
         // TODO: Temporarily disabled for testing - re-enable when webhook endpoints are configured
-        console.info(`📡 Webhook observer triggered for ${schema} ${operation} (disabled for testing)`);
+        console.info(`📡 Webhook observer triggered for ${model} ${operation} (disabled for testing)`);
     }
 
-    private getApplicableEndpoints(schema: string, operation: string): WebhookEndpoint[] {
+    private getApplicableEndpoints(model: string, operation: string): WebhookEndpoint[] {
         return this.webhookEndpoints.filter(endpoint => {
-            // Check if schema matches
-            const schemaMatches = endpoint.schemas.includes('*') ||
-                                endpoint.schemas.includes(schema);
+            // Check if model matches
+            const modelMatches = endpoint.models.includes('*') ||
+                                endpoint.models.includes(model);
 
             // Check if operation matches
             const operationMatches = endpoint.operations.includes(operation);
 
-            return schemaMatches && operationMatches;
+            return modelMatches && operationMatches;
         });
     }
 
@@ -130,12 +130,12 @@ export default class WebhookSender extends BaseAsyncObserver {
     }
 
     private createWebhookPayload(context: ObserverContext): any {
-        const { operation, schema, data } = context;
+        const { operation, model, data } = context;
 
         return {
             // Event metadata
             event: {
-                type: `${schema.schema_name}.${operation}`,
+                type: `${model.model_name}.${operation}`,
                 timestamp: new Date().toISOString(),
                 source: 'monk-api',
                 version: '1.0'
@@ -143,7 +143,7 @@ export default class WebhookSender extends BaseAsyncObserver {
 
             // Operation details
             operation,
-            schema: schema.schema_name,
+            model: model.model_name,
 
             // Data payload based on operation type
             data: this.getDataPayload(operation, data),
@@ -157,7 +157,7 @@ export default class WebhookSender extends BaseAsyncObserver {
     }
 
     private getDataPayload(operation: string, data: any): any {
-        // data is SchemaRecord[] with both original and current state
+        // data is ModelRecord[] with both original and current state
         const records = Array.isArray(data) ? data : (data ? [data] : []);
         const recordData = records.map(r => r.toObject());
 
@@ -168,7 +168,7 @@ export default class WebhookSender extends BaseAsyncObserver {
                 };
 
             case 'update':
-                // Extract changes from SchemaRecord instances
+                // Extract changes from ModelRecord instances
                 const changes = records.map(r => ({
                     record: r.toObject(),
                     changes: r.getChanges()
@@ -187,7 +187,7 @@ export default class WebhookSender extends BaseAsyncObserver {
     }
 
     private computeChanges(record: any): any {
-        // No longer needed - SchemaRecord.getChanges() handles this
+        // No longer needed - ModelRecord.getChanges() handles this
         return record.getChanges?.() || null;
     }
 

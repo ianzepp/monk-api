@@ -38,8 +38,8 @@ export abstract class BaseAsyncObserver implements Observer {
      */
     async executeTry(context: ObserverContext): Promise<void> {
         const observerName = this.constructor.name;
-        const { system, operation, schema } = context;
-        const schemaName = schema.schema_name;
+        const { system, operation, model } = context;
+        const modelName = model.model_name;
 
         // Execute asynchronously - don't block pipeline
         setImmediate(async () => {
@@ -54,7 +54,7 @@ export abstract class BaseAsyncObserver implements Observer {
                 console.info(`AsyncObserver: ${observerName}`, {
                     ring: this.ring,
                     operation,
-                    schemaName,
+                    modelName,
                     status: 'success'
                 });
 
@@ -63,7 +63,7 @@ export abstract class BaseAsyncObserver implements Observer {
                 console.info(`AsyncObserver: ${observerName}`, {
                     ring: this.ring,
                     operation,
-                    schemaName,
+                    modelName,
                     status: 'failed',
                     error: error instanceof Error ? error.message : String(error)
                 });
@@ -72,7 +72,7 @@ export abstract class BaseAsyncObserver implements Observer {
                 console.warn(`Async observer failed: ${observerName}`, {
                     ring: this.ring,
                     operation,
-                    schemaName,
+                    modelName,
                     error: error instanceof Error ? error.message : String(error),
                     timeout: this.timeoutMs
                 });

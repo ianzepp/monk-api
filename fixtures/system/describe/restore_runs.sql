@@ -31,8 +31,8 @@ CREATE TABLE "restore_runs" (
     "records_imported" integer DEFAULT 0 NOT NULL,
     "records_skipped" integer DEFAULT 0 NOT NULL,
     "records_updated" integer DEFAULT 0 NOT NULL,
-    "schemas_created" integer DEFAULT 0 NOT NULL,
-    "columns_created" integer DEFAULT 0 NOT NULL,
+    "models_created" integer DEFAULT 0 NOT NULL,
+    "fields_created" integer DEFAULT 0 NOT NULL,
 
     -- Error tracking
     "error" text,

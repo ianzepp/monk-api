@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 set -e
 
-# Test: DELETE /api/data/:schema/:record/:relationship/:child - Delete specific nested resource
+# Test: DELETE /api/data/:model/:record/:relationship/:child - Delete specific nested resource
 # Deletes a child record with parent relationship validation
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing DELETE /api/data/:schema/:record/:relationship/:child endpoint"
+print_step "Testing DELETE /api/data/:model/:record/:relationship/:child endpoint"
 
 # Setup test environment with template and authentication (full)
 setup_test_with_template "delete-relationship-post"
 setup_full_auth
 
-# Basic setup - create schemas
-print_step "Setting up test schemas"
-test_post_schema='{
+# Basic setup - create models
+print_step "Setting up test models"
+test_post_model='{
   "title": "Posts",
   "type": "object",
   "properties": {
@@ -24,10 +24,10 @@ test_post_schema='{
   }
 }'
 
-response=$(auth_post "api/describe/posts" "$test_post_schema")
-extract_and_validate_data "$response" "Created post schema"
+response=$(auth_post "api/describe/posts" "$test_post_model")
+extract_and_validate_data "$response" "Created post model"
 
-test_comment_schema='{
+test_comment_model='{
   "title": "Comments",
   "type": "object",
   "properties": {
@@ -36,15 +36,15 @@ test_comment_schema='{
       "type": "string",
       "x-monk-relationship": {
         "type": "owned",
-        "schema": "posts",
+        "model": "posts",
         "name": "comments"
       }
     }
   }
 }'
 
-response=$(auth_post "api/describe/comments" "$test_comment_schema")
-extract_and_validate_data "$response" "Created comment schema"
+response=$(auth_post "api/describe/comments" "$test_comment_model")
+extract_and_validate_data "$response" "Created comment model"
 
 # Basic setup - create test data
 print_step "Setting up test data"

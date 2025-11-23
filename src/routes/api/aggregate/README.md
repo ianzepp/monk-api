@@ -23,7 +23,7 @@ The Aggregate API provides powerful data aggregation capabilities for analytics,
 
 ### Key Capabilities
 - **6 Aggregation Functions**: COUNT, SUM, AVG, MIN, MAX, COUNT DISTINCT
-- **GROUP BY Support**: Single or multiple column grouping
+- **GROUP BY Support**: Single or multiple field grouping
 - **Filter Integration**: Full WHERE clause support from Find API (25+ operators)
 - **Soft Delete Aware**: Automatic filtering of deleted records
 - **ACL Integration**: Respects access control lists
@@ -31,7 +31,7 @@ The Aggregate API provides powerful data aggregation capabilities for analytics,
 
 ### Base URL
 ```
-POST /api/aggregate/:schema
+POST /api/aggregate/:model
 ```
 
 ## Authentication
@@ -48,7 +48,7 @@ Authorization: Bearer <jwt>
 
 ## Core Endpoint
 
-### POST /api/aggregate/:schema
+### POST /api/aggregate/:model
 
 Execute aggregation queries with optional GROUP BY and WHERE clauses.
 
@@ -203,9 +203,9 @@ Count unique values in a field.
 
 ## GROUP BY Operations
 
-### Single Column Grouping
+### Single Field Grouping
 
-Group aggregations by a single column.
+Group aggregations by a single field.
 
 **Request:**
 ```json
@@ -242,9 +242,9 @@ Group aggregations by a single column.
 }
 ```
 
-### Multiple Column Grouping
+### Multiple Field Grouping
 
-Group by multiple columns for deeper analysis.
+Group by multiple fields for deeper analysis.
 
 **Request:**
 ```json
@@ -395,9 +395,9 @@ Use context options to include soft-deleted records in aggregations.
 ### Index Usage
 
 Aggregations benefit from indexes on:
-- **WHERE clause columns**: For filtering before aggregation
-- **GROUP BY columns**: For grouping operations
-- **Aggregated columns**: For SUM, AVG, MIN, MAX operations
+- **WHERE clause fields**: For filtering before aggregation
+- **GROUP BY fields**: For grouping operations
+- **Aggregated fields**: For SUM, AVG, MIN, MAX operations
 
 **Example indexes:**
 ```sql
@@ -410,9 +410,9 @@ CREATE INDEX idx_orders_created_at ON orders(created_at);
 
 **Best Practices:**
 1. **Filter First**: Use WHERE clauses to reduce dataset size
-2. **Index GROUP BY Columns**: Speeds up grouping operations
-3. **Limit GROUP BY**: Avoid grouping by high-cardinality columns
-4. **Use COUNT(*)**: Faster than COUNT(column) when possible
+2. **Index GROUP BY Fields**: Speeds up grouping operations
+3. **Limit GROUP BY**: Avoid grouping by high-cardinality fields
+4. **Use COUNT(*)**: Faster than COUNT(field) when possible
 
 **Performance Tips:**
 ```json
@@ -455,13 +455,13 @@ CREATE INDEX idx_orders_created_at ON orders(created_at);
 }
 ```
 
-#### Invalid Column Name
+#### Invalid Field Name
 
 ```json
 {
   "success": false,
-  "error": "Invalid column name format: invalid-column-name",
-  "error_code": "FILTER_INVALID_COLUMN_FORMAT"
+  "error": "Invalid field name format: invalid-field-name",
+  "error_code": "FILTER_INVALID_FIELD_FORMAT"
 }
 ```
 
@@ -470,7 +470,7 @@ CREATE INDEX idx_orders_created_at ON orders(created_at);
 ```json
 {
   "success": false,
-  "error": "Insufficient permissions to read schema",
+  "error": "Insufficient permissions to read model",
   "error_code": "INSUFFICIENT_PERMISSIONS"
 }
 ```
@@ -572,7 +572,7 @@ The Aggregate API provides production-ready aggregation capabilities:
 
 **Key Features:**
 - ✅ 6 aggregation functions (COUNT, SUM, AVG, MIN, MAX, DISTINCT)
-- ✅ Single and multiple column GROUP BY
+- ✅ Single and multiple field GROUP BY
 - ✅ Full WHERE clause filtering (25+ operators)
 - ✅ Soft delete integration
 - ✅ ACL filtering

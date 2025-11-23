@@ -4,17 +4,17 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
- * POST /api/describe/:schema/columns/:column
+ * POST /api/describe/:model/fields/:field
  *
- * Create a new column in Monk-native format
+ * Create a new field in Monk-native format
  *
- * Request body: Column definition in Monk format (type, required, etc.)
- * @returns Created column record from columns table
+ * Request body: Field definition in Monk format (type, required, etc.)
+ * @returns Created field record from fields table
  */
-export default withTransactionParams(async (context, { system, schema, column, body }) => {
-    const result = await system.describe.columns.createOne({
-        schema_name: schema!,
-        column_name: column!,
+export default withTransactionParams(async (context, { system, model, field, body }) => {
+    const result = await system.describe.fields.createOne({
+        model_name: model!,
+        field_name: field!,
         ...body
     });
 

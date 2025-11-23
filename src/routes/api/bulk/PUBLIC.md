@@ -1,6 +1,6 @@
 # Bulk API
 
-Execute multiple observer-aware operations across schemas in a single transaction.
+Execute multiple observer-aware operations across models in a single transaction.
 
 ## Base Path
 All Bulk API requests use: `POST /api/bulk`
@@ -9,7 +9,7 @@ All Bulk API requests use: `POST /api/bulk`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | [`/api/bulk`](#post-apibulk) | Execute multiple schema operations inside one transaction. |
+| POST | [`/api/bulk`](#post-apibulk) | Execute multiple model operations inside one transaction. |
 
 ## Content Type
 - **Request**: `application/json`
@@ -30,7 +30,7 @@ Submit an ordered list of operations—spanning CRUD actions, ACL updates, read 
   "operations": [
     {
       "operation": "string",     // Required: supported operation (hyphen-case)
-      "schema": "string",        // Required: target schema name
+      "model": "string",        // Required: target model name
       "data": {},                 // Required for mutations (object or array depending on operation)
       "id": "string",            // Required for single-record operations
       "filter": {},               // Required for *-any variants, optional for read helpers
@@ -49,17 +49,17 @@ Submit an ordered list of operations—spanning CRUD actions, ACL updates, read 
   "data": [
     {
       "operation": "create-all",
-      "schema": "users",
+      "model": "users",
       "result": [{"id": "user_1", "name": "Ada"}, {"id": "user_2", "name": "Grace"}]
     },
     {
       "operation": "update-any",
-      "schema": "accounts",
+      "model": "accounts",
       "result": [{"id": "acct_1", "status": "active"}]
     },
     {
       "operation": "aggregate",
-      "schema": "orders",
+      "model": "orders",
       "result": [{"status": "pending", "total_orders": 12}]
     }
   ]
@@ -71,41 +71,41 @@ Submit an ordered list of operations—spanning CRUD actions, ACL updates, read 
 ### Read Helpers
 | Operation | Description | Requirements |
 |-----------|-------------|--------------|
-| `select` / `select-all` | Return records matching an optional filter. | `schema`, optional `filter` |
-| `select-one` | Return a single record by `id` or filter. | `schema`, `id` or `filter` |
-| `select-404` | Same as `select-one` but raises 404 when missing. | `schema`, `id` or `filter`, optional `message` |
-| `count` | Return the count of records. | `schema`, optional `filter` |
-| `aggregate` | Run aggregations with optional grouping. | `schema`, `aggregate`, optional `filter`/`where`, optional `groupBy` |
+| `select` / `select-all` | Return records matching an optional filter. | `model`, optional `filter` |
+| `select-one` | Return a single record by `id` or filter. | `model`, `id` or `filter` |
+| `select-404` | Same as `select-one` but raises 404 when missing. | `model`, `id` or `filter`, optional `message` |
+| `count` | Return the count of records. | `model`, optional `filter` |
+| `aggregate` | Run aggregations with optional grouping. | `model`, `aggregate`, optional `filter`/`where`, optional `groupBy` |
 
 ### Create
 | Operation | Description | Requirements |
 |-----------|-------------|--------------|
-| `create` / `create-one` | Create a single record. | `schema`, `data` (object) |
-| `create-all` | Create multiple records. | `schema`, `data` (array of objects) |
+| `create` / `create-one` | Create a single record. | `model`, `data` (object) |
+| `create-all` | Create multiple records. | `model`, `data` (array of objects) |
 
 ### Update
 | Operation | Description | Requirements |
 |-----------|-------------|--------------|
-| `update` / `update-one` | Update a record by `id`. | `schema`, `id`, `data` |
-| `update-all` | Update explicit records by providing `{id, ...changes}` items. | `schema`, `data` (array with `id`) |
-| `update-any` | Update records matching a filter. | `schema`, `filter`, `data` |
-| `update-404` | Update a single record and raise 404 if missing. | `schema`, `id` or `filter`, `data`, optional `message` |
+| `update` / `update-one` | Update a record by `id`. | `model`, `id`, `data` |
+| `update-all` | Update explicit records by providing `{id, ...changes}` items. | `model`, `data` (array with `id`) |
+| `update-any` | Update records matching a filter. | `model`, `filter`, `data` |
+| `update-404` | Update a single record and raise 404 if missing. | `model`, `id` or `filter`, `data`, optional `message` |
 
 ### Delete (Soft Delete)
 | Operation | Description | Requirements |
 |-----------|-------------|--------------|
-| `delete` / `delete-one` | Soft delete a record by `id`. | `schema`, `id` |
-| `delete-all` | Soft delete explicit records. | `schema`, `data` (array with `id`) |
-| `delete-any` | Soft delete records matching a filter. | `schema`, `filter` |
-| `delete-404` | Soft delete a single record and raise 404 if missing. | `schema`, `id` or `filter`, optional `message` |
+| `delete` / `delete-one` | Soft delete a record by `id`. | `model`, `id` |
+| `delete-all` | Soft delete explicit records. | `model`, `data` (array with `id`) |
+| `delete-any` | Soft delete records matching a filter. | `model`, `filter` |
+| `delete-404` | Soft delete a single record and raise 404 if missing. | `model`, `id` or `filter`, optional `message` |
 
 ### Access Control
 | Operation | Description | Requirements |
 |-----------|-------------|--------------|
-| `access` / `access-one` | Update ACL fields for a record. | `schema`, `id`, `data` |
-| `access-all` | Update ACL fields for specific IDs. | `schema`, `data` (array with `id`) |
-| `access-any` | Update ACL fields for records matching a filter. | `schema`, `filter`, `data` |
-| `access-404` | ACL update that raises 404 when missing. | `schema`, `id` or `filter`, `data`, optional `message` |
+| `access` / `access-one` | Update ACL fields for a record. | `model`, `id`, `data` |
+| `access-all` | Update ACL fields for specific IDs. | `model`, `data` (array with `id`) |
+| `access-any` | Update ACL fields for records matching a filter. | `model`, `filter`, `data` |
+| `access-404` | ACL update that raises 404 when missing. | `model`, `id` or `filter`, `data`, optional `message` |
 
 ### Unsupported
 | Operation | Status |
@@ -132,7 +132,7 @@ All bulk requests execute inside a transaction created by the route (`withTransa
 |--------|------------|---------|-----------|
 | 400 | `BODY_NOT_OBJECT` | "Request body must be an object" | Body is not an object when object expected |
 | 400 | `BODY_MISSING_FIELD` | "Request body must contain an operations array" | Missing operations field |
-| 400 | `OPERATION_MISSING_FIELDS` | "Operation missing required fields" | Missing `operation` or `schema` |
+| 400 | `OPERATION_MISSING_FIELDS` | "Operation missing required fields" | Missing `operation` or `model` |
 | 400 | `OPERATION_MISSING_ID` | "ID required for operation" | `*-one` without `id` or array entries without `id` |
 | 400 | `OPERATION_MISSING_DATA` | "Operation requires data field" | Mutation without payload |
 | 400 | `OPERATION_INVALID_DATA` | "Operation requires data to be [object|array]" | Wrong payload shape or extraneous data |
@@ -149,11 +149,11 @@ All bulk requests execute inside a transaction created by the route (`withTransa
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 403 | `PERMISSION_DENIED` | "Operation not authorized" | Lacking schema permission |
+| 403 | `PERMISSION_DENIED` | "Operation not authorized" | Lacking model permission |
 
 ## Usage Examples
 
-### Mixed Schema Operations
+### Mixed Model Operations
 ```bash
 curl -X POST http://localhost:9001/api/bulk \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -162,18 +162,18 @@ curl -X POST http://localhost:9001/api/bulk \
     "operations": [
       {
         "operation": "create-one",
-        "schema": "users",
+        "model": "users",
         "data": {"name": "Jane", "email": "jane@example.com"}
       },
       {
         "operation": "access-one",
-        "schema": "users",
+        "model": "users",
         "id": "user-123",
         "data": {"access_read": ["user-123"]}
       },
       {
         "operation": "aggregate",
-        "schema": "orders",
+        "model": "orders",
         "aggregate": {"total": {"$sum": "total"}},
         "filter": {"where": {"user_id": "user-123"}}
       }
@@ -187,13 +187,13 @@ curl -X POST http://localhost:9001/api/bulk \
   "operations": [
     {
       "operation": "update-any",
-      "schema": "orders",
+      "model": "orders",
       "filter": {"where": {"status": "pending", "total": {"$gte": 1000}}},
       "data": {"priority": "high"}
     },
     {
       "operation": "delete-any",
-      "schema": "notifications",
+      "model": "notifications",
       "filter": {"where": {"read": true}}
     }
   ]
@@ -206,7 +206,7 @@ curl -X POST http://localhost:9001/api/bulk \
   "operations": [
     {
       "operation": "update-all",
-      "schema": "inventory",
+      "model": "inventory",
       "data": [
         {"id": "product_1", "reserved": 10},
         {"id": "product_2", "reserved": 4}
@@ -222,4 +222,4 @@ curl -X POST http://localhost:9001/api/bulk \
 - **Aggregation Endpoint**: [`docs/34-aggregate-api.md`](../../docs/34-aggregate-api.md)
 - **Observer System**: [`docs/OBSERVERS.md`](../../docs/OBSERVERS.md)
 
-The Bulk API delivers high-throughput, transaction-safe orchestration across schemas while preserving the Monk platform’s validation, security, and auditing guarantees.
+The Bulk API delivers high-throughput, transaction-safe orchestration across models while preserving the Monk platform’s validation, security, and auditing guarantees.

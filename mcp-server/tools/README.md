@@ -4,13 +4,13 @@ This directory contains individual JSON files for each MCP tool definition. Each
 
 ## Structure
 
-Each tool definition file must follow this JSON Schema format:
+Each tool definition file must follow this JSON Model format:
 
 ```json
 {
   "name": "ToolName",
   "description": "What the tool does and when to use it",
-  "inputSchema": {
+  "inputModel": {
     "type": "object",
     "properties": {
       "param_name": {
@@ -37,7 +37,7 @@ Each tool definition file must follow this JSON Schema format:
 
 ### Metadata & Introspection (4 tools)
 - `monk-api-stat.json` - Record metadata only
-- `monk-api-describe.json` - Schema information
+- `monk-api-describe.json` - Model information
 - `monk-api-history.json` - Audit trails
 - `monk-docs.json` - API documentation
 
@@ -59,7 +59,7 @@ Each tool definition file must follow this JSON Schema format:
    {
      "name": "MyNewTool",
      "description": "What it does and when to use it",
-     "inputSchema": {
+     "inputModel": {
        "type": "object",
        "properties": {
          "param1": {
@@ -79,7 +79,7 @@ Each tool definition file must follow this JSON Schema format:
    }
    ```
 
-3. **Add case to switch statement** in `CallToolRequestSchema`:
+3. **Add case to switch statement** in `CallToolRequestModel`:
    ```typescript
    case 'MyNewTool':
      result = await myNewTool(args.param1);
@@ -111,7 +111,7 @@ Each tool definition file must follow this JSON Schema format:
 "Search records"
 ```
 
-### Input Schema
+### Input Model
 - Use clear parameter names
 - Provide detailed descriptions for each parameter
 - Mark required parameters correctly
@@ -125,7 +125,7 @@ Each tool definition file must follow this JSON Schema format:
 
 ## Validation
 
-The JSON files must be valid JSON and conform to the MCP tool schema. Invalid JSON or missing required fields will cause the server to fail at startup.
+The JSON files must be valid JSON and conform to the MCP tool model. Invalid JSON or missing required fields will cause the server to fail at startup.
 
 ## Benefits of This Approach
 

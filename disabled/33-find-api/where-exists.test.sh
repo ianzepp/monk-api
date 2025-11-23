@@ -2,7 +2,7 @@
 set -e
 
 # Find API Where Existence Operators Test
-# Tests $exists, $null existence operators with POST /api/find/:schema
+# Tests $exists, $null existence operators with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

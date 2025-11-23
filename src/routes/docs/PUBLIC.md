@@ -1,6 +1,6 @@
 # Monk API
 
-**Ultra-lightweight PaaS backend** built with Hono and TypeScript, featuring schema-first development, multi-tenant architecture, and innovative filesystem-like data access for building high-performance SaaS applications.
+**Ultra-lightweight PaaS backend** built with Hono and TypeScript, featuring model-first development, multi-tenant architecture, and innovative filesystem-like data access for building high-performance SaaS applications.
 
 ## API Architecture
 
@@ -15,14 +15,14 @@
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
 | **Auth API** | `/api/auth/*` | User account management and privilege escalation |
-| **Data API** | `/api/data/:schema[/:record]` | CRUD operations for schema records |
-| **Describe API** | `/api/describe/:schema[/columns[/:column]]` | Schema definition and column management |
-| **Find API** | `/api/find/:schema` | Advanced search and filtering with 25+ operators |
-| **Aggregate API** | `/api/aggregate/:schema` | Data aggregation and analytics operations |
-| **Bulk API** | `/api/bulk` | Batch operations across multiple schemas |
-| **ACLs API** | `/api/acls/:schema/:record` | Access control list management for records |
-| **Stat API** | `/api/stat/:schema/:record` | Record metadata (timestamps, etag, size) |
-| **History API** | `/api/history/:schema/:record[/:change]` | Change tracking and audit trails |
+| **Data API** | `/api/data/:model[/:record]` | CRUD operations for model records |
+| **Describe API** | `/api/describe/:model[/fields[/:field]]` | Model definition and field management |
+| **Find API** | `/api/find/:model` | Advanced search and filtering with 25+ operators |
+| **Aggregate API** | `/api/aggregate/:model` | Data aggregation and analytics operations |
+| **Bulk API** | `/api/bulk` | Batch operations across multiple models |
+| **ACLs API** | `/api/acls/:model/:record` | Access control list management for records |
+| **Stat API** | `/api/stat/:model/:record` | Record metadata (timestamps, etag, size) |
+| **History API** | `/api/history/:model/:record[/:change]` | Change tracking and audit trails |
 
 ### Administrative Routes (Sudo Token Required)
 | API | Endpoints | Purpose |
@@ -31,7 +31,7 @@
 
 ## Key Features
 
-- **Schema-First Development**: Define data models with in-house validation and automatic PostgreSQL table generation
+- **Model-First Development**: Define data models with in-house validation and automatic PostgreSQL table generation
 - **Multi-Tenant Architecture**: Isolated tenant databases with JWT-based routing and security
 - **Advanced Filtering**: 25+ filter operators with complex logical operations and ACL integration
 - **Change Tracking**: Comprehensive audit trails with history tracking for all record modifications
@@ -90,14 +90,14 @@ curl http://localhost:9001/
       "home": ["/ (public)", "/health (public)"],
       "docs": ["/README.md (public)", "/docs/:api (public)"],
       "auth": ["/auth/* (public)", "/api/auth/* (protected)"],
-      "describe": ["/api/describe[/:schema[/:column]] (protected)"],
-      "data": ["/api/data/:schema[/:record[/:relationship[/:child]]] (protected)"],
-      "find": ["/api/find/:schema (protected)"],
-      "aggregate": ["/api/aggregate/:schema (protected)"],
+      "describe": ["/api/describe[/:model[/:field]] (protected)"],
+      "data": ["/api/data/:model[/:record[/:relationship[/:child]]] (protected)"],
+      "find": ["/api/find/:model (protected)"],
+      "aggregate": ["/api/aggregate/:model (protected)"],
       "bulk": ["/api/bulk (protected)"],
-      "acls": ["/api/acls/:schema/:record (protected)"],
-      "stat": ["/api/stat/:schema/:record (protected)"],
-      "history": ["/api/history/:schema/:record[/:change] (protected)"],
+      "acls": ["/api/acls/:model/:record (protected)"],
+      "stat": ["/api/stat/:model/:record (protected)"],
+      "history": ["/api/history/:model/:record[/:change] (protected)"],
       "sudo": ["/api/sudo/* (sudo token required)"]
     },
     "documentation": {
@@ -133,11 +133,11 @@ Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authenticat
 - Quick start guides
 
 **Available API Documentation**:
-- `/docs/api/describe` - Schema and column management
+- `/docs/api/describe` - Model and field management
 - `/docs/api/data` - CRUD operations on records
 - `/docs/api/find` - Advanced querying with filters
 - `/docs/api/aggregate` - Data aggregation and analytics
-- `/docs/api/bulk` - Batch operations across schemas
+- `/docs/api/bulk` - Batch operations across models
 - `/docs/api/acls` - Access control management
 - `/docs/api/stat` - Record metadata access
 - `/docs/api/history` - Change tracking and audit trails
@@ -152,37 +152,37 @@ From an API overview page, you'll see an endpoint table like:
 ```
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /api/describe/:schema | Get schema metadata |
+| GET | /api/describe/:model | Get model metadata |
 ```
 
 To get detailed documentation for a specific endpoint, construct the URL:
 
 **Mapping Rules**:
-1. Take the API endpoint: `GET /api/describe/:schema`
+1. Take the API endpoint: `GET /api/describe/:model`
 2. Replace parameter placeholders with literal names:
-   - `:schema` → `schema`
-   - `:column` → `column`
+   - `:model` → `model`
+   - `:field` → `field`
    - `:record` → `record`
    - `:relationship` → `relationship`
    - `:child` → `child`
-3. Append HTTP method: `api/describe/schema/GET`
-4. Add `/docs/` prefix: `/docs/api/describe/schema/GET`
+3. Append HTTP method: `api/describe/model/GET`
+4. Add `/docs/` prefix: `/docs/api/describe/model/GET`
 
 **Examples**:
 ```
 API Endpoint                              → Documentation URL
 ----------------------------------------- → ----------------------------------
 GET    /api/describe                      → /docs/api/describe/GET
-GET    /api/describe/:schema              → /docs/api/describe/schema/GET
-POST   /api/describe/:schema              → /docs/api/describe/schema/POST
-GET    /api/describe/:schema/columns      → /docs/api/describe/schema/columns/GET
-GET    /api/describe/:schema/columns/:column      → /docs/api/describe/schema/column/GET
-DELETE /api/describe/:schema/columns/:column      → /docs/api/describe/schema/column/DELETE
+GET    /api/describe/:model              → /docs/api/describe/model/GET
+POST   /api/describe/:model              → /docs/api/describe/model/POST
+GET    /api/describe/:model/fields      → /docs/api/describe/model/fields/GET
+GET    /api/describe/:model/fields/:field      → /docs/api/describe/model/field/GET
+DELETE /api/describe/:model/fields/:field      → /docs/api/describe/model/field/DELETE
 
-GET    /api/data/:schema                  → /docs/api/data/schema/GET
-POST   /api/data/:schema                  → /docs/api/data/schema/POST
-GET    /api/data/:schema/:record          → /docs/api/data/schema/record/GET
-GET    /api/data/:schema/:record/:rel     → /docs/api/data/schema/record/relationship/GET
+GET    /api/data/:model                  → /docs/api/data/model/GET
+POST   /api/data/:model                  → /docs/api/data/model/POST
+GET    /api/data/:model/:record          → /docs/api/data/model/record/GET
+GET    /api/data/:model/:record/:rel     → /docs/api/data/model/record/relationship/GET
 
 GET    /auth/login                        → /docs/auth/login/GET
 POST   /auth/login                        → /docs/auth/login/POST
@@ -192,9 +192,9 @@ POST   /auth/register                     → /docs/auth/register/POST
 **Exploration Workflow**:
 1. **(You are here)** Read `/docs` to discover available APIs
 2. Navigate to `/docs/api/describe` to see Describe API endpoint table
-3. Find endpoint: `GET /api/describe/:schema`
-4. Apply mapping rules → `/docs/api/describe/schema/GET`
-5. Access `/docs/api/describe/schema/GET` for complete endpoint documentation with examples, error codes, and use cases
+3. Find endpoint: `GET /api/describe/:model`
+4. Apply mapping rules → `/docs/api/describe/model/GET`
+5. Access `/docs/api/describe/model/GET` for complete endpoint documentation with examples, error codes, and use cases
 
 ## Documentation Guide
 
@@ -204,14 +204,14 @@ POST   /auth/register                     → /docs/auth/register/POST
 
 ### Core API Documentation
 - **Data Management**: `/docs/api/data` - CRUD operations and record management
-- **Schema Management**: `/docs/api/describe` - Schema definition and column management
+- **Model Management**: `/docs/api/describe` - Model definition and field management
 - **Access Control**: `/docs/api/acls` - Record-level ACL management and permissions
 - **Metadata Access**: `/docs/api/stat` - Record metadata without user data
 
 ### Advanced Operations
 - **Complex Search**: `/docs/api/find` - Advanced filtering with 25+ operators
 - **Data Aggregation**: `/docs/api/aggregate` - Analytics and aggregation operations
-- **Batch Processing**: `/docs/api/bulk` - Multi-schema transaction operations
+- **Batch Processing**: `/docs/api/bulk` - Multi-model transaction operations
 - **Change Tracking**: `/docs/api/history` - Audit trails and change history
 - **Administration**: `/docs/api/sudo` - User management and administrative operations
 
@@ -220,7 +220,7 @@ POST   /auth/register                     → /docs/auth/register/POST
 1. **Health Check**: `GET /health` to verify system status
 2. **Explore APIs**: `GET /` to discover available endpoints and documentation
 3. **Authentication**: Follow `/docs/auth` to obtain JWT tokens
-4. **Schema Setup**: Use `/docs/api/describe` to define your data structures
+4. **Model Setup**: Use `/docs/api/describe` to define your data structures
 5. **Data Operations**: Use `/docs/api/data` for standard CRUD operations
 6. **Advanced Features**: Explore `/docs/api/find`, `/docs/api/aggregate`, `/docs/api/bulk` for sophisticated data access
 7. **Security & Auditing**: Use `/docs/api/acls` for permissions and `/docs/api/history` for audit trails
@@ -562,7 +562,7 @@ curl -X POST https://api.example.com/api/bulk \
     "operations": [
       {
         "operation": "create-all",
-        "schema": "users",
+        "model": "users",
         "data": [{"name": "User 1"}, {"name": "User 2"}]
       }
     ]
@@ -602,7 +602,7 @@ All API endpoints return consistent error responses:
 **`error_code`**
 - **Type**: `string`
 - **Purpose**: Machine-readable error identifier for programmatic handling
-- **Format**: `SUBJECT_FIRST` naming (e.g., `SCHEMA_NOT_FOUND`, `TENANT_MISSING`)
+- **Format**: `SUBJECT_FIRST` naming (e.g., `MODEL_NOT_FOUND`, `TENANT_MISSING`)
 - **Stability**: Error codes are stable across API versions
 
 **`data`** (Optional)
@@ -614,10 +614,10 @@ All API endpoints return consistent error responses:
 
 | Status | Category | Description | Common Error Codes |
 |--------|----------|-------------|-------------------|
-| `400` | Bad Request | Invalid input, missing fields, malformed requests | `VALIDATION_ERROR`, `JSON_PARSE_ERROR`, `SCHEMA_ERROR` |
+| `400` | Bad Request | Invalid input, missing fields, malformed requests | `VALIDATION_ERROR`, `JSON_PARSE_ERROR`, `MODEL_ERROR` |
 | `401` | Unauthorized | Authentication required or failed | `UNAUTHORIZED`, `TOKEN_EXPIRED` |
-| `403` | Forbidden | Insufficient permissions | `FORBIDDEN`, `SCHEMA_PROTECTED`, `ACCESS_DENIED` |
-| `404` | Not Found | Resource does not exist | `NOT_FOUND`, `SCHEMA_NOT_FOUND`, `RECORD_NOT_FOUND` |
+| `403` | Forbidden | Insufficient permissions | `FORBIDDEN`, `MODEL_PROTECTED`, `ACCESS_DENIED` |
+| `404` | Not Found | Resource does not exist | `NOT_FOUND`, `MODEL_NOT_FOUND`, `RECORD_NOT_FOUND` |
 | `405` | Method Not Allowed | HTTP method not supported | `UNSUPPORTED_METHOD` |
 | `409` | Conflict | Request conflicts with current state | `CONFLICT`, `DEPENDENCY_ERROR` |
 | `413` | Request Too Large | Request body exceeds size limit | `BODY_TOO_LARGE` |
@@ -627,14 +627,14 @@ All API endpoints return consistent error responses:
 
 ### Error Code Reference
 
-#### Schema Management Errors
+#### Model Management Errors
 | Error Code | Description | HTTP Status |
 |------------|-------------|-------------|
-| `SCHEMA_NOT_FOUND` | Requested schema does not exist | 404 |
-| `SCHEMA_PROTECTED` | Cannot modify system-protected schema | 403 |
-| `SCHEMA_INVALID_FORMAT` | Schema definition has invalid format | 400 |
-| `SCHEMA_MISSING_FIELDS` | Schema missing required fields | 400 |
-| `SCHEMA_EXISTS` | Schema already exists (conflict) | 409 |
+| `MODEL_NOT_FOUND` | Requested model does not exist | 404 |
+| `MODEL_PROTECTED` | Cannot modify system-protected model | 403 |
+| `MODEL_INVALID_FORMAT` | Model definition has invalid format | 400 |
+| `MODEL_MISSING_FIELDS` | Model missing required fields | 400 |
+| `MODEL_EXISTS` | Model already exists (conflict) | 409 |
 
 #### Authentication & Authorization Errors
 | Error Code | Description | HTTP Status |
@@ -666,14 +666,14 @@ All API endpoints return consistent error responses:
 
 Error codes follow `SUBJECT_FIRST` pattern for logical grouping:
 
-- **Schema errors**: `SCHEMA_NOT_FOUND`, `SCHEMA_PROTECTED`
+- **Model errors**: `MODEL_NOT_FOUND`, `MODEL_PROTECTED`
 - **Record errors**: `RECORD_NOT_FOUND`, `RECORD_ALREADY_EXISTS`
 - **Auth errors**: `TENANT_MISSING`, `TOKEN_EXPIRED`
 - **Request errors**: `JSON_PARSE_ERROR`, `MISSING_CONTENT_TYPE`
 
 This enables:
-- **Logical grouping**: All schema errors start with `SCHEMA_*`
-- **Easy filtering**: `errorCode.startsWith('SCHEMA_')`
+- **Logical grouping**: All model errors start with `MODEL_*`
+- **Easy filtering**: `errorCode.startsWith('MODEL_')`
 - **Consistent sorting**: Related errors group alphabetically
 
 ### Client Error Handling Example
@@ -686,7 +686,7 @@ try {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify(schemaData)
+    body: JSON.stringify(modelData)
   });
 
   const result = await response.json();
@@ -694,14 +694,14 @@ try {
   if (!result.success) {
     // Handle specific error codes
     switch (result.error_code) {
-      case 'SCHEMA_NOT_FOUND':
-        console.error('Schema does not exist:', result.error);
+      case 'MODEL_NOT_FOUND':
+        console.error('Model does not exist:', result.error);
         break;
       case 'JSON_PARSE_ERROR':
         console.error('Invalid JSON:', result.data?.details);
         break;
-      case 'SCHEMA_PROTECTED':
-        console.error('Cannot modify protected schema');
+      case 'MODEL_PROTECTED':
+        console.error('Cannot modify protected model');
         break;
       default:
         console.error('API Error:', result.error_code, result.error);
@@ -724,7 +724,7 @@ try {
 ## Architecture Highlights
 
 - **Ultra-Fast Performance**: Hono framework with ~50KB footprint and multi-runtime support
-- **Schema-Driven**: Column-based validation with automatic database DDL generation
+- **Model-Driven**: Field-based validation with automatic database DDL generation
 - **Multi-Tenant**: Automatic tenant isolation with dedicated PostgreSQL databases
 - **Self-Documenting**: Complete API reference served via HTTP endpoints
 - **Enterprise Security**: Sophisticated authentication with privilege escalation and ACL management

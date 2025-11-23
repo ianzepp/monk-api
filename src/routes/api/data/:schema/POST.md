@@ -1,14 +1,14 @@
-# POST /api/data/:schema
+# POST /api/data/:model
 
-Create one or more records in the specified schema while automatically invoking the observer rings for validation, security, and enrichment. The request executes inside a transaction, ensuring every record is either persisted together or the entire batch rolls back if a single record fails.
+Create one or more records in the specified model while automatically invoking the observer rings for validation, security, and enrichment. The request executes inside a transaction, ensuring every record is either persisted together or the entire batch rolls back if a single record fails.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 
 ## Request Body
 
-Always expects an **array of record objects**. Each object should contain the fields defined in the schema.
+Always expects an **array of record objects**. Each object should contain the fields defined in the model.
 
 ```json
 [
@@ -83,8 +83,8 @@ Each created record includes:
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 403 | `SCHEMA_FROZEN` | "Schema is frozen" | Attempting to write to frozen schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 403 | `MODEL_FROZEN` | "Model is frozen" | Attempting to write to frozen model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 | 422 | Validation errors | Various | Observer validation failures (see below) |
 
 ## Transaction Behavior
@@ -173,7 +173,7 @@ console.log(`Created ${createdUsers.length} users`);
 Created records pass through the full observer pipeline:
 
 ### Pre-Create Observers
-- **Validation** - Schema validation, required fields, data types
+- **Validation** - Model validation, required fields, data types
 - **Enrichment** - Auto-generate IDs, set defaults, add timestamps
 - **Security** - Check permissions, apply ACLs
 - **Business Logic** - Custom validation rules
@@ -185,21 +185,21 @@ Created records pass through the full observer pipeline:
 
 If any observer throws an error, the transaction rolls back and no records are created.
 
-## Schema Protection
+## Model Protection
 
-### Frozen Schemas
+### Frozen Models
 
-Schemas with `frozen=true` **reject all create operations**:
+Models with `frozen=true` **reject all create operations**:
 
 ```bash
 POST /api/data/audit_log
-# Error 403: SCHEMA_FROZEN
-# "Schema 'audit_log' is frozen. All data operations are temporarily disabled."
+# Error 403: MODEL_FROZEN
+# "Model 'audit_log' is frozen. All data operations are temporarily disabled."
 ```
 
-### Sudo-Protected Schemas
+### Sudo-Protected Models
 
-Schemas with `sudo=true` require a sudo token:
+Models with `sudo=true` require a sudo token:
 
 ```bash
 # Get sudo token first
@@ -211,14 +211,14 @@ POST /api/data/financial_accounts
 Authorization: Bearer SUDO_TOKEN
 ```
 
-### Immutable Schemas and Fields
+### Immutable Models and Fields
 
-**Schema-level immutability** (`schemas.immutable=true`):
+**Model-level immutability** (`models.immutable=true`):
 - Entire records can be created once but never modified
 - No updates allowed to any field after creation
 - Use for audit logs, blockchain-style records
 
-**Field-level immutability** (`columns.immutable=true`):
+**Field-level immutability** (`fields.immutable=true`):
 - Specific fields can be set once during creation but never modified
 - Other fields in the record can still be updated
 - Use for transaction IDs, immutable identifiers
@@ -231,7 +231,7 @@ Authorization: Bearer SUDO_TOKEN
 PUT /api/data/transactions/abc-123
 {"transaction_id": "TX456"}  // Error: Cannot modify immutable field
 
-// But if schema.immutable=false, other fields can be updated:
+// But if model.immutable=false, other fields can be updated:
 PUT /api/data/transactions/abc-123
 {"amount": 1500}  // OK: amount is not immutable
 ```
@@ -245,7 +245,7 @@ The system automatically handles:
 - **updated_at** - Set to current timestamp
 - **trashed_at** - Set to null
 - **deleted_at** - Set to null
-- **Default values** - Applied from schema definition
+- **Default values** - Applied from model definition
 
 **Example:**
 ```json
@@ -332,7 +332,7 @@ See the Extracts and Restores API documentation for handling high-volume data op
 
 ## Related Endpoints
 
-- [`GET /api/data/:schema`](GET.md) - Query all records
-- [`PUT /api/data/:schema`](PUT.md) - Bulk update records
-- [`DELETE /api/data/:schema`](DELETE.md) - Bulk delete records
-- [`POST /api/bulk`](../../bulk/PUBLIC.md) - Multi-schema batch operations
+- [`GET /api/data/:model`](GET.md) - Query all records
+- [`PUT /api/data/:model`](PUT.md) - Bulk update records
+- [`DELETE /api/data/:model`](DELETE.md) - Bulk delete records
+- [`POST /api/bulk`](../../bulk/PUBLIC.md) - Multi-model batch operations

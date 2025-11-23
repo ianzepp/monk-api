@@ -21,8 +21,8 @@ CREATE TABLE "restores" (
     "source_ref" text,
     "conflict_strategy" text DEFAULT 'upsert' NOT NULL,
     "include" text[] DEFAULT ARRAY['describe', 'data']::text[] NOT NULL,
-    "schemas" text[],
-    "create_schemas" boolean DEFAULT true NOT NULL,
+    "models" text[],
+    "create_models" boolean DEFAULT true NOT NULL,
     "enabled" boolean DEFAULT true NOT NULL,
 
     -- Statistics

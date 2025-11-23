@@ -2,7 +2,7 @@
 set -e
 
 # Find API Where Comparison Operators Test
-# Tests $gt, $gte, $lt, $lte comparison operators with POST /api/find/:schema
+# Tests $gt, $gte, $lt, $lte comparison operators with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

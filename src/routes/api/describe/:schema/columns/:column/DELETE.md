@@ -1,11 +1,11 @@
-# DELETE /api/describe/:schema/columns/:column
+# DELETE /api/describe/:model/fields/:field
 
-Remove a column from the schema. This operation soft-deletes the column metadata (marks as trashed in columns table) and drops the column from the PostgreSQL table, permanently deleting all data in that column.
+Remove a field from the model. This operation soft-deletes the field metadata (marks as trashed in fields table) and drops the field from the PostgreSQL table, permanently deleting all data in that field.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
-- `:column` - Column name (required)
+- `:model` - Model name (required)
+- `:field` - Field name (required)
 
 ## Query Parameters
 
@@ -21,8 +21,8 @@ None - DELETE request with no body.
 {
   "success": true,
   "data": {
-    "schema_name": "users",
-    "column_name": "phone"
+    "model_name": "users",
+    "field_name": "phone"
   }
 }
 ```
@@ -34,16 +34,16 @@ None - DELETE request with no body.
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 403 | `SCHEMA_PROTECTED` | "Schema is protected and cannot be modified" | System schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 404 | `COLUMN_NOT_FOUND` | "Column not found in schema" | Column doesn't exist or already deleted |
+| 403 | `MODEL_PROTECTED` | "Model is protected and cannot be modified" | System model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
+| 404 | `FIELD_NOT_FOUND` | "Field not found in model" | Field doesn't exist or already deleted |
 
 ## Example Usage
 
-### Delete Column
+### Delete Field
 
 ```bash
-curl -X DELETE http://localhost:9001/api/describe/users/columns/phone \
+curl -X DELETE http://localhost:9001/api/describe/users/fields/phone \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -52,8 +52,8 @@ curl -X DELETE http://localhost:9001/api/describe/users/columns/phone \
 {
   "success": true,
   "data": {
-    "schema_name": "users",
-    "column_name": "phone"
+    "model_name": "users",
+    "field_name": "phone"
   }
 }
 ```
@@ -61,8 +61,8 @@ curl -X DELETE http://localhost:9001/api/describe/users/columns/phone \
 ### Using in JavaScript
 
 ```javascript
-async function deleteColumn(schemaName, columnName) {
-  const response = await fetch(`/api/describe/${schemaName}/columns/${columnName}`, {
+async function deleteField(modelName, fieldName) {
+  const response = await fetch(`/api/describe/${modelName}/fields/${fieldName}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -70,49 +70,49 @@ async function deleteColumn(schemaName, columnName) {
   });
 
   const { data } = await response.json();
-  console.log(`Column '${data.column_name}' deleted from '${data.schema_name}'`);
+  console.log(`Field '${data.field_name}' deleted from '${data.model_name}'`);
   return data;
 }
 ```
 
 ## Use Cases
 
-### Remove Deprecated Column
+### Remove Deprecated Field
 
 ```javascript
-// Clean up old columns no longer in use
-async function removeDeprecatedColumns(schemaName, deprecatedColumns) {
-  for (const columnName of deprecatedColumns) {
+// Clean up old fields no longer in use
+async function removeDeprecatedFields(modelName, deprecatedFields) {
+  for (const fieldName of deprecatedFields) {
     try {
-      await deleteColumn(schemaName, columnName);
-      console.log(`Removed deprecated column: ${columnName}`);
+      await deleteField(modelName, fieldName);
+      console.log(`Removed deprecated field: ${fieldName}`);
     } catch (error) {
-      console.error(`Failed to remove ${columnName}:`, error);
+      console.error(`Failed to remove ${fieldName}:`, error);
     }
   }
 }
 
 // Example
-await removeDeprecatedColumns('users', ['old_field', 'temp_data', 'unused_column']);
+await removeDeprecatedFields('users', ['old_field', 'temp_data', 'unused_field']);
 ```
 
-### Schema Migration
+### Model Migration
 
 ```javascript
-// Remove column during migration
-async function migrateUserSchema() {
-  // Add new column
-  await createColumn('users', 'full_name', {
+// Remove field during migration
+async function migrateUserModel() {
+  // Add new field
+  await createField('users', 'full_name', {
     type: 'text',
     required: true
   });
 
-  // Copy data from old columns
-  await copyDataToNewColumn();
+  // Copy data from old fields
+  await copyDataToNewField();
 
-  // Remove old columns
-  await deleteColumn('users', 'first_name');
-  await deleteColumn('users', 'last_name');
+  // Remove old fields
+  await deleteField('users', 'first_name');
+  await deleteField('users', 'last_name');
 
   console.log('Migration complete');
 }
@@ -121,17 +121,17 @@ async function migrateUserSchema() {
 ### Safe Deletion with Confirmation
 
 ```javascript
-// Delete column with safety checks
-async function safeDeleteColumn(schemaName, columnName) {
-  // Check if column has data
-  const sampleData = await fetch(`/api/find/${schemaName}`, {
+// Delete field with safety checks
+async function safeDeleteField(modelName, fieldName) {
+  // Check if field has data
+  const sampleData = await fetch(`/api/find/${modelName}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      select: [columnName],
+      select: [fieldName],
       limit: 1
     })
   });
@@ -140,7 +140,7 @@ async function safeDeleteColumn(schemaName, columnName) {
 
   if (hasData) {
     const confirmed = confirm(
-      `Column '${columnName}' contains data. Delete anyway? This cannot be undone.`
+      `Field '${fieldName}' contains data. Delete anyway? This cannot be undone.`
     );
 
     if (!confirmed) {
@@ -150,70 +150,70 @@ async function safeDeleteColumn(schemaName, columnName) {
   }
 
   // Perform deletion
-  await deleteColumn(schemaName, columnName);
-  console.log(`Column '${columnName}' permanently deleted`);
+  await deleteField(modelName, fieldName);
+  console.log(`Field '${fieldName}' permanently deleted`);
 }
 ```
 
 ## What Gets Deleted
 
-When you delete a column:
+When you delete a field:
 
 ### Immediate Actions
-- Column record in `columns` table marked with `trashed_at`
-- PostgreSQL column **dropped** from table (`ALTER TABLE DROP COLUMN`)
-- **All data in the column is permanently deleted**
+- Field record in `fields` table marked with `trashed_at`
+- PostgreSQL field **dropped** from table (`ALTER TABLE DROP FIELD`)
+- **All data in the field is permanently deleted**
 - Associated indexes dropped
 - Associated constraints removed
-- Schema cache invalidated
+- Model cache invalidated
 
 ### Data Loss
-- ⚠️ **All data in this column is permanently deleted**
+- ⚠️ **All data in this field is permanently deleted**
 - ⚠️ **This operation cannot be undone**
 - ⚠️ **No automatic backup is created**
 
 ### What Remains
-- Column metadata in `columns` table (trashed)
+- Field metadata in `fields` table (trashed)
 - Can be found using `?include_trashed=true`
 - Metadata can be restored, but data is lost forever
 
-## Restoring Column Metadata
+## Restoring Field Metadata
 
-To restore the column definition (not the data):
+To restore the field definition (not the data):
 
 ```bash
-# Clear trashed_at to restore column metadata
-PUT /api/data/columns/:column_id
+# Clear trashed_at to restore field metadata
+PUT /api/data/fields/:field_id
 {
   "trashed_at": null
 }
 ```
 
-**Important:** This only restores the metadata. The PostgreSQL column and all data are permanently deleted.
+**Important:** This only restores the metadata. The PostgreSQL field and all data are permanently deleted.
 
-To recreate the column with data, you must:
-1. Create new column: `POST /api/describe/:schema/columns/:column`
+To recreate the field with data, you must:
+1. Create new field: `POST /api/describe/:model/fields/:field`
 2. Restore data from backups manually
 
-## System Column Protection
+## System Field Protection
 
 You cannot delete:
-- System columns (id, created_at, updated_at, etc.)
-- Columns in system schemas
-- Columns referenced by other schemas (foreign keys)
+- System fields (id, created_at, updated_at, etc.)
+- Fields in system models
+- Fields referenced by other models (foreign keys)
 
 ## Pre-Delete Considerations
 
-Before deleting a column:
+Before deleting a field:
 
-1. **Backup data** - Export column data if needed later
+1. **Backup data** - Export field data if needed later
 ```bash
-GET /api/data/:schema?select=column_name&format=csv > backup.csv
+GET /api/data/:model?select=field_name&format=csv > backup.csv
 ```
 
-2. **Check relationships** - Verify no foreign keys reference this column
+2. **Check relationships** - Verify no foreign keys reference this field
 ```bash
-GET /api/data/columns?where={"related_schema":"schema","related_column":"column"}
+GET /api/data/fields?where={"related_model":"model","related_field":"field"}
 ```
 
 3. **Review dependencies** - Check application code for references
@@ -222,33 +222,33 @@ GET /api/data/columns?where={"related_schema":"schema","related_column":"column"
 
 ## Performance Considerations
 
-- Column deletion is a DDL operation (ALTER TABLE DROP COLUMN)
+- Field deletion is a DDL operation (ALTER TABLE DROP FIELD)
 - May lock table briefly during deletion
-- Faster than adding columns (no data migration)
+- Faster than adding fields (no data migration)
 - Consider maintenance windows for large tables
-- Dropping indexed columns removes index automatically
+- Dropping indexed fields removes index automatically
 
 ## Common Errors
 
 ### Foreign Key Constraint
-If other tables reference this column:
+If other tables reference this field:
 ```
-ERROR: cannot drop column because other objects depend on it
+ERROR: cannot drop field because other objects depend on it
 ```
 **Solution:** Remove foreign key relationships first.
 
-### System Column
-Attempting to delete protected columns:
+### System Field
+Attempting to delete protected fields:
 ```
-403 SCHEMA_PROTECTED: System columns cannot be deleted
+403 MODEL_PROTECTED: System fields cannot be deleted
 ```
-**Solution:** System columns (id, timestamps, access fields) cannot be deleted.
+**Solution:** System fields (id, timestamps, access fields) cannot be deleted.
 
 ## ALTER TABLE Behavior
 
-Deleting a column executes:
+Deleting a field executes:
 ```sql
-ALTER TABLE schema_name DROP COLUMN column_name CASCADE;
+ALTER TABLE model_name DROP FIELD field_name CASCADE;
 ```
 
 The `CASCADE` option ensures:
@@ -258,7 +258,7 @@ The `CASCADE` option ensures:
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema/columns/:column`](GET.md) - Get column definition
-- [`POST /api/describe/:schema/columns/:column`](POST.md) - Create new column
-- [`PUT /api/describe/:schema/columns/:column`](PUT.md) - Update column definition
-- [`DELETE /api/describe/:schema`](../:schema/DELETE.md) - Delete entire schema
+- [`GET /api/describe/:model/fields/:field`](GET.md) - Get field definition
+- [`POST /api/describe/:model/fields/:field`](POST.md) - Create new field
+- [`PUT /api/describe/:model/fields/:field`](PUT.md) - Update field definition
+- [`DELETE /api/describe/:model`](../:model/DELETE.md) - Delete entire model

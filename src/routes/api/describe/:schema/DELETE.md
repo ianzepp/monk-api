@@ -1,10 +1,10 @@
-# DELETE /api/describe/:schema
+# DELETE /api/describe/:model
 
-Soft-delete a schema definition and its associated PostgreSQL table. The schema is marked as deleted and can be restored using the Data API if needed.
+Soft-delete a model definition and its associated PostgreSQL table. The model is marked as deleted and can be restored using the Data API if needed.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 
 ## Query Parameters
 
@@ -20,7 +20,7 @@ None - DELETE request with no body.
 {
   "success": true,
   "data": {
-    "schema_name": "users"
+    "model_name": "users"
   }
 }
 ```
@@ -32,12 +32,12 @@ None - DELETE request with no body.
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 403 | `SCHEMA_PROTECTED` | "Schema is protected and cannot be modified" | Attempting to delete system schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found or already deleted" | Schema doesn't exist or is already trashed |
+| 403 | `MODEL_PROTECTED` | "Model is protected and cannot be modified" | Attempting to delete system model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found or already deleted" | Model doesn't exist or is already trashed |
 
 ## Example Usage
 
-### Delete Schema
+### Delete Model
 
 ```bash
 curl -X DELETE http://localhost:9001/api/describe/old_users \
@@ -49,7 +49,7 @@ curl -X DELETE http://localhost:9001/api/describe/old_users \
 {
   "success": true,
   "data": {
-    "schema_name": "old_users"
+    "model_name": "old_users"
   }
 }
 ```
@@ -57,8 +57,8 @@ curl -X DELETE http://localhost:9001/api/describe/old_users \
 ### Using in JavaScript
 
 ```javascript
-async function deleteSchema(schemaName) {
-  const response = await fetch(`/api/describe/${schemaName}`, {
+async function deleteModel(modelName) {
+  const response = await fetch(`/api/describe/${modelName}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -66,39 +66,39 @@ async function deleteSchema(schemaName) {
   });
 
   const { data } = await response.json();
-  console.log(`Schema '${data.schema_name}' deleted successfully`);
+  console.log(`Model '${data.model_name}' deleted successfully`);
   return data;
 }
 ```
 
 ## Use Cases
 
-### Cleanup Old Schemas
+### Cleanup Old Models
 
 ```javascript
-// Delete temporary or test schemas
-async function cleanupTestSchemas() {
-  const schemas = await listSchemas();
-  const testSchemas = schemas.filter(s => s.startsWith('test_'));
+// Delete temporary or test models
+async function cleanupTestModels() {
+  const models = await listModels();
+  const testModels = models.filter(s => s.startsWith('test_'));
 
-  for (const schemaName of testSchemas) {
+  for (const modelName of testModels) {
     try {
-      await deleteSchema(schemaName);
-      console.log(`Deleted test schema: ${schemaName}`);
+      await deleteModel(modelName);
+      console.log(`Deleted test model: ${modelName}`);
     } catch (error) {
-      console.error(`Failed to delete ${schemaName}:`, error);
+      console.error(`Failed to delete ${modelName}:`, error);
     }
   }
 }
 ```
 
-### Schema Migration
+### Model Migration
 
 ```javascript
-// Replace old schema with new version
-async function migrateSchema(oldName, newName) {
-  // Step 1: Create new schema
-  await createSchema(newName);
+// Replace old model with new version
+async function migrateModel(oldName, newName) {
+  // Step 1: Create new model
+  await createModel(newName);
 
   // Step 2: Copy data from old to new
   const oldData = await getData(oldName);
@@ -108,23 +108,23 @@ async function migrateSchema(oldName, newName) {
   const count = await getRecordCount(newName);
   console.log(`Migrated ${count} records to ${newName}`);
 
-  // Step 4: Delete old schema
-  await deleteSchema(oldName);
-  console.log(`Old schema ${oldName} deleted`);
+  // Step 4: Delete old model
+  await deleteModel(oldName);
+  console.log(`Old model ${oldName} deleted`);
 }
 ```
 
 ### Safe Deletion with Confirmation
 
 ```javascript
-// Delete schema with safety checks
-async function safeDeleteSchema(schemaName) {
-  // Check if schema has data
-  const count = await getRecordCount(schemaName);
+// Delete model with safety checks
+async function safeDeleteModel(modelName) {
+  // Check if model has data
+  const count = await getRecordCount(modelName);
 
   if (count > 0) {
     const confirmed = confirm(
-      `Schema '${schemaName}' contains ${count} records. Delete anyway?`
+      `Model '${modelName}' contains ${count} records. Delete anyway?`
     );
 
     if (!confirmed) {
@@ -134,30 +134,30 @@ async function safeDeleteSchema(schemaName) {
   }
 
   // Perform deletion
-  await deleteSchema(schemaName);
-  console.log(`Schema '${schemaName}' deleted (${count} records)`);
+  await deleteModel(modelName);
+  console.log(`Model '${modelName}' deleted (${count} records)`);
 }
 ```
 
 ## Soft Delete Behavior
 
 This endpoint performs a **soft delete**:
-- Schema record is marked with `trashed_at` timestamp
+- Model record is marked with `trashed_at` timestamp
 - PostgreSQL table is **dropped** (data is lost)
-- Schema definition remains in `schemas` table
+- Model definition remains in `models` table
 - Can be restored by clearing `trashed_at` field
 
-**Important:** While the schema metadata can be restored, the underlying data is permanently deleted when the PostgreSQL table is dropped.
+**Important:** While the model metadata can be restored, the underlying data is permanently deleted when the PostgreSQL table is dropped.
 
 ## What Gets Deleted
 
-When you delete a schema:
+When you delete a model:
 
 ### Immediate Actions
 - PostgreSQL table is **dropped** (all data permanently lost)
-- Schema record marked with `trashed_at` timestamp
-- Column definitions marked as trashed
-- Schema cache invalidated
+- Model record marked with `trashed_at` timestamp
+- Field definitions marked as trashed
+- Model cache invalidated
 
 ### Data Loss
 - ⚠️ **All records in the table are permanently deleted**
@@ -165,46 +165,46 @@ When you delete a schema:
 - ⚠️ **No backup is created automatically**
 
 ### What Remains
-- Schema metadata in `schemas` table (trashed)
-- Column definitions in `columns` table (trashed)
+- Model metadata in `models` table (trashed)
+- Field definitions in `fields` table (trashed)
 - Can be found using `?include_trashed=true`
 
-## Restoring a Deleted Schema
+## Restoring a Deleted Model
 
-To restore the schema definition (not the data):
+To restore the model definition (not the data):
 
 ```bash
-# Clear trashed_at to restore schema metadata
-PUT /api/data/schemas/:schema_id
+# Clear trashed_at to restore model metadata
+PUT /api/data/models/:model_id
 {
   "trashed_at": null
 }
 ```
 
-**Note:** This only restores the schema definition. You'll need to manually restore any data from backups.
+**Note:** This only restores the model definition. You'll need to manually restore any data from backups.
 
-## System Schema Protection
+## System Model Protection
 
-System schemas cannot be deleted:
-- `schemas` - Schema metadata
-- `columns` - Column definitions
+System models cannot be deleted:
+- `models` - Model metadata
+- `fields` - Field definitions
 - `users` - User accounts
 - `sessions` - Active sessions
 
-Attempting to delete a system schema returns `403 SCHEMA_PROTECTED`.
+Attempting to delete a system model returns `403 MODEL_PROTECTED`.
 
 ## Pre-Delete Considerations
 
-Before deleting a schema, consider:
+Before deleting a model, consider:
 
 1. **Backup data** - Export records if you might need them
 ```bash
-GET /api/data/:schema?format=csv > backup.csv
+GET /api/data/:model?format=csv > backup.csv
 ```
 
-2. **Check relationships** - Verify no other schemas reference this one
+2. **Check relationships** - Verify no other models reference this one
 ```bash
-GET /api/data/columns?where={"related_schema":"schema_name"}
+GET /api/data/fields?where={"related_model":"model_name"}
 ```
 
 3. **Notify users** - Alert team members of the deletion
@@ -215,7 +215,7 @@ GET /api/data/columns?where={"related_schema":"schema_name"}
 For temporary disabling without data loss:
 
 ```bash
-PUT /api/describe/:schema
+PUT /api/describe/:model
 {
   "freeze": true
 }
@@ -225,14 +225,14 @@ This prevents writes while preserving all data.
 
 ## Performance Considerations
 
-- Schema deletion is a DDL operation (DROP TABLE)
+- Model deletion is a DDL operation (DROP TABLE)
 - May take longer for large tables
 - Locks the table during deletion
-- Consider performing during maintenance windows for large schemas
+- Consider performing during maintenance windows for large models
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema`](GET.md) - Get schema definition
-- [`POST /api/describe/:schema`](POST.md) - Create new schema
-- [`PUT /api/describe/:schema`](PUT.md) - Update schema metadata
-- [`PUT /api/data/schemas/:id`](../../data/schemas/:id/PUT.md) - Restore trashed schema metadata
+- [`GET /api/describe/:model`](GET.md) - Get model definition
+- [`POST /api/describe/:model`](POST.md) - Create new model
+- [`PUT /api/describe/:model`](PUT.md) - Update model metadata
+- [`PUT /api/data/models/:id`](../../data/models/:id/PUT.md) - Restore trashed model metadata

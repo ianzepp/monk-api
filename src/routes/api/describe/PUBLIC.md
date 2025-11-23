@@ -1,31 +1,31 @@
 # Describe API
 
-The Describe API provides schema definition and management capabilities using Monk-native format with direct PostgreSQL type mapping. Create, update, and manage database table structures with column-level precision.
+The Describe API provides model definition and management capabilities using Monk-native format with direct PostgreSQL type mapping. Create, update, and manage database table structures with field-level precision.
 
 ## Base Path
 All Describe API routes are prefixed with `/api/describe`
 
 ## Endpoint Summary
 
-### Schema Operations
+### Model Operations
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/describe`](GET.md) | List all available schema names |
-| GET | [`/api/describe/:schema`](:schema/GET.md) | Retrieve schema metadata |
-| POST | [`/api/describe/:schema`](:schema/POST.md) | Create a new schema |
-| PUT | [`/api/describe/:schema`](:schema/PUT.md) | Update schema metadata |
-| DELETE | [`/api/describe/:schema`](:schema/DELETE.md) | Soft-delete a schema |
+| GET | [`/api/describe`](GET.md) | List all available model names |
+| GET | [`/api/describe/:model`](:model/GET.md) | Retrieve model metadata |
+| POST | [`/api/describe/:model`](:model/POST.md) | Create a new model |
+| PUT | [`/api/describe/:model`](:model/PUT.md) | Update model metadata |
+| DELETE | [`/api/describe/:model`](:model/DELETE.md) | Soft-delete a model |
 
-### Column Operations
+### Field Operations
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/describe/:schema/columns`](:schema/columns/GET.md) | List all columns in schema |
-| GET | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/GET.md) | Retrieve column definition |
-| POST | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/POST.md) | Add a new column to schema |
-| PUT | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/PUT.md) | Update column properties |
-| DELETE | [`/api/describe/:schema/columns/:column`](:schema/columns/:column/DELETE.md) | Remove column from schema |
+| GET | [`/api/describe/:model/fields`](:model/fields/GET.md) | List all fields in model |
+| GET | [`/api/describe/:model/fields/:field`](:model/fields/:field/GET.md) | Retrieve field definition |
+| POST | [`/api/describe/:model/fields/:field`](:model/fields/:field/POST.md) | Add a new field to model |
+| PUT | [`/api/describe/:model/fields/:field`](:model/fields/:field/PUT.md) | Update field properties |
+| DELETE | [`/api/describe/:model/fields/:field`](:model/fields/:field/DELETE.md) | Remove field from model |
 
 ## Content Type
 - **Request**: `application/json`
@@ -38,20 +38,20 @@ All endpoints require a valid JWT token in the Authorization header: `Bearer <to
 
 ## Quick Start
 
-### Creating a Schema with Columns
+### Creating a Model with Fields
 
 ```bash
-# Step 1: Create schema
+# Step 1: Create model
 curl -X POST http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "schema_name": "users",
+    "model_name": "users",
     "status": "pending"
   }'
 
-# Step 2: Add name column
-curl -X POST http://localhost:9001/api/describe/users/columns/name \
+# Step 2: Add name field
+curl -X POST http://localhost:9001/api/describe/users/fields/name \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -60,8 +60,8 @@ curl -X POST http://localhost:9001/api/describe/users/columns/name \
     "description": "User full name"
   }'
 
-# Step 3: Add email column
-curl -X POST http://localhost:9001/api/describe/users/columns/email \
+# Step 3: Add email field
+curl -X POST http://localhost:9001/api/describe/users/fields/email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -73,7 +73,7 @@ curl -X POST http://localhost:9001/api/describe/users/columns/email \
     "description": "User email address"
   }'
 
-# Step 4: Activate schema
+# Step 4: Activate model
 curl -X PUT http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
@@ -82,68 +82,68 @@ curl -X PUT http://localhost:9001/api/describe/users \
 
 ---
 
-## Schema Reference
+## Model Reference
 
-### Schema Fields
+### Model Fields
 
-All fields available when creating or updating schemas:
+All fields available when creating or updating models:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `schema_name` | text | Yes | - | Unique identifier for the schema. Must match URL parameter. |
-| `status` | text | No | `pending` | Schema status: `pending`, `active`, or `system`. |
-| `description` | text | No | - | Human-readable description of the schema's purpose. |
-| `sudo` | boolean | No | `false` | Require sudo token for all data operations on this schema. |
+| `model_name` | text | Yes | - | Unique identifier for the model. Must match URL parameter. |
+| `status` | text | No | `pending` | Model status: `pending`, `active`, or `system`. |
+| `description` | text | No | - | Human-readable description of the model's purpose. |
+| `sudo` | boolean | No | `false` | Require sudo token for all data operations on this model. |
 | `freeze` | boolean | No | `false` | Prevent all data changes (create, update, delete). SELECT still works. |
 | `immutable` | boolean | No | `false` | Records are write-once: can be created but never modified. |
 
 **Notes:**
 - System fields (id, timestamps, access_*) are automatically added to all tables
-- `schema_name` must be a valid PostgreSQL identifier (alphanumeric and underscores)
-- Schemas with `status='system'` cannot be modified or deleted
+- `model_name` must be a valid PostgreSQL identifier (alphanumeric and underscores)
+- Models with `status='system'` cannot be modified or deleted
 
-### Column Fields
+### Field Fields
 
-All fields available when creating or updating columns:
+All fields available when creating or updating fields:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | **Identity** |
 | `type` | text | Yes | - | Data type: `text`, `integer`, `decimal`, `boolean`, `timestamp`, `date`, `uuid`, `jsonb`, or array types. See [type mapping](#postgresql-type-mapping). |
 | **Constraints** |
-| `required` | boolean | No | `false` | Whether the column is required (NOT NULL constraint). |
-| `default_value` | text | No | - | Default value for the column. |
-| `unique` | boolean | No | `false` | Whether the column must have unique values. Creates UNIQUE index. |
+| `required` | boolean | No | `false` | Whether the field is required (NOT NULL constraint). |
+| `default_value` | text | No | - | Default value for the field. |
+| `unique` | boolean | No | `false` | Whether the field must have unique values. Creates UNIQUE index. |
 | **Validation** |
 | `minimum` | numeric | No | - | Minimum value for numeric types. Application-level validation. |
 | `maximum` | numeric | No | - | Maximum value for numeric types or max length for text. |
 | `pattern` | text | No | - | Regular expression pattern for text validation. |
 | `enum_values` | text[] | No | - | Array of allowed values. Application-level validation. |
 | **Metadata** |
-| `description` | text | No | - | Human-readable description of the column's purpose. |
+| `description` | text | No | - | Human-readable description of the field's purpose. |
 | **Protection** |
 | `immutable` | boolean | No | `false` | Value can be set once but never changed. Perfect for audit trails. |
 | `sudo` | boolean | No | `false` | Require sudo token to modify this field. |
 | **Indexing & Search** |
-| `index` | boolean | No | `false` | Create standard btree index on this column for faster queries. |
-| `searchable` | boolean | No | `false` | Enable full-text search with GIN index. For text columns only. |
+| `index` | boolean | No | `false` | Create standard btree index on this field for faster queries. |
+| `searchable` | boolean | No | `false` | Enable full-text search with GIN index. For text fields only. |
 | **Change Tracking** |
-| `tracked` | boolean | No | `false` | Track changes to this column in the `history` table. |
+| `tracked` | boolean | No | `false` | Track changes to this field in the `history` table. |
 | **Data Transform** |
 | `transform` | text | No | - | Auto-transform values: `lowercase`, `uppercase`, `trim`, `normalize_phone`, `normalize_email`. |
 | **Relationships** |
 | `relationship_type` | text | No | - | Type of relationship: `owned` or `referenced`. |
-| `related_schema` | text | No | - | Target schema for the relationship. |
-| `related_column` | text | No | `id` | Target column for the relationship (usually `id`). |
+| `related_model` | text | No | - | Target model for the relationship. |
+| `related_field` | text | No | `id` | Target field for the relationship (usually `id`). |
 | `relationship_name` | text | No | - | Name of the relationship for API access. |
 | `cascade_delete` | boolean | No | `false` | Whether to cascade delete when parent is deleted. |
 | `required_relationship` | boolean | No | `false` | Whether the relationship is required (NOT NULL FK). |
 
 **Notes:**
-- `schema_name` and `column_name` come from URL parameters, not request body
+- `model_name` and `field_name` come from URL parameters, not request body
 - **Structural changes** (trigger ALTER TABLE): `type`, `required`, `default_value`, `unique`, `index`, `searchable`
 - **Metadata-only**: `description`, `pattern`, `minimum`, `maximum`, `enum_values`, `immutable`, `sudo`, `tracked`, `transform`
-- Column names must start with a letter or underscore, followed by alphanumerics/underscores
+- Field names must start with a letter or underscore, followed by alphanumerics/underscores
 
 ---
 
@@ -170,7 +170,7 @@ User-facing types are mapped to PostgreSQL types internally:
 
 ## System Fields
 
-All schemas automatically include system-managed fields:
+All models automatically include system-managed fields:
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -184,32 +184,32 @@ All schemas automatically include system-managed fields:
 | `trashed_at` | TIMESTAMP | Soft delete timestamp |
 | `deleted_at` | TIMESTAMP | Hard delete timestamp |
 
-**Do not define these fields in your schemas** - they are automatically added.
+**Do not define these fields in your models** - they are automatically added.
 
-## Schema Protection Features
+## Model Protection Features
 
-### System Schema Protection
-System schemas (`status='system'`) cannot be modified or deleted:
-- `schemas` - Schema metadata registry
+### System Model Protection
+System models (`status='system'`) cannot be modified or deleted:
+- `models` - Model metadata registry
 - `users` - User account management
-- `columns` - Column metadata table
+- `fields` - Field metadata table
 - `history` - Change tracking and audit trails
 
-### Sudo-Protected Schemas
-Schemas marked with `sudo=true` require a short-lived sudo token for all data operations. Users must call `POST /api/user/sudo` to obtain the token before modifying these schemas.
+### Sudo-Protected Models
+Models marked with `sudo=true` require a short-lived sudo token for all data operations. Users must call `POST /api/user/sudo` to obtain the token before modifying these models.
 
-**Use case**: Protect critical system schemas from accidental modifications.
+**Use case**: Protect critical system models from accidental modifications.
 
-### Frozen Schemas
-Schemas marked with `freeze=true` prevent ALL data changes (create, update, delete). SELECT operations continue to work normally.
+### Frozen Models
+Models marked with `freeze=true` prevent ALL data changes (create, update, delete). SELECT operations continue to work normally.
 
 **Use cases**:
 - Emergency lockdowns during security incidents
 - Maintenance windows requiring read-only access
 - Regulatory compliance freeze periods
 
-### Immutable Schemas
-Schemas marked with `immutable=true` allow records to be created but never modified or deleted. Write-once data pattern.
+### Immutable Models
+Models marked with `immutable=true` allow records to be created but never modified or deleted. Write-once data pattern.
 
 **Use cases**:
 - Audit logs and compliance trails that must never change
@@ -217,18 +217,18 @@ Schemas marked with `immutable=true` allow records to be created but never modif
 - Event logs and time-series data
 - Append-only ledgers
 
-**Note:** Unlike `freeze`, immutable schemas still allow INSERT operations. Only UPDATE and DELETE are prevented.
+**Note:** Unlike `freeze`, immutable models still allow INSERT operations. Only UPDATE and DELETE are prevented.
 
 ### Field-Level Protection
 
 **Immutable Fields**: Fields marked with `immutable=true` can be set once but never changed. Perfect for audit trails and write-once data like transaction IDs.
 
-**Sudo-Protected Fields**: Fields marked with `sudo=true` require a sudo token to modify, even if the schema itself doesn't require sudo. Allows fine-grained protection of sensitive fields like salary or pricing information.
+**Sudo-Protected Fields**: Fields marked with `sudo=true` require a sudo token to modify, even if the model itself doesn't require sudo. Allows fine-grained protection of sensitive fields like salary or pricing information.
 
 ## Related Documentation
 
-- **Data Operations**: `/docs/data` - CRUD operations on schema records
-- **Bulk Operations**: `/docs/bulk` - Batch operations across schemas
+- **Data Operations**: `/docs/data` - CRUD operations on model records
+- **Bulk Operations**: `/docs/bulk` - Batch operations across models
 - **Advanced Search**: `/docs/find` - Complex queries with filtering
 - **History API**: `/docs/history` - Change tracking and audit trails
 

@@ -1,15 +1,15 @@
 # Find API
 
-The Find API provides advanced search and filtering capabilities for records across schemas. Execute complex queries with sophisticated filtering, sorting, and aggregation operations.
+The Find API provides advanced search and filtering capabilities for records across models. Execute complex queries with sophisticated filtering, sorting, and aggregation operations.
 
 ## Base Path
-All Find API operations use: `POST /api/find/:schema`
+All Find API operations use: `POST /api/find/:model`
 
 ## Endpoint Summary
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | [`/api/find/:schema`](#post-apifindschema) | Run complex filtered, sorted, and paginated queries with advanced operators. |
+| POST | [`/api/find/:model`](#post-apifindmodel) | Run complex filtered, sorted, and paginated queries with advanced operators. |
 
 ## Content Type
 - **Request**: `application/json`
@@ -20,14 +20,14 @@ Requires valid JWT token in Authorization header: `Bearer <token>`
 
 ---
 
-## POST /api/find/:schema
+## POST /api/find/:model
 
 Run rich search queries with boolean logic, nested filters, ordering, pagination, and projection control. This is the preferred endpoint when Data API filtering is insufficient or when you need analytics-style queries without writing SQL.
 
 ### Request Body
 ```json
 {
-  "select": ["name", "email", "created_at"],  // Optional: specify columns to return
+  "select": ["name", "email", "created_at"],  // Optional: specify fields to return
   "where": {
     // Complex filter conditions (see Filter Operations below)
   },
@@ -116,19 +116,19 @@ Run rich search queries with boolean logic, nested filters, ordering, pagination
 }
 ```
 
-## Column Selection (SELECT)
+## Field Selection (SELECT)
 
-### Specific Columns
+### Specific Fields
 ```json
 {
-  "select": ["name", "email", "account_type"]  // Return only specified columns
+  "select": ["name", "email", "account_type"]  // Return only specified fields
 }
 ```
 
-### All Columns
+### All Fields
 ```json
 {
-  "select": ["*"]     // Return all available columns (default behavior)
+  "select": ["*"]     // Return all available fields (default behavior)
 }
 ```
 
@@ -139,7 +139,7 @@ Run rich search queries with boolean logic, nested filters, ordering, pagination
 }
 ```
 
-> **Performance Note**: The SELECT clause implements true database-level column projection, reducing data transfer and improving query performance by only returning requested fields.
+> **Performance Note**: The SELECT clause implements true database-level field projection, reducing data transfer and improving query performance by only returning requested fields.
 
 ## Sorting and Pagination
 
@@ -270,12 +270,12 @@ curl -X POST http://localhost:9001/api/find/documents \
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
 | 400 | `BODY_NOT_ARRAY` | "Request body must be an array of operations" | Body is not an array when array expected |
-| 400 | `OPERATION_MISSING_FIELDS` | "Operation missing required fields" | Missing operation or schema |
+| 400 | `OPERATION_MISSING_FIELDS` | "Operation missing required fields" | Missing operation or model |
 | 400 | `OPERATION_MISSING_ID` | "ID required for operation" | Single-record operation without ID |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Target schema doesn't exist |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Target model doesn't exist |
 | 422 | `OPERATION_UNSUPPORTED` | "Unsupported operation" | Invalid operation type |
 
 ## Performance Considerations
@@ -305,15 +305,15 @@ curl -X POST http://localhost:9001/api/find/documents \
 
 **Use Data API when:**
 - Simple CRUD operations on known records
-- Bulk operations across multiple schemas (use Bulk API)
+- Bulk operations across multiple models (use Bulk API)
 - Real-time record updates
 - File-like access patterns (use File API)
 
 ## Related Documentation
 
 - **Data Operations**: `/docs/data` - Standard CRUD operations
-- **Bulk Operations**: `/docs/bulk` - Multi-schema batch processing
-- **Schema Management**: `/docs/describe` - Creating and managing data schemas
+- **Bulk Operations**: `/docs/bulk` - Multi-model batch processing
+- **Model Management**: `/docs/describe` - Creating and managing data models
 - **File Interface**: `/docs/file` - Filesystem-like data access
 
 The Find API provides powerful search capabilities while maintaining full integration with the Monk platform's observer system and access control mechanisms.

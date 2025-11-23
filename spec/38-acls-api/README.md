@@ -7,9 +7,9 @@
 ## Critical / Smoke Tests
 
 ### Existing Tests (3)
-- POST /api/acls/:schema/:record - Create ACL for individual record (create-acl.test.sh)
-- POST /api/acls/:schema/:record - Append ACL entries to existing list (append-acls.test.sh)
-- PUT /api/acls/:schema/:record - Update ACL entries (update-acls.test.sh)
+- POST /api/acls/:model/:record - Create ACL for individual record (create-acl.test.sh)
+- POST /api/acls/:model/:record - Append ACL entries to existing list (append-acls.test.sh)
+- PUT /api/acls/:model/:record - Update ACL entries (update-acls.test.sh)
 
 ## Additional Tests
 
@@ -21,11 +21,11 @@
 - Full and root privilege validation for ACL operations
 
 ### Missing Tests (2)
-- GET /api/acls/:schema/:record - Retrieve ACLs for record (no read operation tests)
-- DELETE /api/acls/:schema/:record - Remove ACLs from record (no delete operation tests)
+- GET /api/acls/:model/:record - Retrieve ACLs for record (no read operation tests)
+- DELETE /api/acls/:model/:record - Remove ACLs from record (no delete operation tests)
 
 ### Missing Coverage
-- Bulk ACL operations with filters (/api/acls/:schema)
+- Bulk ACL operations with filters (/api/acls/:model)
 - ACL inheritance and permission cascading
 - Cross-record ACL consistency validation
 - Permission enforcement validation (do ACLs actually restrict access?)

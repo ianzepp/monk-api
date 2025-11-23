@@ -1,4 +1,4 @@
-# DELETE /api/acls/:schema/:record
+# DELETE /api/acls/:model/:record
 
 **Documentation stub - to be completed**
 

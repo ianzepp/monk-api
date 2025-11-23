@@ -4,7 +4,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * PUT /api/acls/:schema/:record - Replace ACL lists entirely
+ * PUT /api/acls/:model/:record - Replace ACL lists entirely
  *
  * Completely replaces the access control lists with new values.
  * Request body should contain the complete new access lists:
@@ -17,7 +17,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * Note: Any access list not provided will be set to empty array
  */
-export default withTransactionParams(async (context, { system, schema, record, options }) => {
+export default withTransactionParams(async (context, { system, model, record, options }) => {
     const body = await context.req.json().catch(() => ({}));
 
     // Validate and prepare updates for all ACL fields
@@ -44,13 +44,13 @@ export default withTransactionParams(async (context, { system, schema, record, o
     }
 
     // Verify record exists before updating (select404 automatically throws 404 if not found)
-    await system.database.select404(schema!, {
+    await system.database.select404(model!, {
         where: { id: record! },
         select: ['id']
     }, undefined, options);
 
     // Replace all ACL lists (returns the updated record)
-    const updatedRecord = await system.database.updateOne(schema!, record!, updates);
+    const updatedRecord = await system.database.updateOne(model!, record!, updates);
 
     // Return ACL data (middleware will wrap in success response)
     setRouteResult(context, {

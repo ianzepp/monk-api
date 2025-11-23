@@ -38,7 +38,7 @@ function printWarning(message) {
   console.log(`${colors.yellow}⚠ ${message}${colors.reset}`);
 }
 
-// Generate valid phone number matching schema pattern
+// Generate valid phone number matching model pattern
 function generateValidPhone() {
   // Pattern allows: ^\+?[1-9]\d{1,14}$|^\+?1 \([0-9]{3}\) [0-9]{3}-[0-9]{4}$
 
@@ -57,7 +57,7 @@ function generateValidPhone() {
   }
 }
 
-// Account generator based on the schema
+// Account generator based on the model
 function generateAccount(index) {
   const accountTypes = ['personal', 'business', 'trial', 'premium'];
   const themes = ['light', 'dark'];
@@ -95,7 +95,7 @@ function generateValidContactPhone() {
   return faker.datatype.boolean(0.8) ? `+${countryCode}${number}` : `${countryCode}${number}`;
 }
 
-// Contact generator based on the schema
+// Contact generator based on the model
 function generateContact(index) {
   return {
     name: faker.person.fullName(),
@@ -155,15 +155,15 @@ async function generateFixtures() {
   }
 
   const fixturesDir = path.join(__dirname, '../fixtures', templateName);
-  const sourceSchemasDir = path.join(fixturesDir, 'describe');
+  const sourceModelsDir = path.join(fixturesDir, 'describe');
   const outputDir = path.join(fixturesDir, 'data');
 
   // Check for lock file
   checkLockFile(fixturesDir);
 
   // Validate source template exists
-  if (!fs.existsSync(sourceSchemasDir)) {
-    printError(`Template describe directory not found: ${sourceSchemasDir}`);
+  if (!fs.existsSync(sourceModelsDir)) {
+    printError(`Template describe directory not found: ${sourceModelsDir}`);
     printStep('Available templates:');
 
     const fixturesBaseDir = path.join(__dirname, '../fixtures');
@@ -173,8 +173,8 @@ async function generateFixtures() {
         .map(dirent => dirent.name);
 
       templates.forEach(template => {
-        const schemaDir = path.join(fixturesBaseDir, template, 'describe');
-        const status = fs.existsSync(schemaDir) ? '✓' : '✗ (no describe)';
+        const modelDir = path.join(fixturesBaseDir, template, 'describe');
+        const status = fs.existsSync(modelDir) ? '✓' : '✗ (no describe)';
         console.log(`  ${status} ${template}`);
       });
     }
@@ -187,28 +187,28 @@ async function generateFixtures() {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  // Read all schema files
-  const schemaFiles = fs.readdirSync(sourceSchemasDir)
+  // Read all model files
+  const modelFiles = fs.readdirSync(sourceModelsDir)
     .filter(file => file.endsWith('.json'));
 
-  if (schemaFiles.length === 0) {
-    printError(`No schema files found in: ${sourceSchemasDir}`);
+  if (modelFiles.length === 0) {
+    printError(`No model files found in: ${sourceModelsDir}`);
     process.exit(1);
   }
 
   printStep(`Generating fixtures for template: ${templateName}`);
-  printStep(`Target: ${recordCount} records per schema`);
-  printStep(`Found ${schemaFiles.length} schemas: ${schemaFiles.join(', ')}`);
+  printStep(`Target: ${recordCount} records per model`);
+  printStep(`Found ${modelFiles.length} models: ${modelFiles.join(', ')}`);
 
-  for (const schemaFile of schemaFiles) {
-    const generator = generators[schemaFile];
+  for (const modelFile of modelFiles) {
+    const generator = generators[modelFile];
 
     if (!generator) {
-      printWarning(`No generator found for ${schemaFile}, skipping...`);
+      printWarning(`No generator found for ${modelFile}, skipping...`);
       continue;
     }
 
-    printStep(`Generating ${recordCount} records for ${schemaFile}...`);
+    printStep(`Generating ${recordCount} records for ${modelFile}...`);
 
     const records = [];
 
@@ -223,17 +223,17 @@ async function generateFixtures() {
           printStep(`  Generated ${i + 1}/${recordCount} records...`);
         }
       } catch (error) {
-        printError(`Error generating record ${i} for ${schemaFile}: ${error.message}`);
+        printError(`Error generating record ${i} for ${modelFile}: ${error.message}`);
         process.exit(1);
       }
     }
 
     // Write generated data
-    const outputFile = path.join(outputDir, schemaFile);
+    const outputFile = path.join(outputDir, modelFile);
     fs.writeFileSync(outputFile, JSON.stringify(records, null, 2));
 
     const sizeKB = Math.round(fs.statSync(outputFile).size / 1024);
-    printSuccess(`Generated ${records.length} records for ${schemaFile} (${sizeKB}KB)`);
+    printSuccess(`Generated ${records.length} records for ${modelFile} (${sizeKB}KB)`);
   }
 
   printSuccess(`Fixture generation completed for template: ${templateName}`);

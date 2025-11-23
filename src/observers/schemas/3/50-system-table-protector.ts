@@ -1,8 +1,8 @@
 /**
  * System Table Protector - Ring 3 Business Logic
  *
- * Prevents creation of schemas that would conflict with PostgreSQL system tables
- * or other critical system namespaces (pg_*, information_schema, etc.)
+ * Prevents creation of models that would conflict with PostgreSQL system tables
+ * or other critical system namespaces (pg_*, information_model, etc.)
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -10,12 +10,12 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
-// System tables and schemas that are protected
+// System tables and models that are protected
 const SYSTEM_TABLES = new Set([
     'pg_catalog',
-    'information_schema',
+    'information_model',
     'pg_toast',
     'pg_temp',
     'pg_temp_1',
@@ -26,35 +26,35 @@ export default class SystemTableProtector extends BaseObserver {
     readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create'] as const;
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
         const { system } = context;
-        const { schema_name } = record;
+        const { model_name } = record;
 
-        if (!schema_name) {
+        if (!model_name) {
             return; // Required field validation handled elsewhere
         }
 
         // Check against known system tables
-        if (SYSTEM_TABLES.has(schema_name)) {
+        if (SYSTEM_TABLES.has(model_name)) {
             throw new ValidationError(
-                `Cannot create schema '${schema_name}': conflicts with PostgreSQL system schema`,
-                'schema_name'
+                `Cannot create model '${model_name}': conflicts with PostgreSQL system model`,
+                'model_name'
             );
         }
 
-        // Query PostgreSQL system catalog for any table/schema conflicts
+        // Query PostgreSQL system catalog for any table/model conflicts
         const result = await SqlUtils.getPool(system).query(
             `SELECT tablename FROM pg_tables WHERE tablename = $1
              UNION
-             SELECT table_name FROM information_schema.tables WHERE table_name = $1
+             SELECT table_name FROM information_model.tables WHERE table_name = $1
              LIMIT 1`,
-            [schema_name]
+            [model_name]
         );
 
         if (result.rows.length > 0) {
             throw new ValidationError(
-                `Cannot create schema '${schema_name}': conflicts with existing system table`,
-                'schema_name'
+                `Cannot create model '${model_name}': conflicts with existing system table`,
+                'model_name'
             );
         }
     }

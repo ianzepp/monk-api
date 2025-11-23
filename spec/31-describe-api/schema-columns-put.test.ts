@@ -4,55 +4,55 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * PUT /api/describe/:schema/columns/:column - Update Column
+ * PUT /api/describe/:model/fields/:field - Update Field
  *
- * Tests column metadata and structural updates. Metadata updates are fast,
+ * Tests field metadata and structural updates. Metadata updates are fast,
  * structural updates trigger ALTER TABLE operations.
  */
 
-describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
+describe('PUT /api/describe/:model/fields/:field - Update Field', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('schema-columns-put');
+        tenant = await TestHelpers.createTestTenant('model-fields-put');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/test_products', {});
 
-        // Create test columns with various types
-        await tenant.httpClient.post('/api/describe/test_products/columns/name', {
-            column_name: 'name',
+        // Create test fields with various types
+        await tenant.httpClient.post('/api/describe/test_products/fields/name', {
+            field_name: 'name',
             type: 'text',
         });
 
-        await tenant.httpClient.post('/api/describe/test_products/columns/price', {
-            column_name: 'price',
+        await tenant.httpClient.post('/api/describe/test_products/fields/price', {
+            field_name: 'price',
             type: 'decimal',
         });
 
-        await tenant.httpClient.post('/api/describe/test_products/columns/quantity', {
-            column_name: 'quantity',
+        await tenant.httpClient.post('/api/describe/test_products/fields/quantity', {
+            field_name: 'quantity',
             type: 'integer',
         });
 
-        await tenant.httpClient.post('/api/describe/test_products/columns/status', {
-            column_name: 'status',
+        await tenant.httpClient.post('/api/describe/test_products/fields/status', {
+            field_name: 'status',
             type: 'text',
         });
 
-        await tenant.httpClient.post('/api/describe/test_products/columns/description', {
-            column_name: 'description',
+        await tenant.httpClient.post('/api/describe/test_products/fields/description', {
+            field_name: 'description',
             type: 'text',
         });
 
-        await tenant.httpClient.post('/api/describe/test_products/columns/email', {
-            column_name: 'email',
+        await tenant.httpClient.post('/api/describe/test_products/fields/email', {
+            field_name: 'email',
             type: 'text',
         });
     });
 
-    it('should update column description', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/name', {
+    it('should update field description', async () => {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/name', {
             description: 'Product display name',
         });
 
@@ -61,7 +61,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update validation pattern', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/email', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/email', {
             pattern: '^[^@]+@[^@]+\\.[^@]+$',
         });
 
@@ -70,7 +70,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update minimum and maximum constraints', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/quantity', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/quantity', {
             minimum: 0,
             maximum: 10000,
         });
@@ -81,7 +81,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update enum values', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/status', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/status', {
             enum_values: ['draft', 'published', 'archived', 'deleted'],
         });
 
@@ -90,7 +90,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update transform', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/email', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/email', {
             transform: 'lowercase',
         });
 
@@ -99,7 +99,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update tracked flag', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/price', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/price', {
             tracked: true,
         });
 
@@ -108,7 +108,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update immutable flag', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/name', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/name', {
             immutable: true,
         });
 
@@ -117,7 +117,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update sudo protection flag', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/price', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/price', {
             sudo: true,
         });
 
@@ -126,7 +126,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update required constraint (ALTER TABLE)', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/name', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/name', {
             required: true,
         });
 
@@ -135,7 +135,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update unique constraint (ALTER TABLE)', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/email', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/email', {
             unique: true,
         });
 
@@ -144,7 +144,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update index (ALTER TABLE)', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/status', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/status', {
             index: true,
         });
 
@@ -153,7 +153,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update searchable flag (ALTER TABLE)', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/description', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/description', {
             searchable: true,
         });
 
@@ -162,7 +162,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update multiple fields at once', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/quantity', {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/quantity', {
             description: 'Stock quantity',
             minimum: 1,
             maximum: 5000,
@@ -177,14 +177,14 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should persist updates across GET requests', async () => {
-        // Update column
-        await tenant.httpClient.put('/api/describe/test_products/columns/price', {
+        // Update field
+        await tenant.httpClient.put('/api/describe/test_products/fields/price', {
             description: 'Product price in USD',
             minimum: 0,
         });
 
-        // Retrieve column
-        const getResponse = await tenant.httpClient.get('/api/describe/test_products/columns/price');
+        // Retrieve field
+        const getResponse = await tenant.httpClient.get('/api/describe/test_products/fields/price');
 
         expect(getResponse.success).toBe(true);
         expect(getResponse.data.description).toBe('Product price in USD');
@@ -193,23 +193,23 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
 
     // TODO: API currently accepts empty updates - should this be an error?
     it.skip('should reject empty updates', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/name', {});
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/name', {});
 
         expect(response.success).toBe(false);
         expect(response.error_code).toBeDefined();
     });
 
-    it('should return 404 for non-existent column', async () => {
-        const response = await tenant.httpClient.put('/api/describe/test_products/columns/nonexistent', {
+    it('should return 404 for non-existent field', async () => {
+        const response = await tenant.httpClient.put('/api/describe/test_products/fields/nonexistent', {
             description: 'Should fail',
         });
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should return error for column in non-existent schema', async () => {
-        const response = await tenant.httpClient.put('/api/describe/nonexistent_schema/columns/some_column', {
+    it('should return error for field in non-existent model', async () => {
+        const response = await tenant.httpClient.put('/api/describe/nonexistent_model/fields/some_field', {
             description: 'Should fail',
         });
 

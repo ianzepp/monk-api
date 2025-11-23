@@ -2,7 +2,7 @@
 set -e
 
 # Find API Where Logical Operators Test
-# Tests $and, $or, $not, $nand, $nor logical operators with POST /api/find/:schema
+# Tests $and, $or, $not, $nand, $nor logical operators with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

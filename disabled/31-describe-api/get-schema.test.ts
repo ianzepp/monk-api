@@ -3,27 +3,27 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * GET /api/describe/:schema - Get Schema Details
+ * GET /api/describe/:model - Get Model Details
  *
- * Tests retrieving schema metadata (without columns array).
- * Columns must be retrieved separately via column endpoints.
+ * Tests retrieving model metadata (without fields array).
+ * Fields must be retrieved separately via field endpoints.
  */
 
-describe('GET /api/describe/:schema - Get Schema Details', () => {
+describe('GET /api/describe/:model - Get Model Details', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('get-schema');
+        tenant = await TestHelpers.createTestTenant('get-model');
 
-        // Create test schemas
+        // Create test models
         await tenant.httpClient.post('/api/describe/products', {
-            schema_name: 'products',
+            model_name: 'products',
             status: 'active',
             description: 'Product catalog'
         });
 
-        await tenant.httpClient.post('/api/describe/protected_schema', {
-            schema_name: 'protected_schema',
+        await tenant.httpClient.post('/api/describe/protected_model', {
+            model_name: 'protected_model',
             status: 'active',
             sudo: true,
             frozen: false,
@@ -35,12 +35,12 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
         await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
-    it('should retrieve schema metadata', async () => {
+    it('should retrieve model metadata', async () => {
         const response = await tenant.httpClient.get('/api/describe/products');
 
         expectSuccess(response);
         expect(response.data).toBeDefined();
-        expect(response.data.schema_name).toBe('products');
+        expect(response.data.model_name).toBe('products');
     });
 
     it('should include status field', async () => {
@@ -58,7 +58,7 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
     });
 
     it('should include protection flags', async () => {
-        const response = await tenant.httpClient.get('/api/describe/protected_schema');
+        const response = await tenant.httpClient.get('/api/describe/protected_model');
 
         expectSuccess(response);
         expect(response.data.sudo).toBe(true);
@@ -78,42 +78,42 @@ describe('GET /api/describe/:schema - Get Schema Details', () => {
         expect(response.data.trashed_at).toBeUndefined();
     });
 
-    it('should not include columns array (new architecture)', async () => {
+    it('should not include fields array (new architecture)', async () => {
         const response = await tenant.httpClient.get('/api/describe/products');
 
         expectSuccess(response);
 
-        // Columns are not included in schema GET response
-        expect(response.data.columns).toBeUndefined();
+        // Fields are not included in model GET response
+        expect(response.data.fields).toBeUndefined();
     });
 
-    it('should return 404 for non-existent schema', async () => {
+    it('should return 404 for non-existent model', async () => {
         const response = await tenant.httpClient.get('/api/describe/nonexistent');
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+        expect(response.error_code).toBe('MODEL_NOT_FOUND');
     });
 
-    it('should retrieve system schemas', async () => {
-        const response = await tenant.httpClient.get('/api/describe/schemas');
+    it('should retrieve system models', async () => {
+        const response = await tenant.httpClient.get('/api/describe/models');
 
         expectSuccess(response);
-        expect(response.data.schema_name).toBe('schemas');
+        expect(response.data.model_name).toBe('models');
         expect(response.data.status).toBe('system');
     });
 
-    it('should not retrieve trashed schemas', async () => {
-        // Create and then delete a schema
-        await tenant.httpClient.post('/api/describe/temp_schema', {
-            schema_name: 'temp_schema'
+    it('should not retrieve trashed models', async () => {
+        // Create and then delete a model
+        await tenant.httpClient.post('/api/describe/temp_model', {
+            model_name: 'temp_model'
         });
 
-        await tenant.httpClient.delete('/api/describe/temp_schema');
+        await tenant.httpClient.delete('/api/describe/temp_model');
 
-        // Try to retrieve deleted schema
-        const response = await tenant.httpClient.get('/api/describe/temp_schema');
+        // Try to retrieve deleted model
+        const response = await tenant.httpClient.get('/api/describe/temp_model');
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+        expect(response.error_code).toBe('MODEL_NOT_FOUND');
     });
 });

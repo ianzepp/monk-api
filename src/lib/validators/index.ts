@@ -1,7 +1,7 @@
 /**
  * Validation Functions
  *
- * Pure functions for validating record data against schema constraints.
+ * Pure functions for validating record data against model constraints.
  * Each validator returns an array of validation errors (empty if valid).
  *
  * Used by the single-loop DataValidator observer for optimal performance.

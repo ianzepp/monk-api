@@ -1,16 +1,16 @@
 /**
- * Column Sudo Validator - Field-Level Sudo Protection Observer
+ * Field Sudo Validator - Field-Level Sudo Protection Observer
  *
- * Ensures that operations modifying sudo-protected columns require explicit sudo token.
- * This provides field-level granular security within schemas - allows regular operations
- * on most fields while protecting sensitive columns.
+ * Ensures that operations modifying sudo-protected fields require explicit sudo token.
+ * This provides field-level granular security within models - allows regular operations
+ * on most fields while protecting sensitive fields.
  *
- * Complements schema-level sudo (SudoValidator) which protects entire schemas.
+ * Complements model-level sudo (SudoValidator) which protects entire models.
  * This validator allows fine-grained control: normal users can update most fields,
  * but changing sensitive fields (salary, pricing, security settings) requires sudo.
  *
  * Performance:
- * - Zero database queries: uses Schema.getSudoFields() from cached column metadata
+ * - Zero database queries: uses Model.getSudoFields() from cached field metadata
  * - O(n × m) where n=records, m=changed fields (typically small)
  * - Precalculated Set<string> for O(1) sudo field lookup
  *
@@ -28,22 +28,22 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { SecurityError } from '@src/lib/observers/errors.js';
 
-export default class ColumnSudoValidator extends BaseObserver {
+export default class FieldSudoValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
     readonly operations = ['create', 'update'] as const;
     readonly priority = 25;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, system, data, operation } = context;
-        const schemaName = schema.schema_name;
+        const { model, system, data, operation } = context;
+        const modelName = model.model_name;
 
         // Check if data exists
         if (!data || data.length === 0) {
             return;
         }
 
-        // Get sudo-protected fields from cached schema metadata (O(1))
-        const sudoFields = schema.getSudoFields();
+        // Get sudo-protected fields from cached model metadata (O(1))
+        const sudoFields = model.getSudoFields();
 
         // No sudo-protected fields defined - skip validation
         if (sudoFields.size === 0) {
@@ -79,7 +79,7 @@ export default class ColumnSudoValidator extends BaseObserver {
             const fieldList = Array.from(sudoFieldsModified).join(', ');
 
             console.warn(`Blocked ${operation} on sudo-protected fields`, {
-                schemaName,
+                modelName,
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
                 recordCount: data?.length || 0,
@@ -97,7 +97,7 @@ export default class ColumnSudoValidator extends BaseObserver {
         // Either no sudo fields modified, or user has valid sudo token
         if (sudoFieldsModified.size > 0) {
             console.info('Sudo access validated for protected fields', {
-                schemaName,
+                modelName,
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
                 recordCount: data?.length || 0,

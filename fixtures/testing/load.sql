@@ -1,12 +1,12 @@
 -- ============================================================================
 -- Testing Fixture Loader
 -- ============================================================================
--- Loads testing template with minimal sample schemas for test suite
+-- Loads testing template with minimal sample models for test suite
 -- Extends: system template
 --
 -- Load Order:
 -- 1. User initialization (init.sql)
--- 2. Schema definitions (describe/*.sql)
+-- 2. Model definitions (describe/*.sql)
 -- 3. Sample data (data/*.sql)
 
 \echo ''
@@ -21,11 +21,11 @@
 \echo '✓ Users initialized'
 \echo ''
 
--- Phase 2: Schema definitions
-\echo '→ Phase 2: Schema definitions'
+-- Phase 2: Model definitions
+\echo '→ Phase 2: Model definitions'
 \ir describe/account.sql
 \ir describe/contact.sql
-\echo '✓ Schemas loaded: 2'
+\echo '✓ Models loaded: 2'
 \echo ''
 
 -- Phase 3: Sample data

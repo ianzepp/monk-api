@@ -2,7 +2,7 @@
 set -e
 
 # Find API Where Equality Operators Test
-# Tests $eq, $ne/$neq equality operators with POST /api/find/:schema
+# Tests $eq, $ne/$neq equality operators with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

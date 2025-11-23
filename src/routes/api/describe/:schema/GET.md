@@ -1,10 +1,10 @@
-# GET /api/describe/:schema
+# GET /api/describe/:model
 
-Retrieve schema metadata including status, protection settings, and configuration. This endpoint returns schema-level information only - use column endpoints to retrieve column definitions.
+Retrieve model metadata including status, protection settings, and configuration. This endpoint returns model-level information only - use field endpoints to retrieve field definitions.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 
 ## Query Parameters
 
@@ -21,7 +21,7 @@ None - GET request with no body.
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "schema_name": "users",
+    "model_name": "users",
     "status": "active",
     "description": "User accounts and profiles",
     "sudo": false,
@@ -35,15 +35,15 @@ None - GET request with no body.
 
 ### Response Fields
 
-- **id** - Schema record UUID
-- **schema_name** - Name of the schema
-- **status** - Schema status: `pending`, `active`, or `system`
-- **description** - Human-readable description of the schema's purpose
+- **id** - Model record UUID
+- **model_name** - Name of the model
+- **status** - Model status: `pending`, `active`, or `system`
+- **description** - Human-readable description of the model's purpose
 - **sudo** - Whether sudo token is required for data operations
 - **freeze** - Whether all data changes are prevented (reads still work)
 - **immutable** - Whether records are write-once (can be created but not modified)
-- **created_at** - Timestamp when schema was created
-- **updated_at** - Timestamp when schema was last modified
+- **created_at** - Timestamp when model was created
+- **updated_at** - Timestamp when model was last modified
 
 ## Error Responses
 
@@ -52,11 +52,11 @@ None - GET request with no body.
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 
 ## Example Usage
 
-### Get Schema Metadata
+### Get Model Metadata
 
 ```bash
 curl -X GET http://localhost:9001/api/describe/users \
@@ -69,7 +69,7 @@ curl -X GET http://localhost:9001/api/describe/users \
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "schema_name": "users",
+    "model_name": "users",
     "status": "active",
     "description": "User accounts and profiles",
     "sudo": false,
@@ -84,74 +84,74 @@ curl -X GET http://localhost:9001/api/describe/users \
 ### Using in JavaScript
 
 ```javascript
-async function getSchema(schemaName) {
-  const response = await fetch(`/api/describe/${schemaName}`, {
+async function getModel(modelName) {
+  const response = await fetch(`/api/describe/${modelName}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
-  const { data: schema } = await response.json();
-  return schema;
+  const { data: model } = await response.json();
+  return model;
 }
 
-// Check if schema requires sudo
-async function requiresSudo(schemaName) {
-  const schema = await getSchema(schemaName);
-  return schema.sudo === true;
+// Check if model requires sudo
+async function requiresSudo(modelName) {
+  const model = await getModel(modelName);
+  return model.sudo === true;
 }
 
-// Check if schema is frozen
-async function isFrozen(schemaName) {
-  const schema = await getSchema(schemaName);
-  return schema.freeze === true;
+// Check if model is frozen
+async function isFrozen(modelName) {
+  const model = await getModel(modelName);
+  return model.freeze === true;
 }
 ```
 
 ## Use Cases
 
-### Schema Validation Before Operations
+### Model Validation Before Operations
 
 ```javascript
-// Check schema protection before attempting write
-async function safeCreateRecord(schemaName, recordData) {
-  const schema = await getSchema(schemaName);
+// Check model protection before attempting write
+async function safeCreateRecord(modelName, recordData) {
+  const model = await getModel(modelName);
 
-  if (schema.freeze) {
-    throw new Error(`Schema '${schemaName}' is frozen - no writes allowed`);
+  if (model.freeze) {
+    throw new Error(`Model '${modelName}' is frozen - no writes allowed`);
   }
 
-  if (schema.sudo) {
+  if (model.sudo) {
     // Get sudo token first
     const sudoToken = await getSudoToken('Creating record');
-    return createWithSudo(schemaName, recordData, sudoToken);
+    return createWithSudo(modelName, recordData, sudoToken);
   }
 
   // Normal create operation
-  return createRecord(schemaName, recordData);
+  return createRecord(modelName, recordData);
 }
 ```
 
-### Schema Documentation UI
+### Model Documentation UI
 
 ```javascript
-// Display schema information in admin panel
-async function renderSchemaInfo(schemaName) {
-  const schema = await getSchema(schemaName);
+// Display model information in admin panel
+async function renderModelInfo(modelName) {
+  const model = await getModel(modelName);
 
   return `
-    <div class="schema-info">
-      <h2>${schema.schema_name}</h2>
-      <p>${schema.description || 'No description'}</p>
+    <div class="model-info">
+      <h2>${model.model_name}</h2>
+      <p>${model.description || 'No description'}</p>
       <dl>
         <dt>Status:</dt>
-        <dd>${schema.status}</dd>
+        <dd>${model.status}</dd>
         <dt>Protection:</dt>
         <dd>
-          ${schema.sudo ? '🔐 Sudo Required' : ''}
-          ${schema.freeze ? '🧊 Frozen' : ''}
-          ${schema.immutable ? '📌 Immutable' : ''}
+          ${model.sudo ? '🔐 Sudo Required' : ''}
+          ${model.freeze ? '🧊 Frozen' : ''}
+          ${model.immutable ? '📌 Immutable' : ''}
         </dd>
         <dt>Created:</dt>
-        <dd>${new Date(schema.created_at).toLocaleDateString()}</dd>
+        <dd>${new Date(model.created_at).toLocaleDateString()}</dd>
       </dl>
     </div>
   `;
@@ -161,39 +161,39 @@ async function renderSchemaInfo(schemaName) {
 ### Migration Comparison
 
 ```javascript
-// Compare schema settings between environments
-async function compareSchemaConfig(schemaName, env1, env2) {
-  const schema1 = await fetchSchema(env1, schemaName);
-  const schema2 = await fetchSchema(env2, schemaName);
+// Compare model settings between environments
+async function compareModelConfig(modelName, env1, env2) {
+  const model1 = await fetchModel(env1, modelName);
+  const model2 = await fetchModel(env2, modelName);
 
   const differences = [];
 
-  if (schema1.sudo !== schema2.sudo) {
-    differences.push(`Sudo: ${env1}=${schema1.sudo}, ${env2}=${schema2.sudo}`);
+  if (model1.sudo !== model2.sudo) {
+    differences.push(`Sudo: ${env1}=${model1.sudo}, ${env2}=${model2.sudo}`);
   }
 
-  if (schema1.freeze !== schema2.freeze) {
-    differences.push(`Freeze: ${env1}=${schema1.freeze}, ${env2}=${schema2.freeze}`);
+  if (model1.freeze !== model2.freeze) {
+    differences.push(`Freeze: ${env1}=${model1.freeze}, ${env2}=${model2.freeze}`);
   }
 
-  if (schema1.immutable !== schema2.immutable) {
-    differences.push(`Immutable: ${env1}=${schema1.immutable}, ${env2}=${schema2.immutable}`);
+  if (model1.immutable !== model2.immutable) {
+    differences.push(`Immutable: ${env1}=${model1.immutable}, ${env2}=${model2.immutable}`);
   }
 
   return differences;
 }
 ```
 
-## Schema Status Values
+## Model Status Values
 
-- **pending** - Schema created but not yet active
-- **active** - Schema is active and available for use
-- **system** - Protected system schema (cannot be modified or deleted)
+- **pending** - Model created but not yet active
+- **active** - Model is active and available for use
+- **system** - Protected system model (cannot be modified or deleted)
 
-## Schema Protection Flags
+## Model Protection Flags
 
 ### sudo
-When `true`, all data operations on this schema require a sudo token:
+When `true`, all data operations on this model require a sudo token:
 ```bash
 # Get sudo token first
 POST /api/user/sudo
@@ -220,33 +220,33 @@ When `true`, records follow write-once pattern:
 
 Perfect for audit logs, blockchain-style records, or compliance requirements.
 
-## Column Information
+## Field Information
 
-**Note:** This endpoint returns schema-level metadata only. To retrieve column definitions:
+**Note:** This endpoint returns model-level metadata only. To retrieve field definitions:
 
-- Use [`GET /api/describe/:schema/columns`](columns/GET.md) for all columns
-- Use [`GET /api/describe/:schema/columns/:column`](columns/:column/GET.md) for individual columns
-- Query the `columns` table via Data API: `GET /api/data/columns?where={"schema_name":"users"}`
+- Use [`GET /api/describe/:model/fields`](fields/GET.md) for all fields
+- Use [`GET /api/describe/:model/fields/:field`](fields/:field/GET.md) for individual fields
+- Query the `fields` table via Data API: `GET /api/data/fields?where={"model_name":"users"}`
 
-## System Schema Protection
+## System Model Protection
 
-Schemas with `status='system'` have special protection:
+Models with `status='system'` have special protection:
 - Cannot be modified via PUT
 - Cannot be deleted via DELETE
-- Columns cannot be added or removed
-- Only root users can access system schemas
+- Fields cannot be added or removed
+- Only root users can access system models
 
 ## Performance Considerations
 
-- Schema metadata is cached with timestamp-based validation
+- Model metadata is cached with timestamp-based validation
 - Fast response time (typically < 10ms)
 - Safe for frequent polling
 - No database joins required
 
 ## Related Endpoints
 
-- [`GET /api/describe`](../GET.md) - List all schemas
-- [`POST /api/describe/:schema`](POST.md) - Create new schema
-- [`PUT /api/describe/:schema`](PUT.md) - Update schema metadata
-- [`DELETE /api/describe/:schema`](DELETE.md) - Delete schema
-- [`GET /api/describe/:schema/columns/:column`](:column/GET.md) - Get column definition
+- [`GET /api/describe`](../GET.md) - List all models
+- [`POST /api/describe/:model`](POST.md) - Create new model
+- [`PUT /api/describe/:model`](PUT.md) - Update model metadata
+- [`DELETE /api/describe/:model`](DELETE.md) - Delete model
+- [`GET /api/describe/:model/fields/:field`](:field/GET.md) - Get field definition

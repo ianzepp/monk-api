@@ -8,7 +8,7 @@
  * - Single cell: "A1", "B5", "Z100"
  * - Range: "A1:Z100", "B2:D10"
  * - Row range: "5:5", "1:10"
- * - Column range: "A:A", "B:Z"
+ * - Field range: "A:A", "B:Z"
  */
 
 import { HttpErrors } from '@src/lib/errors/http-error.js';
@@ -108,7 +108,7 @@ function parseRangeNotation(rangeStr: string): ParsedRange {
         return parseRowRange(start, end);
     }
 
-    // Column range (e.g., "A:A", "B:Z")
+    // Field range (e.g., "A:A", "B:Z")
     if (/^[A-Z]$/.test(start) && /^[A-Z]$/.test(end)) {
         return parseColRange(start, end);
     }
@@ -155,12 +155,12 @@ function parseRowRange(startStr: string, endStr: string): ParsedRange {
 }
 
 /**
- * Parse column range (e.g., "A:A", "B:Z")
+ * Parse field range (e.g., "A:A", "B:Z")
  */
 function parseColRange(startCol: string, endCol: string): ParsedRange {
     if (startCol > endCol) {
         throw HttpErrors.badRequest(
-            `Invalid range: start column ${startCol} is after end column ${endCol}`,
+            `Invalid range: start field ${startCol} is after end field ${endCol}`,
             'GRID_INVALID_RANGE'
         );
     }
@@ -208,7 +208,7 @@ function parseCellRange(start: string, end: string): ParsedRange {
 
     if (startCol > endCol) {
         throw HttpErrors.badRequest(
-            `Invalid range: start column ${startCol} is after end column ${endCol}`,
+            `Invalid range: start field ${startCol} is after end field ${endCol}`,
             'GRID_INVALID_RANGE'
         );
     }
@@ -228,7 +228,7 @@ function parseCellRange(start: string, end: string): ParsedRange {
  *
  * @param range - Parsed range object
  * @param rowMax - Maximum row count for grid
- * @param colMax - Maximum column letter for grid
+ * @param colMax - Maximum field letter for grid
  * @throws HttpError if range exceeds grid bounds
  */
 export function validateRangeBounds(range: ParsedRange, rowMax: number, colMax: string): void {
@@ -240,12 +240,12 @@ export function validateRangeBounds(range: ParsedRange, rowMax: number, colMax: 
         );
     }
 
-    // Validate column bounds
+    // Validate field bounds
     const checkCol = (col: string) => {
         if (col > colMax) {
             throw HttpErrors.badRequest(
-                `Column ${col} exceeds grid limit ${colMax}`,
-                'GRID_COLUMN_OUT_OF_BOUNDS'
+                `Field ${col} exceeds grid limit ${colMax}`,
+                'GRID_FIELD_OUT_OF_BOUNDS'
             );
         }
     };

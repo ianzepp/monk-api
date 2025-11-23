@@ -5,7 +5,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 /**
  * Find API Basic Functionality Tests
  *
- * Tests the POST /api/find/:schema endpoint with empty filter
+ * Tests the POST /api/find/:model endpoint with empty filter
  * to verify basic functionality and record structure.
  */
 

@@ -2,7 +2,7 @@
 
 Get record metadata without fetching full record data.
 
-## GET /api/stat/:schema/:record
+## GET /api/stat/:model/:record
 
 Returns only system metadata fields (timestamps, etag, size) for a specific record.
 
@@ -45,15 +45,15 @@ Authorization: Bearer <jwt>
 
 ### Errors
 
-- **404 Not Found**: Record does not exist in the specified schema
+- **404 Not Found**: Record does not exist in the specified model
 - **401 Unauthorized**: Missing or invalid authentication token
-- **403 Forbidden**: Insufficient permissions to access the schema
+- **403 Forbidden**: Insufficient permissions to access the model
 
 ### Related Endpoints
 
-- `GET /api/data/:schema/:record` - Get full record with user data
+- `GET /api/data/:model/:record` - Get full record with user data
 - `POST /api/file/stat` - Filesystem-style stat operation
-- `GET /api/acls/:schema/:record` - Get ACL metadata
+- `GET /api/acls/:model/:record` - Get ACL metadata
 
 ### Notes
 

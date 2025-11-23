@@ -96,7 +96,7 @@ curl -X GET http://localhost:9001/api/describe \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Response: success: true
-#           data[4]: columns,definitions,schemas,users
+#           data[4]: fields,definitions,models,users
 
 # 3. Override to JSON for specific calls
 curl -X GET "http://localhost:9001/api/describe?format=json" \
@@ -107,5 +107,5 @@ curl -X GET "http://localhost:9001/api/describe?format=json" \
 
 - **User API**: `/docs/user` - User identity and account management
 - **Sudo API**: `/docs/sudo` - Privilege escalation and user impersonation
-- **Data API**: [`../data/PUBLIC.md`](../data/PUBLIC.md) - Working with schema-backed data
-- **Describe API**: [`../describe/PUBLIC.md`](../describe/PUBLIC.md) - Managing schemas
+- **Data API**: [`../data/PUBLIC.md`](../data/PUBLIC.md) - Working with model-backed data
+- **Describe API**: [`../describe/PUBLIC.md`](../describe/PUBLIC.md) - Managing models

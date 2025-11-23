@@ -4,7 +4,7 @@
 >
 > **Created**: 2025-01-22
 > **Status**: In Progress
-> **Goal**: Test real-world use of Find API, Aggregate API, relationships, ACLs, and multi-schema operations
+> **Goal**: Test real-world use of Find API, Aggregate API, relationships, ACLs, and multi-model operations
 
 ## Overview
 
@@ -19,13 +19,13 @@ This scenario demonstrates using the Monk API to build a car dealership manageme
 5. **Analytics Dashboard** - Sales metrics, inventory stats, performance reports
 6. **Access Control** - Role-based permissions for salespeople vs managers
 
-## Schema Design
+## Model Design
 
 ### 1. Vehicles (Inventory)
 
 ```json
 {
-  "schema_name": "vehicles",
+  "model_name": "vehicles",
   "title": "Vehicles",
   "type": "object",
   "required": ["vin", "make", "model", "year", "status", "asking_price"],
@@ -110,7 +110,7 @@ This scenario demonstrates using the Monk API to build a car dealership manageme
 
 ```json
 {
-  "schema_name": "customers",
+  "model_name": "customers",
   "title": "Customers",
   "type": "object",
   "required": ["name", "email", "phone"],
@@ -168,7 +168,7 @@ This scenario demonstrates using the Monk API to build a car dealership manageme
 
 ```json
 {
-  "schema_name": "sales",
+  "model_name": "sales",
   "title": "Sales",
   "type": "object",
   "required": ["vehicle_id", "customer_id", "salesperson_id", "sale_date", "sale_price"],
@@ -225,7 +225,7 @@ This scenario demonstrates using the Monk API to build a car dealership manageme
 
 ```json
 {
-  "schema_name": "test_drives",
+  "model_name": "test_drives",
   "title": "Test Drives",
   "type": "object",
   "required": ["vehicle_id", "customer_id", "scheduled_date"],
@@ -437,7 +437,7 @@ const result = { ...vehicle, sales };
 
 ### 2. Computed Fields
 
-**Issue:** No computed columns (e.g., days_in_inventory, profit_margin)
+**Issue:** No computed fields (e.g., days_in_inventory, profit_margin)
 
 **Workaround:** Calculate client-side or use Aggregate API
 
@@ -499,7 +499,7 @@ POST /api/aggregate/vehicles
 
 ## Success Criteria
 
-- ✅ Create all 4 schemas successfully
+- ✅ Create all 4 models successfully
 - ✅ Populate realistic test data
 - ✅ Demonstrate inventory search with multiple filters
 - ✅ Generate sales dashboard with aggregations
@@ -516,7 +516,7 @@ POST /api/aggregate/vehicles
 ## Next Steps
 
 1. Create demo tenant: `acme-auto-dealership`
-2. Define and create schemas
+2. Define and create models
 3. Populate test data
 4. Execute queries and document results
 5. Update DRIFT.md with any new findings

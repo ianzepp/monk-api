@@ -1,8 +1,8 @@
 -- ============================================================================
--- SCHEMA: grid_cells (EXTERNAL)
+-- MODEL: grid_cells (EXTERNAL)
 -- ============================================================================
--- Grid cell storage - external schema managed by Grid API
--- Schema definition lives in system, but data is accessed via /api/grids/* only
+-- Grid cell storage - external model managed by Grid API
+-- Model definition lives in system, but data is accessed via /api/grids/* only
 
 CREATE TABLE grid_cells (
 	grid_id UUID NOT NULL,
@@ -16,4 +16,4 @@ CREATE TABLE grid_cells (
 
 CREATE INDEX idx_grid_range ON grid_cells(grid_id, row, col);
 
-COMMENT ON TABLE grid_cells IS 'Grid cell storage for Grid API (external schema - see /api/grids/*)';
+COMMENT ON TABLE grid_cells IS 'Grid cell storage for Grid API (external model - see /api/grids/*)';

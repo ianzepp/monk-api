@@ -13,9 +13,9 @@ import type { Observer, ObserverConstructor } from '@src/lib/observers/interface
 import type {
     ObserverRing,
     ObserverFilePattern,
-    UniversalSchemaKeyword
+    UniversalModelKeyword
 } from '@src/lib/observers/types.js';
-import { UNIVERSAL_SCHEMA_KEYWORD } from '@src/lib/observers/types.js';
+import { UNIVERSAL_MODEL_KEYWORD } from '@src/lib/observers/types.js';
 
 /**
  * Observer loader with file-based discovery and caching
@@ -100,8 +100,8 @@ export class ObserverLoader {
     }
 
     /**
-     * Parse observer file path into schema, ring, and filename components
-     * Expected pattern: src/observers/:schema/:ring_number/file-name.ts
+     * Parse observer file path into model, ring, and filename components
+     * Expected pattern: src/observers/:model/:ring_number/file-name.ts
      */
     private static _parseObserverFilePath(
         filepath: string,
@@ -110,13 +110,13 @@ export class ObserverLoader {
         const relativePath = filepath.replace(projectRoot + '/', '');
         const pathParts = relativePath.split('/');
 
-        // Expected: ['src', 'observers', ':schema', ':ring_number', 'file-name.ts']
+        // Expected: ['src', 'observers', ':model', ':ring_number', 'file-name.ts']
         if (pathParts.length < 5 || pathParts[0] !== 'src' || pathParts[1] !== 'observers') {
             console.warn('Invalid observer path pattern', { path: relativePath });
             return null;
         }
 
-        const schema = pathParts[2];
+        const model = pathParts[2];
         const ringStr = pathParts[3];
         const filename = basename(pathParts[pathParts.length - 1], '.ts');
 
@@ -128,7 +128,7 @@ export class ObserverLoader {
         }
 
         return {
-            schema,
+            model,
             ring: ringNum as ObserverRing,
             filename,
             filepath: relativePath
@@ -164,11 +164,11 @@ export class ObserverLoader {
 
             // Add observer name for debugging if not provided
             if (!observer.name) {
-                observer.name = `${filePattern.schema}:${filePattern.ring}:${filePattern.filename}`;
+                observer.name = `${filePattern.model}:${filePattern.ring}:${filePattern.filename}`;
             }
 
-            // Store in cache by schema:ring key
-            const cacheKey = `${filePattern.schema}:${filePattern.ring}`;
+            // Store in cache by model:ring key
+            const cacheKey = `${filePattern.model}:${filePattern.ring}`;
             if (!this.cache.has(cacheKey)) {
                 this.cache.set(cacheKey, []);
             }
@@ -203,23 +203,23 @@ export class ObserverLoader {
     }
 
     /**
-     * Get cached observers for specific schema and ring
-     * Returns both schema-specific and universal observers
+     * Get cached observers for specific model and ring
+     * Returns both model-specific and universal observers
      */
-    static getObservers(schema: string, ring: ObserverRing): Observer[] {
+    static getObservers(model: string, ring: ObserverRing): Observer[] {
         if (!this.loaded) {
             throw new Error('Observers not loaded - call preloadObservers() first');
         }
 
         const observers: Observer[] = [];
 
-        // Get schema-specific observers
-        const specificKey = `${schema}:${ring}`;
+        // Get model-specific observers
+        const specificKey = `${model}:${ring}`;
         const specific = this.cache.get(specificKey) || [];
         observers.push(...specific);
 
         // Get universal observers (all)
-        const universalKey = `${UNIVERSAL_SCHEMA_KEYWORD}:${ring}`;
+        const universalKey = `${UNIVERSAL_MODEL_KEYWORD}:${ring}`;
         const universal = this.cache.get(universalKey) || [];
         observers.push(...universal);
 

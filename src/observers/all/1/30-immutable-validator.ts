@@ -5,9 +5,9 @@
  * Fields can be set during creation or their first update, but subsequent changes are blocked.
  *
  * Performance:
- * - Zero database queries: uses Schema.getImmutableFields() from cached column metadata
+ * - Zero database queries: uses Model.getImmutableFields() from cached field metadata
  * - O(n) field check: iterates over changed fields only (not all fields)
- * - Uses SchemaRecord.old() to access original values loaded by RecordPreloader
+ * - Uses ModelRecord.old() to access original values loaded by RecordPreloader
  *
  * Use cases:
  * - Audit fields (created_by, created_at) that should never change
@@ -19,7 +19,7 @@
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
@@ -29,12 +29,12 @@ export default class ImmutableValidator extends BaseObserver {
     readonly operations = ['update'] as const;
     readonly priority = 30;
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
-        const { schema } = context;
-        const schemaName = schema.schema_name;
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+        const { model } = context;
+        const modelName = model.model_name;
 
-        // Get immutable fields from cached schema metadata (O(1))
-        const immutableFields = schema.getImmutableFields();
+        // Get immutable fields from cached model metadata (O(1))
+        const immutableFields = model.getImmutableFields();
 
         // No immutable fields defined - skip validation
         if (immutableFields.size === 0) {
@@ -66,7 +66,7 @@ export default class ImmutableValidator extends BaseObserver {
             // Allow setting immutable field if it was null/undefined (first write)
             if (oldValue === null || oldValue === undefined) {
                 console.info('Allowing first write to immutable field', {
-                    schemaName,
+                    modelName,
                     recordId,
                     field: fieldName,
                     newValue
@@ -91,7 +91,7 @@ export default class ImmutableValidator extends BaseObserver {
                 .join('; ');
 
             console.warn('Blocked update to immutable fields', {
-                schemaName,
+                modelName,
                 recordId,
                 violations: violations.length,
                 details: violations

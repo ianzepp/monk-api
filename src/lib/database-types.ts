@@ -2,7 +2,7 @@
  * Database Record Types
  *
  * Provides type-safe interfaces for database operations while supporting
- * dynamic user-defined schemas. All records include system fields, with
+ * dynamic user-defined models. All records include system fields, with
  * user fields being flexible.
  */
 
@@ -36,13 +36,13 @@ export interface PartialSystemFields {
 
 /**
  * Base record type combining system fields with dynamic user data
- * Generic parameter allows typing user-defined fields when schema is known
+ * Generic parameter allows typing user-defined fields when model is known
  *
  * @example
- * // For unknown schema
+ * // For unknown model
  * const record: DbRecord = await db.selectOne('users', filter);
  *
- * // For known schema
+ * // For known model
  * interface UserFields {
  *   email: string;
  *   name: string;
@@ -100,20 +100,20 @@ export interface DbAccessInput {
 }
 
 /**
- * Schema-specific record types for system schemas
+ * Model-specific record types for system models
  * These have known, fixed structures
  */
 
-export interface SchemaRecord extends DbRecord {
-    schema_name: string;
+export interface ModelRecord extends DbRecord {
+    model_name: string;
     status: string;
     sudo?: boolean;
     external?: boolean;
 }
 
-export interface ColumnRecord extends DbRecord {
-    schema_name: string;
-    column_name: string;
+export interface FieldRecord extends DbRecord {
+    model_name: string;
+    field_name: string;
     type: string;
     required?: boolean;
     default_value?: any;
@@ -125,9 +125,9 @@ export interface ColumnRecord extends DbRecord {
     max_length?: number;
     enum_values?: string[];
     relationship_type?: 'owned' | 'referenced';
-    relationship_schema?: string;
+    relationship_model?: string;
     relationship_name?: string;
-    relationship_column?: string;
+    relationship_field?: string;
     relationship_cascade_delete?: boolean;
     relationship_required?: boolean;
 }

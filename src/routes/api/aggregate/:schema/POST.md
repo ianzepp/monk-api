@@ -1,4 +1,4 @@
-# POST /api/aggregate/:schema
+# POST /api/aggregate/:model
 
 **Documentation stub - to be completed**
 

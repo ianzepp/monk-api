@@ -1,7 +1,7 @@
 {
   "name": "MonkData",
   "description": "High-level data operations mirroring src/lib/database.ts methods. Provides semantic wrappers around common CRUD patterns. Operations: selectAny (flexible query with filters), selectOne (single record or null), select404 (single record or error), createAll (bulk insert array), updateAll (bulk update array), deleteAll (bulk soft-delete array), count (record count with filters), aggregate (analytics with GROUP BY). Requires authentication. All operations return data in format set during auth (default: TOON).",
-  "inputSchema": {
+  "inputModel": {
     "type": "object",
     "properties": {
       "operation": {
@@ -9,14 +9,14 @@
         "enum": ["selectAny", "selectOne", "select404", "createAll", "updateAll", "deleteAll", "count", "aggregate"],
         "description": "Database operation matching src/lib/database.ts method names"
       },
-      "schema": {
+      "model": {
         "type": "string",
-        "description": "Schema/table name (e.g., 'users', 'products', 'orders')"
+        "description": "Model/table name (e.g., 'users', 'products', 'orders')"
       },
       "params": {
         "description": "Operation-specific parameters. For select*: {where, order, limit, offset, select}. For createAll/updateAll/deleteAll: array of records. For aggregate: {where, aggregate, groupBy}."
       }
     },
-    "required": ["operation", "schema"]
+    "required": ["operation", "model"]
   }
 }

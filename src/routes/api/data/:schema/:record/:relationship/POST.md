@@ -1,12 +1,12 @@
-# POST /api/data/:schema/:record/:relationship
+# POST /api/data/:model/:record/:relationship
 
 Create a new child record that automatically inherits the parent foreign key and observer context. This endpoint keeps relationship logic server-side—clients only send the child payload, and the API links it to the parent atomically.
 
 ## Path Parameters
 
-- `:schema` - Parent schema name (required)
+- `:model` - Parent model name (required)
 - `:record` - Parent record UUID (required)
-- `:relationship` - Relationship name defined in child schema (required)
+- `:relationship` - Relationship name defined in child model (required)
 
 ## Request Body
 
@@ -20,7 +20,7 @@ Single child record object. The foreign key is automatically set—do not includ
 }
 ```
 
-**Important:** Body must be a single object, not an array. For bulk child creation, use the bulk endpoint on the child schema directly.
+**Important:** Body must be a single object, not an array. For bulk child creation, use the bulk endpoint on the child model directly.
 
 ## Success Response (201)
 
@@ -60,15 +60,15 @@ The created child record includes:
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 403 | `SCHEMA_FROZEN` | "Schema is frozen" | Child schema has frozen=true |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid parent schema name |
+| 403 | `MODEL_FROZEN` | "Model is frozen" | Child model has frozen=true |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid parent model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Parent record ID does not exist |
-| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for schema '{schema}'" | Invalid relationship name or not an owned relationship |
+| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for model '{model}'" | Invalid relationship name or not an owned relationship |
 | 422 | Validation errors | Various | Observer validation failures |
 
 ## Relationship Requirements
 
-This endpoint only works with **owned relationships** defined in the child schema:
+This endpoint only works with **owned relationships** defined in the child model:
 
 ```json
 {
@@ -80,7 +80,7 @@ This endpoint only works with **owned relationships** defined in the child schem
       "type": "string",
       "x-monk-relationship": {
         "type": "owned",
-        "schema": "posts",
+        "model": "posts",
         "name": "comments"
       }
     }
@@ -190,7 +190,7 @@ The foreign key is **automatically set** by the server:
 Created child records pass through the full observer pipeline:
 
 ### Pre-Create Observers
-- **Validation** - Schema validation, required fields, data types
+- **Validation** - Model validation, required fields, data types
 - **Enrichment** - Auto-generate IDs, set defaults, add timestamps
 - **Security** - Check permissions, apply ACLs
 - **Business Logic** - Custom validation rules
@@ -285,20 +285,20 @@ async function createOrderWithItems(orderData, items) {
 }
 ```
 
-## Schema Protection
+## Model Protection
 
-### Frozen Child Schemas
+### Frozen Child Models
 
-Child schemas with `frozen=true` reject all create operations:
+Child models with `frozen=true` reject all create operations:
 
 ```bash
 POST /api/data/posts/post-123/archived_comments
-# Error 403: SCHEMA_FROZEN
+# Error 403: MODEL_FROZEN
 ```
 
-### Sudo-Protected Child Schemas
+### Sudo-Protected Child Models
 
-Child schemas with `sudo=true` require a sudo token:
+Child models with `sudo=true` require a sudo token:
 
 ```bash
 # Get sudo token first
@@ -348,7 +348,7 @@ POST /api/data/posts/post-123/invalid_relationship
 # Error 404: RELATIONSHIP_NOT_FOUND
 {
   "success": false,
-  "error": "Relationship 'invalid_relationship' not found for schema 'posts'",
+  "error": "Relationship 'invalid_relationship' not found for model 'posts'",
   "error_code": "RELATIONSHIP_NOT_FOUND"
 }
 ```
@@ -377,7 +377,7 @@ The child creation executes within a database transaction:
 
 ## Related Endpoints
 
-- [`GET /api/data/:schema/:record/:relationship`](GET.md) - List all child records
-- [`DELETE /api/data/:schema/:record/:relationship`](DELETE.md) - Delete all child records
-- [`PUT /api/data/:schema/:record/:relationship/:child`](:child/PUT.md) - Update specific child record
-- [`POST /api/data/:schema`](../../:schema/POST.md) - Bulk create records (use for multiple children)
+- [`GET /api/data/:model/:record/:relationship`](GET.md) - List all child records
+- [`DELETE /api/data/:model/:record/:relationship`](DELETE.md) - Delete all child records
+- [`PUT /api/data/:model/:record/:relationship/:child`](:child/PUT.md) - Update specific child record
+- [`POST /api/data/:model`](../../:model/POST.md) - Bulk create records (use for multiple children)

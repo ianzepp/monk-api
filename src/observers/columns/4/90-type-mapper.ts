@@ -1,7 +1,7 @@
 /**
  * Type Mapper Observer - Ring 4 Enrichment
  *
- * Maps user-facing type names to PostgreSQL column_type enum values just before
+ * Maps user-facing type names to PostgreSQL field_type enum values just before
  * database operations (Ring 5). This ensures that:
  *
  * - Rings 1-3 (validation, security, business logic) work with user-friendly types
@@ -19,15 +19,15 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
-import { USER_TO_PG_TYPE_MAP, VALID_USER_TYPES } from '@src/lib/column-types.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import { USER_TO_PG_TYPE_MAP, VALID_USER_TYPES } from '@src/lib/field-types.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
 export default class TypeMapperObserver extends BaseObserver {
     readonly ring = ObserverRing.Enrichment;  // Ring 4
     readonly operations = ['create', 'update'] as const;
     readonly priority = 90;  // Run late in Ring 4, just before database (Ring 5)
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
         const { type } = record;
 
         if (!type) {

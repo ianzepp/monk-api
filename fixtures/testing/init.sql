@@ -1,5 +1,5 @@
 -- Testing Fixture Initialization
--- This runs after init-template-default.sql but before schemas and data are loaded
+-- This runs after init-template-default.sql but before models and data are loaded
 
 -- Insert core users for testing
 -- Root user already exists (created in the default template)

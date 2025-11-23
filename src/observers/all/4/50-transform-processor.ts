@@ -1,7 +1,7 @@
 /**
  * Transform Processor Observer
  *
- * Applies automatic data transformations to fields based on their transform column setting.
+ * Applies automatic data transformations to fields based on their transform field setting.
  * Runs in Ring 4 (Enrichment) after all validation passes.
  *
  * Supported transforms:
@@ -14,7 +14,7 @@
  * Performance:
  * - Only processes fields with transform metadata (O(1) Map lookup)
  * - Modifies record data in-place (zero allocations)
- * - Early exit if schema has no transform fields
+ * - Early exit if model has no transform fields
  *
  * Ring 4 (Enrichment) - Priority 50
  * Operations: create, update
@@ -30,14 +30,14 @@ export default class TransformProcessor extends BaseObserver {
     readonly priority = 50;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, data } = context;
+        const { model, data } = context;
 
         // Check if data exists
         if (!data || data.length === 0) {
             return;
         }
 
-        const transformFields = schema.getTransformFields();
+        const transformFields = model.getTransformFields();
 
         // Early exit if no transform fields defined
         if (transformFields.size === 0) {
@@ -68,7 +68,7 @@ export default class TransformProcessor extends BaseObserver {
 
         if (transformCount > 0) {
             console.info('Field transforms applied', {
-                schemaName: schema.schema_name,
+                modelName: model.model_name,
                 recordCount: data?.length || 0,
                 transformCount,
             });

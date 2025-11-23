@@ -3,20 +3,20 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * GET /api/describe/:schema/columns/:column - Get Column Details
+ * GET /api/describe/:model/fields/:field - Get Field Details
  *
- * Tests retrieving individual column definitions from the columns table.
+ * Tests retrieving individual field definitions from the fields table.
  */
 
-describe('GET /api/describe/:schema/columns/:column - Get Column Details', () => {
+describe('GET /api/describe/:model/fields/:field - Get Field Details', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('get-column');
+        tenant = await TestHelpers.createTestTenant('get-field');
 
-        // Create test schema and columns
+        // Create test model and fields
         await tenant.httpClient.post('/api/describe/products', {
-            schema_name: 'products',
+            model_name: 'products',
             status: 'active'
         });
 
@@ -38,16 +38,16 @@ describe('GET /api/describe/:schema/columns/:column - Get Column Details', () =>
         await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
-    it('should retrieve column details', async () => {
+    it('should retrieve field details', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/name');
 
         expectSuccess(response);
         expect(response.data).toBeDefined();
-        expect(response.data.schema_name).toBe('products');
-        expect(response.data.column_name).toBe('name');
+        expect(response.data.model_name).toBe('products');
+        expect(response.data.field_name).toBe('name');
     });
 
-    it('should include column type', async () => {
+    it('should include field type', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/name');
 
         expectSuccess(response);
@@ -76,25 +76,25 @@ describe('GET /api/describe/:schema/columns/:column - Get Column Details', () =>
         expect(response.data.description).toBe('Product name');
     });
 
-    it('should return 404 for non-existent column', async () => {
+    it('should return 404 for non-existent field', async () => {
         const response = await tenant.httpClient.get('/api/describe/products/nonexistent');
 
         expectError(response);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should return 404 for column in non-existent schema', async () => {
-        const response = await tenant.httpClient.get('/api/describe/nonexistent/column');
+    it('should return 404 for field in non-existent model', async () => {
+        const response = await tenant.httpClient.get('/api/describe/nonexistent/field');
 
         expectError(response);
     });
 
-    it('should retrieve system schema columns', async () => {
-        // System schemas have columns too
-        const response = await tenant.httpClient.get('/api/describe/schemas/schema_name');
+    it('should retrieve system model fields', async () => {
+        // System models have fields too
+        const response = await tenant.httpClient.get('/api/describe/models/model_name');
 
         expectSuccess(response);
-        expect(response.data.schema_name).toBe('schemas');
-        expect(response.data.column_name).toBe('schema_name');
+        expect(response.data.model_name).toBe('models');
+        expect(response.data.field_name).toBe('model_name');
     });
 });

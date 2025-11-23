@@ -7,8 +7,8 @@
 ## Critical / Smoke Tests
 
 ### Missing Critical Security Tests (4+)
-- Data API endpoint injection protection (schema names, field names, record IDs)
-- Describe API endpoint security (schema/column name injection)
+- Data API endpoint injection protection (model names, field names, record IDs)
+- Describe API endpoint security (model/field name injection)
 - Bulk operation security validation (array payload injection)
 - Request body injection testing (JSON payload manipulation)
 

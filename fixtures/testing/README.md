@@ -18,7 +18,7 @@ This directory contains the **testing fixtures template** used by many tests thr
 
 ## Contents
 
-- **Schemas**: 2 schemas (`account.json`, `contact.json`)
+- **Models**: 2 models (`account.json`, `contact.json`)
 - **Data**: Sample data with exactly 5 account records and 5 contact records
 - **Usage**: Template for `npm run fixtures:build testing` → `monk_template_testing` database
 

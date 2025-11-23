@@ -36,7 +36,7 @@ The Find API provides a powerful search interface that goes beyond simple filter
 
 ### Base URL
 ```
-POST /api/find/:schema
+POST /api/find/:model
 ```
 
 ## Authentication
@@ -53,7 +53,7 @@ Authorization: Bearer <jwt>
 
 ## Core Endpoint
 
-### POST /api/find/:schema
+### POST /api/find/:model
 
 The primary search endpoint that accepts complex filter objects in the request body.
 
@@ -413,8 +413,8 @@ The Filter system builds optimized tree structures for complex logical operation
 
 **Performance Best Practices:**
 - Place most selective conditions first in $and operations
-- Use indexes on commonly filtered columns
-- Consider compound indexes for multi-column filters
+- Use indexes on commonly filtered fields
+- Consider compound indexes for multi-field filters
 - Avoid excessive nesting in complex conditions
 - Leverage PostgreSQL array operations for ACL scenarios
 
@@ -552,10 +552,10 @@ The Find API includes comprehensive test coverage for all filtering scenarios. S
 
 ### Implementation Status
 - ✅ **Core Filter System**: Complete with 20+ working operators
-- ✅ **FilterWhere**: Schema-independent WHERE clause generation  
-- ✅ **FilterOrder**: Schema-independent ORDER BY generation
+- ✅ **FilterWhere**: Model-independent WHERE clause generation  
+- ✅ **FilterOrder**: Model-independent ORDER BY generation
 - ✅ **Basic Operators**: Equality, comparison, pattern, regex, array membership, range, search, existence
-- ✅ **Column Selection**: True database-level SELECT projection
+- ✅ **Field Selection**: True database-level SELECT projection
 - ⚠️ **Logical Operators**: $and works correctly, $or/$not have implementation issues
 - ⚠️ **Offset Functionality**: Not yet implemented (limit works correctly)
 - ⚠️ **PostgreSQL Arrays**: ACL arrays functional, user array operations need testing template
@@ -595,19 +595,19 @@ npm run test:sh spec/44-filter/complex-01.test.sh
 The Find API is powered by a sophisticated three-tier filter architecture:
 
 **1. Filter Class (`src/lib/filter.ts`)**
-- Main query builder with schema integration and observer pipeline support
+- Main query builder with model integration and observer pipeline support
 - Handles SELECT, WHERE, ORDER BY, LIMIT/OFFSET clause generation
 - Provides `toSQL()` method returning query + parameters for execution
 - **Important**: Filter class is responsible for **SQL generation only**. All database execution should use `Database.selectAny()` to ensure proper observer pipeline execution, validation, security, and audit logging.
 
 **2. FilterWhere Class (`src/lib/filter-where.ts`)**  
-- Schema-independent WHERE clause generation for reusable filtering logic
+- Model-independent WHERE clause generation for reusable filtering logic
 - Handles all 25+ operators with proper parameterization and SQL injection protection
 - Supports soft delete integration with configurable options
 - Generates parameterized SQL with `$1, $2, $3` parameter placeholders
 
 **3. FilterWhere Class (`src/lib/filter-where.ts`)**  
-- Schema-independent WHERE clause generation for reusable filtering logic
+- Model-independent WHERE clause generation for reusable filtering logic
 - Handles all 25+ operators with proper parameterization and SQL injection protection
 - Supports soft delete integration with configurable options
 - Generates parameterized SQL with `$1, $2, $3` parameter placeholders
@@ -627,9 +627,9 @@ const { whereClause, params } = FilterWhere.generate({ id: 'record-123' }, 2);
 ```
 
 **4. FilterOrder Class (`src/lib/filter-order.ts`)**
-- Schema-independent ORDER BY clause generation for reusable sorting logic
+- Model-independent ORDER BY clause generation for reusable sorting logic
 - Multiple input formats: string, array, and object formats supported
-- Column sanitization and SQL injection prevention
+- Field sanitization and SQL injection prevention
 - Composable design for integration with any SQL operation
 
 **Usage Example:**
@@ -640,13 +640,13 @@ FilterOrder.generate('created_at desc');
 
 // Array format with mixed formats
 FilterOrder.generate([
-    { column: 'priority', sort: 'desc' },
-    { column: 'name', sort: 'asc' }
+    { field: 'priority', sort: 'desc' },
+    { field: 'name', sort: 'asc' }
 ]);
 // Result: ORDER BY "priority" DESC, "name" ASC
 
 // Mixed array format
-FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
+FilterOrder.generate(['name asc', { field: 'created_at', sort: 'desc' }]);
 // Result: ORDER BY "name" ASC, "created_at" DESC
 ```
 
@@ -655,14 +655,14 @@ FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
 The Find API uses a clean separation of concerns pattern with context-aware soft delete handling:
 
 ```typescript
-// Route handler (src/routes/api/find/:schema/POST.ts)
-const result = await system.database.selectAny(schema!, body, options);
+// Route handler (src/routes/api/find/:model/POST.ts)
+const result = await system.database.selectAny(model!, body, options);
 
 // Database method (src/lib/database.ts)
 const defaultOptions = this.getDefaultSoftDeleteOptions(options.context); // api|observer|system
 const mergedOptions = { ...defaultOptions, ...options };
 
-const filter = new Filter(schema.schema_name)
+const filter = new Filter(model.model_name)
     .assign(filterData)
     .withSoftDeleteOptions(mergedOptions);
 
@@ -722,10 +722,10 @@ Complex queries are built using an optimized tree structure:
 - **Parameter Management**: Efficient SQL parameterization across complex trees
 - **Query Optimization**: Most selective conditions placed first for index usage
 
-### FilterWhere - Schema-Independent WHERE Generation
+### FilterWhere - Model-Independent WHERE Generation
 
 **Core Features:**
-- **Schema independence**: No schema name or table name required
+- **Model independence**: No model name or table name required
 - **Parameter offsetting**: Supports starting parameter index for complex queries
 - **SQL injection protection**: All values properly parameterized using $1, $2, $3
 - **Consistent syntax**: Same filter object format as Filter class
@@ -760,12 +760,12 @@ const { whereClause, params } = FilterWhere.generate(
 - **Pattern matching**: `{ field: { $like: 'prefix%' } }` → `"field" LIKE $1`
 - **Null handling**: `{ field: null }` → `"field" IS NULL`
 
-### FilterOrder - Schema-Independent ORDER BY Generation
+### FilterOrder - Model-Independent ORDER BY Generation
 
 **Core Features:**
-- **Schema independence**: No schema name or table name required
+- **Model independence**: No model name or table name required
 - **Multiple input formats**: String, array, and object formats supported
-- **Column sanitization**: Prevents SQL injection in column names
+- **Field sanitization**: Prevents SQL injection in field names
 - **Sort normalization**: Consistent ASC/DESC handling
 - **Composable design**: Can be combined with any SQL operation
 
@@ -778,8 +778,8 @@ FilterOrder.generate('created_at desc');
 
 // Array format
 FilterOrder.generate([
-    { column: 'priority', sort: 'desc' },
-    { column: 'name', sort: 'asc' }
+    { field: 'priority', sort: 'desc' },
+    { field: 'name', sort: 'asc' }
 ]);
 // Result: ORDER BY "priority" DESC, "name" ASC
 
@@ -788,14 +788,14 @@ FilterOrder.generate({ created_at: 'desc', name: 'asc' });
 // Result: ORDER BY "created_at" DESC, "name" ASC
 
 // Mixed array format
-FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
+FilterOrder.generate(['name asc', { field: 'created_at', sort: 'desc' }]);
 // Result: ORDER BY "name" ASC, "created_at" DESC
 ```
 
 **Security Features:**
-- **Column sanitization**: Removes non-alphanumeric characters except underscore
+- **Field sanitization**: Removes non-alphanumeric characters except underscore
 - **Direction validation**: Only allows ASC/DESC (defaults to ASC for invalid input)
-- **Injection prevention**: Column names quoted and sanitized
+- **Injection prevention**: Field names quoted and sanitized
 
 ## Common Use Cases
 
@@ -901,9 +901,9 @@ FilterOrder.generate(['name asc', { column: 'created_at', sort: 'desc' }]);
 
 The Find API provides enterprise-grade search and filtering capabilities through a sophisticated three-tier architecture:
 
-1. **Filter Class**: Main query builder with schema integration and observer pipeline support
-2. **FilterWhere**: Schema-independent WHERE clause generation with 25+ operators  
-3. **FilterOrder**: Schema-independent ORDER BY generation with multiple format support
+1. **Filter Class**: Main query builder with model integration and observer pipeline support
+2. **FilterWhere**: Model-independent WHERE clause generation with 25+ operators  
+3. **FilterOrder**: Model-independent ORDER BY generation with multiple format support
 
 **Key Technical Achievements:**
 - **Performance**: 500+ parameters, 6+ nesting levels, 100+ OR conditions per level

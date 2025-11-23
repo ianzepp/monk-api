@@ -8,7 +8,7 @@
  * This observer prepares UUID array data for PostgreSQL compatibility without
  * modifying the actual data - just sets metadata hints for SQL observers.
  *
- * Ring: 4 (Enrichment) - Schema: all - Operations: create, update
+ * Ring: 4 (Enrichment) - Model: all - Operations: create, update
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
@@ -31,7 +31,7 @@ export default class UuidArrayProcessor extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { operation, data } = context;
-        const schemaName = context.schema.schema_name;
+        const modelName = context.model.model_name;
 
         // Check if data exists
         if (!data || data.length === 0) {
@@ -64,7 +64,7 @@ export default class UuidArrayProcessor extends BaseObserver {
 
         if (processedFields > 0) {
             console.info('UUID array processing completed', {
-                schemaName,
+                modelName,
                 operation,
                 processedFields,
                 processedRecords,

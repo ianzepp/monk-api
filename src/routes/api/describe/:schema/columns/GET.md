@@ -1,10 +1,10 @@
-# GET /api/describe/:schema/columns
+# GET /api/describe/:model/fields
 
-List all columns for a schema. Returns an array of column definitions including metadata, constraints, and configuration.
+List all fields for a model. Returns an array of field definitions including metadata, constraints, and configuration.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 
 ## Query Parameters
 
@@ -22,8 +22,8 @@ None - GET request with no body.
   "data": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "schema_name": "users",
-      "column_name": "email",
+      "model_name": "users",
+      "field_name": "email",
       "type": "text",
       "required": true,
       "unique": true,
@@ -35,8 +35,8 @@ None - GET request with no body.
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440001",
-      "schema_name": "users",
-      "column_name": "name",
+      "model_name": "users",
+      "field_name": "name",
       "type": "text",
       "required": true,
       "description": "User full name",
@@ -49,15 +49,15 @@ None - GET request with no body.
 
 ### Response Fields
 
-Each column object contains:
+Each field object contains:
 
-- **id** - Column record UUID
-- **schema_name** - Name of the schema
-- **column_name** - Name of the column
+- **id** - Field record UUID
+- **model_name** - Name of the model
+- **field_name** - Name of the field
 - **type** - Data type (text, integer, decimal, boolean, timestamp, etc.)
-- **required** - Whether column is required (NOT NULL)
-- **unique** - Whether column values must be unique
-- **default_value** - Default value for the column
+- **required** - Whether field is required (NOT NULL)
+- **unique** - Whether field values must be unique
+- **default_value** - Default value for the field
 - **minimum** - Minimum value for numeric types
 - **maximum** - Maximum value for numeric types or max length for text
 - **pattern** - Regular expression pattern for text validation
@@ -65,18 +65,18 @@ Each column object contains:
 - **description** - Human-readable description
 - **immutable** - Whether value can be set once but never changed
 - **sudo** - Whether sudo token required to modify
-- **index** - Whether column has standard btree index
+- **index** - Whether field has standard btree index
 - **searchable** - Whether full-text search is enabled
 - **tracked** - Whether changes are tracked in history
 - **transform** - Auto-transform values (lowercase, uppercase, trim, etc.)
 - **relationship_type** - Type of relationship (owned, referenced)
-- **related_schema** - Target schema for relationships
-- **related_column** - Target column for relationships
+- **related_model** - Target model for relationships
+- **related_field** - Target field for relationships
 - **relationship_name** - Name of the relationship for API access
 - **cascade_delete** - Whether to cascade delete
 - **required_relationship** - Whether relationship is required
-- **created_at** - Timestamp when column was created
-- **updated_at** - Timestamp when column was last modified
+- **created_at** - Timestamp when field was created
+- **updated_at** - Timestamp when field was last modified
 
 ## Error Responses
 
@@ -85,14 +85,14 @@ Each column object contains:
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 
 ## Example Usage
 
-### List All Columns
+### List All Fields
 
 ```bash
-curl -X GET http://localhost:9001/api/describe/users/columns \
+curl -X GET http://localhost:9001/api/describe/users/fields \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -103,8 +103,8 @@ curl -X GET http://localhost:9001/api/describe/users/columns \
   "data": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "schema_name": "users",
-      "column_name": "email",
+      "model_name": "users",
+      "field_name": "email",
       "type": "text",
       "required": true,
       "unique": true,
@@ -116,8 +116,8 @@ curl -X GET http://localhost:9001/api/describe/users/columns \
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440001",
-      "schema_name": "users",
-      "column_name": "name",
+      "model_name": "users",
+      "field_name": "name",
       "type": "text",
       "required": true,
       "description": "User full name",
@@ -131,61 +131,61 @@ curl -X GET http://localhost:9001/api/describe/users/columns \
 ### Using in JavaScript
 
 ```javascript
-async function listColumns(schemaName) {
-  const response = await fetch(`/api/describe/${schemaName}/columns`, {
+async function listFields(modelName) {
+  const response = await fetch(`/api/describe/${modelName}/fields`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
-  const { data: columns } = await response.json();
-  return columns;
+  const { data: fields } = await response.json();
+  return fields;
 }
 
-// Get all required columns
-async function getRequiredColumns(schemaName) {
-  const columns = await listColumns(schemaName);
-  return columns.filter(col => col.required);
+// Get all required fields
+async function getRequiredFields(modelName) {
+  const fields = await listFields(modelName);
+  return fields.filter(col => col.required);
 }
 
-// Get all indexed columns
-async function getIndexedColumns(schemaName) {
-  const columns = await listColumns(schemaName);
-  return columns.filter(col => col.index || col.unique || col.searchable);
+// Get all indexed fields
+async function getIndexedFields(modelName) {
+  const fields = await listFields(modelName);
+  return fields.filter(col => col.index || col.unique || col.searchable);
 }
 ```
 
 ## Use Cases
 
-### Schema Documentation Generator
+### Model Documentation Generator
 
 ```javascript
-// Generate documentation for a schema
-async function generateSchemaDoc(schemaName) {
-  const columns = await listColumns(schemaName);
+// Generate documentation for a model
+async function generateModelDoc(modelName) {
+  const fields = await listFields(modelName);
 
-  const doc = columns.map(col => {
+  const doc = fields.map(col => {
     const constraints = [];
     if (col.required) constraints.push('required');
     if (col.unique) constraints.push('unique');
     if (col.immutable) constraints.push('immutable');
 
-    return `- **${col.column_name}** (${col.type})${constraints.length ? ' [' + constraints.join(', ') + ']' : ''}: ${col.description || 'No description'}`;
+    return `- **${col.field_name}** (${col.type})${constraints.length ? ' [' + constraints.join(', ') + ']' : ''}: ${col.description || 'No description'}`;
   }).join('\n');
 
   return doc;
 }
 ```
 
-### Validation Schema Builder
+### Validation Model Builder
 
 ```javascript
-// Build client-side validation from column metadata
-async function buildValidationSchema(schemaName) {
-  const columns = await listColumns(schemaName);
+// Build client-side validation from field metadata
+async function buildValidationModel(modelName) {
+  const fields = await listFields(modelName);
 
-  const schema = {};
+  const model = {};
 
-  for (const col of columns) {
-    schema[col.column_name] = {
+  for (const col of fields) {
+    model[col.field_name] = {
       type: col.type,
       required: col.required,
       unique: col.unique,
@@ -196,20 +196,20 @@ async function buildValidationSchema(schemaName) {
     };
   }
 
-  return schema;
+  return model;
 }
 ```
 
 ### Migration Checker
 
 ```javascript
-// Compare columns between environments
-async function compareSchemaColumns(schemaName, env1, env2) {
-  const cols1 = await fetchColumns(env1, schemaName);
-  const cols2 = await fetchColumns(env2, schemaName);
+// Compare fields between environments
+async function compareModelFields(modelName, env1, env2) {
+  const cols1 = await fetchFields(env1, modelName);
+  const cols2 = await fetchFields(env2, modelName);
 
-  const names1 = cols1.map(c => c.column_name);
-  const names2 = cols2.map(c => c.column_name);
+  const names1 = cols1.map(c => c.field_name);
+  const names2 = cols2.map(c => c.field_name);
 
   const onlyIn1 = names1.filter(n => !names2.includes(n));
   const onlyIn2 = names2.filter(n => !names1.includes(n));
@@ -222,25 +222,25 @@ async function compareSchemaColumns(schemaName, env1, env2) {
 }
 ```
 
-## Column Ordering
+## Field Ordering
 
-Columns are returned sorted by `column_name` in ascending order. This ensures consistent ordering across requests and environments.
+Fields are returned sorted by `field_name` in ascending order. This ensures consistent ordering across requests and environments.
 
-## System Columns
+## System Fields
 
-System-managed columns (id, timestamps, access_*) are not returned by this endpoint. This endpoint only returns user-defined columns from the schema definition.
+System-managed fields (id, timestamps, access_*) are not returned by this endpoint. This endpoint only returns user-defined fields from the model definition.
 
 ## Performance Considerations
 
-- Results are fetched directly from the `columns` table
-- Fast response time (typically < 20ms for schemas with < 100 columns)
+- Results are fetched directly from the `fields` table
+- Fast response time (typically < 20ms for models with < 100 fields)
 - No joins or complex queries required
 - Safe for frequent polling
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema`](../GET.md) - Get schema metadata
-- [`GET /api/describe/:schema/columns/:column`](:column/GET.md) - Get individual column
-- [`POST /api/describe/:schema/columns/:column`](:column/POST.md) - Add new column
-- [`PUT /api/describe/:schema/columns/:column`](:column/PUT.md) - Update column
-- [`DELETE /api/describe/:schema/columns/:column`](:column/DELETE.md) - Remove column
+- [`GET /api/describe/:model`](../GET.md) - Get model metadata
+- [`GET /api/describe/:model/fields/:field`](:field/GET.md) - Get individual field
+- [`POST /api/describe/:model/fields/:field`](:field/POST.md) - Add new field
+- [`PUT /api/describe/:model/fields/:field`](:field/PUT.md) - Update field
+- [`DELETE /api/describe/:model/fields/:field`](:field/DELETE.md) - Remove field

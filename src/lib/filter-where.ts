@@ -2,7 +2,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { FilterOp, type FilterWhereInfo, type FilterWhereOptions } from '@src/lib/filter-types.js';
 
 /**
- * FilterWhere - Schema-independent WHERE clause generation
+ * FilterWhere - Model-independent WHERE clause generation
  *
  * The authoritative implementation for WHERE clause logic including validation,
  * parameter management, and SQL generation. Extracted from Filter class to enable
@@ -220,14 +220,14 @@ export class FilterWhere {
             } else if (value === null || value === undefined) {
                 // Handle null values
                 this._conditions.push({
-                    column: key,
+                    field: key,
                     operator: FilterOp.EQ,
                     data: null,
                 });
             } else if (Array.isArray(value)) {
                 // Handle arrays as IN operations
                 this._conditions.push({
-                    column: key,
+                    field: key,
                     operator: FilterOp.IN,
                     data: value,
                 });
@@ -236,7 +236,7 @@ export class FilterWhere {
                 for (const [op, data] of Object.entries(value)) {
                     if (Object.values(FilterOp).includes(op as FilterOp)) {
                         this._conditions.push({
-                            column: key,
+                            field: key,
                             operator: op as FilterOp,
                             data,
                         });
@@ -245,7 +245,7 @@ export class FilterWhere {
             } else {
                 // Handle direct equality
                 this._conditions.push({
-                    column: key,
+                    field: key,
                     operator: FilterOp.EQ,
                     data: value,
                 });
@@ -278,7 +278,7 @@ export class FilterWhere {
 
         // Create a special condition that represents the logical operation
         this._conditions.push({
-            column: '', // No specific column for logical operators
+            field: '', // No specific field for logical operators
             operator,
             data: data, // Array of nested conditions
         });
@@ -314,73 +314,73 @@ export class FilterWhere {
      * Build individual SQL condition with proper parameterization
      */
     private buildSQLCondition(whereInfo: FilterWhereInfo): string | null {
-        const { column, operator, data } = whereInfo;
+        const { field, operator, data } = whereInfo;
 
-        // Handle logical operators (no specific column)
-        if (!column && this.isLogicalOperator(operator)) {
+        // Handle logical operators (no specific field)
+        if (!field && this.isLogicalOperator(operator)) {
             return this.buildLogicalOperatorSQL(operator, data);
         }
 
-        if (!column) return null;
-        const quotedColumn = `"${column}"`;
+        if (!field) return null;
+        const quotedField = `"${field}"`;
 
         switch (operator) {
             case FilterOp.EQ:
                 if (data === null || data === undefined) {
-                    return `${quotedColumn} IS NULL`;
+                    return `${quotedField} IS NULL`;
                 }
-                return `${quotedColumn} = ${this.PARAM(data)}`;
+                return `${quotedField} = ${this.PARAM(data)}`;
 
             case FilterOp.NE:
             case FilterOp.NEQ:
                 if (data === null || data === undefined) {
-                    return `${quotedColumn} IS NOT NULL`;
+                    return `${quotedField} IS NOT NULL`;
                 }
-                return `${quotedColumn} != ${this.PARAM(data)}`;
+                return `${quotedField} != ${this.PARAM(data)}`;
 
             case FilterOp.GT:
-                return `${quotedColumn} > ${this.PARAM(data)}`;
+                return `${quotedField} > ${this.PARAM(data)}`;
 
             case FilterOp.GTE:
-                return `${quotedColumn} >= ${this.PARAM(data)}`;
+                return `${quotedField} >= ${this.PARAM(data)}`;
 
             case FilterOp.LT:
-                return `${quotedColumn} < ${this.PARAM(data)}`;
+                return `${quotedField} < ${this.PARAM(data)}`;
 
             case FilterOp.LTE:
-                return `${quotedColumn} <= ${this.PARAM(data)}`;
+                return `${quotedField} <= ${this.PARAM(data)}`;
 
             case FilterOp.LIKE:
-                return `${quotedColumn} LIKE ${this.PARAM(data)}`;
+                return `${quotedField} LIKE ${this.PARAM(data)}`;
 
             case FilterOp.NLIKE:
-                return `${quotedColumn} NOT LIKE ${this.PARAM(data)}`;
+                return `${quotedField} NOT LIKE ${this.PARAM(data)}`;
 
             case FilterOp.ILIKE:
-                return `${quotedColumn} ILIKE ${this.PARAM(data)}`;
+                return `${quotedField} ILIKE ${this.PARAM(data)}`;
 
             case FilterOp.NILIKE:
-                return `${quotedColumn} NOT ILIKE ${this.PARAM(data)}`;
+                return `${quotedField} NOT ILIKE ${this.PARAM(data)}`;
 
             case FilterOp.REGEX:
-                return `${quotedColumn} ~ ${this.PARAM(data)}`;
+                return `${quotedField} ~ ${this.PARAM(data)}`;
 
             case FilterOp.NREGEX:
-                return `${quotedColumn} !~ ${this.PARAM(data)}`;
+                return `${quotedField} !~ ${this.PARAM(data)}`;
 
             case FilterOp.IN:
                 const inValues = Array.isArray(data) ? data : [data];
                 if (inValues.length === 0) {
                     return '1=0'; // No values = always false
                 }
-                return `${quotedColumn} IN (${inValues.map(v => this.PARAM(v)).join(', ')})`;
+                return `${quotedField} IN (${inValues.map(v => this.PARAM(v)).join(', ')})`;
 
             case FilterOp.NIN:
                 const ninValues = Array.isArray(data) ? data : [data];
                 if (ninValues.length === 0) {
                     return '1=1'; // No values = always true
                 }
-                return `${quotedColumn} NOT IN (${ninValues.map(v => this.PARAM(v)).join(', ')})`;
+                return `${quotedField} NOT IN (${ninValues.map(v => this.PARAM(v)).join(', ')})`;
 
             // PostgreSQL array operations
             case FilterOp.ANY:
@@ -388,28 +388,28 @@ export class FilterWhere {
                 if (anyValues.length === 0) {
                     return '1=0'; // No values = always false
                 }
-                return `${quotedColumn} && ARRAY[${anyValues.map(v => this.PARAM(v)).join(', ')}]`;
+                return `${quotedField} && ARRAY[${anyValues.map(v => this.PARAM(v)).join(', ')}]`;
 
             case FilterOp.ALL:
                 const allValues = Array.isArray(data) ? data : [data];
                 if (allValues.length === 0) {
                     return '1=1'; // No values = always true
                 }
-                return `${quotedColumn} @> ARRAY[${allValues.map(v => this.PARAM(v)).join(', ')}]`;
+                return `${quotedField} @> ARRAY[${allValues.map(v => this.PARAM(v)).join(', ')}]`;
 
             case FilterOp.NANY:
                 const nanyValues = Array.isArray(data) ? data : [data];
                 if (nanyValues.length === 0) {
                     return '1=1'; // No values = always true
                 }
-                return `NOT (${quotedColumn} && ARRAY[${nanyValues.map(v => this.PARAM(v)).join(', ')}])`;
+                return `NOT (${quotedField} && ARRAY[${nanyValues.map(v => this.PARAM(v)).join(', ')}])`;
 
             case FilterOp.NALL:
                 const nallValues = Array.isArray(data) ? data : [data];
                 if (nallValues.length === 0) {
                     return '1=0'; // No values = always false
                 }
-                return `NOT (${quotedColumn} @> ARRAY[${nallValues.map(v => this.PARAM(v)).join(', ')}])`;
+                return `NOT (${quotedField} @> ARRAY[${nallValues.map(v => this.PARAM(v)).join(', ')}])`;
 
             case FilterOp.SIZE:
                 if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
@@ -417,11 +417,11 @@ export class FilterWhere {
                     const entries = Object.entries(data);
                     if (entries.length === 1) {
                         const [nestedOp, nestedValue] = entries[0];
-                        const arrayLengthExpression = `array_length(${quotedColumn}, 1)`;
+                        const arrayLengthExpression = `array_length(${quotedField}, 1)`;
                         return this.buildSizeOperatorSQL(arrayLengthExpression, nestedOp as FilterOp, nestedValue);
                     }
                 }
-                return `array_length(${quotedColumn}, 1) = ${this.PARAM(data)}`;
+                return `array_length(${quotedField}, 1) = ${this.PARAM(data)}`;
 
             // Range operations
             case FilterOp.BETWEEN:
@@ -431,23 +431,23 @@ export class FilterWhere {
                 if (data[0] === null || data[0] === undefined || data[1] === null || data[1] === undefined) {
                     throw new Error('$between requires non-null values: [min, max]');
                 }
-                return `${quotedColumn} BETWEEN ${this.PARAM(data[0])} AND ${this.PARAM(data[1])}`;
+                return `${quotedField} BETWEEN ${this.PARAM(data[0])} AND ${this.PARAM(data[1])}`;
 
             // Existence operators
             case FilterOp.EXISTS:
-                return data ? `${quotedColumn} IS NOT NULL` : `${quotedColumn} IS NULL`;
+                return data ? `${quotedField} IS NOT NULL` : `${quotedField} IS NULL`;
 
             case FilterOp.NULL:
-                return data ? `${quotedColumn} IS NULL` : `${quotedColumn} IS NOT NULL`;
+                return data ? `${quotedField} IS NULL` : `${quotedField} IS NOT NULL`;
 
             // Search operations (basic implementation)
             case FilterOp.FIND:
                 // For now, implement as ILIKE - can be enhanced with PostgreSQL full-text search later
-                return `${quotedColumn} ILIKE ${this.PARAM(`%${data}%`)}`;
+                return `${quotedField} ILIKE ${this.PARAM(`%${data}%`)}`;
 
             case FilterOp.TEXT:
                 // For now, implement as ILIKE - can be enhanced with PostgreSQL text search later
-                return `${quotedColumn} ILIKE ${this.PARAM(`%${data}%`)}`;
+                return `${quotedField} ILIKE ${this.PARAM(`%${data}%`)}`;
 
             default:
                 console.warn('Unsupported filter operator', { operator });

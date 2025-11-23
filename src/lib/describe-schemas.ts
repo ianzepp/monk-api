@@ -2,131 +2,131 @@ import type { System } from '@src/lib/system.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import type { FilterData } from '@src/lib/filter-types.js';
 import type {
-    SchemaRecord,
+    ModelRecord,
     DbCreateInput,
     SystemFields,
 } from '@src/lib/database-types.js';
 
 /**
- * DescribeSchemas - Wrapper for schema operations on 'schemas' table
+ * DescribeModels - Wrapper for model operations on 'models' table
  *
- * Provides Database-like interface for schema metadata operations with
- * schema-specific validation (protection checks, system schema guards).
+ * Provides Database-like interface for model metadata operations with
+ * model-specific validation (protection checks, system model guards).
  */
-export class DescribeSchemas {
+export class DescribeModels {
     constructor(private system: System) {}
 
     /**
-     * Validate that system schemas (status='system') are not modified without proper privileges
+     * Validate that system models (status='system') are not modified without proper privileges
      *
-     * System schemas (schemas, users, columns, history) are core infrastructure and require
-     * sudo access to modify, unlike the schema.sudo flag which protects DATA operations.
+     * System models (models, users, fields, history) are core infrastructure and require
+     * sudo access to modify, unlike the model.sudo flag which protects DATA operations.
      */
-    private async validateSystemSchemaProtection(schemaName: string): Promise<void> {
-        // Try to load schema from cache
-        let schema;
+    private async validateSystemModelProtection(modelName: string): Promise<void> {
+        // Try to load model from cache
+        let model;
         try {
-            schema = await this.system.database.toSchema(schemaName);
+            model = await this.system.database.toModel(modelName);
         } catch (error) {
-            // Schema doesn't exist yet - allow creation
+            // Model doesn't exist yet - allow creation
             return;
         }
 
-        // Only protect system schemas (status='system')
-        if (schema.status !== 'system') {
+        // Only protect system models (status='system')
+        if (model.status !== 'system') {
             return;
         }
 
-        // System schema - verify user has sudo token
+        // System model - verify user has sudo token
         const jwtPayload = this.system.context.get('jwtPayload');
 
         if (!jwtPayload?.is_sudo) {
             throw HttpErrors.forbidden(
-                `Schema '${schemaName}' is a system schema and requires sudo access. Use POST /api/user/sudo.`,
-                'SCHEMA_REQUIRES_SUDO'
+                `Model '${modelName}' is a system model and requires sudo access. Use POST /api/user/sudo.`,
+                'MODEL_REQUIRES_SUDO'
             );
         }
 
-        console.info('Sudo access validated for system schema modification', {
-            schemaName,
+        console.info('Sudo access validated for system model modification', {
+            modelName,
             userId: this.system.getUser?.()?.id,
             elevation_reason: jwtPayload.elevation_reason
         });
     }
 
     /**
-     * Select multiple schemas with optional filtering
+     * Select multiple models with optional filtering
      */
-    async selectAny(filter?: FilterData, options?: { context?: 'api' | 'observer' | 'system' }): Promise<SchemaRecord[]> {
-        return this.system.database.selectAny<SchemaRecord>('schemas', filter, options);
+    async selectAny(filter?: FilterData, options?: { context?: 'api' | 'observer' | 'system' }): Promise<ModelRecord[]> {
+        return this.system.database.selectAny<ModelRecord>('models', filter, options);
     }
 
     /**
-     * Select single schema (returns null if not found)
+     * Select single model (returns null if not found)
      */
-    async selectOne(filter: FilterData, options?: { context?: 'api' | 'observer' | 'system' }): Promise<SchemaRecord | null> {
-        return this.system.database.selectOne<SchemaRecord>('schemas', filter, options);
+    async selectOne(filter: FilterData, options?: { context?: 'api' | 'observer' | 'system' }): Promise<ModelRecord | null> {
+        return this.system.database.selectOne<ModelRecord>('models', filter, options);
     }
 
     /**
-     * Select single schema (throws 404 if not found)
+     * Select single model (throws 404 if not found)
      */
-    async select404(filter: FilterData, message?: string, options?: { context?: 'api' | 'observer' | 'system' }): Promise<SchemaRecord> {
-        return await this.system.database.select404<SchemaRecord>('schemas', filter, message, options)
-            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'SCHEMA_NOT_FOUND'));
+    async select404(filter: FilterData, message?: string, options?: { context?: 'api' | 'observer' | 'system' }): Promise<ModelRecord> {
+        return await this.system.database.select404<ModelRecord>('models', filter, message, options)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'MODEL_NOT_FOUND'));
     }
 
     /**
-     * Create new schema
+     * Create new model
      *
-     * Validates schema name and protection, then creates schema record.
+     * Validates model name and protection, then creates model record.
      * Observer pipeline will handle DDL generation (CREATE TABLE).
      */
-    async createOne(data: DbCreateInput<Omit<SchemaRecord, keyof SystemFields>>): Promise<SchemaRecord> {
+    async createOne(data: DbCreateInput<Omit<ModelRecord, keyof SystemFields>>): Promise<ModelRecord> {
         // Validate required fields
-        if (!data.schema_name) {
-            throw HttpErrors.badRequest('schema_name is required', 'MISSING_REQUIRED_FIELDS');
+        if (!data.model_name) {
+            throw HttpErrors.badRequest('model_name is required', 'MISSING_REQUIRED_FIELDS');
         }
 
-        console.info('Creating schema via observer pipeline', data);
+        console.info('Creating model via observer pipeline', data);
 
         // Delegate to database
-        return this.system.database.createOne<Omit<SchemaRecord, keyof SystemFields>>('schemas', data) as Promise<SchemaRecord>;
+        return this.system.database.createOne<Omit<ModelRecord, keyof SystemFields>>('models', data) as Promise<ModelRecord>;
     }
 
     /**
-     * Update schema by filter (throws 404 if not found)
+     * Update model by filter (throws 404 if not found)
      *
-     * Validates schema protection before updating.
+     * Validates model protection before updating.
      */
-    async update404(filter: FilterData, updates: Partial<SchemaRecord>, message?: string): Promise<SchemaRecord> {
-        // Extract schema name for logging
-        const schemaName = filter.where?.schema_name;
+    async update404(filter: FilterData, updates: Partial<ModelRecord>, message?: string): Promise<ModelRecord> {
+        // Extract model name for logging
+        const modelName = filter.where?.model_name;
 
         // Validate at least one field provided
         if (Object.keys(updates).length === 0) {
             throw HttpErrors.badRequest('No valid fields to update', 'NO_UPDATES');
         }
 
-        console.info('Updating schema metadata', { schemaName, updates });
+        console.info('Updating model metadata', { modelName, updates });
 
-        return await this.system.database.update404<SchemaRecord>('schemas', filter, updates, message)
-            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'SCHEMA_NOT_FOUND'));
+        return await this.system.database.update404<ModelRecord>('models', filter, updates, message)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'MODEL_NOT_FOUND'));
     }
 
     /**
-     * Delete schema by filter (throws 404 if not found)
+     * Delete model by filter (throws 404 if not found)
      *
-     * Validates schema protection before deleting.
+     * Validates model protection before deleting.
      * Observer pipeline will handle DDL (DROP TABLE).
      */
-    async delete404(filter: FilterData, message?: string): Promise<SchemaRecord> {
-        // Extract schema name for logging
-        const schemaName = filter.where?.schema_name;
+    async delete404(filter: FilterData, message?: string): Promise<ModelRecord> {
+        // Extract model name for logging
+        const modelName = filter.where?.model_name;
 
-        console.info('Deleting schema via observer pipeline', { schemaName });
+        console.info('Deleting model via observer pipeline', { modelName });
 
-        return await this.system.database.delete404<SchemaRecord>('schemas', filter, message)
-            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'SCHEMA_NOT_FOUND'));
+        return await this.system.database.delete404<ModelRecord>('models', filter, message)
+            .catch(e => HttpErrors.remap(e, 'RECORD_NOT_FOUND', 'MODEL_NOT_FOUND'));
     }
 }

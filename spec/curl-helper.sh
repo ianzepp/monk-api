@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Curl Helper Library for Monk API Testing
-# 
+#
 # Provides streamlined functions for testing HTTP endpoints with clean syntax,
 # authentication handling, and response validation.
 #
@@ -65,7 +65,7 @@ api_post() {
 
 api_put() {
     local endpoint="$1"
-    local data="$2" 
+    local data="$2"
     shift 2
     curl -s -X PUT "$API_BASE/$endpoint" \
         -H "Content-Type: application/json" \
@@ -153,11 +153,11 @@ root_delete() {
 login_user() {
     local tenant="$1"
     local username="$2"
-    
+
     # Use jq to properly escape JSON to avoid control character issues
     local json_data=$(jq -n --arg tenant "$tenant" --arg username "$username" \
         '{tenant: $tenant, username: $username}')
-    
+
     api_post "auth/login" "$json_data"
 }
 
@@ -165,7 +165,7 @@ get_user_token() {
     local tenant="$1"
     local username="$2"
     local response=$(login_user "$tenant" "$username")
-    
+
     if echo "$response" | jq -e '.success == true' >/dev/null; then
         echo "$response" | jq -r '.data.token'
     else
@@ -208,7 +208,7 @@ assert_error_code() {
     local expected_code="$1"
     local response="$2"
     local actual_code=$(echo "$response" | jq -r '.error_code // empty')
-    
+
     if [[ "$actual_code" != "$expected_code" ]]; then
         test_fail "Expected error code '$expected_code', got '$actual_code': $response"
     fi
@@ -226,12 +226,12 @@ assert_has_field() {
 extract_data() {
     local response="$1"
     local data_string=$(echo "$response" | jq -r '.data // empty')
-    
+
     if [[ -z "$data_string" || "$data_string" == "null" ]]; then
         echo "null"
         return
     fi
-    
+
     # Try to parse as JSON, if it fails return as-is
     if echo "$data_string" | jq . >/dev/null 2>&1; then
         echo "$data_string" | jq .
@@ -246,7 +246,7 @@ check_http_status() {
     local endpoint="$2"
     shift 2
     local actual_status=$(curl -s -o /dev/null -w '%{http_code}' "$API_BASE/$endpoint" "$@")
-    
+
     if [[ "$actual_status" != "$expected_status" ]]; then
         test_fail "Expected HTTP $expected_status, got $actual_status for $endpoint"
     fi
@@ -259,7 +259,7 @@ assert_http_401() {
 }
 
 assert_http_403() {
-    local endpoint="$1" 
+    local endpoint="$1"
     shift
     check_http_status "403" "$endpoint" "$@"
 }
@@ -275,11 +275,11 @@ assert_http_404() {
 # ===========================
 
 # Generate test data
-generate_test_schema() {
-    local schema_name="$1"
+generate_test_model() {
+    local model_name="$1"
     cat <<EOF
 {
-  "title": "$schema_name",
+  "title": "$model_name",
   "properties": {
     "name": {"type": "string", "minLength": 1},
     "email": {"type": "string", "format": "email"},
@@ -310,26 +310,26 @@ EOF
 wait_for_server() {
     local max_attempts=3
     local attempt=0
-    
+
     print_step "Waiting for server to be ready..."
-    
+
     while [[ $attempt -lt $max_attempts ]]; do
         if curl -s "$API_BASE/" >/dev/null 2>&1; then
             print_success "Server is ready"
             return 0
         fi
-        
+
         sleep 1
         ((attempt++))
     done
-    
+
     test_fail "Server did not become ready after $max_attempts seconds"
 }
 
 # Clean up test data (if needed)
 cleanup_test_data() {
     print_step "Cleaning up test data (if authenticated)"
-    
+
     if [[ -n "$JWT_TOKEN" ]]; then
         # Future: Add cleanup operations
         print_success "Test cleanup completed"

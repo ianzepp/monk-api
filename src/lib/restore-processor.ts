@@ -76,8 +76,8 @@ export class RestoreProcessor {
                 source_type: restore.source_type,
                 conflict_strategy: restore.conflict_strategy,
                 include: restore.include,
-                schemas: restore.schemas,
-                create_schemas: restore.create_schemas
+                models: restore.models,
+                create_models: restore.create_models
             }
         });
 
@@ -108,8 +108,8 @@ export class RestoreProcessor {
             source_ref: filepath,
             conflict_strategy: config?.conflict_strategy || 'upsert',
             include: config?.include || ['describe', 'data'],
-            schemas: config?.schemas || null,
-            create_schemas: config?.create_schemas !== false,
+            models: config?.models || null,
+            create_models: config?.create_models !== false,
             enabled: true
         });
 
@@ -147,15 +147,15 @@ export class RestoreProcessor {
             const files = await readdir(runDir);
 
             // Statistics
-            let schemasCreated = 0;
-            let columnsCreated = 0;
+            let modelsCreated = 0;
+            let fieldsCreated = 0;
             let recordsImported = 0;
             let recordsSkipped = 0;
             let recordsUpdated = 0;
 
-            // Import describe metadata (schemas + columns)
+            // Import describe metadata (models + fields)
             if (include.includes('describe') && files.includes('describe.yaml')) {
-                await this.log(runId, 'info', 'describe_import', null, null, 'Importing schema definitions');
+                await this.log(runId, 'info', 'describe_import', null, null, 'Importing model definitions');
 
                 const describeResult = await this.importDescribeMetadata(
                     runId,
@@ -163,13 +163,13 @@ export class RestoreProcessor {
                     config
                 );
 
-                schemasCreated = describeResult.schemasCreated;
-                columnsCreated = describeResult.columnsCreated;
+                modelsCreated = describeResult.modelsCreated;
+                fieldsCreated = describeResult.fieldsCreated;
 
                 await this.updateProgress(runId, 25, {
                     phase: 'imported_describe',
-                    schemas_created: schemasCreated,
-                    columns_created: columnsCreated
+                    models_created: modelsCreated,
+                    fields_created: fieldsCreated
                 });
             }
 
@@ -181,19 +181,19 @@ export class RestoreProcessor {
                 let processedFiles = 0;
 
                 for (const dataFile of dataFiles) {
-                    const schemaName = dataFile.replace('.jsonl', '');
+                    const modelName = dataFile.replace('.jsonl', '');
 
-                    // Skip if schemas filter specified and this schema not included
-                    if (config.schemas && !config.schemas.includes(schemaName)) {
-                        await this.log(runId, 'info', 'data_import', schemaName, null,
-                            `Skipping schema (not in filter)`);
+                    // Skip if models filter specified and this model not included
+                    if (config.models && !config.models.includes(modelName)) {
+                        await this.log(runId, 'info', 'data_import', modelName, null,
+                            `Skipping model (not in filter)`);
                         continue;
                     }
 
-                    const dataResult = await this.importSchemaData(
+                    const dataResult = await this.importModelData(
                         runId,
                         runDir,
-                        schemaName,
+                        modelName,
                         dataFile,
                         conflictStrategy,
                         config
@@ -210,7 +210,7 @@ export class RestoreProcessor {
                         phase: 'importing_data',
                         files_total: dataFiles.length,
                         files_completed: processedFiles,
-                        current_schema: schemaName,
+                        current_model: modelName,
                         records_imported: recordsImported,
                         records_skipped: recordsSkipped
                     });
@@ -229,8 +229,8 @@ export class RestoreProcessor {
                 progress: 100,
                 completed_at: new Date(),
                 duration_seconds: duration,
-                schemas_created: schemasCreated,
-                columns_created: columnsCreated,
+                models_created: modelsCreated,
+                fields_created: fieldsCreated,
                 records_imported: recordsImported,
                 records_skipped: recordsSkipped,
                 records_updated: recordsUpdated
@@ -242,8 +242,8 @@ export class RestoreProcessor {
 
             await this.log(runId, 'info', null, null, null, 'Restore completed successfully', {
                 duration,
-                schemas_created: schemasCreated,
-                columns_created: columnsCreated,
+                models_created: modelsCreated,
+                fields_created: fieldsCreated,
                 records_imported: recordsImported,
                 records_skipped: recordsSkipped,
                 records_updated: recordsUpdated
@@ -252,8 +252,8 @@ export class RestoreProcessor {
             console.info('Restore job completed', {
                 runId,
                 duration,
-                schemasCreated,
-                columnsCreated,
+                modelsCreated,
+                fieldsCreated,
                 recordsImported,
                 recordsSkipped,
                 recordsUpdated
@@ -296,88 +296,88 @@ export class RestoreProcessor {
     }
 
     /**
-     * Import describe metadata (schemas + columns)
+     * Import describe metadata (models + fields)
      */
     private async importDescribeMetadata(
         runId: string,
         runDir: string,
         config: any
-    ): Promise<{ schemasCreated: number; columnsCreated: number }> {
+    ): Promise<{ modelsCreated: number; fieldsCreated: number }> {
         const describeFilepath = join(runDir, 'describe.yaml');
         const content = await readFile(describeFilepath, 'utf8');
         const describe = YamlFormatter.decode(content);
 
-        let schemasCreated = 0;
-        let columnsCreated = 0;
+        let modelsCreated = 0;
+        let fieldsCreated = 0;
 
-        for (const [schemaName, schemaDef] of Object.entries(describe as any)) {
-            // Skip if schemas filter specified and this schema not included
-            if (config.schemas && !config.schemas.includes(schemaName)) {
-                await this.log(runId, 'info', 'describe_import', schemaName, null,
-                    'Skipping schema (not in filter)');
+        for (const [modelName, modelDef] of Object.entries(describe as any)) {
+            // Skip if models filter specified and this model not included
+            if (config.models && !config.models.includes(modelName)) {
+                await this.log(runId, 'info', 'describe_import', modelName, null,
+                    'Skipping model (not in filter)');
                 continue;
             }
 
-            // Check if schema exists
-            const existingSchema = await this.system.database.selectOne('schemas', {
-                where: { schema_name: schemaName }
+            // Check if model exists
+            const existingModel = await this.system.database.selectOne('models', {
+                where: { model_name: modelName }
             });
 
-            if (!existingSchema) {
-                if (!config.create_schemas) {
-                    await this.log(runId, 'error', 'describe_import', schemaName, null,
-                        'Schema does not exist and create_schemas is false');
-                    throw HttpErrors.conflict(`Schema ${schemaName} does not exist`);
+            if (!existingModel) {
+                if (!config.create_models) {
+                    await this.log(runId, 'error', 'describe_import', modelName, null,
+                        'Model does not exist and create_models is false');
+                    throw HttpErrors.conflict(`Model ${modelName} does not exist`);
                 }
 
-                // Create new schema
-                const { columns, ...schemaFields } = schemaDef as any;
-                await this.system.database.createOne('schemas', {
-                    schema_name: schemaName,
-                    ...schemaFields
+                // Create new model
+                const { fields, ...modelFields } = modelDef as any;
+                await this.system.database.createOne('models', {
+                    model_name: modelName,
+                    ...modelFields
                 });
 
-                schemasCreated++;
-                await this.log(runId, 'info', 'describe_import', schemaName, null,
-                    'Created schema');
+                modelsCreated++;
+                await this.log(runId, 'info', 'describe_import', modelName, null,
+                    'Created model');
             }
 
-            // Process columns
-            const columns = (schemaDef as any).columns || {};
-            for (const [columnName, columnDef] of Object.entries(columns)) {
-                // Check if column exists
-                const existingColumn = await this.system.database.selectOne('columns', {
+            // Process fields
+            const fields = (modelDef as any).fields || {};
+            for (const [fieldName, fieldDef] of Object.entries(fields)) {
+                // Check if field exists
+                const existingField = await this.system.database.selectOne('fields', {
                     where: {
-                        schema_name: schemaName,
-                        column_name: columnName
+                        model_name: modelName,
+                        field_name: fieldName
                     }
                 });
 
-                if (!existingColumn) {
-                    // Create new column
-                    await this.system.database.createOne('columns', {
-                        schema_name: schemaName,
-                        column_name: columnName,
-                        ...(columnDef as any)
+                if (!existingField) {
+                    // Create new field
+                    await this.system.database.createOne('fields', {
+                        model_name: modelName,
+                        field_name: fieldName,
+                        ...(fieldDef as any)
                     });
 
-                    columnsCreated++;
-                    await this.log(runId, 'info', 'describe_import', schemaName, null,
-                        `Created column: ${columnName}`);
+                    fieldsCreated++;
+                    await this.log(runId, 'info', 'describe_import', modelName, null,
+                        `Created field: ${fieldName}`);
                 }
             }
         }
 
-        return { schemasCreated, columnsCreated };
+        return { modelsCreated, fieldsCreated };
     }
 
     /**
-     * Import data for a single schema
+     * Import data for a single model
      */
-    private async importSchemaData(
+    private async importModelData(
         runId: string,
         runDir: string,
-        schemaName: string,
+        modelName: string,
         dataFile: string,
         conflictStrategy: string,
         config: any
@@ -393,7 +393,7 @@ export class RestoreProcessor {
         // Get existing record IDs for sync/skip strategies
         let existingIds: Set<string> | null = null;
         if (['sync', 'skip'].includes(conflictStrategy)) {
-            const existingRecords = await this.system.database.selectAny(schemaName, {});
+            const existingRecords = await this.system.database.selectAny(modelName, {});
             existingIds = new Set(existingRecords.map((r: any) => r.id));
         }
 
@@ -401,14 +401,14 @@ export class RestoreProcessor {
         switch (conflictStrategy) {
             case 'replace':
                 // Delete all existing records
-                await this.system.database.deleteAny(schemaName, {});
-                await this.log(runId, 'info', 'data_import', schemaName, null,
+                await this.system.database.deleteAny(modelName, {});
+                await this.log(runId, 'info', 'data_import', modelName, null,
                     'Deleted all existing records (replace strategy)');
 
                 // Import all records
                 for (const line of lines) {
                     const record = JSON.parse(line);
-                    await this.system.database.createOne(schemaName, record);
+                    await this.system.database.createOne(modelName, record);
                     imported++;
                 }
                 break;
@@ -417,33 +417,33 @@ export class RestoreProcessor {
                 // Update existing or insert new
                 for (const line of lines) {
                     const record = JSON.parse(line);
-                    const existing = await this.system.database.selectOne(schemaName, {
+                    const existing = await this.system.database.selectOne(modelName, {
                         where: { id: record.id }
                     });
 
                     if (existing) {
-                        await this.system.database.updateOne(schemaName, record.id, record);
+                        await this.system.database.updateOne(modelName, record.id, record);
                         updated++;
                     } else {
-                        await this.system.database.createOne(schemaName, record);
+                        await this.system.database.createOne(modelName, record);
                         imported++;
                     }
                 }
                 break;
 
             case 'merge':
-                // Only import if schema is new (was created in this restore)
-                const schemaWasCreated = await this.wasSchemaCreatedInThisRun(runId, schemaName);
-                if (schemaWasCreated) {
+                // Only import if model is new (was created in this restore)
+                const modelWasCreated = await this.wasModelCreatedInThisRun(runId, modelName);
+                if (modelWasCreated) {
                     for (const line of lines) {
                         const record = JSON.parse(line);
-                        await this.system.database.createOne(schemaName, record);
+                        await this.system.database.createOne(modelName, record);
                         imported++;
                     }
                 } else {
                     skipped = lines.length;
-                    await this.log(runId, 'info', 'data_import', schemaName, null,
-                        `Skipped ${skipped} records (schema exists, merge strategy)`);
+                    await this.log(runId, 'info', 'data_import', modelName, null,
+                        `Skipped ${skipped} records (model exists, merge strategy)`);
                 }
                 break;
 
@@ -453,10 +453,10 @@ export class RestoreProcessor {
                     const record = JSON.parse(line);
                     if (existingIds!.has(record.id)) {
                         skipped++;
-                        await this.log(runId, 'info', 'data_import', schemaName, record.id,
+                        await this.log(runId, 'info', 'data_import', modelName, record.id,
                             'Skipped existing record (sync strategy)');
                     } else {
-                        await this.system.database.createOne(schemaName, record);
+                        await this.system.database.createOne(modelName, record);
                         imported++;
                     }
                 }
@@ -469,7 +469,7 @@ export class RestoreProcessor {
                     if (existingIds!.has(record.id)) {
                         skipped++;
                     } else {
-                        await this.system.database.createOne(schemaName, record);
+                        await this.system.database.createOne(modelName, record);
                         imported++;
                     }
                 }
@@ -479,19 +479,19 @@ export class RestoreProcessor {
                 // Error on any conflict
                 for (const line of lines) {
                     const record = JSON.parse(line);
-                    const existing = await this.system.database.selectOne(schemaName, {
+                    const existing = await this.system.database.selectOne(modelName, {
                         where: { id: record.id }
                     });
 
                     if (existing) {
-                        await this.log(runId, 'error', 'data_import', schemaName, record.id,
+                        await this.log(runId, 'error', 'data_import', modelName, record.id,
                             'Record already exists (error strategy)');
                         throw HttpErrors.conflict(
-                            `Record ${record.id} already exists in ${schemaName}`
+                            `Record ${record.id} already exists in ${modelName}`
                         );
                     }
 
-                    await this.system.database.createOne(schemaName, record);
+                    await this.system.database.createOne(modelName, record);
                     imported++;
                 }
                 break;
@@ -500,22 +500,22 @@ export class RestoreProcessor {
                 throw HttpErrors.badRequest(`Unknown conflict strategy: ${conflictStrategy}`);
         }
 
-        await this.log(runId, 'info', 'data_import', schemaName, null,
+        await this.log(runId, 'info', 'data_import', modelName, null,
             `Imported ${imported} records, skipped ${skipped}, updated ${updated}`);
 
         return { imported, skipped, updated };
     }
 
     /**
-     * Check if schema was created in this restore run
+     * Check if model was created in this restore run
      */
-    private async wasSchemaCreatedInThisRun(runId: string, schemaName: string): Promise<boolean> {
+    private async wasModelCreatedInThisRun(runId: string, modelName: string): Promise<boolean> {
         const logs = await this.system.database.selectAny('restore_logs', {
             where: {
                 run_id: runId,
                 phase: 'describe_import',
-                schema_name: schemaName,
-                message: 'Created schema'
+                model_name: modelName,
+                message: 'Created model'
             }
         });
 
@@ -529,7 +529,7 @@ export class RestoreProcessor {
         runId: string,
         level: 'info' | 'warn' | 'error',
         phase: string | null,
-        schemaName: string | null,
+        modelName: string | null,
         recordId: string | null,
         message: string,
         detail?: any
@@ -538,7 +538,7 @@ export class RestoreProcessor {
             run_id: runId,
             level,
             phase,
-            schema_name: schemaName,
+            model_name: modelName,
             record_id: recordId,
             message,
             detail: detail || null

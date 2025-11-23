@@ -2,7 +2,7 @@
 set -e
 
 # Find API Where BETWEEN Operator Test
-# Tests $between range operator with numeric and string types with POST /api/find/:schema
+# Tests $between range operator with numeric and string types with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

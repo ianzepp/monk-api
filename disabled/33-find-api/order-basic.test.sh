@@ -2,7 +2,7 @@
 set -e
 
 # Find API Order Test
-# Tests basic ordering functionality with POST /api/find/:schema
+# Tests basic ordering functionality with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

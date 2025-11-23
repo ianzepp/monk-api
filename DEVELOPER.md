@@ -69,7 +69,7 @@ npm run fixtures:build testing         # Build test template
 Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, featuring:
 - **Observer-Driven Architecture**: Universal business logic through ring-based pipeline
 - **Multi-tenant**: JWT-based database routing with tenant isolation
-- **High Performance**: Schema caching, bulk operations, parameterized SQL
+- **High Performance**: Model caching, bulk operations, parameterized SQL
 - **Security**: SQL injection prevention, ACL enforcement, soft deletes
 
 ### Core Components
@@ -82,7 +82,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 #### **Observer System** (`src/lib/observers/`, `src/observers/`)
 - Ring-based execution: 10 ordered rings (0-9)
 - Universal coverage: All database operations run through pipeline
-- File-based discovery: Auto-loads from `src/observers/:schema/:ring/`
+- File-based discovery: Auto-loads from `src/observers/:model/:ring/`
 - See: [src/observers/README.md](src/observers/README.md)
 
 #### **Test Suite** (`spec/`)
@@ -111,7 +111,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - Parameterized SQL: Secure queries with PostgreSQL placeholders
 
 #### **Describe Class** (`src/lib/describe.ts`)
-- Schema definition management (CRUD)
+- Model definition management (CRUD)
 - DDL generation: Automatic PostgreSQL table creation
 - Transaction management with `run()` method
 
@@ -129,7 +129,7 @@ npm run build && npm run start
 
 ### Observer Development
 
-Create observers in `src/observers/:schema/:ring/:observer-name.ts`:
+Create observers in `src/observers/:model/:ring/:observer-name.ts`:
 
 ```typescript
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
@@ -141,10 +141,10 @@ export default class CustomValidator extends BaseObserver {
     operations = ['create', 'update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, data } = context;
+        const { model, data } = context;
 
         for (const record of data) {
-            schema.validateOrThrow(record);
+            model.validateOrThrow(record);
             // Custom validation logic
         }
     }
@@ -163,7 +163,7 @@ npm run test:sh
 npm run test:sh 31-describe-api
 
 # Run single test
-./spec/31-describe-api/create-schema.test.sh
+./spec/31-describe-api/create-model.test.sh
 
 # Clean up test databases
 npm run test:cleanup
@@ -233,7 +233,7 @@ Monk API implements a sophisticated multi-database architecture with four entity
 **Templates** (Immutable Prototypes)
 - **Database**: `monk_template_*` (e.g., `monk_template_system`)
 - **Registry**: `templates` table in central `monk` database
-- **Purpose**: Pre-configured schemas for fast tenant/sandbox provisioning
+- **Purpose**: Pre-configured models for fast tenant/sandbox provisioning
 - **Lifecycle**: Immutable, created via fixtures build process
 - **Performance**: Instant cloning via PostgreSQL's `CREATE DATABASE WITH TEMPLATE`
 
@@ -339,8 +339,8 @@ Each version command automatically:
 
 ## Performance Considerations
 
-### Schema Operations
-- Schema definitions cached with SHA256 checksums (15x improvement)
+### Model Operations
+- Model definitions cached with SHA256 checksums (15x improvement)
 - Compiled AJV validators reused across requests
 - Batch operations minimize database round trips
 
@@ -358,7 +358,7 @@ Each version command automatically:
 **Optimization Tips:**
 - Use fixtures/templates for test data
 - Use batch operations for multiple records
-- Cache schema compilations
+- Cache model compilations
 - Use `where` filters to limit data processing
 
 ## Contributing Guidelines
@@ -489,7 +489,7 @@ Docs: Update observer development guide (#160)
 - **Example**: `import { BaseObserver } from '@src/lib/observers/base-observer.js'`
 
 ### Route Handler Deduplication (August 2025)
-- **withParams() Pattern**: Pre-extracts common parameters (system, schema, recordId)
+- **withParams() Pattern**: Pre-extracts common parameters (system, model, recordId)
 - **Transaction Boundary**: `withTransactionParams()` for write operations
 - **25-50% Reduction**: Route handlers focus on business logic
 - **Barrel Exports**: Clean organization with consistent naming
@@ -502,7 +502,7 @@ Docs: Update observer development guide (#160)
 ### Observer System Evolution (2024-2025)
 - **Ring-Based Pipeline**: 10 ordered rings for structured execution
 - **Universal Coverage**: All database operations use observers
-- **Schema Integration**: Full Schema objects available to observers
+- **Model Integration**: Full Model objects available to observers
 - **Performance**: Preloading optimization, single-pass execution
 
 ### Testing Infrastructure (2024-2025)

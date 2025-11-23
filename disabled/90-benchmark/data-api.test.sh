@@ -2,7 +2,7 @@
 set -e
 
 # Data API Performance Benchmark
-# Measures baseline performance for CRUD operations on existing schemas
+# Measures baseline performance for CRUD operations on existing models
 
 source "$(dirname "$0")/../test-helper.sh"
 

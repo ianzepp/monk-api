@@ -2,7 +2,7 @@
  * Constraints Validator
  *
  * Validates numeric ranges (minimum/maximum) and string patterns (regex).
- * Uses pre-compiled RegExp patterns from Schema for performance.
+ * Uses pre-compiled RegExp patterns from Model for performance.
  */
 
 import type { ValidationError } from './required.js';

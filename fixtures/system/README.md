@@ -1,6 +1,6 @@
 # System Fixture
 
-The **system** fixture provides the core system schemas required for the Monk API to function. This is the foundation that all tenant databases are built upon.
+The **system** fixture provides the core system models required for the Monk API to function. This is the foundation that all tenant databases are built upon.
 
 ## Structure
 
@@ -10,8 +10,8 @@ fixtures/system/
 ├── README.md               # This file
 │
 ├── describe/               # Table definitions (DDL)
-│   ├── schemas.sql        # schemas table
-│   ├── columns.sql        # columns table
+│   ├── models.sql        # models table
+│   ├── fields.sql        # fields table
 │   ├── users.sql          # users table
 │   ├── snapshots.sql      # snapshots table
 │   ├── extracts.sql       # extracts table
@@ -20,10 +20,10 @@ fixtures/system/
 │   └── history.sql        # history table (via function) + indexes
 │
 ├── functions/             # PostgreSQL functions
-│   ├── create-table-from-schema.sql      # Dynamically create tables
+│   ├── create-table-from-model.sql      # Dynamically create tables
 └── data/                  # Data inserts (DML)
-    ├── schemas.sql        # Register system schemas
-    ├── columns.sql        # Define columns for system schemas
+    ├── models.sql        # Register system models
+    ├── fields.sql        # Define fields for system models
     ├── users.sql          # Insert root user
     ├── history.sql        # Create history table (via function)
 ```
@@ -33,33 +33,33 @@ The fixture must be loaded in this specific order:
 
 1. **Initialization** (embedded in `load.sql`)
    - Extensions (pgcrypto)
-   - Custom types (column_type enum)
+   - Custom types (field_type enum)
 
 2. **Table Definitions** (`describe/*.sql`)
-   - Core tables: schemas, columns, users, snapshots, history
+   - Core tables: models, fields, users, snapshots, history
    - Extract system: extracts, extract_runs, extract_artifacts
 
 3. **Functions** (`functions/*.sql`)
-   - `create_table_from_schema()` - Dynamically creates tables
-   - `create_table_from_schema()` - Dynamically creates data tables
+   - `create_table_from_model()` - Dynamically creates tables
+   - `create_table_from_model()` - Dynamically creates data tables
 
 4. **Data** (`data/*.sql`)
-   - Schema registrations (self-references)
-   - Column definitions for all system schemas
+   - Model registrations (self-references)
+   - Field definitions for all system models
    - Default root user
    - History table creation (via function)
 
 5. **Indexes** (`describe/history.sql`)
    - Additional indexes after data load
 
-## System Schemas
+## System Models
 
-The system fixture creates these system schemas:
+The system fixture creates these system models:
 
-| Schema | Purpose | Tables |
+| Model | Purpose | Tables |
 |--------|---------|--------|
-| **schemas** | Schema registry | `schemas` |
-| **columns** | Column metadata | `columns` |
+| **models** | Model registry | `models` |
+| **fields** | Field metadata | `fields` |
 | **users** | User management | `users` |
 | **history** | Change tracking | `history` |
 | **snapshots** | DB backups | `snapshots` |
@@ -85,7 +85,7 @@ async function loadDefaultFixture(client) {
     // Initialize (extensions & types)
     await client.query(`
         CREATE EXTENSION IF NOT EXISTS pgcrypto;
-        CREATE TYPE column_type AS ENUM (
+        CREATE TYPE field_type AS ENUM (
             'text', 'integer', 'bigserial', 'numeric', 'boolean',
             'jsonb', 'uuid', 'timestamp', 'date',
             'text[]', 'integer[]', 'numeric[]', 'uuid[]'
@@ -94,13 +94,13 @@ async function loadDefaultFixture(client) {
 
     // Load in order
     const files = [
-        'describe/schemas.sql',
-        'describe/columns.sql',
+        'describe/models.sql',
+        'describe/fields.sql',
         'describe/users.sql',
         'describe/snapshots.sql',
-        'functions/create-table-from-schema.sql',
-        'data/schemas.sql',
-        'data/columns.sql',
+        'functions/create-table-from-model.sql',
+        'data/models.sql',
+        'data/fields.sql',
         'data/users.sql',
         'data/history.sql',
         'describe/history.sql'
@@ -113,34 +113,34 @@ async function loadDefaultFixture(client) {
 }
 ```
 
-## Adding New System Schemas
+## Adding New System Models
 
-To add new system schemas (like `extracts`, `restores`):
+To add new system models (like `extracts`, `restores`):
 
-1. **Create table definition**: `describe/new_schema.sql`
+1. **Create table definition**: `describe/new_model.sql`
    ```sql
-   CREATE TABLE "new_schema" (
+   CREATE TABLE "new_model" (
        -- System fields (auto-added)
        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
        -- ... other system fields ...
 
-       -- Custom columns
+       -- Custom fields
        "name" text NOT NULL,
        "status" text DEFAULT 'pending'
    );
    ```
 
-2. **Register schema**: Add to `data/schemas.sql`
+2. **Register model**: Add to `data/models.sql`
    ```sql
-   INSERT INTO "schemas" (schema_name, status, sudo)
-   VALUES ('new_schema', 'system', true);
+   INSERT INTO "models" (model_name, status, sudo)
+   VALUES ('new_model', 'system', true);
    ```
 
-3. **Define columns**: Add to `data/columns.sql`
+3. **Define fields**: Add to `data/fields.sql`
    ```sql
-   INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
-       ('new_schema', 'name', 'text', true, 'Schema name'),
-       ('new_schema', 'status', 'text', false, 'Processing status');
+   INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
+       ('new_model', 'name', 'text', true, 'Model name'),
+       ('new_model', 'status', 'text', false, 'Processing status');
    ```
 
    ```sql
@@ -164,7 +164,7 @@ To add new system schemas (like `extracts`, `restores`):
    - Load order is explicit
 
 4. **Extensibility**
-   - Easy to add new schemas
+   - Easy to add new models
    - Functions enable dynamic table creation
    - Metadata-driven design
 
@@ -173,7 +173,7 @@ To add new system schemas (like `extracts`, `restores`):
 This fixture structure **replaces** the monolithic `sql/init-template-default.sql`. The old file combined everything into one script. This new structure:
 
 - ✅ Separates concerns (DDL vs DML vs functions)
-- ✅ Makes it easy to add new schemas
+- ✅ Makes it easy to add new models
 - ✅ Follows fixture conventions
 - ✅ Supports both SQL and programmatic loading
 - ✅ Is self-documenting

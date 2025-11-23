@@ -2,7 +2,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestModel, ListToolsRequestModel } from '@modelcontextprotocol/sdk/types.js';
 import { readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -158,7 +158,7 @@ async function monkAuth(action: string, params: any): Promise<any> {
  * MonkData - High-level data operations mirroring database.ts methods
  * Operations: selectAny, selectOne, select404, createAll, updateAll, deleteAll, count, aggregate
  */
-async function monkData(operation: string, schema: string, params: any = {}): Promise<any> {
+async function monkData(operation: string, model: string, params: any = {}): Promise<any> {
     if (!currentToken) {
         throw new Error('Not authenticated. Use MonkAuth with action "register" or "login" first.');
     }
@@ -169,7 +169,7 @@ async function monkData(operation: string, schema: string, params: any = {}): Pr
         case 'selectOne':
         case 'select404':
             // Use Find API for flexible queries
-            const findResult = await monkHttp('POST', `/api/find/${schema}`, undefined, params);
+            const findResult = await monkHttp('POST', `/api/find/${model}`, undefined, params);
             if (operation === 'selectOne' || operation === 'select404') {
                 // Return single record or throw
                 if (typeof findResult === 'string') {
@@ -189,27 +189,27 @@ async function monkData(operation: string, schema: string, params: any = {}): Pr
         // CREATE operations
         case 'createAll':
             // params should be array of records
-            return monkHttp('POST', `/api/data/${schema}`, undefined, params);
+            return monkHttp('POST', `/api/data/${model}`, undefined, params);
 
         // UPDATE operations
         case 'updateAll':
             // params should be array of updates with id field
-            return monkHttp('PUT', `/api/data/${schema}`, undefined, params);
+            return monkHttp('PUT', `/api/data/${model}`, undefined, params);
 
         // DELETE operations
         case 'deleteAll':
             // params should be array of {id: ...} objects
-            return monkHttp('DELETE', `/api/data/${schema}`, undefined, params);
+            return monkHttp('DELETE', `/api/data/${model}`, undefined, params);
 
         // ANALYTICS operations
         case 'count':
-            return monkHttp('POST', `/api/find/${schema}`, undefined, {
+            return monkHttp('POST', `/api/find/${model}`, undefined, {
                 where: params.where,
                 select: ['count(*)'],
             });
 
         case 'aggregate':
-            return monkHttp('POST', `/api/aggregate/${schema}`, undefined, params);
+            return monkHttp('POST', `/api/aggregate/${model}`, undefined, params);
 
         default:
             throw new Error(`Unknown MonkData operation: ${operation}. Supported: selectAny, selectOne, select404, createAll, updateAll, deleteAll, count, aggregate`);
@@ -217,59 +217,59 @@ async function monkData(operation: string, schema: string, params: any = {}): Pr
 }
 
 /**
- * MonkDescribe - Schema operations
- * Operations: list, get, create, update, delete, addColumn, updateColumn, deleteColumn
+ * MonkDescribe - Model operations
+ * Operations: list, get, create, update, delete, addField, updateField, deleteField
  */
-async function monkDescribe(operation: string, schema?: string, params: any = {}): Promise<any> {
+async function monkDescribe(operation: string, model?: string, params: any = {}): Promise<any> {
     if (!currentToken) {
         throw new Error('Not authenticated. Use MonkAuth first.');
     }
 
     switch (operation) {
         case 'list':
-            // List all schemas
-            return monkHttp('GET', '/api/schema');
+            // List all models
+            return monkHttp('GET', '/api/model');
 
         case 'get':
-            // Get specific schema
-            if (!schema) throw new Error('schema parameter required for "get" operation');
-            return monkHttp('GET', `/api/schema/${schema}`);
+            // Get specific model
+            if (!model) throw new Error('model parameter required for "get" operation');
+            return monkHttp('GET', `/api/model/${model}`);
 
         case 'create':
-            // Create new schema
-            if (!schema) throw new Error('schema parameter required for "create" operation');
-            return monkHttp('POST', `/api/describe/${schema}`, undefined, params);
+            // Create new model
+            if (!model) throw new Error('model parameter required for "create" operation');
+            return monkHttp('POST', `/api/describe/${model}`, undefined, params);
 
         case 'update':
-            // Update schema metadata
-            if (!schema) throw new Error('schema parameter required for "update" operation');
-            return monkHttp('PUT', `/api/describe/${schema}`, undefined, params);
+            // Update model metadata
+            if (!model) throw new Error('model parameter required for "update" operation');
+            return monkHttp('PUT', `/api/describe/${model}`, undefined, params);
 
         case 'delete':
-            // Delete schema
-            if (!schema) throw new Error('schema parameter required for "delete" operation');
-            return monkHttp('DELETE', `/api/describe/${schema}`);
+            // Delete model
+            if (!model) throw new Error('model parameter required for "delete" operation');
+            return monkHttp('DELETE', `/api/describe/${model}`);
 
-        case 'addColumn':
-            // Add column to schema
-            if (!schema) throw new Error('schema parameter required for "addColumn" operation');
-            if (!params.column_name) throw new Error('params.column_name required for "addColumn" operation');
-            return monkHttp('POST', `/api/describe/${schema}/columns/${params.column_name}`, undefined, params);
+        case 'addField':
+            // Add field to model
+            if (!model) throw new Error('model parameter required for "addField" operation');
+            if (!params.field_name) throw new Error('params.field_name required for "addField" operation');
+            return monkHttp('POST', `/api/describe/${model}/fields/${params.field_name}`, undefined, params);
 
-        case 'updateColumn':
-            // Update column definition
-            if (!schema) throw new Error('schema parameter required for "updateColumn" operation');
-            if (!params.column_name) throw new Error('params.column_name required for "updateColumn" operation');
-            return monkHttp('PUT', `/api/describe/${schema}/columns/${params.column_name}`, undefined, params);
+        case 'updateField':
+            // Update field definition
+            if (!model) throw new Error('model parameter required for "updateField" operation');
+            if (!params.field_name) throw new Error('params.field_name required for "updateField" operation');
+            return monkHttp('PUT', `/api/describe/${model}/fields/${params.field_name}`, undefined, params);
 
-        case 'deleteColumn':
-            // Delete column
-            if (!schema) throw new Error('schema parameter required for "deleteColumn" operation');
-            if (!params.column_name) throw new Error('params.column_name required for "deleteColumn" operation');
-            return monkHttp('DELETE', `/api/describe/${schema}/columns/${params.column_name}`);
+        case 'deleteField':
+            // Delete field
+            if (!model) throw new Error('model parameter required for "deleteField" operation');
+            if (!params.field_name) throw new Error('params.field_name required for "deleteField" operation');
+            return monkHttp('DELETE', `/api/describe/${model}/fields/${params.field_name}`);
 
         default:
-            throw new Error(`Unknown MonkDescribe operation: ${operation}. Supported: list, get, create, update, delete, addColumn, updateColumn, deleteColumn`);
+            throw new Error(`Unknown MonkDescribe operation: ${operation}. Supported: list, get, create, update, delete, addField, updateField, deleteField`);
     }
 }
 
@@ -289,7 +289,7 @@ const server = new Server(
 );
 
 // Define tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
+server.setRequestHandler(ListToolsRequestModel, async () => {
     return {
         tools: loadToolDefinitions(),
     };
@@ -302,7 +302,7 @@ const LEGACY_TOOLS = [
       {
         name: 'MonkHttp',
         description: 'Make a raw HTTP request to the Monk API. Low-level tool for custom requests.',
-        inputSchema: {
+        inputModel: {
           type: 'object',
           properties: {
             method: {
@@ -329,7 +329,7 @@ const LEGACY_TOOLS = [
       {
         name: 'MonkAuthRegister',
         description: 'Register a new tenant and get JWT token. Convenience wrapper for MonkAuth action=register.',
-        inputSchema: {
+        inputModel: {
           type: 'object',
           properties: {
             tenant: {
@@ -355,7 +355,7 @@ const LEGACY_TOOLS = [
       {
         name: 'MonkAuthLogin',
         description: 'Login to existing tenant and get JWT token. Convenience wrapper for MonkAuth action=login.',
-        inputSchema: {
+        inputModel: {
           type: 'object',
           properties: {
             tenant: {
@@ -377,7 +377,7 @@ const LEGACY_TOOLS = [
       {
         name: 'MonkAuth',
         description: 'Generic authentication tool. Use MonkAuthRegister/MonkAuthLogin for common operations. Supports refresh and status actions.',
-        inputSchema: {
+        inputModel: {
           type: 'object',
           properties: {
             action: {
@@ -411,8 +411,8 @@ const LEGACY_TOOLS = [
       },
       {
         name: 'MonkApiData',
-        description: 'Generic CRUD operations on data schemas. Requires authentication.',
-        inputSchema: {
+        description: 'Generic CRUD operations on data models. Requires authentication.',
+        inputModel: {
           type: 'object',
           properties: {
             method: {
@@ -420,9 +420,9 @@ const LEGACY_TOOLS = [
               description: 'HTTP method for the operation',
               enum: ['GET', 'POST', 'PUT', 'DELETE'],
             },
-            schema: {
+            model: {
               type: 'string',
-              description: 'Schema/table name',
+              description: 'Model/table name',
             },
             record_id: {
               type: 'string',
@@ -447,18 +447,18 @@ const LEGACY_TOOLS = [
               },
             },
           },
-          required: ['method', 'schema'],
+          required: ['method', 'model'],
         },
       },
       {
         name: 'MonkApiDescribe',
-        description: 'Get schema information. Returns all schemas or details for a specific schema.',
-        inputSchema: {
+        description: 'Get model information. Returns all models or details for a specific model.',
+        inputModel: {
           type: 'object',
           properties: {
-            schema: {
+            model: {
               type: 'string',
-              description: 'Schema name (optional - omit to list all schemas)',
+              description: 'Model name (optional - omit to list all models)',
             },
           },
         },
@@ -466,7 +466,7 @@ const LEGACY_TOOLS = [
       {
         name: 'MonkDocs',
         description: 'Get API documentation. Returns available endpoints and their documentation.',
-        inputSchema: {
+        inputModel: {
           type: 'object',
           properties: {
             endpoint: {
@@ -478,13 +478,13 @@ const LEGACY_TOOLS = [
       },
       {
         name: 'MonkApiFind',
-        description: 'Advanced search and filtering for records across schemas. Execute complex queries with sophisticated filtering, sorting, and aggregation operations. Use this when basic Data API filtering is insufficient or when you need analytics-style queries without writing SQL. Supports boolean logic, nested filters, column projection (select), ordering, and pagination.',
-        inputSchema: {
+        description: 'Advanced search and filtering for records across models. Execute complex queries with sophisticated filtering, sorting, and aggregation operations. Use this when basic Data API filtering is insufficient or when you need analytics-style queries without writing SQL. Supports boolean logic, nested filters, field projection (select), ordering, and pagination.',
+        inputModel: {
           type: 'object',
           properties: {
-            schema: {
+            model: {
               type: 'string',
-              description: 'Schema/table name to search',
+              description: 'Model/table name to search',
             },
             query: {
               type: 'object',
@@ -493,7 +493,7 @@ const LEGACY_TOOLS = [
                 select: {
                   type: 'array',
                   items: { type: 'string' },
-                  description: 'Column names to return (optional - omit for all columns)',
+                  description: 'Field names to return (optional - omit for all fields)',
                 },
                 where: {
                   type: 'object',
@@ -515,18 +515,18 @@ const LEGACY_TOOLS = [
               },
             },
           },
-          required: ['schema', 'query'],
+          required: ['model', 'query'],
         },
       },
       {
         name: 'MonkApiAggregate',
-        description: 'Perform aggregation queries with optional GROUP BY support. Use for analytics, reporting, and statistical analysis. Supports aggregation functions: $count (count records), $sum (sum values), $avg (average), $min (minimum), $max (maximum), $distinct (count unique values). Can combine multiple aggregations in a single query and group results by one or more columns.',
-        inputSchema: {
+        description: 'Perform aggregation queries with optional GROUP BY support. Use for analytics, reporting, and statistical analysis. Supports aggregation functions: $count (count records), $sum (sum values), $avg (average), $min (minimum), $max (maximum), $distinct (count unique values). Can combine multiple aggregations in a single query and group results by one or more fields.',
+        inputModel: {
           type: 'object',
           properties: {
-            schema: {
+            model: {
               type: 'string',
-              description: 'Schema/table name to aggregate',
+              description: 'Model/table name to aggregate',
             },
             query: {
               type: 'object',
@@ -543,42 +543,42 @@ const LEGACY_TOOLS = [
                 groupBy: {
                   type: 'array',
                   items: { type: 'string' },
-                  description: 'Columns to group by (optional)',
+                  description: 'Fields to group by (optional)',
                 },
               },
               required: ['aggregate'],
             },
           },
-          required: ['schema', 'query'],
+          required: ['model', 'query'],
         },
       },
       {
         name: 'MonkApiStat',
         description: 'Get record metadata without fetching full record data. Returns only system metadata fields: id, created_at, updated_at, trashed_at (soft delete status), etag (for HTTP caching), and size. Use cases: cache invalidation (check updated_at without fetching full record), existence checks, modification tracking for sync operations, checking if record is soft-deleted.',
-        inputSchema: {
+        inputModel: {
           type: 'object',
           properties: {
-            schema: {
+            model: {
               type: 'string',
-              description: 'Schema/table name',
+              description: 'Model/table name',
             },
             record_id: {
               type: 'string',
               description: 'Record ID',
             },
           },
-          required: ['schema', 'record_id'],
+          required: ['model', 'record_id'],
         },
       },
       {
         name: 'MonkApiHistory',
-        description: 'Access audit trails for tracked column changes. When columns are marked with tracked=true, all create, update, and delete operations are captured with field-level deltas, user attribution, and timestamps. Provides column-level tracking with old/new values for each changed field. Returns history entries ordered by change_id descending (newest first). Optionally retrieve a specific history entry by change_id.',
-        inputSchema: {
+        description: 'Access audit trails for tracked field changes. When fields are marked with tracked=true, all create, update, and delete operations are captured with field-level deltas, user attribution, and timestamps. Provides field-level tracking with old/new values for each changed field. Returns history entries ordered by change_id descending (newest first). Optionally retrieve a specific history entry by change_id.',
+        inputModel: {
           type: 'object',
           properties: {
-            schema: {
+            model: {
               type: 'string',
-              description: 'Schema/table name',
+              description: 'Model/table name',
             },
             record_id: {
               type: 'string',
@@ -603,7 +603,7 @@ const LEGACY_TOOLS = [
               },
             },
           },
-          required: ['schema', 'record_id'],
+          required: ['model', 'record_id'],
         },
       },
     ],
@@ -611,7 +611,7 @@ const LEGACY_TOOLS = [
 */
 
 // Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async request => {
+server.setRequestHandler(CallToolRequestModel, async request => {
     const { name, arguments: args } = request.params;
 
     try {
@@ -627,11 +627,11 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
                 break;
 
             case 'MonkData':
-                result = await monkData(args.operation, args.schema, args.params);
+                result = await monkData(args.operation, args.model, args.params);
                 break;
 
             case 'MonkDescribe':
-                result = await monkDescribe(args.operation, args.schema, args.params);
+                result = await monkDescribe(args.operation, args.model, args.params);
                 break;
 
             default:

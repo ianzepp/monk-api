@@ -1,9 +1,9 @@
 -- ============================================================================
--- SCHEMA: schemas
+-- MODEL: models
 -- ============================================================================
--- Schema registry table to store schema metadata
+-- Model registry table to store model metadata
 
-CREATE TABLE "schemas" (
+CREATE TABLE "models" (
     -- System fields
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
@@ -15,8 +15,8 @@ CREATE TABLE "schemas" (
 	"trashed_at" timestamp,
 	"deleted_at" timestamp,
 
-	-- Schema metadata
-	"schema_name" text NOT NULL,
+	-- Model metadata
+	"model_name" text NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"description" text,
 	"sudo" boolean DEFAULT false NOT NULL,
@@ -25,5 +25,5 @@ CREATE TABLE "schemas" (
 	"external" boolean DEFAULT false NOT NULL,
 
 	-- Constraints
-	CONSTRAINT "schema_name_unique" UNIQUE("schema_name")
+	CONSTRAINT "model_name_unique" UNIQUE("model_name")
 );

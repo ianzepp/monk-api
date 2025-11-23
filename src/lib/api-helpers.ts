@@ -3,7 +3,7 @@ import { System } from '@src/lib/system.js';
 import type { SystemOptions } from '@src/lib/system-context-types.js';
 import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError, HttpErrors } from '@src/lib/errors/http-error.js';
-import { createSchema } from '@src/lib/schema.js';
+import { createModel } from '@src/lib/model.js';
 
 /**
  * API Request/Response Helpers
@@ -36,7 +36,7 @@ export enum ApiErrorCode {
     VALIDATION_ERROR = 'VALIDATION_ERROR',
     NOT_FOUND = 'NOT_FOUND',
     DEPENDENCY_ERROR = 'DEPENDENCY_ERROR',
-    SCHEMA_ERROR = 'SCHEMA_ERROR',
+    MODEL_ERROR = 'MODEL_ERROR',
     DATABASE_ERROR = 'DATABASE_ERROR',
     INTERNAL_ERROR = 'INTERNAL_ERROR',
     JSON_PARSE_ERROR = 'JSON_PARSE_ERROR',
@@ -51,8 +51,8 @@ export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 // Route parameter interface for withParams() helper
 interface RouteParams {
     system: System;
-    schema?: string;
-    column?: string;
+    model?: string;
+    field?: string;
     record?: string;
     relationship?: string;
     child?: string;
@@ -87,15 +87,15 @@ function extractSelectOptionsFromContext(context: Context): SelectOptions {
 /**
  * Helper function to extract error position from JSON parsing error messages
  */
-function extractPositionFromError(errorMessage: string): { line?: number; column?: number; position?: number } {
+function extractPositionFromError(errorMessage: string): { line?: number; field?: number; position?: number } {
     const positionMatch = errorMessage.match(/position (\d+)/);
     const lineMatch = errorMessage.match(/line (\d+)/);
-    const columnMatch = errorMessage.match(/column (\d+)/);
+    const fieldMatch = errorMessage.match(/field (\d+)/);
 
     return {
         position: positionMatch ? parseInt(positionMatch[1]) : undefined,
         line: lineMatch ? parseInt(lineMatch[1]) : undefined,
-        column: columnMatch ? parseInt(columnMatch[1]) : undefined,
+        field: fieldMatch ? parseInt(fieldMatch[1]) : undefined,
     };
 }
 
@@ -105,8 +105,8 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
             // Extract all common parameters
             const params: RouteParams = {
                 system: context.get('system'),
-                schema: context.req.param('schema'),
-                column: context.req.param('column'),
+                model: context.req.param('model'),
+                field: context.req.param('field'),
                 record: context.req.param('record'),
                 relationship: context.req.param('relationship'),
                 child: context.req.param('child'),
@@ -218,7 +218,7 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
             };
 
             // Add relevant parameters to log
-            if (params.schema) logData.schema = params.schema;
+            if (params.model) logData.model = params.model;
             if (params.record) logData.record = params.record;
             if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
 
@@ -281,7 +281,7 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
 
         console.info('Transaction started for route', {
             method: params.method,
-            schema: params.schema,
+            model: params.model,
             record: params.record
         });
 
@@ -293,7 +293,7 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
             await tx.query('COMMIT');
             console.info('Transaction committed successfully', {
                 method: params.method,
-                schema: params.schema
+                model: params.model
             });
 
         } catch (error) {
@@ -302,7 +302,7 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
                 await tx.query('ROLLBACK');
                 console.info('Transaction rolled back due to error', {
                     method: params.method,
-                    schema: params.schema,
+                    model: params.model,
                     error: error instanceof Error ? error.message : String(error)
                 });
             } catch (rollbackError) {
@@ -323,10 +323,10 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
 
 /**
  * Utility function that temporarily sets the 'as_sudo' flag for self-service operations
- * that need to bypass schema-level sudo protection.
+ * that need to bypass model-level sudo protection.
  *
  * Used by User API endpoints that allow users to modify their own records in sudo-protected
- * schemas (like the users table). Sets the 'as_sudo' flag which observers can check
+ * models (like the users table). Sets the 'as_sudo' flag which observers can check
  * alongside 'is_sudo' from JWT tokens.
  *
  * Automatically handles:
@@ -361,7 +361,7 @@ export async function withSelfServiceSudo<T>(
 
 // Error handling wrapper - keeps business logic in handlers
 export async function withErrorHandling<T>(c: Context, handler: () => Promise<T>, successStatus: number = 200): Promise<any> {
-    const schema = c.req.param('schema');
+    const model = c.req.param('model');
     const record = c.req.param('record');
 
     try {
@@ -370,8 +370,8 @@ export async function withErrorHandling<T>(c: Context, handler: () => Promise<T>
     } catch (error) {
         console.error('Route handler error:', error);
         if (error instanceof Error) {
-            if (error.message.includes('Schema') && error.message.includes('not found')) {
-                return createNotFoundError(c, 'Schema', schema);
+            if (error.message.includes('Model') && error.message.includes('not found')) {
+                return createNotFoundError(c, 'Model', model);
             }
             if (error.message.includes('Record') && error.message.includes('not found')) {
                 return createNotFoundError(c, 'Record', record);
@@ -427,8 +427,8 @@ export function createDependencyError(c: Context, resource: string, dependencies
     });
 }
 
-export function createSchemaError(c: Context, error: string, details?: any) {
-    return createErrorResponse(c, error, ApiErrorCode.SCHEMA_ERROR, 400, details);
+export function createModelError(c: Context, error: string, details?: any) {
+    return createErrorResponse(c, error, ApiErrorCode.MODEL_ERROR, 400, details);
 }
 
 export function createDatabaseError(c: Context, error: string = 'Database operation failed') {

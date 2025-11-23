@@ -167,7 +167,7 @@ npm run build
 npm run start:dev
 
 # Look for observer loading errors
-# Should see: "✅ Observer loaded: ObserverName (ring N, schema: X)"
+# Should see: "✅ Observer loaded: ObserverName (ring N, model: X)"
 ```
 
 **Clean restart:**
@@ -264,7 +264,7 @@ psql -d postgres -c "SELECT version();"
 psql -d monk -c "SELECT COUNT(*) FROM tenants;"
 
 # 3. Tenant database (if exists)
-psql -d tenant_test_abc123 -c "SELECT COUNT(*) FROM schemas;"
+psql -d tenant_test_abc123 -c "SELECT COUNT(*) FROM models;"
 ```
 
 ### Connection String Debugging
@@ -294,7 +294,7 @@ createdb monk
 # Or via psql
 psql -d postgres -c "CREATE DATABASE monk;"
 
-# Initialize schema
+# Initialize model
 npm run db:migrate  # If migration scripts exist
 ```
 

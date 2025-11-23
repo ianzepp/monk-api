@@ -2,8 +2,8 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { withParams } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
-export default withParams(async (context, { system, schema, body, options }) => {
-    console.debug('routes/aggregate-schema: schema=%j', schema);
+export default withParams(async (context, { system, model, body, options }) => {
+    console.debug('routes/aggregate-model: model=%j', model);
 
     // Validate request body
     if (!body || typeof body !== 'object') {
@@ -22,7 +22,7 @@ export default withParams(async (context, { system, schema, body, options }) => 
 
     // Execute aggregation
     const result = await system.database.aggregate(
-        schema!,
+        model!,
         filterData,
         aggregations,
         groupBy,

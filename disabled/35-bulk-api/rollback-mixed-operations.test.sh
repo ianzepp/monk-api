@@ -2,18 +2,18 @@
 set -e
 
 # Bulk API Mixed Operations Rollback Test
-# Tests rollback with multiple operation types and schemas
+# Tests rollback with multiple operation types and models
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Bulk API rollback with mixed operations"
 
-# Setup test environment with template (includes account + contact schemas)
+# Setup test environment with template (includes account + contact models)
 setup_test_with_template "rollback-mixed-operations"
 setup_full_auth
 
-# Get baseline counts for both schemas
+# Get baseline counts for both models
 print_step "Getting baseline record counts"
 
 accounts_response=$(auth_get "api/data/account")
@@ -38,7 +38,7 @@ mixed_rollback_request='{
     "operations": [
         {
             "operation": "create-one",
-            "schema": "account",
+            "model": "account",
             "data": {
                 "name": "Should Rollback Account",
                 "email": "rollback.account@example.com",
@@ -51,7 +51,7 @@ mixed_rollback_request='{
         },
         {
             "operation": "create-one",
-            "schema": "contact",
+            "model": "contact",
             "data": {
                 "name": "Should Rollback Contact",
                 "email": "rollback.contact@example.com",
@@ -62,7 +62,7 @@ mixed_rollback_request='{
         },
         {
             "operation": "update-one",
-            "schema": "account",
+            "model": "account",
             "id": "'"$existing_account_id"'",
             "data": {
                 "name": "Updated Name",
@@ -81,13 +81,13 @@ if echo "$response" | jq -e '.success == false' >/dev/null; then
     print_success "Mixed bulk operation correctly failed due to invalid update data"
 
     error_message=$(echo "$response" | jq -r '.error // "unknown"')
-    print_success "Validation error captured: Schema validation failed"
+    print_success "Validation error captured: Model validation failed"
 else
     test_fail "Expected mixed bulk operation to fail with invalid data"
 fi
 
-# Test 2: Verify complete rollback across schemas
-print_step "Verifying complete rollback across multiple schemas"
+# Test 2: Verify complete rollback across models
+print_step "Verifying complete rollback across multiple models"
 
 # Check account count (should be unchanged)
 after_accounts_response=$(auth_get "api/data/account")
@@ -116,9 +116,9 @@ rollback_account=$(echo "$after_accounts_data" | jq --arg name "Should Rollback 
 rollback_contact=$(echo "$after_contacts_data" | jq --arg name "Should Rollback Contact" 'map(select(.name == $name)) | length')
 
 if [[ "$rollback_account" -eq 0 && "$rollback_contact" -eq 0 ]]; then
-    print_success "Cross-schema rollback verified: no records created in either schema"
+    print_success "Cross-model rollback verified: no records created in either model"
 else
-    test_fail "Cross-schema rollback failed: account=$rollback_account, contact=$rollback_contact records found"
+    test_fail "Cross-model rollback failed: account=$rollback_account, contact=$rollback_contact records found"
 fi
 
 # Verify existing account was not modified
@@ -141,7 +141,7 @@ success_mixed_request='{
     "operations": [
         {
             "operation": "create-one",
-            "schema": "account",
+            "model": "account",
             "data": {
                 "name": "Success Account",
                 "email": "success.account@example.com",
@@ -154,7 +154,7 @@ success_mixed_request='{
         },
         {
             "operation": "create-one",
-            "schema": "contact",
+            "model": "contact",
             "data": {
                 "name": "Success Contact",
                 "email": "success.contact@example.com",
@@ -165,7 +165,7 @@ success_mixed_request='{
         },
         {
             "operation": "update-one",
-            "schema": "account",
+            "model": "account",
             "id": "'"$existing_account_id"'",
             "data": {
                 "balance": 999.99
@@ -212,4 +212,4 @@ else
 fi
 
 print_success "Bulk API mixed operations rollback test completed successfully"
-print_success "CROSS-SCHEMA ATOMICITY CONFIRMED: Rollback works across multiple schemas"
+print_success "CROSS-MODEL ATOMICITY CONFIRMED: Rollback works across multiple models"

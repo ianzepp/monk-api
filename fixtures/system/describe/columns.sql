@@ -1,9 +1,9 @@
 -- ============================================================================
--- SCHEMA: columns
+-- MODEL: fields
 -- ============================================================================
--- Column registry table to store individual field metadata
+-- Field registry table to store individual field metadata
 
-CREATE TABLE "columns" (
+CREATE TABLE "fields" (
     -- System fields
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"access_read" uuid[] DEFAULT '{}'::uuid[],
@@ -15,18 +15,18 @@ CREATE TABLE "columns" (
 	"trashed_at" timestamp,
 	"deleted_at" timestamp,
 
-	-- Column metadata
-	"schema_name" text NOT NULL,
-	"column_name" text NOT NULL,
-	"type" column_type NOT NULL,
+	-- Field metadata
+	"model_name" text NOT NULL,
+	"field_name" text NOT NULL,
+	"type" field_type NOT NULL,
 	"required" boolean DEFAULT false NOT NULL,
 	"default_value" text,
 	"description" text,
 
 	-- Relationships
 	"relationship_type" text,
-	"related_schema" text,
-	"related_column" text,
+	"related_model" text,
+	"related_field" text,
 	"relationship_name" text,
 	"cascade_delete" boolean DEFAULT false,
 	"required_relationship" boolean DEFAULT false,
@@ -48,11 +48,11 @@ CREATE TABLE "columns" (
 	"transform" text
 );
 
--- Foreign key: columns belong to schemas
-ALTER TABLE "columns" ADD CONSTRAINT "columns_schemas_name_schema_name_fk"
-    FOREIGN KEY ("schema_name") REFERENCES "public"."schemas"("schema_name")
+-- Foreign key: fields belong to models
+ALTER TABLE "fields" ADD CONSTRAINT "fields_models_name_model_name_fk"
+    FOREIGN KEY ("model_name") REFERENCES "public"."models"("model_name")
     ON DELETE no action ON UPDATE no action;
 
--- Unique index for schema+column combination
-CREATE UNIQUE INDEX "idx_columns_schema_column"
-    ON "columns" ("schema_name", "column_name");
+-- Unique index for model+field combination
+CREATE UNIQUE INDEX "idx_fields_model_field"
+    ON "fields" ("model_name", "field_name");

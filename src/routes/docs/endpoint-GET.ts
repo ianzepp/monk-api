@@ -8,7 +8,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * Supports two patterns:
  * 1. API Overview: /docs/api/data → api/data/PUBLIC.md
- * 2. Endpoint-Specific: /docs/api/data/schema/GET → api/data/:schema/GET.md
+ * 2. Endpoint-Specific: /docs/api/data/model/GET → api/data/:model/GET.md
  *
  * Mapping: /docs/{path} → src/routes/{path}/PUBLIC.md or {METHOD}.md
  *
@@ -35,14 +35,14 @@ export default async function (context: Context) {
 
     if (isMethodRequest) {
         // Pattern 1: Endpoint-specific documentation (METHOD.md)
-        // Example: /docs/api/data/schema/GET → api/data/:schema/GET.md
+        // Example: /docs/api/data/model/GET → api/data/:model/GET.md
         const method = lastSegment.toUpperCase();
         const pathSegments = segments.slice(0, -1);
 
         // Known placeholder mappings
         const placeholderMap: Record<string, string> = {
-            'schema': ':schema',
-            'column': ':column',
+            'model': ':model',
+            'field': ':field',
             'record': ':record',
             'relationship': ':relationship',
             'child': ':child',
@@ -104,10 +104,10 @@ export default async function (context: Context) {
  * 2. Replace last N segments with placeholders and try
  * 3. Work backwards replacing more segments
  *
- * Example: /docs/api/data/schema/GET
- * - Try: api/data/schema/GET.md
- * - Try: api/data/:schema/GET.md (replace 'schema' with ':schema')
- * - Try: api/:data/:schema/GET.md (unlikely but possible)
+ * Example: /docs/api/data/model/GET
+ * - Try: api/data/model/GET.md
+ * - Try: api/data/:model/GET.md (replace 'model' with ':model')
+ * - Try: api/:data/:model/GET.md (unlikely but possible)
  */
 function findMethodDocumentation(
     cwd: string,
@@ -135,33 +135,33 @@ function findMethodDocumentation(
     }
 
     // Strategy 3: Try common multi-placeholder patterns
-    // Pattern: schema → :schema
-    if (pathSegments.length === 3 && pathSegments[2] === 'schema') {
+    // Pattern: model → :model
+    if (pathSegments.length === 3 && pathSegments[2] === 'model') {
         const base = pathSegments.slice(0, 2);
-        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':schema', `${method}.md`));
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', `${method}.md`));
     }
 
-    // Pattern: schema/record → :schema/:record
-    // Pattern: schema/column → :schema/columns/:column
-    if (pathSegments.length === 4 && pathSegments[2] === 'schema') {
+    // Pattern: model/record → :model/:record
+    // Pattern: model/field → :model/fields/:field
+    if (pathSegments.length === 4 && pathSegments[2] === 'model') {
         const base = pathSegments.slice(0, 2);
         const lastSegment = pathSegments[3];
         const lastPlaceholder = placeholderMap[lastSegment.toLowerCase()];
         if (lastPlaceholder) {
-            pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':schema', lastPlaceholder, `${method}.md`));
+            pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', lastPlaceholder, `${method}.md`));
         }
     }
 
-    // Pattern: schema/record/relationship → :schema/:record/:relationship
+    // Pattern: model/record/relationship → :model/:record/:relationship
     if (pathSegments.length === 5) {
         const base = pathSegments.slice(0, 2);
-        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':schema', ':record', ':relationship', `${method}.md`));
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':record', ':relationship', `${method}.md`));
     }
 
-    // Pattern: schema/record/relationship/child → :schema/:record/:relationship/:child
+    // Pattern: model/record/relationship/child → :model/:record/:relationship/:child
     if (pathSegments.length === 6) {
         const base = pathSegments.slice(0, 2);
-        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':schema', ':record', ':relationship', ':child', `${method}.md`));
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':record', ':relationship', ':child', `${method}.md`));
     }
 
     // Try each path until we find one that exists

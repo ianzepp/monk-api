@@ -3,21 +3,21 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * PUT /api/describe/:schema - Update Schema
+ * PUT /api/describe/:model - Update Model
  *
- * Tests schema metadata updates (status, sudo, frozen, immutable).
- * Does NOT update columns - use column endpoints for that.
+ * Tests model metadata updates (status, sudo, frozen, immutable).
+ * Does NOT update fields - use field endpoints for that.
  */
 
-describe('PUT /api/describe/:schema - Update Schema', () => {
+describe('PUT /api/describe/:model - Update Model', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('update-schema');
+        tenant = await TestHelpers.createTestTenant('update-model');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/products', {
-            schema_name: 'products',
+            model_name: 'products',
             status: 'pending'
         });
     });
@@ -26,7 +26,7 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
         await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
-    it('should update schema status', async () => {
+    it('should update model status', async () => {
         const response = await tenant.httpClient.put('/api/describe/products', {
             status: 'active'
         });
@@ -87,13 +87,13 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
     });
 
     it('should persist updates across GET requests', async () => {
-        // Update schema
+        // Update model
         await tenant.httpClient.put('/api/describe/products', {
             status: 'active',
             description: 'Persisted description'
         });
 
-        // Retrieve schema
+        // Retrieve model
         const getResponse = await tenant.httpClient.get('/api/describe/products');
 
         expect(getResponse.success).toBe(true);
@@ -108,35 +108,35 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
         expect(response.error_code).toBe('NO_UPDATES');
     });
 
-    it('should return 404 for non-existent schema', async () => {
+    it('should return 404 for non-existent model', async () => {
         const response = await tenant.httpClient.put('/api/describe/nonexistent', {
             status: 'active'
         });
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+        expect(response.error_code).toBe('MODEL_NOT_FOUND');
     });
 
-    it('should not allow updating schema_name', async () => {
-        // Attempt to change schema name (should be ignored or fail)
+    it('should not allow updating model_name', async () => {
+        // Attempt to change model name (should be ignored or fail)
         const response = await tenant.httpClient.put('/api/describe/products', {
-            schema_name: 'renamed_products',
+            model_name: 'renamed_products',
             status: 'active'
         });
 
-        // Even if successful, schema_name should not change
+        // Even if successful, model_name should not change
         if (response.success) {
             const getResponse = await tenant.httpClient.get('/api/describe/products');
-            expect(getResponse.data.schema_name).toBe('products');
+            expect(getResponse.data.model_name).toBe('products');
         }
     });
 
-    it('should protect system schemas from updates', async () => {
-        const response = await tenant.httpClient.put('/api/describe/schemas', {
+    it('should protect system models from updates', async () => {
+        const response = await tenant.httpClient.put('/api/describe/models', {
             status: 'active'
         });
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
+        expect(response.error_code).toBe('MODEL_REQUIRES_SUDO');
     });
 });

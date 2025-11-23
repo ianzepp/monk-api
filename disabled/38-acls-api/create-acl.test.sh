@@ -16,11 +16,11 @@ setup_full_auth
 # Test 1: Create a test record to work with
 print_step "Creating test record for ACL operations"
 
-test_schema="account"
+test_model="account"
 # Use proper account data generation helper
 account_data=$(generate_test_account "ACL Test Account" "acl-test@example.com" "acltestuser")
 
-create_response=$(auth_post "api/data/$test_schema" "$account_data")
+create_response=$(auth_post "api/data/$test_model" "$account_data")
 records_array=$(extract_and_validate_data "$create_response" "Created record data")
 
 # Get the first record from the array
@@ -40,7 +40,7 @@ print_success "Created test record: $test_record_id"
 # Test 2: Verify record initially has empty ACL lists
 print_step "Verifying initial record has empty ACLs"
 
-initial_record=$(auth_get "api/data/$test_schema/$test_record_id")
+initial_record=$(auth_get "api/data/$test_model/$test_record_id")
 assert_success "$initial_record"
 
 # Check that ACL fields are empty arrays
@@ -66,7 +66,7 @@ acl_data='{
   "access_deny": ["44444444-5555-6666-7777-888888888881"]
 }'
 
-acl_post_response=$(auth_post "api/acls/$test_schema/$test_record_id" "$acl_data")
+acl_post_response=$(auth_post "api/acls/$test_model/$test_record_id" "$acl_data")
 assert_success "$acl_post_response"
 
 # Debug: Print the full response to understand structure
@@ -100,7 +100,7 @@ print_success "ACLs added successfully via ACLs API"
 # Test 4: Verify ACLs are visible via Data API
 print_step "Verifying ACLs are visible via Data API"
 
-updated_record=$(auth_get "api/data/$test_schema/$test_record_id")
+updated_record=$(auth_get "api/data/$test_model/$test_record_id")
 assert_success "$updated_record"
 
 # Extract ACL fields from Data API response
@@ -139,12 +139,12 @@ print_success "ACLs are correctly visible via Data API"
 # Test 5: Test ACLs API GET endpoint
 print_step "Testing ACLs API GET endpoint"
 
-acl_get_response=$(auth_get "api/acls/$test_schema/$test_record_id")
+acl_get_response=$(auth_get "api/acls/$test_model/$test_record_id")
 assert_success "$acl_get_response"
 
 # Verify the GET response structure
 get_record_id=$(echo "$acl_get_response" | jq -r '.data.record_id')
-get_schema=$(echo "$acl_get_response" | jq -r '.data.schema')
+get_model=$(echo "$acl_get_response" | jq -r '.data.model')
 get_access_read=$(echo "$acl_get_response" | jq -r '.data.access_lists.access_read')
 
 if [[ "$get_record_id" == "$test_record_id" ]]; then
@@ -153,10 +153,10 @@ else
     test_fail "ACLs GET returned wrong record ID: $get_record_id"
 fi
 
-if [[ "$get_schema" == "$test_schema" ]]; then
-    print_success "ACLs GET returns correct schema"
+if [[ "$get_model" == "$test_model" ]]; then
+    print_success "ACLs GET returns correct model"
 else
-    test_fail "ACLs GET returned wrong schema: $get_schema"
+    test_fail "ACLs GET returned wrong model: $get_model"
 fi
 
 if echo "$get_access_read" | jq -e 'contains(["11111111-2222-3333-4444-555555555551", "11111111-2222-3333-4444-555555555552"])' >/dev/null; then
@@ -173,7 +173,7 @@ additional_acl_data='{
   "access_edit": ["22222222-3333-4444-5555-666666666662", "22222222-3333-4444-5555-666666666661"]
 }'
 
-merge_response=$(auth_post "api/acls/$test_schema/$test_record_id" "$additional_acl_data")
+merge_response=$(auth_post "api/acls/$test_model/$test_record_id" "$additional_acl_data")
 assert_success "$merge_response"
 
 # Verify merging worked correctly
@@ -197,7 +197,7 @@ fi
 # Test 7: Test ACL clearing (DELETE endpoint)
 print_step "Testing ACL clearing functionality"
 
-clear_response=$(auth_delete "api/acls/$test_schema/$test_record_id")
+clear_response=$(auth_delete "api/acls/$test_model/$test_record_id")
 assert_success "$clear_response"
 
 # Verify all ACLs are cleared
@@ -215,7 +215,7 @@ fi
 # Test 8: Verify Data API shows cleared ACLs
 print_step "Verifying cleared ACLs via Data API"
 
-final_record=$(auth_get "api/data/$test_schema/$test_record_id")
+final_record=$(auth_get "api/data/$test_model/$test_record_id")
 assert_success "$final_record"
 
 final_read=$(echo "$final_record" | jq -r '.data.access_read')

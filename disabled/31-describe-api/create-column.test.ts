@@ -3,21 +3,21 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * POST /api/describe/:schema/columns/:column - Create Column
+ * POST /api/describe/:model/fields/:field - Create Field
  *
- * Tests adding columns to existing schemas. This is the new architecture
- * where columns are created individually after schema creation.
+ * Tests adding fields to existing models. This is the new architecture
+ * where fields are created individually after model creation.
  */
 
-describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
+describe('POST /api/describe/:model/fields/:field - Create Field', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('create-column');
+        tenant = await TestHelpers.createTestTenant('create-field');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/products', {
-            schema_name: 'products',
+            model_name: 'products',
             status: 'active'
         });
     });
@@ -26,18 +26,18 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
-    it('should create column with minimal fields', async () => {
+    it('should create field with minimal fields', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/name', {
             type: 'text'
         });
 
         expectSuccess(response);
-        expect(response.data.schema_name).toBe('products');
-        expect(response.data.column_name).toBe('name');
+        expect(response.data.model_name).toBe('products');
+        expect(response.data.field_name).toBe('name');
         expect(response.data.type).toBe('text');
     });
 
-    it('should create required column', async () => {
+    it('should create required field', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/sku', {
             type: 'text',
             required: true
@@ -47,7 +47,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.required).toBe(true);
     });
 
-    it('should create column with default value', async () => {
+    it('should create field with default value', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/in_stock', {
             type: 'boolean',
             default_value: true
@@ -57,7 +57,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.default_value).toBe(true);
     });
 
-    it('should create column with description', async () => {
+    it('should create field with description', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/price', {
             type: 'decimal',
             description: 'Product price in USD'
@@ -67,7 +67,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.description).toBe('Product price in USD');
     });
 
-    it('should create column with validation (pattern)', async () => {
+    it('should create field with validation (pattern)', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/email', {
             type: 'text',
             pattern: '^[^@]+@[^@]+\\.[^@]+$'
@@ -77,7 +77,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.pattern).toBe('^[^@]+@[^@]+\\.[^@]+$');
     });
 
-    it('should create column with min/max validation', async () => {
+    it('should create field with min/max validation', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/quantity', {
             type: 'integer',
             minimum: 0,
@@ -89,7 +89,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.maximum).toBe(1000);
     });
 
-    it('should create column with enum values', async () => {
+    it('should create field with enum values', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/status', {
             type: 'text',
             enum_values: ['draft', 'published', 'archived']
@@ -99,7 +99,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.enum_values).toEqual(['draft', 'published', 'archived']);
     });
 
-    it('should create column with unique constraint', async () => {
+    it('should create field with unique constraint', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/barcode', {
             type: 'text',
             unique: true
@@ -109,7 +109,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.unique).toBe(true);
     });
 
-    it('should create column with index', async () => {
+    it('should create field with index', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/category', {
             type: 'text',
             index: true
@@ -119,7 +119,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.index).toBe(true);
     });
 
-    it('should create searchable text column', async () => {
+    it('should create searchable text field', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/description', {
             type: 'text',
             searchable: true
@@ -129,7 +129,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.searchable).toBe(true);
     });
 
-    it('should create immutable column', async () => {
+    it('should create immutable field', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/created_by', {
             type: 'uuid',
             immutable: true
@@ -139,7 +139,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.immutable).toBe(true);
     });
 
-    it('should create sudo-protected column', async () => {
+    it('should create sudo-protected field', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/cost', {
             type: 'decimal',
             sudo: true
@@ -149,7 +149,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.sudo).toBe(true);
     });
 
-    it('should create column with transform', async () => {
+    it('should create field with transform', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/slug', {
             type: 'text',
             transform: 'lowercase'
@@ -159,7 +159,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.transform).toBe('lowercase');
     });
 
-    it('should create tracked column', async () => {
+    it('should create tracked field', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/notes', {
             type: 'text',
             tracked: true
@@ -169,7 +169,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.tracked).toBe(true);
     });
 
-    it('should create columns with various data types', async () => {
+    it('should create fields with various data types', async () => {
         const types = [
             { name: 'text_col', type: 'text', expected: 'text' },
             { name: 'int_col', type: 'integer', expected: 'integer' },
@@ -191,7 +191,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         }
     });
 
-    it('should create array type columns', async () => {
+    it('should create array type fields', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/tags', {
             type: 'text[]'
         });
@@ -201,8 +201,8 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expect(response.data.is_array).toBe(true);
     });
 
-    it('should reject duplicate column names', async () => {
-        // Create column
+    it('should reject duplicate field names', async () => {
+        // Create field
         await tenant.httpClient.post('/api/describe/products/duplicate_test', {
             type: 'text'
         });
@@ -215,7 +215,7 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expectError(response);
     });
 
-    it('should reject column creation without type', async () => {
+    it('should reject field creation without type', async () => {
         const response = await tenant.httpClient.post('/api/describe/products/no_type', {
             description: 'Missing type field'
         });
@@ -223,8 +223,8 @@ describe('POST /api/describe/:schema/columns/:column - Create Column', () => {
         expectError(response);
     });
 
-    it('should reject column on non-existent schema', async () => {
-        const response = await tenant.httpClient.post('/api/describe/nonexistent/column', {
+    it('should reject field on non-existent model', async () => {
+        const response = await tenant.httpClient.post('/api/describe/nonexistent/field', {
             type: 'text'
         });
 

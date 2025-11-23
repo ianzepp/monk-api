@@ -22,7 +22,7 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  */
 export default withTransactionParams(async (context, { system, body }) => {
     // Create user in current tenant's database
-    // The 'users' schema is marked as system, so this will trigger
+    // The 'users' model is marked as system, so this will trigger
     // user/1/root-access-validator which checks for is_sudo flag
     const result = await system.database.createOne('users', body);
     return result;

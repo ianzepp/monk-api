@@ -4,24 +4,24 @@ import { expectError, expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * PUT /api/describe/:schema - Update Schema
+ * PUT /api/describe/:model - Update Model
  *
- * Tests schema metadata updates. Does not update columns - use column endpoints for that.
+ * Tests model metadata updates. Does not update fields - use field endpoints for that.
  */
 
-describe('PUT /api/describe/:schema - Update Schema', () => {
+describe('PUT /api/describe/:model - Update Model', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('schema-put');
+        tenant = await TestHelpers.createTestTenant('model-put');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/test_products', {
             status: 'pending',
         });
     });
 
-    it('should update schema status', async () => {
+    it('should update model status', async () => {
         const response = await tenant.httpClient.put('/api/describe/test_products', {
             status: 'active',
         });
@@ -82,13 +82,13 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
     });
 
     it('should persist updates across GET requests', async () => {
-        // Update schema
+        // Update model
         await tenant.httpClient.put('/api/describe/test_products', {
             status: 'active',
             description: 'Persisted description',
         });
 
-        // Retrieve schema
+        // Retrieve model
         const getResponse = await tenant.httpClient.get('/api/describe/test_products');
 
         expect(getResponse.success).toBe(true);
@@ -103,31 +103,31 @@ describe('PUT /api/describe/:schema - Update Schema', () => {
         expect(response.error_code).toBeDefined();
     });
 
-    it('should return 404 for non-existent schema', async () => {
-        const response = await tenant.httpClient.put('/api/describe/nonexistent_schema', {
+    it('should return 404 for non-existent model', async () => {
+        const response = await tenant.httpClient.put('/api/describe/nonexistent_model', {
             status: 'active',
         });
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+        expect(response.error_code).toBe('MODEL_NOT_FOUND');
     });
 
-    it('should not allow updating schema_name', async () => {
-        // Attempt to change schema name
+    it('should not allow updating model_name', async () => {
+        // Attempt to change model name
         const response = await tenant.httpClient.put('/api/describe/test_products', {
-            schema_name: 'renamed_products',
+            model_name: 'renamed_products',
             status: 'active',
         });
 
-        // Even if successful, schema_name should not change
+        // Even if successful, model_name should not change
         if (response.success) {
             const getResponse = await tenant.httpClient.get('/api/describe/test_products');
-            expectError(getResponse, 'Schema \'test_products\' not found');
+            expectError(getResponse, 'Model \'test_products\' not found');
         }
     });
 
-    it('should protect system schemas from updates', async () => {
-        const response = await tenant.httpClient.put('/api/describe/schemas', {
+    it('should protect system models from updates', async () => {
+        const response = await tenant.httpClient.put('/api/describe/models', {
             status: 'active',
         });
 

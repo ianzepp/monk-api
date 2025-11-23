@@ -4,16 +4,16 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
- * PUT /api/describe/:schema - Update schema metadata
+ * PUT /api/describe/:model - Update model metadata
  *
- * Updates schema properties like status, sudo, frozen.
- * Does not modify columns - use column endpoints for that.
+ * Updates model properties like status, sudo, frozen.
+ * Does not modify fields - use field endpoints for that.
  */
-export default withTransactionParams(async (context, { system, schema, body }) => {
-    const result = await system.describe.schemas.update404(
-        { where: { schema_name: schema } },
+export default withTransactionParams(async (context, { system, model, body }) => {
+    const result = await system.describe.models.update404(
+        { where: { model_name: model } },
         body,
-        `Schema '${schema}' not found`
+        `Model '${model}' not found`
     );
     // Strip system fields before returning
     setRouteResult(context, stripSystemFields(result));

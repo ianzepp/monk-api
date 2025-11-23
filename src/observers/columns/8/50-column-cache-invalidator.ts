@@ -1,58 +1,58 @@
 /**
- * Column Cache Invalidator - Ring 8 Integration
+ * Field Cache Invalidator - Ring 8 Integration
  *
- * Automatically invalidates SchemaCache when columns are modified.
- * Column changes affect the parent schema's cached metadata,
- * so we must both update the parent schema's timestamp and invalidate the cache.
+ * Automatically invalidates ModelCache when fields are modified.
+ * Field changes affect the parent model's cached metadata,
+ * so we must both update the parent model's timestamp and invalidate the cache.
  *
  * This observer runs AFTER database changes are committed (Ring 8), ensuring
  * that cache is only invalidated for successfully persisted changes.
  *
  * Ring: 8 (Integration) - After database changes are committed
- * Schema: columns
+ * Model: fields
  * Operations: create, update, delete
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
-import { SchemaCache } from '@src/lib/schema-cache.js';
+import { ModelCache } from '@src/lib/model-cache.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
-export default class ColumnCacheInvalidator extends BaseObserver {
+export default class FieldCacheInvalidator extends BaseObserver {
     readonly ring = ObserverRing.Integration;  // Ring 8
     readonly operations = ['create', 'update', 'delete'] as const;
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
-        const { schema_name, column_name } = record;
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+        const { model_name, field_name } = record;
 
-        if (!schema_name) {
-            console.warn('Cannot invalidate schema cache - no schema_name in column record', {
+        if (!model_name) {
+            console.warn('Cannot invalidate model cache - no model_name in field record', {
                 record,
                 operation: context.operation,
-                column_name
+                field_name
             });
             return;
         }
 
-        // Update parent schema's updated_at timestamp in database
-        // This ensures timestamp-based cache validation detects column changes
-        const query = `UPDATE schemas SET updated_at = now() WHERE schema_name = $1`;
-        await SqlUtils.getPool(context.system).query(query, [schema_name]);
+        // Update parent model's updated_at timestamp in database
+        // This ensures timestamp-based cache validation detects field changes
+        const query = `UPDATE models SET updated_at = now() WHERE model_name = $1`;
+        await SqlUtils.getPool(context.system).query(query, [model_name]);
 
-        // Invalidate the parent schema's in-memory cache
-        // Column changes affect the schema's cached metadata, so we must
-        // invalidate the schema cache to ensure fresh schema definitions are loaded
-        const schemaCache = SchemaCache.getInstance();
-        schemaCache.invalidateSchema(context.system, schema_name);
+        // Invalidate the parent model's in-memory cache
+        // Field changes affect the model's cached metadata, so we must
+        // invalidate the model cache to ensure fresh model definitions are loaded
+        const modelCache = ModelCache.getInstance();
+        modelCache.invalidateModel(context.system, model_name);
 
-        console.info('Schema cache invalidated by column change', {
+        console.info('Model cache invalidated by field change', {
             operation: context.operation,
-            schema_name,
-            column_name,
+            model_name,
+            field_name,
             ring: this.ring,
-            reason: 'column definition modified'
+            reason: 'field definition modified'
         });
     }
 }

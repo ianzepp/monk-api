@@ -2,20 +2,20 @@
  * Input Sanitization Observer
  *
  * Universal sanitizer that cleans input data for security
- * Ring: 0 (Validation) - Schema: all - Operations: create, update
+ * Ring: 0 (Validation) - Model: all - Operations: create, update
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
 export default class InputSanitizer extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation;
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
         return; // TODO Disabled
 
         // This is throwing an infinite recursion error..

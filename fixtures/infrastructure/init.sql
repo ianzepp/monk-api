@@ -16,12 +16,12 @@ CREATE TABLE IF NOT EXISTS "templates" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "name" VARCHAR(255) NOT NULL UNIQUE,              -- Template identifier (e.g., 'default', 'testing')
     "database" VARCHAR(255) NOT NULL UNIQUE,          -- Database name: monk_template_{name}
-    "version" INTEGER DEFAULT 1 NOT NULL,             -- Template schema version for migrations
+    "version" INTEGER DEFAULT 1 NOT NULL,             -- Template model version for migrations
     "description" TEXT,                               -- Human-readable description
     "parent_template" VARCHAR(255),                   -- Source template if derived
     "is_system" BOOLEAN DEFAULT false NOT NULL,       -- System template (cannot be deleted)
-    "schema_count" INTEGER DEFAULT 0,                 -- Number of schemas defined
-    "record_count" INTEGER DEFAULT 0,                 -- Total records across all schemas
+    "model_count" INTEGER DEFAULT 0,                 -- Number of models defined
+    "record_count" INTEGER DEFAULT 0,                 -- Total records across all models
     "size_bytes" BIGINT,                              -- Database size in bytes
     "created_by" uuid,                                -- User who created template (NULL for system)
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -37,14 +37,14 @@ CREATE INDEX "idx_templates_created_by" ON "templates" ("created_by");
 CREATE INDEX "idx_templates_version" ON "templates" ("version");
 
 COMMENT ON TABLE "templates" IS 'Immutable database templates for cloning tenants and sandboxes';
-COMMENT ON COLUMN "templates"."name" IS 'Template identifier used in API (e.g., default, testing, demo)';
-COMMENT ON COLUMN "templates"."database" IS 'PostgreSQL database name (format: monk_template_{name})';
-COMMENT ON COLUMN "templates"."version" IS 'Template schema version for tracking migrations and feature availability';
-COMMENT ON COLUMN "templates"."parent_template" IS 'Source template if this was derived from another';
-COMMENT ON COLUMN "templates"."is_system" IS 'System template flag (prevents deletion)';
-COMMENT ON COLUMN "templates"."schema_count" IS 'Number of schemas defined in template';
-COMMENT ON COLUMN "templates"."record_count" IS 'Total records across all schemas';
-COMMENT ON COLUMN "templates"."size_bytes" IS 'Database size in bytes for capacity planning';
+COMMENT ON FIELD "templates"."name" IS 'Template identifier used in API (e.g., default, testing, demo)';
+COMMENT ON FIELD "templates"."database" IS 'PostgreSQL database name (format: monk_template_{name})';
+COMMENT ON FIELD "templates"."version" IS 'Template model version for tracking migrations and feature availability';
+COMMENT ON FIELD "templates"."parent_template" IS 'Source template if this was derived from another';
+COMMENT ON FIELD "templates"."is_system" IS 'System template flag (prevents deletion)';
+COMMENT ON FIELD "templates"."model_count" IS 'Number of models defined in template';
+COMMENT ON FIELD "templates"."record_count" IS 'Total records across all models';
+COMMENT ON FIELD "templates"."size_bytes" IS 'Database size in bytes for capacity planning';
 
 -- ============================================================================
 -- TENANTS TABLE
@@ -83,13 +83,13 @@ CREATE INDEX "idx_tenants_trashed" ON "tenants" ("trashed_at") WHERE "trashed_at
 CREATE INDEX "idx_tenants_deleted" ON "tenants" ("deleted_at") WHERE "deleted_at" IS NOT NULL;
 
 COMMENT ON TABLE "tenants" IS 'Production tenant databases for users and organizations';
-COMMENT ON COLUMN "tenants"."name" IS 'Unique tenant identifier used in authentication';
-COMMENT ON COLUMN "tenants"."database" IS 'PostgreSQL database name (format: tenant_{hash} or tenant_{name})';
-COMMENT ON COLUMN "tenants"."template_version" IS 'Template schema version this tenant was created with';
-COMMENT ON COLUMN "tenants"."source_template" IS 'Template used to create this tenant';
-COMMENT ON COLUMN "tenants"."naming_mode" IS 'Database naming: enterprise (SHA256 hash) or personal (custom name)';
-COMMENT ON COLUMN "tenants"."owner_id" IS 'UUID of user who owns this tenant';
-COMMENT ON COLUMN "tenants"."is_active" IS 'Whether tenant is enabled for authentication';
+COMMENT ON FIELD "tenants"."name" IS 'Unique tenant identifier used in authentication';
+COMMENT ON FIELD "tenants"."database" IS 'PostgreSQL database name (format: tenant_{hash} or tenant_{name})';
+COMMENT ON FIELD "tenants"."template_version" IS 'Template model version this tenant was created with';
+COMMENT ON FIELD "tenants"."source_template" IS 'Template used to create this tenant';
+COMMENT ON FIELD "tenants"."naming_mode" IS 'Database naming: enterprise (SHA256 hash) or personal (custom name)';
+COMMENT ON FIELD "tenants"."owner_id" IS 'UUID of user who owns this tenant';
+COMMENT ON FIELD "tenants"."is_active" IS 'Whether tenant is enabled for authentication';
 
 -- ============================================================================
 -- SANDBOXES TABLE
@@ -118,13 +118,13 @@ CREATE INDEX "idx_sandboxes_expires" ON "sandboxes" ("expires_at") WHERE "expire
 CREATE INDEX "idx_sandboxes_active" ON "sandboxes" ("is_active");
 
 COMMENT ON TABLE "sandboxes" IS 'Temporary databases for testing and development';
-COMMENT ON COLUMN "sandboxes"."name" IS 'Sandbox identifier for authentication';
-COMMENT ON COLUMN "sandboxes"."database" IS 'PostgreSQL database name (format: sandbox_{random})';
-COMMENT ON COLUMN "sandboxes"."purpose" IS 'Why this sandbox exists (testing, development, etc.)';
-COMMENT ON COLUMN "sandboxes"."parent_tenant_id" IS 'Source tenant if cloned from production tenant';
-COMMENT ON COLUMN "sandboxes"."parent_template" IS 'Source template if created from template';
-COMMENT ON COLUMN "sandboxes"."expires_at" IS 'Auto-deletion time (TODO: implement cleanup job)';
-COMMENT ON COLUMN "sandboxes"."last_accessed_at" IS 'Last access time for usage tracking';
+COMMENT ON FIELD "sandboxes"."name" IS 'Sandbox identifier for authentication';
+COMMENT ON FIELD "sandboxes"."database" IS 'PostgreSQL database name (format: sandbox_{random})';
+COMMENT ON FIELD "sandboxes"."purpose" IS 'Why this sandbox exists (testing, development, etc.)';
+COMMENT ON FIELD "sandboxes"."parent_tenant_id" IS 'Source tenant if cloned from production tenant';
+COMMENT ON FIELD "sandboxes"."parent_template" IS 'Source template if created from template';
+COMMENT ON FIELD "sandboxes"."expires_at" IS 'Auto-deletion time (TODO: implement cleanup job)';
+COMMENT ON FIELD "sandboxes"."last_accessed_at" IS 'Last access time for usage tracking';
 
 -- ============================================================================
 -- SNAPSHOTS TABLE - MOVED TO TENANT DATABASES
@@ -158,9 +158,9 @@ CREATE INDEX "idx_requests_timestamp" ON "requests" ("timestamp");
 CREATE INDEX "idx_requests_api" ON "requests" ("api");
 
 COMMENT ON TABLE "requests" IS 'API request tracking for analytics, monitoring, and connection health verification';
-COMMENT ON COLUMN "requests"."api" IS 'Extracted API category from path (auth, data, describe, file, bulk, find, docs, root)';
-COMMENT ON COLUMN "requests"."ip_address" IS 'Client IP address from headers or connection';
-COMMENT ON COLUMN "requests"."user_agent" IS 'HTTP User-Agent header for client identification';
+COMMENT ON FIELD "requests"."api" IS 'Extracted API category from path (auth, data, describe, file, bulk, find, docs, root)';
+COMMENT ON FIELD "requests"."ip_address" IS 'Client IP address from headers or connection';
+COMMENT ON FIELD "requests"."user_agent" IS 'HTTP User-Agent header for client identification';
 
 -- ============================================================================
 -- TRIGGERS
@@ -168,7 +168,7 @@ COMMENT ON COLUMN "requests"."user_agent" IS 'HTTP User-Agent header for client 
 -- ============================================================================
 
 -- Function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE OR REPLACE FUNCTION update_updated_at_field()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
@@ -180,25 +180,25 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER "update_templates_updated_at"
     BEFORE UPDATE ON "templates"
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_updated_at_field();
 
 -- Apply to tenants table
 CREATE TRIGGER "update_tenants_updated_at"
     BEFORE UPDATE ON "tenants"
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_updated_at_field();
 
 -- Apply to sandboxes table
 CREATE TRIGGER "update_sandboxes_updated_at"
     BEFORE UPDATE ON "sandboxes"
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_updated_at_field();
 
 -- Apply to requests table
 CREATE TRIGGER "update_requests_updated_at"
     BEFORE UPDATE ON "requests"
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_updated_at_field();
 
 -- ============================================================================
 -- SUMMARY

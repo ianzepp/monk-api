@@ -1,27 +1,27 @@
 -- ============================================================================
--- DATA: Schema registrations
+-- DATA: Model registrations
 -- ============================================================================
--- Register all system schemas in the schemas table
--- This enables recursive schema discovery via the Data API
+-- Register all system models in the models table
+-- This enables recursive model discovery via the Data API
 
--- schemas table (self-reference for recursive discovery)
-INSERT INTO "schemas" (schema_name, status, sudo)
-VALUES ('schemas', 'system', true);
+-- models table (self-reference for recursive discovery)
+INSERT INTO "models" (model_name, status, sudo)
+VALUES ('models', 'system', true);
 
--- columns table (self-reference for recursive discovery)
-INSERT INTO "schemas" (schema_name, status, sudo)
-VALUES ('columns', 'system', true);
+-- fields table (self-reference for recursive discovery)
+INSERT INTO "models" (model_name, status, sudo)
+VALUES ('fields', 'system', true);
 
 -- users table
-INSERT INTO "schemas" (schema_name, status, sudo)
+INSERT INTO "models" (model_name, status, sudo)
 VALUES ('users', 'system', true);
 
 -- history table (change tracking / audit trail)
-INSERT INTO "schemas" (schema_name, status, sudo)
+INSERT INTO "models" (model_name, status, sudo)
 VALUES ('history', 'system', true);
 
 -- snapshots table (point-in-time database backups)
-INSERT INTO "schemas" (schema_name, status, sudo, description)
+INSERT INTO "models" (model_name, status, sudo, description)
 VALUES (
     'snapshots',
     'system',

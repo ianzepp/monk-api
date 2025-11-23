@@ -2,7 +2,7 @@
 set -e
 
 # History API Test
-# Tests change tracking for columns marked as tracked
+# Tests change tracking for fields marked as tracked
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
@@ -13,15 +13,15 @@ print_step "Testing History API - Change Tracking"
 setup_test_with_template "history-tracking"
 setup_root_auth
 
-# Step 1: Mark specific columns as tracked on the account schema
-print_step "Marking account columns as tracked"
+# Step 1: Mark specific fields as tracked on the account model
+print_step "Marking account fields as tracked"
 
-# Mark 'email' and 'name' columns as tracked
+# Mark 'email' and 'name' fields as tracked
 auth_put "api/describe/account/email" '{"tracked": true}'
-print_success "Marked 'email' column as tracked"
+print_success "Marked 'email' field as tracked"
 
 auth_put "api/describe/account/name" '{"tracked": true}'
-print_success "Marked 'name' column as tracked"
+print_success "Marked 'name' field as tracked"
 
 # Step 2: Create a test account (should be tracked)
 print_step "Creating test account"
@@ -157,7 +157,7 @@ else
 fi
 
 # Step 6: Test getting specific change by change_id
-print_step "Testing GET /api/history/:schema/:record/:change_id"
+print_step "Testing GET /api/history/:model/:record/:change_id"
 
 update_change_id=$(echo "$update_entry" | jq -r '.change_id')
 change_response=$(auth_get "api/history/account/$record_id/$update_change_id")

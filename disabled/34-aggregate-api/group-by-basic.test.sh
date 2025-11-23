@@ -21,7 +21,7 @@ for i in {1..5}; do
     auth_post "api/data/account" "[{\"name\": \"Business ${i}\", \"email\": \"business${i}@test.com\", \"username\": \"business${i}\", \"account_type\": \"business\", \"balance\": 0}]" > /dev/null
 done
 
-# Test 1: GROUP BY single column
+# Test 1: GROUP BY single field
 print_step "Test 1: GROUP BY account_type with COUNT"
 response=$(auth_post "api/aggregate/account" '{
     "aggregate": {
@@ -37,7 +37,7 @@ if (( data_length < 2 )); then
     test_fail "Expected at least 2 groups (personal, business), got: $data_length"
 fi
 
-print_success "GROUP BY single column works correctly: $data_length groups"
+print_success "GROUP BY single field works correctly: $data_length groups"
 
 # Test 2: Multiple aggregations with GROUP BY
 print_step "Test 2: Multiple aggregations with GROUP BY"

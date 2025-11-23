@@ -4,7 +4,7 @@
  * Validates that observer files follow naming conventions and that filename
  * metadata (ring, priority) matches the properties defined in the observer class.
  *
- * Format: observers/{schema}/{ring}/{priority}-{name}.ts
+ * Format: observers/{model}/{ring}/{priority}-{name}.ts
  *
  * Checks:
  * - Filename has correct format: {priority}-{name}.ts
@@ -122,15 +122,15 @@ export class ObserverValidator {
 
         const filenamePriority = parseInt(match[1], 10);
 
-        // Extract schema and ring from directory path
-        // Expected: observers/{schema}/{ring}/{priority}-{name}.ts
+        // Extract model and ring from directory path
+        // Expected: observers/{model}/{ring}/{priority}-{name}.ts
         const pathParts = relativePath.split(path.sep);
         if (pathParts.length < 3) {
-            warnings.push(`File ${relativePath} has unexpected path structure (expected: {schema}/{ring}/{priority}-{name}.ts)`);
+            warnings.push(`File ${relativePath} has unexpected path structure (expected: {model}/{ring}/{priority}-{name}.ts)`);
             return;
         }
 
-        const schemaDir = pathParts[pathParts.length - 3];
+        const modelDir = pathParts[pathParts.length - 3];
         const ringDir = pathParts[pathParts.length - 2];
         const ringNumber = parseInt(ringDir, 10);
 
@@ -144,12 +144,12 @@ export class ObserverValidator {
             return;
         }
 
-        // Validate schema directory (basic check - must be valid identifier or "all")
-        if (!schemaDir || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schemaDir)) {
+        // Validate model directory (basic check - must be valid identifier or "all")
+        if (!modelDir || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(modelDir)) {
             errors.push({
                 file: relativePath,
-                error: 'Schema directory must be a valid identifier (letters, digits, underscores) or "all"',
-                actual: schemaDir
+                error: 'Model directory must be a valid identifier (letters, digits, underscores) or "all"',
+                actual: modelDir
             });
             return;
         }

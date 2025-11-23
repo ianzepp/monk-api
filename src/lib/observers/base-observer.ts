@@ -7,7 +7,7 @@
 
 import type { Observer, ObserverContext } from '@src/lib/observers/interfaces.js';
 import type { ObserverRing, OperationType } from '@src/lib/observers/types.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 import {
     ValidationError,
     BusinessLogicError,
@@ -55,8 +55,8 @@ export abstract class BaseObserver implements Observer {
      */
     async executeTry(context: ObserverContext): Promise<void> {
         const observerName = this.constructor.name;
-        const { system, operation, schema } = context;
-        const schemaName = schema.schema_name;
+        const { system, operation, model } = context;
+        const modelName = model.model_name;
 
         try {
             // Execute with timeout protection
@@ -69,7 +69,7 @@ export abstract class BaseObserver implements Observer {
             console.info(`Observer: ${observerName}`, {
                 ring: this.ring,
                 operation,
-                schemaName,
+                modelName,
                 status: 'success',
                 length: context.data?.length || 0
             });
@@ -79,7 +79,7 @@ export abstract class BaseObserver implements Observer {
             console.info(`Observer: ${observerName}`, {
                 ring: this.ring,
                 operation,
-                schemaName,
+                modelName,
                 status: 'failed',
                 length: context.data?.length || 0,
                 error: error instanceof Error ? error.message : String(error)
@@ -125,7 +125,7 @@ export abstract class BaseObserver implements Observer {
      *
      * For complex observers that need cross-record logic, override execute() instead.
      */
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
         // Default implementation: no-op
         // Observers can implement this for simple per-record processing
     }
@@ -163,7 +163,7 @@ export abstract class BaseObserver implements Observer {
             console.warn('Observer system error', {
                 observerName,
                 operation: context.operation,
-                schemaName: context.schema?.schema_name ?? 'unknown',
+                modelName: context.model?.model_name ?? 'unknown',
                 error: error.message,
                 durationMs: duration
             });
@@ -180,7 +180,7 @@ export abstract class BaseObserver implements Observer {
             console.warn('Observer unknown error', {
                 observerName,
                 operation: context.operation,
-                schemaName: context.schema?.schema_name ?? 'unknown',
+                modelName: context.model?.model_name ?? 'unknown',
                 error: error.message,
                 durationMs: duration
             });
@@ -196,7 +196,7 @@ export abstract class BaseObserver implements Observer {
             console.warn('Observer unknown error (non-Error object)', {
                 observerName,
                 operation: context.operation,
-                schemaName: context.schema?.schema_name ?? 'unknown',
+                modelName: context.model?.model_name ?? 'unknown',
                 error: String(error),
                 durationMs: duration
             });

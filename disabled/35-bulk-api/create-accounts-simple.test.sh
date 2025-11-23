@@ -9,7 +9,7 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Bulk API simple account creation"
 
-# Setup test environment with template (includes account schema)
+# Setup test environment with template (includes account model)
 setup_test_with_template "create-accounts-simple"
 setup_full_auth
 
@@ -21,7 +21,7 @@ bulk_request='{
     "operations": [
         {
             "operation": "create-all",
-            "schema": "account",
+            "model": "account",
             "data": [
                 {
                     "name": "Bulk User 1",

@@ -67,7 +67,7 @@ main() {
     fi
 
     # Step 3: Copy non-TypeScript assets
-    # Note: src/describedata was removed - test fixture schemas are in spec/fixtures/schema/
+    # Note: src/describedata was removed - test fixture models are in spec/fixtures/model/
     log_info "Checking for additional assets to copy..."
 
     # Copy markdown documentation files

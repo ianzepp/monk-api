@@ -4,10 +4,10 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * DELETE /api/data/:schema/:record - Delete single record by ID
+ * DELETE /api/data/:model/:record - Delete single record by ID
  * @see docs/routes/DATA_API.md
  */
-export default withTransactionParams(async (context, { system, schema, record }) => {
+export default withTransactionParams(async (context, { system, model, record }) => {
     const isPermanent = context.req.query('permanent') === 'true';
 
     let result;
@@ -19,12 +19,12 @@ export default withTransactionParams(async (context, { system, schema, record })
             throw HttpErrors.forbidden('Insufficient permissions for permanent delete', 'ACCESS_DENIED');
         }
 
-        result = await system.database.updateOne(schema!, record!, { deleted_at: new Date().toISOString() });
+        result = await system.database.updateOne(model!, record!, { deleted_at: new Date().toISOString() });
     }
 
     // Normal soft delete: set trashed_at = NOW()
     else {
-        result = await system.database.delete404(schema!, { where: { id: record! } });
+        result = await system.database.delete404(model!, { where: { id: record! } });
     }
 
     setRouteResult(context, result);

@@ -1,6 +1,6 @@
 # GET /auth/templates
 
-List all available tenant templates (personal mode only). Templates are pre-configured database schemas that can be cloned when creating new tenants via the register endpoint.
+List all available tenant templates (personal mode only). Templates are pre-configured database models that can be cloned when creating new tenants via the register endpoint.
 
 **Security Note**: This endpoint is only available when the server is running in `TENANT_NAMING_MODE=personal`. In enterprise mode, it returns a 403 error.
 
@@ -16,12 +16,12 @@ None - GET request with no body.
   "data": [
     {
       "name": "system",
-      "description": "Default empty template with base schemas",
+      "description": "Default empty template with base models",
       "is_default": true
     },
     {
       "name": "saas-starter",
-      "description": "SaaS application with user management and billing schemas",
+      "description": "SaaS application with user management and billing models",
       "is_default": false
     },
     {
@@ -48,7 +48,7 @@ None - GET request with no body.
 ## Template System
 
 Templates allow administrators to provision new tenants with pre-configured:
-- Database schemas (users, products, orders, etc.)
+- Database models (users, products, orders, etc.)
 - Initial configuration data
 - Sample records for testing
 - Custom relationships and constraints

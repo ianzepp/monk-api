@@ -6,7 +6,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 /**
  * Find API Where Comparison Operators Tests
  *
- * Tests $gt, $gte, $lt, $lte comparison operators with POST /api/find/:schema.
+ * Tests $gt, $gte, $lt, $lte comparison operators with POST /api/find/:model.
  * Uses the testing template which provides accounts with varying balance values.
  */
 

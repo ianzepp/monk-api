@@ -1,14 +1,14 @@
 {
   "name": "system",
-  "description": "Base system template with core infrastructure schemas (schemas, columns, users, history)",
+  "description": "Base system template with core infrastructure models (models, fields, users, history)",
   "parent": null,
   "version": "1.0.0",
   "is_system": true,
-  "schemas": 4,
+  "models": 4,
   "features": [
     "core-infrastructure",
-    "schema-registry",
-    "column-metadata",
+    "model-registry",
+    "field-metadata",
     "user-management",
     "audit-trail"
   ]

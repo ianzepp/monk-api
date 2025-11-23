@@ -1,9 +1,9 @@
 -- ============================================================================
--- DATA: Register extract schemas and define columns
+-- DATA: Register extract models and define fields
 -- ============================================================================
 
--- Register extracts schema
-INSERT INTO "schemas" (schema_name, status, sudo, description)
+-- Register extracts model
+INSERT INTO "models" (model_name, status, sudo, description)
 VALUES (
     'extracts',
     'system',
@@ -11,8 +11,8 @@ VALUES (
     'Data extraction job configurations'
 );
 
--- Register extract_runs schema
-INSERT INTO "schemas" (schema_name, status, sudo, description)
+-- Register extract_runs model
+INSERT INTO "models" (model_name, status, sudo, description)
 VALUES (
     'extract_runs',
     'system',
@@ -20,8 +20,8 @@ VALUES (
     'Individual execution runs of extract jobs'
 );
 
--- Register extract_artifacts schema
-INSERT INTO "schemas" (schema_name, status, sudo, description)
+-- Register extract_artifacts model
+INSERT INTO "models" (model_name, status, sudo, description)
 VALUES (
     'extract_artifacts',
     'system',
@@ -30,17 +30,17 @@ VALUES (
 );
 
 -- ============================================================================
--- COLUMNS FOR: extracts
+-- FIELDS FOR: extracts
 -- ============================================================================
-INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
     ('extracts', 'name', 'text', true, 'Human-readable name for this extract'),
     ('extracts', 'description', 'text', false, 'Purpose and notes'),
     ('extracts', 'format', 'text', false, 'Output format: yaml, json, jsonl, archive'),
     ('extracts', 'include', 'text[]', false, 'What to include: describe, data, acls, files'),
-    ('extracts', 'schemas', 'text[]', false, 'Specific schemas to extract (null = all)'),
-    ('extracts', 'filter', 'jsonb', false, 'Optional filter to apply per schema'),
+    ('extracts', 'models', 'text[]', false, 'Specific models to extract (null = all)'),
+    ('extracts', 'filter', 'jsonb', false, 'Optional filter to apply per model'),
     ('extracts', 'compress', 'boolean', false, 'Gzip the output'),
-    ('extracts', 'split_files', 'boolean', false, 'Create separate file per schema'),
+    ('extracts', 'split_files', 'boolean', false, 'Create separate file per model'),
     ('extracts', 'schedule', 'text', false, 'Cron expression'),
     ('extracts', 'schedule_enabled', 'boolean', false, 'Enable scheduled execution'),
     ('extracts', 'retention_days', 'integer', false, 'How long to keep artifacts'),
@@ -53,9 +53,9 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('extracts', 'failed_runs', 'integer', false, 'Failed execution count');
 
 -- ============================================================================
--- COLUMNS FOR: extract_runs
+-- FIELDS FOR: extract_runs
 -- ============================================================================
-INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
     ('extract_runs', 'extract_id', 'uuid', true, 'Foreign key to extracts table'),
     ('extract_runs', 'extract_name', 'text', false, 'Denormalized for easier queries'),
     ('extract_runs', 'status', 'text', true, 'Execution status: pending, queued, running, completed, failed, cancelled'),
@@ -65,7 +65,7 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('extract_runs', 'completed_at', 'timestamp', false, 'When execution finished'),
     ('extract_runs', 'duration_seconds', 'integer', false, 'Execution time in seconds'),
     ('extract_runs', 'records_exported', 'integer', false, 'Total records exported'),
-    ('extract_runs', 'schemas_exported', 'integer', false, 'Number of schemas exported'),
+    ('extract_runs', 'models_exported', 'integer', false, 'Number of models exported'),
     ('extract_runs', 'artifacts_created', 'integer', false, 'Number of artifacts generated'),
     ('extract_runs', 'total_size_bytes', 'bigint', false, 'Total size of all artifacts'),
     ('extract_runs', 'error', 'text', false, 'Error message if failed'),
@@ -75,12 +75,12 @@ INSERT INTO "columns" (schema_name, column_name, type, required, description) VA
     ('extract_runs', 'config_snapshot', 'jsonb', false, 'Copy of extract config at execution time');
 
 -- ============================================================================
--- COLUMNS FOR: extract_artifacts
+-- FIELDS FOR: extract_artifacts
 -- ============================================================================
-INSERT INTO "columns" (schema_name, column_name, type, required, description) VALUES
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
     ('extract_artifacts', 'run_id', 'uuid', true, 'Foreign key to extract_runs table'),
     ('extract_artifacts', 'extract_id', 'uuid', true, 'Denormalized for cleanup queries'),
-    ('extract_artifacts', 'artifact_type', 'text', true, 'Type: describe, data-{schema}, manifest'),
+    ('extract_artifacts', 'artifact_type', 'text', true, 'Type: describe, data-{model}, manifest'),
     ('extract_artifacts', 'artifact_name', 'text', true, 'Filename'),
     ('extract_artifacts', 'storage_path', 'text', true, 'Local path or cloud key'),
     ('extract_artifacts', 'storage_backend', 'text', false, 'Storage backend: local, s3, gcs, azure'),

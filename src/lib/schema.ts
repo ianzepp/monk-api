@@ -1,20 +1,20 @@
 import type { FilterData } from '@src/lib/filter-types.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 
-export type SchemaName = string;
+export type ModelName = string;
 
 /**
- * Special schemas that are fundamental to the platform and cannot be modified
+ * Special models that are fundamental to the platform and cannot be modified
  */
-export const SYSTEM_SCHEMAS = new Set([
-    'schemas',
-    'columns',
+export const SYSTEM_MODELS = new Set([
+    'models',
+    'fields',
 ]);
 
 /**
- * Predefined columns that exist on every schema
+ * Predefined fields that exist on every model
  */
-export const SYSTEM_COLUMNS = new Set([
+export const SYSTEM_FIELDS = new Set([
      'id',
      'created_at',
      'updated_at',
@@ -28,7 +28,7 @@ export const SYSTEM_COLUMNS = new Set([
 
 /**
  * Merged validation configuration for a single field
- * Pre-calculated once per schema to avoid redundant loops during validation
+ * Pre-calculated once per model to avoid redundant loops during validation
  */
 export interface FieldValidationConfig {
     fieldName: string;
@@ -39,21 +39,21 @@ export interface FieldValidationConfig {
 }
 
 /**
- * Schema wrapper class providing database operation proxies and validation
- * Inspired by cloud-api-2019/src/classes/schema.ts
+ * Model wrapper class providing database operation proxies and validation
+ * Inspired by cloud-api-2019/src/classes/model.ts
  */
 
-export class Schema {
-    // Schema properties from database record
-    public schemaName: SchemaName;
+export class Model {
+    // Model properties from database record
+    public modelName: ModelName;
     public status: string;
 
-    // Schema flags
+    // Model flags
     public sudo?: boolean;
     public frozen?: boolean;
     public external?: boolean;
 
-    // Precalculated column metadata for performance
+    // Precalculated field metadata for performance
     public immutableFields: Set<string>;
     public sudoFields: Set<string>;
     public trackedFields: Set<string>;
@@ -69,16 +69,16 @@ export class Schema {
 
     constructor(
         private system: SystemContextWithInfrastructure,
-        schemaName: SchemaName,
-        schemaRecord: any
+        modelName: ModelName,
+        modelRecord: any
     ) {
-        this.schemaName = schemaName;
-        this.status = schemaRecord.status || 'active';
-        this.sudo = schemaRecord.sudo;
-        this.frozen = schemaRecord.frozen;
-        this.external = schemaRecord.external;
+        this.modelName = modelName;
+        this.status = modelRecord.status || 'active';
+        this.sudo = modelRecord.sudo;
+        this.frozen = modelRecord.frozen;
+        this.external = modelRecord.external;
 
-        // Precalculate immutable, sudo, tracked, required, type, range, enum, and transform fields from column metadata for O(1) lookups
+        // Precalculate immutable, sudo, tracked, required, type, range, enum, and transform fields from field metadata for O(1) lookups
         this.immutableFields = new Set<string>();
         this.sudoFields = new Set<string>();
         this.trackedFields = new Set<string>();
@@ -88,60 +88,60 @@ export class Schema {
         this.enumFields = new Map();
         this.transformFields = new Map();
 
-        if (schemaRecord._columns && Array.isArray(schemaRecord._columns)) {
-            for (const column of schemaRecord._columns) {
-                const fieldName = column.column_name;
+        if (modelRecord._fields && Array.isArray(modelRecord._fields)) {
+            for (const field of modelRecord._fields) {
+                const fieldName = field.field_name;
 
                 // Existing fields
-                if (column.immutable === true) {
+                if (field.immutable === true) {
                     this.immutableFields.add(fieldName);
                 }
-                if (column.sudo === true) {
+                if (field.sudo === true) {
                     this.sudoFields.add(fieldName);
                 }
-                if (column.tracked === true) {
+                if (field.tracked === true) {
                     this.trackedFields.add(fieldName);
                 }
 
                 // New validation fields
-                if (column.required === true) {
+                if (field.required === true) {
                     this.requiredFields.add(fieldName);
                 }
 
-                if (column.type) {
+                if (field.type) {
                     this.typedFields.set(fieldName, {
-                        type: column.type,
-                        is_array: column.is_array || false,
+                        type: field.type,
+                        is_array: field.is_array || false,
                     });
                 }
 
                 // Range/pattern constraints
-                if (column.minimum !== null || column.maximum !== null || column.pattern) {
+                if (field.minimum !== null || field.maximum !== null || field.pattern) {
                     const range: { minimum?: number; maximum?: number; pattern?: RegExp } = {};
-                    if (column.minimum !== null && column.minimum !== undefined) {
-                        range.minimum = Number(column.minimum);
+                    if (field.minimum !== null && field.minimum !== undefined) {
+                        range.minimum = Number(field.minimum);
                     }
-                    if (column.maximum !== null && column.maximum !== undefined) {
-                        range.maximum = Number(column.maximum);
+                    if (field.maximum !== null && field.maximum !== undefined) {
+                        range.maximum = Number(field.maximum);
                     }
-                    if (column.pattern) {
+                    if (field.pattern) {
                         try {
-                            range.pattern = new RegExp(column.pattern);
+                            range.pattern = new RegExp(field.pattern);
                         } catch (error) {
-                            console.warn(`Invalid regex pattern for ${fieldName}`, { pattern: column.pattern });
+                            console.warn(`Invalid regex pattern for ${fieldName}`, { pattern: field.pattern });
                         }
                     }
                     this.rangeFields.set(fieldName, range);
                 }
 
                 // Enum values
-                if (column.enum_values && Array.isArray(column.enum_values) && column.enum_values.length > 0) {
-                    this.enumFields.set(fieldName, column.enum_values);
+                if (field.enum_values && Array.isArray(field.enum_values) && field.enum_values.length > 0) {
+                    this.enumFields.set(fieldName, field.enum_values);
                 }
 
                 // Transforms
-                if (column.transform) {
-                    this.transformFields.set(fieldName, column.transform);
+                if (field.transform) {
+                    this.transformFields.set(fieldName, field.transform);
                 }
             }
         }
@@ -149,8 +149,8 @@ export class Schema {
         // Build merged validation field configs (optimized for single-loop validation)
         this.validationFields = this.buildValidationFields();
 
-        console.info('Schema initialized with metadata', {
-            schemaName: this.schemaName,
+        console.info('Model initialized with metadata', {
+            modelName: this.modelName,
             frozen: this.frozen,
             immutableFields: this.immutableFields.size,
             sudoFields: this.sudoFields.size,
@@ -183,7 +183,7 @@ export class Schema {
         // Build config for each field (excluding system fields)
         for (const fieldName of allFieldNames) {
             // Skip system fields
-            if (SYSTEM_COLUMNS.has(fieldName)) {
+            if (SYSTEM_FIELDS.has(fieldName)) {
                 continue;
             }
 
@@ -217,14 +217,14 @@ export class Schema {
     }
 
     /**
-     * Check if this schema is a protected system schema
+     * Check if this model is a protected system model
      */
-    isSystemSchema(): boolean {
+    isSystemModel(): boolean {
         return this.status === 'system';
     }
 
     /**
-     * Check if this schema is frozen (no data changes allowed)
+     * Check if this model is frozen (no data changes allowed)
      */
     isFrozen(): boolean {
         return this.frozen === true;
@@ -238,7 +238,7 @@ export class Schema {
     }
 
     /**
-     * Get all immutable fields for this schema
+     * Get all immutable fields for this model
      */
     getImmutableFields(): Set<string> {
         return this.immutableFields;
@@ -252,14 +252,14 @@ export class Schema {
     }
 
     /**
-     * Get all sudo-protected fields for this schema
+     * Get all sudo-protected fields for this model
      */
     getSudoFields(): Set<string> {
         return this.sudoFields;
     }
 
     /**
-     * Get all required fields for this schema
+     * Get all required fields for this model
      */
     getRequiredFields(): Set<string> {
         return this.requiredFields;
@@ -303,12 +303,12 @@ export class Schema {
     }
 
     /**
-     * Check if a column exists in this schema
-     * Returns true if the field is either a system column or has metadata
+     * Check if a field exists in this model
+     * Returns true if the field is either a system field or has metadata
      */
-    hasColumn(fieldName: string): boolean {
-        // System columns always exist
-        if (SYSTEM_COLUMNS.has(fieldName)) {
+    hasField(fieldName: string): boolean {
+        // System fields always exist
+        if (SYSTEM_FIELDS.has(fieldName)) {
             return true;
         }
 
@@ -323,8 +323,8 @@ export class Schema {
                this.transformFields.has(fieldName);
     }
 
-    get schema_name(): SchemaName {
-        return this.schemaName;
+    get model_name(): ModelName {
+        return this.modelName;
     }
 
     //
@@ -332,63 +332,63 @@ export class Schema {
     //
 
     async count(filterData?: FilterData): Promise<number> {
-        return this.system.database.count(this.schemaName, filterData);
+        return this.system.database.count(this.modelName, filterData);
     }
 
     async selectAny(filterData: FilterData = {}): Promise<any[]> {
-        return this.system.database.selectAny(this.schemaName, filterData);
+        return this.system.database.selectAny(this.modelName, filterData);
     }
 
     async selectOne(filterData: FilterData): Promise<any | null> {
-        return this.system.database.selectOne(this.schemaName, filterData);
+        return this.system.database.selectOne(this.modelName, filterData);
     }
 
     async select404(filterData: FilterData, message?: string): Promise<any> {
-        return this.system.database.select404(this.schemaName, filterData, message);
+        return this.system.database.select404(this.modelName, filterData, message);
     }
 
     // ID-based operations - always work with arrays
     async selectIds(ids: string[]): Promise<any[]> {
-        return this.system.database.selectIds(this.schemaName, ids);
+        return this.system.database.selectIds(this.modelName, ids);
     }
 
     async updateIds(ids: string[], changes: Record<string, any>): Promise<any[]> {
-        return this.system.database.updateIds(this.schemaName, ids, changes);
+        return this.system.database.updateIds(this.modelName, ids, changes);
     }
 
     async deleteIds(ids: string[]): Promise<any[]> {
-        return this.system.database.deleteIds(this.schemaName, ids);
+        return this.system.database.deleteIds(this.modelName, ids);
     }
 
     async selectMax(filter: FilterData = {}): Promise<any[]> {
         // Set limit to 'max' in filter and delegate
         filter.limit = 10000;
-        return this.system.database.selectAny(this.schemaName, filter);
+        return this.system.database.selectAny(this.modelName, filter);
     }
 
     // Transaction-based operations (require tx context)
     async createOne(record: Record<string, any>): Promise<any> {
-        return this.system.database.createOne(this.schemaName, record);
+        return this.system.database.createOne(this.modelName, record);
     }
 
     async createAll(collection: Record<string, any>[]): Promise<any[]> {
-        return this.system.database.createAll(this.schemaName, collection);
+        return this.system.database.createAll(this.modelName, collection);
     }
 
     async updateOne(recordId: string, updates: Record<string, any>): Promise<any> {
-        return this.system.database.updateOne(this.schemaName, recordId, updates);
+        return this.system.database.updateOne(this.modelName, recordId, updates);
     }
 
     async updateAll(updates: Array<{ id: string; data: Record<string, any> }>): Promise<any[]> {
-        return this.system.database.updateAll(this.schemaName, updates);
+        return this.system.database.updateAll(this.modelName, updates);
     }
 
     async deleteOne(recordId: string): Promise<any> {
-        return this.system.database.deleteOne(this.schemaName, recordId);
+        return this.system.database.deleteOne(this.modelName, recordId);
     }
 
     async deleteAll(recordIds: string[]): Promise<any[]> {
-        return this.system.database.deleteIds(this.schemaName, recordIds);
+        return this.system.database.deleteIds(this.modelName, recordIds);
     }
 
     // Upsert operations (simplified - create or update based on ID presence)
@@ -419,59 +419,59 @@ export class Schema {
 
     // Advanced filter-based operations
     async updateAny(filterData: FilterData, changes: Record<string, any>): Promise<any[]> {
-        return this.system.database.updateAny(this.schemaName, filterData, changes);
+        return this.system.database.updateAny(this.modelName, filterData, changes);
     }
 
     async deleteAny(filterData: FilterData): Promise<any[]> {
-        return this.system.database.deleteAny(this.schemaName, filterData);
+        return this.system.database.deleteAny(this.modelName, filterData);
     }
 
     // Access control operations - separate from regular data updates
     async accessOne(recordId: string, accessChanges: Record<string, any>): Promise<any> {
-        return this.system.database.accessOne(this.schemaName, recordId, accessChanges);
+        return this.system.database.accessOne(this.modelName, recordId, accessChanges);
     }
 
     async accessAll(updates: Array<{ id: string; access: Record<string, any> }>): Promise<any[]> {
-        return this.system.database.accessAll(this.schemaName, updates);
+        return this.system.database.accessAll(this.modelName, updates);
     }
 
     async accessAny(filter: FilterData, accessChanges: Record<string, any>): Promise<any[]> {
-        return this.system.database.accessAny(this.schemaName, filter, accessChanges);
+        return this.system.database.accessAny(this.modelName, filter, accessChanges);
     }
 
     // 404 operations - throw error if record not found
     async update404(filter: FilterData, changes: Record<string, any>, message?: string): Promise<any> {
-        return this.system.database.update404(this.schemaName, filter, changes, message);
+        return this.system.database.update404(this.modelName, filter, changes, message);
     }
 
     async delete404(filter: FilterData, message?: string): Promise<any> {
-        return this.system.database.delete404(this.schemaName, filter, message);
+        return this.system.database.delete404(this.modelName, filter, message);
     }
 
     async access404(filter: FilterData, accessChanges: Record<string, any>, message?: string): Promise<any> {
-        return this.system.database.access404(this.schemaName, filter, accessChanges, message);
+        return this.system.database.access404(this.modelName, filter, accessChanges, message);
     }
 
     // Utility methods
     toJSON() {
         return {
-            schema_name: this.schemaName,
+            model_name: this.modelName,
             status: this.status,
         };
     }
 }
 
 /**
- * Factory function to create Schema instances
+ * Factory function to create Model instances
  */
-export async function createSchema(system: SystemContextWithInfrastructure, schemaName: string): Promise<Schema> {
-    const schemaInfo = await system.database.toSchema(schemaName);
+export async function createModel(system: SystemContextWithInfrastructure, modelName: string): Promise<Model> {
+    const modelInfo = await system.database.toModel(modelName);
 
-    if (!schemaInfo) {
-        throw new Error(`Schema '${schemaName}' not found`);
+    if (!modelInfo) {
+        throw new Error(`Model '${modelName}' not found`);
     }
 
-    return new Schema(system, schemaName, {
+    return new Model(system, modelName, {
         status: 'active', // Assume active for legacy calls
     });
 }

@@ -60,7 +60,7 @@ Authorization: Bearer <sudo_token>
 **Immutable database prototypes** used to quickly create tenants and sandboxes.
 
 - **Location**: `monk_template_*` databases
-- **Purpose**: Pre-configured schemas and data for fast tenant provisioning
+- **Purpose**: Pre-configured models and data for fast tenant provisioning
 - **Default**: `system` template (minimal system tables)
 - **Examples**: `testing` (with test data), `demo` (with sample data)
 
@@ -108,7 +108,7 @@ Authorization: Bearer <sudo_token>
       "database": "monk_template_system",
       "description": "Minimal system template",
       "is_system": true,
-      "schema_count": 3,
+      "model_count": 3,
       "record_count": 1,
       "created_at": "2025-11-13T12:00:00.000Z"
     },
@@ -119,7 +119,7 @@ Authorization: Bearer <sudo_token>
       "description": "Test fixture with sample data",
       "parent_template": "default",
       "is_system": false,
-      "schema_count": 5,
+      "model_count": 5,
       "record_count": 10,
       "created_at": "2025-11-13T12:05:00.000Z"
     }
@@ -150,7 +150,7 @@ Authorization: Bearer <sudo_token>
     "description": "Test fixture with sample data",
     "parent_template": "default",
     "is_system": false,
-    "schema_count": 5,
+    "model_count": 5,
     "record_count": 10,
     "size_bytes": 2048000,
     "created_at": "2025-11-13T12:05:00.000Z"
@@ -341,7 +341,7 @@ Authorization: Bearer <sudo_token>
       "id": "990e8400-e29b-41d4-a716-446655440000",
       "name": "pre-v3-migration",
       "database": "snapshot_acme_abc123",
-      "description": "Backup before v3 schema changes",
+      "description": "Backup before v3 model changes",
       "status": "active",
       "snapshot_type": "pre_migration",
       "size_bytes": 5242880,
@@ -731,7 +731,7 @@ SNAPSHOT=$(curl -X POST http://localhost:9001/api/sudo/snapshots \
   -H "Content-Type: application/json" \
   -d '{
     "name": "pre-v4-migration",
-    "description": "Before v4 schema migration",
+    "description": "Before v4 model migration",
     "snapshot_type": "pre_migration"
   }')
 
@@ -861,7 +861,7 @@ Sandboxes belong to the **parent tenant**, not individual users:
 - **Extend conservatively**: Only extend if actively using
 
 ### Snapshot Strategy
-- **Pre-migration**: Always snapshot before schema changes
+- **Pre-migration**: Always snapshot before model changes
 - **Scheduled**: Consider daily/weekly snapshots for critical tenants
 - **Retention**: Delete old snapshots to save disk space
 - **Polling**: Check status every 5-10 seconds (snapshots can take minutes)

@@ -1,10 +1,10 @@
-# PUT /api/data/:schema/:record
+# PUT /api/data/:model/:record
 
-Update a single record by UUID, applying either a full replacement or partial patch depending on the HTTP method. The operation enforces schema validation, applies the observer pipeline, and returns the updated record so clients can refresh their UI state without issuing a follow-up GET request.
+Update a single record by UUID, applying either a full replacement or partial patch depending on the HTTP method. The operation enforces model validation, applies the observer pipeline, and returns the updated record so clients can refresh their UI state without issuing a follow-up GET request.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 - `:record` - Record UUID (required)
 
 ## Query Parameters
@@ -56,8 +56,8 @@ Each updated record includes:
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 403 | `SCHEMA_FROZEN` | "Schema is frozen" | Attempting to write to frozen schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 403 | `MODEL_FROZEN` | "Model is frozen" | Attempting to write to frozen model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Record ID does not exist |
 | 422 | Validation errors | Various | Observer validation failures |
 
@@ -220,14 +220,14 @@ Most system fields are **protected** and cannot be updated:
 
 ✅ **Can update:**
 - `updated_at` - Automatically set to current timestamp
-- All user-defined fields (subject to schema validation and protection)
+- All user-defined fields (subject to model validation and protection)
 
 ## Observer Pipeline
 
 Updated records pass through the full observer pipeline:
 
 ### Pre-Update Observers
-- **Validation** - Schema validation, required fields, data types
+- **Validation** - Model validation, required fields, data types
 - **Security** - Check permissions, verify ACLs
 - **Business Logic** - Custom validation rules
 - **Immutability Check** - Prevent changes to immutable fields
@@ -239,20 +239,20 @@ Updated records pass through the full observer pipeline:
 
 If any observer throws an error, the transaction rolls back and no changes are persisted.
 
-## Schema Protection
+## Model Protection
 
-### Frozen Schemas
+### Frozen Models
 
-Schemas with `frozen=true` reject all update operations:
+Models with `frozen=true` reject all update operations:
 
 ```bash
 PUT /api/data/audit_log/record-123
-# Error 403: SCHEMA_FROZEN
+# Error 403: MODEL_FROZEN
 ```
 
-### Sudo-Protected Schemas
+### Sudo-Protected Models
 
-Schemas with `sudo=true` require a sudo token:
+Models with `sudo=true` require a sudo token:
 
 ```bash
 # Get sudo token first
@@ -264,14 +264,14 @@ PUT /api/data/financial_accounts/acc-123
 Authorization: Bearer SUDO_TOKEN
 ```
 
-### Immutable Schemas and Fields
+### Immutable Models and Fields
 
-**Schema-level immutability** (`schemas.immutable=true`):
+**Model-level immutability** (`models.immutable=true`):
 - Entire records cannot be modified after creation
 - All update operations will fail
 - Use for audit logs, blockchain-style records
 
-**Field-level immutability** (`columns.immutable=true`):
+**Field-level immutability** (`fields.immutable=true`):
 - Specific fields cannot be changed after creation
 - Other fields in the record can still be updated
 - Use for transaction IDs, immutable identifiers
@@ -282,7 +282,7 @@ PUT /api/data/transactions/tx-123
 
 # Error: Cannot modify immutable fields: transaction_id
 
-# But if schema.immutable=false, other fields can be updated:
+# But if model.immutable=false, other fields can be updated:
 PUT /api/data/transactions/tx-123
 {"amount": 1500}  # OK: amount is not immutable
 ```
@@ -406,6 +406,6 @@ async function restoreUser(userId) {
 
 ## Related Endpoints
 
-- [`GET /api/data/:schema/:record`](GET.md) - Retrieve single record
-- [`DELETE /api/data/:schema/:record`](DELETE.md) - Delete single record
-- [`PUT /api/data/:schema`](../:schema/PUT.md) - Bulk update records
+- [`GET /api/data/:model/:record`](GET.md) - Retrieve single record
+- [`DELETE /api/data/:model/:record`](DELETE.md) - Delete single record
+- [`PUT /api/data/:model`](../:model/PUT.md) - Bulk update records

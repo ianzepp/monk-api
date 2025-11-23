@@ -4,31 +4,31 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * GET /api/data/:schema/:record - Retrieve Single Record
+ * GET /api/data/:model/:record - Retrieve Single Record
  *
  * Tests record retrieval by UUID including system fields and error handling.
  */
 
-describe('GET /api/data/:schema/:record - Retrieve Single Record', () => {
+describe('GET /api/data/:model/:record - Retrieve Single Record', () => {
     let tenant: TestTenant;
     let recordId: string;
 
     beforeAll(async () => {
         tenant = await TestHelpers.createTestTenant('data-get');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/customers', {});
-        await tenant.httpClient.post('/api/describe/customers/columns/name', {
-            column_name: 'name',
+        await tenant.httpClient.post('/api/describe/customers/fields/name', {
+            field_name: 'name',
             type: 'text',
             required: true,
         });
-        await tenant.httpClient.post('/api/describe/customers/columns/email', {
-            column_name: 'email',
+        await tenant.httpClient.post('/api/describe/customers/fields/email', {
+            field_name: 'email',
             type: 'text',
         });
-        await tenant.httpClient.post('/api/describe/customers/columns/active', {
-            column_name: 'active',
+        await tenant.httpClient.post('/api/describe/customers/fields/active', {
+            field_name: 'active',
             type: 'boolean',
         });
 
@@ -88,30 +88,30 @@ describe('GET /api/data/:schema/:record - Retrieve Single Record', () => {
         expect(response.error_code).toBeDefined();
     });
 
-    it('should return error for non-existent schema', async () => {
-        const response = await tenant.httpClient.get(`/api/data/nonexistent_schema/${recordId}`);
+    it('should return error for non-existent model', async () => {
+        const response = await tenant.httpClient.get(`/api/data/nonexistent_model/${recordId}`);
 
         expect(response.success).toBe(false);
         expect(response.error_code).toBe('INTERNAL_ERROR');
     });
 
     it('should retrieve record with all data types', async () => {
-        // Create schema with multiple types
+        // Create model with multiple types
         await tenant.httpClient.post('/api/describe/products', {});
-        await tenant.httpClient.post('/api/describe/products/columns/name', {
-            column_name: 'name',
+        await tenant.httpClient.post('/api/describe/products/fields/name', {
+            field_name: 'name',
             type: 'text',
         });
-        await tenant.httpClient.post('/api/describe/products/columns/price', {
-            column_name: 'price',
+        await tenant.httpClient.post('/api/describe/products/fields/price', {
+            field_name: 'price',
             type: 'decimal',
         });
-        await tenant.httpClient.post('/api/describe/products/columns/quantity', {
-            column_name: 'quantity',
+        await tenant.httpClient.post('/api/describe/products/fields/quantity', {
+            field_name: 'quantity',
             type: 'integer',
         });
-        await tenant.httpClient.post('/api/describe/products/columns/available', {
-            column_name: 'available',
+        await tenant.httpClient.post('/api/describe/products/fields/available', {
+            field_name: 'available',
             type: 'boolean',
         });
 

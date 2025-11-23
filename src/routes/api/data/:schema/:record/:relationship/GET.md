@@ -1,12 +1,12 @@
-# GET /api/data/:schema/:record/:relationship
+# GET /api/data/:model/:record/:relationship
 
 List all child records tied to a parent through a defined relationship. This endpoint automatically filters child records by the parent's foreign key, enforces ACL inheritance, and supports the same trashed/deleted flags as top-level queries.
 
 ## Path Parameters
 
-- `:schema` - Parent schema name (required)
+- `:model` - Parent model name (required)
 - `:record` - Parent record UUID (required)
-- `:relationship` - Relationship name defined in child schema (required)
+- `:relationship` - Relationship name defined in child model (required)
 
 ## Query Parameters
 
@@ -59,13 +59,13 @@ None - GET request with no body.
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid parent schema name |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid parent model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Parent record ID does not exist |
-| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for schema '{schema}'" | Invalid relationship name or not an owned relationship |
+| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for model '{model}'" | Invalid relationship name or not an owned relationship |
 
 ## Relationship Requirements
 
-This endpoint only works with **owned relationships** defined in the child schema. The relationship must be configured using the `x-monk-relationship` extension:
+This endpoint only works with **owned relationships** defined in the child model. The relationship must be configured using the `x-monk-relationship` extension:
 
 ```json
 {
@@ -77,7 +77,7 @@ This endpoint only works with **owned relationships** defined in the child schem
       "type": "string",
       "x-monk-relationship": {
         "type": "owned",
-        "schema": "posts",
+        "model": "posts",
         "name": "comments"
       }
     }
@@ -305,17 +305,17 @@ Child records inherit access control from their parent:
 - If user lacks parent access, endpoint returns 404 (does not reveal parent existence)
 - Root users bypass all ACL checks
 
-## Schema Protection
+## Model Protection
 
-This endpoint respects schema-level protection on the **child schema**:
+This endpoint respects model-level protection on the **child model**:
 
-- **Frozen child schemas**: Read operations are **allowed**
-- **Sudo-protected child schemas**: No special requirements for read operations
-- **Immutable child schemas/fields**: No restrictions on read operations
+- **Frozen child models**: Read operations are **allowed**
+- **Sudo-protected child models**: No special requirements for read operations
+- **Immutable child models/fields**: No restrictions on read operations
 
 ## Related Endpoints
 
-- [`POST /api/data/:schema/:record/:relationship`](POST.md) - Create child record
-- [`DELETE /api/data/:schema/:record/:relationship`](DELETE.md) - Delete all child records
-- [`GET /api/data/:schema/:record/:relationship/:child`](:child/GET.md) - Get specific child record
-- [`GET /api/data/:schema/:record`](../GET.md) - Get parent record
+- [`POST /api/data/:model/:record/:relationship`](POST.md) - Create child record
+- [`DELETE /api/data/:model/:record/:relationship`](DELETE.md) - Delete all child records
+- [`GET /api/data/:model/:record/:relationship/:child`](:child/GET.md) - Get specific child record
+- [`GET /api/data/:model/:record`](../GET.md) - Get parent record

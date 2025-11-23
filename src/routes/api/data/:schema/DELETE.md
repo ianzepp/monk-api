@@ -1,10 +1,10 @@
-# DELETE /api/data/:schema
+# DELETE /api/data/:model
 
 Remove many records at once—either by moving them to the trash (default) or, for root users, permanently erasing them with `permanent=true`. The operation accepts a list of IDs, making it ideal for scheduled cleanups or administrator-driven maintenance tasks.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 
 ## Query Parameters
 
@@ -82,8 +82,8 @@ Sets both `trashed_at` and `deleted_at` to current timestamp:
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 | 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
-| 403 | `SCHEMA_FROZEN` | "Schema is frozen" | Attempting to delete from frozen schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 403 | `MODEL_FROZEN` | "Model is frozen" | Attempting to delete from frozen model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | One or more IDs don't exist |
 
 ## Transaction Behavior
@@ -216,7 +216,7 @@ PATCH /api/data/users?include_trashed=true \
   ]'
 ```
 
-See [`PUT /api/data/:schema`](PUT.md#smart-routing-revert-operation) for details.
+See [`PUT /api/data/:model`](PUT.md#smart-routing-revert-operation) for details.
 
 ## Observer Pipeline
 
@@ -234,20 +234,20 @@ Deleted records pass through the observer pipeline:
 
 If any observer throws an error, the transaction rolls back and no records are deleted.
 
-## Schema Protection
+## Model Protection
 
-### Frozen Schemas
+### Frozen Models
 
-Schemas with `frozen=true` reject all delete operations:
+Models with `frozen=true` reject all delete operations:
 
 ```bash
 DELETE /api/data/audit_log
-# Error 403: SCHEMA_FROZEN
+# Error 403: MODEL_FROZEN
 ```
 
-### Sudo-Protected Schemas
+### Sudo-Protected Models
 
-Schemas with `sudo=true` require a sudo token:
+Models with `sudo=true` require a sudo token:
 
 ```bash
 # Get sudo token first
@@ -392,7 +392,7 @@ async function cleanupOldTrash() {
 
 ## Related Endpoints
 
-- [`GET /api/data/:schema`](GET.md) - Query all records (with include_trashed)
-- [`POST /api/data/:schema`](POST.md) - Bulk create records
-- [`PUT /api/data/:schema`](PUT.md) - Bulk update records (includes revert operation)
-- [`DELETE /api/data/:schema/:id`](../:schema/:record/DELETE.md) - Delete single record
+- [`GET /api/data/:model`](GET.md) - Query all records (with include_trashed)
+- [`POST /api/data/:model`](POST.md) - Bulk create records
+- [`PUT /api/data/:model`](PUT.md) - Bulk update records (includes revert operation)
+- [`DELETE /api/data/:model/:id`](../:model/:record/DELETE.md) - Delete single record

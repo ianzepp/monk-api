@@ -7,7 +7,7 @@
 ## Critical / Smoke Tests
 
 ### Existing Tests (1)
-- GET /api/history/:schema/:record - Retrieve change history for record (history-tracking.test.sh)
+- GET /api/history/:model/:record - Retrieve change history for record (history-tracking.test.sh)
 
 ## Additional Tests
 
@@ -18,7 +18,7 @@
 - Response structure validation
 
 ### Missing Tests (2)
-- GET /api/history/:schema/:record/:change - Individual change details and diff viewing
+- GET /api/history/:model/:record/:change - Individual change details and diff viewing
 - History pagination and filtering (date ranges, change types, user filters)
 
 ### Missing Coverage

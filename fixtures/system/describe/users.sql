@@ -1,5 +1,5 @@
 -- ============================================================================
--- SCHEMA: users
+-- MODEL: users
 -- ============================================================================
 -- Users table to store tenant users and their access levels (1-db-per-tenant)
 

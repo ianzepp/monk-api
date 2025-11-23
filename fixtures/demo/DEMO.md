@@ -6,39 +6,39 @@ Comprehensive demonstration template designed to support development and testing
 
 ## Design Goals
 
-1. **Tooling Development Support**: Realistic schemas for testing CLI, FTP, and other tooling workflows
+1. **Tooling Development Support**: Realistic models for testing CLI, FTP, and other tooling workflows
 2. **Hierarchical Navigation**: Deep parent-child relationships for filesystem-like operations
 3. **Search & Filter Testing**: Array fields, JSON metadata, full-text search scenarios
 4. **LLM Memory Integration**: Conversation history and documentation storage with searchable context
 5. **Data Variety**: Multiple data types, nullable fields, edge cases, large text content
 
-## Schema Overview
+## Model Overview
 
-**12 schemas with ~300-500 total records**
+**12 models with ~300-500 total records**
 
-### Organization & Teams (3 schemas)
+### Organization & Teams (3 models)
 - **workspaces** (6 records) - Top-level organizations
 - **teams** (10 records) - Development teams within workspaces
 - **members** (40 records) - Team members
 
-### Development Management (4 schemas)
+### Development Management (4 models)
 - **repositories** (15 records) - Code repositories (GitHub/GitLab style)
 - **issues** (50 records) - Issue tracking
 - **issue_comments** (80 records) - Comments on issues
 - **releases** (25 records) - Software releases and versioning
 
-### Project & Task Management (2 schemas)
+### Project & Task Management (2 models)
 - **projects** (12 records) - Projects and initiatives
 - **tasks** (70 records) - Tasks and todos
 
-### LLM Memory & Knowledge (3 schemas)
+### LLM Memory & Knowledge (3 models)
 - **conversations** (25 records) - Searchable conversation history
 - **messages** (150 records) - Individual chat messages
 - **docs** (35 records) - Large text documentation with full-text search
 
 ---
 
-## Detailed Schema Specifications
+## Detailed Model Specifications
 
 ### 1. workspaces
 **Purpose**: Top-level organizational containers
@@ -359,15 +359,15 @@ workspaces (6)
 
 ### CLI Testing (monk-cli)
 ✅ **Filesystem Navigation**: `monk fs ls /data/workspaces/acme-corp/repositories/`
-✅ **CRUD Operations**: Create/read/update/delete across all schemas
+✅ **CRUD Operations**: Create/read/update/delete across all models
 ✅ **Find/Filter**: Complex queries with arrays, JSON, dates
-✅ **Bulk Operations**: Batch updates across schemas
+✅ **Bulk Operations**: Batch updates across models
 ✅ **Pagination**: Large message lists, issue comments
 
 ### FTP Testing (monk-ftp)
 ✅ **Directory Structure**: Hierarchical navigation via parent-child relationships
 ✅ **File-like Operations**: Read/write/delete operations
-✅ **Large Files**: `docs` schema with large text content
+✅ **Large Files**: `docs` model with large text content
 
 ### Search/Filter API Testing
 ✅ **Array Filtering**: Find by tags, labels, participants
@@ -379,9 +379,9 @@ workspaces (6)
 ### LLM Integration Testing
 ✅ **Conversation Storage**: Store and retrieve chat history
 ✅ **Context Search**: Find relevant conversations by tags/content
-✅ **Knowledge Retrieval**: RAG patterns with docs schema
+✅ **Knowledge Retrieval**: RAG patterns with docs model
 ✅ **Memory Management**: LRU via accessed_at, confidence scoring
-✅ **Cross-schema Context**: Link tasks, issues, docs to conversations
+✅ **Cross-model Context**: Link tasks, issues, docs to conversations
 
 ---
 
@@ -404,7 +404,7 @@ npm run test:sh spec/demo/
 
 ## Comparison with Other Templates
 
-| Template | Schemas | Records | Use Case |
+| Template | Models | Records | Use Case |
 |----------|---------|---------|----------|
 | `empty` | 0 | 0 | Production tenants |
 | `testing` | 2 | ~10 | Unit tests (locked) |
@@ -414,11 +414,11 @@ npm run test:sh spec/demo/
 
 ## Notes
 
-- **Iterative Development**: Schema designs may evolve as Describe API changes are tested
+- **Iterative Development**: Model designs may evolve as Describe API changes are tested
 - **Realistic Data**: Uses realistic names, timestamps, and content
 - **Searchable by Default**: All text fields support full-text search
 - **LLM-Ready**: Designed to support AI/LLM memory and context retrieval patterns
-- **Developer-Focused**: Schemas familiar to software development teams
+- **Developer-Focused**: Models familiar to software development teams
 
 ---
 

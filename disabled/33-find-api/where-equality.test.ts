@@ -6,7 +6,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 /**
  * Find API Where Equality Operators Tests
  *
- * Tests $eq, $ne, and $neq equality operators with POST /api/find/:schema.
+ * Tests $eq, $ne, and $neq equality operators with POST /api/find/:model.
  * Uses the testing template which provides 5 account records.
  */
 

@@ -2,29 +2,29 @@
  * Soft Delete Protector Observer
  *
  * Prevents operations on records that have been soft deleted (trashed_at is not null).
- * Uses SchemaRecord.old() to check trashed status from original data loaded by RecordPreloader.
+ * Uses ModelRecord.old() to check trashed status from original data loaded by RecordPreloader.
  *
  * This enforces the three-tier soft delete access pattern:
  * - List operations: Hide trashed records (handled by query filters)
- * - Direct access: Allow ID retrieval of trashed records (GET /api/data/:schema/:id)
+ * - Direct access: Allow ID retrieval of trashed records (GET /api/data/:model/:id)
  * - Update operations: Block modifications until restoration (this observer)
  *
- * Ring: 2 (Security) - Schema: all - Operations: update, delete
+ * Ring: 2 (Security) - Model: all - Operations: update, delete
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { SecurityError } from '@src/lib/observers/errors.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 
 export default class SoftDeleteProtector extends BaseObserver {
     readonly ring = ObserverRing.Security;
     readonly operations = ['update', 'delete'] as const;
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
         const { operation } = context;
-        const schemaName = context.schema.schema_name;
+        const modelName = context.model.model_name;
         const recordId = record.get('id');
 
         // Check if record exists (has original data from RecordPreloader)
@@ -37,7 +37,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         const trashedAt = record.old('trashed_at');
         if (trashedAt !== null && trashedAt !== undefined) {
             console.warn(`Blocked ${operation} on trashed record`, {
-                schemaName,
+                modelName,
                 operation,
                 recordId,
                 trashedAt
@@ -54,7 +54,7 @@ export default class SoftDeleteProtector extends BaseObserver {
         const deletedAt = record.old('deleted_at');
         if (deletedAt !== null && deletedAt !== undefined) {
             console.warn(`Blocked ${operation} on deleted record`, {
-                schemaName,
+                modelName,
                 operation,
                 recordId,
                 deletedAt

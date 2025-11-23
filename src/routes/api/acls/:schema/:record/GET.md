@@ -1,4 +1,4 @@
-# GET /api/acls/:schema/:record
+# GET /api/acls/:model/:record
 
 **Documentation stub - to be completed**
 

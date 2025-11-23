@@ -4,16 +4,16 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
- * DELETE /api/describe/:schema/columns/:column
+ * DELETE /api/describe/:model/fields/:field
  *
- * Delete a column from the schema
+ * Delete a field from the model
  *
  * @returns Deletion confirmation
  */
-export default withTransactionParams(async (context, { system, schema, column }) => {
-    const result = await system.describe.columns.delete404(
-        { where: { schema_name: schema, column_name: column } },
-        `Column '${column}' not found in schema '${schema}'`
+export default withTransactionParams(async (context, { system, model, field }) => {
+    const result = await system.describe.fields.delete404(
+        { where: { model_name: model, field_name: field } },
+        `Field '${field}' not found in model '${model}'`
     );
 
     // Strip system fields before returning

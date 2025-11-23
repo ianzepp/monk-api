@@ -1,12 +1,12 @@
 /**
- * Freeze Validator - Schema-Level Data Protection Observer
+ * Freeze Validator - Model-Level Data Protection Observer
  *
- * Prevents all data operations (create, update, delete) on schemas marked with frozen=true.
- * This provides emergency "circuit breaker" functionality to temporarily lock down schemas
+ * Prevents all data operations (create, update, delete) on models marked with frozen=true.
+ * This provides emergency "circuit breaker" functionality to temporarily lock down models
  * during incidents or maintenance windows.
  *
  * Performance:
- * - Zero database queries: uses Schema.isFrozen() which reads from cached schema metadata
+ * - Zero database queries: uses Model.isFrozen() which reads from cached model metadata
  * - O(1) check: single boolean flag check per operation
  *
  * Use cases:
@@ -29,27 +29,27 @@ export default class FrozenValidator extends BaseObserver {
     readonly priority = 10;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, operation, data } = context;
+        const { model, operation, data } = context;
 
-        // Use cached schema metadata - zero DB queries
-        if (schema.isFrozen()) {
-            const schemaName = schema.schema_name;
+        // Use cached model metadata - zero DB queries
+        if (model.isFrozen()) {
+            const modelName = model.model_name;
 
-            console.warn(`Blocked ${operation} on frozen schema`, {
-                schemaName,
+            console.warn(`Blocked ${operation} on frozen model`, {
+                modelName,
                 operation,
                 recordCount: data?.length || 0,
                 frozen: true
             });
 
             throw new SecurityError(
-                `Schema '${schemaName}' is frozen. All data operations are temporarily disabled. ` +
-                `Contact your administrator to unfreeze this schema.`,
+                `Model '${modelName}' is frozen. All data operations are temporarily disabled. ` +
+                `Contact your administrator to unfreeze this model.`,
                 undefined, // No specific field
-                'SCHEMA_FROZEN'
+                'MODEL_FROZEN'
             );
         }
 
-        // Schema not frozen - allow operation to continue
+        // Model not frozen - allow operation to continue
     }
 }

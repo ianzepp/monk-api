@@ -2,7 +2,7 @@
 
 > **Self-Service User Profile Management**
 >
-> The User API provides controlled self-service operations on the sudo-protected users table, allowing authenticated users to manage their own profiles without requiring sudo tokens. This API demonstrates the `withSelfServiceSudo()` pattern for bypassing schema-level sudo protection with business logic constraints.
+> The User API provides controlled self-service operations on the sudo-protected users table, allowing authenticated users to manage their own profiles without requiring sudo tokens. This API demonstrates the `withSelfServiceSudo()` pattern for bypassing model-level sudo protection with business logic constraints.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ PUT /api/data/users/550e8400-e29b-41d4-a716-446655440000
 Authorization: Bearer <regular_jwt>
 {"name": "Updated Name"}
 
-# ❌ Error: Schema 'users' requires sudo access
+# ❌ Error: Model 'users' requires sudo access
 ```
 
 ### The Solution
@@ -136,7 +136,7 @@ export async function withSelfServiceSudo<T>(
 
    // Check BOTH is_sudo (JWT) and as_sudo (self-service)
    if (!jwtPayload?.is_sudo && !asSudo) {
-       throw new SystemError('Schema requires sudo access');
+       throw new SystemError('Model requires sudo access');
    }
    ```
 
@@ -222,14 +222,14 @@ if (existing) {
 - Data integrity violations
 
 #### Layer 3: Observer Pipeline
-- **Sudo Validator**: Checks `as_sudo` flag for schema-level protection
-- **Column Sudo Validator**: Checks sudo-protected fields (if configured)
+- **Sudo Validator**: Checks `as_sudo` flag for model-level protection
+- **Field Sudo Validator**: Checks sudo-protected fields (if configured)
 - **Immutable Validator**: Prevents modification of immutable fields
-- **Freeze Validator**: Respects schema freeze status
+- **Freeze Validator**: Respects model freeze status
 
 **Protects Against**:
 - Direct database manipulation bypassing route logic
-- Schema-level protection violations
+- Model-level protection violations
 - System-wide security policies
 
 ### Privilege Escalation Prevention

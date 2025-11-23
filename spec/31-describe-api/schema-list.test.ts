@@ -4,19 +4,19 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * GET /api/describe - List All Schemas
+ * GET /api/describe - List All Models
  *
- * Tests the endpoint that lists all available schema names in the current tenant.
+ * Tests the endpoint that lists all available model names in the current tenant.
  */
 
-describe('GET /api/describe - List All Schemas', () => {
+describe('GET /api/describe - List All Models', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('schema-list');
+        tenant = await TestHelpers.createTestTenant('model-list');
     });
 
-    it('should return array of schema names', async () => {
+    it('should return array of model names', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(response);
@@ -24,58 +24,58 @@ describe('GET /api/describe - List All Schemas', () => {
         expect(Array.isArray(response.data)).toBe(true);
     });
 
-    it('should include system schemas', async () => {
+    it('should include system models', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(response);
 
-        const schemas = response.data as string[];
-        expect(schemas).toContain('schemas');
-        expect(schemas).toContain('columns');
-        expect(schemas).toContain('users');
+        const models = response.data as string[];
+        expect(models).toContain('models');
+        expect(models).toContain('fields');
+        expect(models).toContain('users');
     });
 
-    it('should return string array (schema names only)', async () => {
+    it('should return string array (model names only)', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(response);
 
-        const schemas = response.data as string[];
-        expect(schemas.length).toBeGreaterThan(0);
+        const models = response.data as string[];
+        expect(models.length).toBeGreaterThan(0);
 
-        // Each item should be a string (schema name)
-        schemas.forEach(schema => {
-            expect(typeof schema).toBe('string');
+        // Each item should be a string (model name)
+        models.forEach(model => {
+            expect(typeof model).toBe('string');
         });
     });
 
-    it('should include custom schemas after creation', async () => {
-        // Create a custom schema
-        const createResponse = await tenant.httpClient.post('/api/describe/test_custom_schema', {});
+    it('should include custom models after creation', async () => {
+        // Create a custom model
+        const createResponse = await tenant.httpClient.post('/api/describe/test_custom_model', {});
         expectSuccess(createResponse);
 
-        // List schemas again
+        // List models again
         const listResponse = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(listResponse);
-        const schemas = listResponse.data as string[];
-        expect(schemas).toContain('test_custom_schema');
+        const models = listResponse.data as string[];
+        expect(models).toContain('test_custom_model');
     });
 
-    // TODO: Schema deletion/trashing may not be filtering from list endpoint yet
-    // The test expects deleted schemas to be excluded but they still appear
-    it.skip('should not include trashed schemas', async () => {
-        // Create a schema
-        await tenant.httpClient.post('/api/describe/test_temp_schema', {});
+    // TODO: Model deletion/trashing may not be filtering from list endpoint yet
+    // The test expects deleted models to be excluded but they still appear
+    it.skip('should not include trashed models', async () => {
+        // Create a model
+        await tenant.httpClient.post('/api/describe/test_temp_model', {});
 
         // Delete it (soft delete)
-        await tenant.httpClient.delete('/api/describe/test_temp_schema');
+        await tenant.httpClient.delete('/api/describe/test_temp_model');
 
-        // List schemas - should not include trashed
+        // List models - should not include trashed
         const response = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(response);
-        const schemas = response.data as string[];
-        expect(schemas).not.toContain('test_temp_schema');
+        const models = response.data as string[];
+        expect(models).not.toContain('test_temp_model');
     });
 });

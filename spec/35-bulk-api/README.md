@@ -9,7 +9,7 @@
 ### Existing Tests (4)
 - POST /api/bulk - Bulk creation with multiple records (create-accounts-simple.test.sh)
 - POST /api/bulk - Transaction rollback on validation failures (rollback-check.test.sh)
-- POST /api/bulk - Mixed operations rollback across schemas (rollback-mixed-operations.test.sh)
+- POST /api/bulk - Mixed operations rollback across models (rollback-mixed-operations.test.sh)
 - POST /api/bulk - Update variants validation and aggregate helper (update-and-aggregate.test.sh)
 
 ## Additional Tests
@@ -19,7 +19,7 @@
 - Automatic rollback on operation failure
 - Data consistency after rollback
 - Mixed operations (create, update, delete) in single transaction
-- Cross-schema operations with dependencies
+- Cross-model operations with dependencies
 - Validation failure handling
 
 ### Missing Tests (3)

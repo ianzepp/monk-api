@@ -1,5 +1,5 @@
 import pg from 'pg';
-import * as schema from '@src/db/schema.js';
+import * as model from '@src/db/model.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 // Export lazy-loaded centralized pool - ONLY source of database connections
@@ -10,8 +10,8 @@ export const db = new Proxy({} as pg.Pool, {
     },
 });
 
-// Export schema interfaces and constants
-export const builtins = schema;
+// Export model interfaces and constants
+export const builtins = model;
 
 // Types for database operations
 export type DbContext = pg.Pool;

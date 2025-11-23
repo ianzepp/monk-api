@@ -1,10 +1,10 @@
 /**
  * History Tracker Observer
  *
- * Tracks changes to records with tracked columns, storing field-level deltas
+ * Tracks changes to records with tracked fields, storing field-level deltas
  * in the history table for audit trail and change tracking purposes.
  *
- * Ring: 7 (Audit) - Schema: all - Operations: create, update, delete
+ * Ring: 7 (Audit) - Model: all - Operations: create, update, delete
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
@@ -16,34 +16,34 @@ export default class HistoryTracker extends BaseObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
     readonly priority = 60;
 
-    // System schemas to skip (to avoid infinite loops and reduce noise)
-    private readonly SYSTEM_SCHEMAS = ['schemas', 'columns', 'users', 'history'];
+    // System models to skip (to avoid infinite loops and reduce noise)
+    private readonly SYSTEM_MODELS = ['models', 'fields', 'users', 'history'];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, operation, schema, data } = context;
-        const schemaName = schema.schema_name;
+        const { system, operation, model, data } = context;
+        const modelName = model.model_name;
 
-        // Skip system schemas
-        if (this.SYSTEM_SCHEMAS.includes(schemaName)) {
+        // Skip system models
+        if (this.SYSTEM_MODELS.includes(modelName)) {
             return;
         }
 
-        // Skip if no tracked columns
-        if (schema.trackedFields.size === 0) {
+        // Skip if no tracked fields
+        if (model.trackedFields.size === 0) {
             return;
         }
 
-        const trackedColumns = Array.from(schema.trackedFields);
+        const trackedFields = Array.from(model.trackedFields);
 
-        // Process each SchemaRecord (contains both original and current state)
+        // Process each ModelRecord (contains both original and current state)
         const records = Array.isArray(data) ? data : [data];
 
         for (const record of records) {
             await this.createHistoryRecord(
                 system,
                 operation,
-                schemaName,
-                trackedColumns,
+                modelName,
+                trackedFields,
                 record
             );
         }
@@ -51,27 +51,27 @@ export default class HistoryTracker extends BaseObserver {
 
     /**
      * Create a history record for a single data change
-     * @param record SchemaRecord with _original (before) and _current (after) state
+     * @param record ModelRecord with _original (before) and _current (after) state
      */
     private async createHistoryRecord(
         system: any,
         operation: string,
-        schemaName: string,
-        trackedColumns: string[],
+        modelName: string,
+        trackedFields: string[],
         record: any
     ): Promise<void> {
         // Determine record ID from current state
         const recordId = record.get('id');
         if (!recordId) {
-            console.warn('History tracker: Cannot track change without record ID', { schemaName, operation });
+            console.warn('History tracker: Cannot track change without record ID', { modelName, operation });
             return;
         }
 
-        // Compute changes for tracked columns only
-        // SchemaRecord has getOriginal() and get() for before/after comparison
+        // Compute changes for tracked fields only
+        // ModelRecord has getOriginal() and get() for before/after comparison
         const changes = this.computeTrackedChanges(
             operation,
-            trackedColumns,
+            trackedFields,
             record
         );
 
@@ -97,7 +97,7 @@ export default class HistoryTracker extends BaseObserver {
         // Create history record using raw SQL to avoid observer recursion
         try {
             console.info('Creating history record', {
-                schemaName,
+                modelName,
                 recordId,
                 operation,
                 changes,
@@ -108,7 +108,7 @@ export default class HistoryTracker extends BaseObserver {
             await system.db.query(
                 `
                 INSERT INTO history (
-                    schema_name,
+                    model_name,
                     record_id,
                     operation,
                     changes,
@@ -119,7 +119,7 @@ export default class HistoryTracker extends BaseObserver {
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 `,
                 [
-                    schemaName,
+                    modelName,
                     recordId,
                     operation,
                     JSON.stringify(changes),
@@ -130,14 +130,14 @@ export default class HistoryTracker extends BaseObserver {
             );
 
             console.info('History record created successfully', {
-                schemaName,
+                modelName,
                 recordId,
                 operation,
                 trackedFieldCount: Object.keys(changes).length
             });
         } catch (error) {
             console.error('Failed to create history record', {
-                schemaName,
+                modelName,
                 recordId,
                 operation,
                 error: error instanceof Error ? error.message : String(error),
@@ -148,21 +148,21 @@ export default class HistoryTracker extends BaseObserver {
     }
 
     /**
-     * Compute field-level changes for tracked columns only
-     * Uses SchemaRecord's getOriginal() and get() for before/after comparison
+     * Compute field-level changes for tracked fields only
+     * Uses ModelRecord's getOriginal() and get() for before/after comparison
      * Returns object with structure: { fieldName: { old: value, new: value } }
      */
     private computeTrackedChanges(
         operation: string,
-        trackedColumns: string[],
+        trackedFields: string[],
         record: any
     ): any {
         const changes: any = {};
 
         switch (operation) {
             case 'create':
-                // For creates, store new values for tracked columns (no original values)
-                for (const fieldName of trackedColumns) {
+                // For creates, store new values for tracked fields (no original values)
+                for (const fieldName of trackedFields) {
                     if (record.has(fieldName)) {
                         changes[fieldName] = {
                             old: null,
@@ -173,9 +173,9 @@ export default class HistoryTracker extends BaseObserver {
                 break;
 
             case 'update':
-                // For updates, store old and new values for changed tracked columns
-                for (const fieldName of trackedColumns) {
-                    // Use SchemaRecord's changed() method to detect changes
+                // For updates, store old and new values for changed tracked fields
+                for (const fieldName of trackedFields) {
+                    // Use ModelRecord's changed() method to detect changes
                     if (record.changed(fieldName)) {
                         changes[fieldName] = {
                             old: record.getOriginal(fieldName),
@@ -187,7 +187,7 @@ export default class HistoryTracker extends BaseObserver {
 
             case 'delete':
                 // For deletes, store original values (new values are the trashed state)
-                for (const fieldName of trackedColumns) {
+                for (const fieldName of trackedFields) {
                     if (record.has(fieldName)) {
                         changes[fieldName] = {
                             old: record.getOriginal(fieldName) ?? record.get(fieldName),

@@ -1,8 +1,8 @@
 import type { System } from '@src/lib/system.js';
-import { DescribeSchemas } from '@src/lib/describe-schemas.js';
-import { DescribeColumns } from '@src/lib/describe-columns.js';
+import { DescribeModels } from '@src/lib/describe-models.js';
+import { DescribeFields } from '@src/lib/describe-fields.js';
 
-export interface JsonSchemaProperty {
+export interface JsonModelProperty {
     type: string;
     format?: string;
     pattern?: string;
@@ -15,26 +15,26 @@ export interface JsonSchemaProperty {
     description?: string;
     'x-monk-relationship'?: {
         type: 'owned' | 'referenced';
-        schema: string;
+        model: string;
         name: string;
-        column?: string;
+        field?: string;
         cascadeDelete?: boolean;
         required?: boolean;
     };
 }
 
-export interface JsonSchema {
+export interface JsonModel {
     name: string;
     title: string;
     table?: string;
     description?: string;
-    properties: Record<string, JsonSchemaProperty>;
+    properties: Record<string, JsonModelProperty>;
     required?: string[];
 }
 
 /**
  * System fields that are automatically added to all tables by the PaaS platform.
- * These fields should not be included in user-defined schemas as they are managed by the system.
+ * These fields should not be included in user-defined models as they are managed by the system.
  */
 export const SYSTEM_FIELDS = [
     'id', // UUID primary key
@@ -58,10 +58,10 @@ export function isSystemField(fieldName: string): boolean {
 }
 
 /**
- * Strip system fields from schema/column records before returning to client
+ * Strip system fields from model/field records before returning to client
  *
  * Removes all internal system fields including id.
- * Describe API is name-based (schema_name, column_name), not ID-based.
+ * Describe API is name-based (model_name, field_name), not ID-based.
  * Mutates records in-place for O(n) performance.
  *
  * @param input Single record or array of records
@@ -91,17 +91,17 @@ export function stripSystemFields<T extends Record<string, any>>(input: T | T[])
 }
 
 /**
- * Describe Class - Schema Definition Management
+ * Describe Class - Model Definition Management
  *
- * Provides high-level interface for schema and column operations.
- * Delegates to DescribeSchemas and DescribeColumns wrapper classes.
+ * Provides high-level interface for model and field operations.
+ * Delegates to DescribeModels and DescribeFields wrapper classes.
  */
 export class Describe {
-    public readonly schemas: DescribeSchemas;
-    public readonly columns: DescribeColumns;
+    public readonly models: DescribeModels;
+    public readonly fields: DescribeFields;
 
     constructor(private system: System) {
-        this.schemas = new DescribeSchemas(system);
-        this.columns = new DescribeColumns(system);
+        this.models = new DescribeModels(system);
+        this.fields = new DescribeFields(system);
     }
 }

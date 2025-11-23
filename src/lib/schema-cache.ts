@@ -2,28 +2,28 @@ import crypto from 'crypto';
 import type { DbContext, TxContext } from '@src/db/index.js';
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 
-// Cached schema entry
-interface CachedSchema {
-    schema: any | null; // Full schema object (lazy loaded)
-    columns: any[] | null; // Column metadata (lazy loaded with schema)
+// Cached model entry
+interface CachedModel {
+    model: any | null; // Full model object (lazy loaded)
+    fields: any[] | null; // Field metadata (lazy loaded with model)
     updatedAt: string; // Last update timestamp for cache validation
 }
 
 // Database-specific cache
 interface DatabaseCache {
     databaseUrl: string;
-    schemas: Map<string, CachedSchema>;
+    models: Map<string, CachedModel>;
     lastChecksumRefresh: number; // Timestamp of last checksum validation
 }
 
 /**
- * Multi-database schema caching system with timestamp-based invalidation
+ * Multi-database model caching system with timestamp-based invalidation
  *
  * Each database gets its own cache space to handle multi-tenant architecture.
- * Uses schemas.updated_at for efficient cache validation without fetching full schemas.
+ * Uses models.updated_at for efficient cache validation without fetching full models.
  */
-export class SchemaCache {
-    private static instance: SchemaCache | null = null;
+export class ModelCache {
+    private static instance: ModelCache | null = null;
     private databaseCaches = new Map<string, DatabaseCache>();
 
     // Cache refresh interval (5 minutes)
@@ -31,11 +31,11 @@ export class SchemaCache {
 
     private constructor() {}
 
-    static getInstance(): SchemaCache {
-        if (!SchemaCache.instance) {
-            SchemaCache.instance = new SchemaCache();
+    static getInstance(): ModelCache {
+        if (!ModelCache.instance) {
+            ModelCache.instance = new ModelCache();
         }
-        return SchemaCache.instance;
+        return ModelCache.instance;
     }
 
     /**
@@ -63,7 +63,7 @@ export class SchemaCache {
         if (!this.databaseCaches.has(databaseUrl)) {
             this.databaseCaches.set(databaseUrl, {
                 databaseUrl,
-                schemas: new Map(),
+                models: new Map(),
                 lastChecksumRefresh: 0,
             });
         }
@@ -72,12 +72,12 @@ export class SchemaCache {
     }
 
     /**
-     * Load all schema timestamps for a database
+     * Load all model timestamps for a database
      */
-    private async loadSchemaChecksums(dtx: DbContext | TxContext): Promise<{ schema_name: string; updated_at: string }[]> {
+    private async loadModelChecksums(dtx: DbContext | TxContext): Promise<{ model_name: string; updated_at: string }[]> {
         const result = await dtx.query(`
-            SELECT s.schema_name, s.updated_at
-            FROM schemas s
+            SELECT s.model_name, s.updated_at
+            FROM models s
             WHERE s.status IN ('active', 'system')
         `);
 
@@ -87,140 +87,140 @@ export class SchemaCache {
     /**
      * Validate cache checksums for a database
      */
-    private async validateCacheChecksums(dtx: DbContext | TxContext, schemaNames?: string[]): Promise<void> {
+    private async validateCacheChecksums(dtx: DbContext | TxContext, modelNames?: string[]): Promise<void> {
         const dbCache = this.getDatabaseCache(dtx);
         const now = Date.now();
 
-        // Skip if recently refreshed (unless specific schemas requested)
-        if (!schemaNames && now - dbCache.lastChecksumRefresh < SchemaCache.CHECKSUM_REFRESH_INTERVAL) {
+        // Skip if recently refreshed (unless specific models requested)
+        if (!modelNames && now - dbCache.lastChecksumRefresh < ModelCache.CHECKSUM_REFRESH_INTERVAL) {
             return;
         }
 
         try {
             let currentChecksums;
 
-            if (schemaNames && schemaNames.length > 0) {
-                // Query specific schemas using raw SQL (consistent with our approach)
-                const quotedNames = schemaNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
+            if (modelNames && modelNames.length > 0) {
+                // Query specific models using raw SQL (consistent with our approach)
+                const quotedNames = modelNames.map(name => `'${name.replace(/'/g, "''")}'`).join(', ');
                 const result = await dtx.query(`
-                    SELECT s.schema_name, s.updated_at
-                    FROM schemas s
-                    WHERE s.schema_name IN (${quotedNames}) AND s.status IN ('active', 'system')
+                    SELECT s.model_name, s.updated_at
+                    FROM models s
+                    WHERE s.model_name IN (${quotedNames}) AND s.status IN ('active', 'system')
                 `);
                 currentChecksums = result.rows;
             } else {
-                // Query all schemas
-                currentChecksums = await this.loadSchemaChecksums(dtx);
+                // Query all models
+                currentChecksums = await this.loadModelChecksums(dtx);
             }
 
             // Compare timestamps and invalidate stale entries
             for (const row of currentChecksums as any[]) {
-                const cached = dbCache.schemas.get(row.schema_name);
+                const cached = dbCache.models.get(row.model_name);
 
                 if (cached && cached.updatedAt !== row.updated_at) {
                     // Timestamp mismatch - invalidate cache entry
-                    dbCache.schemas.delete(row.schema_name);
-                    console.info('Schema cache invalidated', { schemaName: row.schema_name, reason: 'timestamp changed' });
+                    dbCache.models.delete(row.model_name);
+                    console.info('Model cache invalidated', { modelName: row.model_name, reason: 'timestamp changed' });
                 } else if (!cached) {
-                    // New schema found - add minimal cache entry
-                    dbCache.schemas.set(row.schema_name, {
-                        schema: null, // Lazy load
-                        columns: null, // Lazy load with schema
+                    // New model found - add minimal cache entry
+                    dbCache.models.set(row.model_name, {
+                        model: null, // Lazy load
+                        fields: null, // Lazy load with model
                         updatedAt: row.updated_at,
                     });
-                    console.info('Schema cache entry created', { schemaName: row.schema_name });
+                    console.info('Model cache entry created', { modelName: row.model_name });
                 }
             }
 
             // Update refresh timestamp
-            if (!schemaNames) {
+            if (!modelNames) {
                 dbCache.lastChecksumRefresh = now;
             }
         } catch (error) {
-            console.warn('Failed to validate schema checksums', { error: error instanceof Error ? error.message : String(error) });
+            console.warn('Failed to validate model checksums', { error: error instanceof Error ? error.message : String(error) });
             // Fail gracefully - don't break the request
         }
     }
 
     /**
-     * Load full schema metadata and columns from database
+     * Load full model metadata and fields from database
      */
-    private async loadFullSchema(dtx: DbContext | TxContext, schemaName: string): Promise<{ schema: any; columns: any[] }> {
-        // Load schema metadata
-        const schemaResult = await dtx.query(
+    private async loadFullModel(dtx: DbContext | TxContext, modelName: string): Promise<{ model: any; fields: any[] }> {
+        // Load model metadata
+        const modelResult = await dtx.query(
             `
             SELECT *
-            FROM schemas
-            WHERE schema_name = $1
+            FROM models
+            WHERE model_name = $1
             AND status IN ('active', 'system')
             AND trashed_at IS NULL
             AND deleted_at IS NULL
         `,
-            [schemaName]
+            [modelName]
         );
 
-        if (schemaResult.rows.length === 0) {
-            throw new Error(`Schema '${schemaName}' not found or trashed/deleted`);
+        if (modelResult.rows.length === 0) {
+            throw new Error(`Model '${modelName}' not found or trashed/deleted`);
         }
 
-        // Load all column metadata (using SELECT * for future-proofing)
-        const columnsResult = await dtx.query(
+        // Load all field metadata (using SELECT * for future-proofing)
+        const fieldsResult = await dtx.query(
             `
             SELECT *
-            FROM columns
-            WHERE schema_name = $1
+            FROM fields
+            WHERE model_name = $1
             AND trashed_at IS NULL
             AND deleted_at IS NULL
         `,
-            [schemaName]
+            [modelName]
         );
 
         return {
-            schema: schemaResult.rows[0],
-            columns: columnsResult.rows,
+            model: modelResult.rows[0],
+            fields: fieldsResult.rows,
         };
     }
 
     /**
-     * Get schema with caching
+     * Get model with caching
      *
-     * Trust-based caching: schemas are cached indefinitely and invalidated explicitly
-     * when modified via describe API. No checksum validation on reads - all schema
+     * Trust-based caching: models are cached indefinitely and invalidated explicitly
+     * when modified via describe API. No checksum validation on reads - all model
      * writes are controlled through describe.ts which invalidates the cache.
      */
-    async getSchema(system: SystemContextWithInfrastructure, schemaName: string): Promise<any> {
+    async getModel(system: SystemContextWithInfrastructure, modelName: string): Promise<any> {
         const dbCache = this.getDatabaseCache(system.db);
 
         // 1. Check cache first - trust it if present
-        const cached = dbCache.schemas.get(schemaName);
-        if (cached?.schema && cached?.columns) {
-            console.info('Schema cache hit', { schemaName });
-            // Return schema with columns attached for performance
-            return { ...cached.schema, _columns: cached.columns };
+        const cached = dbCache.models.get(modelName);
+        if (cached?.model && cached?.fields) {
+            console.info('Model cache hit', { modelName });
+            // Return model with fields attached for performance
+            return { ...cached.model, _fields: cached.fields };
         }
 
-        // 2. Cache miss - load full schema and columns from database
-        console.info('Schema cache miss - loading from database', { schemaName });
-        const { schema, columns } = await this.loadFullSchema(system.db, schemaName);
+        // 2. Cache miss - load full model and fields from database
+        console.info('Model cache miss - loading from database', { modelName });
+        const { model, fields } = await this.loadFullModel(system.db, modelName);
 
         // 3. Store in cache
-        dbCache.schemas.set(schemaName, {
-            schema,
-            columns,
-            updatedAt: schema.updated_at,
+        dbCache.models.set(modelName, {
+            model,
+            fields,
+            updatedAt: model.updated_at,
         });
 
-        // Return schema with columns attached for performance
-        return { ...schema, _columns: columns };
+        // Return model with fields attached for performance
+        return { ...model, _fields: fields };
     }
 
     /**
-     * Invalidate specific schema in cache (for updates)
+     * Invalidate specific model in cache (for updates)
      */
-    invalidateSchema(system: SystemContextWithInfrastructure, schemaName: string): void {
+    invalidateModel(system: SystemContextWithInfrastructure, modelName: string): void {
         const dbCache = this.getDatabaseCache(system.db);
-        dbCache.schemas.delete(schemaName);
-        console.info('Schema cache invalidated manually', { schemaName });
+        dbCache.models.delete(modelName);
+        console.info('Model cache invalidated manually', { modelName });
     }
 
     /**
@@ -230,8 +230,8 @@ export class SchemaCache {
         const stats: any = {};
 
         for (const [dbUrl, dbCache] of this.databaseCaches.entries()) {
-            const loaded = Array.from(dbCache.schemas.values()).filter(s => s.schema !== null).length;
-            const total = dbCache.schemas.size;
+            const loaded = Array.from(dbCache.models.values()).filter(s => s.model !== null).length;
+            const total = dbCache.models.size;
 
             stats[dbUrl] = {
                 total,

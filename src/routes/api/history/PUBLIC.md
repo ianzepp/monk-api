@@ -1,13 +1,13 @@
 # History API
 
-The History API provides access to audit trails for tracked column changes. When columns are marked with `tracked=true`, all create, update, and delete operations are captured with field-level deltas, user attribution, and timestamps.
+The History API provides access to audit trails for tracked field changes. When fields are marked with `tracked=true`, all create, update, and delete operations are captured with field-level deltas, user attribution, and timestamps.
 
 ## Overview
 
-History tracking is column-level and opt-in. Only changes to columns explicitly marked as tracked are recorded. This provides granular audit trails for sensitive data without the overhead of tracking all changes to all fields.
+History tracking is field-level and opt-in. Only changes to fields explicitly marked as tracked are recorded. This provides granular audit trails for sensitive data without the overhead of tracking all changes to all fields.
 
 ### Key Features
-- **Column-level tracking**: Mark specific columns as `tracked=true` to enable history
+- **Field-level tracking**: Mark specific fields as `tracked=true` to enable history
 - **Field-level deltas**: Stores old and new values for each changed field
 - **Operation types**: Captures create, update, and delete operations
 - **User attribution**: Records which user made each change
@@ -18,16 +18,16 @@ History tracking is column-level and opt-in. Only changes to columns explicitly 
 All History API operations require:
 - Valid JWT authentication
 - Read access to the underlying record (same permissions as Data API GET)
-- Target record must exist in the specified schema
+- Target record must exist in the specified model
 
 ## Endpoint Summary
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/history/:schema/:record`](#get-apihistoryschemarecord) | List all history entries for a record (newest first). |
-| GET | [`/api/history/:schema/:record/:change`](#get-apihistoryschemarecordchange) | Get a specific history entry by change_id. |
+| GET | [`/api/history/:model/:record`](#get-apihistorymodelrecord) | List all history entries for a record (newest first). |
+| GET | [`/api/history/:model/:record/:change`](#get-apihistorymodelrecordchange) | Get a specific history entry by change_id. |
 
-## GET /api/history/:schema/:record
+## GET /api/history/:model/:record
 
 Retrieve all history entries for a specific record, ordered by `change_id` descending (newest first). Supports pagination via query parameters.
 
@@ -50,7 +50,7 @@ curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef
     {
       "id": "hist-uuid-1",
       "change_id": 42,
-      "schema_name": "account",
+      "model_name": "account",
       "record_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "operation": "update",
       "changes": {
@@ -69,7 +69,7 @@ curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef
     {
       "id": "hist-uuid-2",
       "change_id": 41,
-      "schema_name": "account",
+      "model_name": "account",
       "record_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "operation": "create",
       "changes": {
@@ -91,7 +91,7 @@ curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef
 }
 ```
 
-## GET /api/history/:schema/:record/:change
+## GET /api/history/:model/:record/:change
 
 Retrieve a specific history entry by its `change_id`. Use this to get details about a particular change event.
 
@@ -109,7 +109,7 @@ curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef
   "data": {
     "id": "hist-uuid-1",
     "change_id": 42,
-    "schema_name": "account",
+    "model_name": "account",
     "record_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "operation": "update",
     "changes": {
@@ -135,7 +135,7 @@ curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef
 |-------|------|-------------|
 | `id` | string | Unique identifier for the history record |
 | `change_id` | number | Auto-incrementing sequence number (higher = newer) |
-| `schema_name` | string | Schema containing the changed record |
+| `model_name` | string | Model containing the changed record |
 | `record_id` | string | ID of the record that was modified |
 | `operation` | string | Operation type: `create`, `update`, or `delete` |
 | `changes` | object | Field-level deltas with old and new values |
@@ -146,7 +146,7 @@ curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef
 
 ## Change Delta Format
 
-The `changes` object contains field-level deltas for tracked columns:
+The `changes` object contains field-level deltas for tracked fields:
 
 ### Create Operation
 ```json
@@ -182,25 +182,25 @@ The `changes` object contains field-level deltas for tracked columns:
 
 ## Configuring Tracking
 
-To enable history tracking for a column, mark it with `tracked=true` using the Describe API:
+To enable history tracking for a field, mark it with `tracked=true` using the Describe API:
 
 ```bash
-curl -X PUT http://localhost:9001/api/describe/account/columns/email \
+curl -X PUT http://localhost:9001/api/describe/account/fields/email \
   -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"tracked": true}'
 ```
 
-After marking columns as tracked, any create, update, or delete operations on those columns will automatically generate history records.
+After marking fields as tracked, any create, update, or delete operations on those fields will automatically generate history records.
 
 ## Common Use Cases
 
 ### Audit Compliance
 Track changes to sensitive fields for regulatory requirements (HIPAA, SOX, GDPR):
 ```bash
-# Mark sensitive columns as tracked
-PUT /api/describe/medical_records/columns/ssn {"tracked": true}
-PUT /api/describe/medical_records/columns/diagnosis {"tracked": true}
+# Mark sensitive fields as tracked
+PUT /api/describe/medical_records/fields/ssn {"tracked": true}
+PUT /api/describe/medical_records/fields/diagnosis {"tracked": true}
 
 # Query audit trail
 GET /api/history/medical_records/patient-123
@@ -236,13 +236,13 @@ GET /api/data/users/user-uuid-456
 - `400 Bad Request`: Invalid request format
 - `401 Unauthorized`: Missing or invalid authentication
 - `403 Forbidden`: Insufficient permissions to access record
-- `404 Not Found`: Schema, record, or change_id not found
+- `404 Not Found`: Model, record, or change_id not found
 - `500 Internal Server Error`: Database or system error
 
 ## Performance Notes
 
 - History queries use indexed lookups (very fast)
-- Only tracked columns consume history storage
+- Only tracked fields consume history storage
 - Empty changes (no tracked fields modified) don't create history records
 - Pagination recommended for records with many history entries
 

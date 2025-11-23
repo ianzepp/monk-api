@@ -30,7 +30,7 @@ export interface UserInfo {
 /**
  * SystemContext interface - Defines the context needed by business logic components
  *
- * This interface provides the essential context information that Database, Schema,
+ * This interface provides the essential context information that Database, Model,
  * and other business logic classes need without creating circular dependencies.
  *
  * Design principles:
@@ -71,6 +71,6 @@ export interface SystemContextWithInfrastructure extends SystemContext {
     /** Database instance for high-level operations */
     readonly database: any; // Avoid importing Database class to prevent circular deps
 
-    /** Describe instance for schema operations */
+    /** Describe instance for model operations */
     readonly describe: any; // Avoid importing Describe class to prevent circular deps
 }

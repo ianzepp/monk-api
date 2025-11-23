@@ -2,7 +2,7 @@
 set -e
 
 # Find API Where REGEX Operators Test
-# Tests $regex, $nregex regular expression operators with POST /api/find/:schema
+# Tests $regex, $nregex regular expression operators with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

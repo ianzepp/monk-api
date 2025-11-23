@@ -15,8 +15,8 @@ import { randomBytes } from 'crypto';
  * - file: ZIP file from extract download
  * - conflict_strategy: replace|upsert|merge|sync|skip|error (optional, default: upsert)
  * - include: comma-separated list (optional, default: describe,data)
- * - schemas: comma-separated list (optional, default: all)
- * - create_schemas: true|false (optional, default: true)
+ * - models: comma-separated list (optional, default: all)
+ * - create_models: true|false (optional, default: true)
  */
 export default withParams(async (context, { system }) => {
     const request = context.req.raw;
@@ -37,11 +37,11 @@ export default withParams(async (context, { system }) => {
     // Get optional configuration
     const conflictStrategy = (formData.get('conflict_strategy') as string) || 'upsert';
     const includeRaw = (formData.get('include') as string) || 'describe,data';
-    const schemasRaw = formData.get('schemas') as string;
-    const createSchemas = (formData.get('create_schemas') as string) !== 'false';
+    const modelsRaw = formData.get('models') as string;
+    const createModels = (formData.get('create_models') as string) !== 'false';
 
     const include = includeRaw.split(',').map(s => s.trim());
-    const schemas = schemasRaw ? schemasRaw.split(',').map(s => s.trim()) : null;
+    const models = modelsRaw ? modelsRaw.split(',').map(s => s.trim()) : null;
 
     // Save uploaded file to temporary location
     const uploadId = randomBytes(16).toString('hex');
@@ -58,8 +58,8 @@ export default withParams(async (context, { system }) => {
         name: `Import ${file.name}`,
         conflict_strategy: conflictStrategy,
         include,
-        schemas,
-        create_schemas: createSchemas
+        models,
+        create_models: createModels
     });
 
     setRouteResult(context, {
@@ -71,8 +71,8 @@ export default withParams(async (context, { system }) => {
         config: {
             conflict_strategy: conflictStrategy,
             include,
-            schemas,
-            create_schemas: createSchemas
+            models,
+            create_models: createModels
         }
     });
 });

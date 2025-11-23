@@ -1,5 +1,5 @@
 -- ============================================================================
--- SCHEMA: snapshots
+-- MODEL: snapshots
 -- ============================================================================
 -- Snapshots table for point-in-time full database backups (pg_dump based)
 

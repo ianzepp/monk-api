@@ -9,7 +9,7 @@ source "$(dirname "$0")/../test-helper.sh"
 
 print_step "Testing Bulk API transaction rollback behavior"
 
-# Setup test environment with template (includes account schema)
+# Setup test environment with template (includes account model)
 setup_test_with_template "rollback-check"
 setup_full_auth
 
@@ -30,7 +30,7 @@ rollback_request='{
     "operations": [
         {
             "operation": "create-all",
-            "schema": "account",
+            "model": "account",
             "data": [
                 {
                     "name": "Should Rollback 1",
@@ -45,7 +45,7 @@ rollback_request='{
         },
         {
             "operation": "create-all",
-            "schema": "account",
+            "model": "account",
             "data": [
                 {
                     "name": "Should Rollback 2",
@@ -60,7 +60,7 @@ rollback_request='{
         },
         {
             "operation": "create-all",
-            "schema": "account",
+            "model": "account",
             "data": [
                 {
                     "name": "Invalid Record",
@@ -123,7 +123,7 @@ success_request='{
     "operations": [
         {
             "operation": "create-all",
-            "schema": "account",
+            "model": "account",
             "data": [
                 {
                     "name": "Success User 1",

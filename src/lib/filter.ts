@@ -24,7 +24,7 @@ export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterO
  * - Logic: `{ $and: [{ $or: [{ access: "root" }, { verified: true }] }] }`
  *
  * Architecture: Filter → FilterWhere → FilterOrder → SQL generation
- * Integration: Observer pipeline, soft delete filtering, schema validation
+ * Integration: Observer pipeline, soft delete filtering, model validation
  *
  * See docs/FILTER.md for complete operator reference and examples.
  */
@@ -61,7 +61,7 @@ export class Filter {
         this.system = system;
         this.validateTableName(tableName);
 
-        // For dynamic schemas, we'll build queries using raw SQL
+        // For dynamic models, we'll build queries using raw SQL
         // since Drizzle's type system doesn't know about runtime tables
         this._query = null; // Will build SQL manually
     }
@@ -149,7 +149,7 @@ export class Filter {
     private validateFilterData(source: FilterData): FilterData {
         // Validate select array if provided
         if (source.select && (!Array.isArray(source.select) || source.select.some(col => typeof col !== 'string'))) {
-            throw HttpErrors.badRequest('Select must be an array of column names', 'FILTER_INVALID_SELECT');
+            throw HttpErrors.badRequest('Select must be an array of field names', 'FILTER_INVALID_SELECT');
         }
 
         // Validate limit/offset if provided
@@ -201,27 +201,27 @@ export class Filter {
     /**
      * Process SELECT clause with validation
      */
-    private processSelectClause(columns: string[]): void {
-        this.validateSelectColumns(columns);
-        this.$select(...columns);
+    private processSelectClause(fields: string[]): void {
+        this.validateSelectFields(fields);
+        this.$select(...fields);
     }
 
     /**
-     * Validate SELECT columns
+     * Validate SELECT fields
      */
-    private validateSelectColumns(columns: string[]): void {
-        if (!Array.isArray(columns)) {
-            throw HttpErrors.badRequest('Select columns must be an array', 'FILTER_INVALID_SELECT_TYPE');
+    private validateSelectFields(fields: string[]): void {
+        if (!Array.isArray(fields)) {
+            throw HttpErrors.badRequest('Select fields must be an array', 'FILTER_INVALID_SELECT_TYPE');
         }
 
-        for (const column of columns) {
-            if (typeof column !== 'string' || !column.trim()) {
-                throw HttpErrors.badRequest('All select columns must be non-empty strings', 'FILTER_INVALID_COLUMN_NAME');
+        for (const field of fields) {
+            if (typeof field !== 'string' || !field.trim()) {
+                throw HttpErrors.badRequest('All select fields must be non-empty strings', 'FILTER_INVALID_FIELD_NAME');
             }
 
-            // Basic SQL injection protection for column names
-            if (column !== '*' && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
-                throw HttpErrors.badRequest(`Invalid column name format: ${column}`, 'FILTER_INVALID_COLUMN_FORMAT');
+            // Basic SQL injection protection for field names
+            if (field !== '*' && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field)) {
+                throw HttpErrors.badRequest(`Invalid field name format: ${field}`, 'FILTER_INVALID_FIELD_FORMAT');
             }
         }
     }
@@ -229,12 +229,12 @@ export class Filter {
     /**
      * SELECT field specification
      */
-    $select(...columns: string[]): Filter {
+    $select(...fields: string[]): Filter {
         // If '*' is included, select all (for now, just track the request)
-        if (columns.includes('*')) {
+        if (fields.includes('*')) {
             this._select = ['*'];
         } else {
-            this._select.push(...columns);
+            this._select.push(...fields);
         }
         return this;
     }
@@ -302,22 +302,22 @@ export class Filter {
         for (const spec of orderSpecs) {
             if (typeof spec === 'string') {
                 const parts = spec.split(' ');
-                const column = parts[0];
+                const field = parts[0];
                 const sort = (parts[1] || 'asc').toLowerCase() as 'asc' | 'desc';
-                result.push({ column, sort: sort === 'desc' ? 'desc' : 'asc' });
+                result.push({ field, sort: sort === 'desc' ? 'desc' : 'asc' });
             } else if (typeof spec === 'object' && spec !== null) {
-                if (spec.column && spec.sort) {
+                if (spec.field && spec.sort) {
                     const sort = spec.sort.toLowerCase();
                     result.push({
-                        column: spec.column,
+                        field: spec.field,
                         sort: (sort === 'desc' || sort === 'descending') ? 'desc' : 'asc'
                     });
                 } else {
                     // Process all entries in the object: { name: 'asc', created_at: 'desc' }
-                    for (const [column, sort] of Object.entries(spec)) {
+                    for (const [field, sort] of Object.entries(spec)) {
                         const normalizedSort = (sort as string).toLowerCase();
                         result.push({
-                            column,
+                            field,
                             sort: (normalizedSort === 'desc' || normalizedSort === 'descending') ? 'desc' : 'asc'
                         });
                     }
@@ -521,9 +521,9 @@ export class Filter {
             // Build complete query
             const selectParts: string[] = [];
 
-            // Add GROUP BY columns to SELECT
+            // Add GROUP BY fields to SELECT
             if (groupBy && groupBy.length > 0) {
-                selectParts.push(...groupBy.map(col => `"${this.sanitizeColumnName(col)}"`));
+                selectParts.push(...groupBy.map(col => `"${this.sanitizeFieldName(col)}"`));
             }
 
             // Add aggregations to SELECT
@@ -539,7 +539,7 @@ export class Filter {
             console.debug('Aggregation query generated successfully', {
                 tableName: this._tableName,
                 aggregationCount: Object.keys(aggregations).length,
-                groupByColumns: groupBy?.length || 0,
+                groupByFields: groupBy?.length || 0,
                 paramCount: params.length
             });
 
@@ -561,7 +561,7 @@ export class Filter {
 
         for (const [alias, aggFunc] of Object.entries(aggregations)) {
             // Validate alias
-            const sanitizedAlias = this.sanitizeColumnName(alias);
+            const sanitizedAlias = this.sanitizeFieldName(alias);
 
             // Extract function and field
             if ('$count' in aggFunc) {
@@ -569,23 +569,23 @@ export class Filter {
                 if (field === '*') {
                     aggregateParts.push(`COUNT(*) as "${sanitizedAlias}"`);
                 } else {
-                    const sanitizedField = this.sanitizeColumnName(field);
+                    const sanitizedField = this.sanitizeFieldName(field);
                     aggregateParts.push(`COUNT("${sanitizedField}") as "${sanitizedAlias}"`);
                 }
             } else if ('$sum' in aggFunc) {
-                const sanitizedField = this.sanitizeColumnName(aggFunc.$sum);
+                const sanitizedField = this.sanitizeFieldName(aggFunc.$sum);
                 aggregateParts.push(`SUM("${sanitizedField}") as "${sanitizedAlias}"`);
             } else if ('$avg' in aggFunc) {
-                const sanitizedField = this.sanitizeColumnName(aggFunc.$avg);
+                const sanitizedField = this.sanitizeFieldName(aggFunc.$avg);
                 aggregateParts.push(`AVG("${sanitizedField}") as "${sanitizedAlias}"`);
             } else if ('$min' in aggFunc) {
-                const sanitizedField = this.sanitizeColumnName(aggFunc.$min);
+                const sanitizedField = this.sanitizeFieldName(aggFunc.$min);
                 aggregateParts.push(`MIN("${sanitizedField}") as "${sanitizedAlias}"`);
             } else if ('$max' in aggFunc) {
-                const sanitizedField = this.sanitizeColumnName(aggFunc.$max);
+                const sanitizedField = this.sanitizeFieldName(aggFunc.$max);
                 aggregateParts.push(`MAX("${sanitizedField}") as "${sanitizedAlias}"`);
             } else if ('$distinct' in aggFunc) {
-                const sanitizedField = this.sanitizeColumnName(aggFunc.$distinct);
+                const sanitizedField = this.sanitizeFieldName(aggFunc.$distinct);
                 aggregateParts.push(`COUNT(DISTINCT "${sanitizedField}") as "${sanitizedAlias}"`);
             } else {
                 throw HttpErrors.badRequest(`Unknown aggregation function for alias '${alias}'`, 'FILTER_INVALID_AGGREGATION');
@@ -607,29 +607,29 @@ export class Filter {
             return '';
         }
 
-        // Validate and sanitize column names
-        const sanitizedColumns = groupBy.map(col => {
-            const sanitized = this.sanitizeColumnName(col);
+        // Validate and sanitize field names
+        const sanitizedFields = groupBy.map(col => {
+            const sanitized = this.sanitizeFieldName(col);
             return `"${sanitized}"`;
         });
 
-        return `GROUP BY ${sanitizedColumns.join(', ')}`;
+        return `GROUP BY ${sanitizedFields.join(', ')}`;
     }
 
     /**
-     * Sanitize column name to prevent SQL injection
+     * Sanitize field name to prevent SQL injection
      */
-    private sanitizeColumnName(column: string): string {
-        if (!column || typeof column !== 'string') {
-            throw HttpErrors.badRequest('Column name must be a non-empty string', 'FILTER_INVALID_COLUMN');
+    private sanitizeFieldName(field: string): string {
+        if (!field || typeof field !== 'string') {
+            throw HttpErrors.badRequest('Field name must be a non-empty string', 'FILTER_INVALID_FIELD');
         }
 
         // Allow alphanumeric and underscore only
-        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
-            throw HttpErrors.badRequest(`Invalid column name format: ${column}`, 'FILTER_INVALID_COLUMN_FORMAT');
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field)) {
+            throw HttpErrors.badRequest(`Invalid field name format: ${field}`, 'FILTER_INVALID_FIELD_FORMAT');
         }
 
-        return column;
+        return field;
     }
 
     /**
@@ -682,7 +682,7 @@ export class Filter {
     private extractOrderData(): any {
         // Convert Filter's internal _order to FilterOrder format
         return this._order.map(orderInfo => ({
-            column: orderInfo.column,
+            field: orderInfo.field,
             sort: orderInfo.sort,
         }));
     }

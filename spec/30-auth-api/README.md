@@ -44,7 +44,7 @@
 - Error codes documented in src/routes/auth/PUBLIC.md master error codes reference table
 - Tests use lightweight TestHelpers utility for tenant creation with unique naming (timestamp + random hex)
 - All endpoints validate required fields and test realistic error scenarios
-- Fixed endpoint bug: tenants GET query was using non-existent tenant_type column
+- Fixed endpoint bug: tenants GET query was using non-existent tenant_type field
 
 ### Test Patterns
 - Tests create isolated tenants via TestHelpers.createTestTenant() to avoid cross-test pollution

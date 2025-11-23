@@ -7,7 +7,7 @@
 ## Critical / Smoke Tests
 
 ### Existing Tests (1)
-- GET /api/stat/:schema/:record - Retrieve statistics for single record (stat-basic.test.ts)
+- GET /api/stat/:model/:record - Retrieve statistics for single record (stat-basic.test.ts)
 
 ## Additional Tests
 
@@ -17,7 +17,7 @@
 - Response structure validation
 
 ### Missing Tests (2)
-- Performance testing with complex schemas (many relationships, large datasets)
+- Performance testing with complex models (many relationships, large datasets)
 - Stat aggregation across multiple records (batch statistics)
 
 ### Missing Coverage
@@ -31,5 +31,5 @@
 
 - Minimal test coverage
 - Only validates basic happy path
-- Should test with complex schemas to validate performance
+- Should test with complex models to validate performance
 - Missing multi-record and aggregation testing

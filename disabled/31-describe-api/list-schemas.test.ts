@@ -3,24 +3,24 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * GET /api/describe - List All Schemas
+ * GET /api/describe - List All Models
  *
- * Tests the endpoint that lists all available schema names in the current tenant.
- * Uses 'system' template which includes system schemas.
+ * Tests the endpoint that lists all available model names in the current tenant.
+ * Uses 'system' template which includes system models.
  */
 
-describe('GET /api/describe - List All Schemas', () => {
+describe('GET /api/describe - List All Models', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('list-schemas');
+        tenant = await TestHelpers.createTestTenant('list-models');
     });
 
     afterAll(async () => {
         await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
-    it('should return array of schema names', async () => {
+    it('should return array of model names', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(response);
@@ -28,63 +28,63 @@ describe('GET /api/describe - List All Schemas', () => {
         expect(Array.isArray(response.data)).toBe(true);
     });
 
-    it('should include system schemas in default template', async () => {
+    it('should include system models in default template', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(response);
 
-        // Default template should have system schemas
-        const schemas = response.data as string[];
-        expect(schemas).toContain('schemas');
-        expect(schemas).toContain('columns');
-        expect(schemas).toContain('users');
+        // Default template should have system models
+        const models = response.data as string[];
+        expect(models).toContain('models');
+        expect(models).toContain('fields');
+        expect(models).toContain('users');
     });
 
-    it('should return string array (schema names only)', async () => {
+    it('should return string array (model names only)', async () => {
         const response = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(response);
 
-        const schemas = response.data as string[];
-        expect(schemas.length).toBeGreaterThan(0);
+        const models = response.data as string[];
+        expect(models.length).toBeGreaterThan(0);
 
-        // Each item should be a string (schema name)
-        schemas.forEach(schema => {
-            expect(typeof schema).toBe('string');
+        // Each item should be a string (model name)
+        models.forEach(model => {
+            expect(typeof model).toBe('string');
         });
     });
 
-    it('should include custom schemas after creation', async () => {
-        // Create a custom schema
+    it('should include custom models after creation', async () => {
+        // Create a custom model
         const createResponse = await tenant.httpClient.post('/api/describe/products', {
-            schema_name: 'products',
+            model_name: 'products',
             status: 'active'
         });
         expect(createResponse.success).toBe(true);
 
-        // List schemas again
+        // List models again
         const listResponse = await tenant.httpClient.get('/api/describe');
 
         expect(listResponse.success).toBe(true);
-        const schemas = listResponse.data as string[];
-        expect(schemas).toContain('products');
+        const models = listResponse.data as string[];
+        expect(models).toContain('products');
     });
 
-    it('should not include trashed schemas', async () => {
-        // Create a schema
-        await tenant.httpClient.post('/api/describe/temp_schema', {
-            schema_name: 'temp_schema',
+    it('should not include trashed models', async () => {
+        // Create a model
+        await tenant.httpClient.post('/api/describe/temp_model', {
+            model_name: 'temp_model',
             status: 'active'
         });
 
         // Delete it (soft delete)
-        await tenant.httpClient.delete('/api/describe/temp_schema');
+        await tenant.httpClient.delete('/api/describe/temp_model');
 
-        // List schemas - should not include trashed
+        // List models - should not include trashed
         const response = await tenant.httpClient.get('/api/describe');
 
         expectSuccess(response);
-        const schemas = response.data as string[];
-        expect(schemas).not.toContain('temp_schema');
+        const models = response.data as string[];
+        expect(models).not.toContain('temp_model');
     });
 });

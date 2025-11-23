@@ -7,8 +7,8 @@
 ## Critical / Smoke Tests
 
 ### Existing Tests (2)
-- POST /api/aggregate/:schema - COUNT(*) all records (basic-count.test.sh)
-- POST /api/aggregate/:schema - GROUP BY single column with COUNT (group-by-basic.test.sh)
+- POST /api/aggregate/:model - COUNT(*) all records (basic-count.test.sh)
+- POST /api/aggregate/:model - GROUP BY single field with COUNT (group-by-basic.test.sh)
 
 ## Additional Tests
 
@@ -20,8 +20,8 @@
 - Response format and structure validation
 
 ### Missing Tests (5 - marked as TODO)
-- SUM/AVG/MIN/MAX numeric aggregations (needs numeric field schema testing)
-- Multi-column GROUP BY operations
+- SUM/AVG/MIN/MAX numeric aggregations (needs numeric field model testing)
+- Multi-field GROUP BY operations
 - Complex WHERE clauses combined with GROUP BY
 - Soft delete integration with aggregations (_deleted_at filtering)
 - ACL filtering with aggregations (permission-aware counts)

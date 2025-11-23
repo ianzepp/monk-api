@@ -2,7 +2,7 @@
 set -e
 
 # Find API Simple Where Test
-# Tests basic where conditions with POST /api/find/:schema
+# Tests basic where conditions with POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

@@ -1,50 +1,50 @@
 /**
- * Schema Cache Invalidator - Ring 8 Integration
+ * Model Cache Invalidator - Ring 8 Integration
  *
- * Automatically invalidates SchemaCache when schemas are modified.
+ * Automatically invalidates ModelCache when models are modified.
  * Ensures cache stays consistent without manual invalidation in Describe class.
  *
- * Note: Schema modifications already update schemas.updated_at (system field),
+ * Note: Model modifications already update models.updated_at (system field),
  * so we only need to invalidate the in-memory cache here.
  *
  * This observer runs AFTER database changes are committed (Ring 8), ensuring
  * that cache is only invalidated for successfully persisted changes.
  *
  * Ring: 8 (Integration) - After database changes are committed
- * Schema: schemas
+ * Model: models
  * Operations: create, update, delete
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
-import { SchemaCache } from '@src/lib/schema-cache.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import { ModelCache } from '@src/lib/model-cache.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
-export default class SchemaCacheInvalidator extends BaseObserver {
+export default class ModelCacheInvalidator extends BaseObserver {
     readonly ring = ObserverRing.Integration;  // Ring 8
     readonly operations = ['create', 'update', 'delete'] as const;
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
-        const { schema_name } = record;
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+        const { model_name } = record;
 
-        if (!schema_name) {
-            console.warn('Cannot invalidate schema cache - no schema_name in record', {
+        if (!model_name) {
+            console.warn('Cannot invalidate model cache - no model_name in record', {
                 record,
                 operation: context.operation
             });
             return;
         }
 
-        // Invalidate the schema cache
-        const schemaCache = SchemaCache.getInstance();
-        schemaCache.invalidateSchema(context.system, schema_name);
+        // Invalidate the model cache
+        const modelCache = ModelCache.getInstance();
+        modelCache.invalidateModel(context.system, model_name);
 
-        console.info('Schema cache invalidated by observer', {
+        console.info('Model cache invalidated by observer', {
             operation: context.operation,
-            schema_name,
+            model_name,
             ring: this.ring,
-            reason: 'schema metadata modified'
+            reason: 'model metadata modified'
         });
     }
 }

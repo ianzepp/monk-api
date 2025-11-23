@@ -6,7 +6,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 /**
  * Stat API Tests
  *
- * Tests the GET /api/stat/:schema/:record endpoint that returns only
+ * Tests the GET /api/stat/:model/:record endpoint that returns only
  * system metadata fields without user data.
  *
  * These tests verify:
@@ -17,7 +17,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
  * 5. Metadata-only response structure
  */
 
-describe('Stat API (GET /api/stat/:schema/:record)', () => {
+describe('Stat API (GET /api/stat/:model/:record)', () => {
     let tenantName: string;
     let databaseName: string;
     let token: string;
@@ -133,8 +133,8 @@ describe('Stat API (GET /api/stat/:schema/:record)', () => {
             expect(response.error).toContain('not found');
         });
 
-        it('should return 404 for non-existent schema', async () => {
-            const response = await httpClient.get(`/api/stat/invalid_schema/${testRecordId}`, {
+        it('should return 404 for non-existent model', async () => {
+            const response = await httpClient.get(`/api/stat/invalid_model/${testRecordId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 

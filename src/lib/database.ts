@@ -2,17 +2,17 @@ import crypto from 'crypto';
 import type { DbContext, TxContext } from '@src/db/index.js';
 
 import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
-import { Schema, type SchemaName } from '@src/lib/schema.js';
-import { SchemaRecord } from '@src/lib/schema-record.js';
+import { Model, type ModelName } from '@src/lib/model.js';
+import { ModelRecord } from '@src/lib/model-record.js';
 import { Filter, type AggregateSpec } from '@src/lib/filter.js';
 import type { FilterData } from '@src/lib/filter-types.js';
 import type { FilterWhereOptions } from '@src/lib/filter-types.js';
-import { SchemaCache } from '@src/lib/schema-cache.js';
+import { ModelCache } from '@src/lib/model-cache.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { convertRecordPgToMonk } from '@src/lib/column-types.js';
+import { convertRecordPgToMonk } from '@src/lib/field-types.js';
 import type {
     DbRecord,
     DbCreateInput,
@@ -54,14 +54,14 @@ export class Database {
         return this.system.tx || this.system.db;
     }
 
-    // Schema operations with caching - returns Schema instance
-    async toSchema(schemaName: SchemaName): Promise<Schema> {
-        const schemaCache = SchemaCache.getInstance();
-        const schemaRecord = await schemaCache.getSchema(this.system, schemaName);
+    // Model operations with caching - returns Model instance
+    async toModel(modelName: ModelName): Promise<Model> {
+        const modelCache = ModelCache.getInstance();
+        const modelRecord = await modelCache.getModel(this.system, modelName);
 
-        // Create Schema instance with validation capabilities
-        const schema = new Schema(this.system, schemaName, schemaRecord);
-        return schema;
+        // Create Model instance with validation capabilities
+        const model = new Model(this.system, modelName, modelRecord);
+        return model;
     }
 
     // Core operation. Execute raw SQL query
@@ -75,9 +75,9 @@ export class Database {
     }
 
     // Count
-    async count(schemaName: SchemaName, filterData: FilterData = {}): Promise<number> {
-        const schema = await this.toSchema(schemaName);
-        const filter = new Filter(schema.schema_name).assign(filterData);
+    async count(modelName: ModelName, filterData: FilterData = {}): Promise<number> {
+        const model = await this.toModel(modelName);
+        const filter = new Filter(model.model_name).assign(filterData);
 
         // Issue #102: Use toCountSQL() pattern instead of manual query building
         const { query, params } = filter.toCountSQL();
@@ -92,28 +92,28 @@ export class Database {
      * Executes aggregation queries (SUM, AVG, MIN, MAX, COUNT) with optional grouping.
      * Supports filtering via where clause and respects soft delete settings.
      *
-     * @param schemaName - Schema to aggregate
+     * @param modelName - Model to aggregate
      * @param filterData - Filter conditions (where clause)
      * @param aggregations - Aggregation specifications (e.g., {total: {$count: '*'}})
-     * @param groupBy - Optional columns to group by
+     * @param groupBy - Optional fields to group by
      * @param options - Soft delete and context options
      * @returns Array of aggregation results
      */
     async aggregate(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filterData: FilterData = {},
         aggregations: AggregateSpec,
         groupBy?: string[],
         options: SelectOptions = {}
     ): Promise<any[]> {
-        const schema = await this.toSchema(schemaName);
+        const model = await this.toModel(modelName);
 
         // Apply context-based soft delete defaults
         const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
         const mergedOptions = { ...defaultOptions, ...options };
 
         // Create filter and apply WHERE conditions
-        const filter = new Filter(schema.schema_name)
+        const filter = new Filter(model.model_name)
             .assign(filterData)
             .withSoftDeleteOptions(mergedOptions);
 
@@ -122,11 +122,11 @@ export class Database {
         const result = await this.execute(query, params);
 
         // Convert PostgreSQL string types back to proper JSON types
-        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
+        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, model));
     }
 
     async selectAll<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         records: DbRecord<T>[]
     ): Promise<DbRecord<T>[]> {
         // Extract IDs from records
@@ -137,15 +137,15 @@ export class Database {
         }
 
         // Use selectAny with ID filter - lenient approach, returns what exists
-        return await this.selectAny<T>(schemaName, { where: { id: { $in: ids } } }, { context: 'system' });
+        return await this.selectAny<T>(modelName, { where: { id: { $in: ids } } }, { context: 'system' });
     }
 
     async createAll<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         records: DbCreateInput<T>[]
     ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
-        return await this.runObserverPipeline('create', schemaName, records);
+        return await this.runObserverPipeline('create', modelName, records);
     }
 
     /**
@@ -154,30 +154,30 @@ export class Database {
      * Records with trashed_at set are automatically excluded from select queries via Filter class.
      */
     async deleteAll<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         deletes: DbDeleteInput[]
     ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
-        return await this.runObserverPipeline('delete', schemaName, deletes);
+        return await this.runObserverPipeline('delete', modelName, deletes);
     }
 
     // Core data operations
     async selectOne<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filterData: FilterData,
         options: SelectOptions = {}
     ): Promise<DbRecord<T> | null> {
-        const results = await this.selectAny<T>(schemaName, filterData, options);
+        const results = await this.selectAny<T>(modelName, filterData, options);
         return results[0] || null;
     }
 
     async select404<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filter: FilterData,
         message?: string,
         options: SelectOptions = {}
     ): Promise<DbRecord<T>> {
-        const record = await this.selectOne<T>(schemaName, filter, options);
+        const record = await this.selectOne<T>(modelName, filter, options);
 
         if (!record) {
             throw HttpErrors.notFound(message || 'Record not found', 'RECORD_NOT_FOUND');
@@ -188,47 +188,47 @@ export class Database {
 
     // ID-based operations - always work with arrays
     async selectIds<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         ids: string[],
         options: SelectOptions = {}
     ): Promise<DbRecord<T>[]> {
         if (ids.length === 0) return [];
-        return await this.selectAny<T>(schemaName, { where: { id: { $in: ids } } }, options);
+        return await this.selectAny<T>(modelName, { where: { id: { $in: ids } } }, options);
     }
 
     async updateIds<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         ids: string[],
         changes: Partial<T>
     ): Promise<DbRecord<T>[]> {
         if (ids.length === 0) return [];
-        return await this.updateAny<T>(schemaName, { where: { id: { $in: ids } } }, changes);
+        return await this.updateAny<T>(modelName, { where: { id: { $in: ids } } }, changes);
     }
 
     async deleteIds<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         ids: string[]
     ): Promise<DbRecord<T>[]> {
         if (ids.length === 0) return [];
 
         // Convert IDs to delete records with just ID field
         const deleteRecords = ids.map(id => ({ id }));
-        return await this.deleteAll<T>(schemaName, deleteRecords);
+        return await this.deleteAll<T>(modelName, deleteRecords);
     }
 
     // Advanced operations - filter-based updates/deletes
     async selectAny<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filterData: FilterData = {},
         options: SelectOptions = {}
     ): Promise<DbRecord<T>[]> {
-        const schema = await this.toSchema(schemaName);
+        const model = await this.toModel(modelName);
 
         // Apply context-based soft delete defaults
         const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
         const mergedOptions = { ...defaultOptions, ...options };
 
-        const filter = new Filter(schema.schema_name)
+        const filter = new Filter(model.model_name)
             .assign(filterData)
             .withSoftDeleteOptions(mergedOptions);
 
@@ -237,7 +237,7 @@ export class Database {
         const result = await this.system.database.execute(query, params);
 
         // Convert PostgreSQL string types back to proper JSON types
-        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, schema));
+        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, model));
     }
 
     /**
@@ -272,23 +272,23 @@ export class Database {
      * Convert PostgreSQL string results back to proper JSON types
      *
      * PostgreSQL returns all values as strings by default. This method converts
-     * them back to the correct JSON types based on the schema column metadata.
+     * them back to the correct JSON types based on the model field metadata.
      */
-    private convertPostgreSQLTypes(record: any, schema: any): any {
-        if (!schema.typedFields || schema.typedFields.size === 0) {
+    private convertPostgreSQLTypes(record: any, model: any): any {
+        if (!model.typedFields || model.typedFields.size === 0) {
             return record;
         }
 
-        return convertRecordPgToMonk(record, schema.typedFields);
+        return convertRecordPgToMonk(record, model.typedFields);
     }
 
     async updateAny<T extends Record<string, any> = Record<string, any>>(
-        schemaName: string,
+        modelName: string,
         filterData: FilterData,
         changes: Partial<T>
     ): Promise<DbRecord<T>[]> {
         // 1. Find all records matching the filter - use system context for internal operations
-        const records = await this.selectAny<T>(schemaName, filterData, { context: 'system' });
+        const records = await this.selectAny<T>(modelName, filterData, { context: 'system' });
 
         if (records.length === 0) {
             return [];
@@ -301,15 +301,15 @@ export class Database {
         }));
 
         // 3. Bulk update all matched records
-        return await this.updateAll<T>(schemaName, updates);
+        return await this.updateAll<T>(modelName, updates);
     }
 
     async deleteAny<T extends Record<string, any> = Record<string, any>>(
-        schemaName: string,
+        modelName: string,
         filter: FilterData
     ): Promise<DbRecord<T>[]> {
         // 1. Find all records matching the filter - use system context for internal operations
-        const records = await this.selectAny<T>(schemaName, filter, { context: 'system' });
+        const records = await this.selectAny<T>(modelName, filter, { context: 'system' });
 
         if (records.length === 0) {
             return [];
@@ -317,24 +317,24 @@ export class Database {
 
         // 2. Extract IDs and bulk delete
         const recordIds = records.map(record => record.id);
-        return await this.deleteIds<T>(schemaName, recordIds);
+        return await this.deleteIds<T>(modelName, recordIds);
     }
 
     async createOne<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         recordData: DbCreateInput<T>
     ): Promise<DbRecord<T>> {
         // Universal pattern: Single → Array → Observer Pipeline
-        const results = await this.createAll<T>(schemaName, [recordData]);
+        const results = await this.createAll<T>(modelName, [recordData]);
         return results[0];
     }
 
     async updateOne<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         recordId: string,
         updates: Partial<T>
     ): Promise<DbRecord<T>> {
-        const results = await this.updateAll<T>(schemaName, [{ id: recordId, ...updates }]);
+        const results = await this.updateAll<T>(modelName, [{ id: recordId, ...updates }]);
 
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found', 'RECORD_NOT_FOUND');
@@ -345,11 +345,11 @@ export class Database {
 
     // Core batch update method - optimized for multiple records
     async updateAll<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         updates: DbUpdateInput<T>[]
     ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
-        return await this.runObserverPipeline('update', schemaName, updates);
+        return await this.runObserverPipeline('update', modelName, updates);
     }
 
     /**
@@ -359,10 +359,10 @@ export class Database {
      * @returns The updated record with trashed_at timestamp set
      */
     async deleteOne<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         recordId: string
     ): Promise<DbRecord<T>> {
-        const results = await this.deleteAll<T>(schemaName, [{ id: recordId }]);
+        const results = await this.deleteAll<T>(modelName, [{ id: recordId }]);
 
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found or already trashed', 'RECORD_NOT_FOUND');
@@ -378,11 +378,11 @@ export class Database {
      * @returns Array of reverted records with trashed_at set to null
      */
     async revertAll<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         reverts: DbUpdateInput<T>[]
     ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
-        return await this.runObserverPipeline('revert', schemaName, reverts);
+        return await this.runObserverPipeline('revert', modelName, reverts);
     }
 
     /**
@@ -390,10 +390,10 @@ export class Database {
      * Delegates to revertAll() for consistency with updateOne/updateAll pattern.
      */
     async revertOne<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         recordId: string
     ): Promise<DbRecord<T>> {
-        const results = await this.revertAll<T>(schemaName, [{ id: recordId, trashed_at: null } as unknown as DbUpdateInput<T>]);
+        const results = await this.revertAll<T>(modelName, [{ id: recordId, trashed_at: null } as unknown as DbUpdateInput<T>]);
 
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found or not trashed', 'RECORD_NOT_FOUND');
@@ -407,7 +407,7 @@ export class Database {
      * Finds trashed records matching filter, then reverts them.
      */
     async revertAny<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filterData: FilterData = {}
     ): Promise<DbRecord<T>[]> {
         // First find all trashed records matching the filter
@@ -416,14 +416,14 @@ export class Database {
             throw HttpErrors.badRequest('revertAny() requires include_trashed=true option to find trashed records', 'REQUEST_INVALID_OPTIONS');
         }
 
-        const trashedRecords = await this.selectAny<T>(schemaName, filterData, { includeTrashed: true, includeDeleted: false, context: 'system' });
+        const trashedRecords = await this.selectAny<T>(modelName, filterData, { includeTrashed: true, includeDeleted: false, context: 'system' });
         const recordsToRevert = trashedRecords.filter(record => record.trashed_at !== null).map(record => ({ id: record.id, trashed_at: null } as unknown as DbUpdateInput<T>));
 
         if (recordsToRevert.length === 0) {
             return [];
         }
 
-        return await this.revertAll<T>(schemaName, recordsToRevert);
+        return await this.revertAll<T>(modelName, recordsToRevert);
     }
 
     /**
@@ -432,7 +432,7 @@ export class Database {
      * Executes the complete observer pipeline for any database operation.
      * Handles recursion detection, transaction management, and selective ring execution.
      */
-    private async runObserverPipeline(operation: OperationType, schemaName: string, data: any[], depth: number = 0): Promise<any[]> {
+    private async runObserverPipeline(operation: OperationType, modelName: string, data: any[], depth: number = 0): Promise<any[]> {
         // Recursion protection
         if (depth > Database.SQL_MAX_RECURSION) {
             throw new ObserverRecursionError(depth, Database.SQL_MAX_RECURSION);
@@ -442,17 +442,17 @@ export class Database {
 
         console.info('Observer pipeline started', {
             operation,
-            schemaName,
+            modelName,
             recordCount: data.length,
             depth,
         });
 
-        // 🎯 SINGLE POINT: Convert schemaName → schema object here
-        const schema = await this.toSchema(schemaName);
+        // 🎯 SINGLE POINT: Convert modelName → model object here
+        const model = await this.toModel(modelName);
 
         try {
-            // Execute observer pipeline with resolved schema object
-            const result = await this.executeObserverPipeline(operation, schema, data, depth + 1);
+            // Execute observer pipeline with resolved model object
+            const result = await this.executeObserverPipeline(operation, model, data, depth + 1);
 
             // Transaction management now handled at route level via withTransactionParams
 
@@ -460,7 +460,7 @@ export class Database {
             const duration = Date.now() - startTime;
             console.info('Observer pipeline completed', {
                 operation,
-                schemaName: schema.schema_name,
+                modelName: model.model_name,
                 recordCount: data.length,
                 depth,
                 durationMs: duration,
@@ -470,7 +470,7 @@ export class Database {
         } catch (error) {
             console.warn('Observer pipeline failed', {
                 operation,
-                schemaName: schema.schema_name,
+                modelName: model.model_name,
                 recordCount: data.length,
                 depth,
                 error: error instanceof Error ? error.message : String(error),
@@ -485,18 +485,18 @@ export class Database {
     /**
      * Execute observer pipeline within existing transaction context
      */
-    private async executeObserverPipeline(operation: OperationType, schema: Schema, data: any[], depth: number): Promise<any[]> {
-        // Wrap input data in SchemaRecord instances
-        const records = data.map(d => new SchemaRecord(schema, d));
+    private async executeObserverPipeline(operation: OperationType, model: Model, data: any[], depth: number): Promise<any[]> {
+        // Wrap input data in ModelRecord instances
+        const records = data.map(d => new ModelRecord(model, d));
 
         const runner = new ObserverRunner();
 
         const result = await runner.execute(
             this.system as any, // TODO: Fix System vs SystemContext type mismatch
             operation,
-            schema,
-            records,  // Pass SchemaRecord[] instead of any[]
-            undefined, // existing records (DEPRECATED - RecordPreloader will inject into SchemaRecord.load())
+            model,
+            records,  // Pass ModelRecord[] instead of any[]
+            undefined, // existing records (DEPRECATED - RecordPreloader will inject into ModelRecord.load())
             depth
         );
 
@@ -528,24 +528,24 @@ export class Database {
             );
         }
 
-        // Unwrap SchemaRecord instances back to plain objects
+        // Unwrap ModelRecord instances back to plain objects
         // context.data is the single array flowing through the pipeline
         // SQL observers update it in-place with setCurrent()
-        return records.map((r: SchemaRecord) => r.toObject());
+        return records.map((r: ModelRecord) => r.toObject());
     }
 
     // Database class doesn't handle transactions - System class does
 
     // Access control operations - separate from regular data updates
     async accessOne<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         recordId: string,
         accessChanges: DbAccessInput
     ): Promise<DbRecord<T>> {
-        const schema = await this.toSchema(schemaName);
+        const model = await this.toModel(modelName);
 
         // Verify record exists
-        await this.select404<T>(schemaName, { where: { id: recordId } });
+        await this.select404<T>(modelName, { where: { id: recordId } });
 
         // Only allow access_* field updates
         const allowedFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
@@ -584,7 +584,7 @@ export class Database {
         const setClause = setClauses.join(', ');
 
         const result = await this.execute(`
-            UPDATE "${schema.schema_name}"
+            UPDATE "${model.model_name}"
             SET ${setClause}
             WHERE id = '${recordId}'
             RETURNING *
@@ -594,23 +594,23 @@ export class Database {
     }
 
     async accessAll<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         updates: Array<{ id: string; access: DbAccessInput }>
     ): Promise<DbRecord<T>[]> {
         const results: DbRecord<T>[] = [];
         for (const update of updates) {
-            results.push(await this.accessOne<T>(schemaName, update.id, update.access));
+            results.push(await this.accessOne<T>(modelName, update.id, update.access));
         }
         return results;
     }
 
     async accessAny<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filter: FilterData,
         accessChanges: DbAccessInput
     ): Promise<DbRecord<T>[]> {
         // 1. Find all records matching the filter - use system context for internal operations
-        const records = await this.selectAny<T>(schemaName, filter, { context: 'system' });
+        const records = await this.selectAny<T>(modelName, filter, { context: 'system' });
 
         if (records.length === 0) {
             return [];
@@ -623,41 +623,41 @@ export class Database {
         }));
 
         // 3. Bulk update access permissions
-        return await this.accessAll<T>(schemaName, accessUpdates);
+        return await this.accessAll<T>(modelName, accessUpdates);
     }
 
     // 404 operations - convenience methods that throw if not found
     async update404<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filter: FilterData,
         changes: Partial<T>,
         message?: string
     ): Promise<DbRecord<T>> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404<T>(schemaName, filter, message);
+        const record = await this.select404<T>(modelName, filter, message);
 
-        return await this.updateOne<T>(schemaName, record.id, changes);
+        return await this.updateOne<T>(modelName, record.id, changes);
     }
 
     async delete404<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filter: FilterData,
         message?: string
     ): Promise<DbRecord<T>> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404<T>(schemaName, filter, message);
-        return await this.deleteOne<T>(schemaName, record.id);
+        const record = await this.select404<T>(modelName, filter, message);
+        return await this.deleteOne<T>(modelName, record.id);
     }
 
     async access404<T extends Record<string, any> = Record<string, any>>(
-        schemaName: SchemaName,
+        modelName: ModelName,
         filter: FilterData,
         accessChanges: DbAccessInput,
         message?: string
     ): Promise<DbRecord<T>> {
         // First ensure record exists (throws if not found)
-        const record = await this.select404<T>(schemaName, filter, message);
-        return await this.accessOne<T>(schemaName, record.id, accessChanges);
+        const record = await this.select404<T>(modelName, filter, message);
+        return await this.accessOne<T>(modelName, record.id, accessChanges);
     }
 }
 

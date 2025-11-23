@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 set -e
 
-# Test: POST /api/data/:schema/:record/:relationship - Create nested related record
+# Test: POST /api/data/:model/:record/:relationship - Create nested related record
 # Creates a child record with parent relationship automatically set
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
 
-print_step "Testing POST /api/data/:schema/:record/:relationship endpoint"
+print_step "Testing POST /api/data/:model/:record/:relationship endpoint"
 
 # Setup test environment with template and authentication (full)
 setup_test_with_template "create-relationship-post"
 setup_full_auth
 
-# Create post schema with comments relationship
-print_step "Creating post schema"
-test_post_schema='{
+# Create post model with comments relationship
+print_step "Creating post model"
+test_post_model='{
   "title": "Posts",
   "type": "object",
   "properties": {
@@ -24,11 +24,11 @@ test_post_schema='{
   }
 }'
 
-response=$(auth_post "api/describe/posts" "$test_post_schema")
-extract_and_validate_data "$response" "Created post schema"
+response=$(auth_post "api/describe/posts" "$test_post_model")
+extract_and_validate_data "$response" "Created post model"
 
-print_step "Creating comment schema with relationship"
-test_comment_schema='{
+print_step "Creating comment model with relationship"
+test_comment_model='{
   "title": "Comments",
   "type": "object",
   "properties": {
@@ -37,15 +37,15 @@ test_comment_schema='{
       "type": "string",
       "x-monk-relationship": {
         "type": "owned",
-        "schema": "posts",
+        "model": "posts",
         "name": "comments"
       }
     }
   }
 }'
 
-response=$(auth_post "api/describe/comments" "$test_comment_schema")
-extract_and_validate_data "$response" "Created comment schema"
+response=$(auth_post "api/describe/comments" "$test_comment_model")
+extract_and_validate_data "$response" "Created comment model"
 
 # Create a parent post
 print_step "Creating parent post"

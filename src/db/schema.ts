@@ -12,32 +12,32 @@ export interface BaseFields {
     deleted_at: string | null; // ISO timestamp for permanent deletes
 }
 
-// Schema registry table interface
-export interface Schema extends BaseFields {
-    schema_name: string; // Unique schema name
-    status: 'pending' | 'active' | 'disabled' | 'system'; // Schema status
+// Model registry table interface
+export interface Model extends BaseFields {
+    model_name: string; // Unique model name
+    status: 'pending' | 'active' | 'disabled' | 'system'; // Model status
 }
 
-// Column registry table interface
-export interface Column extends BaseFields {
-    schema_name: string; // References schema.schema_name
-    column_name: string; // Column name
-    type: string; // PostgreSQL column type
+// Field registry table interface
+export interface Field extends BaseFields {
+    model_name: string; // References model.model_name
+    field_name: string; // Field name
+    type: string; // PostgreSQL field type
     required: 'true' | 'false'; // Required flag as string
     default_value: string | null; // Default value if any
-    constraints: any | null; // Column constraints metadata
+    constraints: any | null; // Field constraints metadata
     foreign_key: any | null; // Foreign key metadata object
-    description: string | null; // Column description
+    description: string | null; // Field description
 }
 
 // Insert types (for creating new records)
-export type NewSchema = Omit<Schema, 'id' | 'created_at' | 'updated_at'> & {
+export type NewModel = Omit<Model, 'id' | 'created_at' | 'updated_at'> & {
     id?: string;
     created_at?: string;
     updated_at?: string;
 };
 
-export type NewColumn = Omit<Column, 'id' | 'created_at' | 'updated_at'> & {
+export type NewField = Omit<Field, 'id' | 'created_at' | 'updated_at'> & {
     id?: string;
     created_at?: string;
     updated_at?: string;
@@ -45,6 +45,6 @@ export type NewColumn = Omit<Column, 'id' | 'created_at' | 'updated_at'> & {
 
 // Table names as constants
 export const TABLE_NAMES = {
-    schema: 'schemas',
-    columns: 'columns',
+    model: 'models',
+    fields: 'fields',
 } as const;

@@ -18,7 +18,7 @@ CREATE TABLE "restore_logs" (
     "run_id" uuid NOT NULL,
     "level" text NOT NULL,
     "phase" text,
-    "schema_name" text,
+    "model_name" text,
     "record_id" text,
     "message" text NOT NULL,
     "detail" jsonb,
@@ -31,4 +31,4 @@ CREATE TABLE "restore_logs" (
 CREATE INDEX "restore_logs_run_id_idx" ON "restore_logs"("run_id");
 CREATE INDEX "restore_logs_level_idx" ON "restore_logs"("level");
 CREATE INDEX "restore_logs_created_at_idx" ON "restore_logs"("created_at");
-CREATE INDEX "restore_logs_schema_name_idx" ON "restore_logs"("schema_name");
+CREATE INDEX "restore_logs_model_name_idx" ON "restore_logs"("model_name");

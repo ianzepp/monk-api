@@ -1,11 +1,11 @@
-# POST /api/describe/:schema/columns/:column
+# POST /api/describe/:model/fields/:field
 
-Add a new column to an existing schema. This operation modifies both the columns table (metadata) and the PostgreSQL table structure (ALTER TABLE ADD COLUMN).
+Add a new field to an existing model. This operation modifies both the fields table (metadata) and the PostgreSQL table structure (ALTER TABLE ADD FIELD).
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
-- `:column` - Column name (required, taken from URL not request body)
+- `:model` - Model name (required)
+- `:field` - Field name (required, taken from URL not request body)
 
 ## Query Parameters
 
@@ -31,8 +31,8 @@ None
 ### Optional Fields
 
 #### Constraints
-- **required** - Whether column is required/NOT NULL (default: `false`)
-- **default_value** - Default value for the column
+- **required** - Whether field is required/NOT NULL (default: `false`)
+- **default_value** - Default value for the field
 - **unique** - Whether values must be unique (default: `false`)
 
 #### Validation
@@ -50,7 +50,7 @@ None
 
 #### Indexing & Search
 - **index** - Create standard btree index (default: `false`)
-- **searchable** - Enable full-text search with GIN index (default: `false`, text columns only)
+- **searchable** - Enable full-text search with GIN index (default: `false`, text fields only)
 
 #### Change Tracking
 - **tracked** - Track changes in history table (default: `false`)
@@ -60,8 +60,8 @@ None
 
 #### Relationships
 - **relationship_type** - Type of relationship: `owned` or `referenced`
-- **related_schema** - Target schema for relationship
-- **related_column** - Target column (default: `id`)
+- **related_model** - Target model for relationship
+- **related_field** - Target field (default: `id`)
 - **relationship_name** - Name for API access
 - **cascade_delete** - Cascade delete when parent deleted (default: `false`)
 - **required_relationship** - Relationship is required/NOT NULL FK (default: `false`)
@@ -73,8 +73,8 @@ None
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "schema_name": "users",
-    "column_name": "phone",
+    "model_name": "users",
+    "field_name": "phone",
     "type": "text",
     "required": false,
     "pattern": "^\\+?[1-9]\\d{1,14}$",
@@ -90,20 +90,20 @@ None
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `MISSING_REQUIRED_FIELDS` | "Column type is required" | Missing type field |
-| 400 | `INVALID_COLUMN_NAME` | "Column name must start with letter or underscore" | Invalid column name format |
-| 400 | `INVALID_TYPE` | "Invalid column type" | Unsupported data type |
+| 400 | `MISSING_REQUIRED_FIELDS` | "Field type is required" | Missing type field |
+| 400 | `INVALID_FIELD_NAME` | "Field name must start with letter or underscore" | Invalid field name format |
+| 400 | `INVALID_TYPE` | "Invalid field type" | Unsupported data type |
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token |
-| 403 | `SCHEMA_PROTECTED` | "Schema is protected and cannot be modified" | System schema |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 409 | `COLUMN_EXISTS` | "Column already exists" | Column name already in use |
+| 403 | `MODEL_PROTECTED` | "Model is protected and cannot be modified" | System model |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
+| 409 | `FIELD_EXISTS` | "Field already exists" | Field name already in use |
 
 ## Example Usage
 
-### Add Simple Text Column
+### Add Simple Text Field
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/users/columns/bio \
+curl -X POST http://localhost:9001/api/describe/users/fields/bio \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -112,10 +112,10 @@ curl -X POST http://localhost:9001/api/describe/users/columns/bio \
   }'
 ```
 
-### Add Required Email Column
+### Add Required Email Field
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/users/columns/email \
+curl -X POST http://localhost:9001/api/describe/users/fields/email \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -128,10 +128,10 @@ curl -X POST http://localhost:9001/api/describe/users/columns/email \
   }'
 ```
 
-### Add Integer Column with Constraints
+### Add Integer Field with Constraints
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/products/columns/price \
+curl -X POST http://localhost:9001/api/describe/products/fields/price \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -143,10 +143,10 @@ curl -X POST http://localhost:9001/api/describe/products/columns/price \
   }'
 ```
 
-### Add Column with Enum Values
+### Add Field with Enum Values
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/users/columns/role \
+curl -X POST http://localhost:9001/api/describe/users/fields/role \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -158,10 +158,10 @@ curl -X POST http://localhost:9001/api/describe/users/columns/role \
   }'
 ```
 
-### Add Full-Text Searchable Column
+### Add Full-Text Searchable Field
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/articles/columns/content \
+curl -X POST http://localhost:9001/api/describe/articles/fields/content \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -171,30 +171,30 @@ curl -X POST http://localhost:9001/api/describe/articles/columns/content \
   }'
 ```
 
-### Add Relationship Column
+### Add Relationship Field
 
 ```bash
-curl -X POST http://localhost:9001/api/describe/posts/columns/author_id \
+curl -X POST http://localhost:9001/api/describe/posts/fields/author_id \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "uuid",
     "required": true,
     "relationship_type": "referenced",
-    "related_schema": "users",
-    "related_column": "id",
+    "related_model": "users",
+    "related_field": "id",
     "relationship_name": "author",
     "cascade_delete": false,
     "description": "Post author"
   }'
 ```
 
-## Complete Schema Build Workflow
+## Complete Model Build Workflow
 
 ```javascript
-// Create schema and add columns
-async function buildUserSchema() {
-  // Step 1: Create schema
+// Create model and add fields
+async function buildUserModel() {
+  // Step 1: Create model
   await fetch('/api/describe/users', {
     method: 'POST',
     headers: {
@@ -202,13 +202,13 @@ async function buildUserSchema() {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      schema_name: 'users',
+      model_name: 'users',
       status: 'pending'
     })
   });
 
-  // Step 2: Add columns
-  const columns = [
+  // Step 2: Add fields
+  const fields = [
     {
       name: 'name',
       def: {
@@ -239,18 +239,18 @@ async function buildUserSchema() {
     }
   ];
 
-  for (const column of columns) {
-    await fetch(`/api/describe/users/${column.name}`, {
+  for (const field of fields) {
+    await fetch(`/api/describe/users/${field.name}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(column.def)
+      body: JSON.stringify(field.def)
     });
   }
 
-  // Step 3: Activate schema
+  // Step 3: Activate model
   await fetch('/api/describe/users', {
     method: 'PUT',
     headers: {
@@ -260,13 +260,13 @@ async function buildUserSchema() {
     body: JSON.stringify({ status: 'active' })
   });
 
-  console.log('User schema created with columns');
+  console.log('User model created with fields');
 }
 ```
 
-## Column Naming Rules
+## Field Naming Rules
 
-Column names must follow PostgreSQL identifier rules:
+Field names must follow PostgreSQL identifier rules:
 - Start with a letter or underscore
 - Contain only letters, numbers, and underscores
 - Maximum 63 characters
@@ -348,8 +348,8 @@ Creates foreign key to another table:
 {
   "type": "uuid",
   "relationship_type": "referenced",
-  "related_schema": "users",
-  "related_column": "id",
+  "related_model": "users",
+  "related_field": "id",
   "relationship_name": "author"
 }
 ```
@@ -361,7 +361,7 @@ Creates one-to-many ownership relationship:
 ```json
 {
   "relationship_type": "owned",
-  "related_schema": "comments",
+  "related_model": "comments",
   "relationship_name": "comments"
 }
 ```
@@ -370,25 +370,25 @@ Allows: `GET /api/data/posts/:id/comments`
 
 ## ALTER TABLE Behavior
 
-Adding a column triggers:
-1. Record created in `columns` table
+Adding a field triggers:
+1. Record created in `fields` table
 2. PostgreSQL ALTER TABLE executed:
    ```sql
-   ALTER TABLE users ADD COLUMN phone TEXT;
+   ALTER TABLE users ADD FIELD phone TEXT;
    ```
 3. Indexes/constraints created if specified
-4. Schema cache invalidated
+4. Model cache invalidated
 
 ## Performance Considerations
 
-- Column addition is a DDL operation (ALTER TABLE)
+- Field addition is a DDL operation (ALTER TABLE)
 - May lock table briefly during addition
-- Consider adding columns during maintenance for large tables
-- Multiple columns? Add them one at a time in a transaction
+- Consider adding fields during maintenance for large tables
+- Multiple fields? Add them one at a time in a transaction
 
 ## Related Endpoints
 
-- [`GET /api/describe/:schema/columns/:column`](GET.md) - Get column definition
-- [`PUT /api/describe/:schema/columns/:column`](PUT.md) - Update column
-- [`DELETE /api/describe/:schema/columns/:column`](DELETE.md) - Delete column
-- [`POST /api/describe/:schema`](../:schema/POST.md) - Create schema
+- [`GET /api/describe/:model/fields/:field`](GET.md) - Get field definition
+- [`PUT /api/describe/:model/fields/:field`](PUT.md) - Update field
+- [`DELETE /api/describe/:model/fields/:field`](DELETE.md) - Delete field
+- [`POST /api/describe/:model`](../:model/POST.md) - Create model

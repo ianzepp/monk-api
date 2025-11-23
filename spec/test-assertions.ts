@@ -30,14 +30,14 @@ export interface ApiResponse<T = any> {
  * ```typescript
  * const response = await httpClient.post('/api/describe/products', { ... });
  * expectSuccess(response);
- * expect(response.data.schema_name).toBe('products');
+ * expect(response.data.model_name).toBe('products');
  * ```
  *
  * @example
  * ```typescript
  * // With custom context message
  * const response = await httpClient.post('/api/describe/products/name', { type: 'text' });
- * expectSuccess(response, 'Failed to create column');
+ * expectSuccess(response, 'Failed to create field');
  * ```
  */
 export function expectSuccess(response: ApiResponse, message?: string): void {
@@ -70,8 +70,8 @@ export function expectSuccess(response: ApiResponse, message?: string): void {
  * @example
  * ```typescript
  * // With error pattern matching
- * const response = await httpClient.post('/api/describe/nonexistent/column', { type: 'text' });
- * expectError(response, /schema.*not found/i);
+ * const response = await httpClient.post('/api/describe/nonexistent/field', { type: 'text' });
+ * expectError(response, /model.*not found/i);
  * ```
  */
 export function expectError(response: ApiResponse, errorPattern?: RegExp | string): void {
@@ -99,8 +99,8 @@ export function expectError(response: ApiResponse, errorPattern?: RegExp | strin
  * @example
  * ```typescript
  * const response = await httpClient.post('/api/describe/products', { ... });
- * const schema = expectData<SchemaRecord>(response);
- * expect(schema.schema_name).toBe('products');
+ * const model = expectData<ModelRecord>(response);
+ * expect(model.model_name).toBe('products');
  * ```
  */
 export function expectData<T>(response: ApiResponse<T>): T {

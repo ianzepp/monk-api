@@ -4,36 +4,36 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
-export default withTransactionParams(async (context, { system, schema, body }) => {
-    // Schema name comes from URL parameter
-    // Body contains schema metadata only (status, sudo, frozen)
-    // Use column endpoints for column management
-    const schemaName = schema!.toLowerCase();
+export default withTransactionParams(async (context, { system, model, body }) => {
+    // Model name comes from URL parameter
+    // Body contains model metadata only (status, sudo, frozen)
+    // Use field endpoints for field management
+    const modelName = model!.toLowerCase();
 
-    // Validate schema name mismatch (URL vs body)
-    if (body.schema_name && body.schema_name.toLowerCase() !== schemaName) {
+    // Validate model name mismatch (URL vs body)
+    if (body.model_name && body.model_name.toLowerCase() !== modelName) {
         const force = context.req.query('force') === 'true';
         if (!force) {
             throw HttpErrors.badRequest(
-                `Schema name mismatch: URL has '${schemaName}' but body has '${body.schema_name}'. Use ?force=true to override.`
+                `Model name mismatch: URL has '${modelName}' but body has '${body.model_name}'. Use ?force=true to override.`
             );
         }
-        // If force=true, use body's schema_name (will be spread below)
+        // If force=true, use body's model_name (will be spread below)
     }
 
-    // Create schema record via wrapper
+    // Create model record via wrapper
     const dataToCreate = {
-        schema_name: schemaName,
+        model_name: modelName,
         ...body
     };
 
-    console.log('POST /api/describe/:schema - Creating schema:', {
-        schemaFromUrl: schemaName,
+    console.log('POST /api/describe/:model - Creating model:', {
+        modelFromUrl: modelName,
         body,
         dataToCreate
     });
 
-    const result = await system.describe.schemas.createOne(dataToCreate);
+    const result = await system.describe.models.createOne(dataToCreate);
 
     // Strip system fields before returning
     setRouteResult(context, stripSystemFields(result));

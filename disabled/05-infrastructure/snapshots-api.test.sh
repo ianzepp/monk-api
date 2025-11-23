@@ -135,7 +135,7 @@ setup_sudo_auth "Testing snapshots API operations"
 #     SELECT 1 FROM pg_database WHERE datname = '<snapshot_database>'
 #   - Verify database exists
 #   - Verify database is read-only:
-#     SELECT setting FROM pg_settings 
+#     SELECT setting FROM pg_settings
 #     WHERE name = 'default_transaction_read_only'
 #   - Verify setting = 'on' (read-only enforced)
 
@@ -399,14 +399,14 @@ setup_sudo_auth "Testing snapshots API operations"
 #   - Verify new data NOT in snapshot
 #   - Snapshot captures state at creation time
 
-# Test 8.3: Verify snapshot includes schema definitions
-# Expected: Full schema structure preserved
+# Test 8.3: Verify snapshot includes model definitions
+# Expected: Full model structure preserved
 # TODO: Implement test
-#   - Create tenant with custom schemas
+#   - Create tenant with custom models
 #   - Create snapshot
 #   - Wait for active
-#   - Query snapshot database information_schema
-#   - Verify all schemas present
+#   - Query snapshot database information_model
+#   - Verify all models present
 #   - Verify all tables present
 #   - Complete database backup
 

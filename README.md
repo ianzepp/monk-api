@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-**Modern PaaS Backend Framework** - Ultra-lightweight Platform-as-a-Service API built with Hono and TypeScript, featuring schema-first development, multi-tenant architecture, and ring-based observer system for building high-performance SaaS applications.
+**Modern PaaS Backend Framework** - Ultra-lightweight Platform-as-a-Service API built with Hono and TypeScript, featuring model-first development, multi-tenant architecture, and ring-based observer system for building high-performance SaaS applications.
 
 ## For AI Agents & Contributors
 
@@ -11,17 +11,17 @@ IMPORTANT: Before starting any task, read [AGENTS.md](./AGENTS.md) for project-s
 ### Project Overview
 - **Language**: TypeScript with Hono ultra-fast web framework
 - **Purpose**: Lightweight PaaS backend for rapid SaaS application development
-- **Architecture**: Schema-first development with ring-based observer pattern
+- **Architecture**: Model-first development with ring-based observer pattern
 - **Database**: Multi-tenant PostgreSQL with automatic tenant routing
-- **Performance**: 15x faster schema access, ultra-lightweight framework (~50KB)
+- **Performance**: 15x faster model access, ultra-lightweight framework (~50KB)
 
 ### Key Features
-- **Schema-First Development**: JSON-based data model definitions with in-house validation
+- **Model-First Development**: JSON-based data model definitions with in-house validation
 - **Multi-Tenant Architecture**: Automatic tenant isolation with dedicated database instances
 - **Infrastructure Management**: Templates, Sandboxes, and Snapshots for rapid provisioning and testing
 - **Ring-Based Observer System**: Sophisticated event-driven business logic (0-9 execution rings)
 - **Ultra-Fast Performance**: Hono framework with multi-runtime support (Node.js, Bun, Deno, Cloudflare Workers)
-- **RESTful API**: Automatic REST endpoint generation from schema definitions
+- **RESTful API**: Automatic REST endpoint generation from model definitions
 - **Comprehensive Testing**: Isolated test environments with 30x faster template-based setup
 
 ### Technical Architecture
@@ -36,11 +36,11 @@ IMPORTANT: Before starting any task, read [AGENTS.md](./AGENTS.md) for project-s
 
 ### Multi-Tenant Capabilities
 - **Database Isolation**: Dedicated PostgreSQL per tenant with JWT-based routing
-- **Schema Independence**: Tenants evolve independently without interference
+- **Model Independence**: Tenants evolve independently without interference
 - **Template System**: Instant tenant provisioning from pre-configured templates (30x faster)
 - **Sandboxes**: Temporary testing environments with automatic expiration
 - **Snapshots**: Point-in-time backups with async processing for disaster recovery
-- **Performance**: SHA256 caching provides 15x faster schema access
+- **Performance**: SHA256 caching provides 15x faster model access
 
 **Multi-Tenant Architecture**: See [DEVELOPER.md](DEVELOPER.md) for detailed tenant management
 
@@ -63,7 +63,7 @@ PUT  /api/data/users/123  # Update specific user (object input)
 
 ### Performance Optimizations
 - **Ultra-Lightweight**: ~50KB Hono framework vs traditional heavy frameworks
-- **Schema Caching**: 15x performance improvement with SHA256-based caching
+- **Model Caching**: 15x performance improvement with SHA256-based caching
 - **Raw SQL**: Direct execution without ORM overhead
 
 **Performance Details**: See [DEVELOPER.md](DEVELOPER.md) for optimization strategies
@@ -78,7 +78,7 @@ PUT  /api/data/users/123  # Update specific user (object input)
 
 ### Use Cases
 - **SaaS Application Backend**: Rapid development platform for multi-tenant SaaS applications
-- **API-First Development**: Schema-driven development with automatic endpoint generation
+- **API-First Development**: Model-driven development with automatic endpoint generation
 - **Microservices**: Ultra-lightweight service development with observer-based extensibility
 - **High-Performance APIs**: Maximum performance with minimal resource overhead
 - **Multi-Tenant Systems**: Enterprise-grade tenant isolation and security
@@ -91,7 +91,7 @@ PUT  /api/data/users/123  # Update specific user (object input)
 **Complete Stack**: See [DEVELOPER.md](DEVELOPER.md) for detailed technology specifications
 
 ### Archive Value
-Excellent reference for modern TypeScript API development, multi-tenant architecture, schema-first development, observer patterns, and high-performance API design.
+Excellent reference for modern TypeScript API development, multi-tenant architecture, model-first development, observer patterns, and high-performance API design.
 
 ---
 

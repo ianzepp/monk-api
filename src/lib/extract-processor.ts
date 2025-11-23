@@ -68,7 +68,7 @@ export class ExtractProcessor {
             config_snapshot: {
                 format: extract.format,
                 include: extract.include,
-                schemas: extract.schemas,
+                models: extract.models,
                 compress: extract.compress,
                 split_files: extract.split_files
             }
@@ -116,14 +116,14 @@ export class ExtractProcessor {
             const config = extractConfig;
             const include = config.include || ['describe', 'data'];
 
-            // Determine schemas to export
-            const schemasToExport = config.schemas ||
-                (await this.system.describe.schemas.selectAny({}))
-                    .map((s: any) => s.schema_name)
-                    .filter((name: string) => !['schemas', 'columns'].includes(name)); // Skip meta schemas
+            // Determine models to export
+            const modelsToExport = config.models ||
+                (await this.system.describe.models.selectAny({}))
+                    .map((s: any) => s.model_name)
+                    .filter((name: string) => !['models', 'fields'].includes(name)); // Skip meta models
 
             let totalRecords = 0;
-            let schemasExported = 0;
+            let modelsExported = 0;
 
             // Export describe metadata
             if (include.includes('describe')) {
@@ -133,7 +133,7 @@ export class ExtractProcessor {
                     runId,
                     extractConfig.id,
                     runDir,
-                    schemasToExport,
+                    modelsToExport,
                     config
                 );
 
@@ -141,35 +141,35 @@ export class ExtractProcessor {
 
                 await this.updateProgress(runId, 25, {
                     phase: 'exported_describe',
-                    schemas_total: schemasToExport.length,
-                    schemas_completed: 0
+                    models_total: modelsToExport.length,
+                    models_completed: 0
                 });
             }
 
             // Export data
             if (include.includes('data')) {
-                console.info('Exporting data', { runId, schemas: schemasToExport.length });
+                console.info('Exporting data', { runId, models: modelsToExport.length });
 
-                for (const schemaName of schemasToExport) {
-                    const artifact = await this.exportSchemaData(
+                for (const modelName of modelsToExport) {
+                    const artifact = await this.exportModelData(
                         runId,
                         extractConfig.id,
                         runDir,
-                        schemaName,
+                        modelName,
                         config
                     );
 
                     artifacts.push(artifact);
                     totalRecords += artifact.recordCount || 0;
-                    schemasExported++;
+                    modelsExported++;
 
                     // Update progress (25% for describe, 75% for data)
-                    const dataProgress = 25 + Math.floor((schemasExported / schemasToExport.length) * 75);
+                    const dataProgress = 25 + Math.floor((modelsExported / modelsToExport.length) * 75);
                     await this.updateProgress(runId, Math.min(dataProgress, 99), {
                         phase: 'exporting_data',
-                        schemas_total: schemasToExport.length,
-                        schemas_completed: schemasExported,
-                        current_schema: schemaName,
+                        models_total: modelsToExport.length,
+                        models_completed: modelsExported,
+                        current_model: modelName,
                         records_exported: totalRecords
                     });
                 }
@@ -196,7 +196,7 @@ export class ExtractProcessor {
                 completed_at: new Date(),
                 duration_seconds: duration,
                 records_exported: totalRecords,
-                schemas_exported: schemasExported,
+                models_exported: modelsExported,
                 artifacts_created: artifacts.length,
                 total_size_bytes: totalSize
             });
@@ -239,40 +239,40 @@ export class ExtractProcessor {
     }
 
     /**
-     * Export describe metadata (schemas + columns)
+     * Export describe metadata (models + fields)
      */
     private async exportDescribeMetadata(
         runId: string,
         extractId: string,
         runDir: string,
-        schemasToExport: string[],
+        modelsToExport: string[],
         config: any
     ): Promise<any> {
-        // Fetch schemas and columns
-        const schemas = await this.system.describe.schemas.selectAny({
-            where: config.schemas ? { schema_name: { $in: config.schemas } } : {}
+        // Fetch models and fields
+        const models = await this.system.describe.models.selectAny({
+            where: config.models ? { model_name: { $in: config.models } } : {}
         });
 
-        const columns = await this.system.describe.columns.selectAny({
-            where: config.schemas ? { schema_name: { $in: config.schemas } } : {}
+        const fields = await this.system.describe.fields.selectAny({
+            where: config.models ? { model_name: { $in: config.models } } : {}
         });
 
         // Build hierarchical structure
         const result: any = {};
 
-        for (const schema of schemas) {
-            const schemaColumns = columns.filter((col: any) => col.schema_name === schema.schema_name);
-            const columnsObj: any = {};
+        for (const model of models) {
+            const modelFields = fields.filter((col: any) => col.model_name === model.model_name);
+            const fieldsObj: any = {};
 
-            for (const col of schemaColumns) {
-                const { schema_name, column_name, ...columnDef } = stripSystemFields(col);
-                columnsObj[column_name] = columnDef;
+            for (const col of modelFields) {
+                const { model_name, field_name, ...fieldDef } = stripSystemFields(col);
+                fieldsObj[field_name] = fieldDef;
             }
 
-            const { schema_name, ...schemaDef } = stripSystemFields(schema);
-            result[schema_name] = {
-                ...schemaDef,
-                columns: columnsObj
+            const { model_name, ...modelDef } = stripSystemFields(model);
+            result[model_name] = {
+                ...modelDef,
+                fields: fieldsObj
             };
         }
 
@@ -313,16 +313,16 @@ export class ExtractProcessor {
     }
 
     /**
-     * Export data for a single schema
+     * Export data for a single model
      */
-    private async exportSchemaData(
+    private async exportModelData(
         runId: string,
         extractId: string,
         runDir: string,
-        schemaName: string,
+        modelName: string,
         config: any
     ): Promise<any> {
-        const filename = `${schemaName}.jsonl`;
+        const filename = `${modelName}.jsonl`;
         const filepath = join(runDir, filename);
 
         const writeStream = createWriteStream(filepath);
@@ -333,7 +333,7 @@ export class ExtractProcessor {
 
         // Stream records in batches
         while (true) {
-            const records = await this.system.database.selectAny(schemaName, {
+            const records = await this.system.database.selectAny(modelName, {
                 limit: batchSize,
                 offset
             });
@@ -363,7 +363,7 @@ export class ExtractProcessor {
         const artifact = await this.system.database.createOne('extract_artifacts', {
             run_id: runId,
             extract_id: extractId,
-            artifact_type: `data-${schemaName}`,
+            artifact_type: `data-${modelName}`,
             artifact_name: filename,
             storage_path: filepath,
             storage_backend: 'local',

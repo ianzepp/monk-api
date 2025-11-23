@@ -1,26 +1,26 @@
-import type { Schema } from '@src/lib/schema.js';
+import type { Model } from '@src/lib/model.js';
 
 /**
- * Proxy handler for SchemaRecord that enables property accessor syntax
+ * Proxy handler for ModelRecord that enables property accessor syntax
  * Intercepts property access and delegates to get()/set() methods
- * Validates that accessed properties are valid schema columns
+ * Validates that accessed properties are valid model fields
  */
-const SchemaRecordProxyHandler: ProxyHandler<SchemaRecord> = {
+const ModelRecordProxyHandler: ProxyHandler<ModelRecord> = {
     get(target, prop, receiver) {
         // If prop is a symbol or a known method/property, use default behavior
         if (typeof prop === 'symbol' || prop in target) {
             return Reflect.get(target, prop, receiver);
         }
 
-        // Validate column exists in schema
-        if (!target.schema.hasColumn(prop)) {
+        // Validate field exists in model
+        if (!target.model.hasField(prop)) {
             const error = new Error(
-                `Column '${prop}' not found on schema '${target.schema.schema_name}'`
+                `Field '${prop}' not found on model '${target.model.model_name}'`
             );
-            (error as any).code = 'COLUMN_NOT_FOUND';
-            (error as any).schema = target.schema.schema_name;
-            (error as any).column = prop;
-            (error as any).availableColumns = Array.from(target.schema.getTypedFields().keys());
+            (error as any).code = 'FIELD_NOT_FOUND';
+            (error as any).model = target.model.model_name;
+            (error as any).field = prop;
+            (error as any).availableFields = Array.from(target.model.getTypedFields().keys());
             throw error;
         }
 
@@ -34,15 +34,15 @@ const SchemaRecordProxyHandler: ProxyHandler<SchemaRecord> = {
             return Reflect.set(target, prop, value, receiver);
         }
 
-        // Validate column exists in schema
-        if (!target.schema.hasColumn(prop)) {
+        // Validate field exists in model
+        if (!target.model.hasField(prop)) {
             const error = new Error(
-                `Column '${prop}' not found on schema '${target.schema.schema_name}'`
+                `Field '${prop}' not found on model '${target.model.model_name}'`
             );
-            (error as any).code = 'COLUMN_NOT_FOUND';
-            (error as any).schema = target.schema.schema_name;
-            (error as any).column = prop;
-            (error as any).availableColumns = Array.from(target.schema.getTypedFields().keys());
+            (error as any).code = 'FIELD_NOT_FOUND';
+            (error as any).model = target.model.model_name;
+            (error as any).field = prop;
+            (error as any).availableFields = Array.from(target.model.getTypedFields().keys());
             throw error;
         }
 
@@ -59,13 +59,13 @@ const SchemaRecordProxyHandler: ProxyHandler<SchemaRecord> = {
  * Features:
  * - Holds both current (new/changed) and original (from DB) data
  * - Tracks field-level changes with shallow comparison
- * - Validates field writes against schema
+ * - Validates field writes against model
  * - Provides diff/rollback/clone capabilities
- * - Knows its schema for validation and metadata access
+ * - Knows its model for validation and metadata access
  * - Supports property accessor syntax (record.field instead of record.get('field'))
  */
-export class SchemaRecord {
-    readonly schema: Schema;
+export class ModelRecord {
+    readonly model: Model;
     private _current: Record<string, any>;
     private _original: Record<string, any> | null;
 
@@ -73,17 +73,17 @@ export class SchemaRecord {
     [field: string]: any;
 
     /**
-     * Create a new SchemaRecord wrapping input data
-     * @param schema The schema this record belongs to
+     * Create a new ModelRecord wrapping input data
+     * @param model The model this record belongs to
      * @param data The input data (for creates/updates)
      */
-    constructor(schema: Schema, data: Record<string, any>) {
-        this.schema = schema;
+    constructor(model: Model, data: Record<string, any>) {
+        this.model = model;
         this._current = { ...data };  // Shallow copy
         this._original = null;  // Will be set by RecordPreloader for updates
 
         // Return a Proxy that enables property accessor syntax
-        return new Proxy(this, SchemaRecordProxyHandler) as this;
+        return new Proxy(this, ModelRecordProxyHandler) as this;
     }
 
     /**
@@ -93,8 +93,8 @@ export class SchemaRecord {
      */
     load(existingData: Record<string, any>): void {
         if (this._original !== null) {
-            console.warn('SchemaRecord.load() called multiple times', {
-                schema: this.schema.schema_name,
+            console.warn('ModelRecord.load() called multiple times', {
+                model: this.model.model_name,
                 id: this._current.id
             });
         }
@@ -144,17 +144,17 @@ export class SchemaRecord {
 
     /**
      * Set the current value of a field
-     * Validates against schema if field is not recognized
+     * Validates against model if field is not recognized
      * @param field The field name
      * @param value The value to set
      */
     set(field: string, value: any): void {
-        // Validate field exists in schema (cheap check)
-        if (!this.schema.hasColumn(field)) {
-            console.warn('Setting unknown field on SchemaRecord', {
-                schema: this.schema.schema_name,
+        // Validate field exists in model (cheap check)
+        if (!this.model.hasField(field)) {
+            console.warn('Setting unknown field on ModelRecord', {
+                model: this.model.model_name,
                 field,
-                knownFields: Array.from(this.schema.getTypedFields().keys())
+                knownFields: Array.from(this.model.getTypedFields().keys())
             });
         }
 
@@ -314,10 +314,10 @@ export class SchemaRecord {
 
     /**
      * Create a copy of this record
-     * @returns New SchemaRecord with same schema and cloned data
+     * @returns New ModelRecord with same model and cloned data
      */
-    clone(): SchemaRecord {
-        const cloned = new SchemaRecord(this.schema, this._current);
+    clone(): ModelRecord {
+        const cloned = new ModelRecord(this.model, this._current);
         if (this._original !== null) {
             cloned.load({ ...this._original });
         }
@@ -339,11 +339,11 @@ export class SchemaRecord {
 
     /**
      * Convert to JSON for debugging/logging
-     * @returns Debug representation showing schema, state, and changes
+     * @returns Debug representation showing model, state, and changes
      */
     toJSON(): object {
         return {
-            schema: this.schema.schema_name,
+            model: this.model.model_name,
             isNew: this.isNew(),
             current: this._current,
             original: this._original,

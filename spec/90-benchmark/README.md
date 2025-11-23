@@ -8,7 +8,7 @@
 
 ### Existing Tests (2)
 - Data API performance (CRUD operations) (data-api.test.sh)
-- Describe API performance (schema operations) (describe-api.test.sh)
+- Describe API performance (model operations) (describe-api.test.sh)
 
 ## Additional Tests
 
@@ -17,10 +17,10 @@
 - Bulk record creation (~10-20ms per record amortized)
 - Record retrieval (~5-15ms)
 - Record updates (similar to creates)
-- Simple schema creation (~50-150ms with 2 columns)
-- Complex schema creation (~100-300ms with 10 columns)
-- Column additions (~30-80ms ALTER TABLE)
-- Schema retrieval (~5-15ms cached)
+- Simple model creation (~50-150ms with 2 fields)
+- Complex model creation (~100-300ms with 10 fields)
+- Field additions (~30-80ms ALTER TABLE)
+- Model retrieval (~5-15ms cached)
 
 ### Missing Coverage
 - Find API performance (complex queries, large datasets)

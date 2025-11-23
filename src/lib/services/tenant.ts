@@ -178,13 +178,13 @@ export class TenantService {
         await this.createDatabase(databaseName);
 
         try {
-            // Initialize tenant database schema
-            await this.initializeTenantSchema(databaseName);
+            // Initialize tenant database model
+            await this.initializeTenantModel(databaseName);
 
-            // Create user schema via describe (API-managed user table)
-            // DISABLED: User table is already created by init-tenant.sql during initializeTenantSchema()
-            // This was redundant schema creation that caused mockContext architectural issues
-            // await this.createUserSchema(databaseName);
+            // Create user model via describe (API-managed user table)
+            // DISABLED: User table is already created by init-tenant.sql during initializeTenantModel()
+            // This was redundant model creation that caused mockContext architectural issues
+            // await this.createUserModel(databaseName);
 
             // Create root user via API (goes through observer pipeline)
             await this.createRootUser(databaseName, tenantName);
@@ -513,9 +513,9 @@ export class TenantService {
     }
 
     /**
-     * Initialize tenant database schema using sql/init-tenant.sql
+     * Initialize tenant database model using sql/init-tenant.sql
      */
-    private static async initializeTenantSchema(databaseName: string): Promise<void> {
+    private static async initializeTenantModel(databaseName: string): Promise<void> {
         const client = this.createTenantClient(databaseName);
 
         try {
@@ -534,9 +534,9 @@ export class TenantService {
     }
 
     /**
-     * Create user schema via describe for API-managed user table
+     * Create user model via describe for API-managed user table
      */
-    private static async createUserSchema(databaseName: string): Promise<void> {
+    private static async createUserModel(databaseName: string): Promise<void> {
         // Create a system context for describe operations
         const mockContext = {
             env: { JWT_SECRET: process.env['JWT_SECRET']! },
@@ -550,17 +550,17 @@ export class TenantService {
         const describe = new Describe(mockContext as any);
 
         try {
-            // Note: This method is disabled because user schema is now SQL-managed via init-tenant.sql
-            // Test fixture schemas are located in spec/fixtures/schema/ (not src/describedata)
-            // const userSchemaYaml = '...';
+            // Note: This method is disabled because user model is now SQL-managed via init-tenant.sql
+            // Test fixture models are located in spec/fixtures/model/ (not src/describedata)
+            // const userModelYaml = '...';
 
-            // Create user schema via describe (proper DDL generation + schema registration)
-            // await describe.createOne('schemas', userSchemaYaml);
+            // Create user model via describe (proper DDL generation + model registration)
+            // await describe.createOne('models', userModelYaml);
 
-            console.info('User schema created via describe', { databaseName });
+            console.info('User model created via describe', { databaseName });
         } catch (error) {
-            console.warn('Failed to create user schema via describe', { databaseName, error });
-            throw new Error(`Failed to create user schema: ${error}`);
+            console.warn('Failed to create user model via describe', { databaseName, error });
+            throw new Error(`Failed to create user model: ${error}`);
         }
     }
 
@@ -573,7 +573,7 @@ export class TenantService {
         try {
             await client.connect();
 
-            // Create root user using new user table format (no tenant_name column)
+            // Create root user using new user table format (no tenant_name field)
             await client.query('INSERT INTO users (name, auth, access) VALUES ($1, $2, $3)', ['Root User', 'root', 'root']);
         } finally {
             await client.end();

@@ -115,7 +115,7 @@ npm run test:sh 31-describe-api
 npm run test:sh 32-data-api
 
 # Run individual test
-./spec/31-describe-api/create-schema.test.sh
+./spec/31-describe-api/create-model.test.sh
 
 # Run with detailed output
 TEST_VERBOSE=1 npm run test:sh 31-describe-api
@@ -140,7 +140,7 @@ npm run test:sh 32-data        # Data API tests
 npm run test:sh auth           # All tests with "auth" in path
 
 # Run specific test file
-npm run test:sh 31-describe-api/select-schema.test.sh
+npm run test:sh 31-describe-api/select-model.test.sh
 
 # Wildcard matching
 npm run test:sh describe       # Matches any test with "describe" in path
@@ -213,7 +213,7 @@ Tests are organized by numbered series for logical categorization:
 | Series | Description | Purpose | Status |
 |--------|-------------|---------|--------|
 | **30-auth-api** | Auth API (protected) | User management, whoami, sudo | ✅ Complete (35 tests) |
-| **31-describe-api** | Schema management | Describe API, schema CRUD | ✅ Complete (98 passing, 5 skipped) |
+| **31-describe-api** | Model management | Describe API, model CRUD | ✅ Complete (98 passing, 5 skipped) |
 | **32-data-api** | Data operations | Record CRUD, relationships | 🔴 Not started |
 | **33-find-api** | Search & filtering | Advanced queries, 25+ filter operators | 🟡 Partial |
 | **34-aggregate-api** | Aggregation operations | Count, group by, analytics | 🔴 Not started |
@@ -245,7 +245,7 @@ Tests are organized by numbered series for logical categorization:
 **Quick validation** (< 1 minute):
 ```bash
 npm run test:sh 01-basic       # Basic functionality
-npm run test:sh 31-describe-api    # Schema operations
+npm run test:sh 31-describe-api    # Model operations
 ```
 
 **Core API validation** (2-3 minutes):
@@ -274,7 +274,7 @@ npm run test:sh                # Everything
 
 Each test gets its own isolated tenant database:
 
-- **Automatic Creation**: Test tenants created from templates or fresh schemas
+- **Automatic Creation**: Test tenants created from templates or fresh models
 - **Complete Isolation**: Tests cannot interfere with each other
 - **Deferred Cleanup**: All databases cleaned up at end of test suite
 
@@ -284,7 +284,7 @@ See [../fixtures/README.md](../fixtures/README.md) for complete documentation.
 
 - **Basic Template**: Pre-populated with test data (5 accounts, 5 contacts)
 - **Large Template**: 100+ records for performance testing
-- **Empty Template**: Fresh schema with no data
+- **Empty Template**: Fresh model with no data
 - **Fast Cloning**: Template-based tests are 30x faster than fresh setup
 
 ### Cleanup Process
@@ -309,7 +309,7 @@ Located in `test-helper.sh`:
 # Create tenant from template (most common, fastest)
 setup_test_with_template "test-name" "testing"
 
-# Create fresh tenant database (slower, custom schemas)
+# Create fresh tenant database (slower, custom models)
 setup_test_isolated "test-name"
 
 # No tenant setup needed (for non-data tests)
@@ -368,8 +368,8 @@ test_endpoint_error "GET" "/api/nonexistent" "" "NOT_FOUND" "Non-existent endpoi
 # Test non-existent record operations
 test_nonexistent_record "account" "get"
 
-# Generate simple schema
-generate_simple_schema "Test Schema" '["name", "email"]'
+# Generate simple model
+generate_simple_model "Test Model" '["name", "email"]'
 ```
 
 ## Writing Tests
@@ -391,8 +391,8 @@ response=$(auth_get "/api/describe/account")
 assert_success "$response"
 
 # Validate response data
-data=$(extract_and_validate_data "$response" "schema details")
-validate_record_fields "$data" "schema_name" "columns"
+data=$(extract_and_validate_data "$response" "model details")
+validate_record_fields "$data" "model_name" "fields"
 
 # Cleanup happens automatically at suite end
 ```
@@ -436,7 +436,7 @@ Follow the naming convention:
 <series>-<category>/<operation>-<subject>.test.sh
 
 Examples:
-31-describe-api/create-schema.test.sh
+31-describe-api/create-model.test.sh
 32-data-api/update-record.test.sh
 33-find-api/where-basic.test.sh
 ```
@@ -529,10 +529,10 @@ curl http://localhost:9001/health
 #### Run single test with full output
 ```bash
 # Direct execution (most verbose)
-./spec/31-describe-api/create-schema.test.sh
+./spec/31-describe-api/create-model.test.sh
 
 # Via npm with verbose mode
-TEST_VERBOSE=1 npm run test:sh 31-describe-api/create-schema.test.sh
+TEST_VERBOSE=1 npm run test:sh 31-describe-api/create-model.test.sh
 ```
 
 #### Check test database state
@@ -618,7 +618,7 @@ jobs:
 
 **Template Usage**
 - Use `setup_test_with_template` when possible (30x faster)
-- Only use `setup_test_isolated` when custom schemas needed
+- Only use `setup_test_isolated` when custom models needed
 - Templates: ~0.1s vs Fresh: ~2-3s per test
 
 **Selective Execution**
@@ -706,7 +706,7 @@ TEST_VERBOSE=1 npm run test:sh 33-find-api
 npm run test:cleanup
 
 # Run individual test
-./spec/31-describe-api/create-schema.test.sh
+./spec/31-describe-api/create-model.test.sh
 ```
 
 ### Common Test Patterns
@@ -757,7 +757,7 @@ During comprehensive testing of the Describe API (31-describe-api), we discovere
 
 **Medium Impact:**
 - **Field Naming**: Documentation uses "freeze" but the actual field name is "frozen"
-- **Soft Delete**: Deleted schemas cannot be recreated with the same name (soft delete keeps schema_name occupied)
+- **Soft Delete**: Deleted models cannot be recreated with the same name (soft delete keeps model_name occupied)
 - **List Filtering**: Trashed items still appear in GET /api/describe (may be intentional)
 
 **Low Impact:**
@@ -778,7 +778,7 @@ Important to understand when writing tests:
 | **Describe API** | Stripped (no id, timestamps) | Metadata structure only |
 | **Data API** | Included (full record) | Complete data records |
 
-This is intentional design - Describe API focuses on schema structure, not record identity.
+This is intentional design - Describe API focuses on model structure, not record identity.
 
 ### Recommendations
 
@@ -855,12 +855,12 @@ When you register a new tenant via `/auth/register`, you specify a template to c
 
 #### 'system' Template (Always Available)
 - **What it includes:**
-  - System schemas: `schemas`, `columns`, `users`, `acls`
+  - System models: `models`, `fields`, `users`, `acls`
   - Default 'root' user with full permissions
   - No additional test data
 - **When to use:**
   - Testing API functionality (describe, data, find, stat)
-  - Tests that create their own schemas and data
+  - Tests that create their own models and data
   - Unit-style integration tests
 - **Benefits:**
   - No fixture setup required
@@ -872,9 +872,9 @@ When you register a new tenant via `/auth/register`, you specify a template to c
   // Create tenant with default template
   tenant = await TestHelpers.createTestTenant('my-test');
   
-  // Root user can create schemas
+  // Root user can create models
   await tenant.httpClient.post('/api/describe/product', {
-      columns: [
+      fields: [
           { name: 'name', type: 'text' },
           { name: 'price', type: 'number' }
       ]

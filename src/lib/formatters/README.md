@@ -178,7 +178,7 @@ id,name,email,created_at,status
 
 **Features:**
 - Automatic envelope removal (`?unwrap` implied)
-- Header row with column names
+- Header row with field names
 - Quoted fields for safety
 - Proper CSV escaping
 - **Only works with array of objects** - validates data structure

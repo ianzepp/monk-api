@@ -30,7 +30,7 @@ update_all_request=$(cat <<EOF
   "operations": [
     {
       "operation": "update-all",
-      "schema": "account",
+      "model": "account",
       "data": [
         {"id": "${first_account_id}", "is_verified": true},
         {"id": "${second_account_id}", "is_verified": false}
@@ -66,7 +66,7 @@ invalid_filter_request=$(cat <<EOF
   "operations": [
     {
       "operation": "update-all",
-      "schema": "account",
+      "model": "account",
       "filter": {"where": {"id": "${first_account_id}"}},
       "data": [
         {"id": "${first_account_id}", "is_verified": false}
@@ -90,7 +90,7 @@ missing_filter_request='{
   "operations": [
     {
       "operation": "update-any",
-      "schema": "account",
+      "model": "account",
       "data": {"is_active": false}
     }
   ]
@@ -109,7 +109,7 @@ aggregate_request='{
   "operations": [
     {
       "operation": "aggregate",
-      "schema": "account",
+      "model": "account",
       "aggregate": {
         "total_accounts": {"$count": "*"},
         "active_accounts": {"$count": "is_active"}

@@ -5,25 +5,25 @@ import { isSystemField, stripSystemFields } from '@src/lib/describe.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * GET /api/describe/:schema/columns/:column
+ * GET /api/describe/:model/fields/:field
  *
- * Retrieve column definition in Monk-native format
+ * Retrieve field definition in Monk-native format
  *
- * @returns Column record from columns table
+ * @returns Field record from fields table
  */
-export default withParams(async (context, { system, schema, column }) => {
-    // Reject requests for system columns - Describe API is for portable definitions only
-    if (isSystemField(column!)) {
+export default withParams(async (context, { system, model, field }) => {
+    // Reject requests for system fields - Describe API is for portable definitions only
+    if (isSystemField(field!)) {
         throw HttpErrors.notFound(
-            `Column '${column}' is a system column and not available via Describe API`,
-            'SYSTEM_COLUMN_NOT_ACCESSIBLE'
+            `Field '${field}' is a system field and not available via Describe API`,
+            'SYSTEM_FIELD_NOT_ACCESSIBLE'
         );
     }
 
-    const columnDef = await system.describe.columns.select404(
-        { where: { schema_name: schema, column_name: column } },
-        `Column '${column}' not found in schema '${schema}'`
+    const fieldDef = await system.describe.fields.select404(
+        { where: { model_name: model, field_name: field } },
+        `Field '${field}' not found in model '${model}'`
     );
     // Strip system fields before returning
-    setRouteResult(context, stripSystemFields(columnDef));
+    setRouteResult(context, stripSystemFields(fieldDef));
 });

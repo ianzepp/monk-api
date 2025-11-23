@@ -4,15 +4,15 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
- * GET /api/describe/:schema - Get schema metadata
+ * GET /api/describe/:model - Get model metadata
  *
- * Returns schema record only (without columns).
- * Use GET /api/describe/:schema/columns/:column for individual column definitions.
+ * Returns model record only (without fields).
+ * Use GET /api/describe/:model/fields/:field for individual field definitions.
  */
-export default withParams(async (context, { system, schema }) => {
-    const result = await system.describe.schemas.select404(
-        { where: { schema_name: schema } },
-        `Schema '${schema}' not found`
+export default withParams(async (context, { system, model }) => {
+    const result = await system.describe.models.select404(
+        { where: { model_name: model } },
+        `Model '${model}' not found`
     );
 
     // Strip system fields before returning

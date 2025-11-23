@@ -44,10 +44,10 @@ export class TestHelpers {
      * so you don't need to manually add Authorization headers.
      *
      * Template Options:
-     * - 'system' (default) - Always available, includes system schemas + root user
+     * - 'system' (default) - Always available, includes system models + root user
      *   - Use when: Testing API functionality with your own test data
      *   - Benefits: No fixture setup required, predictable baseline
-     *   - Root user can create schemas/columns/records as needed
+     *   - Root user can create models/fields/records as needed
      *
      * - 'testing' - Pre-populated with test data (requires: npm run fixtures:build testing)
      *   - Use when: Testing queries/filters on existing data
@@ -61,15 +61,15 @@ export class TestHelpers {
      *
      * @example
      * ```typescript
-     * // Using default template (system schemas + root user only)
+     * // Using default template (system models + root user only)
      * let tenant: TestTenant;
      *
      * beforeAll(async () => {
      *     tenant = await TestHelpers.createTestTenant('my-test');
      *
-     *     // Create your own schema for testing
+     *     // Create your own model for testing
      *     await tenant.httpClient.post('/api/describe/product', {
-     *         columns: [
+     *         fields: [
      *             { name: 'name', type: 'text' },
      *             { name: 'price', type: 'number' }
      *         ]
@@ -225,9 +225,9 @@ export class TestHelpers {
  * @example
  * ```typescript
  * const response = await tenant.httpClient.post('/api/describe/products', {
- *     schema_name: 'products',
+ *     model_name: 'products',
  * });
- * expectSuccess(response, 'Failed to create products schema');
+ * expectSuccess(response, 'Failed to create products model');
  * ```
  */
 export function expectSuccess(response: any, message?: string): void {

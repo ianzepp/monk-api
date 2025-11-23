@@ -9,14 +9,14 @@
 
 ## TODO: Migrate to App Endpoint
 
-**Future Migration:** This API should be moved from `/api/grids/*` to `/api/grids/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
+**Future Migration:** This API should be moved from `/api/grids/*` to `/api/grids/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/model operations.
 
 **Target Path:** `/api/grids/:id/:range`
 **Rationale:** Grid API is an application-level feature (spreadsheet functionality) rather than a direct data model operation, making it a better fit for the `/app` namespace.
 
 ## Overview
 
-Grid API provides Excel-like spreadsheet functionality within Monk API. It fills the gap between unstructured data (JSONB) and formal schemas - offering structured tabular data with calculation capabilities without requiring upfront schema design.
+Grid API provides Excel-like spreadsheet functionality within Monk API. It fills the gap between unstructured data (JSONB) and formal models - offering structured tabular data with calculation capabilities without requiring upfront model design.
 
 ## Use Case
 
@@ -26,10 +26,10 @@ Personal project exploration follows this pattern:
 2. "Need to track things" → README with bullet points
 3. "Need structure" → Markdown table
 4. "Need calculations" → **STUCK** (markdown can't do formulas)
-5. "Need scale" → Forced into formal schema (but problem not well understood yet)
+5. "Need scale" → Forced into formal model (but problem not well understood yet)
 
 **The Gap:**
-Between markdown tables and formal schemas, there's a missing tool for "I need to do calculations and handle more data, but I'm still figuring out what this even is."
+Between markdown tables and formal models, there's a missing tool for "I need to do calculations and handle more data, but I'm still figuring out what this even is."
 
 Normally this would be Excel, but we want to keep data in Monk API for:
 - Centralization (everything in one place)
@@ -42,58 +42,58 @@ Normally this would be Excel, but we want to keep data in Monk API for:
 
 ## Implementation Status
 
-### ✅ Phase 0: External Schema Foundation (Complete)
+### ✅ Phase 0: External Model Foundation (Complete)
 
 **What Was Built:**
-- External schema pattern infrastructure
-- Schema class extended with `external` property
-- All DDL observers (7 files) updated to skip external schemas
+- External model pattern infrastructure
+- Model class extended with `external` property
+- All DDL observers (7 files) updated to skip external models
 - Ring 0 security guard observer (protects all code paths)
-- Performance optimization (SchemaCache usage in observers)
+- Performance optimization (ModelCache usage in observers)
 
 **Key Files:**
-- `/src/lib/schema.ts` - Added external property
-- `/src/lib/database-types.ts` - Added external to SchemaRecord
-- `/src/observers/all/0/05-external-schema-guard.ts` - Ring 0 guard
-- `/src/observers/schemas/6/*.ts` - Schema DDL guards (3 files)
-- `/src/observers/columns/6/*.ts` - Column DDL guards (4 files)
-- `/fixtures/system/describe/schemas.sql` - Added external column to DDL
+- `/src/lib/model.ts` - Added external property
+- `/src/lib/database-types.ts` - Added external to ModelRecord
+- `/src/observers/all/0/05-external-model-guard.ts` - Ring 0 guard
+- `/src/observers/models/6/*.ts` - Model DDL guards (3 files)
+- `/src/observers/fields/6/*.ts` - Field DDL guards (4 files)
+- `/fixtures/system/describe/models.sql` - Added external field to DDL
 
 **Testing:**
 - ✅ TypeScript compilation successful
 - ✅ Build verification passed
-- ✅ External schemas protected from Data API operations
-- ✅ Performance validated (SchemaCache integration)
+- ✅ External models protected from Data API operations
+- ✅ Performance validated (ModelCache integration)
 
 ### ✅ Phase 1: Grid Infrastructure (Complete)
 
 **What Was Built:**
-- Grid metadata table (`grids`) - regular schema for Data API management
-- Grid cells table (`grid_cells`) - external schema for Grid API only
-- System fixtures for both schemas (DDL + schema registration)
+- Grid metadata table (`grids`) - regular model for Data API management
+- Grid cells table (`grid_cells`) - external model for Grid API only
+- System fixtures for both models (DDL + model registration)
 - Foreign key constraint (grid_cells → grids with CASCADE delete)
 
 **Key Files:**
 - `/fixtures/system/describe/grids.sql` - CREATE TABLE grids
 - `/fixtures/system/describe/grid_cells.sql` - CREATE TABLE grid_cells
-- `/fixtures/system/data/grids.sql` - Schema/column registration
-- `/fixtures/system/data/grid_cells.sql` - Schema/column registration (external=true)
+- `/fixtures/system/data/grids.sql` - Model/field registration
+- `/fixtures/system/data/grid_cells.sql` - Model/field registration (external=true)
 - `/fixtures/system/load.sql` - Added both fixtures to load order
 
-**Database Schema:**
+**Database Model:**
 ```sql
--- Grids table (regular schema)
+-- Grids table (regular model)
 grids: id, name, description, row_count, row_max, col_max + system fields
 
--- Grid cells table (external schema)
+-- Grid cells table (external model)
 grid_cells: grid_id (UUID FK), row (INT), col (CHAR), value (TEXT)
 PRIMARY KEY: (grid_id, row, col)
 ```
 
 **Testing:**
 - ✅ Both tables created in system template
-- ✅ Schema records exist (grids: external=false, grid_cells: external=true)
-- ✅ Column definitions registered
+- ✅ Model records exist (grids: external=false, grid_cells: external=true)
+- ✅ Field definitions registered
 - ✅ Foreign key constraint validated
 - ✅ Fixture loading successful
 
@@ -126,7 +126,7 @@ PRIMARY KEY: (grid_id, row, col)
 - Single cell operations (A1)
 - Range operations (A1:Z100)
 - Row operations (5:5)
-- Column operations (A:A)
+- Field operations (A:A)
 - Bulk operations (up to 1000 cells)
 - Sparse storage (null values delete cells)
 - Bounds validation (row_max, col_max per grid)
@@ -145,7 +145,7 @@ PRIMARY KEY: (grid_id, row, col)
 
 ### 🚧 Phase 3: Grid API - Advanced Features (Next)
 
-Ready to implement formulas, Monk references, and schema export when needed.
+Ready to implement formulas, Monk references, and model export when needed.
 
 ## API Design
 
@@ -164,7 +164,7 @@ POST   /api/grids/:id/cells           # Bulk upsert (body contains cells)
 **Range Notation (Excel-style):**
 - Single cell: `/api/grids/abc123/A1`
 - Range: `/api/grids/abc123/A1:Z100`
-- Entire column: `/api/grids/abc123/A:A`
+- Entire field: `/api/grids/abc123/A:A`
 - Entire row: `/api/grids/abc123/5:5`
 
 **Grid Management:**
@@ -175,11 +175,11 @@ POST   /api/grids/:id/cells           # Bulk upsert (body contains cells)
 
 ### Two-Table Approach
 
-**1. Grid Metadata (Monk schema)**
+**1. Grid Metadata (Monk model)**
 ```json
 {
   "name": "grids",
-  "columns": [
+  "fields": [
     {"name": "name", "type": "string", "required": true},
     {"name": "description", "type": "string"},
     {"name": "row_count", "type": "integer", "default": 1000}
@@ -189,7 +189,7 @@ POST   /api/grids/:id/cells           # Bulk upsert (body contains cells)
 
 **2. Grid Cells**
 
-Phase 1 simplified schema (row/col/value only):
+Phase 1 simplified model (row/col/value only):
 
 ```sql
 CREATE TABLE grid_cells (
@@ -215,37 +215,37 @@ CREATE INDEX idx_grid_range ON grid_cells(grid_id, row, col);
 
 **Option 2: Row-Based Storage** ❌
 - One record per row, cells in JSONB
-- Good for row operations, bad for columns
-- JSONB queries slower than indexed columns
+- Good for row operations, bad for fields
+- JSONB queries slower than indexed fields
 
-**Option 3: Column-Based Storage** ❌
-- One record per column, cells in JSONB
-- Good for column operations, bad for viewport scrolling
+**Option 3: Field-Based Storage** ❌
+- One record per field, cells in JSONB
+- Good for field operations, bad for viewport scrolling
 - Not ideal for UI use case
 
-### Integration Architecture: External Schemas
+### Integration Architecture: External Models
 
-**Chosen Approach:** External Schema Pattern ✅
+**Chosen Approach:** External Model Pattern ✅
 
-Grid API uses the **external schema pattern** - schema definition lives in the system, but data is managed by specialized API using raw SQL.
+Grid API uses the **external model pattern** - model definition lives in the system, but data is managed by specialized API using raw SQL.
 
-**Principle:** "External schemas can be understood but not interacted with as native tables"
+**Principle:** "External models can be understood but not interacted with as native tables"
 
 **How it works:**
-1. **Schema definition** in `schemas`/`columns` tables (for documentation/discovery)
+1. **Model definition** in `models`/`fields` tables (for documentation/discovery)
 2. **Marked `external: true`** - Data API refuses to interact with it
 3. **Table created manually** in tenant initialization SQL
 4. **Grid API uses raw SQL** via `system.db`/`system.tx` (no observer pipeline)
-5. **DDL observer skips** external schemas (no auto-generation)
+5. **DDL observer skips** external models (no auto-generation)
 
 **Benefits:**
-- ✅ Schema definition in canonical location (discoverable via `/api/describe`)
-- ✅ Data API protected (can't accidentally CRUD external schemas)
+- ✅ Model definition in canonical location (discoverable via `/api/describe`)
+- ✅ Data API protected (can't accidentally CRUD external models)
 - ✅ Grid API has full control (raw SQL, custom logic, no system fields)
 - ✅ No auto-generated system fields (`id`, `created_at`, ACLs, etc.)
 - ✅ Reusable pattern for future use cases
 
-**Long-term use cases for external schemas:**
+**Long-term use cases for external models:**
 - 3rd-party databases (external PostgreSQL, MySQL, Salesforce API)
 - Legacy systems (pre-existing tables you don't control)
 - Read-only data sources
@@ -254,9 +254,9 @@ Grid API uses the **external schema pattern** - schema definition lives in the s
 ## Phase 1 Design Decisions
 
 ### Constraints
-1. **Columns:** A-Z (26 columns max)
+1. **Fields:** A-Z (26 fields max)
 2. **Rows:** Fixed count (stored in grid metadata)
-3. **Schema:** Just `row`, `col`, `value` - no formulas, no types, no timestamps
+3. **Model:** Just `row`, `col`, `value` - no formulas, no types, no timestamps
 4. **Null handling:**
    - Database: `NULL`
    - JSON API: `null`
@@ -268,26 +268,26 @@ Grid API uses the **external schema pattern** - schema definition lives in the s
 - Validate core concept (grid storage/retrieval) before tackling formula complexity
 - Raw SQL for grid_cells (no observer overhead, full control)
 
-## External Schema Implementation
+## External Model Implementation
 
-### 1. Add `external` Column to Schemas
+### 1. Add `external` Field to Models
 
 **Migration:**
 ```sql
-ALTER TABLE schemas ADD COLUMN external BOOLEAN DEFAULT false;
+ALTER TABLE models ADD FIELD external BOOLEAN DEFAULT false;
 ```
 
-**Purpose:** Flag schemas as externally managed (data not accessible via Data API)
+**Purpose:** Flag models as externally managed (data not accessible via Data API)
 
-### 2. Schema Definitions
+### 2. Model Definitions
 
-**Location:** `/fixtures/system/describe/` (system-level schemas)
+**Location:** `/fixtures/system/describe/` (system-level models)
 
-**Grid metadata (regular schema):**
+**Grid metadata (regular model):**
 ```sql
 -- /fixtures/system/describe/grids.sql
-INSERT INTO schemas (schema_name, external) VALUES ('grids', false);
-INSERT INTO columns (schema_name, column_name, type, required, default_value) VALUES
+INSERT INTO models (model_name, external) VALUES ('grids', false);
+INSERT INTO fields (model_name, field_name, type, required, default_value) VALUES
   ('grids', 'name', 'string', true, NULL),
   ('grids', 'description', 'string', false, NULL),
   ('grids', 'row_count', 'integer', false, NULL),
@@ -295,13 +295,13 @@ INSERT INTO columns (schema_name, column_name, type, required, default_value) VA
   ('grids', 'col_max', 'string', false, 'Z');
 ```
 
-**Grid cells (external schema):**
+**Grid cells (external model):**
 ```sql
 -- /fixtures/system/describe/grid_cells.sql
 
--- 1. Insert schema/column metadata
-INSERT INTO schemas (schema_name, external) VALUES ('grid_cells', true);
-INSERT INTO columns (schema_name, column_name, type, required) VALUES
+-- 1. Insert model/field metadata
+INSERT INTO models (model_name, external) VALUES ('grid_cells', true);
+INSERT INTO fields (model_name, field_name, type, required) VALUES
   ('grid_cells', 'grid_id', 'string', true),
   ('grid_cells', 'row', 'integer', true),
   ('grid_cells', 'col', 'string', true),
@@ -320,85 +320,85 @@ CREATE TABLE grid_cells (
 
 CREATE INDEX idx_grid_range ON grid_cells(grid_id, row, col);
 
-COMMENT ON TABLE grid_cells IS 'Grid cell storage for Grid API (external schema - see /api/grids/*)';
+COMMENT ON TABLE grid_cells IS 'Grid cell storage for Grid API (external model - see /api/grids/*)';
 ```
 
-**Note:** Schema definitions go in `/fixtures/system/describe/` which becomes the root for all fixtures/tenants/sandboxes. DDL runs after metadata insertion in the same fixture file.
+**Note:** Model definitions go in `/fixtures/system/describe/` which becomes the root for all fixtures/tenants/sandboxes. DDL runs after metadata insertion in the same fixture file.
 
 **Propagation:** Every tenant database gets metadata + table automatically via fixture system
 
 ### 3. DDL Observer Updates
 
-All schema and column DDL observers need external schema guard clauses to skip operations on external schemas.
+All model and field DDL observers need external model guard clauses to skip operations on external models.
 
-#### Schema DDL Observers
+#### Model DDL Observers
 
 **Files:**
-- `/src/observers/schemas/6/10-ddl-create.ts`
-- `/src/observers/schemas/6/10-ddl-update.ts`
-- `/src/observers/schemas/6/10-ddl-delete.ts`
+- `/src/observers/models/6/10-ddl-create.ts`
+- `/src/observers/models/6/10-ddl-update.ts`
+- `/src/observers/models/6/10-ddl-delete.ts`
 
 **Pattern:**
 ```typescript
-async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
     const { system } = context;
-    const { schema_name, external } = record;
+    const { model_name, external } = record;
 
-    // Skip DDL operations for external schemas (managed elsewhere)
+    // Skip DDL operations for external models (managed elsewhere)
     if (external === true) {
-        console.info(`Skipping DDL operation for external schema: ${schema_name}`);
+        console.info(`Skipping DDL operation for external model: ${model_name}`);
         return;
     }
 
-    // Normal DDL execution for internal schemas
+    // Normal DDL execution for internal models
     // ... rest of existing DDL logic
 }
 ```
 
-#### Column DDL Observers
+#### Field DDL Observers
 
 **Files:**
-- `/src/observers/columns/6/10-ddl-create.ts`
-- `/src/observers/columns/6/10-ddl-update.ts`
-- `/src/observers/columns/6/10-ddl-delete.ts`
-- `/src/observers/columns/6/20-ddl-indexes.ts`
+- `/src/observers/fields/6/10-ddl-create.ts`
+- `/src/observers/fields/6/10-ddl-update.ts`
+- `/src/observers/fields/6/10-ddl-delete.ts`
+- `/src/observers/fields/6/20-ddl-indexes.ts`
 
 **Pattern:**
 ```typescript
-async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
+async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
     const { system } = context;
-    const { schema_name, column_name } = record;
+    const { model_name, field_name } = record;
 
-    // Load schema to check if external
-    const schema = await system.database.select404('schemas', {
-        where: { schema_name }
+    // Load model to check if external
+    const model = await system.database.select404('models', {
+        where: { model_name }
     });
 
-    // Skip DDL operations for external schemas (managed elsewhere)
-    if (schema.external === true) {
-        console.info(`Skipping DDL operation for external schema column: ${schema_name}.${columnName}`);
+    // Skip DDL operations for external models (managed elsewhere)
+    if (model.external === true) {
+        console.info(`Skipping DDL operation for external model field: ${model_name}.${fieldName}`);
         return;
     }
 
-    // Normal DDL execution for internal schemas
+    // Normal DDL execution for internal models
     // ... rest of existing DDL logic
 }
 ```
 
-**Note:** Column observers need to load the parent schema to check the `external` flag since column records don't carry this information.
+**Note:** Field observers need to load the parent model to check the `external` flag since field records don't carry this information.
 
-### 4. External Schema Guard Observer
+### 4. External Model Guard Observer
 
-**File:** `/src/observers/all/0/05-external-schema-guard.ts`
+**File:** `/src/observers/all/0/05-external-model-guard.ts`
 
-Protects external schemas from modification via Data API and internal code. Runs in Ring 0 to catch all operations before validation.
+Protects external models from modification via Data API and internal code. Runs in Ring 0 to catch all operations before validation.
 
 ```typescript
 /**
- * External Schema Guard Observer - Ring 0 PreValidation
+ * External Model Guard Observer - Ring 0 PreValidation
  *
- * Rejects any create/update/delete operations on external schemas.
- * External schemas are documented in the system but managed by specialized APIs.
+ * Rejects any create/update/delete operations on external models.
+ * External models are documented in the system but managed by specialized APIs.
  * This runs in Ring 0 to protect ALL code paths (API and internal).
  */
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
@@ -406,24 +406,24 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { UserError } from '@src/lib/observers/errors.js';
 
-export default class ExternalSchemaGuard extends BaseObserver {
+export default class ExternalModelGuard extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation; // Ring 0
     readonly operations = ['select', 'create', 'update', 'delete'] as const;
     readonly priority = 5; // Early execution, before most validation
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema } = context;
-        const schemaName = schema.schema_name;
+        const { model } = context;
+        const modelName = model.model_name;
 
-        // Check if schema is external
-        if (schema.external === true) {
+        // Check if model is external
+        if (model.external === true) {
             throw new UserError(
-                `Schema '${schemaName}' is externally managed and cannot be modified via Data API. Use the appropriate specialized API instead.`,
-                'SCHEMA_EXTERNAL'
+                `Model '${modelName}' is externally managed and cannot be modified via Data API. Use the appropriate specialized API instead.`,
+                'MODEL_EXTERNAL'
             );
         }
 
-        // Schema is internal, allow operation to continue
+        // Model is internal, allow operation to continue
     }
 }
 ```
@@ -436,13 +436,13 @@ export default class ExternalSchemaGuard extends BaseObserver {
 
 ### 6. Grid API Implementation
 
-**Read schema definition:**
+**Read model definition:**
 ```typescript
-// Load schema for column definitions, validation
-const schema = await system.database.toSchema('grid_cells');
+// Load model for field definitions, validation
+const model = await system.database.toModel('grid_cells');
 
 // Verify it's external (safety check)
-if (schema.external !== true) {
+if (model.external !== true) {
     throw new Error('grid_cells must be marked as external');
 }
 ```
@@ -476,9 +476,9 @@ const result = await dbContext.query(query, [gridId, startRow, endRow, startCol,
 ```json
 {
   "success": false,
-  "error": "Schema 'grid_cells' is externally managed",
-  "error_code": "SCHEMA_EXTERNAL",
-  "message": "This schema is managed by a specialized API. Use /api/grids/* endpoints instead."
+  "error": "Model 'grid_cells' is externally managed",
+  "error_code": "MODEL_EXTERNAL",
+  "message": "This model is managed by a specialized API. Use /api/grids/* endpoints instead."
 }
 ```
 
@@ -486,8 +486,8 @@ const result = await dbContext.query(query, [gridId, startRow, endRow, startCol,
 ```json
 {
   "success": false,
-  "error": "Configuration error: grid_cells schema must be marked as external",
-  "error_code": "SCHEMA_CONFIGURATION_ERROR"
+  "error": "Configuration error: grid_cells model must be marked as external",
+  "error_code": "MODEL_CONFIGURATION_ERROR"
 }
 ```
 
@@ -496,22 +496,22 @@ const result = await dbContext.query(query, [gridId, startRow, endRow, startCol,
 **Read access (allowed):**
 ```bash
 GET /api/describe/grid_cells
-→ Returns schema definition (external: true)
+→ Returns model definition (external: true)
 
-GET /api/describe/grid_cells/columns/value
-→ Returns column definition
+GET /api/describe/grid_cells/fields/value
+→ Returns field definition
 ```
 
 **Write access (allowed):**
 ```bash
-POST /api/describe/grid_cells/columns/:column
-→ Can add/modify column definitions
+POST /api/describe/grid_cells/fields/:field
+→ Can add/modify field definitions
 
 PUT /api/describe/grid_cells
-→ Can update schema metadata
+→ Can update model metadata
 ```
 
-**Rationale:** External schemas still need schema management (adding columns, updating descriptions)
+**Rationale:** External models still need model management (adding fields, updating descriptions)
 
 ## Phase 1 Implementation Guide
 
@@ -608,7 +608,7 @@ const query = `
 `;
 const params = [gridId, 5];
 
-// Column range: GET /api/grids/:id/A:A
+// Field range: GET /api/grids/:id/A:A
 const query = `
     SELECT row, col, value
     FROM grid_cells
@@ -788,11 +788,11 @@ if (range.maxRow > grid.row_count) {
     );
 }
 
-// Column out of bounds
+// Field out of bounds
 if (range.endCol && range.endCol > 'Z') {
     throw HttpErrors.badRequest(
-        'Column must be A-Z',
-        'COLUMN_OUT_OF_BOUNDS'
+        'Field must be A-Z',
+        'FIELD_OUT_OF_BOUNDS'
     );
 }
 
@@ -827,7 +827,7 @@ For every Grid API operation:
 1. ✅ Load grid (validates existence)
 2. ✅ Parse range (validates format)
 3. ✅ Validate row bounds (against grid.row_max)
-4. ✅ Validate column bounds (against grid.col_max)
+4. ✅ Validate field bounds (against grid.col_max)
 5. ✅ Validate range direction (start <= end)
 6. ✅ Execute SQL (transaction-aware)
 7. ✅ Return with metadata
@@ -842,18 +842,18 @@ For every Grid API operation:
 
 **Monk Integration:**
 - Monk references: `=monk://users/1234/email`
-- Grids pull live data from schemas
+- Grids pull live data from models
 - Dashboards/reports on structured data
 
-**Schema Export:**
-- Analyze grid columns, infer types
-- Generate schema JSON
-- "Promote" grid to formal schema
+**Model Export:**
+- Analyze grid fields, infer types
+- Generate model JSON
+- "Promote" grid to formal model
 - Migration path from exploration → production
 
 **Advanced Features:**
 - Cell metadata (formatting, comments)
-- Computed columns
+- Computed fields
 - Validation rules
 - Collaboration (concurrent edits)
 - History tracking (per-cell changes)
@@ -862,12 +862,12 @@ For every Grid API operation:
 
 ### Architecture
 1. **Row limit:** ✅ Per-grid (grid.row_max), validated in application layer
-2. **Column limit:** ✅ Per-grid (grid.col_max), validated in application layer
+2. **Field limit:** ✅ Per-grid (grid.col_max), validated in application layer
 3. **Value storage:** ✅ TEXT for everything, type coercion in application layer (Phase 1)
 4. **Range query response:** ✅ Sparse array (only non-empty cells), client fills empties
-5. **External schema pattern:** ✅ Schema definition in system, data via specialized API
+5. **External model pattern:** ✅ Model definition in system, data via specialized API
 6. **Table creation:** ✅ Manual creation in `/sql/init-tenant.sql`
-7. **Schema location:** ✅ Definitions in `/fixtures/system/describe/`
+7. **Model location:** ✅ Definitions in `/fixtures/system/describe/`
 
 ### Phase 1 Implementation
 8. **Range queries:** ✅ Simple WHERE clauses (`row = 5`, `col = 'A'`) - no expansion
@@ -977,40 +977,40 @@ ORDER BY row, col;
 - Provides Excel-like power without leaving Monk
 
 **Progressive formalization:**
-- Grids are a middle step between markdown and schemas
+- Grids are a middle step between markdown and models
 - Start loose, formalize when patterns emerge
-- Export to schema when ready for production
+- Export to model when ready for production
 
 **Integration over features:**
 - Doesn't need all Excel features
-- Needs to play nice with Monk's existing data/schemas
+- Needs to play nice with Monk's existing data/models
 - Leverage existing infrastructure (ACLs, history, observers)
 
 ## Implementation Checklist
 
-### Phase 0: External Schema Foundation ✅ COMPLETE
-- [x] Add `external` column to `schemas` table DDL
-- [x] Add `external` property to Schema class and SchemaRecord interface
-- [x] Update all schema DDL observers (create/update/delete) to skip external schemas
-- [x] Update all column DDL observers (create/update/delete/indexes) to skip external schemas
-- [x] Column observers use SchemaCache for performance (not database queries)
-- [x] Create Ring 0 external schema guard observer (replaces middleware approach)
+### Phase 0: External Model Foundation ✅ COMPLETE
+- [x] Add `external` field to `models` table DDL
+- [x] Add `external` property to Model class and ModelRecord interface
+- [x] Update all model DDL observers (create/update/delete) to skip external models
+- [x] Update all field DDL observers (create/update/delete/indexes) to skip external models
+- [x] Field observers use ModelCache for performance (not database queries)
+- [x] Create Ring 0 external model guard observer (replaces middleware approach)
 - [x] Guard protects ALL code paths (API + internal) automatically
 - [x] Test compilation and build successful
 
 **Implementation Changes:**
 - Used Ring 0 observer instead of middleware for broader protection
-- Column observers load schema from SchemaCache (performance optimization)
+- Field observers load model from ModelCache (performance optimization)
 - Used SecurityError instead of UserError for proper error categorization
 
 ### Phase 1: Grid Infrastructure ✅ COMPLETE
 - [x] Create grids table DDL in `/fixtures/system/describe/grids.sql`
 - [x] Create grid_cells table DDL in `/fixtures/system/describe/grid_cells.sql`
-- [x] Create grids schema/column registration in `/fixtures/system/data/grids.sql`
-- [x] Create grid_cells schema/column registration in `/fixtures/system/data/grid_cells.sql`
+- [x] Create grids model/field registration in `/fixtures/system/data/grids.sql`
+- [x] Create grid_cells model/field registration in `/fixtures/system/data/grid_cells.sql`
 - [x] Mark grid_cells as `external: true` in fixture
 - [x] Add fixture files to system load.sql (Phase 2 and Phase 4)
-- [x] Test fixture build includes both schemas
+- [x] Test fixture build includes both models
 - [x] Test tenant databases have both tables
 - [x] Verify foreign key constraint (grid_cells.grid_id → grids.id)
 
@@ -1049,12 +1049,12 @@ ORDER BY row, col;
 - [ ] Update main README with Grid API section
 - [ ] Create `/docs/grid.md` API documentation
 - [ ] Add examples to PLAN.md
-- [ ] Document external schema pattern
+- [ ] Document external model pattern
 
 ### Future Phases (Phase 2+)
 - [ ] Formula support (Phase 2)
 - [ ] Monk references (Phase 2)
-- [ ] Schema export (Phase 3)
+- [ ] Model export (Phase 3)
 - [ ] Cell metadata/formatting (Phase 3)
 
 ## Performance Optimizations
@@ -1131,7 +1131,7 @@ cells.forEach(([row, col, value]) => {
 ## References
 
 - Hono routing validation: Tested 2025-11-20 ✅
-- External schema pattern: Designed 2025-11-20 ✅
+- External model pattern: Designed 2025-11-20 ✅
 - Excel formula syntax: For future reference
 - Monk observer system: Rings 0-9 pipeline
-- Monk schema system: Auto-generated columns, validation
+- Monk model system: Auto-generated fields, validation

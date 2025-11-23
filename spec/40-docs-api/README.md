@@ -17,7 +17,7 @@
 ## Additional Tests
 
 ### Existing Coverage
-- Documentation endpoint returns OpenAPI-style schemas
+- Documentation endpoint returns OpenAPI-style models
 - Multiple API types validated (auth, data, describe, file, sudo)
 - Format and structure validation
 
@@ -25,7 +25,7 @@
 - Documentation for all newer APIs (bulk, find, aggregate, acls, history, stat)
 - Versioning support in documentation
 - Documentation for infrastructure APIs (snapshots, sandboxes, templates)
-- Schema validation for returned documentation format
+- Model validation for returned documentation format
 - Documentation accuracy validation (comparing docs to actual endpoints)
 
 ## Notes

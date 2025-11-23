@@ -1,12 +1,12 @@
-# DELETE /api/data/:schema/:record/:relationship/:child
+# DELETE /api/data/:model/:record/:relationship/:child
 
 Delete a specific child record while verifying it belongs to the specified parent. This provides secure, targeted deletion of individual child resources with soft delete by default and permanent deletion for root users.
 
 ## Path Parameters
 
-- `:schema` - Parent schema name (required)
+- `:model` - Parent model name (required)
 - `:record` - Parent record UUID (required)
-- `:relationship` - Relationship name defined in child schema (required)
+- `:relationship` - Relationship name defined in child model (required)
 - `:child` - Child record UUID (required)
 
 ## Query Parameters
@@ -67,14 +67,14 @@ Sets both `trashed_at` and `deleted_at` to current timestamp:
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
 | 403 | `ACCESS_DENIED` | "Insufficient permissions for permanent delete" | permanent=true without root access |
-| 403 | `SCHEMA_FROZEN` | "Schema is frozen" | Child schema has frozen=true |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid parent schema name |
+| 403 | `MODEL_FROZEN` | "Model is frozen" | Child model has frozen=true |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid parent model name |
 | 404 | `RECORD_NOT_FOUND` | "Record not found" | Parent or child record does not exist, or child doesn't belong to parent |
-| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for schema '{schema}'" | Invalid relationship name or not an owned relationship |
+| 404 | `RELATIONSHIP_NOT_FOUND` | "Relationship '{name}' not found for model '{model}'" | Invalid relationship name or not an owned relationship |
 
 ## Relationship Requirements
 
-This endpoint only works with **owned relationships** defined in the child schema:
+This endpoint only works with **owned relationships** defined in the child model:
 
 ```json
 {
@@ -85,7 +85,7 @@ This endpoint only works with **owned relationships** defined in the child schem
       "type": "string",
       "x-monk-relationship": {
         "type": "owned",
-        "schema": "posts",
+        "model": "posts",
         "name": "comments"
       }
     }
@@ -307,20 +307,20 @@ async function gdprDeleteComment(postId, commentId, reason) {
 }
 ```
 
-## Schema Protection
+## Model Protection
 
-### Frozen Child Schemas
+### Frozen Child Models
 
-Child schemas with `frozen=true` reject all delete operations:
+Child models with `frozen=true` reject all delete operations:
 
 ```bash
 DELETE /api/data/posts/post-123/archived_comments/comment-456
-# Error 403: SCHEMA_FROZEN
+# Error 403: MODEL_FROZEN
 ```
 
-### Sudo-Protected Child Schemas
+### Sudo-Protected Child Models
 
-Child schemas with `sudo=true` require a sudo token:
+Child models with `sudo=true` require a sudo token:
 
 ```bash
 # Get sudo token first
@@ -340,7 +340,7 @@ The child deletion executes within a database transaction:
 
 ## Restoring Soft-Deleted Children
 
-Soft-deleted child records can be restored using the revert operation on the child schema:
+Soft-deleted child records can be restored using the revert operation on the child model:
 
 ```bash
 # Restore single child record
@@ -433,7 +433,7 @@ await fetch(`/api/data/posts/${postId}/comments/${commentId}`, {
 
 ## Related Endpoints
 
-- [`GET /api/data/:schema/:record/:relationship/:child`](GET.md) - Get specific child record
-- [`PUT /api/data/:schema/:record/:relationship/:child`](PUT.md) - Update specific child record
-- [`DELETE /api/data/:schema/:record/:relationship`](../DELETE.md) - Delete all child records
-- [`DELETE /api/data/:schema/:record`](../../DELETE.md) - Delete parent record
+- [`GET /api/data/:model/:record/:relationship/:child`](GET.md) - Get specific child record
+- [`PUT /api/data/:model/:record/:relationship/:child`](PUT.md) - Update specific child record
+- [`DELETE /api/data/:model/:record/:relationship`](../DELETE.md) - Delete all child records
+- [`DELETE /api/data/:model/:record`](../../DELETE.md) - Delete parent record

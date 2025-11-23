@@ -1,7 +1,7 @@
 -- ============================================================================
--- SCHEMA: grids
+-- MODEL: grids
 -- ============================================================================
--- Grid metadata storage - regular schema managed via Data API
+-- Grid metadata storage - regular model managed via Data API
 
 CREATE TABLE "grids" (
 	-- System fields

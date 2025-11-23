@@ -4,7 +4,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /api/acls/:schema/:record - Merge ACL entries
+ * POST /api/acls/:model/:record - Merge ACL entries
  *
  * Merges new user IDs into existing access control lists.
  * Request body should contain arrays of user IDs to add:
@@ -15,7 +15,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *   "access_deny": ["blocked1"]
  * }
  */
-export default withTransactionParams(async (context, { system, schema, record, options }) => {
+export default withTransactionParams(async (context, { system, model, record, options }) => {
     const body = await context.req.json().catch(() => ({}));
 
     // Validate request body structure
@@ -44,7 +44,7 @@ export default withTransactionParams(async (context, { system, schema, record, o
     }
 
     // Get current record to merge with existing ACLs (select404 automatically throws 404 if not found)
-    const currentRecord = await system.database.select404(schema!, {
+    const currentRecord = await system.database.select404(model!, {
         where: { id: record! },
         select: ['id', 'access_read', 'access_edit', 'access_full', 'access_deny']
     }, undefined, options);
@@ -61,7 +61,7 @@ export default withTransactionParams(async (context, { system, schema, record, o
     }
 
     // Update the record (returns the updated record)
-    const updatedRecord = await system.database.updateOne(schema!, record!, mergedUpdates);
+    const updatedRecord = await system.database.updateOne(model!, record!, mergedUpdates);
 
     // Return ACL data (middleware will wrap in success response)
     setRouteResult(context, {

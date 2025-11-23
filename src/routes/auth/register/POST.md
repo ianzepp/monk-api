@@ -152,12 +152,12 @@ curl -X POST http://localhost:9001/auth/register \
 
 **Result:**
 - New tenant cloned from `saas-starter` template instead of default `system` template
-- All schemas and data from template are copied to new tenant
+- All models and data from template are copied to new tenant
 
 ## Template System
 
 The register endpoint clones a template database to provision new tenants. This allows pre-populating tenants with:
-- Schema definitions
+- Model definitions
 - Initial configuration data
 - Sample records
 - User roles and permissions

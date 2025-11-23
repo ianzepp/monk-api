@@ -1,13 +1,13 @@
 /**
- * Column Type Utilities
+ * Field Type Utilities
  *
- * Centralized type definitions and conversion utilities for Monk column types.
+ * Centralized type definitions and conversion utilities for Monk field types.
  * Handles bidirectional conversion between PostgreSQL wire format and JavaScript/Monk types.
  */
 
 
 /**
- * PostgreSQL column types (as stored in database)
+ * PostgreSQL field types (as stored in database)
  */
 export const PG_TYPES = {
     TEXT: 'text',
@@ -89,7 +89,7 @@ export const PG_TO_USER_TYPE_MAP: Record<string, string> = {
 export const VALID_USER_TYPES = Object.keys(USER_TO_PG_TYPE_MAP);
 
 /**
- * All valid PostgreSQL column types
+ * All valid PostgreSQL field types
  */
 export const VALID_PG_TYPES = Object.values(PG_TYPES);
 
@@ -97,19 +97,19 @@ export const VALID_PG_TYPES = Object.values(PG_TYPES);
  * Convert PostgreSQL wire format value to JavaScript/Monk type
  *
  * PostgreSQL returns many values as strings. This converts them to proper
- * JavaScript types based on the column type.
+ * JavaScript types based on the field type.
  *
  * @param value - The value from PostgreSQL
- * @param columnType - The PostgreSQL column type (text, integer, numeric, boolean, jsonb, etc.)
+ * @param fieldType - The PostgreSQL field type (text, integer, numeric, boolean, jsonb, etc.)
  * @returns Converted value in proper JavaScript type
  */
-export function convertColumnPgToMonk(value: any, columnType: string): any {
+export function convertFieldPgToMonk(value: any, fieldType: string): any {
     // Null/undefined passes through unchanged
     if (value === null || value === undefined) {
         return value;
     }
 
-    switch (columnType) {
+    switch (fieldType) {
         case PG_TYPES.INTEGER:
         case PG_TYPES.BIGSERIAL:
         case PG_TYPES.NUMERIC:
@@ -135,7 +135,7 @@ export function convertColumnPgToMonk(value: any, columnType: string): any {
                 } catch (error) {
                     console.warn('Failed to parse JSONB field', {
                         value,
-                        columnType,
+                        fieldType,
                         error: error instanceof Error ? error.message : String(error),
                     });
                     return value; // Return as-is if parsing fails
@@ -156,17 +156,17 @@ export function convertColumnPgToMonk(value: any, columnType: string): any {
  * Primarily handles JSONB serialization.
  *
  * @param value - The JavaScript value to convert
- * @param columnType - The PostgreSQL column type (text, integer, numeric, boolean, jsonb, etc.)
+ * @param fieldType - The PostgreSQL field type (text, integer, numeric, boolean, jsonb, etc.)
  * @returns Value formatted for PostgreSQL
  * @throws Error if JSONB serialization fails
  */
-export function convertColumnMonkToPg(value: any, columnType: string): any {
+export function convertFieldMonkToPg(value: any, fieldType: string): any {
     // Null/undefined passes through unchanged
     if (value === null || value === undefined) {
         return value;
     }
 
-    switch (columnType) {
+    switch (fieldType) {
         case PG_TYPES.JSONB:
             // JSONB fields need to be JSON strings (unless already a string)
             if (typeof value !== 'string') {
@@ -200,7 +200,7 @@ export function convertRecordPgToMonk(
 
     for (const [fieldName, typeInfo] of typedFields.entries()) {
         if (fieldName in converted) {
-            converted[fieldName] = convertColumnPgToMonk(converted[fieldName], typeInfo.type);
+            converted[fieldName] = convertFieldPgToMonk(converted[fieldName], typeInfo.type);
         }
     }
 
@@ -222,7 +222,7 @@ export function convertRecordMonkToPg(
 
     for (const [fieldName, typeInfo] of typedFields.entries()) {
         if (fieldName in converted) {
-            converted[fieldName] = convertColumnMonkToPg(converted[fieldName], typeInfo.type);
+            converted[fieldName] = convertFieldMonkToPg(converted[fieldName], typeInfo.type);
         }
     }
 

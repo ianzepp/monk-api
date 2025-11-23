@@ -1,4 +1,4 @@
-# POST /api/find/:schema
+# POST /api/find/:model
 
 **Documentation stub - to be completed**
 

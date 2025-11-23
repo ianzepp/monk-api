@@ -2,7 +2,7 @@
  * Cache Invalidator Observer
  *
  * Universal integration observer that invalidates caches after data changes
- * Ring: 8 (Integration) - Schema: all - Operations: create, update, delete
+ * Ring: 8 (Integration) - Model: all - Operations: create, update, delete
  */
 
 import { BaseAsyncObserver } from '@src/lib/observers/base-async-observer.js';
@@ -16,69 +16,69 @@ export default class CacheInvalidator extends BaseAsyncObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { operation, data } = context;
-        const schemaName = context.schema.schema_name;
+        const modelName = context.model.model_name;
 
         try {
-            // Invalidate schema-level caches (once per execution)
-            await this.invalidateSchemaCache(schemaName);
+            // Invalidate model-level caches (once per execution)
+            await this.invalidateModelCache(modelName);
 
-            // Process records (SchemaRecord instances with both original and current state)
+            // Process records (ModelRecord instances with both original and current state)
             const records = Array.isArray(data) ? data : (data ? [data] : []);
 
             for (const record of records) {
                 // Invalidate record-level caches
                 const recordId = record.get('id');
                 if (recordId) {
-                    await this.invalidateRecordCache(schemaName, recordId);
+                    await this.invalidateRecordCache(modelName, recordId);
                 }
 
                 // Invalidate relationship caches
-                await this.invalidateRelationshipCaches(schemaName, record);
+                await this.invalidateRelationshipCaches(modelName, record);
             }
 
             // Invalidate search/index caches
-            await this.invalidateSearchCache(schemaName, operation);
+            await this.invalidateSearchCache(modelName, operation);
 
             // Mark cache invalidation complete
 
         } catch (error) {
             // Cache invalidation failures are system errors
             throw new SystemError(
-                `Cache invalidation failed for ${schemaName} ${operation}: ${error}`,
+                `Cache invalidation failed for ${modelName} ${operation}: ${error}`,
                 error instanceof Error ? error : undefined
             );
         }
     }
 
-    private async invalidateSchemaCache(schema: string): Promise<void> {
-        // Invalidate schema-wide caches
+    private async invalidateModelCache(model: string): Promise<void> {
+        // Invalidate model-wide caches
         const cacheKeys = [
-            `schema:${schema}:all`,
-            `schema:${schema}:count`,
-            `schema:${schema}:metadata`,
-            `api:${schema}:list`,
-            `api:${schema}:paginated`
+            `model:${model}:all`,
+            `model:${model}:count`,
+            `model:${model}:metadata`,
+            `api:${model}:list`,
+            `api:${model}:paginated`
         ];
 
         await this.invalidateKeys(cacheKeys);
-        console.info('Cache invalidated for schema', { schema });
+        console.info('Cache invalidated for model', { model });
     }
 
-    private async invalidateRecordCache(schema: string, recordId: string): Promise<void> {
+    private async invalidateRecordCache(model: string, recordId: string): Promise<void> {
         // Invalidate record-specific caches
         const cacheKeys = [
-            `record:${schema}:${recordId}`,
-            `api:${schema}:${recordId}`,
-            `permissions:${schema}:${recordId}`
+            `record:${model}:${recordId}`,
+            `api:${model}:${recordId}`,
+            `permissions:${model}:${recordId}`
         ];
 
         await this.invalidateKeys(cacheKeys);
-        console.info('Cache invalidated for record', { schema, recordId });
+        console.info('Cache invalidated for record', { model, recordId });
     }
 
-    private async invalidateRelationshipCaches(schema: string, record: any): Promise<void> {
+    private async invalidateRelationshipCaches(model: string, record: any): Promise<void> {
         // Get relationship fields that might have changed
-        const relationships = this.getRelationshipFields(schema);
+        const relationships = this.getRelationshipFields(model);
 
         if (!record || relationships.length === 0) return;
 
@@ -90,29 +90,29 @@ export default class CacheInvalidator extends BaseAsyncObserver {
                 // Invalidate caches for related records
                 if (Array.isArray(relationshipValue)) {
                     relationshipValue.forEach(relatedId => {
-                        cacheKeys.push(`record:${relationship.schema}:${relatedId}`);
-                        cacheKeys.push(`relationships:${relationship.schema}:${relatedId}`);
+                        cacheKeys.push(`record:${relationship.model}:${relatedId}`);
+                        cacheKeys.push(`relationships:${relationship.model}:${relatedId}`);
                     });
                 } else {
-                    cacheKeys.push(`record:${relationship.schema}:${relationshipValue}`);
-                    cacheKeys.push(`relationships:${relationship.schema}:${relationshipValue}`);
+                    cacheKeys.push(`record:${relationship.model}:${relationshipValue}`);
+                    cacheKeys.push(`relationships:${relationship.model}:${relationshipValue}`);
                 }
             }
         }
 
         if (cacheKeys.length > 0) {
             await this.invalidateKeys(cacheKeys);
-            console.info('Cache invalidated for relationships', { schema });
+            console.info('Cache invalidated for relationships', { model });
         }
     }
 
-    private async invalidateSearchCache(schema: string, operation: string): Promise<void> {
+    private async invalidateSearchCache(model: string, operation: string): Promise<void> {
         // Invalidate search and aggregation caches
         const searchKeys = [
-            `search:${schema}:*`,
-            `aggregation:${schema}:*`,
-            `index:${schema}:*`,
-            `filter:${schema}:*`
+            `search:${model}:*`,
+            `aggregation:${model}:*`,
+            `index:${model}:*`,
+            `filter:${model}:*`
         ];
 
         await this.invalidateKeys(searchKeys);
@@ -120,13 +120,13 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         // For create/delete operations, also invalidate count caches
         if (operation === 'create' || operation === 'delete') {
             await this.invalidateKeys([
-                `count:${schema}:total`,
-                `count:${schema}:active`,
-                `stats:${schema}:summary`
+                `count:${model}:total`,
+                `count:${model}:active`,
+                `stats:${model}:summary`
             ]);
         }
 
-        console.info('Cache invalidated for search', { schema });
+        console.info('Cache invalidated for search', { model });
     }
 
     private async invalidateKeys(keys: string[]): Promise<void> {
@@ -146,21 +146,21 @@ export default class CacheInvalidator extends BaseAsyncObserver {
         }
     }
 
-    private getRelationshipFields(schema: string): Array<{field: string, schema: string}> {
-        // In a real implementation, this would come from schema describe
+    private getRelationshipFields(model: string): Array<{field: string, model: string}> {
+        // In a real implementation, this would come from model describe
         // For now, return common relationship patterns
-        const relationships: Record<string, Array<{field: string, schema: string}>> = {
+        const relationships: Record<string, Array<{field: string, model: string}>> = {
             user: [
-                { field: 'account_id', schema: 'account' },
-                { field: 'role_ids', schema: 'role' }
+                { field: 'account_id', model: 'account' },
+                { field: 'role_ids', model: 'role' }
             ],
             account: [
-                { field: 'user_ids', schema: 'user' },
-                { field: 'parent_account_id', schema: 'account' }
+                { field: 'user_ids', model: 'user' },
+                { field: 'parent_account_id', model: 'account' }
             ],
-            // Add more schema relationships as needed
+            // Add more model relationships as needed
         };
 
-        return relationships[schema] || [];
+        return relationships[model] || [];
     }
 }

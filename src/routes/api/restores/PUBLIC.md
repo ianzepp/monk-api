@@ -103,8 +103,8 @@ Authorization: Bearer YOUR_JWT_TOKEN
 | `file` | File | Yes | - | ZIP file from extract download |
 | `conflict_strategy` | string | No | 'upsert' | Conflict resolution strategy |
 | `include` | string | No | 'describe,data' | Comma-separated: describe, data |
-| `schemas` | string | No | null | Comma-separated schema names (null = all) |
-| `create_schemas` | string | No | 'true' | Allow creating new schemas |
+| `models` | string | No | null | Comma-separated model names (null = all) |
+| `create_models` | string | No | 'true' | Allow creating new models |
 
 ### Conflict Strategies
 
@@ -112,7 +112,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 |----------|----------|----------|
 | `replace` | Delete all, import fresh | Dev restore on fresh DB |
 | `upsert` | Update existing, insert new | Dev restore on existing DB |
-| `merge` | Import only for new schemas | Package installation |
+| `merge` | Import only for new models | Package installation |
 | `sync` | Import only new record IDs | Sandbox → Parent merge |
 | `skip` | Skip existing records | Best-effort import |
 | `error` | Fail on any conflict | Strict validation |
@@ -130,8 +130,8 @@ Authorization: Bearer YOUR_JWT_TOKEN
     "config": {
       "conflict_strategy": "upsert",
       "include": ["describe", "data"],
-      "schemas": null,
-      "create_schemas": true
+      "models": null,
+      "create_models": true
     }
   }
 }
@@ -173,8 +173,8 @@ POST /api/data/restores
   "source_ref": "/tmp/restores/uploads/abc123.zip",
   "conflict_strategy": "upsert",
   "include": ["describe", "data"],
-  "schemas": ["users", "orders"],
-  "create_schemas": true,
+  "models": ["users", "orders"],
+  "create_models": true,
   "enabled": true
 }
 ```
@@ -189,8 +189,8 @@ POST /api/data/restores
 | `source_ref` | string | No | null | File path, run ID, or URL |
 | `conflict_strategy` | string | No | 'upsert' | Conflict resolution strategy |
 | `include` | array | No | ['describe', 'data'] | What to restore |
-| `schemas` | array | No | null | Specific schemas (null = all) |
-| `create_schemas` | boolean | No | true | Allow creating new schemas |
+| `models` | array | No | null | Specific models (null = all) |
+| `create_models` | boolean | No | true | Allow creating new models |
 | `enabled` | boolean | No | true | Can this restore be executed |
 
 ### List Restores
@@ -249,15 +249,15 @@ GET /api/data/restore_runs/:runId
       "phase": "importing_data",
       "files_total": 10,
       "files_completed": 7,
-      "current_schema": "orders",
+      "current_model": "orders",
       "records_imported": 25000,
       "records_skipped": 150
     },
     "started_at": "2025-01-19T10:00:00Z",
     "records_imported": 25000,
     "records_skipped": 150,
-    "schemas_created": 2,
-    "columns_created": 15,
+    "models_created": 2,
+    "fields_created": 15,
     "created_at": "2025-01-19T10:00:00Z"
   }
 }
@@ -271,8 +271,8 @@ The `progress_detail` field provides real-time execution status:
 ```json
 {
   "phase": "imported_describe",
-  "schemas_created": 3,
-  "columns_created": 24
+  "models_created": 3,
+  "fields_created": 24
 }
 ```
 
@@ -282,7 +282,7 @@ The `progress_detail` field provides real-time execution status:
   "phase": "importing_data",
   "files_total": 10,
   "files_completed": 7,
-  "current_schema": "orders",
+  "current_model": "orders",
   "records_imported": 25000,
   "records_skipped": 150
 }
@@ -308,7 +308,7 @@ Detailed execution logs track every operation. Query via Data API at `/api/data/
 |-------|-------------|
 | `upload` | File extraction |
 | `validation` | File structure validation |
-| `describe_import` | Schema/column creation |
+| `describe_import` | Model/field creation |
 | `data_import` | Record insertion |
 
 ### Query Logs for Run
@@ -326,9 +326,9 @@ GET /api/data/restore_logs?filter[where][run_id]=run_xyz789
       "run_id": "run_xyz789",
       "level": "info",
       "phase": "describe_import",
-      "schema_name": "channels",
+      "model_name": "channels",
       "record_id": null,
-      "message": "Created schema",
+      "message": "Created model",
       "detail": null,
       "created_at": "2025-01-19T10:00:01Z"
     },
@@ -336,7 +336,7 @@ GET /api/data/restore_logs?filter[where][run_id]=run_xyz789
       "id": "log_002",
       "level": "info",
       "phase": "data_import",
-      "schema_name": "channels",
+      "model_name": "channels",
       "record_id": "ch_123",
       "message": "Skipped existing record (sync strategy)",
       "detail": { "reason": "record_exists_in_parent" },
@@ -403,8 +403,8 @@ curl -X POST http://localhost:9001/api/restores/import \
   -F "conflict_strategy=merge"
 
 # Result:
-# ✅ Creates new schemas (channels, messages, etc.)
-# ✅ Imports seed data for new schemas
+# ✅ Creates new models (channels, messages, etc.)
+# ✅ Imports seed data for new models
 # ✅ Preserves all existing tenant data
 ```
 
@@ -426,8 +426,8 @@ curl -X POST http://localhost:9001/api/restores/import \
   -F "conflict_strategy=sync"
 
 # Result:
-# ✅ Creates new schemas
-# ✅ Adds new columns to existing schemas
+# ✅ Creates new models
+# ✅ Adds new fields to existing models
 # ✅ Imports training data (new record IDs only)
 # ✅ Skips production data (existing record IDs)
 ```
@@ -444,7 +444,7 @@ curl -X POST http://localhost:9001/api/restores/import \
 | Restore disabled | Enable restore via `PUT /api/data/restores/:id` |
 | Already running | Wait for current run to complete or cancel it |
 | Invalid ZIP file | Ensure file is a valid extract archive |
-| Schema doesn't exist | Set `create_schemas: true` in config |
+| Model doesn't exist | Set `create_models: true` in config |
 | Record conflict | Adjust conflict strategy (e.g., `upsert` instead of `error`) |
 
 ### Failed Restores
@@ -474,7 +474,7 @@ GET /api/data/restore_logs?filter[where][run_id]=run_xyz&filter[where][level]=er
 **Use Case:** Dev restore on fresh database
 
 **Behavior:**
-1. Delete all existing records in target schemas
+1. Delete all existing records in target models
 2. Import all records from file
 
 **Example:**
@@ -509,9 +509,9 @@ curl -X POST /api/restores/import \
 **Use Case:** Package installation
 
 **Behavior:**
-1. Create new schemas and import all data
-2. Add columns to existing schemas
-3. Skip data import for existing schemas
+1. Create new models and import all data
+2. Add fields to existing models
+3. Skip data import for existing models
 
 **Example:**
 ```bash
@@ -521,9 +521,9 @@ curl -X POST /api/restores/import \
 ```
 
 **Result:**
-- ✅ `channels` schema created → all seed data imported
-- ✅ `messages` schema created → all seed data imported
-- ✅ `users` schema exists → new columns added, data skipped
+- ✅ `channels` model created → all seed data imported
+- ✅ `messages` model created → all seed data imported
+- ✅ `users` model exists → new fields added, data skipped
 
 ---
 
@@ -532,8 +532,8 @@ curl -X POST /api/restores/import \
 **Use Case:** Sandbox → Parent merge
 
 **Behavior:**
-1. Create new schemas and import all data
-2. Add columns to existing schemas
+1. Create new models and import all data
+2. Add fields to existing models
 3. Import only records with IDs that don't exist in parent
 
 **Example:**
@@ -546,7 +546,7 @@ curl -X POST /api/restores/import \
 **Result:**
 - ✅ Production record `task_001` exists → skipped
 - ✅ Training record `task_002` is new → imported
-- ✅ New schema `projects` → all data imported
+- ✅ New model `projects` → all data imported
 
 ---
 
@@ -590,7 +590,7 @@ curl -X POST /api/restores/import \
 - Local file storage (no cloud integration yet)
 - JSONL format for data, YAML for describe
 - No incremental imports
-- No schema downgrades (can't remove columns via restore)
+- No model downgrades (can't remove fields via restore)
 - No rollback support (yet)
 
 ## Future Features
@@ -598,6 +598,6 @@ curl -X POST /api/restores/import \
 - Download from URL (GitHub packages)
 - Dry run / validation mode
 - Rollback support
-- Schema migration scripts
+- Model migration scripts
 - Package dependencies
 - Cloud storage (S3, GCS, Azure)

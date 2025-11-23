@@ -2,7 +2,7 @@
 set -e
 
 # Find API Basic Test
-# Tests the POST /api/find/:schema endpoint with empty filter to verify basic functionality
+# Tests the POST /api/find/:model endpoint with empty filter to verify basic functionality
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"

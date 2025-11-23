@@ -15,7 +15,7 @@
 - Template build process (npm run fixtures:build)
 - Database template cloning performance
 - Template data integrity after cloning
-- Template schema consistency
+- Template model consistency
 - Cloning performance benchmarks (should be <100ms)
 - Template lifecycle management
 

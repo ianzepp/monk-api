@@ -4,7 +4,7 @@ The Restore API provides data import functionality with background job processin
 
 ## TODO: Migrate to App Endpoint
 
-**Future Migration:** This API should be moved from `/api/restores/*` to `/api/restores/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/schema operations.
+**Future Migration:** This API should be moved from `/api/restores/*` to `/api/restores/*` as part of a broader initiative to separate specialized application endpoints from standard REST API endpoints. The `/app` path will host application-specific functionality (grids, extracts, restores) while `/api` remains focused on core data/model operations.
 
 **Target Path:** `/api/restores/:id/*`
 **Rationale:** Restore API is an application-level feature (background jobs, file processing) rather than a direct data model operation, making it a better fit for the `/app` namespace.
@@ -30,8 +30,8 @@ POST /api/data/restores
   "source_ref": "/tmp/restores/uploads/abc123.zip",
   "conflict_strategy": "upsert",
   "include": ["describe", "data"],
-  "schemas": ["users", "orders"],
-  "create_schemas": true
+  "models": ["users", "orders"],
+  "create_models": true
 }
 
 # List restores
@@ -63,7 +63,7 @@ GET /api/data/restore_runs/:runId
 
 # Query logs
 GET /api/data/restore_logs?filter[where][run_id]=run_xyz
-→ Returns: [{ level, message, phase, schema_name, ... }]
+→ Returns: [{ level, message, phase, model_name, ... }]
 ```
 
 ### Direct Import
@@ -76,8 +76,8 @@ Content-Type: multipart/form-data
 file: [ZIP file from extract]
 conflict_strategy: upsert (optional)
 include: describe,data (optional)
-schemas: users,orders (optional)
-create_schemas: true (optional)
+models: users,orders (optional)
+create_models: true (optional)
 ```
 
 ## Usage Example
@@ -118,7 +118,7 @@ curl -X POST http://localhost:9001/api/data/restores \
     "source_type": "upload",
     "source_ref": "/path/to/monk-slack-v1.0.0.zip",
     "conflict_strategy": "merge",
-    "create_schemas": true
+    "create_models": true
   }'
 
 # Response:
@@ -173,8 +173,8 @@ curl http://localhost:9001/api/data/restore_runs/run_ghi789 \
     "id": "run_ghi789",
     "status": "completed",
     "progress": 100,
-    "schemas_created": 3,
-    "columns_created": 24,
+    "models_created": 3,
+    "fields_created": 24,
     "records_imported": 50000,
     "records_skipped": 0,
     "duration_seconds": 12
@@ -192,8 +192,8 @@ curl http://localhost:9001/api/data/restore_runs/run_ghi789 \
 | `source_ref` | string | null | File path, run ID, or URL |
 | `conflict_strategy` | string | 'upsert' | How to handle conflicts |
 | `include` | array | ['describe', 'data'] | What to restore |
-| `schemas` | array | null | Specific schemas (null = all) |
-| `create_schemas` | boolean | true | Allow creating new schemas |
+| `models` | array | null | Specific models (null = all) |
+| `create_models` | boolean | true | Allow creating new models |
 | `enabled` | boolean | true | Can this restore be executed |
 
 ## Conflict Strategies
@@ -202,8 +202,8 @@ curl http://localhost:9001/api/data/restore_runs/run_ghi789 \
 |----------|----------|----------|
 | **replace** | Delete all existing data, import fresh | Dev restore (fresh DB) |
 | **upsert** | Update existing records, insert new | Dev restore (existing DB) |
-| **merge** | Create new schemas, import only for new schemas | Package install |
-| **sync** | Create new schemas, import only new record IDs | Sandbox → Parent |
+| **merge** | Create new models, import only for new models | Package install |
+| **sync** | Create new models, import only new record IDs | Sandbox → Parent |
 | **skip** | Skip existing records silently | Best-effort import |
 | **error** | Fail on any conflict | Strict validation |
 
@@ -211,11 +211,11 @@ curl http://localhost:9001/api/data/restore_runs/run_ghi789 \
 
 **replace:**
 ```typescript
-// Delete all records in target schemas
-await db.deleteMany(schema, {});
+// Delete all records in target models
+await db.deleteMany(model, {});
 // Import all records
 for (const record of records) {
-    await db.createOne(schema, record);
+    await db.createOne(model, record);
 }
 ```
 
@@ -224,22 +224,22 @@ for (const record of records) {
 // Update or insert each record
 for (const record of records) {
     if (exists(record.id)) {
-        await db.updateOne(schema, record.id, record);
+        await db.updateOne(model, record.id, record);
     } else {
-        await db.createOne(schema, record);
+        await db.createOne(model, record);
     }
 }
 ```
 
 **merge:**
 ```typescript
-// Only import data for newly created schemas
-if (schemaWasCreatedInThisRun) {
+// Only import data for newly created models
+if (modelWasCreatedInThisRun) {
     for (const record of records) {
-        await db.createOne(schema, record);
+        await db.createOne(model, record);
     }
 } else {
-    // Skip all data for existing schemas
+    // Skip all data for existing models
 }
 ```
 
@@ -248,7 +248,7 @@ if (schemaWasCreatedInThisRun) {
 // Only import records with new IDs
 for (const record of records) {
     if (!existsInParent(record.id)) {
-        await db.createOne(schema, record);
+        await db.createOne(model, record);
     } else {
         // Skip existing record
     }
@@ -278,15 +278,15 @@ GET /api/data/restore_logs?filter[where][run_id]=run_ghi789
     "run_id": "run_ghi789",
     "level": "info",
     "phase": "describe_import",
-    "schema_name": "channels",
-    "message": "Created schema",
+    "model_name": "channels",
+    "message": "Created model",
     "created_at": "2025-01-19T10:00:01Z"
   },
   {
     "id": "log_002",
     "level": "info",
     "phase": "data_import",
-    "schema_name": "channels",
+    "model_name": "channels",
     "record_id": "ch_001",
     "message": "Skipped existing record (sync strategy)",
     "created_at": "2025-01-19T10:00:05Z"
@@ -304,7 +304,7 @@ GET /api/data/restore_logs?filter[where][run_id]=run_ghi789
 
 - `upload` - File extraction
 - `validation` - File structure validation
-- `describe_import` - Schema/column creation
+- `describe_import` - Model/field creation
 - `data_import` - Record insertion
 
 ## Progress Tracking
@@ -316,7 +316,7 @@ The `progress_detail` field provides real-time status:
   "phase": "importing_data",
   "files_total": 10,
   "files_completed": 7,
-  "current_schema": "orders",
+  "current_model": "orders",
   "records_imported": 25000,
   "records_skipped": 150
 }
@@ -327,7 +327,7 @@ The `progress_detail` field provides real-time status:
 **Phase 1 (Current):**
 - ✅ Execute restore on-demand
 - ✅ Upload and extract ZIP files
-- ✅ Import describe metadata (schemas + columns)
+- ✅ Import describe metadata (models + fields)
 - ✅ Import data with all conflict strategies
 - ✅ Local file storage (/tmp/restores)
 - ✅ Progress tracking
@@ -338,7 +338,7 @@ The `progress_detail` field provides real-time status:
 - ⏳ Download from URL (package install from GitHub)
 - ⏳ Dry run / validation mode
 - ⏳ Rollback support
-- ⏳ Schema migration scripts
+- ⏳ Model migration scripts
 - ⏳ Dependency resolution (package A requires package B)
 
 ## Storage
@@ -369,7 +369,7 @@ Errors during restoration:
 Common errors:
 - Invalid ZIP file
 - Missing describe.yaml or data files
-- Schema doesn't exist (when create_schemas=false)
+- Model doesn't exist (when create_models=false)
 - Record conflicts (when conflict_strategy=error)
 - Permission issues
 
@@ -426,4 +426,4 @@ curl -X POST /api/restores/import \
 - Local storage only (no S3/cloud integration yet)
 - JSONL format for data, YAML for describe
 - No incremental imports (full restore each time)
-- No schema downgrade support (can't remove columns)
+- No model downgrade support (can't remove fields)

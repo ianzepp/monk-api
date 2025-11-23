@@ -21,7 +21,7 @@
    - Retrieve record by UUID
    - System fields in response
    - Single object response (not array)
-   - Error handling (404, invalid UUID, non-existent schema)
+   - Error handling (404, invalid UUID, non-existent model)
    - Multiple data types retrieval
    - Null field values
    - Immediate retrieval after creation
@@ -32,7 +32,7 @@
    - Timestamp updates (updated_at changes, created_at preserved)
    - Full response field inclusion
    - Boolean and null value updates
-   - Error handling (404, non-existent schema)
+   - Error handling (404, non-existent model)
    - SKIPPED: Required field null validation (UPDATE allows null, CREATE doesn't)
    - SKIPPED: Empty update rejection (API accepts empty bodies)
 
@@ -48,16 +48,16 @@
 
 ```
 spec/32-data-api/
-├── data-post.test.ts    # POST /api/data/:schema (create)
-├── data-get.test.ts     # GET /api/data/:schema/:record (read)
-├── data-put.test.ts     # PUT /api/data/:schema/:record (update)
-└── data-delete.test.ts  # DELETE /api/data/:schema/:record (delete)
+├── data-post.test.ts    # POST /api/data/:model (create)
+├── data-get.test.ts     # GET /api/data/:model/:record (read)
+├── data-put.test.ts     # PUT /api/data/:model/:record (update)
+└── data-delete.test.ts  # DELETE /api/data/:model/:record (delete)
 ```
 
 ## Testing Approach
 
 ### Smoke Test Strategy
-- **Minimal setup**: Create schema and columns in beforeAll
+- **Minimal setup**: Create model and fields in beforeAll
 - **Core functionality only**: Basic CRUD operations, no edge cases
 - **Error validation**: Test common error scenarios (404, validation)
 - **System fields**: Verify timestamps and metadata behavior
@@ -68,10 +68,10 @@ spec/32-data-api/
 beforeAll(async () => {
     tenant = await TestHelpers.createTestTenant('data-post');
 
-    // Create test schema
+    // Create test model
     await tenant.httpClient.post('/api/describe/products', {});
-    await tenant.httpClient.post('/api/describe/products/columns/name', {
-        column_name: 'name',
+    await tenant.httpClient.post('/api/describe/products/fields/name', {
+        field_name: 'name',
         type: 'text',
         required: true,
     });
@@ -91,25 +91,25 @@ it('should create record', async () => {
 New discrepancies documented in `spec/DRIFT.md`:
 
 ### Empty Array Acceptance (Low Impact)
-- **Endpoint**: POST /api/data/:schema
+- **Endpoint**: POST /api/data/:model
 - **Expected**: Reject empty arrays
 - **Actual**: Accepts empty arrays, returns empty data
 - **Status**: May be intentional (idempotent no-op)
 
-### Non-Existent Schema Error Code (Low Impact)
-- **Endpoints**: POST /api/data/:schema, PUT/DELETE /api/data/:schema/:record
-- **Expected**: SCHEMA_NOT_FOUND
+### Non-Existent Model Error Code (Low Impact)
+- **Endpoints**: POST /api/data/:model, PUT/DELETE /api/data/:model/:record
+- **Expected**: MODEL_NOT_FOUND
 - **Actual**: INTERNAL_ERROR
 - **Impact**: Error handling works, but codes differ
 
 ### Required Field Validation in UPDATE (Low Impact)
-- **Endpoint**: PUT /api/data/:schema/:record
+- **Endpoint**: PUT /api/data/:model/:record
 - **Expected**: Validation error when setting required field to null
 - **Actual**: UPDATE allows null for required fields (CREATE rejects it)
 - **Status**: May be intentional (allows clearing fields during updates)
 
 ### Empty Update Body (Low Impact)
-- **Endpoint**: PUT /api/data/:schema/:record
+- **Endpoint**: PUT /api/data/:model/:record
 - **Expected**: Validation error for empty request body
 - **Actual**: Accepts empty body, returns success without changes
 - **Status**: May be intentional (idempotent updates)
@@ -139,7 +139,7 @@ TEST_VERBOSE=1 npm run test:ts 32-data-api
 - GET/PUT/DELETE return single object
 
 ### Array-Based Requests
-- POST /api/data/:schema requires array format: `[{...}]`
+- POST /api/data/:model requires array format: `[{...}]`
 - Even single record must be wrapped in array
 - Multiple records in transaction (all succeed or all fail)
 

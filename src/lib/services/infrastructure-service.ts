@@ -9,7 +9,7 @@ const execAsync = promisify(exec);
 /**
  * InfrastructureService - Manages templates, tenants, sandboxes, and snapshots
  *
- * This service handles all infrastructure database operations for the new four-table schema:
+ * This service handles all infrastructure database operations for the new four-table model:
  * - templates: Immutable prototypes for cloning
  * - tenants: Production databases
  * - sandboxes: Temporary/experimental databases

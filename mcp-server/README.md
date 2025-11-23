@@ -65,7 +65,7 @@ MonkAuth({ action: 'status' })
 // GET request with query params
 MonkHttp({
   method: 'GET',
-  path: '/api/schema',
+  path: '/api/model',
   query: { limit: '10' }
 })
 
@@ -110,7 +110,7 @@ MonkHttp({
 // Query users with filters
 MonkData({
   operation: 'selectAny',
-  schema: 'users',
+  model: 'users',
   params: {
     where: { active: true, age: { $gte: 18 } },
     order: ['name asc'],
@@ -121,7 +121,7 @@ MonkData({
 // Bulk insert
 MonkData({
   operation: 'createAll',
-  schema: 'products',
+  model: 'products',
   params: [
     { name: 'Widget', price: 19.99, sku: 'WDG-001' },
     { name: 'Gadget', price: 29.99, sku: 'GDG-002' }
@@ -131,7 +131,7 @@ MonkData({
 // Aggregate analytics
 MonkData({
   operation: 'aggregate',
-  schema: 'sales',
+  model: 'sales',
   params: {
     where: { date: { $gte: '2025-01-01' } },
     aggregate: {
@@ -144,46 +144,46 @@ MonkData({
 })
 ```
 
-### 4. MonkDescribe - Schema Management
+### 4. MonkDescribe - Model Management
 
-**Purpose:** Create, read, update, delete schemas and columns.
+**Purpose:** Create, read, update, delete models and fields.
 
 **Operations:**
-- `list` - List all schemas
-- `get` - Get schema metadata
-- `create` - Create new schema
-- `update` - Update schema metadata
-- `delete` - Drop schema
-- `addColumn` - Add column to schema
-- `updateColumn` - Modify column definition
-- `deleteColumn` - Remove column
+- `list` - List all models
+- `get` - Get model metadata
+- `create` - Create new model
+- `update` - Update model metadata
+- `delete` - Drop model
+- `addField` - Add field to model
+- `updateField` - Modify field definition
+- `deleteField` - Remove field
 
 **Example:**
 ```typescript
-// List all schemas
+// List all models
 MonkDescribe({ operation: 'list' })
 
-// Get schema details
+// Get model details
 MonkDescribe({
   operation: 'get',
-  schema: 'users'
+  model: 'users'
 })
 
-// Create new schema
+// Create new model
 MonkDescribe({
   operation: 'create',
-  schema: 'products',
+  model: 'products',
   params: {
     description: 'Product catalog'
   }
 })
 
-// Add column
+// Add field
 MonkDescribe({
-  operation: 'addColumn',
-  schema: 'products',
+  operation: 'addField',
+  model: 'products',
   params: {
-    column_name: 'price',
+    field_name: 'price',
     type: 'decimal',
     required: true,
     description: 'Product price in USD'
@@ -203,7 +203,7 @@ MonkDescribe({
 │  - MonkAuth  (auth + JWT cache)     │
 │  - MonkHttp  (raw HTTP)              │
 │  - MonkData  (CRUD operations)       │
-│  - MonkDescribe (schema mgmt)        │
+│  - MonkDescribe (model mgmt)        │
 └─────────────┬───────────────────────┘
               │ HTTP + JWT
               │ Accept: application/toon
@@ -288,10 +288,10 @@ users[3]{id,name,age,active}:
 4. **Use the API:**
    ```typescript
    // High-level: Use MonkData/MonkDescribe
-   MonkData({ operation: 'selectAny', schema: 'users' })
+   MonkData({ operation: 'selectAny', model: 'users' })
 
    // Low-level: Use MonkHttp for anything else
-   MonkHttp({ method: 'GET', path: '/api/schema' })
+   MonkHttp({ method: 'GET', path: '/api/model' })
    ```
 
 ## Token Caching
@@ -315,7 +315,7 @@ MonkAuth({ action: 'status' })
 |------|----------|
 | **MonkAuth** | First action in session, format preference |
 | **MonkData** | Common CRUD (select, create, update, delete, aggregate) |
-| **MonkDescribe** | Schema operations (introspection, DDL) |
+| **MonkDescribe** | Model operations (introspection, DDL) |
 | **MonkHttp** | Everything else (custom endpoints, one-off operations) |
 
 ## Development

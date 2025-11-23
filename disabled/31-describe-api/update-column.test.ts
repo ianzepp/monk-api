@@ -3,25 +3,25 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * PUT /api/describe/:schema/columns/:column - Update Column
+ * PUT /api/describe/:model/fields/:field - Update Field
  *
- * Tests updating column properties. Supports both metadata updates
+ * Tests updating field properties. Supports both metadata updates
  * and structural changes (which trigger ALTER TABLE).
  */
 
-describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
+describe('PUT /api/describe/:model/fields/:field - Update Field', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('update-column');
+        tenant = await TestHelpers.createTestTenant('update-field');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/products', {
-            schema_name: 'products',
+            model_name: 'products',
             status: 'active'
         });
 
-        // Create test column
+        // Create test field
         await tenant.httpClient.post('/api/describe/products/name', {
             type: 'text',
             required: false
@@ -32,7 +32,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
         await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
-    it('should update column description (metadata)', async () => {
+    it('should update field description (metadata)', async () => {
         const response = await tenant.httpClient.put('/api/describe/products/name', {
             description: 'Updated product name'
         });
@@ -51,7 +51,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update min/max values (metadata)', async () => {
-        // Create numeric column
+        // Create numeric field
         await tenant.httpClient.post('/api/describe/products/price', {
             type: 'decimal'
         });
@@ -67,7 +67,7 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should update enum values (metadata)', async () => {
-        // Create text column
+        // Create text field
         await tenant.httpClient.post('/api/describe/products/status', {
             type: 'text'
         });
@@ -135,13 +135,13 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
     });
 
     it('should persist updates across GET requests', async () => {
-        // Update column
+        // Update field
         await tenant.httpClient.put('/api/describe/products/name', {
             description: 'Persisted description',
             pattern: '^[A-Z]'
         });
 
-        // Retrieve column
+        // Retrieve field
         const getResponse = await tenant.httpClient.get('/api/describe/products/name');
 
         expect(getResponse.success).toBe(true);
@@ -170,26 +170,26 @@ describe('PUT /api/describe/:schema/columns/:column - Update Column', () => {
         expectError(response);
     });
 
-    it('should return 404 for non-existent column', async () => {
+    it('should return 404 for non-existent field', async () => {
         const response = await tenant.httpClient.put('/api/describe/products/nonexistent', {
             description: 'test'
         });
 
         expectError(response);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should not allow updating column_name', async () => {
-        // Attempt to change column name (should be ignored or fail)
+    it('should not allow updating field_name', async () => {
+        // Attempt to change field name (should be ignored or fail)
         const response = await tenant.httpClient.put('/api/describe/products/name', {
-            column_name: 'renamed_name',
+            field_name: 'renamed_name',
             description: 'test'
         });
 
-        // Even if successful, column_name should not change
+        // Even if successful, field_name should not change
         if (response.success) {
             const getResponse = await tenant.httpClient.get('/api/describe/products/name');
-            expect(getResponse.data.column_name).toBe('name');
+            expect(getResponse.data.field_name).toBe('name');
         }
     });
 });

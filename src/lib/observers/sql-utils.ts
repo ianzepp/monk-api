@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 import { SystemError } from '@src/lib/observers/errors.js';
-import { convertRecordPgToMonk, convertRecordMonkToPg } from '@src/lib/column-types.js';
+import { convertRecordPgToMonk, convertRecordMonkToPg } from '@src/lib/field-types.js';
 
 /**
  * SQL Observer Utilities
@@ -15,14 +15,14 @@ export class SqlUtils {
      * Convert PostgreSQL string results back to proper JSON types
      *
      * PostgreSQL returns all values as strings by default. This method converts
-     * them back to the correct JSON types based on the schema column metadata.
+     * them back to the correct JSON types based on the model field metadata.
      */
-    static convertPostgreSQLTypes(record: any, schema: any): any {
-        if (!schema.typedFields || schema.typedFields.size === 0) {
+    static convertPostgreSQLTypes(record: any, model: any): any {
+        if (!model.typedFields || model.typedFields.size === 0) {
             return record;
         }
 
-        return convertRecordPgToMonk(record, schema.typedFields);
+        return convertRecordPgToMonk(record, model.typedFields);
     }
 
     /**
@@ -51,16 +51,16 @@ export class SqlUtils {
     /**
      * Process JSONB fields for PostgreSQL compatibility
      *
-     * Converts JavaScript objects and arrays to JSON strings for JSONB columns
-     * based on schema column type definitions.
+     * Converts JavaScript objects and arrays to JSON strings for JSONB fields
+     * based on model field type definitions.
      */
-    static processJsonbFields(record: any, schema: any): any {
-        if (!schema.typedFields || schema.typedFields.size === 0) {
+    static processJsonbFields(record: any, model: any): any {
+        if (!model.typedFields || model.typedFields.size === 0) {
             return record;
         }
 
         try {
-            return convertRecordMonkToPg(record, schema.typedFields);
+            return convertRecordMonkToPg(record, model.typedFields);
         } catch (error) {
             throw new SystemError(error instanceof Error ? error.message : String(error));
         }

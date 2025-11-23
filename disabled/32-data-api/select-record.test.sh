@@ -66,7 +66,7 @@ else
 fi
 
 # Test 3: Get all contacts from template data
-print_step "Testing GET /api/data/contact (verify second schema)"
+print_step "Testing GET /api/data/contact (verify second model)"
 
 contact_response=$(auth_get "api/data/contact")
 assert_success "$contact_response"

@@ -2,7 +2,7 @@
 set -e
 
 # Data API Record Creation Test
-# Tests creating a new record using the built-in users schema
+# Tests creating a new record using the built-in users model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
@@ -13,7 +13,7 @@ print_step "Testing Data API record creation"
 setup_test_with_template "create-record"
 setup_full_auth
 
-# Test 1: Create a new account record (schema already exists from template)
+# Test 1: Create a new account record (model already exists from template)
 print_step "Testing POST /api/data/account"
 
 # Generate test account data using helper

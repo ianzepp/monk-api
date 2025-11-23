@@ -70,7 +70,7 @@ setup_root_auth() {
 
 # Setup sudo authentication for privileged operations
 setup_sudo_auth() {
-    local reason="${1:-Schema management operation}"
+    local reason="${1:-Model management operation}"
     print_step "Escalating to sudo for protected operations"
 
     SUDO_TOKEN=$(escalate_sudo "$reason")
@@ -190,12 +190,12 @@ test_endpoint_error() {
 
 # Test non-existent record operations (common pattern)
 test_nonexistent_record() {
-    local schema="$1"
+    local model="$1"
     local operation="$2"
     local data="${3:-{}}"
 
     local fake_id="00000000-0000-0000-0000-000000000000"
-    local endpoint="api/data/$schema/$fake_id"
+    local endpoint="api/data/$model/$fake_id"
 
     case "$operation" in
         "get") test_endpoint_error "GET" "$endpoint" "" "" "Non-existent record retrieval" ;;
@@ -204,17 +204,17 @@ test_nonexistent_record() {
     esac
 }
 
-# Test non-existent schema operations (common pattern)
-test_nonexistent_schema() {
+# Test non-existent model operations (common pattern)
+test_nonexistent_model() {
     local operation="$1"
     local data="${2:-{}}"
 
     local endpoint="api/describe/nonexistent"
 
     case "$operation" in
-        "get") test_endpoint_error "GET" "$endpoint" "" "SCHEMA_NOT_FOUND" "Non-existent schema retrieval" ;;
-        "update") test_endpoint_error "PUT" "$endpoint" "$data" "SCHEMA_NOT_FOUND" "Non-existent schema update" ;;
-        "delete") test_endpoint_error "DELETE" "$endpoint" "" "SCHEMA_NOT_FOUND" "Non-existent schema deletion" ;;
+        "get") test_endpoint_error "GET" "$endpoint" "" "MODEL_NOT_FOUND" "Non-existent model retrieval" ;;
+        "update") test_endpoint_error "PUT" "$endpoint" "$data" "MODEL_NOT_FOUND" "Non-existent model update" ;;
+        "delete") test_endpoint_error "DELETE" "$endpoint" "" "MODEL_NOT_FOUND" "Non-existent model deletion" ;;
     esac
 }
 
@@ -241,8 +241,8 @@ generate_test_account() {
 EOF
 }
 
-# Generate simple schema for testing
-generate_simple_schema() {
+# Generate simple model for testing
+generate_simple_model() {
     local title="$1"
     local required_fields="$2"
 

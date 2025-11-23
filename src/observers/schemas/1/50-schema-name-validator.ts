@@ -1,7 +1,7 @@
 /**
- * Schema Name Validator - Ring 1 Input Validation
+ * Model Name Validator - Ring 1 Input Validation
  *
- * Validates schema names for SQL safety and PostgreSQL compatibility.
+ * Validates model names for SQL safety and PostgreSQL compatibility.
  * Prevents SQL injection, reserved words, and invalid identifier patterns.
  */
 
@@ -9,14 +9,14 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
-// PostgreSQL reserved words that should not be used as schema names
+// PostgreSQL reserved words that should not be used as model names
 const RESERVED_WORDS = new Set([
     'all', 'analyse', 'analyze', 'and', 'any', 'array', 'as', 'asc', 'asymmetric',
     'authorization', 'between', 'binary', 'both', 'case', 'cast', 'check', 'collate',
-    'collation', 'column', 'constraint', 'create', 'cross', 'current_catalog',
-    'current_date', 'current_role', 'current_schema', 'current_time', 'current_timestamp',
+    'collation', 'field', 'constraint', 'create', 'cross', 'current_catalog',
+    'current_date', 'current_role', 'current_model', 'current_time', 'current_timestamp',
     'current_user', 'system', 'deferrable', 'desc', 'distinct', 'do', 'else', 'end',
     'except', 'false', 'fetch', 'for', 'foreign', 'freeze', 'from', 'full', 'grant',
     'group', 'having', 'ilike', 'in', 'initially', 'inner', 'intersect', 'into', 'is',
@@ -29,62 +29,62 @@ const RESERVED_WORDS = new Set([
 ]);
 
 // System table prefixes that should not be used
-const SYSTEM_PREFIXES = ['pg_', 'information_schema', 'sql_', 'sys_'];
+const SYSTEM_PREFIXES = ['pg_', 'information_model', 'sql_', 'sys_'];
 
-export default class schema_nameValidator extends BaseObserver {
+export default class model_nameValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
-        const { schema_name } = record;
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+        const { model_name } = record;
 
         // Validate required field (previously handled by Ajv, now done explicitly)
-        if (!schema_name || schema_name.trim() === '') {
+        if (!model_name || model_name.trim() === '') {
             throw new ValidationError(
-                'schema_name is required',
-                'schema_name'
+                'model_name is required',
+                'model_name'
             );
         }
 
         // Validate length
-        if (schema_name.length > 63) {
+        if (model_name.length > 63) {
             throw new ValidationError(
-                'Schema name must be 63 characters or less (PostgreSQL identifier limit)',
-                'schema_name'
+                'Model name must be 63 characters or less (PostgreSQL identifier limit)',
+                'model_name'
             );
         }
 
         // Validate format: lowercase letters, numbers, underscores only
-        if (!/^[a-z][a-z0-9_]*$/.test(schema_name)) {
+        if (!/^[a-z][a-z0-9_]*$/.test(model_name)) {
             throw new ValidationError(
-                'Schema name must start with a letter and contain only lowercase letters, numbers, and underscores',
-                'schema_name'
+                'Model name must start with a letter and contain only lowercase letters, numbers, and underscores',
+                'model_name'
             );
         }
 
         // Check for reserved words
-        if (RESERVED_WORDS.has(schema_name.toLowerCase())) {
+        if (RESERVED_WORDS.has(model_name.toLowerCase())) {
             throw new ValidationError(
-                `Schema name '${schema_name}' is a PostgreSQL reserved word`,
-                'schema_name'
+                `Model name '${model_name}' is a PostgreSQL reserved word`,
+                'model_name'
             );
         }
 
         // Check for system prefixes
         for (const prefix of SYSTEM_PREFIXES) {
-            if (schema_name.toLowerCase().startsWith(prefix)) {
+            if (model_name.toLowerCase().startsWith(prefix)) {
                 throw new ValidationError(
-                    `Schema name cannot start with reserved prefix '${prefix}'`,
-                    'schema_name'
+                    `Model name cannot start with reserved prefix '${prefix}'`,
+                    'model_name'
                 );
             }
         }
 
-        // Prevent double underscores (often used for system schemas)
-        if (schema_name.includes('__')) {
+        // Prevent double underscores (often used for system models)
+        if (model_name.includes('__')) {
             throw new ValidationError(
-                'Schema name cannot contain double underscores (reserved for system use)',
-                'schema_name'
+                'Model name cannot contain double underscores (reserved for system use)',
+                'model_name'
             );
         }
     }

@@ -32,8 +32,8 @@ All endpoints require a valid JWT bearer token. Authorization follows standard A
 Grid application uses Excel-style range notation for cell operations:
 
 ### Single Cell
-- `A1` - Cell at column A, row 1
-- `Z100` - Cell at column Z, row 100
+- `A1` - Cell at field A, row 1
+- `Z100` - Cell at field Z, row 100
 
 ### Cell Range
 - `A1:Z100` - Rectangle from A1 to Z100
@@ -43,13 +43,13 @@ Grid application uses Excel-style range notation for cell operations:
 - `5:5` - All cells in row 5
 - `1:10` - All cells in rows 1 through 10
 
-### Column Range
-- `A:A` - All cells in column A
-- `B:Z` - All cells in columns B through Z
+### Field Range
+- `A:A` - All cells in field A
+- `B:Z` - All cells in fields B through Z
 
 ### Constraints
 - Rows are 1-based (1, 2, 3, ...)
-- Columns are A-Z (26 columns max in Phase 1)
+- Fields are A-Z (26 fields max in Phase 1)
 - Bounds checked against grid's `row_max` and `col_max` settings
 
 ---
@@ -100,7 +100,7 @@ Read cells from a grid. Returns only populated cells (sparse storage).
 
 ### Notes
 - Returns sparse array (only non-empty cells)
-- Cells ordered by row, then column
+- Cells ordered by row, then field
 - Empty cells not returned (sparse storage)
 
 ### Error Responses
@@ -110,7 +110,7 @@ Read cells from a grid. Returns only populated cells (sparse storage).
 | 404 | `RECORD_NOT_FOUND` | Grid not found |
 | 400 | `GRID_INVALID_RANGE` | Invalid range format |
 | 400 | `GRID_ROW_OUT_OF_BOUNDS` | Row exceeds grid's row_max |
-| 400 | `GRID_COLUMN_OUT_OF_BOUNDS` | Column exceeds grid's col_max |
+| 400 | `GRID_FIELD_OUT_OF_BOUNDS` | Field exceeds grid's col_max |
 
 ### Usage Examples
 
@@ -127,7 +127,7 @@ curl http://localhost:9001/api/grids/abc123/A1:Z100 \
 curl http://localhost:9001/api/grids/abc123/5:5 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# Read entire column
+# Read entire field
 curl http://localhost:9001/api/grids/abc123/A:A \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
@@ -196,7 +196,7 @@ Returns updated cells (excluding deleted cells):
 | 400 | `GRID_INVALID_CELL_FORMAT` | Cell missing row/col properties |
 | 400 | `GRID_CELL_OUT_OF_RANGE` | Cell outside specified range |
 | 400 | `GRID_ROW_OUT_OF_BOUNDS` | Row exceeds grid's row_max |
-| 400 | `GRID_COLUMN_OUT_OF_BOUNDS` | Column exceeds grid's col_max |
+| 400 | `GRID_FIELD_OUT_OF_BOUNDS` | Field exceeds grid's col_max |
 
 ### Usage Examples
 
@@ -257,7 +257,7 @@ Clear cells in a range. Actually removes cells from storage (sparse storage).
 | 404 | `RECORD_NOT_FOUND` | Grid not found |
 | 400 | `GRID_INVALID_RANGE` | Invalid range format |
 | 400 | `GRID_ROW_OUT_OF_BOUNDS` | Row exceeds grid's row_max |
-| 400 | `GRID_COLUMN_OUT_OF_BOUNDS` | Column exceeds grid's col_max |
+| 400 | `GRID_FIELD_OUT_OF_BOUNDS` | Field exceeds grid's col_max |
 
 ### Usage Examples
 
@@ -274,7 +274,7 @@ curl -X DELETE http://localhost:9001/api/grids/abc123/A1:Z100 \
 curl -X DELETE http://localhost:9001/api/grids/abc123/5:5 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# Clear entire column
+# Clear entire field
 curl -X DELETE http://localhost:9001/api/grids/abc123/A:A \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
@@ -337,8 +337,8 @@ Returns created/updated cells (excluding deleted cells):
 | 400 | `GRID_INVALID_CELL_FORMAT` | Cell missing row/col properties |
 | 400 | `GRID_BULK_LIMIT_EXCEEDED` | Too many cells in request |
 | 400 | `GRID_ROW_OUT_OF_BOUNDS` | Row exceeds grid's row_max |
-| 400 | `GRID_COLUMN_OUT_OF_BOUNDS` | Column exceeds grid's col_max |
-| 400 | `GRID_INVALID_COLUMN_FORMAT` | Column not single character A-Z |
+| 400 | `GRID_FIELD_OUT_OF_BOUNDS` | Field exceeds grid's col_max |
+| 400 | `GRID_INVALID_FIELD_FORMAT` | Field not single character A-Z |
 
 ### Usage Example
 
@@ -383,7 +383,7 @@ curl -X POST http://localhost:9001/api/data/grids \
 - `description` (string, optional): Purpose and notes
 - `row_count` (integer, auto): Current number of populated rows
 - `row_max` (integer, default: 1000): Maximum row number allowed
-- `col_max` (string, default: 'Z'): Maximum column letter allowed
+- `col_max` (string, default: 'Z'): Maximum field letter allowed
 
 ### List Grids
 
@@ -418,7 +418,7 @@ curl -X DELETE http://localhost:9001/api/data/grids/abc123 \
 ## Use Cases
 
 ### Data Exploration
-Perfect for exploratory analysis when you're not ready to define a formal schema:
+Perfect for exploratory analysis when you're not ready to define a formal model:
 
 ```bash
 # Create exploration grid
@@ -444,7 +444,7 @@ POST /api/grids/{id}/cells
 ```
 
 ### Spreadsheet Replacement
-Use for simple tabular data without needing schema definitions:
+Use for simple tabular data without needing model definitions:
 
 ```bash
 # Create spreadsheet-style grid
@@ -510,14 +510,14 @@ Grid ACLs managed via `/api/acls/grids/:id`
 
 ---
 
-## External Schema
+## External Model
 
-The `grid_cells` table is marked as an **external schema** - it cannot be accessed via the Data API. All cell operations must go through the Grid application endpoints.
+The `grid_cells` table is marked as an **external model** - it cannot be accessed via the Data API. All cell operations must go through the Grid application endpoints.
 
 **Attempting to use Data API:**
 ```bash
 GET /api/data/grid_cells
-→ 403 Forbidden: Schema 'grid_cells' is externally managed
+→ 403 Forbidden: Model 'grid_cells' is externally managed
 ```
 
 **Grid metadata is NOT external:**
@@ -614,12 +614,12 @@ All Grid application errors are prefixed with `GRID_`:
 |------------|-------------|
 | `GRID_INVALID_RANGE` | Range format invalid (e.g., "1A", "AA1") |
 | `GRID_ROW_OUT_OF_BOUNDS` | Row exceeds grid's row_max |
-| `GRID_COLUMN_OUT_OF_BOUNDS` | Column exceeds grid's col_max |
+| `GRID_FIELD_OUT_OF_BOUNDS` | Field exceeds grid's col_max |
 | `GRID_INVALID_REQUEST_BODY` | Missing value or cells array |
 | `GRID_INVALID_CELL_FORMAT` | Cell missing row/col properties |
 | `GRID_CELL_OUT_OF_RANGE` | Cell outside specified range |
 | `GRID_BULK_LIMIT_EXCEEDED` | Too many cells in bulk operation |
-| `GRID_INVALID_COLUMN_FORMAT` | Column not single character A-Z |
+| `GRID_INVALID_FIELD_FORMAT` | Field not single character A-Z |
 
 ---
 
@@ -636,9 +636,9 @@ All Grid application errors are prefixed with `GRID_`:
 
 Current implementation (Phase 1) has these constraints:
 
-- **Columns**: A-Z only (26 columns max)
+- **Fields**: A-Z only (26 fields max)
 - **Data type**: All values stored as TEXT
 - **Formulas**: Not yet implemented (Phase 3+)
 - **Calculations**: Not yet implemented (Phase 3+)
 
-Future phases will add formulas, Monk references, and schema export capabilities.
+Future phases will add formulas, Monk references, and model export capabilities.

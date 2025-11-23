@@ -6,7 +6,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 /**
  * Find API Limit Tests
  *
- * Tests limit functionality with POST /api/find/:schema.
+ * Tests limit functionality with POST /api/find/:model.
  * Uses the testing template which provides 5 account records.
  */
 

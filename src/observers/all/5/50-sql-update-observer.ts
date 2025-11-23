@@ -11,21 +11,21 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
-import { SchemaRecord } from '@src/lib/schema-record.js';
+import { ModelRecord } from '@src/lib/model-record.js';
 
 export default class SqlUpdateObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['update'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, schema, data } = context;
+        const { system, model, data } = context;
 
         if (!data || data.length === 0) {
             return;
         }
 
         for (const record of data) {
-            // Convert SchemaRecord to plain object for SQL operations
+            // Convert ModelRecord to plain object for SQL operations
             const plainRecord = record.toObject();
 
             if (!plainRecord.id) {
@@ -38,7 +38,7 @@ export default class SqlUpdateObserver extends BaseObserver {
             let processedFields = SqlUtils.processUuidArrays(updateFields);
 
             // Process JSONB fields (objects/arrays) for PostgreSQL serialization
-            processedFields = SqlUtils.processJsonbFields(processedFields, schema);
+            processedFields = SqlUtils.processJsonbFields(processedFields, model);
 
             const fields = Object.keys(processedFields);
             const values = Object.values(processedFields);
@@ -56,7 +56,7 @@ export default class SqlUpdateObserver extends BaseObserver {
                 fields.length // Start WHERE parameters after SET parameters
             );
 
-            const query = `UPDATE "${schema.schema_name}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
+            const query = `UPDATE "${model.model_name}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
             const allParams = [...values, ...whereParams];
 
             const result = await SqlUtils.getPool(system).query(query, allParams);
@@ -64,11 +64,11 @@ export default class SqlUpdateObserver extends BaseObserver {
                 throw new SystemError(`Update failed - record not found: ${id}`);
             }
 
-            // Update the SchemaRecord with final database state (preserves change tracking)
-            const dbResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], schema);
+            // Update the ModelRecord with final database state (preserves change tracking)
+            const dbResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], model);
             record.setCurrent(dbResult);
         }
 
-        // No need to set context.result - context.data now contains updated SchemaRecord instances
+        // No need to set context.result - context.data now contains updated ModelRecord instances
     }
 }

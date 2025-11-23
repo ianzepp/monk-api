@@ -1,11 +1,11 @@
-# GET /api/describe/:schema/columns/:column
+# GET /api/describe/:model/fields/:field
 
-Retrieve a specific column definition including type, constraints, validation rules, and metadata. This endpoint returns the complete column configuration from the columns table.
+Retrieve a specific field definition including type, constraints, validation rules, and metadata. This endpoint returns the complete field configuration from the fields table.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
-- `:column` - Column name (required)
+- `:model` - Model name (required)
+- `:field` - Field name (required)
 
 ## Query Parameters
 
@@ -22,8 +22,8 @@ None - GET request with no body.
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "schema_name": "users",
-    "column_name": "email",
+    "model_name": "users",
+    "field_name": "email",
     "type": "text",
     "required": true,
     "unique": true,
@@ -44,14 +44,14 @@ None - GET request with no body.
 ### Response Fields
 
 #### Identity
-- **id** - Column record UUID
-- **schema_name** - Name of the schema
-- **column_name** - Name of the column
+- **id** - Field record UUID
+- **model_name** - Name of the model
+- **field_name** - Name of the field
 - **type** - Data type (text, integer, decimal, boolean, timestamp, date, uuid, jsonb, or array types)
 
 #### Constraints
-- **required** - Whether column is required (NOT NULL)
-- **default_value** - Default value for the column
+- **required** - Whether field is required (NOT NULL)
+- **default_value** - Default value for the field
 - **unique** - Whether values must be unique
 
 #### Validation
@@ -61,7 +61,7 @@ None - GET request with no body.
 - **enum_values** - Array of allowed values
 
 #### Metadata
-- **description** - Human-readable description of the column's purpose
+- **description** - Human-readable description of the field's purpose
 
 #### Protection
 - **immutable** - Value can be set once but never changed
@@ -79,8 +79,8 @@ None - GET request with no body.
 
 #### Relationships
 - **relationship_type** - Type of relationship (owned or referenced)
-- **related_schema** - Target schema for relationship
-- **related_column** - Target column for relationship
+- **related_model** - Target model for relationship
+- **related_field** - Target field for relationship
 - **relationship_name** - Name of the relationship for API access
 - **cascade_delete** - Whether to cascade delete when parent is deleted
 - **required_relationship** - Whether relationship is required (NOT NULL FK)
@@ -92,12 +92,12 @@ None - GET request with no body.
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
-| 404 | `COLUMN_NOT_FOUND` | "Column not found in schema" | Column doesn't exist |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
+| 404 | `FIELD_NOT_FOUND` | "Field not found in model" | Field doesn't exist |
 
 ## Example Usage
 
-### Get Column Definition
+### Get Field Definition
 
 ```bash
 curl -X GET http://localhost:9001/api/describe/users/email \
@@ -110,8 +110,8 @@ curl -X GET http://localhost:9001/api/describe/users/email \
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "schema_name": "users",
-    "column_name": "email",
+    "model_name": "users",
+    "field_name": "email",
     "type": "text",
     "required": true,
     "unique": true,
@@ -127,25 +127,25 @@ curl -X GET http://localhost:9001/api/describe/users/email \
 ### Using in JavaScript
 
 ```javascript
-async function getColumn(schemaName, columnName) {
-  const response = await fetch(`/api/describe/${schemaName}/${columnName}`, {
+async function getField(modelName, fieldName) {
+  const response = await fetch(`/api/describe/${modelName}/${fieldName}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
-  const { data: column } = await response.json();
-  return column;
+  const { data: field } = await response.json();
+  return field;
 }
 
-// Check if column is required
-async function isRequired(schemaName, columnName) {
-  const column = await getColumn(schemaName, columnName);
-  return column.required === true;
+// Check if field is required
+async function isRequired(modelName, fieldName) {
+  const field = await getField(modelName, fieldName);
+  return field.required === true;
 }
 
 // Get validation pattern
-async function getValidationPattern(schemaName, columnName) {
-  const column = await getColumn(schemaName, columnName);
-  return column.pattern;
+async function getValidationPattern(modelName, fieldName) {
+  const field = await getField(modelName, fieldName);
+  return field.pattern;
 }
 ```
 
@@ -154,18 +154,18 @@ async function getValidationPattern(schemaName, columnName) {
 ### Form Validation
 
 ```javascript
-// Build client-side validation from column definition
-async function buildFormValidation(schemaName) {
-  const columns = await getAllColumns(schemaName);
+// Build client-side validation from field definition
+async function buildFormValidation(modelName) {
+  const fields = await getAllFields(modelName);
   const validation = {};
 
-  for (const column of columns) {
-    validation[column.column_name] = {
-      required: column.required,
-      pattern: column.pattern,
-      min: column.minimum,
-      max: column.maximum,
-      enum: column.enum_values
+  for (const field of fields) {
+    validation[field.field_name] = {
+      required: field.required,
+      pattern: field.pattern,
+      min: field.minimum,
+      max: field.maximum,
+      enum: field.enum_values
     };
   }
 
@@ -173,24 +173,24 @@ async function buildFormValidation(schemaName) {
 }
 ```
 
-### Schema Documentation
+### Model Documentation
 
 ```javascript
-// Generate documentation from column metadata
-async function documentColumn(schemaName, columnName) {
-  const column = await getColumn(schemaName, columnName);
+// Generate documentation from field metadata
+async function documentField(modelName, fieldName) {
+  const field = await getField(modelName, fieldName);
 
   return `
-    ### ${column.column_name}
-    ${column.description || 'No description'}
+    ### ${field.field_name}
+    ${field.description || 'No description'}
 
-    - **Type:** ${column.type}
-    - **Required:** ${column.required ? 'Yes' : 'No'}
-    - **Unique:** ${column.unique ? 'Yes' : 'No'}
-    ${column.pattern ? `- **Pattern:** \`${column.pattern}\`` : ''}
-    ${column.minimum ? `- **Minimum:** ${column.minimum}` : ''}
-    ${column.maximum ? `- **Maximum:** ${column.maximum}` : ''}
-    ${column.enum_values ? `- **Allowed values:** ${column.enum_values.join(', ')}` : ''}
+    - **Type:** ${field.type}
+    - **Required:** ${field.required ? 'Yes' : 'No'}
+    - **Unique:** ${field.unique ? 'Yes' : 'No'}
+    ${field.pattern ? `- **Pattern:** \`${field.pattern}\`` : ''}
+    ${field.minimum ? `- **Minimum:** ${field.minimum}` : ''}
+    ${field.maximum ? `- **Maximum:** ${field.maximum}` : ''}
+    ${field.enum_values ? `- **Allowed values:** ${field.enum_values.join(', ')}` : ''}
   `;
 }
 ```
@@ -198,10 +198,10 @@ async function documentColumn(schemaName, columnName) {
 ### Migration Comparison
 
 ```javascript
-// Compare column definitions between environments
-async function compareColumn(schemaName, columnName, env1, env2) {
-  const col1 = await fetchColumn(env1, schemaName, columnName);
-  const col2 = await fetchColumn(env2, schemaName, columnName);
+// Compare field definitions between environments
+async function compareField(modelName, fieldName, env1, env2) {
+  const col1 = await fetchField(env1, modelName, fieldName);
+  const col2 = await fetchField(env2, modelName, fieldName);
 
   const differences = [];
 
@@ -224,21 +224,21 @@ async function compareColumn(schemaName, columnName, env1, env2) {
 ### UI Field Generation
 
 ```javascript
-// Generate form field from column definition
-async function renderFormField(schemaName, columnName) {
-  const column = await getColumn(schemaName, columnName);
+// Generate form field from field definition
+async function renderFormField(modelName, fieldName) {
+  const field = await getField(modelName, fieldName);
 
   const input = document.createElement('input');
-  input.name = column.column_name;
-  input.required = column.required;
+  input.name = field.field_name;
+  input.required = field.required;
 
-  // Set input type based on column type
-  switch (column.type) {
+  // Set input type based on field type
+  switch (field.type) {
     case 'integer':
     case 'decimal':
       input.type = 'number';
-      if (column.minimum) input.min = column.minimum;
-      if (column.maximum) input.max = column.maximum;
+      if (field.minimum) input.min = field.minimum;
+      if (field.maximum) input.max = field.maximum;
       break;
     case 'boolean':
       input.type = 'checkbox';
@@ -251,15 +251,15 @@ async function renderFormField(schemaName, columnName) {
       break;
     default:
       input.type = 'text';
-      if (column.pattern) input.pattern = column.pattern;
-      if (column.maximum) input.maxLength = column.maximum;
+      if (field.pattern) input.pattern = field.pattern;
+      if (field.maximum) input.maxLength = field.maximum;
   }
 
   return input;
 }
 ```
 
-## Column Types
+## Field Types
 
 ### Basic Types
 - **text** - General strings (PostgreSQL: TEXT)
@@ -289,19 +289,19 @@ When `true`, value can be set once during record creation but never modified:
 
 ### sudo
 When `true`, modifying this field requires a sudo token:
-- Even if the schema doesn't require sudo
+- Even if the model doesn't require sudo
 - Additional protection for sensitive fields like roles, permissions
 
 ## Performance Considerations
 
-- Column metadata is cached
+- Field metadata is cached
 - Fast response time (typically < 10ms)
 - No database joins required
 - Safe for frequent access
 
 ## Related Endpoints
 
-- [`POST /api/describe/:schema/columns/:column`](POST.md) - Create new column
-- [`PUT /api/describe/:schema/columns/:column`](PUT.md) - Update column definition
-- [`DELETE /api/describe/:schema/columns/:column`](DELETE.md) - Delete column
-- [`GET /api/describe/:schema`](../:schema/GET.md) - Get schema definition
+- [`POST /api/describe/:model/fields/:field`](POST.md) - Create new field
+- [`PUT /api/describe/:model/fields/:field`](PUT.md) - Update field definition
+- [`DELETE /api/describe/:model/fields/:field`](DELETE.md) - Delete field
+- [`GET /api/describe/:model`](../:model/GET.md) - Get model definition

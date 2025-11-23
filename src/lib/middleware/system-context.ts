@@ -88,8 +88,8 @@ export async function systemContextMiddleware(context: Context, next: Next) {
  * is requested via ?format query parameter.
  *
  * Example usage:
- *   export default withParams(async (context, { system, schema, record, options }) => {
- *       const result = await system.database.select404(schema, { where: { id: record } });
+ *   export default withParams(async (context, { system, model, record, options }) => {
+ *       const result = await system.database.select404(model, { where: { id: record } });
  *       setRouteResult(context, result);  // Don't return - middleware handles response
  *   });
  *

@@ -5,7 +5,7 @@ Lightweight PaaS backend API built with **Hono** and **TypeScript**, featuring o
 ## What is Monk API?
 
 A high-performance backend API that provides:
-- **Schema-first development** - Define your data models in JSON
+- **Model-first development** - Define your data models in JSON
 - **Multi-tenant architecture** - Each tenant gets isolated databases
 - **Observer pattern** - Event-driven business logic hooks
 - **REST API** - Full programmatic management interface
@@ -45,7 +45,7 @@ The `autoinstall` script will:
 1. Copy `.env.example` to `.env`
 2. Auto-detect your PostgreSQL configuration
 3. Install dependencies and build TypeScript
-4. Initialize the main database with schema
+4. Initialize the main database with model
 5. Create a test tenant for development
 
 ## Manual Installation
@@ -92,7 +92,7 @@ Create and initialize the main database:
 # Create main database
 createdb monk
 
-# Initialize schema
+# Initialize model
 psql -d monk -f fixtures/infrastructure/init.sql
 ```
 
@@ -104,7 +104,7 @@ Create a test tenant for development:
 # Create system tenant database
 createdb system
 
-# Initialize tenant schema
+# Initialize tenant model
 psql -d system -f sql/init-tenant.sql
 
 # Create development users
@@ -148,7 +148,7 @@ Your development environment includes:
 
 ## Core Features
 
-### 🎯 Schema Management
+### 🎯 Model Management
 Define data models using JSON with in-house validation:
 
 ```json
@@ -202,9 +202,9 @@ monk init
 monk tenant create my-app
 monk auth login my-app root
 
-# Schema management
-cat contacts.json | monk describe create schema
-monk describe select schema contacts
+# Model management
+cat contacts.json | monk describe create model
+monk describe select model contacts
 
 # Data operations
 echo '{"name":"John","email":"john@example.com"}' | monk data create contacts
@@ -249,7 +249,7 @@ npm run test:sh 31-32     # Meta and data API tests
 
 ## Performance
 
-- **15x faster schema access** with SHA256 caching
+- **15x faster model access** with SHA256 caching
 - **Ultra-lightweight** (~50KB Hono framework)
 - **Raw SQL performance** without ORM overhead
 - **Multi-runtime support** (Node.js, Bun, Deno, Cloudflare Workers)

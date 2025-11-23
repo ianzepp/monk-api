@@ -3,7 +3,7 @@ import { withParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
- * GET /api/stat/:schema/:record - Get record metadata (timestamps, etag, size)
+ * GET /api/stat/:model/:record - Get record metadata (timestamps, etag, size)
  *
  * Returns only system metadata fields without user data.
  * Useful for cache invalidation, modification checks, and stat operations.
@@ -18,9 +18,9 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  *
  * @see docs/39-stat-api.md
  */
-export default withParams(async (context, { system, schema, record, options }) => {
+export default withParams(async (context, { system, model, record, options }) => {
     // Fetch the record (select404 automatically throws 404 if not found)
-    const result = await system.database.select404(schema!, { where: { id: record! } }, undefined, options);
+    const result = await system.database.select404(model!, { where: { id: record! } }, undefined, options);
 
     // Return only stat fields (exclude user data)
     const statData = {

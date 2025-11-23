@@ -11,11 +11,11 @@
  * Phase 2: Update Describe Operations
  * - Replace all 'throw new Error()' calls in describe.ts with HttpError
  * - Map business logic errors to appropriate HTTP status codes:
- *   - 400: Schema validation, parsing, required field errors
- *   - 403: Protected schema modification attempts
- *   - 404: Schema not found errors
- *   - 409: Schema already exists (if applicable)
- *   - 422: Invalid schema content/structure
+ *   - 400: Model validation, parsing, required field errors
+ *   - 403: Protected model modification attempts
+ *   - 404: Model not found errors
+ *   - 409: Model already exists (if applicable)
+ *   - 422: Invalid model content/structure
  *
  * Phase 3: Update Middleware
  * - Modify responseYamlMiddleware in system-context.ts
@@ -30,7 +30,7 @@
  * - Standardize error response format across all APIs
  *
  * Phase 5: Enhanced Error Context (Future)
- * - Add validation details for schema errors
+ * - Add validation details for model errors
  * - Add request context (tenant, user, operation)
  * - Add correlation IDs for error tracking
  */

@@ -4,31 +4,31 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * PUT /api/data/:schema/:record - Update Single Record
+ * PUT /api/data/:model/:record - Update Single Record
  *
  * Tests record updates with field merging, timestamp updates, and error handling.
  */
 
-describe('PUT /api/data/:schema/:record - Update Single Record', () => {
+describe('PUT /api/data/:model/:record - Update Single Record', () => {
     let tenant: TestTenant;
     let recordId: string;
 
     beforeAll(async () => {
         tenant = await TestHelpers.createTestTenant('data-put');
 
-        // Create test schema
+        // Create test model
         await tenant.httpClient.post('/api/describe/products', {});
-        await tenant.httpClient.post('/api/describe/products/columns/name', {
-            column_name: 'name',
+        await tenant.httpClient.post('/api/describe/products/fields/name', {
+            field_name: 'name',
             type: 'text',
             required: true,
         });
-        await tenant.httpClient.post('/api/describe/products/columns/price', {
-            column_name: 'price',
+        await tenant.httpClient.post('/api/describe/products/fields/price', {
+            field_name: 'price',
             type: 'decimal',
         });
-        await tenant.httpClient.post('/api/describe/products/columns/in_stock', {
-            column_name: 'in_stock',
+        await tenant.httpClient.post('/api/describe/products/fields/in_stock', {
+            field_name: 'in_stock',
             type: 'boolean',
         });
 
@@ -142,7 +142,7 @@ describe('PUT /api/data/:schema/:record - Update Single Record', () => {
         expect(response.error_code).toBe('RECORD_NOT_FOUND');
     });
 
-    it('should return error for non-existent schema', async () => {
+    it('should return error for non-existent model', async () => {
         const response = await tenant.httpClient.put(`/api/data/nonexistent/${recordId}`, {
             name: 'Test',
         });

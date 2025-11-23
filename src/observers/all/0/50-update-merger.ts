@@ -1,15 +1,15 @@
 /**
  * Update Merger Observer
  *
- * SIMPLIFIED with SchemaRecord: Now just sets updated_at timestamp.
- * The actual merging of existing + update data is handled by SchemaRecord.toObject()
+ * SIMPLIFIED with ModelRecord: Now just sets updated_at timestamp.
+ * The actual merging of existing + update data is handled by ModelRecord.toObject()
  * which is called in the SQL layer.
  *
  * This observer ensures:
  * - updated_at timestamp is set for all update operations
  * - Timestamp is not set if explicitly provided (for imports/migrations)
  *
- * Ring: 0 (DataPreparation) - Schema: all - Operations: update
+ * Ring: 0 (DataPreparation) - Model: all - Operations: update
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
@@ -23,10 +23,10 @@ export default class UpdateMerger extends BaseObserver {
 
     async execute(context: ObserverContext): Promise<void> {
         const { data } = context;
-        const schemaName = context.schema.schema_name;
+        const modelName = context.model.model_name;
 
         if (!data || data.length === 0) {
-            console.info('No update data found for timestamp processing', { schemaName });
+            console.info('No update data found for timestamp processing', { modelName });
             return;
         }
 
@@ -42,7 +42,7 @@ export default class UpdateMerger extends BaseObserver {
         }
 
         console.info('Update timestamp processing completed', {
-            schemaName,
+            modelName,
             totalRecords: data.length,
             timestampsSet: processedCount
         });

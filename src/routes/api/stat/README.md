@@ -28,7 +28,7 @@ The Stat API returns only system metadata fields for database records, excluding
 
 ### Base URL
 ```
-GET /api/stat/:schema/:record
+GET /api/stat/:model/:record
 ```
 
 ## Authentication
@@ -45,7 +45,7 @@ Authorization: Bearer <jwt>
 
 ## Core Endpoint
 
-### GET /api/stat/:schema/:record
+### GET /api/stat/:model/:record
 
 Retrieves system metadata for a specific record without fetching user data.
 
@@ -203,7 +203,7 @@ for record_id in record_ids:
 ```json
 {
   "success": false,
-  "error": "Record user-999999 not found in schema users",
+  "error": "Record user-999999 not found in model users",
   "error_code": "RECORD_NOT_FOUND"
 }
 ```
@@ -213,24 +213,24 @@ for record_id in record_ids:
 **Causes:**
 - Record ID doesn't exist
 - Record belongs to different tenant
-- Typo in schema or record ID
+- Typo in model or record ID
 
-#### Schema Not Found
+#### Model Not Found
 
 ```json
 {
   "success": false,
-  "error": "Schema 'invalid_schema' not found",
-  "error_code": "SCHEMA_NOT_FOUND"
+  "error": "Model 'invalid_model' not found",
+  "error_code": "MODEL_NOT_FOUND"
 }
 ```
 
 **HTTP Status:** 404 Not Found
 
 **Causes:**
-- Schema doesn't exist in tenant database
-- Typo in schema name
-- Schema was deleted
+- Model doesn't exist in tenant database
+- Typo in model name
+- Model was deleted
 
 #### Permission Denied
 
@@ -272,7 +272,7 @@ for record_id in record_ids:
 
 **Current Implementation:**
 - Executes `SELECT * FROM table WHERE id = :id`
-- Fetches all columns from database
+- Fetches all fields from database
 - Filters to metadata fields in application layer
 
 **Performance:**
@@ -342,7 +342,7 @@ Savings: 70-85% reduction in response size
 
 ### Data API
 
-**GET /api/data/:schema/:record**
+**GET /api/data/:model/:record**
 
 Returns full record including user data and system fields:
 
@@ -375,7 +375,7 @@ See: [37-File API Documentation](37-file-api.md)
 
 ### ACLs API
 
-**GET /api/acls/:schema/:record**
+**GET /api/acls/:model/:record**
 
 Returns only ACL metadata (access control lists):
 
@@ -390,7 +390,7 @@ See: [38-ACLs API Documentation](38-acls-api.md)
 
 ### Find API with Filtering
 
-**POST /api/find/:schema**
+**POST /api/find/:model**
 
 Search with metadata-only responses:
 

@@ -1,4 +1,4 @@
-# GET /api/history/:schema/:record
+# GET /api/history/:model/:record
 
 **Documentation stub - to be completed**
 

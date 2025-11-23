@@ -4,31 +4,31 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * GET /api/describe/:schema/columns/:column - Get Column Details
+ * GET /api/describe/:model/fields/:field - Get Field Details
  *
- * Tests retrieving individual column definitions from the columns table.
+ * Tests retrieving individual field definitions from the fields table.
  */
 
-describe('GET /api/describe/:schema/columns/:column - Get Column Details', () => {
+describe('GET /api/describe/:model/fields/:field - Get Field Details', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('schema-columns-get');
+        tenant = await TestHelpers.createTestTenant('model-fields-get');
 
-        // Create test schema with various column types
+        // Create test model with various field types
         await tenant.httpClient.post('/api/describe/test_products', {});
 
-        // Create column with basic constraints
-        await tenant.httpClient.post('/api/describe/test_products/columns/name', {
-            column_name: 'name',
+        // Create field with basic constraints
+        await tenant.httpClient.post('/api/describe/test_products/fields/name', {
+            field_name: 'name',
             type: 'text',
             required: true,
             description: 'Product name',
         });
 
-        // Create column with validation rules
-        await tenant.httpClient.post('/api/describe/test_products/columns/price', {
-            column_name: 'price',
+        // Create field with validation rules
+        await tenant.httpClient.post('/api/describe/test_products/fields/price', {
+            field_name: 'price',
             type: 'decimal',
             minimum: 0,
             maximum: 1000000,
@@ -36,31 +36,31 @@ describe('GET /api/describe/:schema/columns/:column - Get Column Details', () =>
         });
     });
 
-    it('should retrieve column details', async () => {
-        const response = await tenant.httpClient.get('/api/describe/test_products/columns/name');
+    it('should retrieve field details', async () => {
+        const response = await tenant.httpClient.get('/api/describe/test_products/fields/name');
 
         expectSuccess(response);
         expect(response.data).toBeDefined();
-        expect(response.data.schema_name).toBe('test_products');
-        expect(response.data.column_name).toBe('name');
+        expect(response.data.model_name).toBe('test_products');
+        expect(response.data.field_name).toBe('name');
     });
 
-    it('should include column type', async () => {
-        const response = await tenant.httpClient.get('/api/describe/test_products/columns/name');
+    it('should include field type', async () => {
+        const response = await tenant.httpClient.get('/api/describe/test_products/fields/name');
 
         expectSuccess(response);
         expect(response.data.type).toBe('text');
     });
 
     it('should include constraint flags', async () => {
-        const response = await tenant.httpClient.get('/api/describe/test_products/columns/name');
+        const response = await tenant.httpClient.get('/api/describe/test_products/fields/name');
 
         expectSuccess(response);
         expect(response.data.required).toBe(true);
     });
 
     it('should include validation rules', async () => {
-        const response = await tenant.httpClient.get('/api/describe/test_products/columns/price');
+        const response = await tenant.httpClient.get('/api/describe/test_products/fields/price');
 
         expectSuccess(response);
         expect(response.data.minimum).toBe(0);
@@ -68,32 +68,32 @@ describe('GET /api/describe/:schema/columns/:column - Get Column Details', () =>
     });
 
     it('should include description', async () => {
-        const response = await tenant.httpClient.get('/api/describe/test_products/columns/name');
+        const response = await tenant.httpClient.get('/api/describe/test_products/fields/name');
 
         expectSuccess(response);
         expect(response.data.description).toBe('Product name');
     });
 
-    it('should return 404 for non-existent column', async () => {
-        const response = await tenant.httpClient.get('/api/describe/test_products/columns/nonexistent');
+    it('should return 404 for non-existent field', async () => {
+        const response = await tenant.httpClient.get('/api/describe/test_products/fields/nonexistent');
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should return 404 for column in non-existent schema', async () => {
-        const response = await tenant.httpClient.get('/api/describe/nonexistent_schema/columns/some_column');
+    it('should return 404 for field in non-existent model', async () => {
+        const response = await tenant.httpClient.get('/api/describe/nonexistent_model/fields/some_field');
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('COLUMN_NOT_FOUND');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 
-    it('should retrieve system schema columns', async () => {
-        const response = await tenant.httpClient.get('/api/describe/schemas/columns/schema_name');
+    it('should retrieve system model fields', async () => {
+        const response = await tenant.httpClient.get('/api/describe/models/fields/model_name');
 
         expectSuccess(response);
-        expect(response.data.schema_name).toBe('schemas');
-        expect(response.data.column_name).toBe('schema_name');
+        expect(response.data.model_name).toBe('models');
+        expect(response.data.field_name).toBe('model_name');
         expect(response.data.type).toBeDefined();
     });
 });

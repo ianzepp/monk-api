@@ -4,13 +4,13 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * DELETE /api/data/:schema - Bulk delete records in schema
+ * DELETE /api/data/:model - Bulk delete records in model
  * @see docs/routes/DATA_API.md
  */
-export default withTransactionParams(async (context, { system, schema, body }) => {
+export default withTransactionParams(async (context, { system, model, body }) => {
     const isPermanent = context.req.query('permanent') === 'true';
 
-    // Always expect array input for DELETE /api/data/:schema
+    // Always expect array input for DELETE /api/data/:model
     if (!Array.isArray(body)) {
         throw HttpErrors.badRequest('Request body must be an array of records', 'BODY_NOT_ARRAY');
     }
@@ -29,12 +29,12 @@ export default withTransactionParams(async (context, { system, schema, body }) =
             deleted_at: new Date().toISOString()
         }));
 
-        result = await system.database.updateAll(schema!, permanentUpdates);
+        result = await system.database.updateAll(model!, permanentUpdates);
     }
 
     // Normal soft delete: set trashed_at = NOW()
     else {
-        result = await system.database.deleteAll(schema!, body);
+        result = await system.database.deleteAll(model!, body);
     }
 
     setRouteResult(context, result);

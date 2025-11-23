@@ -6,9 +6,9 @@
  */
 
 import type { System } from '@src/lib/system.js';
-import { Schema } from '@src/lib/schema.js';
-import { SchemaRecord } from '@src/lib/schema-record.js';
-import { SchemaCache } from '@src/lib/schema-cache.js';
+import { Model } from '@src/lib/model.js';
+import { ModelRecord } from '@src/lib/model-record.js';
+import { ModelCache } from '@src/lib/model-cache.js';
 import type {
     Observer,
     ObserverContext,
@@ -33,21 +33,21 @@ export class ObserverRunner {
     private readonly collectStats = true;
 
     /**
-     * Execute observers for a schema operation with selective ring execution
+     * Execute observers for a model operation with selective ring execution
      */
     async execute(
         system: System,
         operation: OperationType,
-        schema: Schema,
-        data: SchemaRecord[],
+        model: Model,
+        data: ModelRecord[],
         existing?: any[],
         depth: number = 0,
         filter?: any
     ): Promise<ObserverResult> {
         const startTime = Date.now();
 
-        // Schema object already resolved by Database.runObserverPipeline()
-        const context = this._createContext(system, operation, schema, data, existing, filter);
+        // Model object already resolved by Database.runObserverPipeline()
+        const context = this._createContext(system, operation, model, data, existing, filter);
         const stats: ObserverStats[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
@@ -57,7 +57,7 @@ export class ObserverRunner {
 
             console.info('Observer rings executing', {
                 operation,
-                schemaName: schema.schema_name,
+                modelName: model.model_name,
                 ringCount: relevantRings.length,
                 rings: relevantRings
             });
@@ -88,16 +88,16 @@ export class ObserverRunner {
     private _createContext(
         system: System,
         operation: OperationType,
-        schema: Schema,
-        data: SchemaRecord[],
+        model: Model,
+        data: ModelRecord[],
         existing?: any[],
         filter?: any
     ): ObserverContext {
         return {
             system,
             operation,
-            schema,
-            data, // For create/update operations (now SchemaRecord[])
+            model,
+            data, // For create/update operations (now ModelRecord[])
             filter, // For select operations (rings 0-4), undefined for other operations
             errors: [],
             warnings: [],
@@ -120,7 +120,7 @@ export class ObserverRunner {
 
         // Create execution summary for debugging
         const summary = {
-            schema: context.schema,
+            model: context.model,
             operation: context.operation,
             totalTimeMs: totalTime,
             ringsExecuted,
@@ -134,7 +134,7 @@ export class ObserverRunner {
         console.info('Observer execution completed', {
             success,
             operation: context.operation,
-            schemaName: context.schema.schema_name,
+            modelName: context.model.model_name,
             totalTimeMs: totalTime,
             ringsExecuted: ringsExecuted.length,
             observersExecuted: stats.length,
@@ -159,7 +159,7 @@ export class ObserverRunner {
     ): ObserverResult {
         console.warn('Observer execution failed', {
             operation: context.operation,
-            schemaName: context.schema.schema_name,
+            modelName: context.model.model_name,
             totalTimeMs: totalTime,
             error: error instanceof Error ? error.message : String(error)
         });
@@ -183,7 +183,7 @@ export class ObserverRunner {
         context: ObserverContext,
         stats: ObserverStats[]
     ): Promise<boolean> {
-        const observers = ObserverLoader.getObservers(context.schema.schema_name, ring);
+        const observers = ObserverLoader.getObservers(context.model.model_name, ring);
 
         // Sort observers by priority (lower numbers execute first)
         // This ensures deterministic execution order within a ring
@@ -260,7 +260,7 @@ export class ObserverRunner {
         return {
             observerName: observer.name || 'unnamed',
             ring: observer.ring,
-            schema: context.schema.schema_name,
+            model: context.model.model_name,
             operation: context.operation,
             executionTimeMs: executionTime,
             success,
@@ -301,7 +301,7 @@ export class ObserverRunner {
         return !!(
             context.system &&
             context.operation &&
-            context.schema &&
+            context.model &&
             context.errors &&
             context.warnings &&
             typeof context.startTime === 'number'

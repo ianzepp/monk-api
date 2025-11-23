@@ -1,10 +1,10 @@
-# GET /api/data/:schema
+# GET /api/data/:model
 
-Query all records in a schema with optional filtering for soft-deleted and permanently deleted records. This endpoint backs list views, exports, and analytics screens by returning the complete dataset for a schema.
+Query all records in a model with optional filtering for soft-deleted and permanently deleted records. This endpoint backs list views, exports, and analytics screens by returning the complete dataset for a model.
 
 ## Path Parameters
 
-- `:schema` - Schema name (required)
+- `:model` - Model name (required)
 
 ## Query Parameters
 
@@ -49,13 +49,13 @@ None - GET request with no body.
 | 401 | `AUTH_TOKEN_REQUIRED` | "Authorization token required" | No Bearer token in Authorization header |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Token malformed or bad signature |
 | 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token well-formed but past expiration |
-| 404 | `SCHEMA_NOT_FOUND` | "Schema not found" | Invalid schema name |
+| 404 | `MODEL_NOT_FOUND` | "Model not found" | Invalid model name |
 
 ## Default Behavior
 
 By default, this endpoint:
 - Returns only **active records** (where `trashed_at IS NULL` and `deleted_at IS NULL`)
-- Returns **all fields** defined in the schema
+- Returns **all fields** defined in the model
 - Returns records in **database order** (no explicit sorting)
 - Returns **all matching records** (no pagination limit)
 
@@ -380,19 +380,19 @@ POST /api/find/users
 }
 ```
 
-See [`POST /api/find/:schema`](../../find/:schema/POST.md) for details.
+See [`POST /api/find/:model`](../../find/:model/POST.md) for details.
 
-## Schema Protection
+## Model Protection
 
-This endpoint respects schema-level protection:
+This endpoint respects model-level protection:
 
-- **Frozen schemas** (`frozen=true`): Read operations are allowed
-- **Sudo-protected schemas** (`sudo=true`): No special requirements for read operations
+- **Frozen models** (`frozen=true`): Read operations are allowed
+- **Sudo-protected models** (`sudo=true`): No special requirements for read operations
 - **ACL filtering**: Results automatically filtered based on user's `access_read` permissions
 
 ## Performance Considerations
 
-⚠️ **Warning**: This endpoint returns **all records** in the schema without pagination. For large datasets:
+⚠️ **Warning**: This endpoint returns **all records** in the model without pagination. For large datasets:
 
 - Use the **Find API** with `limit` and `offset` for pagination
 - Consider caching responses for frequently accessed data
@@ -412,7 +412,7 @@ POST /api/find/users
 
 ## Related Endpoints
 
-- [`POST /api/data/:schema`](POST.md) - Create multiple records
-- [`PUT /api/data/:schema`](PUT.md) - Update multiple records
-- [`DELETE /api/data/:schema`](DELETE.md) - Delete multiple records
-- [`POST /api/find/:schema`](../../find/:schema/POST.md) - Advanced filtering and pagination
+- [`POST /api/data/:model`](POST.md) - Create multiple records
+- [`PUT /api/data/:model`](PUT.md) - Update multiple records
+- [`DELETE /api/data/:model`](DELETE.md) - Delete multiple records
+- [`POST /api/find/:model`](../../find/:model/POST.md) - Advanced filtering and pagination

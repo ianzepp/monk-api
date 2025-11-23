@@ -1,7 +1,7 @@
 {
-    "columns": [
+    "fields": [
         {
-            "column_name": "name",
+            "field_name": "name",
             "type": "text",
             "required": true,
             "minimum": 2,
@@ -9,21 +9,21 @@
             "description": "Account holder full name"
         },
         {
-            "column_name": "email",
+            "field_name": "email",
             "type": "text",
             "required": true,
             "maximum": 255,
             "description": "Primary email address"
         },
         {
-            "column_name": "username",
+            "field_name": "username",
             "type": "text",
             "required": true,
             "pattern": "^[a-zA-Z0-9_-]{3,50}$",
             "description": "Unique username for login"
         },
         {
-            "column_name": "account_type",
+            "field_name": "account_type",
             "type": "text",
             "required": true,
             "enum_values": ["personal", "business", "trial", "premium"],
@@ -31,7 +31,7 @@
             "description": "Type of account"
         },
         {
-            "column_name": "balance",
+            "field_name": "balance",
             "type": "decimal",
             "required": false,
             "minimum": 0,
@@ -40,21 +40,21 @@
             "description": "Account balance in USD"
         },
         {
-            "column_name": "is_active",
+            "field_name": "is_active",
             "type": "boolean",
             "required": false,
             "default_value": true,
             "description": "Whether the account is currently active"
         },
         {
-            "column_name": "is_verified",
+            "field_name": "is_verified",
             "type": "boolean",
             "required": false,
             "default_value": false,
             "description": "Whether the account email is verified"
         },
         {
-            "column_name": "credit_limit",
+            "field_name": "credit_limit",
             "type": "decimal",
             "required": false,
             "minimum": 0,
@@ -62,25 +62,25 @@
             "description": "Credit limit for business accounts (null for personal/trial)"
         },
         {
-            "column_name": "last_login",
+            "field_name": "last_login",
             "type": "timestamp",
             "required": false,
             "description": "Timestamp of last login (null if never logged in)"
         },
         {
-            "column_name": "preferences",
+            "field_name": "preferences",
             "type": "jsonb",
             "required": false,
             "description": "User preferences and settings"
         },
         {
-            "column_name": "metadata",
+            "field_name": "metadata",
             "type": "jsonb",
             "required": false,
             "description": "Additional flexible metadata"
         },
         {
-            "column_name": "phone",
+            "field_name": "phone",
             "type": "text",
             "required": false,
             "pattern": "^\\+?[1-9]\\d{1,14}$|^\\+?1 \\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$",

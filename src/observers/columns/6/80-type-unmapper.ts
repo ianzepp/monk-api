@@ -1,8 +1,8 @@
 /**
  * Type Unmapper Observer - Ring 6 PostDatabase
  *
- * Maps PostgreSQL column_type values back to user-facing type names for ALL operations
- * that return column data (select, create, update, delete).
+ * Maps PostgreSQL field_type values back to user-facing type names for ALL operations
+ * that return field data (select, create, update, delete).
  *
  * This ensures API responses always show user-friendly type names (e.g., "decimal")
  * instead of PostgreSQL-specific names (e.g., "numeric").
@@ -13,11 +13,11 @@
  *
  * **Incoming (User → Database):**
  * - Ring 4 type-mapper converts user types → PG types BEFORE database write
- * - Ring 5 database writes PG types to columns table
+ * - Ring 5 database writes PG types to fields table
  * - Ring 6 DDL observers receive PG types (no mapping needed!)
  *
  * **Outgoing (Database → User):**
- * - Ring 5 database reads PG types from columns table
+ * - Ring 5 database reads PG types from fields table
  * - Ring 6 type-unmapper converts PG types → user types AFTER database read
  * - API responses show user-friendly types
  *
@@ -35,10 +35,10 @@
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 
 /**
- * Map PostgreSQL column_type values back to user-facing type names
+ * Map PostgreSQL field_type values back to user-facing type names
  */
 const REVERSE_TYPE_MAPPING: Record<string, string> = {
     // Scalar types
@@ -63,8 +63,8 @@ export default class TypeUnmapperObserver extends BaseObserver {
     readonly operations = ['select', 'create', 'update', 'delete'] as const;  // All operations that return data
     readonly priority = 80;  // Run after DDL observers (priority 10)
 
-    async executeOne(record: SchemaRecord, context: ObserverContext): Promise<void> {
-        const { schema_name, column_name, type } = record;
+    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+        const { model_name, field_name, type } = record;
 
         if (!type) {
             return; // Skip if no type field
@@ -80,8 +80,8 @@ export default class TypeUnmapperObserver extends BaseObserver {
             // Unknown type - log warning but don't fail
             console.warn('Unknown PostgreSQL type encountered in type unmapping', {
                 pgType,
-                schema_name,
-                column_name
+                model_name,
+                field_name
             });
             // Keep original value
         }

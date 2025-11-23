@@ -78,14 +78,14 @@ setup_sudo_auth "Testing sandboxes API operations"
 #     SELECT 1 FROM pg_database WHERE datname = '<sandbox_database>'
 #   - Verify database exists
 #   - Verify database was cloned from monk_template_testing
-#   - Verify sandbox has same schemas as template
+#   - Verify sandbox has same models as template
 
 # Test 1.5: Create sandbox from 'system' template
 # Expected: Minimal sandbox with only system tables
 # TODO: Implement test
 #   - POST sandbox with template: 'system'
 #   - Verify creation successful
-#   - Verify sandbox has minimal schema count
+#   - Verify sandbox has minimal model count
 #   - Verify record_count is minimal (only system data)
 
 # Test 1.6: Create sandbox from non-existent template

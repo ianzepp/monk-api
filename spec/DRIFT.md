@@ -6,12 +6,12 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ### Field Name: "freeze" vs "frozen"
 
-**Documentation**: `src/routes/api/describe/:schema/POST.md` and `PUT.md` use `freeze`
+**Documentation**: `src/routes/api/describe/:model/POST.md` and `PUT.md` use `freeze`
 **Implementation**: Actual field name is `frozen`
 **Impact**: Medium - Documentation misleading
 **Files affected**:
-- `src/routes/api/describe/:schema/POST.md` (line 20, 30)
-- `src/routes/api/describe/:schema/PUT.md` (line 20, 30)
+- `src/routes/api/describe/:model/POST.md` (line 20, 30)
+- `src/routes/api/describe/:model/PUT.md` (line 20, 30)
 
 **Resolution**: Update documentation to use `frozen` consistently
 
@@ -19,7 +19,7 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ### Response Format: System Fields
 
-**Documentation**: `src/routes/api/describe/:schema/PUT.md` shows responses include `id`, `created_at`, `updated_at`
+**Documentation**: `src/routes/api/describe/:model/PUT.md` shows responses include `id`, `created_at`, `updated_at`
 **Implementation**: Describe API strips system fields from responses (only Data API returns them)
 **Impact**: High - Creates confusion about response format differences between APIs
 **Example**:
@@ -27,13 +27,13 @@ This document tracks discrepancies between API documentation and actual implemen
 // Documented response
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
-  "schema_name": "users",
+  "model_name": "users",
   "created_at": "2024-01-15T10:30:00Z"
 }
 
 // Actual response
 {
-  "schema_name": "users"
+  "model_name": "users"
 }
 ```
 
@@ -47,11 +47,11 @@ This document tracks discrepancies between API documentation and actual implemen
 **Implementation**: PUT endpoints accept empty request bodies (return success without changes)
 **Impact**: Low - May be intentional design, but unclear
 **Affected endpoints**:
-- `PUT /api/describe/:schema`
-- `PUT /api/describe/:schema/columns/:column`
+- `PUT /api/describe/:model`
+- `PUT /api/describe/:model/fields/:field`
 
 **Tests skipped**:
-- `spec/31-describe-api/schema-columns-put.test.ts:195` - Empty updates test
+- `spec/31-describe-api/model-fields-put.test.ts:195` - Empty updates test
 
 **Resolution**: Document whether empty updates are intentionally allowed
 
@@ -80,19 +80,19 @@ This document tracks discrepancies between API documentation and actual implemen
 - Sending `default_value: "true"` for boolean → "expected boolean but got string"
 
 **Tests skipped**:
-- `spec/31-describe-api/schema-columns-post.test.ts:47` - default_value test
+- `spec/31-describe-api/model-fields-post.test.ts:47` - default_value test
 
 **Resolution**: Document exact format requirements for default_value field
 
 ---
 
-### Column Creation Without Type
+### Field Creation Without Type
 
 **Documentation**: Type appears to be required field
-**Implementation**: Column creation succeeds without type (may default to text)
+**Implementation**: Field creation succeeds without type (may default to text)
 **Impact**: Low - May be intentional fallback behavior
 **Tests skipped**:
-- `spec/31-describe-api/schema-columns-post.test.ts:233` - No type test
+- `spec/31-describe-api/model-fields-post.test.ts:233` - No type test
 
 **Resolution**: Document default type behavior or enforce type requirement
 
@@ -100,46 +100,46 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ### Soft Delete and Name Reuse
 
-**Documentation**: `src/routes/api/describe/:schema/DELETE.md` doesn't mention name reuse restrictions
-**Implementation**: Soft-deleted schemas retain schema_name, preventing recreation with same name
-**Impact**: Medium - Affects schema lifecycle management
-**Error**: "Schema 'name' already exists" when trying to recreate deleted schema
+**Documentation**: `src/routes/api/describe/:model/DELETE.md` doesn't mention name reuse restrictions
+**Implementation**: Soft-deleted models retain model_name, preventing recreation with same name
+**Impact**: Medium - Affects model lifecycle management
+**Error**: "Model 'name' already exists" when trying to recreate deleted model
 
 **Tests skipped**:
-- `spec/31-describe-api/schema-delete.test.ts:60` - Name reuse test
+- `spec/31-describe-api/model-delete.test.ts:60` - Name reuse test
 
-**Resolution**: Document that deleted schema names cannot be reused without Data API restore
+**Resolution**: Document that deleted model names cannot be reused without Data API restore
 
 ---
 
 ### Trashed Items in List Endpoints
 
 **Documentation**: `src/routes/api/describe/GET.md` doesn't specify trashed item filtering
-**Implementation**: Deleted schemas still appear in `GET /api/describe` results
-**Impact**: Medium - Unexpected behavior for listing active schemas
+**Implementation**: Deleted models still appear in `GET /api/describe` results
+**Impact**: Medium - Unexpected behavior for listing active models
 **Expected**: Trashed items filtered by default (require `?include_trashed=true`)
 **Actual**: Trashed items included in default results
 
 **Tests skipped**:
-- `spec/31-describe-api/schema-list.test.ts:67` - Trashed schemas test
+- `spec/31-describe-api/model-list.test.ts:67` - Trashed models test
 
 **Resolution**: Implement filtering or document current behavior
 
 ---
 
-### Error Codes: Non-Existent Schema in Column Operations
+### Error Codes: Non-Existent Model in Field Operations
 
-**Documentation**: Various column endpoints document specific error codes
-**Implementation**: Returns `INTERNAL_ERROR` instead of `COLUMN_NOT_FOUND` for non-existent schema
+**Documentation**: Various field endpoints document specific error codes
+**Implementation**: Returns `INTERNAL_ERROR` instead of `FIELD_NOT_FOUND` for non-existent model
 **Impact**: Low - Error handling works but codes differ
 **Affected endpoints**:
-- `PUT /api/describe/:schema/columns/:column`
+- `PUT /api/describe/:model/fields/:field`
 
-**Expected**: `COLUMN_NOT_FOUND` or `SCHEMA_NOT_FOUND`
+**Expected**: `FIELD_NOT_FOUND` or `MODEL_NOT_FOUND`
 **Actual**: `INTERNAL_ERROR`
 
 **Test adjustments**:
-- `spec/31-describe-api/schema-columns-put.test.ts:211` - Adjusted to expect INTERNAL_ERROR
+- `spec/31-describe-api/model-fields-put.test.ts:211` - Adjusted to expect INTERNAL_ERROR
 
 **Resolution**: Return more specific error code or update documentation
 
@@ -149,11 +149,11 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ### Empty Array Validation
 
-**Documentation**: `src/routes/api/data/:schema/POST.md` implies arrays should contain records
+**Documentation**: `src/routes/api/data/:model/POST.md` implies arrays should contain records
 **Implementation**: Empty arrays are accepted and return success with empty data array
 **Impact**: Low - May be intentional (idempotent no-op)
 **Affected endpoints**:
-- `POST /api/data/:schema`
+- `POST /api/data/:model`
 
 **Tests skipped**:
 - `spec/32-data-api/data-post.test.ts:127` - Empty array test
@@ -162,13 +162,13 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ---
 
-### Error Codes: Non-Existent Schema (Data API)
+### Error Codes: Non-Existent Model (Data API)
 
-**Documentation**: Should return `SCHEMA_NOT_FOUND`
-**Implementation**: Returns `INTERNAL_ERROR` for non-existent schema
+**Documentation**: Should return `MODEL_NOT_FOUND`
+**Implementation**: Returns `INTERNAL_ERROR` for non-existent model
 **Impact**: Low - Error handling works but codes differ
 **Affected endpoints**:
-- `POST /api/data/:schema`
+- `POST /api/data/:model`
 - Likely affects other Data API endpoints
 
 **Test adjustments**:
@@ -184,7 +184,7 @@ This document tracks discrepancies between API documentation and actual implemen
 **Implementation**: UPDATE allows setting required fields to null, while CREATE rejects it
 **Impact**: Low - May be intentional (allows clearing fields during updates)
 **Affected endpoints**:
-- `PUT /api/data/:schema/:record`
+- `PUT /api/data/:model/:record`
 
 **Tests skipped**:
 - `spec/32-data-api/data-put.test.ts:155` - Required field null validation
@@ -199,7 +199,7 @@ This document tracks discrepancies between API documentation and actual implemen
 **Implementation**: PUT endpoints accept empty request bodies (return success without changes)
 **Impact**: Low - May be intentional design (idempotent updates)
 **Affected endpoints**:
-- `PUT /api/data/:schema/:record`
+- `PUT /api/data/:model/:record`
 
 **Tests skipped**:
 - `spec/32-data-api/data-put.test.ts:165` - Empty update test
@@ -210,7 +210,7 @@ This document tracks discrepancies between API documentation and actual implemen
 
 ### Relationship Configuration Format
 
-**Documentation**: `src/routes/api/data/:schema/:record/:relationship/GET.md` shows `x-monk-relationship` extension format
+**Documentation**: `src/routes/api/data/:model/:record/:relationship/GET.md` shows `x-monk-relationship` extension format
 **Implementation**: Actual relationship structure is different from documented format
 **Impact**: High - Documented format is completely invalid
 **Documented format**:
@@ -220,7 +220,7 @@ This document tracks discrepancies between API documentation and actual implemen
     "type": "string",
     "x-monk-relationship": {
       "type": "owned",
-      "schema": "posts",
+      "model": "posts",
       "name": "comments"
     }
   }
@@ -229,7 +229,7 @@ This document tracks discrepancies between API documentation and actual implemen
 
 **Actual format**: Unknown - documentation is invalid
 **Affected documentation**:
-- `src/routes/api/data/:schema/:record/:relationship/GET.md` (lines 68-86)
+- `src/routes/api/data/:model/:record/:relationship/GET.md` (lines 68-86)
 - Related relationship endpoint documentation
 
 **Discovery source**: User reported during Car Dealership scenario development (2025-01-22)
@@ -244,7 +244,7 @@ This document tracks discrepancies between API documentation and actual implemen
 **Impact Levels**:
 - High: 2 (System fields in responses, relationship configuration format)
 - Medium: 4 (Field naming, default values, soft delete, trashed filtering)
-- Low: 8 (Empty updates/arrays, type normalization, column without type, error codes, required field validation)
+- Low: 8 (Empty updates/arrays, type normalization, field without type, error codes, required field validation)
 
 **Tests Skipped Due to Drift**: 7 (5 Describe API + 2 Data API)
 **Test Adjustments Made**: Multiple (documented in test files with comments)

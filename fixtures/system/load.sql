@@ -20,8 +20,8 @@
 -- Enable pgcrypto extension for checksum generation
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Create enum type for column data types
-CREATE TYPE column_type AS ENUM (
+-- Create enum type for field data types
+CREATE TYPE field_type AS ENUM (
     'text',
     'integer',
     'bigserial',
@@ -40,8 +40,8 @@ CREATE TYPE column_type AS ENUM (
 -- PHASE 2: TABLE DEFINITIONS (DDL)
 \echo ''
 \echo 'Phase 2: Table Definitions'
-\ir describe/schemas.sql
-\ir describe/columns.sql
+\ir describe/models.sql
+\ir describe/fields.sql
 \ir describe/users.sql
 \ir describe/snapshots.sql
 \ir describe/extracts.sql
@@ -62,14 +62,14 @@ CREATE TYPE column_type AS ENUM (
 -- PHASE 4: DATA (DML)
 \echo ''
 \echo 'Phase 4: Data Inserts'
-\ir data/schemas.sql
-\ir data/columns.sql
+\ir data/models.sql
+\ir data/fields.sql
 \ir data/users.sql
 \ir data/history.sql
-\ir data/extracts.sql        -- Extracts system (registers schemas + columns)
-\ir data/restores.sql        -- Restores system (registers schemas + columns)
-\ir data/grids.sql           -- Grid API metadata (registers schemas + columns)
-\ir data/grid_cells.sql      -- Grid API cells - external schema (registers schemas + columns)
+\ir data/extracts.sql        -- Extracts system (registers models + fields)
+\ir data/restores.sql        -- Restores system (registers models + fields)
+\ir data/grids.sql           -- Grid API metadata (registers models + fields)
+\ir data/grid_cells.sql      -- Grid API cells - external model (registers models + fields)
 
 -- PHASE 5: POST-LOAD INDEXES
 \echo ''
@@ -84,15 +84,15 @@ CREATE TYPE column_type AS ENUM (
 
 DO $$
 DECLARE
-    schema_count INTEGER;
+    model_count INTEGER;
     user_count INTEGER;
 BEGIN
-    SELECT COUNT(*) INTO schema_count FROM "schemas";
+    SELECT COUNT(*) INTO model_count FROM "models";
     SELECT COUNT(*) INTO user_count FROM "users";
 
     RAISE NOTICE '';
     RAISE NOTICE 'Database: %', current_database();
-    RAISE NOTICE 'Schemas:  %', schema_count;
+    RAISE NOTICE 'Models:  %', model_count;
     RAISE NOTICE 'Users:    %', user_count;
     RAISE NOTICE '';
 END $$;

@@ -3,40 +3,40 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * DELETE /api/describe/:schema - Delete Schema
+ * DELETE /api/describe/:model - Delete Model
  *
- * Tests soft-delete of schema definitions. Schemas are marked as trashed
- * and can potentially be restored. System schemas cannot be deleted.
+ * Tests soft-delete of model definitions. Models are marked as trashed
+ * and can potentially be restored. System models cannot be deleted.
  */
 
-describe('DELETE /api/describe/:schema - Delete Schema', () => {
+describe('DELETE /api/describe/:model - Delete Model', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('delete-schema');
+        tenant = await TestHelpers.createTestTenant('delete-model');
     });
 
     afterAll(async () => {
         await TestHelpers.cleanupTestTenant(tenant.tenantName);
     });
 
-    it('should soft-delete a schema', async () => {
-        // Create schema
+    it('should soft-delete a model', async () => {
+        // Create model
         await tenant.httpClient.post('/api/describe/deletable', {
-            schema_name: 'deletable'
+            model_name: 'deletable'
         });
 
         // Delete it
         const response = await tenant.httpClient.delete('/api/describe/deletable');
 
         expectSuccess(response);
-        expect(response.data.schema_name).toBe('deletable');
+        expect(response.data.model_name).toBe('deletable');
     });
 
-    it('should remove deleted schema from listing', async () => {
-        // Create schema
+    it('should remove deleted model from listing', async () => {
+        // Create model
         await tenant.httpClient.post('/api/describe/test_removal', {
-            schema_name: 'test_removal'
+            model_name: 'test_removal'
         });
 
         // Verify it's listed
@@ -51,42 +51,42 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
         expect(listResponse.data).not.toContain('test_removal');
     });
 
-    it('should prevent retrieval of deleted schema', async () => {
-        // Create and delete schema
-        await tenant.httpClient.post('/api/describe/deleted_schema', {
-            schema_name: 'deleted_schema'
+    it('should prevent retrieval of deleted model', async () => {
+        // Create and delete model
+        await tenant.httpClient.post('/api/describe/deleted_model', {
+            model_name: 'deleted_model'
         });
 
-        await tenant.httpClient.delete('/api/describe/deleted_schema');
+        await tenant.httpClient.delete('/api/describe/deleted_model');
 
-        // Try to retrieve deleted schema
-        const response = await tenant.httpClient.get('/api/describe/deleted_schema');
+        // Try to retrieve deleted model
+        const response = await tenant.httpClient.get('/api/describe/deleted_model');
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+        expect(response.error_code).toBe('MODEL_NOT_FOUND');
     });
 
-    it('should prevent updating deleted schema', async () => {
-        // Create and delete schema
+    it('should prevent updating deleted model', async () => {
+        // Create and delete model
         await tenant.httpClient.post('/api/describe/update_deleted', {
-            schema_name: 'update_deleted'
+            model_name: 'update_deleted'
         });
 
         await tenant.httpClient.delete('/api/describe/update_deleted');
 
-        // Try to update deleted schema
+        // Try to update deleted model
         const response = await tenant.httpClient.put('/api/describe/update_deleted', {
             status: 'active'
         });
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+        expect(response.error_code).toBe('MODEL_NOT_FOUND');
     });
 
-    it('should return 404 for already deleted schema', async () => {
-        // Create and delete schema
+    it('should return 404 for already deleted model', async () => {
+        // Create and delete model
         await tenant.httpClient.post('/api/describe/double_delete', {
-            schema_name: 'double_delete'
+            model_name: 'double_delete'
         });
 
         await tenant.httpClient.delete('/api/describe/double_delete');
@@ -95,46 +95,46 @@ describe('DELETE /api/describe/:schema - Delete Schema', () => {
         const response = await tenant.httpClient.delete('/api/describe/double_delete');
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+        expect(response.error_code).toBe('MODEL_NOT_FOUND');
     });
 
-    it('should return 404 for non-existent schema', async () => {
+    it('should return 404 for non-existent model', async () => {
         const response = await tenant.httpClient.delete('/api/describe/never_existed');
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_NOT_FOUND');
+        expect(response.error_code).toBe('MODEL_NOT_FOUND');
     });
 
-    it('should protect system schemas from deletion', async () => {
-        const response = await tenant.httpClient.delete('/api/describe/schemas');
+    it('should protect system models from deletion', async () => {
+        const response = await tenant.httpClient.delete('/api/describe/models');
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
+        expect(response.error_code).toBe('MODEL_REQUIRES_SUDO');
     });
 
-    it('should protect users schema from deletion', async () => {
+    it('should protect users model from deletion', async () => {
         const response = await tenant.httpClient.delete('/api/describe/users');
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
+        expect(response.error_code).toBe('MODEL_REQUIRES_SUDO');
     });
 
-    it('should protect columns schema from deletion', async () => {
-        const response = await tenant.httpClient.delete('/api/describe/columns');
+    it('should protect fields model from deletion', async () => {
+        const response = await tenant.httpClient.delete('/api/describe/fields');
 
         expectError(response);
-        expect(response.error_code).toBe('SCHEMA_REQUIRES_SUDO');
+        expect(response.error_code).toBe('MODEL_REQUIRES_SUDO');
     });
 
-    it('should allow deleting schemas with various statuses', async () => {
-        // Create schemas with different statuses
+    it('should allow deleting models with various statuses', async () => {
+        // Create models with different statuses
         await tenant.httpClient.post('/api/describe/pending_delete', {
-            schema_name: 'pending_delete',
+            model_name: 'pending_delete',
             status: 'pending'
         });
 
         await tenant.httpClient.post('/api/describe/active_delete', {
-            schema_name: 'active_delete',
+            model_name: 'active_delete',
             status: 'active'
         });
 

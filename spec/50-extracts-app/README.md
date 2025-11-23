@@ -23,7 +23,7 @@
 - Configuration validation (format, include, retention_days)
 
 **Extract Execution:**
-- Describe export functionality (YAML generation, schema/column metadata)
+- Describe export functionality (YAML generation, model/field metadata)
 - Data export functionality (JSONL generation, batching, filtering)
 - Manifest generation (checksums, artifact metadata)
 - Progress tracking (0% → 25% → 99% → 100%)
@@ -41,7 +41,7 @@
 - Download count tracking and access timestamps
 
 **Error Handling:**
-- Non-existent schema handling
+- Non-existent model handling
 - Database connection errors
 - Disk full scenarios
 - Permission denied errors
@@ -49,12 +49,12 @@
 **Edge Cases:**
 - Empty datasets (zero records)
 - Very large datasets (millions of records)
-- Many schemas (100+)
+- Many models (100+)
 - Special characters and Unicode data
 - Concurrent extracts
 
 **Security:**
-- ACL-based schema access restriction
+- ACL-based model access restriction
 - Tenant isolation for artifacts
 - Sudo user access controls
 

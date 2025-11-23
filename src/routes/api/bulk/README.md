@@ -2,7 +2,7 @@
 
 > **Transaction-Safe Bulk Operations**
 >
-> The Bulk API provides atomic, observer-aware execution for multiple database actions across schemas. All operations run inside a single transaction started by the Bulk route, guaranteeing that either every step succeeds or the entire request is rolled back.
+> The Bulk API provides atomic, observer-aware execution for multiple database actions across models. All operations run inside a single transaction started by the Bulk route, guaranteeing that either every step succeeds or the entire request is rolled back.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ The Bulk API batches heterogeneous operations into a single request. Observer ri
 ### Key Capabilities
 - **Atomic Transactions**: Every request runs inside a single SQL transaction with automatic rollback on failure.
 - **Observer Pipeline**: Create, update, delete, access, and aggregation flows all traverse the full observer stack.
-- **Mixed Operations**: Combine different schemas and operation types in one ordered payload.
+- **Mixed Operations**: Combine different models and operation types in one ordered payload.
 - **Read + Write**: Supports read helpers (`select`, `count`, `aggregate`, etc.) alongside mutating operations.
 - **Detailed Results**: Each operation returns its individual result (records, counts, aggregates, etc.).
 
@@ -52,7 +52,7 @@ Permissions are enforced per operation:
 - **Update (`update`, `update-one`, `update-all`, `update-any`, `update-404`)**: `update_data`
 - **Delete (`delete`, `delete-one`, `delete-all`, `delete-any`, `delete-404`)**: `delete_data`
 - **Access (`access`, `access-one`, `access-all`, `access-any`, `access-404`)**: `update_acl`
-- **Read (`select*`, `count`, `aggregate`)**: Corresponding read permission for the target schema
+- **Read (`select*`, `count`, `aggregate`)**: Corresponding read permission for the target model
 
 ## Core Endpoint
 
@@ -69,7 +69,7 @@ Authorization: Bearer <jwt>
   "operations": [
     {
       "operation": "create-all",
-      "schema": "users",
+      "model": "users",
       "data": [
         {"name": "John Doe", "email": "john@example.com"},
         {"name": "Jane Smith", "email": "jane@example.com"}
@@ -77,13 +77,13 @@ Authorization: Bearer <jwt>
     },
     {
       "operation": "update-any",
-      "schema": "accounts",
+      "model": "accounts",
       "filter": {"where": {"status": "pending"}},
       "data": {"status": "active"}
     },
     {
       "operation": "aggregate",
-      "schema": "orders",
+      "model": "orders",
       "aggregate": {
         "total_orders": {"$count": "*"},
         "avg_total": {"$avg": "total"}
@@ -102,7 +102,7 @@ Authorization: Bearer <jwt>
   "data": [
     {
       "operation": "create-all",
-      "schema": "users",
+      "model": "users",
       "result": [
         {"id": "user_123", "name": "John Doe", ...},
         {"id": "user_124", "name": "Jane Smith", ...}
@@ -110,7 +110,7 @@ Authorization: Bearer <jwt>
     },
     {
       "operation": "update-any",
-      "schema": "accounts",
+      "model": "accounts",
       "result": [
         {"id": "acct_1", "status": "active", ...},
         {"id": "acct_2", "status": "active", ...}
@@ -118,7 +118,7 @@ Authorization: Bearer <jwt>
     },
     {
       "operation": "aggregate",
-      "schema": "orders",
+      "model": "orders",
       "result": [
         {"status": "pending", "total_orders": 12, "avg_total": 180.5},
         {"status": "completed", "total_orders": 4, "avg_total": 425.0}
@@ -135,7 +135,7 @@ Each operation shares a common structure with strongly typed fields. The Bulk Pr
 | Field | Type | Notes |
 |-------|------|-------|
 | `operation` | string | Required. One of the supported operation names (hyphenated). |
-| `schema` | string | Required for all database-backed operations. |
+| `model` | string | Required for all database-backed operations. |
 | `data` | object/array | Required for create/update/delete/access variants as noted below. |
 | `filter` | object | Required for `*-any` operations; optional for read helpers (`select`, `count`, `aggregate`). |
 | `id` | string | Required for `*-one` operations. |
@@ -154,41 +154,41 @@ Validation rules enforced by the Bulk Processor:
 ### Read Helpers
 | Operation | Description | Required Fields |
 |-----------|-------------|-----------------|
-| `select` / `select-all` | Returns records matching an optional filter. | `schema`, optional `filter` |
-| `select-one` | Returns a single record (first match). | `schema`, `id` or `filter` |
-| `select-404` | Like `select-one` but throws 404 when no record is found. | `schema`, `id` or `filter` |
-| `count` | Returns the count of records matching a filter. | `schema`, optional `filter` |
-| `aggregate` | Runs aggregation queries with optional grouping. | `schema`, `aggregate`, optional `filter`/`where`, optional `groupBy` |
+| `select` / `select-all` | Returns records matching an optional filter. | `model`, optional `filter` |
+| `select-one` | Returns a single record (first match). | `model`, `id` or `filter` |
+| `select-404` | Like `select-one` but throws 404 when no record is found. | `model`, `id` or `filter` |
+| `count` | Returns the count of records matching a filter. | `model`, optional `filter` |
+| `aggregate` | Runs aggregation queries with optional grouping. | `model`, `aggregate`, optional `filter`/`where`, optional `groupBy` |
 
 ### Create Operations
 | Operation | Description | Required Fields |
 |-----------|-------------|-----------------|
-| `create` / `create-one` | Create a single record. | `schema`, `data` (object) |
-| `create-all` | Create multiple records in one observer run. | `schema`, `data` (array of objects) |
+| `create` / `create-one` | Create a single record. | `model`, `data` (object) |
+| `create-all` | Create multiple records in one observer run. | `model`, `data` (array of objects) |
 
 ### Update Operations
 | Operation | Description | Required Fields |
 |-----------|-------------|-----------------|
-| `update` / `update-one` | Update a single record by `id`. | `schema`, `id`, `data` |
-| `update-all` | Update multiple records by supplying an array of `{id, ...changes}` objects. No filter allowed. | `schema`, `data` (array with `id`) |
-| `update-any` | Update records matching a filter. | `schema`, `filter`, `data` |
-| `update-404` | Update a single record and throw 404 when it does not exist. | `schema`, `filter` or `id`, `data` |
+| `update` / `update-one` | Update a single record by `id`. | `model`, `id`, `data` |
+| `update-all` | Update multiple records by supplying an array of `{id, ...changes}` objects. No filter allowed. | `model`, `data` (array with `id`) |
+| `update-any` | Update records matching a filter. | `model`, `filter`, `data` |
+| `update-404` | Update a single record and throw 404 when it does not exist. | `model`, `filter` or `id`, `data` |
 
 ### Delete Operations (Soft Delete)
 | Operation | Description | Required Fields |
 |-----------|-------------|-----------------|
-| `delete` / `delete-one` | Soft delete a single record by `id`. | `schema`, `id` |
-| `delete-all` | Soft delete multiple records listed in `data`. | `schema`, `data` (array with `id`) |
-| `delete-any` | Soft delete records matching a filter. | `schema`, `filter` |
-| `delete-404` | Soft delete a single record and throw 404 when it does not exist. | `schema`, `filter` or `id` |
+| `delete` / `delete-one` | Soft delete a single record by `id`. | `model`, `id` |
+| `delete-all` | Soft delete multiple records listed in `data`. | `model`, `data` (array with `id`) |
+| `delete-any` | Soft delete records matching a filter. | `model`, `filter` |
+| `delete-404` | Soft delete a single record and throw 404 when it does not exist. | `model`, `filter` or `id` |
 
 ### Access Control Operations
 | Operation | Description | Required Fields |
 |-----------|-------------|-----------------|
-| `access` / `access-one` | Update ACL fields (`access_read`, etc.) for a single record. | `schema`, `id`, `data` |
-| `access-all` | Batch ACL updates for specific record IDs. | `schema`, `data` (array with `id` + ACL fields) |
-| `access-any` | Apply ACL changes to records matching a filter. | `schema`, `filter`, `data` |
-| `access-404` | ACL update that throws 404 when record not found. | `schema`, `filter` or `id`, `data` |
+| `access` / `access-one` | Update ACL fields (`access_read`, etc.) for a single record. | `model`, `id`, `data` |
+| `access-all` | Batch ACL updates for specific record IDs. | `model`, `data` (array with `id` + ACL fields) |
+| `access-any` | Apply ACL changes to records matching a filter. | `model`, `filter`, `data` |
+| `access-404` | ACL update that throws 404 when record not found. | `model`, `filter` or `id`, `data` |
 
 ### Unsupported Operations
 | Operation | Status | Response |
@@ -207,7 +207,7 @@ All bulk requests execute inside a transaction created by the route (`withTransa
 |------------|-------------|---------|
 | `BODY_NOT_OBJECT` | Body is not an object. | Body is not an object when object expected |
 | `BODY_MISSING_FIELD` | Body missing `operations` array. | Missing operations field |
-| `OPERATION_MISSING_FIELDS` | Missing `operation` or `schema`. | Incomplete operation entry |
+| `OPERATION_MISSING_FIELDS` | Missing `operation` or `model`. | Incomplete operation entry |
 | `OPERATION_MISSING_ID` | Required `id` missing or blank. | `*-one`, array entries that require `id` |
 | `OPERATION_MISSING_DATA` | Required `data` missing. | Mutations without payload |
 | `OPERATION_INVALID_DATA` | `data` not the expected type or provided when disallowed. | Arrays vs objects / extra `data` |
@@ -242,7 +242,7 @@ Additional tests can be added under `spec/35-bulk-api/` to cover new operations 
   "operations": [
     {
       "operation": "create-one",
-      "schema": "users",
+      "model": "users",
       "data": {
         "name": "New Employee",
         "email": "new.employee@company.com",
@@ -251,7 +251,7 @@ Additional tests can be added under `spec/35-bulk-api/` to cover new operations 
     },
     {
       "operation": "create-one",
-      "schema": "accounts",
+      "model": "accounts",
       "data": {
         "user_id": "user_123456",
         "type": "employee",
@@ -260,7 +260,7 @@ Additional tests can be added under `spec/35-bulk-api/` to cover new operations 
     },
     {
       "operation": "access-one",
-      "schema": "accounts",
+      "model": "accounts",
       "id": "account_123456",
       "data": {
         "access_read": ["user_123456"],
@@ -277,13 +277,13 @@ Additional tests can be added under `spec/35-bulk-api/` to cover new operations 
   "operations": [
     {
       "operation": "update-any",
-      "schema": "legacy_users",
+      "model": "legacy_users",
       "filter": {"where": {"migration_status": "pending"}},
       "data": {"migration_status": "processing"}
     },
     {
       "operation": "create-all",
-      "schema": "users",
+      "model": "users",
       "data": [
         {"name": "Migrated User 1", "email": "user1@new.com", "legacy_id": "old_123"},
         {"name": "Migrated User 2", "email": "user2@new.com", "legacy_id": "old_456"}
@@ -291,7 +291,7 @@ Additional tests can be added under `spec/35-bulk-api/` to cover new operations 
     },
     {
       "operation": "delete-any",
-      "schema": "legacy_users",
+      "model": "legacy_users",
       "filter": {"where": {"migration_status": "processing"}}
     }
   ]
@@ -304,7 +304,7 @@ Additional tests can be added under `spec/35-bulk-api/` to cover new operations 
   "operations": [
     {
       "operation": "aggregate",
-      "schema": "orders",
+      "model": "orders",
       "aggregate": {
         "total": {"$sum": "total"},
         "count": {"$count": "*"}
@@ -314,7 +314,7 @@ Additional tests can be added under `spec/35-bulk-api/` to cover new operations 
     },
     {
       "operation": "update-any",
-      "schema": "orders",
+      "model": "orders",
       "filter": {"where": {"status": "pending", "total": {"$gte": 1000}}},
       "data": {"priority": "high"}
     }

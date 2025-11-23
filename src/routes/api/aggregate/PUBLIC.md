@@ -1,6 +1,6 @@
 # Aggregate API
 
-## POST /api/aggregate/:schema
+## POST /api/aggregate/:model
 
 Perform aggregation queries with optional GROUP BY support.
 

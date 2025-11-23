@@ -2,7 +2,7 @@
 set -e
 
 # Find API Basic SELECT Test
-# Tests column selection with select field in POST /api/find/:schema
+# Tests field selection with select field in POST /api/find/:model
 
 # Source helpers
 source "$(dirname "$0")/../test-helper.sh"
@@ -59,7 +59,7 @@ fi
 
 # Check that non-selected fields are excluded (if implementation supports field filtering)
 if echo "$first_record" | jq -e '.balance' >/dev/null; then
-    print_warning "Non-selected field 'balance' is present (SELECT may not filter columns)"
+    print_warning "Non-selected field 'balance' is present (SELECT may not filter fields)"
 else
     print_success "Non-selected field 'balance' correctly excluded"
 fi
@@ -151,7 +151,7 @@ invalid_select_filter='{"select": ["nonexistent_field"]}'
 
 response=$(auth_post "api/find/account" "$invalid_select_filter" || echo '{"success":false,"error":"Expected error"}')
 
-# This should return an error since PostgreSQL will reject unknown columns
+# This should return an error since PostgreSQL will reject unknown fields
 if echo "$response" | jq -e '.success == false' >/dev/null; then
     print_success "Non-existent field SELECT correctly returned error"
 else

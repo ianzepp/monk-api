@@ -22,7 +22,7 @@
 - Boolean-based injection
 - Stacked queries prevention
 - Comment injection (--,  /*, */)
-- Schema information disclosure
+- Model information disclosure
 - PostgreSQL function injection (system functions)
 
 ## Notes

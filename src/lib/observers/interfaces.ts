@@ -6,8 +6,8 @@
  */
 
 import type { System } from '@src/lib/system.js';
-import type { Schema } from '@src/lib/schema.js';
-import type { SchemaRecord } from '@src/lib/schema-record.js';
+import type { Model } from '@src/lib/model.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
 import type {
     ObserverRing,
     OperationType,
@@ -26,11 +26,11 @@ export interface ObserverContext {
     /** Database operation being performed */
     operation: OperationType;
 
-    /** Loaded Schema object with validation and metadata */
-    schema: Schema;
+    /** Loaded Model object with validation and metadata */
+    model: Model;
 
-    /** Input data for create/update/delete operations (wrapped in SchemaRecord instances) */
-    data?: SchemaRecord[];
+    /** Input data for create/update/delete operations (wrapped in ModelRecord instances) */
+    data?: ModelRecord[];
 
     /** Filter criteria for select operations (rings 0-4), becomes data after ring 5 */
     filter?: any;
@@ -99,7 +99,7 @@ export interface ObserverConstructor {
 export interface ObserverStats {
     observerName: string;
     ring: ObserverRing;
-    schema: string;
+    model: string;
     operation: OperationType;
     executionTimeMs: number;
     success: boolean;
@@ -111,7 +111,7 @@ export interface ObserverStats {
  * Observer execution summary for a complete operation
  */
 export interface ObserverExecutionSummary {
-    schema: string;
+    model: string;
     operation: OperationType;
     totalTimeMs: number;
     ringsExecuted: ObserverRing[];

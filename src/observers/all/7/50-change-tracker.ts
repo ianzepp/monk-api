@@ -2,7 +2,7 @@
  * Change Tracker Observer
  *
  * Universal audit observer that tracks all data changes
- * Ring: 7 (Audit) - Schema: % (all schemas) - Operations: create, update, delete
+ * Ring: 7 (Audit) - Model: % (all models) - Operations: create, update, delete
  *
  * TODO: Re-enable when audit_log table is added to init-tenant.sql
  */
@@ -17,22 +17,22 @@ export default class ChangeTracker extends BaseObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { operation, schema } = context;
+        const { operation, model } = context;
 
         // TODO: Temporarily disabled for testing - re-enable when audit_log table is created
-        console.info(`📝 Change tracker triggered for ${schema.schema_name} ${operation} (disabled for testing)`);
+        console.info(`📝 Change tracker triggered for ${model.model_name} ${operation} (disabled for testing)`);
 
         // Early return - disabled for testing
         return;
     }
 
     private async createAuditRecord(context: ObserverContext): Promise<any> {
-        const { system, operation, schema, data } = context;
+        const { system, operation, model, data } = context;
 
         const auditRecord: any = {
             // Core audit fields
             operation,
-            schema: schema.schema_name,
+            model: model.model_name,
             record_id: this.getRecordId(data),
             user_id: system.getUser?.()?.id || 'system',
             timestamp: new Date().toISOString(),
@@ -50,7 +50,7 @@ export default class ChangeTracker extends BaseObserver {
             user_agent: this.getUserAgent(system),
         };
 
-        // Add operation-specific fields (data contains SchemaRecord instances)
+        // Add operation-specific fields (data contains ModelRecord instances)
         const records = (Array.isArray(data) ? data : [data]).filter((r): r is any => r != null);
         switch (operation) {
             case 'create':
@@ -92,7 +92,7 @@ export default class ChangeTracker extends BaseObserver {
                     changes_detail: {}
                 };
 
-                // Use SchemaRecord's getChanges() method
+                // Use ModelRecord's getChanges() method
                 const recordChanges = records[0].getChanges?.() || {};
 
                 for (const [key, change] of Object.entries(recordChanges)) {

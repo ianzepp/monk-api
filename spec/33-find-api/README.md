@@ -7,7 +7,7 @@
 ## Critical / Smoke Tests
 
 ### Existing Basic Tests (30 total: 26 shell, 4 TypeScript)
-- POST /api/find/:schema - Empty filter queries (basic-find.test.sh, basic-find.test.ts)
+- POST /api/find/:model - Empty filter queries (basic-find.test.sh, basic-find.test.ts)
 - Simple equality where clauses (simple-where.test.sh, where-equality.test.sh)
 - Basic field selection with ?select parameter (select-basic.test.sh)
 - Limit/pagination (limit-basic.test.sh, limit-basic.test.ts)

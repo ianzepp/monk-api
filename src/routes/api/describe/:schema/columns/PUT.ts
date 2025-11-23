@@ -5,45 +5,45 @@ import { stripSystemFields } from '@src/lib/describe.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * PUT /api/describe/:schema/columns
+ * PUT /api/describe/:model/fields
  *
- * Update multiple columns in bulk
+ * Update multiple fields in bulk
  *
- * Request body: Array of column updates
- * Each column must have: column_name (and any fields to update: type, required, default_value, etc.)
- * @returns Array of updated column records from columns table
+ * Request body: Array of field updates
+ * Each field must have: field_name (and any fields to update: type, required, default_value, etc.)
+ * @returns Array of updated field records from fields table
  */
-export default withTransactionParams(async (context, { system, schema, body }) => {
-    // TODO: Complete implementation - need to map column_name to id using schema cache
+export default withTransactionParams(async (context, { system, model, body }) => {
+    // TODO: Complete implementation - need to map field_name to id using model cache
     throw HttpErrors.notImplemented(
-        'Bulk column update endpoint is incomplete - use PUT /api/describe/:schema/columns/:column for single column updates',
+        'Bulk field update endpoint is incomplete - use PUT /api/describe/:model/fields/:field for single field updates',
         'ENDPOINT_INCOMPLETE'
     );
 
     // Validate body is an array
     if (!Array.isArray(body)) {
-        throw HttpErrors.badRequest('Request body must be an array of column updates');
+        throw HttpErrors.badRequest('Request body must be an array of field updates');
     }
 
-    // Validate each column has column_name
-    for (const column of body as any[]) {
-        if (!column.column_name) {
-            throw HttpErrors.badRequest('Each column update must include column_name');
+    // Validate each field has field_name
+    for (const field of body as any[]) {
+        if (!field.field_name) {
+            throw HttpErrors.badRequest('Each field update must include field_name');
         }
     }
 
-    // Inject schema_name into each column update
-    const columnsToUpdate = body.map((column: any) => ({
-        schema_name: schema!,
-        ...column
+    // Inject model_name into each field update
+    const fieldsToUpdate = body.map((field: any) => ({
+        model_name: model!,
+        ...field
     }));
 
-    console.log('PUT /api/describe/:schema/columns - Updating columns in bulk:', {
-        schema: schema!,
-        columnCount: columnsToUpdate.length
+    console.log('PUT /api/describe/:model/fields - Updating fields in bulk:', {
+        model: model!,
+        fieldCount: fieldsToUpdate.length
     });
 
-    const results = await system.describe.columns.updateAll(columnsToUpdate);
+    const results = await system.describe.fields.updateAll(fieldsToUpdate);
 
     // Strip system fields from all results
     setRouteResult(context, results.map(stripSystemFields));

@@ -63,8 +63,8 @@ import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Special protected endpoints
 import BulkPost from '@src/routes/api/bulk/POST.js'; // POST /api/bulk
-import FindSchemaPost from '@src/routes/api/find/:schema/POST.js'; // POST /api/find/:schema
-import AggregateSchemaPost from '@src/routes/api/aggregate/:schema/POST.js'; // POST /api/aggregate/:schema
+import FindModelPost from '@src/routes/api/find/:model/POST.js'; // POST /api/find/:model
+import AggregateModelPost from '@src/routes/api/aggregate/:model/POST.js'; // POST /api/aggregate/:model
 
 // Check database connection before doing anything else
 console.info('Checking database connection:');
@@ -134,21 +134,21 @@ app.get('/', context => {
             ],
             describe: [
                 '/api/describe',
-                '/api/describe/:schema',
-                '/api/describe/:schema/columns',
-                '/api/describe/:schema/columns/:column'
+                '/api/describe/:model',
+                '/api/describe/:model/fields',
+                '/api/describe/:model/fields/:field'
             ],
             data: [
-                '/api/data/:schema',
-                '/api/data/:schema/:record',
-                '/api/data/:schema/:record/:relationship',
-                '/api/data/:schema/:record/:relationship/:child'
+                '/api/data/:model',
+                '/api/data/:model/:record',
+                '/api/data/:model/:record/:relationship',
+                '/api/data/:model/:record/:relationship/:child'
             ],
             find: [
-                '/api/find/:schema'
+                '/api/find/:model'
             ],
             aggregate: [
-                '/api/aggregate/:schema'
+                '/api/aggregate/:model'
             ],
             bulk: [
                 '/api/bulk'
@@ -160,14 +160,14 @@ app.get('/', context => {
                 '/api/user/deactivate'
             ],
             acls: [
-                '/api/acls/:schema/:record'
+                '/api/acls/:model/:record'
             ],
             stat: [
-                '/api/stat/:schema/:record'
+                '/api/stat/:model/:record'
             ],
             history: [
-                '/api/history/:schema/:record',
-                '/api/history/:schema/:record/:change'
+                '/api/history/:model/:record',
+                '/api/history/:model/:record/:change'
             ],
             sudo: [
                 '/api/sudo/sandboxes/',
@@ -247,43 +247,43 @@ app.get('/test/pools', testRoutes.PoolsGet); // GET /test/pools
 app.delete('/test/pools', testRoutes.PoolsDelete); // DELETE /test/pools
 
 // 31-describe-api: Describe API routes
-app.get('/api/describe', describeRoutes.SchemaList); // Lists all schemas
-app.post('/api/describe/:schema', describeRoutes.SchemaPost); // Create schema (with URL name)
-app.get('/api/describe/:schema', describeRoutes.SchemaGet); // Get schema
-app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema
-app.delete('/api/describe/:schema', describeRoutes.SchemaDelete); // Delete schema
+app.get('/api/describe', describeRoutes.ModelList); // Lists all models
+app.post('/api/describe/:model', describeRoutes.ModelPost); // Create model (with URL name)
+app.get('/api/describe/:model', describeRoutes.ModelGet); // Get model
+app.put('/api/describe/:model', describeRoutes.ModelPut); // Update model
+app.delete('/api/describe/:model', describeRoutes.ModelDelete); // Delete model
 
-// 31-describe-api: Column-level Describe API routes
-app.get('/api/describe/:schema/columns', describeRoutes.ColumnsList); // List all columns in schema
-app.post('/api/describe/:schema/columns', describeRoutes.ColumnsPost); // Create columns in bulk
-app.put('/api/describe/:schema/columns', describeRoutes.ColumnsPut); // Update columns in bulk
-app.post('/api/describe/:schema/columns/:column', describeRoutes.ColumnPost); // Create column
-app.get('/api/describe/:schema/columns/:column', describeRoutes.ColumnGet); // Get column
-app.put('/api/describe/:schema/columns/:column', describeRoutes.ColumnPut); // Update column
-app.delete('/api/describe/:schema/columns/:column', describeRoutes.ColumnDelete); // Delete column
+// 31-describe-api: Field-level Describe API routes
+app.get('/api/describe/:model/fields', describeRoutes.FieldsList); // List all fields in model
+app.post('/api/describe/:model/fields', describeRoutes.FieldsPost); // Create fields in bulk
+app.put('/api/describe/:model/fields', describeRoutes.FieldsPut); // Update fields in bulk
+app.post('/api/describe/:model/fields/:field', describeRoutes.FieldPost); // Create field
+app.get('/api/describe/:model/fields/:field', describeRoutes.FieldGet); // Get field
+app.put('/api/describe/:model/fields/:field', describeRoutes.FieldPut); // Update field
+app.delete('/api/describe/:model/fields/:field', describeRoutes.FieldDelete); // Delete field
 
 // 32-data-api: Data API routes
-app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records
-app.get('/api/data/:schema', dataRoutes.SchemaGet); // List records
-app.put('/api/data/:schema', dataRoutes.SchemaPut); // Bulk update records
-app.delete('/api/data/:schema', dataRoutes.SchemaDelete); // Bulk delete records
+app.post('/api/data/:model', dataRoutes.ModelPost); // Create records
+app.get('/api/data/:model', dataRoutes.ModelGet); // List records
+app.put('/api/data/:model', dataRoutes.ModelPut); // Bulk update records
+app.delete('/api/data/:model', dataRoutes.ModelDelete); // Bulk delete records
 
-app.get('/api/data/:schema/:record', dataRoutes.RecordGet); // Get single record
-app.put('/api/data/:schema/:record', dataRoutes.RecordPut); // Update single record
-app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete single record
+app.get('/api/data/:model/:record', dataRoutes.RecordGet); // Get single record
+app.put('/api/data/:model/:record', dataRoutes.RecordPut); // Update single record
+app.delete('/api/data/:model/:record', dataRoutes.RecordDelete); // Delete single record
 
-app.get('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
-app.post('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
-app.delete('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
-app.get('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
-app.put('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
-app.delete('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
+app.get('/api/data/:model/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
+app.post('/api/data/:model/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
+app.delete('/api/data/:model/:record/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
+app.get('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
+app.put('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
+app.delete('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
 
 // 33-find-api: Find API routes
-app.post('/api/find/:schema', FindSchemaPost);
+app.post('/api/find/:model', FindModelPost);
 
 // 34-aggregate-api: Aggregate API routes
-app.post('/api/aggregate/:schema', AggregateSchemaPost);
+app.post('/api/aggregate/:model', AggregateModelPost);
 
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);
@@ -296,21 +296,21 @@ app.put('/api/user/profile', userRoutes.ProfilePut); // PUT /api/user/profile
 app.post('/api/user/deactivate', userRoutes.DeactivatePost); // POST /api/user/deactivate
 
 // 38-acls-api: Acls API routes
-app.get('/api/acls/:schema/:record', aclsRoutes.RecordAclGet); // Get acls for a single record
-app.post('/api/acls/:schema/:record', aclsRoutes.RecordAclPost); // Merge acls for a single record
-app.put('/api/acls/:schema/:record', aclsRoutes.RecordAclPut); // Replace acls for a single record
-app.delete('/api/acls/:schema/:record', aclsRoutes.RecordAclDelete); // Delete acls for a single record
+app.get('/api/acls/:model/:record', aclsRoutes.RecordAclGet); // Get acls for a single record
+app.post('/api/acls/:model/:record', aclsRoutes.RecordAclPost); // Merge acls for a single record
+app.put('/api/acls/:model/:record', aclsRoutes.RecordAclPut); // Replace acls for a single record
+app.delete('/api/acls/:model/:record', aclsRoutes.RecordAclDelete); // Delete acls for a single record
 
 // 39-stat-api: Stat API routes (record metadata without user data)
-app.get('/api/stat/:schema/:record', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
+app.get('/api/stat/:model/:record', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
 
 // 41-sudo-api: Sudo API routes (require sudo token from /api/user/sudo)
 app.use('/api/sudo/*', middleware.sudoAccessMiddleware);
 app.route('/api/sudo', sudoRouter);
 
 // 42-history-api: History API routes (change tracking and audit trails)
-app.get('/api/history/:schema/:record', historyRoutes.RecordHistoryGet); // List all changes for a record
-app.get('/api/history/:schema/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
+app.get('/api/history/:model/:record', historyRoutes.RecordHistoryGet); // List all changes for a record
+app.get('/api/history/:model/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
 
 // 50-extracts-app: Extract application (data export jobs)
 app.post('/api/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job

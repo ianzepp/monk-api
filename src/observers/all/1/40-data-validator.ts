@@ -1,14 +1,14 @@
 /**
  * Data Validator Observer - Optimized Single-Loop Architecture
  *
- * Replaces JSON Schema (AJV) validation with in-house validators for better
- * performance and full schema/column feature support.
+ * Replaces JSON Model (AJV) validation with in-house validators for better
+ * performance and full model/field feature support.
  *
  * Performance Optimizations:
  * - Single loop over records (not N separate loops)
  * - Single loop over relevant fields only (not all fields repeatedly)
- * - Pre-merged validation metadata from Schema class (O(1) access)
- * - Pre-compiled regex patterns (compiled once per schema, not per record)
+ * - Pre-merged validation metadata from Model class (O(1) access)
+ * - Pre-compiled regex patterns (compiled once per model, not per record)
  * - System fields already excluded from validationFields
  * - Collects ALL validation errors before throwing (user-friendly)
  *
@@ -25,7 +25,7 @@
  * - Enum values (allowed value lists)
  *
  * Ring 1 (Input Validation) - Priority 40
- * Runs after: FreezeValidator (20), ColumnSudoValidator (25), ImmutableValidator (30)
+ * Runs after: FreezeValidator (20), FieldSudoValidator (25), ImmutableValidator (30)
  * Runs before: SudoValidator (50)
  */
 
@@ -33,7 +33,7 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
-import type { FieldValidationConfig } from '@src/lib/schema.js';
+import type { FieldValidationConfig } from '@src/lib/model.js';
 
 // Import validation utility functions
 import { validateScalarType, validateArrayType } from '@src/lib/validators/types.js';
@@ -51,7 +51,7 @@ export default class DataValidator extends BaseObserver {
     readonly priority = 40;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { schema, data } = context;
+        const { model, data } = context;
 
         // Check if data exists
         if (!data || data.length === 0) {
@@ -59,11 +59,11 @@ export default class DataValidator extends BaseObserver {
         }
 
         // Get pre-merged validation fields (already excludes system fields)
-        const validationFields = schema.getValidationFields();
+        const validationFields = model.getValidationFields();
 
         // Early exit if no fields require validation
         if (validationFields.length === 0) {
-            console.info('No validation fields defined', { schemaName: schema.schema_name });
+            console.info('No validation fields defined', { modelName: model.model_name });
             return;
         }
 
@@ -85,7 +85,7 @@ export default class DataValidator extends BaseObserver {
         }
 
         // Throw if any validation errors occurred
-        this.throwIfErrors(errors, schema.schema_name, data?.length || 0, validationFields.length);
+        this.throwIfErrors(errors, model.model_name, data?.length || 0, validationFields.length);
     }
 
     /**
@@ -300,14 +300,14 @@ export default class DataValidator extends BaseObserver {
      */
     private throwIfErrors(
         errors: ValidationErrorDetail[],
-        schemaName: string,
+        modelName: string,
         recordCount: number,
         validatedFieldCount: number
     ): void {
         if (errors.length === 0) {
             // All validation passed
             console.info('Data validation passed', {
-                schemaName,
+                modelName,
                 recordCount,
                 validatedFields: validatedFieldCount,
             });
@@ -323,7 +323,7 @@ export default class DataValidator extends BaseObserver {
         }
 
         console.warn('Data validation failed', {
-            schemaName,
+            modelName,
             totalRecords: recordCount,
             failedRecords: errorsByRecord.size,
             totalErrors: errors.length,
@@ -338,7 +338,7 @@ export default class DataValidator extends BaseObserver {
         const additionalErrors = errors.length > 5 ? `\n  ... and ${errors.length - 5} more errors` : '';
 
         throw new ValidationError(
-            `Data validation failed for schema '${schemaName}' with ${errors.length} error(s):\n${violationSummary}${additionalErrors}`,
+            `Data validation failed for model '${modelName}' with ${errors.length} error(s):\n${violationSummary}${additionalErrors}`,
             undefined, // No specific field
             'DATA_VALIDATION_FAILED'
         );
