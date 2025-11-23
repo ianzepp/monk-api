@@ -1,7 +1,7 @@
 /**
  * DDL Delete Observer - Ring 6 PostDatabase
  *
- * Executes ALTER TABLE DROP FIELD DDL after field record is soft-deleted in ring 5.
+ * Executes ALTER TABLE DROP COLUMN DDL after field record is soft-deleted in ring 5.
  * This permanently removes the field and all its data from the PostgreSQL table.
  */
 
@@ -38,8 +38,8 @@ export default class DdlDeleteObserver extends BaseObserver {
             return;
         }
 
-        // Generate ALTER TABLE DROP FIELD DDL
-        const ddl = `ALTER TABLE "${model_name}" DROP FIELD IF EXISTS "${field_name}"`;
+        // Generate ALTER TABLE DROP COLUMN DDL
+        const ddl = `ALTER TABLE "${model_name}" DROP COLUMN IF EXISTS "${field_name}"`;
 
         // Execute DDL
         try {

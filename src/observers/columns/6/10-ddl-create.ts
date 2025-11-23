@@ -1,7 +1,7 @@
 /**
  * DDL Create Observer - Ring 6 PostDatabase
  *
- * Executes ALTER TABLE ADD FIELD DDL after field record is created in ring 5.
+ * Executes ALTER TABLE ADD COLUMN DDL after field record is created in ring 5.
  * Adds the new field to the existing table with appropriate type, constraints, and defaults.
  */
 
@@ -57,8 +57,8 @@ export default class DdlCreateObserver extends BaseObserver {
             }
         }
 
-        // Generate ALTER TABLE ADD FIELD DDL
-        const ddl = `ALTER TABLE "${model_name}" ADD FIELD "${field_name}" ${pgType}${nullable}${defaultValue}`;
+        // Generate ALTER TABLE ADD COLUMN DDL
+        const ddl = `ALTER TABLE "${model_name}" ADD COLUMN "${field_name}" ${pgType}${nullable}${defaultValue}`;
 
         // Execute DDL
         try {

@@ -2,7 +2,7 @@
  * System Table Protector - Ring 3 Business Logic
  *
  * Prevents creation of models that would conflict with PostgreSQL system tables
- * or other critical system namespaces (pg_*, information_model, etc.)
+ * or other critical system namespaces (pg_*, information_schema, etc.)
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -15,7 +15,7 @@ import type { ModelRecord } from '@src/lib/model-record.js';
 // System tables and models that are protected
 const SYSTEM_TABLES = new Set([
     'pg_catalog',
-    'information_model',
+    'information_schema',
     'pg_toast',
     'pg_temp',
     'pg_temp_1',
@@ -46,7 +46,7 @@ export default class SystemTableProtector extends BaseObserver {
         const result = await SqlUtils.getPool(system).query(
             `SELECT tablename FROM pg_tables WHERE tablename = $1
              UNION
-             SELECT table_name FROM information_model.tables WHERE table_name = $1
+             SELECT table_name FROM information_schema.tables WHERE table_name = $1
              LIMIT 1`,
             [model_name]
         );

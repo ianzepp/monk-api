@@ -1,6 +1,6 @@
 # POST /api/describe/:model/fields/:field
 
-Add a new field to an existing model. This operation modifies both the fields table (metadata) and the PostgreSQL table structure (ALTER TABLE ADD FIELD).
+Add a new field to an existing model. This operation modifies both the fields table (metadata) and the PostgreSQL table structure (ALTER TABLE ADD COLUMN).
 
 ## Path Parameters
 
@@ -374,7 +374,7 @@ Adding a field triggers:
 1. Record created in `fields` table
 2. PostgreSQL ALTER TABLE executed:
    ```sql
-   ALTER TABLE users ADD FIELD phone TEXT;
+   ALTER TABLE users ADD COLUMN phone TEXT;
    ```
 3. Indexes/constraints created if specified
 4. Model cache invalidated

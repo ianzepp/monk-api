@@ -6,7 +6,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
  * DELETE /api/describe/:model/fields/:field - Delete Field
  *
  * Tests field deletion. Performs both soft delete (marks as trashed)
- * and hard delete (DROP FIELD from PostgreSQL table).
+ * and hard delete (DROP COLUMN from PostgreSQL table).
  */
 
 describe('DELETE /api/describe/:model/fields/:field - Delete Field', () => {

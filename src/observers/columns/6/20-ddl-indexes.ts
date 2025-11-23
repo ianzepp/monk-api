@@ -182,7 +182,7 @@ export default class DdlIndexesObserver extends BaseObserver {
 
     /**
      * Drop indexes when field is deleted
-     * Note: DROP FIELD should cascade to indexes, but we explicitly drop for clarity
+     * Note: DROP COLUMN should cascade to indexes, but we explicitly drop for clarity
      */
     private async handleDelete(record: any, system: any, model_name: string, field_name: string): Promise<void> {
         const pool = SqlUtils.getPool(system);

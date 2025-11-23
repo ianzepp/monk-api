@@ -105,7 +105,7 @@ export class DescribeFields {
      * Create new field
      *
      * Validates model protection and field name, then creates field record.
-     * Observer pipeline will handle DDL (ALTER TABLE ADD FIELD) and type mapping.
+     * Observer pipeline will handle DDL (ALTER TABLE ADD COLUMN) and type mapping.
      */
     async createOne(data: DbCreateInput<Omit<FieldRecord, keyof SystemFields>>): Promise<FieldRecord> {
         // Validate model is not protected
@@ -134,7 +134,7 @@ export class DescribeFields {
      * Create multiple fields in bulk
      *
      * Validates model protection and field names for all fields, then creates field records.
-     * Observer pipeline will handle DDL (ALTER TABLE ADD FIELD) and type mapping for each.
+     * Observer pipeline will handle DDL (ALTER TABLE ADD COLUMN) and type mapping for each.
      */
     async createAll(dataArray: DbCreateInput<Omit<FieldRecord, keyof SystemFields>>[]): Promise<FieldRecord[]> {
         // Validate all models and field names before creating
@@ -209,7 +209,7 @@ export class DescribeFields {
      * Delete field by filter (throws 404 if not found)
      *
      * Validates model protection before deleting.
-     * Observer pipeline will handle DDL (ALTER TABLE DROP FIELD).
+     * Observer pipeline will handle DDL (ALTER TABLE DROP COLUMN).
      */
     async delete404(filter: FilterData, message?: string): Promise<FieldRecord> {
         // Extract model name from filter for validation

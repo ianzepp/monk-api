@@ -1,7 +1,7 @@
 /**
  * DDL Update Observer - Ring 6 PostDatabase
  *
- * Executes ALTER TABLE ALTER FIELD DDL after field record is updated in ring 5.
+ * Executes ALTER TABLE ALTER COLUMN DDL after field record is updated in ring 5.
  * Handles type changes, required/NOT NULL changes, and default value changes.
  *
  * Uses ModelRecord's change tracking (changed(), get(), getOriginal()) to detect
@@ -47,16 +47,16 @@ export default class DdlUpdateObserver extends BaseObserver {
         // Types are already PostgreSQL types (converted by Ring 4 type-mapper)
         if (record.changed('type')) {
             const newPgType = record.get('type');
-            ddlCommands.push(`ALTER TABLE "${model_name}" ALTER FIELD "${field_name}" TYPE ${newPgType}`);
+            ddlCommands.push(`ALTER TABLE "${model_name}" ALTER COLUMN "${field_name}" TYPE ${newPgType}`);
         }
 
         // Handle required (NOT NULL) change
         if (record.changed('required')) {
             const newRequired = Boolean(record.get('required'));
             if (newRequired) {
-                ddlCommands.push(`ALTER TABLE "${model_name}" ALTER FIELD "${field_name}" SET NOT NULL`);
+                ddlCommands.push(`ALTER TABLE "${model_name}" ALTER COLUMN "${field_name}" SET NOT NULL`);
             } else {
-                ddlCommands.push(`ALTER TABLE "${model_name}" ALTER FIELD "${field_name}" DROP NOT NULL`);
+                ddlCommands.push(`ALTER TABLE "${model_name}" ALTER COLUMN "${field_name}" DROP NOT NULL`);
             }
         }
 
@@ -65,7 +65,7 @@ export default class DdlUpdateObserver extends BaseObserver {
             const newDefault = record.get('default_value');
             if (newDefault === null || newDefault === undefined) {
                 // Remove default
-                ddlCommands.push(`ALTER TABLE "${model_name}" ALTER FIELD "${field_name}" DROP DEFAULT`);
+                ddlCommands.push(`ALTER TABLE "${model_name}" ALTER COLUMN "${field_name}" DROP DEFAULT`);
             } else {
                 // Set new default
                 let defaultValue: string;
@@ -75,7 +75,7 @@ export default class DdlUpdateObserver extends BaseObserver {
                 } else {
                     defaultValue = String(newDefault);
                 }
-                ddlCommands.push(`ALTER TABLE "${model_name}" ALTER FIELD "${field_name}" SET DEFAULT ${defaultValue}`);
+                ddlCommands.push(`ALTER TABLE "${model_name}" ALTER COLUMN "${field_name}" SET DEFAULT ${defaultValue}`);
             }
         }
 

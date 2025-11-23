@@ -274,7 +274,7 @@ Grid API uses the **external model pattern** - model definition lives in the sys
 
 **Migration:**
 ```sql
-ALTER TABLE models ADD FIELD external BOOLEAN DEFAULT false;
+ALTER TABLE models ADD COLUMN external BOOLEAN DEFAULT false;
 ```
 
 **Purpose:** Flag models as externally managed (data not accessible via Data API)

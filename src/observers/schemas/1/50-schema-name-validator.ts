@@ -29,7 +29,7 @@ const RESERVED_WORDS = new Set([
 ]);
 
 // System table prefixes that should not be used
-const SYSTEM_PREFIXES = ['pg_', 'information_model', 'sql_', 'sys_'];
+const SYSTEM_PREFIXES = ['pg_', 'information_schema', 'sql_', 'sys_'];
 
 export default class model_nameValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1

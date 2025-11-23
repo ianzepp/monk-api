@@ -161,7 +161,7 @@ When you delete a field:
 
 ### Immediate Actions
 - Field record in `fields` table marked with `trashed_at`
-- PostgreSQL field **dropped** from table (`ALTER TABLE DROP FIELD`)
+- PostgreSQL field **dropped** from table (`ALTER TABLE DROP COLUMN`)
 - **All data in the field is permanently deleted**
 - Associated indexes dropped
 - Associated constraints removed
@@ -222,7 +222,7 @@ GET /api/data/fields?where={"related_model":"model","related_field":"field"}
 
 ## Performance Considerations
 
-- Field deletion is a DDL operation (ALTER TABLE DROP FIELD)
+- Field deletion is a DDL operation (ALTER TABLE DROP COLUMN)
 - May lock table briefly during deletion
 - Faster than adding fields (no data migration)
 - Consider maintenance windows for large tables
@@ -248,7 +248,7 @@ Attempting to delete protected fields:
 
 Deleting a field executes:
 ```sql
-ALTER TABLE model_name DROP FIELD field_name CASCADE;
+ALTER TABLE model_name DROP COLUMN field_name CASCADE;
 ```
 
 The `CASCADE` option ensures:

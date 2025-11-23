@@ -405,7 +405,7 @@ setup_sudo_auth "Testing snapshots API operations"
 #   - Create tenant with custom models
 #   - Create snapshot
 #   - Wait for active
-#   - Query snapshot database information_model
+#   - Query snapshot database information_schema
 #   - Verify all models present
 #   - Verify all tables present
 #   - Complete database backup
