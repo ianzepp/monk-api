@@ -31,7 +31,7 @@ INSERT INTO fields (model_name, field_name, type, required, description, minimum
   VALUES ('repositories', 'stars', 'integer', 'false', 'Star count', 0, 999999);
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('repositories');
+SELECT create_table_from_schema('repositories');
 
 -- Add composite unique constraint (workspace_id, slug) for scoped uniqueness
 ALTER TABLE repositories ADD CONSTRAINT repositories_workspace_slug_unique UNIQUE(workspace_id, slug);

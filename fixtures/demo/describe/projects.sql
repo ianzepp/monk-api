@@ -31,7 +31,7 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('projects', 'tags', 'text[]', 'false', 'Project tags for categorization');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('projects');
+SELECT create_table_from_schema('projects');
 
 -- Add composite unique constraint (workspace_id, name) for scoped uniqueness
 ALTER TABLE projects ADD CONSTRAINT projects_workspace_name_unique UNIQUE(workspace_id, name);

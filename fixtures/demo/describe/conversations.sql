@@ -31,4 +31,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('conversations', 'last_message_at', 'timestamp', 'false', 'Timestamp of most recent message');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('conversations');
+SELECT create_table_from_schema('conversations');

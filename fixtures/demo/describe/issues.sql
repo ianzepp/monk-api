@@ -34,4 +34,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('issues', 'closed_at', 'timestamp', 'false', 'Timestamp when issue was closed');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('issues');
+SELECT create_table_from_schema('issues');

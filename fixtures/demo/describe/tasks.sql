@@ -37,4 +37,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('tasks', 'completed_at', 'timestamp', 'false', 'Timestamp when task was completed');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('tasks');
+SELECT create_table_from_schema('tasks');

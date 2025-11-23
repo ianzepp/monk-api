@@ -37,4 +37,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('docs', 'accessed_at', 'timestamp', 'false', 'Timestamp when document was last accessed (for LRU/popularity tracking)');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('docs');
+SELECT create_table_from_schema('docs');

@@ -28,4 +28,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('members', 'joined_at', 'timestamp', 'false', 'Timestamp when member joined the team');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('members');
+SELECT create_table_from_schema('members');

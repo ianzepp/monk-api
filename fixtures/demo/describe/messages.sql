@@ -22,4 +22,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('messages', 'metadata', 'jsonb', 'false', 'Message metadata (function calls, code blocks, attachments, reasoning traces)');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('messages');
+SELECT create_table_from_schema('messages');

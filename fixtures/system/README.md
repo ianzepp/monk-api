@@ -40,8 +40,8 @@ The fixture must be loaded in this specific order:
    - Extract system: extracts, extract_runs, extract_artifacts
 
 3. **Functions** (`functions/*.sql`)
-   - `create_table_from_model()` - Dynamically creates tables
-   - `create_table_from_model()` - Dynamically creates data tables
+   - `create_table_from_schema()` - Dynamically creates tables
+   - `create_table_from_schema()` - Dynamically creates data tables
 
 4. **Data** (`data/*.sql`)
    - Model registrations (self-references)

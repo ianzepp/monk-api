@@ -34,4 +34,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('releases', 'published_at', 'timestamp', 'false', 'Timestamp when release was published');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('releases');
+SELECT create_table_from_schema('releases');

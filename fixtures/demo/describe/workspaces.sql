@@ -19,4 +19,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('workspaces', 'settings', 'jsonb', 'false', 'Workspace settings (theme, preferences, feature flags)');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('workspaces');
+SELECT create_table_from_schema('workspaces');

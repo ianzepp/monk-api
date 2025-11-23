@@ -19,7 +19,7 @@ INSERT INTO fields (model_name, field_name, type, required, description, enum_va
   VALUES ('teams', 'focus_area', 'text', 'false', 'Team focus area', ARRAY['backend', 'frontend', 'ai-ml', 'devops', 'design', 'product', 'data']);
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('teams');
+SELECT create_table_from_schema('teams');
 
 -- Add composite unique constraint (workspace_id, name) for scoped uniqueness
 ALTER TABLE teams ADD CONSTRAINT teams_workspace_name_unique UNIQUE(workspace_id, name);

@@ -42,4 +42,4 @@ INSERT INTO fields (model_name, field_name, type, required, description, pattern
   VALUES ('account', 'phone', 'text', 'false', 'Phone number (optional)', '^\+?[1-9]\d{1,14}$|^\+?1 \([0-9]{3}\) [0-9]{3}-[0-9]{4}$');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('account');
+SELECT create_table_from_schema('account');

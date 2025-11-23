@@ -16,4 +16,4 @@ INSERT INTO fields (model_name, field_name, type, required, description, maximum
   VALUES ('issue_comments', 'body', 'text', 'true', 'Comment content', 5000);
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('issue_comments');
+SELECT create_table_from_schema('issue_comments');

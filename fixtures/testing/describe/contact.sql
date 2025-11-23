@@ -24,4 +24,4 @@ INSERT INTO fields (model_name, field_name, type, required, description)
   VALUES ('contact', 'notes', 'text', 'false', 'Additional notes about the contact');
 
 -- Create the actual table from model definition
-SELECT create_table_from_model('contact');
+SELECT create_table_from_schema('contact');
