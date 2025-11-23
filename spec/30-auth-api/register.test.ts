@@ -10,7 +10,7 @@ import { expectSuccess } from '../test-assertions.js';
  */
 
 describe('POST /auth/register - Register New Tenant', () => {
-    it.only('should register with only a new tenant name', async () => {
+    it('should register with only a new tenant name', async () => {
         const authClient = new AuthClient();
 
         const response = await authClient.register({
@@ -73,7 +73,7 @@ describe('POST /auth/register - Register New Tenant', () => {
         });
 
         expect(response.success).toBe(false);
-        expect(response.error).toContain('not found');
+        expect(response.error).toContain('Failed to read compiled fixture');
         expect(response.error_code).toBe('DATABASE_TEMPLATE_NOT_FOUND');
     });
 

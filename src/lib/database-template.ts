@@ -142,8 +142,9 @@ export class DatabaseTemplate {
             await NamespaceManager.createNamespace(targetDbName, targetNsName);
 
             try {
-                // 8. Deploy fixture to namespace (replaces database cloning)
-                await FixtureDeployer.deploy(template_name, {
+                // 8. Deploy fixtures to namespace with automatic dependency resolution
+                // This will deploy 'system' first if the template depends on it
+                await FixtureDeployer.deployMultiple([template_name], {
                     dbName: targetDbName,
                     nsName: targetNsName,
                 });
