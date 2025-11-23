@@ -81,8 +81,8 @@ Instead of choosing "database-per-tenant" XOR "schema-per-tenant", we choose BOT
 
 ```
 Tenants table:
-  database: "db_main"          ← Which physical database
-  schema: "tenant_a1b2c3d4"    ← Which schema within that database
+  database: "db_main"              ← Which physical database
+  schema: "ns_tenant_a1b2c3d4"     ← Which schema (namespace) within that database
 ```
 
 **Benefits:**
@@ -114,27 +114,27 @@ monk (infrastructure database)
     └── ...
 
 db_main (default shared tenant database)
-├── tenant_a1b2c3d4
-├── tenant_b2c3d4e5
-├── tenant_c3d4e5f6
+├── ns_tenant_a1b2c3d4
+├── ns_tenant_b2c3d4e5
+├── ns_tenant_c3d4e5f6
 └── ... (hundreds/thousands of lightweight tenants)
 
 db_test (test database)
-├── test_abc12345
-├── test_def67890
+├── ns_test_abc12345
+├── ns_test_def67890
 └── ... (test schemas, fast creation/cleanup)
 
 db_us_east (regional database - optional)
-├── tenant_regional_001
-├── tenant_regional_002
+├── ns_tenant_regional_001
+├── ns_tenant_regional_002
 └── monk_template_demo_crm (for regional testing/rollout)
 
 db_us_west (regional database - optional)
-├── tenant_regional_003
+├── ns_tenant_regional_003
 └── monk_template_demo_crm (controlled rollout validation)
 
 db_premium_<id> (dedicated database - optional)
-└── tenant_premium_001 (single tenant, dedicated resources)
+└── ns_tenant_premium_001 (single tenant, dedicated resources)
 ```
 
 ### Tenant Distribution Examples
@@ -143,29 +143,29 @@ db_premium_<id> (dedicated database - optional)
 ```
 name: "startup-a"
 database: "db_main"
-schema: "tenant_a1b2c3d4"
+schema: "ns_tenant_a1b2c3d4"
 
 name: "startup-b"
 database: "db_main"
-schema: "tenant_e5f6789a"
+schema: "ns_tenant_e5f6789a"
 ```
 
 **Premium Tenant (Dedicated Database):**
 ```
 name: "enterprise-corp"
 database: "db_premium_abc123"
-schema: "tenant_abc12345"
+schema: "ns_tenant_abc12345"
 ```
 
 **Regional Distribution:**
 ```
 name: "global-corp-us"
 database: "db_us_east"
-schema: "tenant_us_001"
+schema: "ns_tenant_us_001"
 
 name: "global-corp-eu"
 database: "db_eu_west"
-schema: "tenant_eu_001"
+schema: "ns_tenant_eu_001"
 ```
 
 ---
@@ -193,7 +193,7 @@ const hash = createHash('sha256')
     .digest('hex')
     .substring(0, 8);  // Changed from 16 to 8
 
-return `tenant_${hash}`;
+return `ns_tenant_${hash}`;
 ```
 
 ### 2. Naming Conventions
@@ -208,13 +208,13 @@ db_us_west     # Regional databases (optional)
 db_premium_*   # Premium tenant databases (created on-demand)
 ```
 
-**Schemas:**
+**Schemas (Namespaces):**
 ```
-monk_system              # System fixture (singleton)
-monk_template_<name>     # Templates
-tenant_<hash-8>          # Tenants
-test_<hash-8>            # Tests
-sandbox_<hash-8>         # Sandboxes
+monk_system                  # System fixture (singleton)
+monk_template_<name>         # Templates
+ns_tenant_<hash-8>           # Tenants
+ns_test_<hash-8>             # Tests
+ns_sandbox_<hash-8>          # Sandboxes
 ```
 
 ### 3. Default Shared Database: `db_main`
@@ -325,16 +325,16 @@ const TEMPLATE_PREFIX = 'monk_template_';
 // Examples: monk_template_system, monk_template_demo_crm
 
 // Tenants (in any tenant database)
-const TENANT_PREFIX = 'tenant_';
-// Example: tenant_a1b2c3d4
+const TENANT_PREFIX = 'ns_tenant_';
+// Example: ns_tenant_a1b2c3d4
 
 // Tests (in db_test)
-const TEST_PREFIX = 'test_';
-// Example: test_abc12345
+const TEST_PREFIX = 'ns_test_';
+// Example: ns_test_abc12345
 
 // Sandboxes (in any database)
-const SANDBOX_PREFIX = 'sandbox_';
-// Example: sandbox_xyz78901
+const SANDBOX_PREFIX = 'ns_sandbox_';
+// Example: ns_sandbox_xyz78901
 ```
 
 ---
@@ -413,7 +413,7 @@ ALTER TABLE tenants
 
     -- Schema naming validation
     ADD CONSTRAINT tenants_schema_prefix
-        CHECK (schema LIKE 'tenant_%');
+        CHECK (schema LIKE 'ns_tenant_%');
 
 -- Update indexes
 CREATE INDEX idx_tenants_database ON tenants(database);
@@ -424,9 +424,9 @@ CREATE INDEX idx_tenants_database_schema ON tenants(database, schema);
 **Example data:**
 ```sql
 INSERT INTO tenants (name, database, schema, source_template, owner_id) VALUES
-    ('startup-a', 'db_main', 'tenant_a1b2c3d4', 'system', '...'),
-    ('startup-b', 'db_main', 'tenant_e5f6789a', 'system', '...'),
-    ('enterprise-x', 'db_premium_001', 'tenant_abc12345', 'demo-crm', '...');
+    ('startup-a', 'db_main', 'ns_tenant_a1b2c3d4', 'system', '...'),
+    ('startup-b', 'db_main', 'ns_tenant_e5f6789a', 'system', '...'),
+    ('enterprise-x', 'db_premium_001', 'ns_tenant_abc12345', 'demo-crm', '...');
 ```
 
 ### Sandboxes Table
@@ -443,7 +443,7 @@ ALTER TABLE sandboxes
     ADD COLUMN schema VARCHAR(255) NOT NULL,
     ADD CONSTRAINT sandboxes_database_schema_unique UNIQUE(database, schema),
     ADD CONSTRAINT sandboxes_schema_prefix
-        CHECK (schema LIKE 'sandbox_%');
+        CHECK (schema LIKE 'ns_sandbox_%');
 
 CREATE INDEX idx_sandboxes_database ON sandboxes(database);
 CREATE INDEX idx_sandboxes_schema ON sandboxes(schema);
@@ -469,32 +469,32 @@ Complete rewrite to reflect new schema. See implementation checklist.
 ```typescript
 export class DatabaseNaming {
     /**
-     * Generate tenant schema name (8-char hash)
+     * Generate tenant namespace (schema) name (8-char hash)
      *
-     * @returns Schema name: tenant_<hash-8>
+     * @returns Namespace: ns_tenant_<hash-8>
      */
-    static generateSchemaName(tenantName: string): string {
+    static generateTenantNsName(tenantName: string): string {
         const normalizedName = tenantName.trim().normalize('NFC');
         const hash = createHash('sha256')
             .update(normalizedName, 'utf8')
             .digest('hex')
             .substring(0, 8);  // Changed from 16 to 8
 
-        return `tenant_${hash}`;
+        return `ns_tenant_${hash}`;
     }
 
     /**
-     * Generate test schema name
+     * Generate test namespace (schema) name
      */
-    static generateTestSchemaName(): string {
-        return `test_${randomBytes(4).toString('hex')}`;
+    static generateTestNsName(): string {
+        return `ns_test_${randomBytes(4).toString('hex')}`;
     }
 
     /**
-     * Generate sandbox schema name
+     * Generate sandbox namespace (schema) name
      */
-    static generateSandboxSchemaName(): string {
-        return `sandbox_${randomBytes(4).toString('hex')}`;
+    static generateSandboxNsName(): string {
+        return `ns_sandbox_${randomBytes(4).toString('hex')}`;
     }
 }
 ```
@@ -508,21 +508,21 @@ export class DatabaseNaming {
 ```typescript
 export class DatabaseConnection {
     /**
-     * Set search path for schema-scoped operations
+     * Set search path for namespace-scoped operations
      *
-     * CRITICAL: Prevents SQL injection via schema name validation
+     * CRITICAL: Prevents SQL injection via namespace validation
      */
     static async setSearchPath(
         client: pg.Client | pg.PoolClient,
-        schemaName: string
+        nsName: string
     ): Promise<void> {
-        // Validate schema name (prevent SQL injection)
-        if (!/^[a-zA-Z0-9_]+$/.test(schemaName)) {
-            throw new Error(`Invalid schema name: ${schemaName}`);
+        // Validate namespace (prevent SQL injection)
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+            throw new Error(`Invalid namespace: ${nsName}`);
         }
 
         // Use identifier quoting for safety
-        await client.query(`SET search_path TO "${schemaName}", public`);
+        await client.query(`SET search_path TO "${nsName}", public`);
     }
 
     /**
@@ -530,37 +530,37 @@ export class DatabaseConnection {
      */
     static async setLocalSearchPath(
         client: pg.Client | pg.PoolClient,
-        schemaName: string
+        nsName: string
     ): Promise<void> {
-        if (!/^[a-zA-Z0-9_]+$/.test(schemaName)) {
-            throw new Error(`Invalid schema name: ${schemaName}`);
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+            throw new Error(`Invalid namespace: ${nsName}`);
         }
 
         // LOCAL = transaction-scoped, reverts after commit/rollback
-        await client.query(`SET LOCAL search_path TO "${schemaName}", public`);
+        await client.query(`SET LOCAL search_path TO "${nsName}", public`);
     }
 
     /**
-     * Execute query in specific database + schema context
+     * Execute query in specific database + namespace context
      *
      * @example
-     * await DatabaseConnection.queryInSchema(
+     * await DatabaseConnection.queryInNamespace(
      *   'db_main',
-     *   'tenant_a1b2c3d4',
+     *   'ns_tenant_a1b2c3d4',
      *   'SELECT * FROM users'
      * );
      */
-    static async queryInSchema(
-        database: string,
-        schema: string,
+    static async queryInNamespace(
+        dbName: string,
+        nsName: string,
         query: string,
         params?: any[]
     ): Promise<pg.QueryResult> {
-        const pool = this.getPool(database);
+        const pool = this.getPool(dbName);
         const client = await pool.connect();
 
         try {
-            await this.setLocalSearchPath(client, schema);
+            await this.setLocalSearchPath(client, nsName);
             return await client.query(query, params);
         } finally {
             client.release();
@@ -568,23 +568,23 @@ export class DatabaseConnection {
     }
 
     /**
-     * Attach tenant database + schema to Hono context
+     * Attach tenant database + namespace to Hono context
      *
-     * UPDATED: Now sets both database and schema from JWT
+     * UPDATED: Now sets both database and namespace from JWT
      */
-    static setDatabaseForRequest(c: any, database: string, schema: string): void {
-        const pool = this.getPool(database);
+    static setDatabaseForRequest(c: any, dbName: string, nsName: string): void {
+        const pool = this.getPool(dbName);
         c.set('database', pool);
-        c.set('databaseName', database);
-        c.set('schemaName', schema);
+        c.set('dbName', dbName);
+        c.set('nsName', nsName);
     }
 }
 ```
 
 **Remove/Deprecate:**
-- `getTenantPool(databaseName)` - replaced by `getPool(database)` + `setSearchPath(schema)`
+- `getTenantPool(dbName)` - replaced by `getPool(dbName)` + `setSearchPath(nsName)`
 - `MONK_DB_TENANT_PREFIX` constant - no longer needed
-- Database prefix validation for tenants - now validates schema names
+- Database prefix validation for tenants - now validates namespace names
 
 ### 3. Schema Management Utilities
 
@@ -594,51 +594,51 @@ export class DatabaseConnection {
 import pg from 'pg';
 import { DatabaseConnection } from './database-connection.js';
 
-export class SchemaManager {
+export class NamespaceManager {
     /**
-     * Create new schema in target database
+     * Create new namespace (schema) in target database
      */
-    static async createSchema(database: string, schema: string): Promise<void> {
-        this.validateSchemaName(schema);
+    static async createNamespace(dbName: string, nsName: string): Promise<void> {
+        this.validateNamespaceName(nsName);
 
-        const pool = DatabaseConnection.getPool(database);
-        await pool.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+        const pool = DatabaseConnection.getPool(dbName);
+        await pool.query(`CREATE SCHEMA IF NOT EXISTS "${nsName}"`);
 
-        console.info('Schema created', { database, schema });
+        console.info('Namespace created', { dbName, nsName });
     }
 
     /**
-     * Drop schema and all objects within it
+     * Drop namespace (schema) and all objects within it
      */
-    static async dropSchema(database: string, schema: string): Promise<void> {
-        this.validateSchemaName(schema);
+    static async dropNamespace(dbName: string, nsName: string): Promise<void> {
+        this.validateNamespaceName(nsName);
 
-        const pool = DatabaseConnection.getPool(database);
-        await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+        const pool = DatabaseConnection.getPool(dbName);
+        await pool.query(`DROP SCHEMA IF EXISTS "${nsName}" CASCADE`);
 
-        console.info('Schema dropped', { database, schema });
+        console.info('Namespace dropped', { dbName, nsName });
     }
 
     /**
-     * Check if schema exists
+     * Check if namespace (schema) exists
      */
-    static async schemaExists(database: string, schema: string): Promise<boolean> {
-        const pool = DatabaseConnection.getPool(database);
+    static async namespaceExists(dbName: string, nsName: string): Promise<boolean> {
+        const pool = DatabaseConnection.getPool(dbName);
         const result = await pool.query(
             `SELECT EXISTS(
                 SELECT 1 FROM information_schema.schemata
                 WHERE schema_name = $1
             )`,
-            [schema]
+            [nsName]
         );
         return result.rows[0].exists;
     }
 
     /**
-     * Get all schemas in database (excluding system schemas)
+     * Get all namespaces (schemas) in database (excluding system schemas)
      */
-    static async listSchemas(database: string): Promise<string[]> {
-        const pool = DatabaseConnection.getPool(database);
+    static async listNamespaces(dbName: string): Promise<string[]> {
+        const pool = DatabaseConnection.getPool(dbName);
         const result = await pool.query(`
             SELECT schema_name
             FROM information_schema.schemata
@@ -650,23 +650,23 @@ export class SchemaManager {
     }
 
     /**
-     * Validate schema name (prevent SQL injection)
+     * Validate namespace (schema) name (prevent SQL injection)
      */
-    private static validateSchemaName(schema: string): void {
-        if (typeof schema !== 'string' || !schema.trim()) {
-            throw new Error('Schema name must be a non-empty string');
+    private static validateNamespaceName(nsName: string): void {
+        if (typeof nsName !== 'string' || !nsName.trim()) {
+            throw new Error('Namespace name must be a non-empty string');
         }
 
-        if (!/^[a-zA-Z0-9_]+$/.test(schema)) {
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
             throw new Error(
-                `Invalid schema name "${schema}". ` +
+                `Invalid namespace name "${nsName}". ` +
                 'Must contain only alphanumeric characters and underscores.'
             );
         }
 
-        if (schema.length > 63) {
+        if (nsName.length > 63) {
             throw new Error(
-                `Schema name "${schema}" exceeds PostgreSQL limit (63 chars)`
+                `Namespace name "${nsName}" exceeds PostgreSQL limit (63 chars)`
             );
         }
     }
@@ -677,15 +677,15 @@ export class SchemaManager {
 
 **File**: `src/lib/services/tenant.ts`
 
-**Add `database` and `schema` fields:**
+**Add `db` and `ns` fields:**
 
 ```typescript
 export interface JWTPayload {
     sub: string;                // Subject/system identifier
     user_id: string | null;     // User ID for database records
     tenant: string;             // Tenant name (human-readable)
-    database: string;           // NEW: Database name (db_main, db_premium_xyz, etc.)
-    schema: string;             // NEW: Schema name (tenant_<hash-8>)
+    db: string;                 // NEW: Database name (db_main, db_premium_xyz, etc.)
+    ns: string;                 // NEW: Namespace (ns_tenant_<hash-8>)
     access: string;             // Access level
     access_read: string[];
     access_edit: string[];
@@ -704,8 +704,8 @@ static async generateToken(user: any): Promise<string> {
         sub: user.id,
         user_id: user.user_id || null,
         tenant: user.tenant,
-        database: user.database,      // NEW
-        schema: user.schema,          // NEW
+        db: user.dbName,              // NEW: Compact JWT field
+        ns: user.nsName,              // NEW: Compact JWT field
         access: user.access || 'root',
         access_read: user.access_read || [],
         access_edit: user.access_edit || [],
@@ -728,49 +728,49 @@ static async generateToken(user: any): Promise<string> {
 static async createTenant(
     tenantName: string,
     template: string = 'system',
-    database: string = 'db_main',  // NEW: Which database to create in
+    dbName: string = 'db_main',  // NEW: Which database to create in
     force: boolean = false
 ): Promise<TenantInfo> {
-    const schema = DatabaseNaming.generateSchemaName(tenantName);
+    const nsName = DatabaseNaming.generateTenantNsName(tenantName);
 
     // Check if tenant already exists
     if (!force && await this.tenantExists(tenantName)) {
         throw new Error(`Tenant '${tenantName}' already exists`);
     }
 
-    // Check if schema already exists in target database
-    if (!force && await SchemaManager.schemaExists(database, schema)) {
-        throw new Error(`Schema '${schema}' already exists in ${database}`);
+    // Check if namespace already exists in target database
+    if (!force && await NamespaceManager.namespaceExists(dbName, nsName)) {
+        throw new Error(`Namespace '${nsName}' already exists in ${dbName}`);
     }
 
     try {
-        // Deploy fixture to create schema
-        await FixtureDeployer.deploy(template, { database, schema });
+        // Deploy fixture to create namespace
+        await FixtureDeployer.deploy(template, { dbName, nsName });
 
-        // Create root user in tenant schema
-        await this.createRootUser(database, schema, tenantName);
+        // Create root user in tenant namespace
+        await this.createRootUser(dbName, nsName, tenantName);
 
         // Insert tenant record
-        await this.insertTenantRecord(tenantName, database, schema, template);
+        await this.insertTenantRecord(tenantName, dbName, nsName, template);
 
-        return { name: tenantName, database, schema };
+        return { name: tenantName, dbName, nsName };
     } catch (error) {
-        // Clean up schema if initialization failed
+        // Clean up namespace if initialization failed
         try {
-            await SchemaManager.dropSchema(database, schema);
+            await NamespaceManager.dropNamespace(dbName, nsName);
         } catch (cleanupError) {
-            console.warn(`Failed to cleanup schema: ${cleanupError}`);
+            console.warn(`Failed to cleanup namespace: ${cleanupError}`);
         }
         throw error;
     }
 }
 ```
 
-**Update `login` method to include database/schema:**
+**Update `login` method to include database/namespace:**
 
 ```typescript
 static async login(tenant: string, username: string): Promise<LoginResult | null> {
-    // Look up tenant to get database and schema
+    // Look up tenant to get database and namespace
     const authDb = this.getAuthPool();
     const tenantResult = await authDb.query(
         'SELECT name, database, schema FROM tenants WHERE name = $1 AND is_active = true',
@@ -783,8 +783,8 @@ static async login(tenant: string, username: string): Promise<LoginResult | null
 
     const { name, database, schema } = tenantResult.rows[0];
 
-    // Look up user in tenant schema
-    const userResult = await DatabaseConnection.queryInSchema(
+    // Look up user in tenant namespace
+    const userResult = await DatabaseConnection.queryInNamespace(
         database,
         schema,
         'SELECT * FROM users WHERE auth = $1 AND deleted_at IS NULL',
@@ -802,8 +802,8 @@ static async login(tenant: string, username: string): Promise<LoginResult | null
         id: user.id,
         user_id: user.id,
         tenant: name,
-        database: database,    // NEW
-        schema: schema,        // NEW
+        dbName: database,      // NEW: Use in code
+        nsName: schema,        // NEW: Use in code
         username: user.auth,
         access: user.access,
         // ...
@@ -817,8 +817,8 @@ static async login(tenant: string, username: string): Promise<LoginResult | null
             id: authUser.id,
             username: authUser.username,
             tenant: authUser.tenant,
-            database: authUser.database,
-            schema: authUser.schema,
+            dbName: authUser.dbName,
+            nsName: authUser.nsName,
             access: authUser.access,
         },
     };
@@ -859,10 +859,10 @@ export class DatabaseTemplate {
         const username = options.username || 'root';
 
         // 3. Determine target database (default: db_main)
-        const targetDatabase = 'db_main';
-        const targetSchema = DatabaseNaming.generateSchemaName(tenantName);
+        const targetDbName = 'db_main';
+        const targetNsName = DatabaseNaming.generateTenantNsName(tenantName);
 
-        // 4. Check if tenant/schema exists
+        // 4. Check if tenant/namespace exists
         const existingCheck = await mainPool.query(
             'SELECT COUNT(*) FROM tenants WHERE name = $1',
             [tenantName]
@@ -871,16 +871,16 @@ export class DatabaseTemplate {
             throw HttpErrors.conflict(`Tenant '${tenantName}' already exists`);
         }
 
-        // 5. Deploy fixture to create schema
+        // 5. Deploy fixture to create namespace
         await FixtureDeployer.deploy(template_name, {
-            database: targetDatabase,
-            schema: targetSchema
+            dbName: targetDbName,
+            nsName: targetNsName
         });
 
-        // 6. Create user in tenant schema
-        const newUser = await DatabaseConnection.queryInSchema(
-            targetDatabase,
-            targetSchema,
+        // 6. Create user in tenant namespace
+        const newUser = await DatabaseConnection.queryInNamespace(
+            targetDbName,
+            targetNsName,
             `INSERT INTO users (name, auth, access, access_read, access_edit, access_full, access_deny)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
@@ -894,8 +894,8 @@ export class DatabaseTemplate {
              RETURNING id`,
             [
                 tenantName,
-                targetDatabase,
-                targetSchema,
+                targetDbName,
+                targetNsName,
                 options.description || null,
                 template_name,
                 newUser.rows[0].id,
@@ -906,8 +906,8 @@ export class DatabaseTemplate {
 
         return {
             tenant: tenantName,
-            database: targetDatabase,
-            schema: targetSchema,
+            dbName: targetDbName,
+            nsName: targetNsName,
             user: {
                 id: newUser.rows[0].id,
                 name: newUser.rows[0].name,
@@ -928,7 +928,7 @@ export class DatabaseTemplate {
 
 **File**: `src/middleware/auth.ts` (or wherever JWT middleware lives)
 
-**Update to use database + schema from JWT:**
+**Update to use database + namespace from JWT:**
 
 ```typescript
 export const authMiddleware = async (c: Context, next: Next) => {
@@ -941,12 +941,12 @@ export const authMiddleware = async (c: Context, next: Next) => {
     try {
         const payload = await TenantService.verifyToken(token);
 
+        // Extract from compact JWT fields and use in code
+        const dbName = payload.db;   // Compact JWT field
+        const nsName = payload.ns;   // Compact JWT field
+
         // Set database context from JWT
-        DatabaseConnection.setDatabaseForRequest(
-            c,
-            payload.database,  // NEW: from JWT
-            payload.schema     // NEW: from JWT
-        );
+        DatabaseConnection.setDatabaseForRequest(c, dbName, nsName);
 
         // Store user info
         c.set('user', payload);
@@ -965,11 +965,11 @@ export const authMiddleware = async (c: Context, next: Next) => {
 const db = c.get('database');  // Was a pool for specific database
 
 // Now:
-const db = c.get('database');       // Pool for the database
-const schema = c.get('schemaName'); // Schema name
+const db = c.get('database');     // Pool for the database
+const nsName = c.get('nsName');   // Namespace name
 
 // Queries automatically scoped via search_path set in middleware
-await db.query('SELECT * FROM users');  // Queries tenant_xyz.users
+await db.query('SELECT * FROM users');  // Queries ns_tenant_xyz.users
 ```
 
 ---
@@ -1108,8 +1108,8 @@ import { join } from 'path';
 import { DatabaseConnection } from '../database-connection.js';
 
 export interface DeployTarget {
-    database: string;  // db_main, db_test, db_us_east, etc.
-    schema: string;    // tenant_xyz, test_abc, monk_template_demo, etc.
+    dbName: string;  // db_main, db_test, db_us_east, etc.
+    nsName: string;  // ns_tenant_xyz, ns_test_abc, monk_template_demo, etc.
 }
 
 export class FixtureDeployer {
@@ -1120,7 +1120,7 @@ export class FixtureDeployer {
      * @param target - Target database and schema
      */
     static async deploy(fixtureName: string, target: DeployTarget): Promise<void> {
-        console.log(`Deploying ${fixtureName} to ${target.database}.${target.schema}`);
+        console.log(`Deploying ${fixtureName} to ${target.dbName}.${target.nsName}`);
 
         // 1. Read compiled fixture
         const fixturePath = join(
@@ -1134,11 +1134,11 @@ export class FixtureDeployer {
 
         // 2. Inject parameters
         const parameterized = sql
-            .replace(/:database/g, target.database)
-            .replace(/:schema/g, target.schema);
+            .replace(/:database/g, target.dbName)
+            .replace(/:schema/g, target.nsName);
 
         // 3. Execute
-        const pool = DatabaseConnection.getPool(target.database);
+        const pool = DatabaseConnection.getPool(target.dbName);
         await pool.query(parameterized);
 
         console.log(`✓ Deployed successfully`);
@@ -1210,10 +1210,10 @@ npm run fixtures:build testing
 **Deploy fixtures:**
 ```bash
 # Development
-npm run fixtures:deploy system -- --database db_test --schema test_abc123
+npm run fixtures:deploy system -- --database db_test --schema ns_test_abc123
 
 # Production tenant
-npm run fixtures:deploy demo-crm -- --database db_main --schema tenant_xyz789
+npm run fixtures:deploy demo-crm -- --database db_main --schema ns_tenant_xyz789
 
 # Regional testing
 npm run fixtures:deploy demo-crm -- --database db_us_west --schema monk_template_demo_crm
@@ -1225,14 +1225,14 @@ import { FixtureDeployer } from '@/lib/fixtures/deployer';
 
 // In tests
 await FixtureDeployer.deploy('system', {
-    database: 'db_test',
-    schema: 'test_abc123'
+    dbName: 'db_test',
+    nsName: 'ns_test_abc123'
 });
 
 // In registration
 await FixtureDeployer.deploy('demo-crm', {
-    database: 'db_main',
-    schema: 'tenant_xyz789'
+    dbName: 'db_main',
+    nsName: 'ns_tenant_xyz789'
 });
 ```
 
@@ -1246,18 +1246,18 @@ await FixtureDeployer.deploy('demo-crm', {
 
 **Mitigation**:
 ```typescript
-// ALWAYS validate schema names
-function validateSchemaName(schema: string): void {
-    if (!/^[a-zA-Z0-9_]+$/.test(schema)) {
-        throw new Error('Invalid schema name');
+// ALWAYS validate namespace names
+function validateNamespaceName(nsName: string): void {
+    if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+        throw new Error('Invalid namespace name');
     }
 }
 
 // Use identifier quoting
-await client.query(`SET search_path TO "${schemaName}", public`);
+await client.query(`SET search_path TO "${nsName}", public`);
 
 // NOT string interpolation
-await client.query(`SET search_path TO ${schemaName}`);  // ❌ DANGEROUS
+await client.query(`SET search_path TO ${nsName}`);  // ❌ DANGEROUS
 ```
 
 ### 2. Search Path Security
@@ -1273,7 +1273,7 @@ await client.query(`SET search_path TO ${schemaName}`);  // ❌ DANGEROUS
 ```typescript
 // Transaction-scoped (safer)
 await client.query('BEGIN');
-await client.query(`SET LOCAL search_path TO "${schema}"`);
+await client.query(`SET LOCAL search_path TO "${nsName}"`);
 // ... queries ...
 await client.query('COMMIT');  // search_path reverts
 ```
@@ -1287,9 +1287,9 @@ await client.query('COMMIT');  // search_path reverts
   ```sql
   REVOKE ALL ON SCHEMA public FROM PUBLIC;
   ```
-- Grant per-schema permissions:
+- Grant per-namespace permissions:
   ```sql
-  GRANT ALL ON SCHEMA tenant_xyz TO app_user;
+  GRANT ALL ON SCHEMA ns_tenant_xyz TO app_user;
   ```
 - Monitor for cross-schema queries in logs
 - Use row-level security (RLS) as additional layer
@@ -1371,30 +1371,30 @@ await client.query('COMMIT');  // search_path reverts
 
 - [ ] Update `src/lib/database-naming.ts`:
   - [ ] Change hash length from 16 to 8 characters
-  - [ ] Add `generateSchemaName()` method
-  - [ ] Add `generateTestSchemaName()` method
-  - [ ] Add `generateSandboxSchemaName()` method
+  - [ ] Add `generateTenantNsName()` method
+  - [ ] Add `generateTestNsName()` method
+  - [ ] Add `generateSandboxNsName()` method
   - [ ] Update tests
 
-- [ ] Create `src/lib/schema-manager.ts`:
-  - [ ] Implement `createSchema()`
-  - [ ] Implement `dropSchema()`
-  - [ ] Implement `schemaExists()`
-  - [ ] Implement `listSchemas()`
-  - [ ] Implement `validateSchemaName()`
+- [ ] Create `src/lib/namespace-manager.ts`:
+  - [ ] Implement `createNamespace()`
+  - [ ] Implement `dropNamespace()`
+  - [ ] Implement `namespaceExists()`
+  - [ ] Implement `listNamespaces()`
+  - [ ] Implement `validateNamespaceName()`
   - [ ] Add tests
 
 - [ ] Update `src/lib/database-connection.ts`:
-  - [ ] Add `setSearchPath()` method
-  - [ ] Add `setLocalSearchPath()` method
-  - [ ] Add `queryInSchema()` method
-  - [ ] Update `setDatabaseForRequest()` signature
+  - [ ] Add `setSearchPath()` method (uses `nsName` parameter)
+  - [ ] Add `setLocalSearchPath()` method (uses `nsName` parameter)
+  - [ ] Add `queryInNamespace()` method (uses `dbName` and `nsName`)
+  - [ ] Update `setDatabaseForRequest()` signature (uses `dbName` and `nsName`)
   - [ ] Remove/deprecate `getTenantPool()`
   - [ ] Update comments/documentation
   - [ ] Add tests
 
 - [ ] Update `src/lib/database-types.ts`:
-  - [ ] Add `database` and `schema` to relevant interfaces
+  - [ ] Add `dbName` and `nsName` to relevant interfaces
 
 ### Phase 3: Fixture System
 
@@ -1441,47 +1441,48 @@ await client.query('COMMIT');  // search_path reverts
 ### Phase 4: Service Layer Updates
 
 - [ ] Update `src/lib/services/tenant.ts`:
-  - [ ] Update `JWTPayload` interface (add `database`, `schema`)
-  - [ ] Update `generateToken()` method
-  - [ ] Update `login()` method
-  - [ ] Update `createTenant()` method
+  - [ ] Update `JWTPayload` interface (add `db`, `ns` fields for JWT)
+  - [ ] Update `generateToken()` method (use compact `db`/`ns` in JWT)
+  - [ ] Update `login()` method (use `dbName`/`nsName` in code)
+  - [ ] Update `createTenant()` method (use `dbName`/`nsName` parameters)
   - [ ] Update `deleteTenant()` method
   - [ ] Update `getTenant()` method
   - [ ] Update `listTenants()` method
   - [ ] Remove database-specific logic
-  - [ ] Add schema-specific logic
+  - [ ] Add namespace-specific logic
   - [ ] Update tests
 
 - [ ] Update `src/lib/database-template.ts`:
   - [ ] Replace `createdb` with `FixtureDeployer.deploy()`
-  - [ ] Update to use `database` + `schema` pattern
+  - [ ] Update to use `dbName` + `nsName` pattern
   - [ ] Remove database cloning logic
   - [ ] Update tests
 
 ### Phase 5: Middleware & Routes
 
 - [ ] Update auth middleware:
-  - [ ] Extract `database` and `schema` from JWT
-  - [ ] Update `setDatabaseForRequest()` call
-  - [ ] Set schema context in request
+  - [ ] Extract `db` and `ns` from JWT payload
+  - [ ] Map to `dbName` and `nsName` variables in code
+  - [ ] Update `setDatabaseForRequest()` call with `dbName` and `nsName`
+  - [ ] Set namespace context in request
 
 - [ ] Update route handlers (if needed):
   - [ ] Verify database context is correct
   - [ ] Test search_path is set correctly
-  - [ ] Validate cross-schema isolation
+  - [ ] Validate cross-namespace isolation
 
 ### Phase 6: Test Infrastructure
 
 - [ ] Update `spec/test-database-helper.ts`:
-  - [ ] Replace `createdb` with schema creation
+  - [ ] Replace `createdb` with namespace creation
   - [ ] Use `FixtureDeployer.deploy()` for setup
   - [ ] Update cleanup to `DROP SCHEMA CASCADE`
   - [ ] Update database naming to use `db_test`
-  - [ ] Add schema naming with `test_` prefix
+  - [ ] Add namespace naming with `ns_test_` prefix
 
 - [ ] Update test files:
-  - [ ] Replace database references with database + schema
-  - [ ] Update JWT mocking to include database/schema
+  - [ ] Replace database references with `dbName` + `nsName`
+  - [ ] Update JWT mocking to include `db`/`ns` fields
   - [ ] Verify test isolation
 
 - [ ] Run test suite:
@@ -1498,16 +1499,16 @@ await client.query('COMMIT');  // search_path reverts
 
 - [ ] Update `README.md`:
   - [ ] Document new architecture
-  - [ ] Update examples with database + schema
+  - [ ] Update examples with `dbName` + `nsName`
 
 - [ ] Update `DEVELOPER.md`:
-  - [ ] Explain schema-based architecture
+  - [ ] Explain namespace-based architecture
   - [ ] Document fixture build/deploy workflow
-  - [ ] Add schema management examples
+  - [ ] Add namespace management examples
 
 - [ ] Update `spec/README.md`:
   - [ ] Document new test infrastructure
-  - [ ] Explain schema-based test isolation
+  - [ ] Explain namespace-based test isolation
 
 - [ ] Add migration guide (this document):
   - [ ] Create `SCHEMAS_REFACTOR.md` ✓
@@ -1592,14 +1593,14 @@ class SchemaPool {
     }
 
     private async refillPool(): Promise<void> {
-        // Background: Create 10 ready schemas
+        // Background: Create 10 ready namespaces
         for (let i = 0; i < 10; i++) {
-            const schema = `test_pool_${randomBytes(4).toString('hex')}`;
+            const nsName = `ns_test_pool_${randomBytes(4).toString('hex')}`;
             await FixtureDeployer.deploy('system', {
-                database: 'db_test',
-                schema: schema
+                dbName: 'db_test',
+                nsName: nsName
             });
-            this.pool.push(schema);
+            this.pool.push(nsName);
         }
     }
 }
@@ -1619,7 +1620,7 @@ const pools = {
 };
 
 // Route based on tenant database
-const pool = pools[tenant.database];
+const pool = pools[tenant.dbName];
 ```
 
 **Benefit**: Better resource distribution
@@ -1628,9 +1629,9 @@ const pool = pools[tenant.database];
 
 Track schema distribution and performance:
 ```typescript
-interface SchemaMetrics {
-    database: string;
-    schema: string;
+interface NamespaceMetrics {
+    dbName: string;
+    nsName: string;
     tenantName: string;
     queryCount: number;
     avgQueryTime: number;
@@ -1660,10 +1661,10 @@ async function promoteToDatabase(tenantName: string): Promise<void> {
     await pg_restore(...);
 
     // 4. Update tenant record
-    await updateTenant(tenantName, { database: newDb });
+    await updateTenant(tenantName, { dbName: newDb });
 
-    // 5. Drop old schema
-    await dropSchema('db_main', oldSchema);
+    // 5. Drop old namespace
+    await dropNamespace('db_main', oldNsName);
 }
 ```
 
@@ -1681,14 +1682,14 @@ db_<region>       # Regional databases (us_east, eu_west, etc.)
 db_premium_<id>   # Premium tenant databases
 ```
 
-### Schema Naming
+### Schema (Namespace) Naming
 
 ```
-monk_system               # System fixture (singleton)
-monk_template_<name>      # Templates
-tenant_<hash-8>           # Tenants
-test_<hash-8>             # Tests
-sandbox_<hash-8>          # Sandboxes
+monk_system                  # System fixture (singleton)
+monk_template_<name>         # Templates
+ns_tenant_<hash-8>           # Tenants
+ns_test_<hash-8>             # Tests
+ns_sandbox_<hash-8>          # Sandboxes
 ```
 
 ### Common Operations
@@ -1696,16 +1697,16 @@ sandbox_<hash-8>          # Sandboxes
 **Create tenant:**
 ```typescript
 await FixtureDeployer.deploy('system', {
-    database: 'db_main',
-    schema: 'tenant_a1b2c3d4'
+    dbName: 'db_main',
+    nsName: 'ns_tenant_a1b2c3d4'
 });
 ```
 
 **Query tenant data:**
 ```typescript
-await DatabaseConnection.queryInSchema(
+await DatabaseConnection.queryInNamespace(
     'db_main',
-    'tenant_a1b2c3d4',
+    'ns_tenant_a1b2c3d4',
     'SELECT * FROM users'
 );
 ```
@@ -1713,8 +1714,8 @@ await DatabaseConnection.queryInSchema(
 **Set search path:**
 ```typescript
 const client = await pool.connect();
-await DatabaseConnection.setLocalSearchPath(client, 'tenant_a1b2c3d4');
-// All queries now scoped to tenant_a1b2c3d4 schema
+await DatabaseConnection.setLocalSearchPath(client, 'ns_tenant_a1b2c3d4');
+// All queries now scoped to ns_tenant_a1b2c3d4 namespace
 ```
 
 **Build fixture:**
@@ -1724,7 +1725,7 @@ npm run fixtures:build system
 
 **Deploy fixture:**
 ```bash
-npm run fixtures:deploy system -- --database db_test --schema test_123
+npm run fixtures:deploy system -- --database db_test --schema ns_test_123
 ```
 
 ---
@@ -1756,14 +1757,15 @@ None - all design decisions finalized.
 
 Implementation is complete when:
 
-- [ ] All tests pass with schema-based infrastructure
+- [ ] All tests pass with namespace-based infrastructure
 - [ ] Tests run in parallel without connection errors
-- [ ] Tenant creation uses schema deployment (~200-500ms)
-- [ ] JWT includes `database` and `schema` fields
+- [ ] Tenant creation uses namespace deployment (~200-500ms)
+- [ ] JWT includes `db` and `ns` fields (compact)
+- [ ] Code uses `dbName` and `nsName` variables (readable)
 - [ ] All fixtures compiled to `dist/fixtures/*.sql`
 - [ ] Documentation updated
 - [ ] Connection pool usage reduced by ~90%
-- [ ] Can create 100+ test schemas without errors
+- [ ] Can create 100+ test namespaces without errors
 - [ ] Can deploy tenants to different databases (db_main, db_us_east, etc.)
 
 ---
