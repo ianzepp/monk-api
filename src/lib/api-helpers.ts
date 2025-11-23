@@ -211,21 +211,68 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
                 }
             }
 
-            // Log route operation with complete context
-            const logData: any = {
-                method: params.method,
-                contentType: params.contentType,
-            };
+            // Set search_path for read-only operations (GET)
+            // Write operations (POST/PUT/PATCH/DELETE) use withTransactionParams which sets search_path in the transaction
+            // Only GET operations use withParams alone and need search_path set here
+            const nsName = context.get('nsName');
+            if (nsName && params.method === 'GET') {
+                // Validate namespace name (prevent SQL injection)
+                if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+                    throw HttpErrors.internal(`Invalid namespace: ${nsName}`, 'NAMESPACE_INVALID');
+                }
 
-            // Add relevant parameters to log
-            if (params.model) logData.model = params.model;
-            if (params.record) logData.record = params.record;
-            if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
+                // Acquire connection and set search_path
+                const pool = params.system.db;
+                const client = await pool.connect();
 
-            console.info('Route operation completed', logData);
+                try {
+                    // Set search_path for this connection
+                    await client.query(`SET LOCAL search_path TO "${nsName}", public`);
 
-            // Call the actual handler
-            await handler(context, params);
+                    // Temporarily replace system.db with this client for the handler
+                    const originalDb = params.system.db;
+                    (params.system as any).db = client;
+
+                    // Log route operation with complete context
+                    const logData: any = {
+                        method: params.method,
+                        contentType: params.contentType,
+                        namespace: nsName,
+                    };
+
+                    // Add relevant parameters to log
+                    if (params.model) logData.model = params.model;
+                    if (params.record) logData.record = params.record;
+                    if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
+
+                    console.info('Route operation completed', logData);
+
+                    // Call the actual handler
+                    await handler(context, params);
+
+                    // Restore original db
+                    (params.system as any).db = originalDb;
+                } finally {
+                    client.release();
+                }
+            } else {
+                // Non-GET operations (handled by withTransactionParams wrapper)
+                // Log route operation with complete context
+                const logData: any = {
+                    method: params.method,
+                    contentType: params.contentType,
+                };
+
+                // Add relevant parameters to log
+                if (params.model) logData.model = params.model;
+                if (params.record) logData.record = params.record;
+                if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
+
+                console.info('Route operation completed', logData);
+
+                // Call the actual handler
+                await handler(context, params);
+            }
 
         } catch (error) {
             // Enhanced error categorization for better debugging
