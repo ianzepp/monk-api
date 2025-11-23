@@ -34,7 +34,7 @@ export default class SystemTableProtector extends BaseObserver {
             return; // Required field validation handled elsewhere
         }
 
-        // Check against known system tables
+        // Check against known PostgreSQL system tables
         if (SYSTEM_TABLES.has(model_name)) {
             throw new ValidationError(
                 `Cannot create model '${model_name}': conflicts with PostgreSQL system model`,
@@ -42,29 +42,17 @@ export default class SystemTableProtector extends BaseObserver {
             );
         }
 
-        // Get current namespace to check for table conflicts within this schema only
-        // Note: search_path is set for regular queries, but pg_tables/information_schema
-        // show ALL schemas, so we must explicitly filter by schemaname
-        const nsName = system.context.get('nsName');
-        if (!nsName) {
-            throw new ValidationError(
-                'Cannot validate table conflicts: namespace not set in context',
-                'model_name'
-            );
-        }
-
-        // Query PostgreSQL system catalog for table conflicts in the current schema only
+        // Check if model already exists in this namespace by querying the models table
+        // This automatically respects search_path (set by transaction) and only sees
+        // models in the current tenant's namespace
         const result = await SqlUtils.getPool(system).query(
-            `SELECT tablename FROM pg_tables WHERE tablename = $1 AND schemaname = $2
-             UNION
-             SELECT table_name FROM information_schema.tables WHERE table_name = $1 AND table_schema = $2
-             LIMIT 1`,
-            [model_name, nsName]
+            `SELECT model_name FROM models WHERE model_name = $1 LIMIT 1`,
+            [model_name]
         );
 
         if (result.rows.length > 0) {
             throw new ValidationError(
-                `Cannot create model '${model_name}': conflicts with existing table in this namespace`,
+                `Cannot create model '${model_name}': model already exists`,
                 'model_name'
             );
         }

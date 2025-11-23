@@ -4,7 +4,6 @@ import type { SystemOptions } from '@src/lib/system-context-types.js';
 import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError, HttpErrors } from '@src/lib/errors/http-error.js';
 import { createModel } from '@src/lib/model.js';
-import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 /**
  * API Request/Response Helpers
@@ -280,13 +279,23 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
         await tx.query('BEGIN');
 
         // Set search_path for the entire transaction to scope all queries to tenant's namespace
+        // SET LOCAL is transaction-scoped and reverts automatically on COMMIT/ROLLBACK
         const nsName = context.get('nsName');
         if (!nsName) {
             await tx.query('ROLLBACK');
             tx.release();
             throw HttpErrors.internal('Transaction started without namespace context', 'NAMESPACE_MISSING');
         }
-        await DatabaseConnection.setLocalSearchPath(tx, nsName);
+
+        // Validate namespace name (prevent SQL injection)
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+            await tx.query('ROLLBACK');
+            tx.release();
+            throw HttpErrors.internal(`Invalid namespace: ${nsName}`, 'NAMESPACE_INVALID');
+        }
+
+        // Set search_path using raw SQL (consistent with BEGIN/COMMIT/ROLLBACK)
+        await tx.query(`SET LOCAL search_path TO "${nsName}", public`);
 
         system.tx = tx;
 
