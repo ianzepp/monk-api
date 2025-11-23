@@ -73,7 +73,7 @@ describe('POST /auth/register - Register New Tenant', () => {
         });
 
         expect(response.success).toBe(false);
-        expect(response.error).toContain('Failed to read compiled fixture');
+        expect(response.error).toContain('Failed to read fixture metadata');
         expect(response.error_code).toBe('DATABASE_TEMPLATE_NOT_FOUND');
     });
 
