@@ -274,6 +274,8 @@ fixtures/system/load.sql → compile → dist/fixtures/system.sql → deploy to 
 - Additional fixtures are **optional and additive**
 - Dependencies declared in `template.json`
 - Example: `crm` fixture requires `system` fixture
+- Deployment order: System first, then fixtures in declaration order
+- Each fixture wrapped in transaction (rollback on failure)
 
 **Benefits:**
 - No template database cloning needed
@@ -297,7 +299,25 @@ fixtures/system/load.sql → compile → dist/fixtures/system.sql → deploy to 
 
 ### 8. No Existing Tenant Migration
 
-All existing tenants can be wiped/recreated during refactor.
+All existing tenants can be wiped/recreated during refactor. Infrastructure database will be regenerated.
+
+### 9. Open Questions (TODO)
+
+**Fixture Conflicts**: What happens if two fixtures define the same table or conflicting data?
+- Current approach: Assume fixtures are well-behaved and don't conflict
+- Future: Add validation, namespacing, or explicit conflict resolution
+- For now: Document expected fixture behavior and test thoroughly
+
+**Feature Flags**: Should feature availability be:
+- Deployment-based only (check `tenant_fixtures` table)?
+- Config-based (deployment + runtime flags)?
+- Hybrid approach?
+- Decision deferred until feature requirements are clearer
+
+**Fixture Ordering**: When deploying `['crm', 'chat', 'projects']`:
+- Order: System first (always), then fixtures in declaration order
+- If `projects` depends on `crm`, user must declare `['crm', 'projects']` in correct order
+- Future: Could add topological sort based on dependencies in `template.json`
 
 ---
 
@@ -598,9 +618,9 @@ export class DatabaseConnection {
 - `MONK_DB_TENANT_PREFIX` constant - no longer needed
 - Database prefix validation for tenants - now validates namespace names
 
-### 3. Schema Management Utilities
+### 3. Namespace Management Utilities
 
-**New File**: `src/lib/schema-manager.ts`
+**New File**: `src/lib/namespace-manager.ts`
 
 ```typescript
 import pg from 'pg';
@@ -819,8 +839,20 @@ private static async resolveFixtureDependencies(
         resolved.add(fixtureName);
     }
 
-    // Return in dependency order (system first)
+    // Return in dependency order (system first, then declaration order)
     return this.topologicalSort(Array.from(resolved));
+}
+
+/**
+ * Sort fixtures in dependency order
+ * System always first, then in declaration order from fixtures array
+ */
+private static topologicalSort(fixtures: string[]): string[] {
+    // Simple implementation: system first, rest maintain order
+    // Future: Full topological sort if complex dependencies needed
+    const sorted = fixtures.filter(f => f === 'system');
+    sorted.push(...fixtures.filter(f => f !== 'system'));
+    return sorted;
 }
 
 /**
@@ -1118,6 +1150,8 @@ fixtures/<name>/
 }
 ```
 
+**Note**: `version` field is a placeholder for future versioning/migration support (not currently used).
+
 ### Example: CRM Fixture (Optional)
 
 **`fixtures/crm/template.json`:**
@@ -1170,10 +1204,13 @@ END $$;
 
 **`fixtures/testing/data/users.sql`:**
 ```sql
--- Prebuilt test users
+-- Prebuilt test users with hardcoded IDs (safe for parallel tests)
+-- Note: users table has id DEFAULT gen_random_uuid(), but we provide explicit IDs
+-- for referential integrity in test data (can reference these known IDs)
 INSERT INTO users (id, name, auth, access) VALUES
     ('00000000-0000-0000-0000-000000000001', 'Test User 1', 'testuser1', 'full'),
-    ('00000000-0000-0000-0000-000000000002', 'Test User 2', 'testuser2', 'read')
+    ('00000000-0000-0000-0000-000000000002', 'Test User 2', 'testuser2', 'read'),
+    ('00000000-0000-0000-0000-000000000003', 'Test User 3', 'testuser3', 'edit')
 ON CONFLICT (auth) DO NOTHING;
 ```
 
@@ -1337,11 +1374,22 @@ export class FixtureDeployer {
             .replace(/:database/g, target.dbName)
             .replace(/:schema/g, target.nsName);
 
-        // 3. Execute
+        // 3. Execute within transaction (automatic rollback on failure)
         const pool = DatabaseConnection.getPool(target.dbName);
-        await pool.query(parameterized);
+        const client = await pool.connect();
 
-        console.log(`✓ Deployed successfully`);
+        try {
+            await client.query('BEGIN');
+            await client.query(parameterized);
+            await client.query('COMMIT');
+            console.log(`✓ Deployed successfully`);
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error(`✗ Deployment failed, rolled back`);
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 }
 ```
@@ -1591,6 +1639,7 @@ await client.query('COMMIT');  // search_path reverts
   - [ ] Update tests
 
 - [ ] Create `src/lib/namespace-manager.ts`:
+  - [ ] Implement `NamespaceManager` class
   - [ ] Implement `createNamespace()`
   - [ ] Implement `dropNamespace()`
   - [ ] Implement `namespaceExists()`
@@ -1825,9 +1874,9 @@ class SchemaPool {
     }
 
     private async refillPool(): Promise<void> {
-        // Background: Create 10 ready namespaces
+        // Background: Create 10 ready namespaces with 8-char hashes
         for (let i = 0; i < 10; i++) {
-            const nsName = `ns_test_pool_${randomBytes(4).toString('hex')}`;
+            const nsName = `ns_test_pool_${randomBytes(4).toString('hex')}`;  // 4 bytes = 8 hex chars
             await FixtureDeployer.deploy('system', {
                 dbName: 'db_test',
                 nsName: nsName
@@ -1978,19 +2027,28 @@ npm run fixtures:deploy system -- --database db_test --schema ns_test_123
 1. ✅ Hash length: 8 characters
 2. ✅ Shared database name: `db_main`
 3. ✅ Test database name: `db_test`
-4. ✅ Template storage: Schemas in databases (not separate DBs)
-5. ✅ System fixture: `monk.monk_system` schema
+4. ✅ Compositional fixtures: No template schemas, deploy from SQL files
+5. ✅ System fixture: Always required, deployed first
 6. ✅ Fixture compilation: Build + deploy separation
 7. ✅ Compiled fixtures: Committed to git
-8. ✅ Parameterization: `:schema` syntax
+8. ✅ Parameterization: `:database` and `:schema` syntax
 9. ✅ Initial optimization: Minimal
 10. ✅ Build trigger: Manual
 11. ✅ Tenant onboarding time: 20s-minutes acceptable
 12. ✅ No existing tenant migration needed
+13. ✅ Namespace naming: `ns_tenant_`, `ns_test_`, `ns_sandbox_` prefixes
+14. ✅ JWT fields: `db` and `ns` (compact), code uses `dbName` and `nsName`
+15. ✅ Fixture ordering: System first, then declaration order
+16. ✅ Version field: Placeholder for future use (not implemented yet)
+17. ✅ Transaction wrapping: Each fixture deploys in transaction (rollback on failure)
 
-### Open Questions (for implementation)
+### Open Questions (TODO)
 
-None - all design decisions finalized.
+1. **Fixture conflicts**: How to handle when fixtures define conflicting tables/data?
+2. **Feature flags**: Deployment-based vs config-based vs hybrid approach?
+3. **Complex dependencies**: Need full topological sort for fixture dependencies?
+4. **Fixture versioning**: When/how to implement version tracking and migrations?
+5. **Rollback strategy**: Should we track partial deployments for granular rollback?
 
 ---
 
