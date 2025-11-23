@@ -1607,24 +1607,24 @@ await client.query('COMMIT');  // search_path reverts
 
 ## Implementation Checklist
 
-### Phase 1: Infrastructure Setup
+### Phase 1: Infrastructure Setup ✅ COMPLETE
 
-- [ ] Create `dist/fixtures/` directory in .gitignore
-- [ ] Update `.gitignore` to include `dist/fixtures/*.sql`
-- [ ] Create default databases:
+- [x] ~~Create `dist/fixtures/` directory~~ (CHANGED: Fixtures compile to `fixtures/<name>/deploy.sql` instead)
+- [x] ~~Update `.gitignore`~~ (Not needed - fixtures are in fixtures/ dir, already tracked)
+- [x] Create default databases:
   ```bash
   createdb monk
   createdb db_main
   createdb db_test
   ```
-- [ ] Update `fixtures/infrastructure/init.sql`:
-  - [ ] Remove `templates` table (no longer needed)
-  - [ ] Add `tenant_fixtures` table (tracks which fixtures deployed to each tenant)
-  - [ ] Add `schema` column to `tenants` table
-  - [ ] Add `schema` column to `sandboxes` table
-  - [ ] Update constraints and indexes
-  - [ ] Remove database prefix checks
-- [ ] Run infrastructure init:
+- [x] Update `fixtures/infrastructure/init.sql`:
+  - [x] Remove `templates` table (no longer needed)
+  - [x] Add `tenant_fixtures` table (tracks which fixtures deployed to each tenant)
+  - [x] Add `schema` column to `tenants` table
+  - [x] Add `schema` column to `sandboxes` table
+  - [x] Update constraints and indexes
+  - [x] Remove database prefix checks
+- [x] Run infrastructure init:
   ```bash
   psql -d monk -f fixtures/infrastructure/init.sql
   ```
