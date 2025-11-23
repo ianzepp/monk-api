@@ -1,4 +1,43 @@
--- Demo data for docs (large text documentation)
+-- ============================================================================
+-- DATA: Docs model registration and sample data
+-- ============================================================================
+
+-- Register docs model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('docs', 'active', 'Large text documentation with full-text search capabilities');
+
+-- Register docs fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('docs', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('docs', 'title', 'text', 'true', 'Document title', 2, 200);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('docs', 'content', 'text', 'true', 'Large text content (2KB-50KB, markdown or plain text)', 100000);
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('docs', 'content_type', 'text', 'false', 'Content type/format', ARRAY['markdown', 'plaintext', 'code', 'adr', 'api-spec']);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('docs', 'tags', 'text[]', 'false', 'Document tags for categorization');
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('docs', 'category', 'text', 'false', 'Document category', ARRAY['reference', 'guide', 'adr', 'runbook', 'architecture', 'tutorial']);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('docs', 'author', 'text', 'false', 'Document author name', 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('docs', 'version', 'text', 'false', 'Document version', 50);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('docs', 'metadata', 'jsonb', 'false', 'Document metadata (related_docs, embedding_id, word_count, last_indexed_at)');
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('docs', 'accessed_at', 'timestamp', 'false', 'Timestamp when document was last accessed (for LRU/popularity tracking)');
+
+-- Sample data for docs (large text documentation)
 -- References workspaces created in 01-workspaces-teams.sql
 
 INSERT INTO docs (workspace_id, title, content, content_type, tags, category, author, version, metadata, created_at, updated_at, accessed_at)

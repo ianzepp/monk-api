@@ -1,5 +1,5 @@
 -- Compiled Fixture: system
--- Generated: 2025-11-23T15:03:00.834Z
+-- Generated: 2025-11-23T15:32:30.391Z
 -- Parameters: :database, :schema
 --
 -- Usage:
@@ -40,6 +40,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TYPE field_type AS ENUM (
     'text',
     'integer',
+    'bigint',
     'bigserial',
     'numeric',
     'boolean',
@@ -141,7 +142,7 @@ CREATE TABLE "fields" (
 
 -- Foreign key: fields belong to models
 ALTER TABLE "fields" ADD CONSTRAINT "fields_models_name_model_name_fk"
-    FOREIGN KEY ("model_name") REFERENCES "public"."models"("model_name")
+    FOREIGN KEY ("model_name") REFERENCES "models"("model_name")
     ON DELETE no action ON UPDATE no action;
 
 -- Unique index for model+field combination
@@ -311,7 +312,7 @@ CREATE TABLE "extract_runs" (
 
 -- Foreign key
 ALTER TABLE "extract_runs" ADD CONSTRAINT "extract_runs_extract_id_fk"
-    FOREIGN KEY ("extract_id") REFERENCES "public"."extracts"("id")
+    FOREIGN KEY ("extract_id") REFERENCES "extracts"("id")
     ON DELETE CASCADE;
 
 -- Indexes
@@ -368,7 +369,7 @@ CREATE TABLE "extract_artifacts" (
 
 -- Foreign keys
 ALTER TABLE "extract_artifacts" ADD CONSTRAINT "extract_artifacts_run_id_fk"
-    FOREIGN KEY ("run_id") REFERENCES "public"."extract_runs"("id")
+    FOREIGN KEY ("run_id") REFERENCES "extract_runs"("id")
     ON DELETE CASCADE;
 
 -- Indexes
@@ -607,44 +608,13 @@ CREATE INDEX idx_history_model_record ON history(model_name, record_id, change_i
 -- ECHO: 'Phase 4: Data Inserts'
 -- BEGIN: data/models.sql
 -- ============================================================================
--- DATA: Model registrations
+-- DATA: Models model registration
 -- ============================================================================
--- Register all system models in the models table
+-- Register the models table itself in the models registry
 -- This enables recursive model discovery via the Data API
 
--- models table (self-reference for recursive discovery)
 INSERT INTO "models" (model_name, status, sudo)
 VALUES ('models', 'system', true);
-
--- fields table (self-reference for recursive discovery)
-INSERT INTO "models" (model_name, status, sudo)
-VALUES ('fields', 'system', true);
-
--- users table
-INSERT INTO "models" (model_name, status, sudo)
-VALUES ('users', 'system', true);
-
--- history table (change tracking / audit trail)
-INSERT INTO "models" (model_name, status, sudo)
-VALUES ('history', 'system', true);
-
--- snapshots table (point-in-time database backups)
-INSERT INTO "models" (model_name, status, sudo, description)
-VALUES (
-    'snapshots',
-    'system',
-    true,
-    'Point-in-time database backups created via async observer pipeline'
-);
-
--- END: data/models.sql
--- BEGIN: data/fields.sql
--- ============================================================================
--- DATA: Field definitions for system models
--- ============================================================================
--- These define the portable (non-system) fields for core models
--- System fields (id, access_*, created_at, etc.) are automatically added
--- to all tables and should NOT be included here
 
 -- ============================================================================
 -- FIELDS FOR: models
@@ -657,6 +627,17 @@ INSERT INTO "fields" (model_name, field_name, type, required, default_value, des
     ('models', 'frozen', 'boolean', false, NULL, 'Whether all data changes are prevented on this model'),
     ('models', 'immutable', 'boolean', false, NULL, 'Whether records are write-once (can be created but never modified)'),
     ('models', 'external', 'boolean', false, NULL, 'Whether model is managed externally (skip DDL operations)');
+
+-- END: data/models.sql
+-- BEGIN: data/fields.sql
+-- ============================================================================
+-- DATA: Fields model registration and field definitions
+-- ============================================================================
+-- Register the fields table and define metadata for all system models
+
+-- Register fields model
+INSERT INTO "models" (model_name, status, sudo)
+VALUES ('fields', 'system', true);
 
 -- ============================================================================
 -- FIELDS FOR: fields
@@ -687,6 +668,16 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
     ('fields', 'searchable', 'boolean', false, 'Whether to enable full-text search with GIN index'),
     ('fields', 'transform', 'text', false, 'Auto-transform values: lowercase, uppercase, trim, normalize_phone, normalize_email');
 
+-- END: data/fields.sql
+-- BEGIN: data/users.sql
+-- ============================================================================
+-- DATA: Users model registration and default users
+-- ============================================================================
+
+-- Register users model
+INSERT INTO "models" (model_name, status, sudo)
+VALUES ('users', 'system', true);
+
 -- ============================================================================
 -- FIELDS FOR: users
 -- ============================================================================
@@ -694,6 +685,28 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
     ('users', 'name', 'text', true, 'User display name'),
     ('users', 'auth', 'text', true, 'Authentication identifier'),
     ('users', 'access', 'text', true, 'User access level (root, full, edit, read, deny)');
+
+-- Insert default root user for initial access
+INSERT INTO users (name, auth, access) VALUES
+    ('root', 'root', 'root')
+ON CONFLICT (auth) DO NOTHING;
+
+COMMENT ON TABLE users IS 'Default template includes pre-configured root user for initial login';
+
+-- END: data/users.sql
+-- BEGIN: data/history.sql
+-- ============================================================================
+-- DATA: History model registration
+-- ============================================================================
+
+-- Register history model
+INSERT INTO "models" (model_name, status, sudo, description)
+VALUES (
+    'history',
+    'system',
+    true,
+    'Change tracking and audit trail'
+);
 
 -- ============================================================================
 -- FIELDS FOR: history
@@ -707,47 +720,6 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
     ('history', 'created_by', 'uuid', false, 'ID of the user who made the change'),
     ('history', 'request_id', 'text', false, 'Request correlation ID for tracing'),
     ('history', 'metadata', 'jsonb', false, 'Additional context (IP address, user agent, etc.)');
-
--- ============================================================================
--- FIELDS FOR: snapshots
--- ============================================================================
-INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
-    ('snapshots', 'name', 'text', true, 'Snapshot identifier'),
-    ('snapshots', 'database', 'text', true, 'PostgreSQL database name (format: snapshot_{random})'),
-    ('snapshots', 'description', 'text', false, 'Optional description of snapshot purpose'),
-    ('snapshots', 'status', 'text', true, 'Processing status: pending, processing, active, failed'),
-    ('snapshots', 'snapshot_type', 'text', true, 'Type: manual, auto, pre_migration, scheduled'),
-    ('snapshots', 'size_bytes', 'bigint', false, 'Snapshot database size in bytes'),
-    ('snapshots', 'record_count', 'integer', false, 'Total records at snapshot time'),
-    ('snapshots', 'error_message', 'text', false, 'Error details if status is failed'),
-    ('snapshots', 'created_by', 'uuid', true, 'User who created the snapshot'),
-    ('snapshots', 'expires_at', 'timestamp', false, 'Retention policy expiration time');
-
--- END: data/fields.sql
--- BEGIN: data/users.sql
--- ============================================================================
--- DATA: Default users
--- ============================================================================
--- Insert default root user for initial access
-
-INSERT INTO users (name, auth, access) VALUES
-    ('root', 'root', 'root')
-ON CONFLICT (auth) DO NOTHING;
-
-COMMENT ON TABLE users IS 'Default template includes pre-configured root user for initial login';
-
--- END: data/users.sql
--- BEGIN: data/history.sql
--- ============================================================================
--- DATA: Register history model
--- ============================================================================
-
-INSERT INTO "models" (model_name, status, description)
-VALUES (
-    'history',
-    'system',
-    'Change tracking and audit trail'
-);
 
 -- END: data/history.sql
 -- BEGIN: data/extracts.sql
@@ -987,39 +959,7 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
 -- PHASE 5: POST-LOAD INDEXES
 -- ECHO: ''
 -- ECHO: 'Phase 5: Additional Indexes'
--- BEGIN: describe/history.sql
--- ============================================================================
--- MODEL: history
--- ============================================================================
--- Change tracking and audit trail table
-
-CREATE TABLE "history" (
-	-- System fields
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"access_read" uuid[] DEFAULT '{}'::uuid[],
-	"access_edit" uuid[] DEFAULT '{}'::uuid[],
-	"access_full" uuid[] DEFAULT '{}'::uuid[],
-	"access_deny" uuid[] DEFAULT '{}'::uuid[],
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"trashed_at" timestamp,
-	"deleted_at" timestamp,
-
-	-- History-specific fields
-	"change_id" bigserial NOT NULL,
-	"model_name" text NOT NULL,
-	"record_id" uuid NOT NULL,
-	"operation" text NOT NULL,
-	"changes" jsonb NOT NULL,
-	"created_by" uuid,
-	"request_id" text,
-	"metadata" jsonb
-);
-
--- Composite index for efficient history queries
-CREATE INDEX idx_history_model_record ON history(model_name, record_id, change_id DESC);
-
--- END: describe/history.sql
+-- No additional indexes needed (all created with their tables)
 
 -- SUMMARY
 -- ECHO: ''

@@ -1,40 +1,29 @@
--- Model definition for docs
+-- ============================================================================
+-- MODEL: docs
+-- ============================================================================
 -- Large text documentation with full-text search capabilities
 
--- Insert model record
-INSERT INTO models (model_name, status, description)
-  VALUES ('docs', 'active', 'Large text documentation with full-text search capabilities');
+CREATE TABLE "docs" (
+    -- System fields
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
 
--- Insert field definitions
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('docs', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
-
-INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
-  VALUES ('docs', 'title', 'text', 'true', 'Document title', 2, 200);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('docs', 'content', 'text', 'true', 'Large text content (2KB-50KB, markdown or plain text)', 100000);
-
-INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
-  VALUES ('docs', 'content_type', 'text', 'false', 'Content type/format', ARRAY['markdown', 'plaintext', 'code', 'adr', 'api-spec']);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('docs', 'tags', 'text[]', 'false', 'Document tags for categorization');
-
-INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
-  VALUES ('docs', 'category', 'text', 'false', 'Document category', ARRAY['reference', 'guide', 'adr', 'runbook', 'architecture', 'tutorial']);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('docs', 'author', 'text', 'false', 'Document author name', 100);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('docs', 'version', 'text', 'false', 'Document version', 50);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('docs', 'metadata', 'jsonb', 'false', 'Document metadata (related_docs, embedding_id, word_count, last_indexed_at)');
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('docs', 'accessed_at', 'timestamp', 'false', 'Timestamp when document was last accessed (for LRU/popularity tracking)');
-
--- Create the actual table from model definition
-SELECT create_table_from_schema('docs');
+    -- Documentation fields
+    "workspace_id" uuid NOT NULL REFERENCES workspaces(id),
+    "title" text NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
+    "content" text NOT NULL CHECK (char_length(content) <= 100000),
+    "content_type" text CHECK (content_type IS NULL OR content_type IN ('markdown', 'plaintext', 'code', 'adr', 'api-spec')),
+    "tags" text[],
+    "category" text CHECK (category IS NULL OR category IN ('reference', 'guide', 'adr', 'runbook', 'architecture', 'tutorial')),
+    "author" text CHECK (author IS NULL OR char_length(author) <= 100),
+    "version" text CHECK (version IS NULL OR char_length(version) <= 50),
+    "metadata" jsonb,
+    "accessed_at" timestamp
+);

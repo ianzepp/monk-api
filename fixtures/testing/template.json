@@ -1,6 +1,6 @@
 {
   "name": "testing",
-  "description": "Testing template with account and contact models for integration tests",
+  "description": "Testing template with accounts and contacts models for integration tests",
   "version": "1.0.0",
   "is_system": false,
   "dependencies": ["system"],

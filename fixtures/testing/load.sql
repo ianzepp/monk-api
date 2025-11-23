@@ -15,24 +15,19 @@
 \echo '=========================================='
 \echo ''
 
--- Phase 1: User initialization
-\echo '→ Phase 1: User initialization'
-\ir init.sql
-\echo '✓ Users initialized'
-\echo ''
-
--- Phase 2: Model definitions
+-- Phase 1: Model definitions
 \echo '→ Phase 2: Model definitions'
-\ir describe/account.sql
-\ir describe/contact.sql
+\ir describe/accounts.sql
+\ir describe/contacts.sql
 \echo '✓ Models loaded: 2'
 \echo ''
 
--- Phase 3: Sample data
+-- Phase 2: Sample data
 \echo '→ Phase 3: Sample data'
-\ir data/account.sql
-\ir data/contact.sql
-\echo '✓ Data loaded: 2 tables'
+\ir data/accounts.sql
+\ir data/contacts.sql
+\ir data/users.sql
+\echo '✓ Data loaded: 3 tables'
 \echo ''
 
 \echo '=========================================='

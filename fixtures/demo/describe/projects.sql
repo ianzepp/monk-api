@@ -1,37 +1,30 @@
--- Model definition for projects
+-- ============================================================================
+-- MODEL: projects
+-- ============================================================================
 -- Projects and initiatives within workspaces
 
--- Insert model record
-INSERT INTO models (model_name, status, description)
-  VALUES ('projects', 'active', 'Projects and initiatives within workspaces');
+CREATE TABLE "projects" (
+    -- System fields
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
 
--- Insert field definitions
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('projects', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+    -- Project fields
+    "workspace_id" uuid NOT NULL REFERENCES workspaces(id),
+    "name" text NOT NULL CHECK (char_length(name) >= 2 AND char_length(name) <= 100),
+    "description" text CHECK (description IS NULL OR char_length(description) <= 2000),
+    "status" text CHECK (status IS NULL OR status IN ('planning', 'active', 'on_hold', 'completed', 'cancelled')),
+    "start_date" date,
+    "end_date" date,
+    "owner" text CHECK (owner IS NULL OR char_length(owner) <= 100),
+    "tags" text[],
 
-INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
-  VALUES ('projects', 'name', 'text', 'true', 'Project name', 2, 100);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('projects', 'description', 'text', 'false', 'Project description', 2000);
-
-INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
-  VALUES ('projects', 'status', 'text', 'false', 'Project status', ARRAY['planning', 'active', 'on_hold', 'completed', 'cancelled']);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('projects', 'start_date', 'date', 'false', 'Project start date');
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('projects', 'end_date', 'date', 'false', 'Project end date');
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('projects', 'owner', 'text', 'false', 'Project owner/lead name', 100);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('projects', 'tags', 'text[]', 'false', 'Project tags for categorization');
-
--- Create the actual table from model definition
-SELECT create_table_from_schema('projects');
-
--- Add composite unique constraint (workspace_id, name) for scoped uniqueness
-ALTER TABLE projects ADD CONSTRAINT projects_workspace_name_unique UNIQUE(workspace_id, name);
+    -- Constraints
+    CONSTRAINT "projects_workspace_name_unique" UNIQUE(workspace_id, name)
+);

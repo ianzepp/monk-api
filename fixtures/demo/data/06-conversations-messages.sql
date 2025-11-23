@@ -1,4 +1,57 @@
--- Demo data for conversations and messages (LLM memory)
+-- ============================================================================
+-- DATA: Conversations and Messages model registration and sample data
+-- ============================================================================
+
+-- Register conversations model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('conversations', 'active', 'LLM conversation history with searchable context');
+
+-- Register conversations fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('conversations', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('conversations', 'title', 'text', 'true', 'Conversation title', 2, 200);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('conversations', 'context_tags', 'text[]', 'false', 'Tags for semantic search and categorization');
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('conversations', 'participants', 'text[]', 'false', 'List of participant names');
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('conversations', 'summary', 'text', 'false', 'Auto-generated or manual conversation summary', 2000);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('conversations', 'metadata', 'jsonb', 'false', 'LLM metadata (model info, token counts, embeddings reference, conversation type)');
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('conversations', 'started_at', 'timestamp', 'false', 'Timestamp when conversation started');
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('conversations', 'last_message_at', 'timestamp', 'false', 'Timestamp of most recent message');
+
+-- Register messages model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('messages', 'active', 'Individual messages within conversations');
+
+-- Register messages fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('messages', 'conversation_id', 'uuid', 'true', 'Foreign key to conversations table');
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('messages', 'role', 'text', 'true', 'Message role', ARRAY['user', 'assistant', 'system', 'tool']);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('messages', 'content', 'text', 'true', 'Message content (can be large)', 50000);
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('messages', 'tokens', 'integer', 'false', 'Token count for this message', 0, 100000);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('messages', 'metadata', 'jsonb', 'false', 'Message metadata (function calls, code blocks, attachments, reasoning traces)');
+
+-- Sample data for conversations and messages (LLM memory)
 -- References workspaces created in 01-workspaces-teams.sql
 
 -- Insert conversations and messages

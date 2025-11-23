@@ -1,40 +1,29 @@
--- Model definition for tasks
+-- ============================================================================
+-- MODEL: tasks
+-- ============================================================================
 -- Tasks, todos, and action items
 
--- Insert model record
-INSERT INTO models (model_name, status, description)
-  VALUES ('tasks', 'active', 'Tasks, todos, and action items');
+CREATE TABLE "tasks" (
+    -- System fields
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
 
--- Insert field definitions
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('tasks', 'project_id', 'uuid', 'false', 'Foreign key to projects table (nullable for standalone tasks)');
-
-INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
-  VALUES ('tasks', 'title', 'text', 'true', 'Task title', 2, 200);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('tasks', 'description', 'text', 'false', 'Task description', 5000);
-
-INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
-  VALUES ('tasks', 'status', 'text', 'false', 'Task status', ARRAY['todo', 'in_progress', 'review', 'done', 'blocked', 'cancelled']);
-
-INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
-  VALUES ('tasks', 'priority', 'text', 'false', 'Task priority', ARRAY['critical', 'high', 'medium', 'low']);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('tasks', 'assignee', 'text', 'false', 'Member name assigned to this task', 100);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('tasks', 'due_date', 'date', 'false', 'Task due date');
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('tasks', 'tags', 'text[]', 'false', 'Task tags for categorization');
-
-INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
-  VALUES ('tasks', 'estimated_hours', 'integer', 'false', 'Estimated hours to complete', 0, 1000);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('tasks', 'completed_at', 'timestamp', 'false', 'Timestamp when task was completed');
-
--- Create the actual table from model definition
-SELECT create_table_from_schema('tasks');
+    -- Task fields
+    "project_id" uuid REFERENCES projects(id),
+    "title" text NOT NULL CHECK (char_length(title) >= 2 AND char_length(title) <= 200),
+    "description" text CHECK (description IS NULL OR char_length(description) <= 5000),
+    "status" text CHECK (status IS NULL OR status IN ('todo', 'in_progress', 'review', 'done', 'blocked', 'cancelled')),
+    "priority" text CHECK (priority IS NULL OR priority IN ('critical', 'high', 'medium', 'low')),
+    "assignee" text CHECK (assignee IS NULL OR char_length(assignee) <= 100),
+    "due_date" date,
+    "tags" text[],
+    "estimated_hours" integer CHECK (estimated_hours IS NULL OR (estimated_hours >= 0 AND estimated_hours <= 1000)),
+    "completed_at" timestamp
+);

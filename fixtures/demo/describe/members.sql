@@ -1,31 +1,26 @@
--- Model definition for members
+-- ============================================================================
+-- MODEL: members
+-- ============================================================================
 -- Team members and users
 
--- Insert model record
-INSERT INTO models (model_name, status, description)
-  VALUES ('members', 'active', 'Team members and users');
+CREATE TABLE "members" (
+    -- System fields
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
 
--- Insert field definitions
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('members', 'team_id', 'uuid', 'true', 'Foreign key to teams table');
-
-INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
-  VALUES ('members', 'name', 'text', 'true', 'Member full name', 2, 100);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum, pattern)
-  VALUES ('members', 'email', 'text', 'true', 'Email address', 255, '^[^@]+@[^@]+\.[^@]+$');
-
-INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
-  VALUES ('members', 'role', 'text', 'false', 'Member role in team', ARRAY['lead', 'senior', 'mid', 'junior', 'intern']);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('members', 'timezone', 'text', 'false', 'Timezone identifier', 50);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('members', 'avatar_url', 'text', 'false', 'URL to avatar image', 500);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('members', 'joined_at', 'timestamp', 'false', 'Timestamp when member joined the team');
-
--- Create the actual table from model definition
-SELECT create_table_from_schema('members');
+    -- Member fields
+    "team_id" uuid NOT NULL REFERENCES teams(id),
+    "name" text NOT NULL CHECK (char_length(name) >= 2 AND char_length(name) <= 100),
+    "email" text NOT NULL CHECK (char_length(email) <= 255 AND email ~ '^[^@]+@[^@]+\.[^@]+$'),
+    "role" text CHECK (role IS NULL OR role IN ('lead', 'senior', 'mid', 'junior', 'intern')),
+    "timezone" text CHECK (timezone IS NULL OR char_length(timezone) <= 50),
+    "avatar_url" text CHECK (avatar_url IS NULL OR char_length(avatar_url) <= 500),
+    "joined_at" timestamp
+);

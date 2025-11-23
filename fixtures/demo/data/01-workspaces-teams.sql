@@ -1,4 +1,42 @@
--- Demo data for workspaces and teams
+-- ============================================================================
+-- DATA: Workspaces and Teams model registration and sample data
+-- ============================================================================
+
+-- Register workspaces model
+INSERT INTO "models" (model_name, status)
+VALUES ('workspaces', 'active');
+
+-- Register workspaces fields
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('workspaces', 'name', 'text', 'true', 'Organization name', 2, 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum, pattern, "unique")
+  VALUES ('workspaces', 'slug', 'text', 'true', 'URL-friendly identifier (lowercase, alphanumeric, hyphens)', 100, '^[a-z0-9-]+$', 'true');
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('workspaces', 'description', 'text', 'false', 'Organization description', 500);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('workspaces', 'settings', 'jsonb', 'false', 'Workspace settings (theme, preferences, feature flags)');
+
+-- Register teams model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('teams', 'active', 'Development teams and groups within workspaces');
+
+-- Register teams fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('teams', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('teams', 'name', 'text', 'true', 'Team name', 2, 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('teams', 'description', 'text', 'false', 'Team description', 500);
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('teams', 'focus_area', 'text', 'false', 'Team focus area', ARRAY['backend', 'frontend', 'ai-ml', 'devops', 'design', 'product', 'data']);
+
+-- Sample data for workspaces and teams
 -- Using CTEs with gen_random_uuid() for true random IDs
 
 -- Insert workspaces and teams in one transaction

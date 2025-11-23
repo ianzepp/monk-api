@@ -45,7 +45,7 @@ CREATE TABLE "extract_artifacts" (
 
 -- Foreign keys
 ALTER TABLE "extract_artifacts" ADD CONSTRAINT "extract_artifacts_run_id_fk"
-    FOREIGN KEY ("run_id") REFERENCES "public"."extract_runs"("id")
+    FOREIGN KEY ("run_id") REFERENCES "extract_runs"("id")
     ON DELETE CASCADE;
 
 -- Indexes

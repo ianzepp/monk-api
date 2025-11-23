@@ -1,25 +1,24 @@
--- Model definition for messages
+-- ============================================================================
+-- MODEL: messages
+-- ============================================================================
 -- Individual messages within conversations
 
--- Insert model record
-INSERT INTO models (model_name, status, description)
-  VALUES ('messages', 'active', 'Individual messages within conversations');
+CREATE TABLE "messages" (
+    -- System fields
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
 
--- Insert field definitions
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('messages', 'conversation_id', 'uuid', 'true', 'Foreign key to conversations table');
-
-INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
-  VALUES ('messages', 'role', 'text', 'true', 'Message role', ARRAY['user', 'assistant', 'system', 'tool']);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('messages', 'content', 'text', 'true', 'Message content (can be large)', 50000);
-
-INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
-  VALUES ('messages', 'tokens', 'integer', 'false', 'Token count for this message', 0, 100000);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('messages', 'metadata', 'jsonb', 'false', 'Message metadata (function calls, code blocks, attachments, reasoning traces)');
-
--- Create the actual table from model definition
-SELECT create_table_from_schema('messages');
+    -- Message fields
+    "conversation_id" uuid NOT NULL REFERENCES conversations(id),
+    "role" text NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+    "content" text NOT NULL CHECK (char_length(content) <= 50000),
+    "tokens" integer CHECK (tokens IS NULL OR (tokens >= 0 AND tokens <= 100000)),
+    "metadata" jsonb
+);

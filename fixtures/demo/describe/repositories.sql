@@ -1,37 +1,30 @@
--- Model definition for repositories
+-- ============================================================================
+-- MODEL: repositories
+-- ============================================================================
 -- Code repositories (management layer, not git internals)
 
--- Insert model record
-INSERT INTO models (model_name, status, description)
-  VALUES ('repositories', 'active', 'Code repositories for project management');
+CREATE TABLE "repositories" (
+    -- System fields
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
 
--- Insert field definitions
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('repositories', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+    -- Repository fields
+    "workspace_id" uuid NOT NULL REFERENCES workspaces(id),
+    "name" text NOT NULL CHECK (char_length(name) >= 2 AND char_length(name) <= 100),
+    "slug" text NOT NULL CHECK (char_length(slug) <= 100 AND slug ~ '^[a-z0-9-]+$'),
+    "description" text CHECK (description IS NULL OR char_length(description) <= 1000),
+    "visibility" text CHECK (visibility IS NULL OR visibility IN ('public', 'private', 'internal')),
+    "primary_language" text CHECK (primary_language IS NULL OR char_length(primary_language) <= 50),
+    "topics" text[],
+    "stars" integer CHECK (stars IS NULL OR (stars >= 0 AND stars <= 999999)),
 
-INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
-  VALUES ('repositories', 'name', 'text', 'true', 'Repository name', 2, 100);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum, pattern)
-  VALUES ('repositories', 'slug', 'text', 'true', 'URL-friendly identifier', 100, '^[a-z0-9-]+$');
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('repositories', 'description', 'text', 'false', 'Repository description', 1000);
-
-INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
-  VALUES ('repositories', 'visibility', 'text', 'false', 'Repository visibility', ARRAY['public', 'private', 'internal']);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('repositories', 'primary_language', 'text', 'false', 'Primary programming language', 50);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('repositories', 'topics', 'text[]', 'false', 'Repository topics/tags for categorization');
-
-INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
-  VALUES ('repositories', 'stars', 'integer', 'false', 'Star count', 0, 999999);
-
--- Create the actual table from model definition
-SELECT create_table_from_schema('repositories');
-
--- Add composite unique constraint (workspace_id, slug) for scoped uniqueness
-ALTER TABLE repositories ADD CONSTRAINT repositories_workspace_slug_unique UNIQUE(workspace_id, slug);
+    -- Constraints
+    CONSTRAINT "repositories_workspace_slug_unique" UNIQUE(workspace_id, slug)
+);

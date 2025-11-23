@@ -1,9 +1,9 @@
 -- ============================================================================
--- MODEL: issue_comments
+-- MODEL: contacts
 -- ============================================================================
--- Comments and discussion on issues
+-- Test model for contacts management
 
-CREATE TABLE "issue_comments" (
+CREATE TABLE "contacts" (
     -- System fields
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "access_read" uuid[] DEFAULT '{}'::uuid[],
@@ -15,8 +15,11 @@ CREATE TABLE "issue_comments" (
     "trashed_at" timestamp,
     "deleted_at" timestamp,
 
-    -- Comment fields
-    "issue_id" uuid NOT NULL REFERENCES issues(id),
-    "author" text NOT NULL CHECK (char_length(author) <= 100),
-    "body" text NOT NULL CHECK (char_length(body) <= 5000)
+    -- Contact fields
+    "name" text NOT NULL CHECK (char_length(name) >= 1 AND char_length(name) <= 100),
+    "email" text NOT NULL,
+    "phone" text CHECK (phone IS NULL OR phone ~ '^\+?[1-9]\d{1,14}$'),
+    "company" text CHECK (company IS NULL OR char_length(company) <= 100),
+    "status" text DEFAULT 'prospect' CHECK (status IN ('active', 'inactive', 'prospect')),
+    "notes" text
 );

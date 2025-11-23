@@ -3,6 +3,18 @@ import { join } from 'path';
 import { DatabaseConnection } from '../database-connection.js';
 
 /**
+ * Fixture metadata from template.json
+ */
+interface FixtureMetadata {
+    name: string;
+    description?: string;
+    version?: string;
+    is_system?: boolean;
+    dependencies: string[];
+    features?: string[];
+}
+
+/**
  * Deployment Target
  *
  * Specifies where to deploy a fixture.
@@ -91,10 +103,86 @@ export class FixtureDeployer {
      * @throws Error if any deployment fails
      */
     static async deployMultiple(fixtureNames: string[], target: DeployTarget): Promise<void> {
-        // For now, deploy in order provided
-        // Future: Add dependency resolution from template.json
-        for (const fixtureName of fixtureNames) {
+        // Resolve dependencies
+        const orderedFixtures = await this.resolveDependencies(fixtureNames);
+
+        console.log(`Deploying ${orderedFixtures.length} fixtures in dependency order: ${orderedFixtures.join(' → ')}`);
+
+        // Deploy in resolved order
+        for (const fixtureName of orderedFixtures) {
             await this.deploy(fixtureName, target);
+        }
+    }
+
+    /**
+     * Resolve fixture dependencies from template.json files
+     *
+     * Returns fixtures in dependency order (dependencies first).
+     * System fixture is always included first if any fixture depends on it.
+     *
+     * @param requested - Fixture names requested for deployment
+     * @returns Fixtures in dependency order
+     * @private
+     */
+    private static async resolveDependencies(requested: string[]): Promise<string[]> {
+        const resolved = new Set<string>();
+        const visiting = new Set<string>();
+
+        // Depth-first traversal to resolve dependencies
+        const visit = async (fixtureName: string): Promise<void> => {
+            if (resolved.has(fixtureName)) return;
+            if (visiting.has(fixtureName)) {
+                throw new Error(`Circular dependency detected: ${fixtureName}`);
+            }
+
+            visiting.add(fixtureName);
+
+            // Read dependencies
+            const metadata = await this.readFixtureMetadata(fixtureName);
+
+            // Visit dependencies first (depth-first)
+            for (const dep of metadata.dependencies) {
+                await visit(dep);
+            }
+
+            visiting.delete(fixtureName);
+            resolved.add(fixtureName);
+        };
+
+        // Visit all requested fixtures
+        for (const fixtureName of requested) {
+            await visit(fixtureName);
+        }
+
+        // Return in resolved order (Set maintains insertion order)
+        return Array.from(resolved);
+    }
+
+    /**
+     * Read fixture metadata from template.json
+     *
+     * @param fixtureName - Name of the fixture
+     * @returns Fixture metadata
+     * @private
+     */
+    private static async readFixtureMetadata(fixtureName: string): Promise<FixtureMetadata> {
+        const metadataPath = join(process.cwd(), 'fixtures', fixtureName, 'template.json');
+
+        try {
+            const content = await readFile(metadataPath, 'utf-8');
+            const metadata = JSON.parse(content);
+
+            // Ensure dependencies field exists
+            if (!metadata.dependencies) {
+                metadata.dependencies = [];
+            }
+
+            return metadata;
+        } catch (error) {
+            throw new Error(
+                `Failed to read fixture metadata: ${metadataPath}\n` +
+                    `Make sure fixtures/${fixtureName}/template.json exists`,
+            );
         }
     }
 }

@@ -1,37 +1,28 @@
--- Model definition for releases
+-- ============================================================================
+-- MODEL: releases
+-- ============================================================================
 -- Software releases, tags, and versioning
 
--- Insert model record
-INSERT INTO models (model_name, status, description)
-  VALUES ('releases', 'active', 'Software releases, tags, and versioning');
+CREATE TABLE "releases" (
+    -- System fields
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
 
--- Insert field definitions
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('releases', 'repository_id', 'uuid', 'true', 'Foreign key to repositories table');
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('releases', 'version', 'text', 'true', 'Semantic version number', 50);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('releases', 'name', 'text', 'false', 'Human-readable release name', 200);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('releases', 'description', 'text', 'false', 'Release notes and changelog', 10000);
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('releases', 'tag', 'text', 'false', 'Git tag name', 100);
-
-INSERT INTO fields (model_name, field_name, type, required, description, default_value)
-  VALUES ('releases', 'is_prerelease', 'boolean', 'false', 'Whether this is a prerelease version', 'false');
-
-INSERT INTO fields (model_name, field_name, type, required, description, default_value)
-  VALUES ('releases', 'is_draft', 'boolean', 'false', 'Whether this is a draft release', 'false');
-
-INSERT INTO fields (model_name, field_name, type, required, description, maximum)
-  VALUES ('releases', 'published_by', 'text', 'false', 'Member name who published the release', 100);
-
-INSERT INTO fields (model_name, field_name, type, required, description)
-  VALUES ('releases', 'published_at', 'timestamp', 'false', 'Timestamp when release was published');
-
--- Create the actual table from model definition
-SELECT create_table_from_schema('releases');
+    -- Release fields
+    "repository_id" uuid NOT NULL REFERENCES repositories(id),
+    "version" text NOT NULL CHECK (char_length(version) <= 50),
+    "name" text CHECK (name IS NULL OR char_length(name) <= 200),
+    "description" text CHECK (description IS NULL OR char_length(description) <= 10000),
+    "tag" text CHECK (tag IS NULL OR char_length(tag) <= 100),
+    "is_prerelease" boolean DEFAULT false,
+    "is_draft" boolean DEFAULT false,
+    "published_by" text CHECK (published_by IS NULL OR char_length(published_by) <= 100),
+    "published_at" timestamp
+);

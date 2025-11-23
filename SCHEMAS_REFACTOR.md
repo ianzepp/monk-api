@@ -1677,6 +1677,9 @@ await client.query('COMMIT');  // search_path reverts
   - [x] Implement `deploy()` method
   - [x] Add parameter injection with proper identifier quoting
   - [x] Add `deployMultiple()` method for multiple fixtures
+  - [x] Add automatic dependency resolution from template.json
+  - [x] Implement `resolveDependencies()` with cycle detection
+  - [x] Implement `readFixtureMetadata()` helper
   - [x] Add dotenv support for environment variables
   - [ ] Add tests (deferred)
 
@@ -1693,7 +1696,9 @@ await client.query('COMMIT');  // search_path reverts
   - [x] Auto-discovery of available fixtures
 
 - [x] Create `scripts/fixtures-deploy.ts`:
-  - [x] CLI argument parsing (--database, --schema)
+  - [x] CLI argument parsing (--database, --schema, multiple fixtures)
+  - [x] Support comma-separated and space-separated fixture lists
+  - [x] Automatic dependency resolution (always uses deployMultiple)
   - [x] Error handling
   - [x] Usage documentation
   - [x] Environment variable loading (dotenv)
@@ -1703,23 +1708,22 @@ await client.query('COMMIT');  // search_path reverts
   - [x] Add `fixtures:deploy` script (tsx-based, new architecture)
   - [x] Renamed old script to `fixtures:build:legacy`
 
-- [ ] Build all fixtures:
-  ```bash
-  npm run fixtures:build system
-  npm run fixtures:build crm
-  npm run fixtures:build chat
-  npm run fixtures:build testing
-  ```
+- [x] Refactor all fixtures to new architecture:
+  - [x] System fixture (fixed public.* references, duplicates, model registrations)
+  - [x] Demo fixture (12 models: workspaces, teams, members, repositories, releases, projects, tasks, issues, issue_comments, conversations, messages, docs)
+  - [x] Testing fixture (2 models: account, contact)
 
-- [ ] Test fixture deployment:
-  ```bash
-  # Single fixture
-  npm run fixtures:deploy system -- --database db_test --schema ns_test_validate
+- [x] Build all fixtures:
+  - [x] system (43KB compiled)
+  - [x] demo (76KB compiled)
+  - [x] testing (11KB compiled)
 
-  # Multiple fixtures (manual composition test)
-  npm run fixtures:deploy system -- --database db_test --schema ns_test_compose
-  npm run fixtures:deploy crm -- --database db_test --schema ns_test_compose
-  ```
+- [x] Test fixture deployment:
+  - [x] Single fixture with auto-deps: `npm run fixtures:deploy demo` → deploys system + demo
+  - [x] Multiple fixtures with shared deps: `npm run fixtures:deploy demo testing` → deploys system + demo + testing (system only once)
+  - [x] Verified dependency resolution works correctly
+  - [x] Verified no duplicate deployments
+  - [x] Verified correct dependency order (system always first)
 
 ### Phase 4: Service Layer Updates
 

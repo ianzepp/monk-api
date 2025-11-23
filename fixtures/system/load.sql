@@ -24,6 +24,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TYPE field_type AS ENUM (
     'text',
     'integer',
+    'bigint',
     'bigserial',
     'numeric',
     'boolean',
@@ -74,7 +75,7 @@ CREATE TYPE field_type AS ENUM (
 -- PHASE 5: POST-LOAD INDEXES
 \echo ''
 \echo 'Phase 5: Additional Indexes'
-\ir describe/history.sql    -- Creates composite index on history
+-- No additional indexes needed (all created with their tables)
 
 -- SUMMARY
 \echo ''

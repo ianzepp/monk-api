@@ -1,4 +1,69 @@
--- Demo data for repositories and releases
+-- ============================================================================
+-- DATA: Repositories and Releases model registration and sample data
+-- ============================================================================
+
+-- Register repositories model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('repositories', 'active', 'Code repositories for project management');
+
+-- Register repositories fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('repositories', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('repositories', 'name', 'text', 'true', 'Repository name', 2, 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum, pattern)
+  VALUES ('repositories', 'slug', 'text', 'true', 'URL-friendly identifier', 100, '^[a-z0-9-]+$');
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('repositories', 'description', 'text', 'false', 'Repository description', 1000);
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('repositories', 'visibility', 'text', 'false', 'Repository visibility', ARRAY['public', 'private', 'internal']);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('repositories', 'primary_language', 'text', 'false', 'Primary programming language', 50);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('repositories', 'topics', 'text[]', 'false', 'Repository topics/tags for categorization');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('repositories', 'stars', 'integer', 'false', 'Star count', 0, 999999);
+
+-- Register releases model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('releases', 'active', 'Software releases, tags, and versioning');
+
+-- Register releases fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('releases', 'repository_id', 'uuid', 'true', 'Foreign key to repositories table');
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('releases', 'version', 'text', 'true', 'Semantic version number', 50);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('releases', 'name', 'text', 'false', 'Human-readable release name', 200);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('releases', 'description', 'text', 'false', 'Release notes and changelog', 10000);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('releases', 'tag', 'text', 'false', 'Git tag name', 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description, default_value)
+  VALUES ('releases', 'is_prerelease', 'boolean', 'false', 'Whether this is a prerelease version', 'false');
+
+INSERT INTO fields (model_name, field_name, type, required, description, default_value)
+  VALUES ('releases', 'is_draft', 'boolean', 'false', 'Whether this is a draft release', 'false');
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('releases', 'published_by', 'text', 'false', 'Member name who published the release', 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('releases', 'published_at', 'timestamp', 'false', 'Timestamp when release was published');
+
+-- Sample data for repositories and releases
 -- References workspaces created in 01-workspaces-teams.sql
 
 -- Insert repositories

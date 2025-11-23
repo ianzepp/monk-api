@@ -50,7 +50,7 @@ CREATE TABLE "fields" (
 
 -- Foreign key: fields belong to models
 ALTER TABLE "fields" ADD CONSTRAINT "fields_models_name_model_name_fk"
-    FOREIGN KEY ("model_name") REFERENCES "public"."models"("model_name")
+    FOREIGN KEY ("model_name") REFERENCES "models"("model_name")
     ON DELETE no action ON UPDATE no action;
 
 -- Unique index for model+field combination

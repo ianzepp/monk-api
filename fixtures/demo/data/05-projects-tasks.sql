@@ -1,4 +1,72 @@
--- Demo data for projects and tasks
+-- ============================================================================
+-- DATA: Projects and Tasks model registration and sample data
+-- ============================================================================
+
+-- Register projects model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('projects', 'active', 'Projects and initiatives within workspaces');
+
+-- Register projects fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('projects', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('projects', 'name', 'text', 'true', 'Project name', 2, 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('projects', 'description', 'text', 'false', 'Project description', 2000);
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('projects', 'status', 'text', 'false', 'Project status', ARRAY['planning', 'active', 'on_hold', 'completed', 'cancelled']);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('projects', 'start_date', 'date', 'false', 'Project start date');
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('projects', 'end_date', 'date', 'false', 'Project end date');
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('projects', 'owner', 'text', 'false', 'Project owner/lead name', 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('projects', 'tags', 'text[]', 'false', 'Project tags for categorization');
+
+-- Register tasks model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('tasks', 'active', 'Tasks, todos, and action items');
+
+-- Register tasks fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('tasks', 'project_id', 'uuid', 'false', 'Foreign key to projects table (nullable for standalone tasks)');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('tasks', 'title', 'text', 'true', 'Task title', 2, 200);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('tasks', 'description', 'text', 'false', 'Task description', 5000);
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('tasks', 'status', 'text', 'false', 'Task status', ARRAY['todo', 'in_progress', 'review', 'done', 'blocked', 'cancelled']);
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('tasks', 'priority', 'text', 'false', 'Task priority', ARRAY['critical', 'high', 'medium', 'low']);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('tasks', 'assignee', 'text', 'false', 'Member name assigned to this task', 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('tasks', 'due_date', 'date', 'false', 'Task due date');
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('tasks', 'tags', 'text[]', 'false', 'Task tags for categorization');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('tasks', 'estimated_hours', 'integer', 'false', 'Estimated hours to complete', 0, 1000);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('tasks', 'completed_at', 'timestamp', 'false', 'Timestamp when task was completed');
+
+-- Sample data for projects and tasks
 -- References workspaces created in 01-workspaces-teams.sql
 
 -- Insert projects and tasks
