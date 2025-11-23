@@ -1866,7 +1866,8 @@ await client.query('COMMIT');  // search_path reverts
 - **Test Architecture**: Tests use API-based tenant creation (`POST /auth/register`) rather than direct database cloning
 - **TestDatabaseHelper.ts**: Updated but NOT actively used by current test suite (tests use TestHelpers.ts instead)
 - **Future Use**: TestDatabaseHelper can be used for low-level database testing if needed
-- **No Breaking Changes**: Test interface changes are compatible since API already returns `dbName`/`nsName` (Phase 4)
+- **Field Naming Convention**: API responses use compact field names (`db`, `ns`) to match JWT compact fields, while internal code uses descriptive names (`dbName`, `nsName`) for readability
+- **Test Updates**: Had to update AuthResponse interface and register.test.ts to use `db`/`ns` instead of `database`
 - **Namespace Speed**: Creating namespaces (~50-200ms) is 3-10x faster than cloning databases (~1-2s), enabling parallel tests
 
 ### Phase 7: Documentation
