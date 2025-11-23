@@ -44,7 +44,8 @@ export interface AuthResponse {
     error_code?: string;
     data?: {
         tenant?: string;
-        database?: string;
+        db?: string;
+        ns?: string;
         username?: string;
         token: string;
         expires_in?: number;
@@ -52,7 +53,6 @@ export interface AuthResponse {
             id: string;
             username: string;
             tenant: string;
-            database: string;
             access: string;
             format?: string;
         };

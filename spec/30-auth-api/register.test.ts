@@ -19,7 +19,8 @@ describe('POST /auth/register - Register New Tenant', () => {
 
         expectSuccess(response);
         expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.database).toBeDefined();
+        expect(response.data!.db).toBeDefined();
+        expect(response.data!.ns).toBeDefined();
         expect(response.data!.token).toBeDefined();
         expect(response.data!.username).toBeDefined();
     });
@@ -48,7 +49,8 @@ describe('POST /auth/register - Register New Tenant', () => {
 
         expectSuccess(response);
         expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.database).toBeDefined();
+        expect(response.data!.db).toBeDefined();
+        expect(response.data!.ns).toBeDefined();
         expect(response.data!.token).toBeDefined();
     });
 
@@ -62,7 +64,8 @@ describe('POST /auth/register - Register New Tenant', () => {
 
         expectSuccess(response);
         expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.database).toBeDefined();
+        expect(response.data!.db).toBeDefined();
+        expect(response.data!.ns).toBeDefined();
         expect(response.data!.token).toBeDefined();
     });
 

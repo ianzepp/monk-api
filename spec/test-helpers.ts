@@ -133,8 +133,8 @@ export class TestHelpers {
 
         return {
             tenantName: response.data!.tenant!,
-            dbName: response.data!.dbName!,
-            nsName: response.data!.nsName!,
+            dbName: response.data!.db!,
+            nsName: response.data!.ns!,
             username: response.data!.username!,
             token: response.data!.token,
             httpClient: authClient.client,
