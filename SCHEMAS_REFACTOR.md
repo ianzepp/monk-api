@@ -1629,35 +1629,37 @@ await client.query('COMMIT');  // search_path reverts
   psql -d monk -f fixtures/infrastructure/init.sql
   ```
 
-### Phase 2: Core Library Changes
+### Phase 2: Core Library Changes ✅ COMPLETE
 
-- [ ] Update `src/lib/database-naming.ts`:
-  - [ ] Change hash length from 16 to 8 characters
-  - [ ] Add `generateTenantNsName()` method
-  - [ ] Add `generateTestNsName()` method
-  - [ ] Add `generateSandboxNsName()` method
-  - [ ] Update tests
+- [x] Update `src/lib/database-naming.ts`:
+  - [x] Change hash length from 16 to 8 characters
+  - [x] Add `generateTenantNsName()` method
+  - [x] Add `generateTestNsName()` method
+  - [x] Add `generateSandboxNsName()` method
+  - [x] Add `isTenantNamespace()` method
+  - [x] Add `validateNamespaceName()` method
+  - [ ] Update tests (deferred to later)
 
-- [ ] Create `src/lib/namespace-manager.ts`:
-  - [ ] Implement `NamespaceManager` class
-  - [ ] Implement `createNamespace()`
-  - [ ] Implement `dropNamespace()`
-  - [ ] Implement `namespaceExists()`
-  - [ ] Implement `listNamespaces()`
-  - [ ] Implement `validateNamespaceName()`
-  - [ ] Add tests
+- [x] Create `src/lib/namespace-manager.ts`:
+  - [x] Implement `NamespaceManager` class
+  - [x] Implement `createNamespace()`
+  - [x] Implement `dropNamespace()`
+  - [x] Implement `namespaceExists()`
+  - [x] Implement `listNamespaces()`
+  - [x] Implement `validateNamespaceName()`
+  - [ ] Add tests (deferred to later)
 
-- [ ] Update `src/lib/database-connection.ts`:
-  - [ ] Add `setSearchPath()` method (uses `nsName` parameter)
-  - [ ] Add `setLocalSearchPath()` method (uses `nsName` parameter)
-  - [ ] Add `queryInNamespace()` method (uses `dbName` and `nsName`)
-  - [ ] Update `setDatabaseForRequest()` signature (uses `dbName` and `nsName`)
-  - [ ] Remove/deprecate `getTenantPool()`
-  - [ ] Update comments/documentation
-  - [ ] Add tests
+- [x] Update `src/lib/database-connection.ts`:
+  - [x] Add `setSearchPath()` method (uses `nsName` parameter)
+  - [x] Add `setLocalSearchPath()` method (uses `nsName` parameter)
+  - [x] Add `queryInNamespace()` method (uses `dbName` and `nsName`)
+  - [x] Add `setDatabaseAndNamespaceForRequest()` method (new method, kept old for compatibility)
+  - [x] Kept `getTenantPool()` for backward compatibility (will update in later phases)
+  - [x] Update comments/documentation
+  - [ ] Add tests (deferred to later)
 
-- [ ] Update `src/lib/database-types.ts`:
-  - [ ] Add `dbName` and `nsName` to relevant interfaces
+- [x] Update `src/lib/database-types.ts`:
+  - [x] No changes needed (types will be updated in service layer phases)
 
 ### Phase 3: Fixture System
 
@@ -1796,10 +1798,33 @@ await client.query('COMMIT');  // search_path reverts
 
 ### Phase 8: Cleanup
 
-- [ ] Remove old code:
-  - [ ] Remove database cloning logic
-  - [ ] Remove per-tenant pool creation
-  - [ ] Remove database prefix validation for tenants
+**Deprecated/Legacy Methods to Remove:**
+
+From `src/lib/database-naming.ts`:
+- [ ] `generateDatabaseName()` - marked @deprecated, replaced by `generateTenantNsName()`
+- [ ] `extractHash()` - validates 16-char hash, update to 8-char or remove
+- [ ] `isTenantDatabase()` - checks tenant_/test_ prefixes, may not be needed
+
+From `src/lib/database-connection.ts`:
+- [ ] `MONK_DB_TENANT_PREFIX` constant - replaced by namespace prefixes (ns_tenant_)
+- [ ] `MONK_DB_TEST_PREFIX` constant - replaced by namespace prefixes (ns_test_)
+- [ ] `MONK_DB_TEST_TEMPLATE_PREFIX` constant - templates no longer used
+- [ ] `getTenantPool()` - kept for compatibility, replace with namespace-aware approach
+- [ ] `setDatabaseForRequest(c, tenantName)` - kept for compatibility, replace with `setDatabaseAndNamespaceForRequest()`
+- [ ] `validateTenantDatabaseName()` - validates tenant_ prefix, may not be needed
+- [ ] `createDatabase()` - tenant databases no longer created per-tenant
+- [ ] `deleteDatabase()` - tenant databases no longer deleted (drop namespaces instead)
+
+From service files (to be identified in later phases):
+- [ ] Database cloning logic in `database-template.ts`
+- [ ] Template database creation/management code
+- [ ] Per-tenant database creation in `tenant.ts`
+
+**Actions:**
+- [ ] Remove deprecated methods and constants
+- [ ] Update all call sites to use new namespace-based methods
+- [ ] Remove database prefix validation for tenants
+- [ ] Remove template database management code
 
 - [ ] Update environment variables (if needed):
   - [ ] Document database URL format

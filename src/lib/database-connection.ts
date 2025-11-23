@@ -1,4 +1,5 @@
 import pg from 'pg';
+import type { TxContext } from '@src/db/index.js';
 
 const { Pool, Client } = pg;
 
@@ -258,11 +259,121 @@ export class DatabaseConnection {
         };
     }
 
-    /** Attach tenant database pool to Hono context */
+    /**
+     * Attach tenant database pool to Hono context (LEGACY)
+     *
+     * @deprecated Will be updated to use database+namespace in later phases
+     */
     static setDatabaseForRequest(c: any, tenantName: string): void {
         const tenantPool = this.getTenantPool(tenantName);
         c.set('database', tenantPool);
         c.set('databaseDomain', tenantName);
+    }
+
+    /**
+     * Attach tenant database + namespace to Hono context (NEW hybrid architecture)
+     *
+     * Sets both database pool and namespace context from JWT payload.
+     * This will replace setDatabaseForRequest() in later refactor phases.
+     *
+     * @param c - Hono context
+     * @param dbName - Database name (db_main, db_test, etc.)
+     * @param nsName - Namespace name (ns_tenant_*, etc.)
+     */
+    static setDatabaseAndNamespaceForRequest(c: any, dbName: string, nsName: string): void {
+        const pool = this.getPool(dbName);
+        c.set('database', pool);
+        c.set('dbName', dbName);
+        c.set('nsName', nsName);
+    }
+
+    /**
+     * Set search path for namespace-scoped operations
+     *
+     * CRITICAL: Prevents SQL injection via namespace validation
+     *
+     * Sets the PostgreSQL search_path to the specified namespace, making all
+     * unqualified table references resolve to that namespace.
+     *
+     * WARNING: This is session-scoped. Use setLocalSearchPath() for transaction-scoped
+     * isolation which is safer for shared connection pools.
+     *
+     * @param client - PostgreSQL client (TxContext/PoolClient or Client)
+     * @param nsName - Namespace name (must be validated)
+     * @throws Error if namespace name is invalid
+     */
+    static async setSearchPath(client: TxContext | pg.Client, nsName: string): Promise<void> {
+        // Validate namespace (prevent SQL injection)
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+            throw new Error(`Invalid namespace: ${nsName}`);
+        }
+
+        // Use identifier quoting for safety
+        await client.query(`SET search_path TO "${nsName}", public`);
+    }
+
+    /**
+     * Set search path to transaction scope (safer but requires transaction)
+     *
+     * Uses SET LOCAL which is transaction-scoped, reverting after COMMIT/ROLLBACK.
+     * This is safer for shared connection pools as it prevents search_path leakage
+     * between requests.
+     *
+     * @param client - PostgreSQL client (TxContext/PoolClient or Client)
+     * @param nsName - Namespace name (must be validated)
+     * @throws Error if namespace name is invalid
+     */
+    static async setLocalSearchPath(client: TxContext | pg.Client, nsName: string): Promise<void> {
+        // Validate namespace (prevent SQL injection)
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+            throw new Error(`Invalid namespace: ${nsName}`);
+        }
+
+        // LOCAL = transaction-scoped, reverts after commit/rollback
+        await client.query(`SET LOCAL search_path TO "${nsName}", public`);
+    }
+
+    /**
+     * Execute query in specific database + namespace context
+     *
+     * Acquires a client from the pool, sets the search path, executes the query,
+     * and releases the client. Uses SET LOCAL for transaction-scoped isolation.
+     *
+     * @example
+     * await DatabaseConnection.queryInNamespace(
+     *   'db_main',
+     *   'ns_tenant_a1b2c3d4',
+     *   'SELECT * FROM users WHERE id = $1',
+     *   ['user-id']
+     * );
+     *
+     * @param dbName - Database name (db_main, db_test, etc.)
+     * @param nsName - Namespace name (ns_tenant_*, etc.)
+     * @param query - SQL query
+     * @param params - Query parameters
+     * @returns Query result
+     */
+    static async queryInNamespace(
+        dbName: string,
+        nsName: string,
+        query: string,
+        params?: any[],
+    ): Promise<pg.QueryResult> {
+        const pool = this.getPool(dbName);
+        const client = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+            await this.setLocalSearchPath(client, nsName);
+            const result = await client.query(query, params);
+            await client.query('COMMIT');
+            return result;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     /** Retrieve or create pool for specific database */

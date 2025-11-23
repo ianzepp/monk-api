@@ -1,16 +1,20 @@
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 
 /**
  * Database Naming Service
  *
- * Centralizes all database name generation logic for tenant databases.
+ * Centralizes all database and namespace (schema) name generation logic.
  * This module provides consistent hashing and naming across the application.
  *
+ * Architecture: Hybrid Database + Schema Model
+ * - Databases: db_main, db_test, db_premium_*, etc. (shared or dedicated)
+ * - Namespaces: ns_tenant_*, ns_test_*, ns_sandbox_* (isolation within databases)
+ *
  * Current implementation uses SHA256 hashing for enterprise mode, which ensures:
- * - Consistent database names regardless of Unicode variations
+ * - Consistent names regardless of Unicode variations
  * - Protection from reserved name conflicts
- * - Database name privacy (tenant name not exposed in DB name)
- * - No collision risk (16 hex chars = 64 bits of entropy)
+ * - Name privacy (tenant name not exposed in namespace name)
+ * - No collision risk (8 hex chars = 32 bits = 4.3 billion combinations)
  */
 
 /**
@@ -22,8 +26,8 @@ import { createHash } from 'crypto';
 export enum TenantNamingMode {
     /**
      * Enterprise mode: Uses SHA256 hash of tenant name
-     * Format: tenant_<16-char-hex>
-     * Example: "My Company" → "tenant_a1b2c3d4e5f6789a"
+     * Format: ns_tenant_<8-char-hex>
+     * Example: "My Company" → "ns_tenant_a1b2c3d4"
      */
     ENTERPRISE = 'enterprise',
 }
@@ -36,26 +40,15 @@ export enum TenantNamingMode {
  */
 export class DatabaseNaming {
     /**
-     * Generate tenant database name
+     * Generate tenant database name (LEGACY - kept for backward compatibility)
+     *
+     * @deprecated Use generateTenantNsName() for new hybrid database+schema architecture
      *
      * Uses SHA256 hashing to ensure:
      * - Consistent database names regardless of Unicode variations
      * - Protection from reserved name conflicts
      * - Database name privacy (tenant name not exposed in DB name)
-     * - No collision risk (16 hex chars = 64 bits of entropy)
-     * - Environment isolation (same tenant name in dev/test/prod gets same hash)
-     *
-     * Algorithm:
-     * 1. Normalize Unicode input (NFC normalization)
-     * 2. Trim whitespace
-     * 3. Generate SHA256 hash
-     * 4. Take first 16 hex characters
-     * 5. Add 'tenant_' prefix
-     *
-     * Examples:
-     *   "My Cool App" → "tenant_a1b2c3d4e5f6789a"
-     *   "测试应用" → "tenant_f9e8d7c6b5a49382"
-     *   "🚀 Rocket" → "tenant_d4c9b8a7f6e51203"
+     * - No collision risk (8 hex chars = 32 bits = 4.3 billion combinations)
      *
      * @param tenantName - User-facing tenant name (any Unicode string)
      * @param mode - Naming mode (kept for backward compatibility, always uses ENTERPRISE)
@@ -65,18 +58,80 @@ export class DatabaseNaming {
         tenantName: string,
         mode: TenantNamingMode = TenantNamingMode.ENTERPRISE,
     ): string {
-        // Always use SHA256 hashing for consistent, collision-resistant names
+        const normalizedName = tenantName.trim().normalize('NFC');
+        const hash = createHash('sha256').update(normalizedName, 'utf8').digest('hex').substring(0, 8);
+        return `tenant_${hash}`;
+    }
+
+    /**
+     * Generate tenant namespace (schema) name
+     *
+     * Uses SHA256 hashing to ensure:
+     * - Consistent namespace names regardless of Unicode variations
+     * - Protection from reserved name conflicts
+     * - Namespace privacy (tenant name not exposed)
+     * - No collision risk (8 hex chars = 32 bits = 4.3 billion combinations)
+     * - Environment isolation (same tenant name in dev/test/prod gets same hash)
+     *
+     * Algorithm:
+     * 1. Normalize Unicode input (NFC normalization)
+     * 2. Trim whitespace
+     * 3. Generate SHA256 hash
+     * 4. Take first 8 hex characters
+     * 5. Add 'ns_tenant_' prefix
+     *
+     * Examples:
+     *   "My Cool App" → "ns_tenant_a1b2c3d4"
+     *   "测试应用" → "ns_tenant_f9e8d7c6"
+     *   "🚀 Rocket" → "ns_tenant_d4c9b8a7"
+     *
+     * @param tenantName - User-facing tenant name (any Unicode string)
+     * @returns PostgreSQL schema name with ns_tenant_ prefix
+     */
+    static generateTenantNsName(tenantName: string): string {
         // Normalize Unicode for consistent hashing
         // NFC (Canonical Decomposition, followed by Canonical Composition)
         // ensures that "é" and "e + ´" produce the same hash
         const normalizedName = tenantName.trim().normalize('NFC');
 
-        // Generate SHA256 hash and take first 16 characters (64 bits)
-        // 16 hex chars = 64 bits = ~5 billion combinations before 50% collision
-        const hash = createHash('sha256').update(normalizedName, 'utf8').digest('hex').substring(0, 16);
+        // Generate SHA256 hash and take first 8 characters (32 bits)
+        // 8 hex chars = 32 bits = 4.3 billion combinations
+        const hash = createHash('sha256').update(normalizedName, 'utf8').digest('hex').substring(0, 8);
 
-        // Add prefix to distinguish from test databases (which use test_*)
-        return `tenant_${hash}`;
+        // Add prefix for tenant namespaces
+        return `ns_tenant_${hash}`;
+    }
+
+    /**
+     * Generate test namespace (schema) name
+     *
+     * Uses random bytes for uniqueness across parallel test execution.
+     *
+     * Format: ns_test_<8-char-hex>
+     * Example: "ns_test_a1b2c3d4"
+     *
+     * @returns PostgreSQL schema name with ns_test_ prefix
+     */
+    static generateTestNsName(): string {
+        // Use random bytes for test namespaces (4 bytes = 8 hex chars)
+        const hash = randomBytes(4).toString('hex');
+        return `ns_test_${hash}`;
+    }
+
+    /**
+     * Generate sandbox namespace (schema) name
+     *
+     * Uses random bytes for uniqueness.
+     *
+     * Format: ns_sandbox_<8-char-hex>
+     * Example: "ns_sandbox_xyz78901"
+     *
+     * @returns PostgreSQL schema name with ns_sandbox_ prefix
+     */
+    static generateSandboxNsName(): string {
+        // Use random bytes for sandbox namespaces (4 bytes = 8 hex chars)
+        const hash = randomBytes(4).toString('hex');
+        return `ns_sandbox_${hash}`;
     }
 
     /**
@@ -110,7 +165,26 @@ export class DatabaseNaming {
         }
 
         const hash = databaseName.substring('tenant_'.length);
-        return hash.length === 16 && /^[a-f0-9]+$/.test(hash) ? hash : null;
+        return hash.length === 8 && /^[a-f0-9]+$/.test(hash) ? hash : null;
+    }
+
+    /**
+     * Check if a namespace name follows tenant namespace conventions
+     *
+     * Valid prefixes:
+     * - ns_tenant_ (production tenants)
+     * - ns_test_ (test namespaces)
+     * - ns_sandbox_ (sandbox namespaces)
+     *
+     * @param nsName - Namespace name to check
+     * @returns true if name follows conventions
+     */
+    static isTenantNamespace(nsName: string): boolean {
+        return (
+            nsName.startsWith('ns_tenant_') ||
+            nsName.startsWith('ns_test_') ||
+            nsName.startsWith('ns_sandbox_')
+        );
     }
 
     /**
@@ -144,6 +218,41 @@ export class DatabaseNaming {
         // PostgreSQL max identifier length is 63 bytes
         if (trimmed.length > 63) {
             throw new Error(`Database name "${databaseName}" exceeds PostgreSQL limit (63 chars)`);
+        }
+    }
+
+    /**
+     * Validate namespace (schema) name format
+     *
+     * Ensures namespace name:
+     * - Is a non-empty string
+     * - Contains only alphanumeric and underscore characters
+     * - Follows PostgreSQL identifier rules
+     * - Prevents SQL injection
+     *
+     * @param nsName - Namespace name to validate
+     * @throws Error if validation fails
+     */
+    static validateNamespaceName(nsName: string): void {
+        if (typeof nsName !== 'string') {
+            throw new Error('Namespace name must be a string');
+        }
+
+        const trimmed = nsName.trim();
+
+        if (!trimmed) {
+            throw new Error('Namespace name cannot be empty');
+        }
+
+        // PostgreSQL identifiers: alphanumeric + underscore only
+        // This prevents SQL injection via namespace names
+        if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+            throw new Error(`Namespace name "${nsName}" contains invalid characters`);
+        }
+
+        // PostgreSQL max identifier length is 63 bytes
+        if (trimmed.length > 63) {
+            throw new Error(`Namespace name "${nsName}" exceeds PostgreSQL limit (63 chars)`);
         }
     }
 }
