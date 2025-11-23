@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { DatabaseConnection } from '../database-connection.js';
+import { HttpErrors } from '../errors/http-error.js';
 
 /**
  * Fixture metadata from template.json
@@ -64,9 +65,10 @@ export class FixtureDeployer {
         try {
             sql = await readFile(fixturePath, 'utf-8');
         } catch (error) {
-            throw new Error(
+            throw HttpErrors.internal(
                 `Failed to read compiled fixture: ${fixturePath}\n` +
                     `Did you run 'npm run fixtures:build ${fixtureName}'?`,
+                'DATABASE_TEMPLATE_CLONE_FAILED'
             );
         }
 
@@ -179,9 +181,10 @@ export class FixtureDeployer {
 
             return metadata;
         } catch (error) {
-            throw new Error(
+            throw HttpErrors.notFound(
                 `Failed to read fixture metadata: ${metadataPath}\n` +
                     `Make sure fixtures/${fixtureName}/template.json exists`,
+                'DATABASE_TEMPLATE_NOT_FOUND'
             );
         }
     }

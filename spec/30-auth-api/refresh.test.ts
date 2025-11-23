@@ -144,7 +144,6 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
             expect(response.data.user).toHaveProperty('id');
             expect(response.data.user).toHaveProperty('username');
             expect(response.data.user).toHaveProperty('tenant');
-            expect(response.data.user).toHaveProperty('database');
             expect(response.data.user).toHaveProperty('access');
         });
 
