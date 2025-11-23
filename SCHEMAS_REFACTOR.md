@@ -101,41 +101,34 @@ Tenants table:
 ```
 monk (infrastructure database)
 ├── public schema
-│   ├── templates (infrastructure table)
 │   ├── tenants (infrastructure table)
+│   ├── tenant_fixtures (tracks deployed fixtures per tenant)
 │   ├── sandboxes (infrastructure table)
 │   └── requests (infrastructure table)
-├── monk_system schema
-│   ├── models, fields, users, snapshots, etc.
-│   └── (was monk_template_system database)
-└── monk_template_<name> schemas
-    ├── monk_template_demo_crm
-    ├── monk_template_testing
-    └── ...
 
 db_main (default shared tenant database)
-├── ns_tenant_a1b2c3d4
-├── ns_tenant_b2c3d4e5
-├── ns_tenant_c3d4e5f6
+├── ns_tenant_a1b2c3d4 (system fixture only)
+├── ns_tenant_b2c3d4e5 (system + crm fixtures)
+├── ns_tenant_c3d4e5f6 (system + crm + chat + projects fixtures)
 └── ... (hundreds/thousands of lightweight tenants)
 
 db_test (test database)
-├── ns_test_abc12345
-├── ns_test_def67890
+├── ns_test_abc12345 (system + testing fixtures)
+├── ns_test_def67890 (system + crm + testing fixtures)
 └── ... (test schemas, fast creation/cleanup)
 
 db_us_east (regional database - optional)
 ├── ns_tenant_regional_001
-├── ns_tenant_regional_002
-└── monk_template_demo_crm (for regional testing/rollout)
+└── ns_tenant_regional_002
 
 db_us_west (regional database - optional)
-├── ns_tenant_regional_003
-└── monk_template_demo_crm (controlled rollout validation)
+└── ns_tenant_regional_003
 
 db_premium_<id> (dedicated database - optional)
 └── ns_tenant_premium_001 (single tenant, dedicated resources)
 ```
+
+**Note**: Templates are no longer stored as schemas. They exist only as fixture files in the `fixtures/` directory and are deployed on-demand to tenant namespaces.
 
 ### Tenant Distribution Examples
 
@@ -224,49 +217,69 @@ ns_sandbox_<hash-8>          # Sandboxes
 - Clear primary/default designation
 - Easier to type/remember
 
-### 4. Templates Storage
+### 4. Compositional Fixture Architecture
 
-**Templates are schemas**, not databases:
-- Default location: `monk.monk_template_<name>`
-- Regional testing: `db_us_west.monk_template_<name>`
-- Enables controlled rollouts region-by-region
+**Fixtures are SQL file sets**, not schemas:
+- Source: `fixtures/<name>/` directory with `load.sql`, `template.json`, `describe/`, `data/`
+- Compiled: `dist/fixtures/<name>.sql` (single optimized file)
+- Deployed: Executed into tenant namespaces on-demand
 
-### 5. System Fixture as Schema
+**Key Principle**: Fixtures compose together - `system` is always required, additional fixtures layer on top.
 
-**Old**: `monk_template_system` (separate database)
-**New**: `monk.monk_system` (schema in infrastructure database)
+**Examples**:
+- Minimal tenant: `system` fixture only
+- CRM tenant: `system` + `crm` fixtures
+- Full-featured: `system` + `crm` + `chat` + `projects` fixtures
+- Test tenant: `system` + `testing` fixtures (prebuilt test data)
 
-**Rationale**:
-- System model definitions are infrastructure metadata
-- Co-locate with infrastructure tables
-- Simplifies architecture (one less database)
-- Each tenant gets copy of system tables (maintains isolation)
+### 5. No Template Schema Storage
 
-### 6. Fixture System: Build + Deploy Separation
+**Old Approach**: Template databases/schemas to clone
+```
+monk_template_system database  → clone to → tenant_xyz database
+```
+
+**New Approach**: Fixtures deploy from compiled SQL
+```
+fixtures/system/load.sql → compile → dist/fixtures/system.sql → deploy to → ns_tenant_xyz
+```
+
+**Benefits**:
+- No template schemas to maintain or sync
+- Faster deployment (no cloning, just SQL execution)
+- Compositional (mix and match features)
+- Git is source of truth for fixtures
+
+### 6. Fixture System: Build + Deploy with Composition
 
 **Two-Phase Architecture:**
 
 **Phase 1: `fixtures:build` (Compilation)**
 - Happens at development/CI time
-- Reads fixture source files
-- Generates single optimized SQL file
-- Output committed to git
+- Reads fixture source files (`load.sql`, `describe/*.sql`, `data/*.sql`)
+- Inlines `\ir` directives (PostgreSQL includes)
+- Generates single optimized SQL file per fixture
+- Output: `dist/fixtures/<name>.sql`
+- Committed to git for reproducibility
 
 **Phase 2: `fixtures:deploy` (Execution)**
 - Happens at runtime (tests, registration, etc.)
+- Resolves fixture dependencies from `template.json`
+- Deploys fixtures in dependency order (system first)
 - Executes compiled fixture with parameters
-- Fast (~200-500ms for system fixture)
+- Fast (~200-500ms per fixture)
 
-**Decisions:**
-- Compiled fixtures committed to git ✓ (reproducibility)
-- Parameterization: `:schema` syntax ✓ (simple)
-- Optimization: Minimal for now ✓ (add later)
-- Build trigger: Manual ✓ (explicit control)
+**Composition:**
+- `system` fixture is **always required** (foundation)
+- Additional fixtures are **optional and additive**
+- Dependencies declared in `template.json`
+- Example: `crm` fixture requires `system` fixture
 
 **Benefits:**
 - No template database cloning needed
+- À la carte features (compose what you need)
 - Fast enough for tests
-- Works identically locally and remotely
+- Dependency resolution automatic
 - Version controlled build artifacts
 - Debuggable (can inspect compiled SQL)
 
@@ -317,13 +330,6 @@ CREATE DATABASE db_eu_west;
 ### Schema Types
 
 ```typescript
-// System fixture (singleton in monk database)
-const SYSTEM_SCHEMA = 'monk_system';
-
-// Templates (in any database)
-const TEMPLATE_PREFIX = 'monk_template_';
-// Examples: monk_template_system, monk_template_demo_crm
-
 // Tenants (in any tenant database)
 const TENANT_PREFIX = 'ns_tenant_';
 // Example: ns_tenant_a1b2c3d4
@@ -335,55 +341,61 @@ const TEST_PREFIX = 'ns_test_';
 // Sandboxes (in any database)
 const SANDBOX_PREFIX = 'ns_sandbox_';
 // Example: ns_sandbox_xyz78901
+
+// Fixtures (source files, not schemas)
+const FIXTURES_DIR = 'fixtures/';
+// Examples: fixtures/system/, fixtures/crm/, fixtures/chat/
 ```
 
 ---
 
 ## Infrastructure Changes
 
-### Templates Table
+### Tenant Fixtures Table (NEW)
 
-**Add `schema` column, modify `database` semantics:**
+**Track which fixtures are deployed to each tenant:**
 
 ```sql
--- Current structure
-CREATE TABLE templates (
-    id uuid PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    database VARCHAR(255) NOT NULL UNIQUE,  -- Was: monk_template_<name>
-    version INTEGER DEFAULT 1,
-    ...
+-- New table to track fixture deployments
+CREATE TABLE IF NOT EXISTS tenant_fixtures (
+    tenant_id uuid REFERENCES tenants(id) ON DELETE CASCADE,
+    fixture_name VARCHAR(255) NOT NULL,
+    deployed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY (tenant_id, fixture_name)
 );
 
--- New structure
-ALTER TABLE templates
-    -- database now holds: monk, db_us_west, etc.
-    ALTER COLUMN database TYPE VARCHAR(255),
-    DROP CONSTRAINT templates_database_unique,
+CREATE INDEX idx_tenant_fixtures_tenant ON tenant_fixtures(tenant_id);
+CREATE INDEX idx_tenant_fixtures_fixture ON tenant_fixtures(fixture_name);
 
-    -- Add schema column
-    ADD COLUMN schema VARCHAR(255) NOT NULL,
-
-    -- Schema must be unique within database
-    ADD CONSTRAINT templates_database_schema_unique UNIQUE(database, schema),
-
-    -- Schema naming validation
-    ADD CONSTRAINT templates_schema_prefix
-        CHECK (schema LIKE 'monk_template_%');
-
--- Update indexes
-CREATE INDEX idx_templates_database ON templates(database);
-CREATE INDEX idx_templates_schema ON templates(schema);
+COMMENT ON TABLE tenant_fixtures IS 'Tracks which fixtures are deployed to each tenant namespace';
+COMMENT ON COLUMN tenant_fixtures.fixture_name IS 'Name of deployed fixture (system, crm, chat, etc.)';
 ```
 
 **Example data:**
 ```sql
-INSERT INTO templates (name, database, schema, version) VALUES
-    ('system', 'monk', 'monk_system', 1),
-    ('demo-crm', 'monk', 'monk_template_demo_crm', 1),
-    ('demo-crm', 'db_us_west', 'monk_template_demo_crm', 2),  -- Regional testing
-    ('testing', 'monk', 'monk_template_testing', 1);
+-- Minimal tenant (system only)
+INSERT INTO tenant_fixtures (tenant_id, fixture_name) VALUES
+    ('tenant-a-uuid', 'system');
+
+-- CRM tenant (system + crm)
+INSERT INTO tenant_fixtures (tenant_id, fixture_name) VALUES
+    ('tenant-b-uuid', 'system'),
+    ('tenant-b-uuid', 'crm');
+
+-- Full-featured tenant (system + crm + chat + projects)
+INSERT INTO tenant_fixtures (tenant_id, fixture_name) VALUES
+    ('tenant-c-uuid', 'system'),
+    ('tenant-c-uuid', 'crm'),
+    ('tenant-c-uuid', 'chat'),
+    ('tenant-c-uuid', 'projects');
+
+-- Test tenant (system + testing)
+INSERT INTO tenant_fixtures (tenant_id, fixture_name) VALUES
+    ('test-tenant-uuid', 'system'),
+    ('test-tenant-uuid', 'testing');
 ```
+
+**Note**: The `templates` table is **removed** - fixtures are not stored as database schemas.
 
 ### Tenants Table
 
@@ -725,35 +737,50 @@ static async generateToken(user: any): Promise<string> {
 **Update `createTenant` method:**
 
 ```typescript
-static async createTenant(
-    tenantName: string,
-    template: string = 'system',
-    dbName: string = 'db_main',  // NEW: Which database to create in
-    force: boolean = false
-): Promise<TenantInfo> {
-    const nsName = DatabaseNaming.generateTenantNsName(tenantName);
+interface TenantCreateOptions {
+    name: string;
+    fixtures?: string[];  // Optional fixtures (e.g., ['crm', 'chat'])
+    dbName?: string;      // Target database (default: 'db_main')
+}
+
+static async createTenant(options: TenantCreateOptions): Promise<TenantInfo> {
+    const { name, fixtures = [], dbName = 'db_main' } = options;
+    const nsName = DatabaseNaming.generateTenantNsName(name);
 
     // Check if tenant already exists
-    if (!force && await this.tenantExists(tenantName)) {
-        throw new Error(`Tenant '${tenantName}' already exists`);
+    if (await this.tenantExists(name)) {
+        throw new Error(`Tenant '${name}' already exists`);
     }
 
     // Check if namespace already exists in target database
-    if (!force && await NamespaceManager.namespaceExists(dbName, nsName)) {
+    if (await NamespaceManager.namespaceExists(dbName, nsName)) {
         throw new Error(`Namespace '${nsName}' already exists in ${dbName}`);
     }
 
     try {
-        // Deploy fixture to create namespace
-        await FixtureDeployer.deploy(template, { dbName, nsName });
+        // 1. Resolve fixture dependencies (system is always first)
+        const resolvedFixtures = await this.resolveFixtureDependencies(fixtures);
+        // Example: ['crm'] resolves to ['system', 'crm']
 
-        // Create root user in tenant namespace
-        await this.createRootUser(dbName, nsName, tenantName);
+        // 2. Create namespace
+        await NamespaceManager.createNamespace(dbName, nsName);
 
-        // Insert tenant record
-        await this.insertTenantRecord(tenantName, dbName, nsName, template);
+        // 3. Deploy fixtures in dependency order
+        for (const fixtureName of resolvedFixtures) {
+            console.log(`Deploying fixture: ${fixtureName}`);
+            await FixtureDeployer.deploy(fixtureName, { dbName, nsName });
+        }
 
-        return { name: tenantName, dbName, nsName };
+        // 4. Create root user in tenant namespace
+        await this.createRootUser(dbName, nsName, name);
+
+        // 5. Insert tenant record
+        const tenantId = await this.insertTenantRecord(name, dbName, nsName);
+
+        // 6. Record deployed fixtures
+        await this.recordFixtures(tenantId, resolvedFixtures);
+
+        return { name, dbName, nsName, fixtures: resolvedFixtures };
     } catch (error) {
         // Clean up namespace if initialization failed
         try {
@@ -762,6 +789,74 @@ static async createTenant(
             console.warn(`Failed to cleanup namespace: ${cleanupError}`);
         }
         throw error;
+    }
+}
+
+/**
+ * Resolve fixture dependencies by reading template.json files
+ */
+private static async resolveFixtureDependencies(
+    requested: string[]
+): Promise<string[]> {
+    const resolved = new Set<string>(['system']);  // System always required
+    const queue = [...requested];
+
+    while (queue.length > 0) {
+        const fixtureName = queue.shift()!;
+
+        if (resolved.has(fixtureName)) continue;
+
+        // Read template.json to get dependencies
+        const metadata = await this.getFixtureMetadata(fixtureName);
+
+        // Add dependencies to queue
+        for (const dep of metadata.dependencies) {
+            if (!resolved.has(dep)) {
+                queue.push(dep);
+            }
+        }
+
+        resolved.add(fixtureName);
+    }
+
+    // Return in dependency order (system first)
+    return this.topologicalSort(Array.from(resolved));
+}
+
+/**
+ * Read fixture metadata from template.json
+ */
+private static async getFixtureMetadata(fixtureName: string): Promise<{
+    name: string;
+    dependencies: string[];
+    features: string[];
+}> {
+    const metadataPath = join(
+        process.cwd(),
+        'fixtures',
+        fixtureName,
+        'template.json'
+    );
+
+    const content = await readFile(metadataPath, 'utf-8');
+    return JSON.parse(content);
+}
+
+/**
+ * Record deployed fixtures for this tenant
+ */
+private static async recordFixtures(
+    tenantId: string,
+    fixtures: string[]
+): Promise<void> {
+    const mainPool = DatabaseConnection.getMainPool();
+
+    for (const fixtureName of fixtures) {
+        await mainPool.query(
+            `INSERT INTO tenant_fixtures (tenant_id, fixture_name)
+             VALUES ($1, $2)`,
+            [tenantId, fixtureName]
+        );
     }
 }
 ```
@@ -978,9 +1073,114 @@ await db.query('SELECT * FROM users');  // Queries ns_tenant_xyz.users
 
 ### Overview
 
-Two-phase architecture:
+**Compositional fixture architecture** where fixtures layer on top of each other:
+- `system` fixture is **always required** (foundation)
+- Additional fixtures are **optional and additive** (crm, chat, projects, testing)
+- Dependencies declared in `template.json` files
+- Two-phase build + deploy process
+
+### Fixture Structure (Existing Pattern)
+
+Each fixture follows this structure (already implemented in `fixtures/system/`):
+
+```
+fixtures/<name>/
+├── load.sql              # Master loader with phases + \ir directives
+├── template.json         # Metadata (name, version, dependencies, features)
+├── README.md            # Documentation
+├── version.txt          # Version tracking
+├── describe/            # DDL (table definitions)
+│   ├── models.sql
+│   ├── fields.sql
+│   └── ...
+└── data/               # DML (data inserts)
+    ├── models.sql
+    ├── fields.sql
+    └── ...
+```
+
+### Example: System Fixture (Required)
+
+**`fixtures/system/template.json`:**
+```json
+{
+  "name": "system",
+  "description": "Core infrastructure models (models, fields, users, etc.)",
+  "version": "1.0.0",
+  "is_system": true,
+  "dependencies": [],
+  "features": [
+    "core-infrastructure",
+    "model-registry",
+    "field-metadata",
+    "user-management"
+  ]
+}
+```
+
+### Example: CRM Fixture (Optional)
+
+**`fixtures/crm/template.json`:**
+```json
+{
+  "name": "crm",
+  "description": "CRM feature with contacts, companies, and deals",
+  "version": "1.0.0",
+  "is_system": false,
+  "dependencies": ["system"],
+  "features": ["contacts", "companies", "deals"]
+}
+```
+
+**`fixtures/crm/load.sql`:**
+```sql
+-- Requires: system fixture (models, fields tables must exist)
+\echo 'Loading CRM Fixture'
+
+-- Validation
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'models') THEN
+        RAISE EXCEPTION 'System fixture not loaded';
+    END IF;
+END $$;
+
+-- Table definitions
+\ir describe/contacts.sql
+\ir describe/companies.sql
+\ir describe/deals.sql
+
+-- Data (register CRM models in system.models table)
+\ir data/models.sql
+\ir data/fields.sql
+```
+
+### Example: Testing Fixture (Test Data)
+
+**`fixtures/testing/template.json`:**
+```json
+{
+  "name": "testing",
+  "description": "Prebuilt test data for test suites",
+  "version": "1.0.0",
+  "dependencies": ["system"],
+  "features": ["test-data", "test-users"]
+}
+```
+
+**`fixtures/testing/data/users.sql`:**
+```sql
+-- Prebuilt test users
+INSERT INTO users (id, name, auth, access) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'Test User 1', 'testuser1', 'full'),
+    ('00000000-0000-0000-0000-000000000002', 'Test User 2', 'testuser2', 'read')
+ON CONFLICT (auth) DO NOTHING;
+```
+
+### Two-Phase Process
+
 1. **Build Phase** (compilation): fixtures → optimized SQL
-2. **Deploy Phase** (execution): compiled SQL → database + schema
+2. **Deploy Phase** (execution): compiled SQL → database + namespace
 
 ### Build Phase Implementation
 
@@ -1203,37 +1403,50 @@ await FixtureDeployer.deploy(fixtureName, { database, schema });
 **Build fixtures:**
 ```bash
 npm run fixtures:build system
-npm run fixtures:build demo-crm
+npm run fixtures:build crm
+npm run fixtures:build chat
 npm run fixtures:build testing
 ```
 
-**Deploy fixtures:**
-```bash
-# Development
-npm run fixtures:deploy system -- --database db_test --schema ns_test_abc123
+**Tenant creation (programmatic - multiple fixtures):**
+```typescript
+// Minimal tenant (system only)
+await TenantService.createTenant({
+    name: 'startup-minimal'
+    // Deploys: ['system']
+});
 
-# Production tenant
-npm run fixtures:deploy demo-crm -- --database db_main --schema ns_tenant_xyz789
+// CRM tenant (system + crm)
+await TenantService.createTenant({
+    name: 'sales-company',
+    fixtures: ['crm']
+    // Resolves dependencies: ['system', 'crm']
+});
 
-# Regional testing
-npm run fixtures:deploy demo-crm -- --database db_us_west --schema monk_template_demo_crm
+// Full-featured tenant (system + crm + chat + projects)
+await TenantService.createTenant({
+    name: 'enterprise-corp',
+    fixtures: ['crm', 'chat', 'projects']
+    // Resolves: ['system', 'crm', 'chat', 'projects']
+});
+
+// Test tenant with prebuilt data
+await TenantService.createTenant({
+    name: 'test-suite-1',
+    fixtures: ['testing'],
+    dbName: 'db_test'
+    // Resolves: ['system', 'testing']
+});
 ```
 
-**Programmatic usage:**
-```typescript
-import { FixtureDeployer } from '@/lib/fixtures/deployer';
+**Manual fixture deployment (for testing):**
+```bash
+# Deploy single fixture
+npm run fixtures:deploy system -- --database db_test --schema ns_test_abc123
 
-// In tests
-await FixtureDeployer.deploy('system', {
-    dbName: 'db_test',
-    nsName: 'ns_test_abc123'
-});
-
-// In registration
-await FixtureDeployer.deploy('demo-crm', {
-    dbName: 'db_main',
-    nsName: 'ns_tenant_xyz789'
-});
+# Deploy multiple fixtures (manual)
+npm run fixtures:deploy system -- --database db_main --schema ns_tenant_xyz789
+npm run fixtures:deploy crm -- --database db_main --schema ns_tenant_xyz789
 ```
 
 ---
@@ -1357,7 +1570,8 @@ await client.query('COMMIT');  // search_path reverts
   createdb db_test
   ```
 - [ ] Update `fixtures/infrastructure/init.sql`:
-  - [ ] Add `schema` column to `templates` table
+  - [ ] Remove `templates` table (no longer needed)
+  - [ ] Add `tenant_fixtures` table (tracks which fixtures deployed to each tenant)
   - [ ] Add `schema` column to `tenants` table
   - [ ] Add `schema` column to `sandboxes` table
   - [ ] Update constraints and indexes
@@ -1401,7 +1615,7 @@ await client.query('COMMIT');  // search_path reverts
 - [ ] Create `src/lib/fixtures/builder.ts`:
   - [ ] Implement `FixtureBuilder` class
   - [ ] Implement `build()` method
-  - [ ] Implement `inlineIncludes()` method
+  - [ ] Implement `inlineIncludes()` method (handles `\ir` directives)
   - [ ] Implement `addParameterization()` method
   - [ ] Add placeholder for `optimize()` method
   - [ ] Add tests
@@ -1409,8 +1623,14 @@ await client.query('COMMIT');  // search_path reverts
 - [ ] Create `src/lib/fixtures/deployer.ts`:
   - [ ] Implement `FixtureDeployer` class
   - [ ] Implement `deploy()` method
-  - [ ] Add parameter injection
+  - [ ] Add parameter injection (`:database`, `:schema`)
+  - [ ] Support multiple fixture deployment
   - [ ] Add tests
+
+- [ ] Update existing fixture `template.json` files:
+  - [ ] Add `dependencies` field to `fixtures/system/template.json`
+  - [ ] Create `fixtures/crm/template.json` (example optional fixture)
+  - [ ] Create `fixtures/testing/template.json` (test data fixture)
 
 - [ ] Create `scripts/fixtures-build.ts`:
   - [ ] CLI argument parsing
@@ -1429,13 +1649,19 @@ await client.query('COMMIT');  // search_path reverts
 - [ ] Build all fixtures:
   ```bash
   npm run fixtures:build system
-  npm run fixtures:build demo-crm
+  npm run fixtures:build crm
+  npm run fixtures:build chat
   npm run fixtures:build testing
   ```
 
 - [ ] Test fixture deployment:
   ```bash
-  npm run fixtures:deploy system -- --database db_test --schema test_validate
+  # Single fixture
+  npm run fixtures:deploy system -- --database db_test --schema ns_test_validate
+
+  # Multiple fixtures (manual composition test)
+  npm run fixtures:deploy system -- --database db_test --schema ns_test_compose
+  npm run fixtures:deploy crm -- --database db_test --schema ns_test_compose
   ```
 
 ### Phase 4: Service Layer Updates
@@ -1444,7 +1670,13 @@ await client.query('COMMIT');  // search_path reverts
   - [ ] Update `JWTPayload` interface (add `db`, `ns` fields for JWT)
   - [ ] Update `generateToken()` method (use compact `db`/`ns` in JWT)
   - [ ] Update `login()` method (use `dbName`/`nsName` in code)
-  - [ ] Update `createTenant()` method (use `dbName`/`nsName` parameters)
+  - [ ] Update `createTenant()` method:
+    - [ ] Change signature to accept `fixtures` array
+    - [ ] Add `resolveFixtureDependencies()` method
+    - [ ] Add `getFixtureMetadata()` method (reads `template.json`)
+    - [ ] Add `recordFixtures()` method (inserts into `tenant_fixtures`)
+    - [ ] Deploy multiple fixtures in dependency order
+  - [ ] Add `addFixture()` method (deploy additional fixture to existing tenant)
   - [ ] Update `deleteTenant()` method
   - [ ] Update `getTenant()` method
   - [ ] Update `listTenants()` method
@@ -1685,20 +1917,29 @@ db_premium_<id>   # Premium tenant databases
 ### Schema (Namespace) Naming
 
 ```
-monk_system                  # System fixture (singleton)
-monk_template_<name>         # Templates
 ns_tenant_<hash-8>           # Tenants
 ns_test_<hash-8>             # Tests
 ns_sandbox_<hash-8>          # Sandboxes
 ```
 
+### Fixture Names (Source Files)
+
+```
+fixtures/system/             # Required - core infrastructure
+fixtures/crm/                # Optional - CRM feature
+fixtures/chat/               # Optional - chat feature
+fixtures/projects/           # Optional - project management
+fixtures/testing/            # Optional - prebuilt test data
+```
+
 ### Common Operations
 
-**Create tenant:**
+**Create tenant with fixtures:**
 ```typescript
-await FixtureDeployer.deploy('system', {
-    dbName: 'db_main',
-    nsName: 'ns_tenant_a1b2c3d4'
+await TenantService.createTenant({
+    name: 'my-company',
+    fixtures: ['crm', 'chat']
+    // Auto-deploys: system (required), then crm, then chat
 });
 ```
 
@@ -1759,14 +2000,18 @@ Implementation is complete when:
 
 - [ ] All tests pass with namespace-based infrastructure
 - [ ] Tests run in parallel without connection errors
-- [ ] Tenant creation uses namespace deployment (~200-500ms)
+- [ ] Tenant creation uses compositional fixture deployment
+- [ ] Multiple fixtures can be deployed to single namespace
+- [ ] Fixture dependencies resolve correctly (system always first)
 - [ ] JWT includes `db` and `ns` fields (compact)
 - [ ] Code uses `dbName` and `nsName` variables (readable)
 - [ ] All fixtures compiled to `dist/fixtures/*.sql`
+- [ ] `tenant_fixtures` table tracks deployed fixtures per tenant
 - [ ] Documentation updated
 - [ ] Connection pool usage reduced by ~90%
 - [ ] Can create 100+ test namespaces without errors
 - [ ] Can deploy tenants to different databases (db_main, db_us_east, etc.)
+- [ ] Can compose fixtures: system only, system+crm, system+crm+chat+projects, etc.
 
 ---
 
