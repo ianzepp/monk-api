@@ -13,12 +13,15 @@ import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.j
 import type { OperationType } from '@src/lib/observers/types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { convertRecordPgToMonk } from '@src/lib/field-types.js';
+import { SQL_MAX_RECURSION } from '@src/lib/constants.js';
 import type {
     DbRecord,
     DbCreateInput,
     DbUpdateInput,
     DbDeleteInput,
+    DbRevertInput,
     DbAccessInput,
+    DbAccessUpdate,
 } from '@src/lib/database-types.js';
 
 /**
@@ -39,22 +42,40 @@ export interface SelectOptions extends FilterWhereOptions {
 export class Database {
     public readonly system: SystemContextWithInfrastructure;
 
-    /** Maximum observer recursion depth to prevent infinite loops */
-    static readonly SQL_MAX_RECURSION = 3;
-
+    /**
+     * Create a new Database instance
+     *
+     * Database is per-request and provides high-level operations over the observer pipeline.
+     * Uses dependency injection pattern to break circular dependencies.
+     *
+     * @param system - System context with infrastructure (db, tx, database, describe)
+     */
     constructor(system: SystemContextWithInfrastructure) {
         this.system = system;
     }
 
     /**
      * Get transaction-aware database context
-     * Uses transaction if available, otherwise uses database connection
+     *
+     * Returns active transaction context if available, otherwise returns database connection.
+     * This ensures all queries execute within the correct transaction scope.
+     *
+     * @private
+     * @returns Transaction context if active, otherwise database connection
      */
     private get dbContext(): DbContext | TxContext {
         return this.system.tx || this.system.db;
     }
 
-    // Model operations with caching - returns Model instance
+    /**
+     * Resolve model name to Model instance with caching
+     *
+     * Loads model metadata from ModelCache (single query per model per request).
+     * Returns Model instance with validation capabilities and field metadata.
+     *
+     * @param modelName - Name of the model to load
+     * @returns Model instance with metadata and validation methods
+     */
     async toModel(modelName: ModelName): Promise<Model> {
         const modelCache = ModelCache.getInstance();
         const modelRecord = await modelCache.getModel(this.system, modelName);
@@ -64,7 +85,16 @@ export class Database {
         return model;
     }
 
-    // Core operation. Execute raw SQL query
+    /**
+     * Execute raw SQL query with optional parameters
+     *
+     * Low-level query execution using current transaction or database connection.
+     * Automatically uses parameterized queries when params provided.
+     *
+     * @param query - SQL query string
+     * @param params - Optional query parameters for parameterized queries
+     * @returns Query result with rows and metadata
+     */
     async execute(query: string, params: any[] = []): Promise<any> {
         const dbContext = this.dbContext;
         if (params.length > 0) {
@@ -74,7 +104,16 @@ export class Database {
         }
     }
 
-    // Count
+    /**
+     * Count records matching filter criteria
+     *
+     * Executes COUNT(*) query with optional WHERE conditions.
+     * Respects soft delete settings from system context.
+     *
+     * @param modelName - Model to count records from
+     * @param filterData - Optional filter conditions (where clause)
+     * @returns Total count of matching records
+     */
     async count(modelName: ModelName, filterData: FilterData = {}): Promise<number> {
         const model = await this.toModel(modelName);
         const filter = new Filter(model.model_name).assign(filterData);
@@ -125,6 +164,16 @@ export class Database {
         return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, model));
     }
 
+    /**
+     * Select multiple records by their IDs
+     *
+     * Lenient approach - returns only records that exist, no error if some missing.
+     * Extracts IDs from record objects and performs batch query.
+     *
+     * @param modelName - Model to select from
+     * @param records - Array of records with id fields
+     * @returns Array of matching records (may be fewer than requested)
+     */
     async selectAll<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         records: DbRecord<T>[]
@@ -140,6 +189,19 @@ export class Database {
         return await this.selectAny<T>(modelName, { where: { id: { $in: ids } } }, { context: 'system' });
     }
 
+    /**
+     * Create multiple records through observer pipeline
+     *
+     * Core batch creation method. Executes complete observer pipeline with:
+     * - Input validation (Ring 1)
+     * - Business logic (Ring 2-4)
+     * - Database insertion (Ring 5)
+     * - Post-processing (Ring 6-9)
+     *
+     * @param modelName - Model to create records in
+     * @param records - Array of record data to create
+     * @returns Array of created records with system fields populated
+     */
     async createAll<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         records: DbCreateInput<T>[]
@@ -161,7 +223,17 @@ export class Database {
         return await this.runObserverPipeline('delete', modelName, deletes);
     }
 
-    // Core data operations
+    /**
+     * Select a single record matching filter criteria
+     *
+     * Returns first matching record or null if none found.
+     * Respects soft delete settings and applies context-based defaults.
+     *
+     * @param modelName - Model to select from
+     * @param filterData - Filter conditions (where, limit, offset, etc.)
+     * @param options - Soft delete and context options
+     * @returns First matching record or null if none found
+     */
     async selectOne<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         filterData: FilterData,
@@ -171,6 +243,19 @@ export class Database {
         return results[0] || null;
     }
 
+    /**
+     * Select a single record or throw 404 error
+     *
+     * Convenience method that throws HttpError if record not found.
+     * Useful for API endpoints that require record to exist.
+     *
+     * @param modelName - Model to select from
+     * @param filter - Filter conditions
+     * @param message - Optional custom error message
+     * @param options - Soft delete and context options
+     * @returns Matching record
+     * @throws HttpError 404 if record not found
+     */
     async select404<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         filter: FilterData,
@@ -186,7 +271,17 @@ export class Database {
         return record;
     }
 
-    // ID-based operations - always work with arrays
+    /**
+     * Select multiple records by their IDs
+     *
+     * Batch query for specific record IDs. Returns only existing records,
+     * no error if some IDs don't exist (lenient approach).
+     *
+     * @param modelName - Model to select from
+     * @param ids - Array of record IDs to fetch
+     * @param options - Soft delete and context options
+     * @returns Array of matching records (may be fewer than requested IDs)
+     */
     async selectIds<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         ids: string[],
@@ -196,6 +291,17 @@ export class Database {
         return await this.selectAny<T>(modelName, { where: { id: { $in: ids } } }, options);
     }
 
+    /**
+     * Update multiple records by their IDs
+     *
+     * Batch update applying same changes to all specified records.
+     * Delegates to updateAny() for pipeline execution.
+     *
+     * @param modelName - Model to update records in
+     * @param ids - Array of record IDs to update
+     * @param changes - Partial record data to apply to all records
+     * @returns Array of updated records
+     */
     async updateIds<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         ids: string[],
@@ -205,6 +311,16 @@ export class Database {
         return await this.updateAny<T>(modelName, { where: { id: { $in: ids } } }, changes);
     }
 
+    /**
+     * Soft delete multiple records by their IDs
+     *
+     * Batch soft delete by setting trashed_at timestamp.
+     * Delegates to deleteAll() for pipeline execution.
+     *
+     * @param modelName - Model to delete records from
+     * @param ids - Array of record IDs to soft delete
+     * @returns Array of soft deleted records with trashed_at set
+     */
     async deleteIds<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         ids: string[]
@@ -216,7 +332,18 @@ export class Database {
         return await this.deleteAll<T>(modelName, deleteRecords);
     }
 
-    // Advanced operations - filter-based updates/deletes
+    /**
+     * Select records matching filter criteria
+     *
+     * Core select method with full filter support (where, limit, offset, sort).
+     * Respects soft delete settings and applies context-based defaults.
+     * Converts PostgreSQL types back to proper JSON types.
+     *
+     * @param modelName - Model to select from
+     * @param filterData - Filter conditions (where, limit, offset, sort, etc.)
+     * @param options - Soft delete and context options
+     * @returns Array of matching records
+     */
     async selectAny<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         filterData: FilterData = {},
@@ -282,8 +409,20 @@ export class Database {
         return convertRecordPgToMonk(record, model.typedFields);
     }
 
+    /**
+     * Update records matching filter criteria
+     *
+     * Two-phase operation: find matching records, then apply changes to all.
+     * Uses system context for initial select to ensure all records are found.
+     * Delegates to updateAll() for pipeline execution.
+     *
+     * @param modelName - Model to update records in
+     * @param filterData - Filter to find records to update
+     * @param changes - Partial record data to apply to all matching records
+     * @returns Array of updated records
+     */
     async updateAny<T extends Record<string, any> = Record<string, any>>(
-        modelName: string,
+        modelName: ModelName,
         filterData: FilterData,
         changes: Partial<T>
     ): Promise<DbRecord<T>[]> {
@@ -304,8 +443,19 @@ export class Database {
         return await this.updateAll<T>(modelName, updates);
     }
 
+    /**
+     * Soft delete records matching filter criteria
+     *
+     * Two-phase operation: find matching records, then soft delete all by ID.
+     * Uses system context for initial select to ensure all records are found.
+     * Delegates to deleteIds() for pipeline execution.
+     *
+     * @param modelName - Model to delete records from
+     * @param filter - Filter to find records to delete
+     * @returns Array of soft deleted records with trashed_at set
+     */
     async deleteAny<T extends Record<string, any> = Record<string, any>>(
-        modelName: string,
+        modelName: ModelName,
         filter: FilterData
     ): Promise<DbRecord<T>[]> {
         // 1. Find all records matching the filter - use system context for internal operations
@@ -320,6 +470,16 @@ export class Database {
         return await this.deleteIds<T>(modelName, recordIds);
     }
 
+    /**
+     * Create a single record through observer pipeline
+     *
+     * Convenience method for single record creation.
+     * Delegates to createAll() for pipeline execution.
+     *
+     * @param modelName - Model to create record in
+     * @param recordData - Record data to create
+     * @returns Created record with system fields populated
+     */
     async createOne<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         recordData: DbCreateInput<T>
@@ -329,6 +489,18 @@ export class Database {
         return results[0];
     }
 
+    /**
+     * Update a single record by ID
+     *
+     * Updates record with specified ID, throws 404 if not found.
+     * Delegates to updateAll() for pipeline execution.
+     *
+     * @param modelName - Model to update record in
+     * @param recordId - ID of record to update
+     * @param updates - Partial record data to apply
+     * @returns Updated record
+     * @throws HttpError 404 if record not found
+     */
     async updateOne<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         recordId: string,
@@ -343,7 +515,19 @@ export class Database {
         return results[0];
     }
 
-    // Core batch update method - optimized for multiple records
+    /**
+     * Update multiple records through observer pipeline
+     *
+     * Core batch update method. Executes complete observer pipeline with:
+     * - Input validation (Ring 1)
+     * - Business logic (Ring 2-4)
+     * - Database update (Ring 5)
+     * - Post-processing (Ring 6-9)
+     *
+     * @param modelName - Model to update records in
+     * @param updates - Array of partial record data with IDs
+     * @returns Array of updated records
+     */
     async updateAll<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         updates: DbUpdateInput<T>[]
@@ -379,7 +563,7 @@ export class Database {
      */
     async revertAll<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
-        reverts: DbUpdateInput<T>[]
+        reverts: DbRevertInput[]
     ): Promise<DbRecord<T>[]> {
         // Universal pattern: Array → Observer Pipeline
         return await this.runObserverPipeline('revert', modelName, reverts);
@@ -393,7 +577,7 @@ export class Database {
         modelName: ModelName,
         recordId: string
     ): Promise<DbRecord<T>> {
-        const results = await this.revertAll<T>(modelName, [{ id: recordId, trashed_at: null } as unknown as DbUpdateInput<T>]);
+        const results = await this.revertAll<T>(modelName, [{ id: recordId, trashed_at: null }]);
 
         if (results.length === 0) {
             throw HttpErrors.notFound('Record not found or not trashed', 'RECORD_NOT_FOUND');
@@ -417,7 +601,7 @@ export class Database {
         }
 
         const trashedRecords = await this.selectAny<T>(modelName, filterData, { includeTrashed: true, includeDeleted: false, context: 'system' });
-        const recordsToRevert = trashedRecords.filter(record => record.trashed_at !== null).map(record => ({ id: record.id, trashed_at: null } as unknown as DbUpdateInput<T>));
+        const recordsToRevert = trashedRecords.filter(record => record.trashed_at !== null).map(record => ({ id: record.id, trashed_at: null }));
 
         if (recordsToRevert.length === 0) {
             return [];
@@ -434,8 +618,8 @@ export class Database {
      */
     private async runObserverPipeline(operation: OperationType, modelName: string, data: any[], depth: number = 0): Promise<any[]> {
         // Recursion protection
-        if (depth > Database.SQL_MAX_RECURSION) {
-            throw new ObserverRecursionError(depth, Database.SQL_MAX_RECURSION);
+        if (depth > SQL_MAX_RECURSION) {
+            throw new ObserverRecursionError(depth, SQL_MAX_RECURSION);
         }
 
         const startTime = Date.now();
@@ -492,11 +676,10 @@ export class Database {
         const runner = new ObserverRunner();
 
         const result = await runner.execute(
-            this.system as any, // TODO: Fix System vs SystemContext type mismatch
+            this.system,
             operation,
             model,
             records,  // Pass ModelRecord[] instead of any[]
-            undefined, // existing records (DEPRECATED - RecordPreloader will inject into ModelRecord.load())
             depth
         );
 
@@ -536,74 +719,43 @@ export class Database {
 
     // Database class doesn't handle transactions - System class does
 
-    // Access control operations - separate from regular data updates
+    // Access control operations - modify ACLs only, not record data
+    /**
+     * Update access control lists (ACLs) for multiple records.
+     * Core batch implementation for ACL modifications.
+     * Only modifies access_* fields, all other fields are ignored.
+     * @returns Array of updated records with new ACL values
+     */
+    async accessAll<T extends Record<string, any> = Record<string, any>>(
+        modelName: ModelName,
+        accessUpdates: DbAccessUpdate[]
+    ): Promise<DbRecord<T>[]> {
+        // Universal pattern: Array → Observer Pipeline
+        return await this.runObserverPipeline('access', modelName, accessUpdates);
+    }
+
+    /**
+     * Update access control lists (ACLs) for a single record.
+     * Delegates to accessAll() for consistency with updateOne/updateAll pattern.
+     */
     async accessOne<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         recordId: string,
         accessChanges: DbAccessInput
     ): Promise<DbRecord<T>> {
-        const model = await this.toModel(modelName);
+        const results = await this.accessAll<T>(modelName, [{ id: recordId, ...accessChanges }]);
 
-        // Verify record exists
-        await this.select404<T>(modelName, { where: { id: recordId } });
-
-        // Only allow access_* field updates
-        const allowedFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
-        const filteredChanges: Record<string, any> = {};
-
-        for (const [key, value] of Object.entries(accessChanges)) {
-            if (allowedFields.includes(key)) {
-                filteredChanges[key] = value;
-            } else {
-                console.warn('Ignoring non-access field in accessOne', { field: key });
-            }
+        if (results.length === 0) {
+            throw HttpErrors.notFound('Record not found', 'RECORD_NOT_FOUND');
         }
 
-        if (Object.keys(filteredChanges).length === 0) {
-            throw HttpErrors.badRequest('No valid access fields provided for accessOne operation', 'REQUEST_MISSING_FIELDS');
-        }
-
-        // Add updated_at for audit trail
-        filteredChanges.updated_at = new Date().toISOString();
-
-        // Build UPDATE query for access fields only
-        const setClauses: string[] = [];
-        for (const [key, value] of Object.entries(filteredChanges)) {
-            if (allowedFields.includes(key) && Array.isArray(value)) {
-                const pgArrayLiteral = `'{${value.join(',')}}'::uuid[]`;
-                setClauses.push(`"${key}" = ${pgArrayLiteral}`);
-            } else if (value === null) {
-                setClauses.push(`"${key}" = NULL`);
-            } else if (typeof value === 'string') {
-                setClauses.push(`"${key}" = '${value.replace(/'/g, "''")}'`);
-            } else {
-                setClauses.push(`"${key}" = '${value}'`);
-            }
-        }
-
-        const setClause = setClauses.join(', ');
-
-        const result = await this.execute(`
-            UPDATE "${model.model_name}"
-            SET ${setClause}
-            WHERE id = '${recordId}'
-            RETURNING *
-        `);
-
-        return result.rows[0];
+        return results[0];
     }
 
-    async accessAll<T extends Record<string, any> = Record<string, any>>(
-        modelName: ModelName,
-        updates: Array<{ id: string; access: DbAccessInput }>
-    ): Promise<DbRecord<T>[]> {
-        const results: DbRecord<T>[] = [];
-        for (const update of updates) {
-            results.push(await this.accessOne<T>(modelName, update.id, update.access));
-        }
-        return results;
-    }
-
+    /**
+     * Update access control lists (ACLs) for records matching a filter.
+     * Finds records, then applies access changes to all matches.
+     */
     async accessAny<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         filter: FilterData,
@@ -619,14 +771,26 @@ export class Database {
         // 2. Apply access changes to each record
         const accessUpdates = records.map(record => ({
             id: record.id,
-            access: { ...accessChanges },
+            ...accessChanges,
         }));
 
         // 3. Bulk update access permissions
         return await this.accessAll<T>(modelName, accessUpdates);
     }
 
-    // 404 operations - convenience methods that throw if not found
+    /**
+     * Update record by filter or throw 404 error
+     *
+     * Two-phase operation: verify record exists (throws 404), then update.
+     * Convenience method for API endpoints requiring record to exist.
+     *
+     * @param modelName - Model to update record in
+     * @param filter - Filter to find record
+     * @param changes - Partial record data to apply
+     * @param message - Optional custom error message
+     * @returns Updated record
+     * @throws HttpError 404 if record not found
+     */
     async update404<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         filter: FilterData,
@@ -639,6 +803,18 @@ export class Database {
         return await this.updateOne<T>(modelName, record.id, changes);
     }
 
+    /**
+     * Soft delete record by filter or throw 404 error
+     *
+     * Two-phase operation: verify record exists (throws 404), then soft delete.
+     * Convenience method for API endpoints requiring record to exist.
+     *
+     * @param modelName - Model to delete record from
+     * @param filter - Filter to find record
+     * @param message - Optional custom error message
+     * @returns Soft deleted record with trashed_at set
+     * @throws HttpError 404 if record not found
+     */
     async delete404<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         filter: FilterData,
@@ -649,6 +825,19 @@ export class Database {
         return await this.deleteOne<T>(modelName, record.id);
     }
 
+    /**
+     * Update ACLs for record by filter or throw 404 error
+     *
+     * Two-phase operation: verify record exists (throws 404), then update ACLs.
+     * Convenience method for API endpoints requiring record to exist.
+     *
+     * @param modelName - Model to update ACLs in
+     * @param filter - Filter to find record
+     * @param accessChanges - Access control changes to apply
+     * @param message - Optional custom error message
+     * @returns Record with updated ACLs
+     * @throws HttpError 404 if record not found
+     */
     async access404<T extends Record<string, any> = Record<string, any>>(
         modelName: ModelName,
         filter: FilterData,

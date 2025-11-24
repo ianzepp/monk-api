@@ -89,7 +89,16 @@ export interface DbDeleteInput {
 }
 
 /**
- * Access control update input
+ * Input for revert operations (undo soft delete)
+ * Requires record ID and explicitly sets trashed_at to null
+ */
+export interface DbRevertInput {
+    id: string;
+    trashed_at: null;
+}
+
+/**
+ * Access control update input (for single record operations)
  * Only allows modification of access_* fields
  */
 export interface DbAccessInput {
@@ -97,6 +106,14 @@ export interface DbAccessInput {
     access_edit?: string[] | null;
     access_full?: string[] | null;
     access_deny?: string[] | null;
+}
+
+/**
+ * Batch access control update input
+ * Includes record ID and access fields
+ */
+export interface DbAccessUpdate extends DbAccessInput {
+    id: string;
 }
 
 /**

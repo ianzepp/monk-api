@@ -5,7 +5,7 @@
  * observer definitions, and execution contracts.
  */
 
-import type { System } from '@src/lib/system.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import type { Model } from '@src/lib/model.js';
 import type { ModelRecord } from '@src/lib/model-record.js';
 import type {
@@ -21,7 +21,7 @@ import type { ValidationError, ValidationWarning } from '@src/lib/observers/erro
  */
 export interface ObserverContext {
     /** Per-request database system context */
-    system: System;
+    system: SystemContextWithInfrastructure;
 
     /** Database operation being performed */
     operation: OperationType;

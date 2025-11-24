@@ -32,7 +32,6 @@ export async function executeObserverPipeline(
         operation,
         model,
         data ? [data] : [], // Convert single record to array
-        existing ? [existing] : undefined,
         0 // depth
     );
 }

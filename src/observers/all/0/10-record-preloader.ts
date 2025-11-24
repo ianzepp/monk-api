@@ -58,7 +58,7 @@ export default class RecordPreloader extends BaseObserver {
             });
 
             // Build lookup map for efficient matching
-            const existingById = existingRecords.reduce((acc, record) => {
+            const existingById = existingRecords.reduce((acc: Record<string, any>, record: any) => {
                 acc[record.id] = record;
                 return acc;
             }, {} as Record<string, any>);

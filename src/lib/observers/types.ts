@@ -28,9 +28,14 @@ export const DATABASE_RING = ObserverRing.Database;
 
 /**
  * Database operation types that observers can target
- * Includes revert operation for undoing soft deletes
+ * - create: Insert new records
+ * - update: Modify existing records
+ * - delete: Soft delete records (set trashed_at)
+ * - select: Read records (query-only)
+ * - revert: Undo soft delete (clear trashed_at)
+ * - access: Modify access control lists (ACLs only)
  */
-export type OperationType = 'create' | 'update' | 'delete' | 'select' | 'revert';
+export type OperationType = 'create' | 'update' | 'delete' | 'select' | 'revert' | 'access';
 
 /**
  * Ring execution matrix - defines which rings execute for each operation type
@@ -44,6 +49,7 @@ export const RING_OPERATION_MATRIX = {
     'update': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings
     'delete': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings
     'revert': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings - undoing soft deletes
+    'access': [0, 1, 2, 5, 6, 7, 8, 9],        // Skip enrichment (ring 4), skip business logic (ring 3) - ACL-only operation
 } as const;
 
 /**

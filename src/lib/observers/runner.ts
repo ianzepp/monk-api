@@ -5,7 +5,7 @@
  * timeout protection, and performance monitoring.
  */
 
-import type { System } from '@src/lib/system.js';
+import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
 import { Model } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
 import { ModelCache } from '@src/lib/model-cache.js';
@@ -36,18 +36,17 @@ export class ObserverRunner {
      * Execute observers for a model operation with selective ring execution
      */
     async execute(
-        system: System,
+        system: SystemContextWithInfrastructure,
         operation: OperationType,
         model: Model,
         data: ModelRecord[],
-        existing?: any[],
         depth: number = 0,
         filter?: any
     ): Promise<ObserverResult> {
         const startTime = Date.now();
 
         // Model object already resolved by Database.runObserverPipeline()
-        const context = this._createContext(system, operation, model, data, existing, filter);
+        const context = this._createContext(system, operation, model, data, filter);
         const stats: ObserverStats[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
@@ -86,11 +85,10 @@ export class ObserverRunner {
      * Create observer context for execution
      */
     private _createContext(
-        system: System,
+        system: SystemContextWithInfrastructure,
         operation: OperationType,
         model: Model,
         data: ModelRecord[],
-        existing?: any[],
         filter?: any
     ): ObserverContext {
         return {

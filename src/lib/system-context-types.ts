@@ -5,6 +5,8 @@
  * breaking circular dependencies while maintaining clean architecture.
  */
 
+import type { Context } from 'hono';
+
 /**
  * System options for controlling query behavior
  */
@@ -62,6 +64,9 @@ export interface SystemContext {
  * Used during transition period before Ring 5 migration (Issue #94)
  */
 export interface SystemContextWithInfrastructure extends SystemContext {
+    /** Hono request context for accessing request/response and context variables */
+    readonly context: Context;
+
     /** Database connection - always available for database operations */
     readonly db: any; // Avoid importing pg.Pool to prevent circular deps
 
