@@ -12,6 +12,8 @@
         "build": "scripts/build.sh",
         "build:watch": "nodemon --watch src --ext ts --exec 'npm run build'",
         "build:spec": "scripts/build-spec.sh",
+        "build:todo": "scripts/build-todos.sh",
+        "build:deprecated": "scripts/build-deprecated.sh",
         "autoinstall": "scripts/autoinstall.sh",
         "fixtures:build": "tsx scripts/fixtures-build.ts",
         "fixtures:deploy": "tsx scripts/fixtures-deploy.ts",

@@ -140,6 +140,22 @@ main() {
     log_info "  Fixture files: $(find dist/fixtures -name 'deploy.sql' 2>/dev/null | wc -l | tr -d ' ')"
 
     log_info "Compilation completed successfully!"
+
+    # Step 7: Extract TODO/FIXME/HACK tags
+    log_info "Extracting TODO tags from codebase..."
+    if [[ -f "$SCRIPT_DIR/build-todos.sh" ]]; then
+        "$SCRIPT_DIR/build-todos.sh" || log_warn "TODO extraction failed (non-critical)"
+    else
+        log_warn "TODO extraction script not found (skipping)"
+    fi
+
+    # Step 8: Extract @deprecated tags
+    log_info "Extracting @deprecated tags from codebase..."
+    if [[ -f "$SCRIPT_DIR/build-deprecated.sh" ]]; then
+        "$SCRIPT_DIR/build-deprecated.sh" || log_warn "Deprecated extraction failed (non-critical)"
+    else
+        log_warn "Deprecated extraction script not found (skipping)"
+    fi
 }
 
 main "$@"
