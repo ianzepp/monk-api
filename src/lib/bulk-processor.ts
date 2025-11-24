@@ -351,18 +351,26 @@ export class BulkProcessor {
                 return await this.system.database.count(modelName, filter);
 
             case BulkOperationType.Aggregate: {
-                const aggregateFilter = filter || (op.where ? { where: op.where } : {});
-                const groupBy = Array.isArray(op.groupBy)
-                    ? op.groupBy
-                    : typeof op.groupBy === 'string'
-                        ? [op.groupBy]
-                        : undefined;
-                return await this.system.database.aggregate(
-                    modelName,
-                    aggregateFilter,
-                    op.aggregate!,
-                    groupBy
-                );
+                // Build aggregate request body
+                const body: any = {
+                    aggregate: op.aggregate!
+                };
+
+                // Add where clause if present
+                if (filter?.where) {
+                    body.where = filter.where;
+                } else if (op.where) {
+                    body.where = op.where;
+                }
+
+                // Add groupBy if present
+                if (op.groupBy) {
+                    body.groupBy = Array.isArray(op.groupBy)
+                        ? op.groupBy
+                        : [op.groupBy];
+                }
+
+                return await this.system.database.aggregate(modelName, body);
             }
 
             // Write operations
