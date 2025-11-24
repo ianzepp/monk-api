@@ -15,6 +15,7 @@
         "build:todo": "scripts/build-todos.sh",
         "build:deprecated": "scripts/build-deprecated.sh",
         "autoinstall": "scripts/autoinstall.sh",
+        "install:db": "scripts/install-db.sh",
         "fixtures:build": "tsx scripts/fixtures-build.ts",
         "fixtures:deploy": "tsx scripts/fixtures-deploy.ts",
         "fixtures:build:legacy": "scripts/fixtures-build.sh",
