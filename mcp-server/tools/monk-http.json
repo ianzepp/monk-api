@@ -1,6 +1,6 @@
 {
   "name": "MonkHttp",
-  "description": "Raw HTTP requests to Monk API. Automatically injects JWT token (if authenticated) and Accept header for response format (toon/yaml/json based on auth preference). This is the primary low-level tool - all API functionality is accessible through this tool. Use MonkData and MonkDescribe for common operations with better ergonomics. Supports all HTTP methods (GET, POST, PUT, DELETE, PATCH) and arbitrary API paths. Returns responses in the format set during authentication (default: TOON for optimal LLM parsing).",
+  "description": "HTTP requests to Monk API. Automatically injects JWT token (if authenticated) and Accept header for response format. **Start here: GET /docs (no auth required) returns full API documentation with all endpoints, examples, and usage patterns.** Key endpoints: /auth/* (login/register), /api/data/:model (CRUD), /api/find/:model (queries), /api/describe/:model (schema), /api/aggregate/:model (analytics). Supports all HTTP methods (GET, POST, PUT, DELETE, PATCH). Returns TOON format by default (40% fewer tokens than JSON).",
   "inputModel": {
     "type": "object",
     "properties": {
