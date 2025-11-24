@@ -26,18 +26,18 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
     describe('Unwrap (Remove Envelope)', () => {
         it('should unwrap and return full data object without envelope', async () => {
-            const response = await tenant.httpClient.get('/api/user/whoami?unwrap');
+            // Use request() to get full HTTP response with status
+            const response = await tenant.httpClient.request('/api/user/whoami?unwrap', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
             // When unwrapped, the response should be raw data (not wrapped in success/data)
-            // The httpClient parses JSON, so we check the raw structure
-            expect(response.data).toBeDefined();
+            expect(response.json).toBeDefined();
 
             // Unwrapped response should have user fields directly
-            if (response.data.id) {
+            if (response.json.id) {
                 // Data is unwrapped
-                expect(response.data.id).toBeDefined();
+                expect(response.json.id).toBeDefined();
             }
         });
 
@@ -57,33 +57,35 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
     describe('Single Field Extraction', () => {
         it('should extract single field', async () => {
-            const response = await tenant.httpClient.get('/api/user/whoami?select=id');
+            // Use request() to get full HTTP response with status
+            const response = await tenant.httpClient.request('/api/user/whoami?select=id', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
             // Single field extraction returns the value directly
-            const data = response.data;
-            expect(data).toBeDefined();
+            expect(response.json).toBeDefined();
         });
 
         it('should return null for missing field', async () => {
-            const response = await tenant.httpClient.get('/api/user/whoami?select=nonexistent');
+            // Use request() to get full HTTP response with status
+            const response = await tenant.httpClient.request('/api/user/whoami?select=nonexistent', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
             // Missing field returns null
-            expect(response.data).toBeNull();
+            expect(response.json).toBeNull();
         });
     });
 
     describe('Multiple Field Extraction', () => {
         it('should extract multiple fields as JSON object', async () => {
-            const response = await tenant.httpClient.get('/api/user/whoami?select=id,name');
+            // Use request() to get full HTTP response with status
+            const response = await tenant.httpClient.request('/api/user/whoami?select=id,name', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
             // Multiple fields should return JSON object
-            const data = response.data;
+            const data = response.json;
             expect(data).toBeDefined();
             expect(typeof data).toBe('object');
 
@@ -92,11 +94,12 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
         });
 
         it('should handle mix of existing and missing fields', async () => {
-            const response = await tenant.httpClient.get('/api/user/whoami?select=id,nonexistent');
+            // Use request() to get full HTTP response with status
+            const response = await tenant.httpClient.request('/api/user/whoami?select=id,nonexistent', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
-            const data = response.data;
+            const data = response.json;
             expect(data).toBeDefined();
             // id should exist, nonexistent may be null or undefined
         });
@@ -104,11 +107,12 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
     describe('Nested Path Extraction', () => {
         it('should handle invalid nested paths gracefully', async () => {
-            const response = await tenant.httpClient.get('/api/user/whoami?select=invalid.nested.path');
+            // Use request() to get full HTTP response with status
+            const response = await tenant.httpClient.request('/api/user/whoami?select=invalid.nested.path', { method: 'GET' });
 
             expect(response.status).toBe(200);
             // Invalid nested path returns null
-            expect(response.data).toBeNull();
+            expect(response.json).toBeNull();
         });
     });
 
@@ -129,19 +133,19 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
     describe('Empty and Invalid Select Parameters', () => {
         it('should return full response when select parameter is empty', async () => {
-            const response = await tenant.httpClient.get('/api/user/whoami?select=');
+            // Empty select still removes envelope, so use request()
+            const response = await tenant.httpClient.request('/api/user/whoami?select=', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
-            // Empty select should return full response
-            const data = response.data;
+            // Empty select should return full response (unwrapped)
+            const data = response.json;
             expect(data).toBeDefined();
         });
 
         it('should return full response when select parameter is missing', async () => {
+            // No select returns standard envelope, so use get()
             const response = await tenant.httpClient.get('/api/user/whoami');
-
-            expect(response.status).toBe(200);
 
             // No select should return full response with envelope
             expectSuccess(response);
@@ -151,12 +155,13 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
     describe('User ID Extraction Use Case', () => {
         it('should extract user ID for subsequent requests', async () => {
-            const response = await tenant.httpClient.get('/api/user/whoami?select=id');
+            // Use request() to get full HTTP response with status
+            const response = await tenant.httpClient.request('/api/user/whoami?select=id', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
             // Should return UUID
-            const userId = response.data;
+            const userId = response.json;
             if (userId && typeof userId === 'string') {
                 expect(userId).toMatch(/^[a-f0-9-]{36}$/);
             }

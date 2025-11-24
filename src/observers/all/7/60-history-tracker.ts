@@ -105,7 +105,7 @@ export default class HistoryTracker extends BaseObserver {
                 trackedFieldCount: Object.keys(changes).length
             });
 
-            await system.db.query(
+            await system.tx.query(
                 `
                 INSERT INTO history (
                     model_name,

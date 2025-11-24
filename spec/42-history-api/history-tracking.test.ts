@@ -187,10 +187,12 @@ describe('History API - Change Tracking', () => {
             const deleteEntry = historyResponse.data.find((entry: any) => entry.operation === 'delete');
 
             if (deleteEntry && deleteEntry.changes) {
-                // Delete should have old values but new values should be null
+                // Soft delete preserves field values - record still exists with trashed_at set
+                // Both old and new should have the same value (no field change, just trashed_at)
                 if (deleteEntry.changes.name) {
                     expect(deleteEntry.changes.name.old).toBe('Delete Test');
-                    expect(deleteEntry.changes.name.new).toBeNull();
+                    // new value is the current state after soft delete (data preserved)
+                    expect(deleteEntry.changes.name.new).toBe('Delete Test');
                 }
             }
         });

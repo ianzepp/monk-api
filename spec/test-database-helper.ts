@@ -49,8 +49,9 @@ export class TestDatabaseHelper {
         const tenantName = `test_${testName}_${timestamp}_${random}`;
 
         // Use db_test database and generate namespace name
+        // Use tenant namespace prefix (ns_tenant_) to satisfy tenants table constraint
         const dbName = 'db_test';
-        const nsName = DatabaseNaming.generateTestNsName();
+        const nsName = DatabaseNaming.generateTenantNsName(tenantName);
 
         const mainPool = DatabaseConnection.getMainPool();
 
@@ -64,10 +65,12 @@ export class TestDatabaseHelper {
             await FixtureDeployer.deployMultiple(fixtures, { dbName, nsName });
 
             // 3. Register tenant in main database
+            // Use a fixed test owner_id (will be cleaned up with tenant)
+            const testOwnerId = '00000000-0000-0000-0000-000000000000';
             await mainPool.query(
-                `INSERT INTO tenants (name, database, schema, host, is_active, tenant_type)
+                `INSERT INTO tenants (name, database, schema, host, is_active, owner_id)
                  VALUES ($1, $2, $3, $4, $5, $6)`,
-                [tenantName, dbName, nsName, 'localhost', true, 'normal']
+                [tenantName, dbName, nsName, 'localhost', true, testOwnerId]
             );
 
             return {

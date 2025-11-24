@@ -20,7 +20,8 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  */
 export default withTransactionParams(async (context, { system, model, record, options }) => {
     // Fetch the record (select404 automatically throws 404 if not found)
-    const result = await system.database.select404(model!, { where: { id: record! } }, undefined, options);
+    // Stat should work on trashed records too (to check trashed_at timestamp)
+    const result = await system.database.select404(model!, { where: { id: record! } }, undefined, { ...options, trashed: 'include' });
 
     // Return only stat fields (exclude user data)
     const statData = {
