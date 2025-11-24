@@ -2,7 +2,7 @@ import type { DbContext, TxContext } from '@src/db/index.js';
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
 import { Describe } from '@src/lib/describe.js';
-import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
+import type { SystemContext, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
 
 /**
  * System class - Per-request context management
@@ -14,7 +14,7 @@ import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@
  * Implements SystemContext interface to provide business context to other components
  * while breaking circular dependencies through dependency injection.
  */
-export class System implements SystemContextWithInfrastructure {
+export class System implements SystemContext {
     public readonly context: Context;
     public readonly userId: string;
     public readonly options: Readonly<SystemOptions>;

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { DbContext, TxContext } from '@src/db/index.js';
-import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
+import type { SystemContext } from '@src/lib/system-context-types.js';
 
 // Cached model entry
 interface CachedModel {
@@ -188,7 +188,7 @@ export class ModelCache {
      * when modified via describe API. No checksum validation on reads - all model
      * writes are controlled through describe.ts which invalidates the cache.
      */
-    async getModel(system: SystemContextWithInfrastructure, modelName: string): Promise<any> {
+    async getModel(system: SystemContext, modelName: string): Promise<any> {
         const dbCache = this.getDatabaseCache(system.db);
 
         // 1. Check cache first - trust it if present
@@ -217,7 +217,7 @@ export class ModelCache {
     /**
      * Invalidate specific model in cache (for updates)
      */
-    invalidateModel(system: SystemContextWithInfrastructure, modelName: string): void {
+    invalidateModel(system: SystemContext, modelName: string): void {
         const dbCache = this.getDatabaseCache(system.db);
         dbCache.models.delete(modelName);
         console.info('Model cache invalidated manually', { modelName });

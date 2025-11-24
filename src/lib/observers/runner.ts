@@ -5,7 +5,7 @@
  * timeout protection, and performance monitoring.
  */
 
-import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
+import type { SystemContext } from '@src/lib/system-context-types.js';
 import { Model } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
 import { ModelCache } from '@src/lib/model-cache.js';
@@ -36,7 +36,7 @@ export class ObserverRunner {
      * Execute observers for a model operation with selective ring execution
      */
     async execute(
-        system: SystemContextWithInfrastructure,
+        system: SystemContext,
         operation: OperationType,
         model: Model,
         data: ModelRecord[],
@@ -85,7 +85,7 @@ export class ObserverRunner {
      * Create observer context for execution
      */
     private _createContext(
-        system: SystemContextWithInfrastructure,
+        system: SystemContext,
         operation: OperationType,
         model: Model,
         data: ModelRecord[],

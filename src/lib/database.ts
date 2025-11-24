@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import type { DbContext, TxContext } from '@src/db/index.js';
 
-import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
+import type { SystemContext } from '@src/lib/system-context-types.js';
 import { Model, type ModelName } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
 import { Filter, type AggregateSpec } from '@src/lib/filter.js';
@@ -40,7 +40,7 @@ export interface SelectOptions extends FilterWhereOptions {
  * - pg.Pool/pg.PoolClient injected separately for database access
  */
 export class Database {
-    public readonly system: SystemContextWithInfrastructure;
+    public readonly system: SystemContext;
 
     /**
      * Create a new Database instance
@@ -50,7 +50,7 @@ export class Database {
      *
      * @param system - System context with infrastructure (db, tx, database, describe)
      */
-    constructor(system: SystemContextWithInfrastructure) {
+    constructor(system: SystemContext) {
         this.system = system;
     }
 

@@ -1,5 +1,5 @@
 import type { FilterData } from '@src/lib/filter-types.js';
-import type { SystemContextWithInfrastructure } from '@src/lib/system-context-types.js';
+import type { SystemContext } from '@src/lib/system-context-types.js';
 
 export type ModelName = string;
 
@@ -68,7 +68,7 @@ export class Model {
     public validationFields: FieldValidationConfig[];
 
     constructor(
-        private system: SystemContextWithInfrastructure,
+        private system: SystemContext,
         modelName: ModelName,
         modelRecord: any
     ) {
@@ -464,7 +464,7 @@ export class Model {
 /**
  * Factory function to create Model instances
  */
-export async function createModel(system: SystemContextWithInfrastructure, modelName: string): Promise<Model> {
+export async function createModel(system: SystemContext, modelName: string): Promise<Model> {
     const modelInfo = await system.database.toModel(modelName);
 
     if (!modelInfo) {

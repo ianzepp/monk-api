@@ -2,7 +2,6 @@ import { FilterWhere } from '@src/lib/filter-where.js';
 import { FilterOrder } from '@src/lib/filter-order.js';
 import { FilterOp, type FilterWhereInfo, type FilterWhereOptions, type FilterData, type ConditionNode, type FilterOrderInfo, type AggregateSpec, type AggregateFunction } from '@src/lib/filter-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import type { SystemContext } from '@src/lib/system-context-types.js';
 
 // Re-export types for convenience
 export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterOrderInfo, ConditionNode, AggregateSpec, AggregateFunction } from '@src/lib/filter-types.js';
@@ -53,12 +52,8 @@ export class Filter {
     private _related: any[] = [];
     private _softDeleteOptions: FilterWhereOptions = {};
 
-    // System context for automatic soft delete handling
-    private readonly system?: SystemContext;
-
-    constructor(tableName: string, system?: SystemContext) {
+    constructor(tableName: string) {
         this._tableName = tableName;
-        this.system = system;
         this.validateTableName(tableName);
 
         // For dynamic models, we'll build queries using raw SQL
@@ -380,12 +375,8 @@ export class Filter {
             // Build SELECT clause (no parameters)
             const selectClause = this.buildSelectClause();
 
-            // Use system context for automatic soft delete handling if available
-            const options = this.system ? {
-                includeTrashed: this.system.options.trashed || false,
-                includeDeleted: this.system.options.deleted || false,
-                ...this._softDeleteOptions
-            } : this._softDeleteOptions;
+            // Use soft delete options from withSoftDeleteOptions()
+            const options = this._softDeleteOptions;
 
             // Use FilterWhere for WHERE clause with soft delete options
             const { whereClause, params: whereParams } = FilterWhere.generate(
@@ -444,12 +435,8 @@ export class Filter {
      */
     toWhereSQL(): { whereClause: string; params: any[] } {
         try {
-            // Use system context for automatic soft delete handling if available
-            const options = this.system ? {
-                includeTrashed: this.system.options.trashed || false,
-                includeDeleted: this.system.options.deleted || false,
-                ...this._softDeleteOptions
-            } : this._softDeleteOptions;
+            // Use soft delete options from withSoftDeleteOptions()
+            const options = this._softDeleteOptions;
 
             // Use FilterWhere for consistent WHERE clause generation
             const result = FilterWhere.generate(this._whereData, 0, options);
@@ -637,12 +624,8 @@ export class Filter {
      */
     getWhereClause(): string {
         try {
-            // Use system context for automatic soft delete handling if available
-            const options = this.system ? {
-                includeTrashed: this.system.options.trashed || false,
-                includeDeleted: this.system.options.deleted || false,
-                ...this._softDeleteOptions
-            } : this._softDeleteOptions;
+            // Use soft delete options from withSoftDeleteOptions()
+            const options = this._softDeleteOptions;
 
             // Use FilterWhere for consistent WHERE clause generation
             const { whereClause } = FilterWhere.generate(this._whereData, 0, options);

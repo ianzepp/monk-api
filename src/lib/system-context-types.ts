@@ -30,15 +30,15 @@ export interface UserInfo {
 }
 
 /**
- * SystemContext interface - Defines the context needed by business logic components
+ * System Context - Per-request context for database operations
  *
- * This interface provides the essential context information that Database, Model,
- * and other business logic classes need without creating circular dependencies.
+ * Provides business context (user, options) and infrastructure (db, tx, services)
+ * to all database operations, models, and observers.
  *
  * Design principles:
- * - Contains only business context, not infrastructure concerns
- * - Forward-compatible with Ring 5 observer architecture (Issue #94)
- * - Lightweight and easily mockable for testing
+ * - Per-request instance pattern (not singleton)
+ * - Dependency injection to break circular dependencies
+ * - Contains both business context and infrastructure concerns
  */
 export interface SystemContext {
     /** User ID from authentication context */
@@ -47,23 +47,6 @@ export interface SystemContext {
     /** Query behavior options (soft delete handling, etc.) */
     readonly options: Readonly<SystemOptions>;
 
-    /**
-     * Get comprehensive user information from the request context
-     */
-    getUser(): UserInfo;
-
-    /**
-     * Check if the current user has root access level
-     */
-    isRoot(): boolean;
-
-}
-
-/**
- * Extended system context that includes infrastructure concerns
- * Used during transition period before Ring 5 migration (Issue #94)
- */
-export interface SystemContextWithInfrastructure extends SystemContext {
     /** Hono request context for accessing request/response and context variables */
     readonly context: Context;
 
@@ -78,4 +61,14 @@ export interface SystemContextWithInfrastructure extends SystemContext {
 
     /** Describe instance for model operations */
     readonly describe: any; // Avoid importing Describe class to prevent circular deps
+
+    /**
+     * Get comprehensive user information from the request context
+     */
+    getUser(): UserInfo;
+
+    /**
+     * Check if the current user has root access level
+     */
+    isRoot(): boolean;
 }
