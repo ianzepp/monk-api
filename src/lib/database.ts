@@ -8,6 +8,7 @@ import { Filter, type AggregateSpec } from '@src/lib/filter.js';
 import type { FilterData, AggregateData } from '@src/lib/filter-types.js';
 import type { FilterWhereOptions } from '@src/lib/filter-types.js';
 import { ModelCache } from '@src/lib/model-cache.js';
+import { RelationshipCache, type CachedRelationship } from '@src/lib/relationship-cache.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
@@ -87,6 +88,35 @@ export class Database {
         // Create Model instance with validation capabilities
         const model = new Model(this.system, modelName, modelRecord);
         return model;
+    }
+
+    /**
+     * Get relationship metadata by parent model and relationship name
+     *
+     * Looks up the child model and foreign key field for a named relationship.
+     * Uses cached relationship data for performance.
+     *
+     * @param parentModel - Parent model name (the model being queried)
+     * @param relationshipName - Relationship name defined on the child field
+     * @returns Relationship metadata with fieldName, childModel, relationshipType
+     * @throws HttpErrors.notFound if relationship doesn't exist
+     */
+    async getRelationship(parentModel: string, relationshipName: string): Promise<CachedRelationship> {
+        const relationshipCache = RelationshipCache.getInstance();
+        const relationship = await relationshipCache.getRelationship(
+            this.system,
+            parentModel,
+            relationshipName
+        );
+
+        if (!relationship) {
+            throw HttpErrors.notFound(
+                `Relationship '${relationshipName}' not found for model '${parentModel}'`,
+                'RELATIONSHIP_NOT_FOUND'
+            );
+        }
+
+        return relationship;
     }
 
     /**

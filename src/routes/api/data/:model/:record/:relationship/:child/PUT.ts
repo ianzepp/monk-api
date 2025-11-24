@@ -14,21 +14,8 @@ export default withTransactionParams(async (context, { system, model, record, re
     // Verify parent record data is readable
     const parentRecord = await system.database.select404(model!, { where: { id: record! } }, undefined, options);
 
-    // Query fields table to find child model with owned relationship to this parent
-    const relationshipQuery = `
-        SELECT field_name, model_name, relationship_type
-        FROM fields
-        WHERE related_model = $1
-          AND relationship_name = $2
-          AND relationship_type = 'owned'
-    `;
-    const relationshipResult = await system.tx.query(relationshipQuery, [model, relationship]);
-
-    if (relationshipResult.rows.length === 0) {
-        throw HttpErrors.notFound(`Relationship '${relationship}' not found for model '${model}'`, 'RELATIONSHIP_NOT_FOUND');
-    }
-
-    const { field_name: foreignKeyField, model_name: childModelName } = relationshipResult.rows[0];
+    // Get relationship metadata (cached)
+    const rel = await system.database.getRelationship(model!, relationship!);
 
     // Ensure body is an object (not array)
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -38,14 +25,14 @@ export default withTransactionParams(async (context, { system, model, record, re
     // Prepare update data, ensuring the foreign key is preserved
     const updateData = {
         ...body,
-        [foreignKeyField]: record // Ensure foreign key remains linked to parent
+        [rel.fieldName]: record // Ensure foreign key remains linked to parent
     };
 
     // Update the child record, verifying it exists and belongs to this parent
-    const result = await system.database.update404(childModelName, {
+    const result = await system.database.update404(rel.childModel, {
         where: {
             id: childId!,
-            [foreignKeyField]: record // Ensure child belongs to this parent
+            [rel.fieldName]: record // Ensure child belongs to this parent
         }
     }, updateData);
 
