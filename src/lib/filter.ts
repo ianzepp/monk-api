@@ -376,13 +376,8 @@ export class Filter {
         };
     }
 
-    // Execute the query
-    //
-    // 🚨 TODO: ARCHITECTURAL ISSUE - Filter should NOT execute database operations
-    // This method bypasses the observer pipeline and violates separation of concerns.
-    // Should be replaced with toSQL() method that returns query + parameters.
     /**
-     * Generate SQL query and parameters with comprehensive validation (Issue #102 - toSQL pattern)
+     * Generate SQL query and parameters with comprehensive validation
      *
      * Returns SQL query and parameters for execution by Database methods.
      * Uses FilterSqlGenerator for consistent SQL generation with soft delete support.
