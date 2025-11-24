@@ -25,7 +25,37 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 readonly INFRASTRUCTURE_SQL="$PROJECT_ROOT/fixtures/infrastructure/init.sql"
 
-# PostgreSQL connection settings (use defaults from environment or psql config)
+# Load DATABASE_URL from .env file if it exists
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
+    # Extract DATABASE_URL from .env file
+    DATABASE_URL=$(grep "^DATABASE_URL=" "$PROJECT_ROOT/.env" | cut -d'=' -f2-)
+fi
+
+# Parse DATABASE_URL if set (format: postgresql://user:pass@host:port/db)
+if [[ -n "$DATABASE_URL" ]]; then
+    # Extract components using bash parameter expansion and sed
+    # Remove protocol prefix
+    DB_URL_NO_PROTO="${DATABASE_URL#*://}"
+
+    # Extract user:pass@host:port/db parts
+    if [[ "$DB_URL_NO_PROTO" =~ ^([^:]+):([^@]+)@([^:]+):([0-9]+)/?(.*)$ ]]; then
+        # Format: user:pass@host:port/db
+        PGUSER="${BASH_REMATCH[1]}"
+        PGPASSWORD="${BASH_REMATCH[2]}"
+        PGHOST="${BASH_REMATCH[3]}"
+        PGPORT="${BASH_REMATCH[4]}"
+        export PGPASSWORD
+    elif [[ "$DB_URL_NO_PROTO" =~ ^([^@]+)@([^:]+):([0-9]+)/?(.*)$ ]]; then
+        # Format: user@host:port/db (no password)
+        PGUSER="${BASH_REMATCH[1]}"
+        PGHOST="${BASH_REMATCH[2]}"
+        PGPORT="${BASH_REMATCH[3]}"
+    else
+        echo "Warning: Could not parse DATABASE_URL format" >&2
+    fi
+fi
+
+# PostgreSQL connection settings (use parsed values or defaults)
 PGHOST="${PGHOST:-localhost}"
 PGPORT="${PGPORT:-5432}"
 PGUSER="${PGUSER:-postgres}"
