@@ -78,13 +78,20 @@ Run rich search queries with boolean logic, nested filters, ordering, pagination
   "where": {
     "$and": [
       {"department": "engineering"},
-      {"role": "senior"}        // $and operator works correctly
-    ]
+      {"role": "senior"}
+    ],
+    "$or": [
+      {"status": "active"},
+      {"status": "pending"}
+    ],
+    "$not": {
+      "trashed_at": null
+    }
   }
 }
 ```
 
-> **Known Issues**: The `$or` and `$not` logical operators currently have implementation issues and may not return expected results. The `$and` operator works correctly. Complex logical nesting should be avoided until these issues are resolved.
+> **Note**: All logical operators (`$and`, `$or`, `$not`, `$nand`, `$nor`) are fully tested and working correctly. Complex nested logical conditions are supported.
 
 ### Array Operations (ACL Support)
 ```json
@@ -162,7 +169,7 @@ Run rich search queries with boolean logic, nested filters, ordering, pagination
 }
 ```
 
-> **Note**: Offset functionality is currently not implemented. The `offset` parameter is accepted but ignored, returning all matching records. This will be addressed in a future update.
+> **Note**: Both `limit` and `offset` are fully implemented and tested. Use together for proper pagination through large result sets.
 
 ## Usage Examples
 
@@ -226,6 +233,45 @@ curl -X POST http://localhost:9001/api/find/documents \
     }
   }'
 ```
+
+## Important Behaviors
+
+### Soft Delete Filtering
+By default, all queries automatically exclude soft-deleted and permanently deleted records:
+```json
+// Automatic filtering applied to all queries:
+// WHERE "trashed_at" IS NULL AND "deleted_at" IS NULL
+```
+
+To include soft-deleted or permanently deleted records, use query parameters:
+```bash
+# Include trashed records
+POST /api/find/users?includeTrashed=true
+
+# Include permanently deleted records
+POST /api/find/users?includeDeleted=true
+
+# Include both
+POST /api/find/users?includeTrashed=true&includeDeleted=true
+```
+
+### Empty Array Operators
+- **`$in: []`** - Returns no results (always false: `1=0`)
+- **`$nin: []`** - Returns all results (always true: `1=1`)
+- **`$any: []`** - Returns no results (always false: `1=0`)
+- **`$all: []`** - Returns all results (always true: `1=1`)
+
+### Field Name Requirements
+Field names must match the pattern: `^[a-zA-Z_][a-zA-Z0-9_]*$`
+- Start with letter or underscore
+- Contain only letters, numbers, and underscores
+- Invalid characters are automatically removed (sanitization)
+
+### Sort Direction Normalization
+Sort directions accept multiple formats and normalize to `ASC` or `DESC`:
+- `"asc"`, `"ascending"` → `ASC`
+- `"desc"`, `"descending"` → `DESC`
+- Invalid directions default to `ASC`
 
 ## Filter Operators Reference
 
