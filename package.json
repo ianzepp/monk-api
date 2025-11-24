@@ -19,7 +19,7 @@
         "fixtures:build": "tsx scripts/fixtures-build.ts",
         "fixtures:deploy": "tsx scripts/fixtures-deploy.ts",
         "fixtures:build:legacy": "scripts/fixtures-build.sh",
-        "fixtures:generate": "node scripts/fixtures-generate.js",
+        "fixtures:generate": "tsx scripts/fixtures-generate.ts",
         "fixtures:lock": "scripts/fixtures-lock.sh",
         "test:sh": "scripts/test-sh.sh \"$@\"",
         "test:ts": "scripts/test-ts.sh \"$@\"",

@@ -834,7 +834,7 @@ curl /api/user/whoami?encrypt=pgp \
   -H "Authorization: Bearer $JWT" > encrypted.txt
 
 # Decrypt with same JWT
-node scripts/decrypt.js "$JWT" < encrypted.txt
+tsx scripts/decrypt.ts "$JWT" < encrypted.txt
 
 # Combine with formatting
 curl /api/find/users?format=csv&encrypt=pgp \
@@ -879,10 +879,10 @@ Cipher: AES-256-GCM
 ```bash
 # From stdin
 curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" \
-  | node scripts/decrypt.js "$JWT"
+  | tsx scripts/decrypt.ts "$JWT"
 
 # From file
-node scripts/decrypt.js "$JWT" encrypted-response.txt
+tsx scripts/decrypt.ts "$JWT" encrypted-response.txt
 ```
 
 **What Gets Encrypted:**

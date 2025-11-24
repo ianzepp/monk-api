@@ -183,7 +183,7 @@ GET /api/user/whoami?format=yaml&encrypt=pgp
 → (encrypted YAML output)
 
 # Decrypt
-node scripts/decrypt.js "$JWT_TOKEN" < encrypted.txt
+tsx scripts/decrypt.ts "$JWT_TOKEN" < encrypted.txt
 ```
 
 **IMPORTANT:**
@@ -332,7 +332,7 @@ monk curl GET '/api/user/whoami?encrypt=pgp' > encrypted.txt
 
 # Decrypt
 TOKEN=$(monk curl POST '/auth/login' -d '{"tenant":"demo","username":"root"}' | jq -r '.data.token')
-node scripts/decrypt.js "$TOKEN" < encrypted.txt
+tsx scripts/decrypt.ts "$TOKEN" < encrypted.txt
 ```
 
 ### Test Composition

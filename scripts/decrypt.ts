@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 /**
  * Decrypt Monk API Encrypted Responses
  *
@@ -6,15 +6,15 @@
  * Requires the same JWT token that was used for encryption.
  *
  * Usage:
- *   node scripts/decrypt.js <jwt-token> < encrypted-message.txt
- *   node scripts/decrypt.js <jwt-token> encrypted-message.txt
+ *   tsx scripts/decrypt.ts <jwt-token> < encrypted-message.txt
+ *   tsx scripts/decrypt.ts <jwt-token> encrypted-message.txt
  *
  * Example:
  *   # From stdin
- *   curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | node scripts/decrypt.js "$JWT"
+ *   curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | tsx scripts/decrypt.ts "$JWT"
  *
  *   # From file
- *   node scripts/decrypt.js "$JWT" encrypted-response.txt
+ *   tsx scripts/decrypt.ts "$JWT" encrypted-response.txt
  *
  * Security Model:
  * - JWT token is the decryption key
@@ -22,13 +22,26 @@
  * - JWT expiry means old encrypted messages become undecryptable
  */
 
-const crypto = require('crypto');
-const fs = require('fs');
+import { createDecipheriv } from 'crypto';
+import { readFileSync } from 'fs';
+import { pbkdf2Sync } from 'crypto';
+
+interface ArmorComponents {
+    iv: Buffer;
+    ciphertext: Buffer;
+    authTag: Buffer;
+}
+
+interface JWTPayload {
+    tenant: string;
+    id?: string;
+    user?: string;
+}
 
 /**
  * Parse ASCII armor to extract encrypted components
  */
-function parseArmor(armored) {
+function parseArmor(armored: string): ArmorComponents {
     const lines = armored.split('\n').map(l => l.trim());
 
     // Find begin/end markers
@@ -66,8 +79,8 @@ function parseArmor(armored) {
  * Derive encryption key from JWT token
  * Must match server-side key derivation
  */
-function deriveKeyFromJWT(jwt, salt) {
-    return crypto.pbkdf2Sync(
+function deriveKeyFromJWT(jwt: string, salt: string): Buffer {
+    return pbkdf2Sync(
         jwt,       // Password: JWT token
         salt,      // Salt: tenant:userId
         100000,    // Iterations (must match server)
@@ -80,7 +93,7 @@ function deriveKeyFromJWT(jwt, salt) {
  * Extract salt from JWT payload
  * Decodes JWT to get tenant and user ID
  */
-function extractSaltFromJWT(jwt) {
+function extractSaltFromJWT(jwt: string): string {
     try {
         // JWT format: header.payload.signature
         const parts = jwt.split('.');
@@ -89,7 +102,7 @@ function extractSaltFromJWT(jwt) {
         }
 
         // Decode payload (base64url)
-        const payload = JSON.parse(
+        const payload: JWTPayload = JSON.parse(
             Buffer.from(parts[1], 'base64url').toString('utf8')
         );
 
@@ -102,15 +115,16 @@ function extractSaltFromJWT(jwt) {
 
         return `${tenant}:${userId}`;
     } catch (error) {
-        throw new Error(`Failed to extract salt from JWT: ${error.message}`);
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`Failed to extract salt from JWT: ${message}`);
     }
 }
 
 /**
  * Decrypt ciphertext using AES-256-GCM
  */
-function decrypt(iv, ciphertext, authTag, key) {
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+function decrypt(iv: Buffer, ciphertext: Buffer, authTag: Buffer, key: Buffer): string {
+    const decipher = createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
 
     const plaintext = Buffer.concat([
@@ -124,17 +138,17 @@ function decrypt(iv, ciphertext, authTag, key) {
 /**
  * Main decryption function
  */
-function main() {
+function main(): void {
     // Parse command line arguments
     const args = process.argv.slice(2);
 
     if (args.length === 0) {
-        console.error('Usage: node decrypt.js <jwt-token> [encrypted-file]');
+        console.error('Usage: tsx decrypt.ts <jwt-token> [encrypted-file]');
         console.error('');
         console.error('Examples:');
-        console.error('  node decrypt.js "$JWT" < encrypted.txt');
-        console.error('  node decrypt.js "$JWT" encrypted.txt');
-        console.error('  curl /api/user/whoami?encrypt=pgp | node decrypt.js "$JWT"');
+        console.error('  tsx decrypt.ts "$JWT" < encrypted.txt');
+        console.error('  tsx decrypt.ts "$JWT" encrypted.txt');
+        console.error('  curl /api/user/whoami?encrypt=pgp | tsx decrypt.ts "$JWT"');
         process.exit(1);
     }
 
@@ -143,11 +157,11 @@ function main() {
 
     try {
         // Read encrypted message
-        let encrypted;
+        let encrypted: string;
         if (inputFile) {
-            encrypted = fs.readFileSync(inputFile, 'utf8');
+            encrypted = readFileSync(inputFile, 'utf8');
         } else {
-            encrypted = fs.readFileSync(0, 'utf8'); // stdin
+            encrypted = readFileSync(0, 'utf8'); // stdin
         }
 
         // Parse ASCII armor
@@ -166,14 +180,15 @@ function main() {
         console.log(plaintext);
 
     } catch (error) {
-        console.error('Decryption failed:', error.message);
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Decryption failed:', message);
         process.exit(1);
     }
 }
 
 // Run if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     main();
 }
 
-module.exports = { parseArmor, deriveKeyFromJWT, extractSaltFromJWT, decrypt };
+export { parseArmor, deriveKeyFromJWT, extractSaltFromJWT, decrypt };

@@ -354,7 +354,7 @@ curl /api/user/whoami?encrypt=pgp \
   -H "Authorization: Bearer $JWT" > encrypted.txt
 
 # Decrypt with same JWT
-node scripts/decrypt.js "$JWT" < encrypted.txt
+tsx scripts/decrypt.ts "$JWT" < encrypted.txt
 
 # Combine with formatting and field selection
 curl /api/find/users?select=id,email&format=csv&encrypt=pgp \
