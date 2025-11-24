@@ -21,6 +21,8 @@
         "fixtures:build:legacy": "scripts/fixtures-build.sh",
         "fixtures:generate": "tsx scripts/fixtures-generate.ts",
         "fixtures:lock": "scripts/fixtures-lock.sh",
+        "tenant:create": "tsx scripts/tenant-create.ts",
+        "tenant:delete": "tsx scripts/tenant-delete.ts",
         "test:sh": "scripts/test-sh.sh \"$@\"",
         "test:ts": "scripts/test-ts.sh \"$@\"",
         "mcp:server": "tsx mcp-server/monk-api-tools.ts",
