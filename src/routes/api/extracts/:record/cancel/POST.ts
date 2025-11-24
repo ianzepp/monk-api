@@ -1,4 +1,4 @@
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
@@ -10,7 +10,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * TODO: Implement cancellation logic
  * For now, returns not implemented
  */
-export default withParams(async (context, { system, record }) => {
+export default withTransactionParams(async (context, { system, record }) => {
     // Find running extract for this extract ID
     const runningRuns = await system.database.selectAny('extract_runs', {
         where: {

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { ModelCache } from '@src/lib/model-cache.js';
@@ -8,7 +8,7 @@ import { ModelCache } from '@src/lib/model-cache.js';
  *
  * Returns array of all field definitions for the specified model.
  */
-export default withParams(async (context, { system, model }) => {
+export default withTransactionParams(async (context, { system, model }) => {
     const modelRecord = await system.describe.models.selectOne({ model: model });
 
     if (!modelRecord) {

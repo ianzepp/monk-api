@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
@@ -18,7 +18,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  *
  * @see docs/39-stat-api.md
  */
-export default withParams(async (context, { system, model, record, options }) => {
+export default withTransactionParams(async (context, { system, model, record, options }) => {
     // Fetch the record (select404 automatically throws 404 if not found)
     const result = await system.database.select404(model!, { where: { id: record! } }, undefined, options);
 

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
@@ -8,7 +8,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Returns a single child record, verifying both parent and child accessibility
  * @see docs/routes/DATA_API.md
  */
-export default withParams(async (context, { system, model, record, relationship, options }) => {
+export default withTransactionParams(async (context, { system, model, record, relationship, options }) => {
     const childId = context.req.param('child');
 
     // Verify parent record data is readable

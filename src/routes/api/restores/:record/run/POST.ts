@@ -1,4 +1,4 @@
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { RestoreProcessor } from '@src/lib/restore-processor.js';
 
@@ -7,7 +7,7 @@ import { RestoreProcessor } from '@src/lib/restore-processor.js';
  *
  * Execute a restore job
  */
-export default withParams(async (context, { system, record }) => {
+export default withTransactionParams(async (context, { system, record }) => {
     const processor = new RestoreProcessor(system);
     const runId = await processor.execute(record!);
 

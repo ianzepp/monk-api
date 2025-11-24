@@ -6,7 +6,7 @@
  */
 
 import { sign, verify } from 'hono/jwt';
-import type { JWTPayload } from './services/tenant.js';
+import type { JWTPayload } from './middleware/jwt-validation.js';
 
 /**
  * Standard user data for JWT generation

@@ -1,8 +1,8 @@
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
-export default withParams(async (context, { system, model, body, options }) => {
+export default withTransactionParams(async (context, { system, model, body, options }) => {
     console.debug('routes/aggregate-model: model=%j', model);
 
     // Validate request body

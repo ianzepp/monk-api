@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { parseRange, validateRangeBounds, formatCells } from '@src/routes/api/grids/range-parser.js';
 
@@ -14,7 +14,7 @@ import { parseRange, validateRangeBounds, formatCells } from '@src/routes/api/gr
  *
  * Returns sparse array (only non-empty cells)
  */
-export default withParams(async (context, { system }) => {
+export default withTransactionParams(async (context, { system }) => {
     const gridId = context.req.param('id');
     const rangeStr = context.req.param('range');
     const format = context.req.query('format');

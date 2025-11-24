@@ -1,7 +1,7 @@
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 
-export default withParams(async (context, { system, model, body, options }) => {
+export default withTransactionParams(async (context, { system, model, body, options }) => {
     console.debug('routes/find-model: model=%j', model);
 
     const result = await system.database.selectAny(model!, body, options);

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
@@ -11,7 +11,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  * - access_full: User IDs with full access
  * - access_deny: User IDs with denied access
  */
-export default withParams(async (context, { system, model, record, options }) => {
+export default withTransactionParams(async (context, { system, model, record, options }) => {
     // Get the record with only ACL fields (select404 automatically throws 404 if not found)
     const result = await system.database.select404(model!, {
         where: { id: record! },

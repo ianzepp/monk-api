@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
@@ -8,7 +8,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Returns array of child records that have an owned relationship to the parent record
  * @see docs/routes/DATA_API.md
  */
-export default withParams(async (context, { system, model, record, relationship, options }) => {
+export default withTransactionParams(async (context, { system, model, record, relationship, options }) => {
     // Verify parent record data is readable
     const recordData = await system.database.select404(model!, { where: { id: record! } }, undefined, options);
 

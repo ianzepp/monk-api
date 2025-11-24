@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 
 /**
@@ -24,7 +24,7 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  *   }
  * }
  */
-export default withParams(async (context: Context, { system }) => {
+export default withTransactionParams(async (context: Context, { system }) => {
     const user = context.get('user');
 
     // Fetch full user profile from database

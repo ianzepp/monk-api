@@ -1,4 +1,4 @@
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { ExtractProcessor } from '@src/lib/extract-processor.js';
 
@@ -10,7 +10,7 @@ import { ExtractProcessor } from '@src/lib/extract-processor.js';
  *
  * @returns Extract run ID
  */
-export default withParams(async (context, { system, record }) => {
+export default withTransactionParams(async (context, { system, record }) => {
     const processor = new ExtractProcessor(system);
     const runId = await processor.execute(record!);
 

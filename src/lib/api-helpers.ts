@@ -48,7 +48,7 @@ export enum ApiErrorCode {
 
 export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 
-// Route parameter interface for withParams() helper
+// Route parameter interface for withTransactionParams() helper
 interface RouteParams {
     system: System;
     model?: string;
@@ -76,15 +76,6 @@ function extractSelectOptionsFromContext(context: Context): SelectOptions {
 }
 
 /**
- * Higher-order function that pre-extracts common route parameters
- * Eliminates boilerplate while keeping business logic visible in route handlers
- *
- * Handles content-type aware body parsing:
- * - application/json → parsed JSON object
- * - application/octet-stream → ArrayBuffer for binary data
- * - default → raw text string
- */
-/**
  * Helper function to extract error position from JSON parsing error messages
  */
 function extractPositionFromError(errorMessage: string): { line?: number; field?: number; position?: number } {
@@ -99,185 +90,191 @@ function extractPositionFromError(errorMessage: string): { line?: number; field?
     };
 }
 
-export function withParams(handler: (context: Context, params: RouteParams) => Promise<void>) {
+/**
+ * Core transaction wrapper that handles BEGIN, SET LOCAL, COMMIT/ROLLBACK
+ * Does NOT extract parameters - pure transaction lifecycle management
+ *
+ * Automatically handles:
+ * - Transaction creation (BEGIN)
+ * - Namespace isolation (SET LOCAL search_path from JWT token.ns)
+ * - Transaction commit (COMMIT) on successful completion
+ * - Transaction rollback (ROLLBACK) on any error
+ * - Connection cleanup (release) in all cases
+ * - Error formatting if route handler doesn't catch and rethrow
+ *
+ * All tenant-scoped routes should use this wrapper (directly or via withTransactionParams).
+ * Auth routes that query the 'monk' master DB should NOT use this wrapper.
+ */
+export function withTransaction(handler: (context: Context) => Promise<void>) {
     return async (context: Context) => {
+        const system = context.get('system');
+        const nsName = context.get('nsName');  // From JWT token.ns (verified and trusted)
+
+        // Validate namespace exists (should always exist for tenant-scoped routes)
+        if (!nsName) {
+            return createInternalError(context, 'Transaction started without namespace context');
+        }
+
+        // Defense in depth: validate namespace format (even though JWT is verified)
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+            return createInternalError(context, `Invalid namespace format: ${nsName}`);
+        }
+
+        // Acquire client from pool
+        const pool = system.db;
+        const tx = await pool.connect();
+
         try {
-            // Extract all common parameters
-            const params: RouteParams = {
-                system: context.get('system'),
-                model: context.req.param('model'),
-                field: context.req.param('field'),
-                record: context.req.param('record'),
-                relationship: context.req.param('relationship'),
-                child: context.req.param('child'),
-                method: context.req.method,
-                contentType: context.req.header('content-type') || 'application/json',
-                body: undefined,
-                options: extractSelectOptionsFromContext(context),
-            };
+            // Start transaction
+            await tx.query('BEGIN');
 
-            // Error Type 1: Content-Type header validation
-            const contentTypeHeader = context.req.header('content-type');
-            if (!contentTypeHeader && ['POST', 'PUT', 'PATCH'].includes(params.method)) {
-                throw HttpErrors.badRequest('Missing Content-Type header', 'MISSING_CONTENT_TYPE');
-            }
+            // Set namespace isolation (transaction-scoped, reverts on COMMIT/ROLLBACK)
+            await tx.query(`SET LOCAL search_path TO "${nsName}", public`);
 
-            // Error Type 2: Request body size validation
-            if (['POST', 'PUT', 'PATCH'].includes(params.method)) {
-                const contentLength = context.req.header('content-length');
-                const maxSize = 10 * 1024 * 1024; // 10MB limit
-                if (contentLength && parseInt(contentLength) > maxSize) {
-                    throw HttpErrors.requestEntityTooLarge(
-                        'Request body too large',
-                        'BODY_TOO_LARGE',
-                        {
-                            maxSize: maxSize,
-                            actualSize: parseInt(contentLength)
-                        }
-                    );
-                }
-            }
+            // Set transaction client for observers and database operations
+            system.tx = tx;
 
-            // Error Type 3: Unsupported content type validation
-            if (['POST', 'PUT', 'PATCH'].includes(params.method)) {
-                const supportedContentTypes = [
-                    'application/json',
-                    'application/octet-stream',
-                    'text/plain',
-                    'text/html'
-                ];
+            console.info('Transaction started', {
+                namespace: nsName,
+                path: context.req.path,
+                method: context.req.method
+            });
 
-                const isSupported = supportedContentTypes.some(type =>
-                    params.contentType.includes(type)
-                );
+            // Execute route handler
+            await handler(context);
 
-                if (!isSupported) {
-                    throw HttpErrors.unsupportedMediaType(
-                        `Unsupported content type: ${params.contentType}`,
-                        'UNSUPPORTED_CONTENT_TYPE',
-                        { supportedTypes: supportedContentTypes }
-                    );
-                }
-            }
-
-            // Error Type 5: HTTP method validation
-            const validMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
-            if (!validMethods.includes(params.method)) {
-                throw HttpErrors.methodNotAllowed(
-                    `Unsupported HTTP method: ${params.method}. Supported methods: ${validMethods.join(', ')}`,
-                    'UNSUPPORTED_METHOD'
-                );
-            }
-
-            // Smart body handling based on content type (with enhanced error handling)
-            if (['POST', 'PUT', 'PATCH'].includes(params.method)) {
-                try {
-                    // Handle JSON content
-                    if (params.contentType.includes('application/json')) {
-                        params.body = await context.req.json();
-                    }
-                    // Handle binary content for file uploads
-                    else if (params.contentType.includes('application/octet-stream')) {
-                        params.body = await context.req.arrayBuffer();
-                    }
-                    // Default to text content
-                    else {
-                        params.body = await context.req.text();
-                    }
-                } catch (error) {
-                    // Enhanced JSON parsing error handling
-                    if (error instanceof SyntaxError && error.message.includes('JSON')) {
-                        throw HttpErrors.badRequest(
-                            'Invalid JSON format',
-                            'JSON_PARSE_ERROR',
-                            {
-                                details: error.message,
-                                position: extractPositionFromError(error.message)
-                            }
-                        );
-                    }
-
-                    // Handle other parsing errors (binary, text)
-                    if (error instanceof TypeError && error.message.includes('body')) {
-                        throw HttpErrors.badRequest(
-                            'Invalid request body format',
-                            'INVALID_REQUEST_BODY',
-                            { details: error.message }
-                        );
-                    }
-
-                    // Re-throw other parsing errors
-                    throw error;
-                }
-            }
-
-            // Set search_path for read-only operations (GET)
-            // Write operations (POST/PUT/PATCH/DELETE) use withTransactionParams which sets search_path in the transaction
-            // Only GET operations use withParams alone and need search_path set here
-            const nsName = context.get('nsName');
-            if (nsName && params.method === 'GET') {
-                // Validate namespace name (prevent SQL injection)
-                if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
-                    throw HttpErrors.internal(`Invalid namespace: ${nsName}`, 'NAMESPACE_INVALID');
-                }
-
-                // Acquire connection and set search_path
-                const pool = params.system.db;
-                const client = await pool.connect();
-
-                try {
-                    // Set search_path for this connection
-                    await client.query(`SET LOCAL search_path TO "${nsName}", public`);
-
-                    // Temporarily replace system.db with this client for the handler
-                    const originalDb = params.system.db;
-                    (params.system as any).db = client;
-
-                    // Log route operation with complete context
-                    const logData: any = {
-                        method: params.method,
-                        contentType: params.contentType,
-                        namespace: nsName,
-                    };
-
-                    // Add relevant parameters to log
-                    if (params.model) logData.model = params.model;
-                    if (params.record) logData.record = params.record;
-                    if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
-
-                    console.info('Route operation completed', logData);
-
-                    // Call the actual handler
-                    await handler(context, params);
-
-                    // Restore original db
-                    (params.system as any).db = originalDb;
-                } finally {
-                    client.release();
-                }
-            } else {
-                // Non-GET operations (handled by withTransactionParams wrapper)
-                // Log route operation with complete context
-                const logData: any = {
-                    method: params.method,
-                    contentType: params.contentType,
-                };
-
-                // Add relevant parameters to log
-                if (params.model) logData.model = params.model;
-                if (params.record) logData.record = params.record;
-                if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
-
-                console.info('Route operation completed', logData);
-
-                // Call the actual handler
-                await handler(context, params);
-            }
+            // Commit on success
+            await tx.query('COMMIT');
+            console.info('Transaction committed', { namespace: nsName });
 
         } catch (error) {
-            // Enhanced error categorization for better debugging
-            if (error instanceof SyntaxError) {
-                if (error.message.includes('JSON')) {
+            // Rollback on error
+            try {
+                await tx.query('ROLLBACK');
+                console.info('Transaction rolled back', {
+                    namespace: nsName,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            } catch (rollbackError) {
+                console.warn('Failed to rollback transaction', {
+                    rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+                });
+            }
+
+            // If error is already an HttpError or properly formatted, rethrow it
+            // Otherwise, wrap it in proper error format
+            if (isHttpError(error)) {
+                throw error;
+            }
+
+            // If route handler didn't catch and format the error, format it here
+            return createInternalError(context, error instanceof Error ? error : String(error));
+
+        } finally {
+            // Always clean up
+            tx.release();
+            system.tx = undefined;
+        }
+    };
+}
+
+/**
+ * Higher-order function that combines withTransaction with parameter extraction
+ * Provides atomic transaction boundaries with convenient parameter access
+ *
+ * Extracts common route parameters and validates request format, then delegates
+ * to withTransaction for transaction lifecycle management.
+ *
+ * Use for routes that need both transaction management and parameter extraction.
+ * Routes that need custom parameter handling can use withTransaction directly.
+ */
+export function withTransactionParams(handler: (context: Context, params: RouteParams) => Promise<void>) {
+    return withTransaction(async (context) => {
+        // Extract all common parameters
+        const params: RouteParams = {
+            system: context.get('system'),
+            model: context.req.param('model'),
+            field: context.req.param('field'),
+            record: context.req.param('record'),
+            relationship: context.req.param('relationship'),
+            child: context.req.param('child'),
+            method: context.req.method,
+            contentType: context.req.header('content-type') || 'application/json',
+            body: undefined,
+            options: extractSelectOptionsFromContext(context),
+        };
+
+        // Error Type 1: Content-Type header validation
+        const contentTypeHeader = context.req.header('content-type');
+        if (!contentTypeHeader && ['POST', 'PUT', 'PATCH'].includes(params.method)) {
+            throw HttpErrors.badRequest('Missing Content-Type header', 'MISSING_CONTENT_TYPE');
+        }
+
+        // Error Type 2: Request body size validation
+        if (['POST', 'PUT', 'PATCH'].includes(params.method)) {
+            const contentLength = context.req.header('content-length');
+            const maxSize = 10 * 1024 * 1024; // 10MB limit
+            if (contentLength && parseInt(contentLength) > maxSize) {
+                throw HttpErrors.requestEntityTooLarge(
+                    'Request body too large',
+                    'BODY_TOO_LARGE',
+                    {
+                        maxSize: maxSize,
+                        actualSize: parseInt(contentLength)
+                    }
+                );
+            }
+        }
+
+        // Error Type 3: Unsupported content type validation
+        if (['POST', 'PUT', 'PATCH'].includes(params.method)) {
+            const supportedContentTypes = [
+                'application/json',
+                'application/octet-stream',
+                'text/plain',
+                'text/html'
+            ];
+
+            const isSupported = supportedContentTypes.some(type =>
+                params.contentType.includes(type)
+            );
+
+            if (!isSupported) {
+                throw HttpErrors.unsupportedMediaType(
+                    `Unsupported content type: ${params.contentType}`,
+                    'UNSUPPORTED_CONTENT_TYPE',
+                    { supportedTypes: supportedContentTypes }
+                );
+            }
+        }
+
+        // Error Type 4: HTTP method validation
+        const validMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+        if (!validMethods.includes(params.method)) {
+            throw HttpErrors.methodNotAllowed(
+                `Unsupported HTTP method: ${params.method}. Supported methods: ${validMethods.join(', ')}`,
+                'UNSUPPORTED_METHOD'
+            );
+        }
+
+        // Smart body handling based on content type (with enhanced error handling)
+        if (['POST', 'PUT', 'PATCH'].includes(params.method)) {
+            try {
+                // Handle JSON content
+                if (params.contentType.includes('application/json')) {
+                    params.body = await context.req.json();
+                }
+                // Handle binary content for file uploads
+                else if (params.contentType.includes('application/octet-stream')) {
+                    params.body = await context.req.arrayBuffer();
+                }
+                // Default to text content
+                else {
+                    params.body = await context.req.text();
+                }
+            } catch (error) {
+                // Enhanced JSON parsing error handling
+                if (error instanceof SyntaxError && error.message.includes('JSON')) {
                     throw HttpErrors.badRequest(
                         'Invalid JSON format',
                         'JSON_PARSE_ERROR',
@@ -287,105 +284,34 @@ export function withParams(handler: (context: Context, params: RouteParams) => P
                         }
                     );
                 }
+
+                // Handle other parsing errors (binary, text)
+                if (error instanceof TypeError && error.message.includes('body')) {
+                    throw HttpErrors.badRequest(
+                        'Invalid request body format',
+                        'INVALID_REQUEST_BODY',
+                        { details: error.message }
+                    );
+                }
+
+                // Re-throw other parsing errors
+                throw error;
             }
-
-            if (error instanceof TypeError && error.message.includes('body')) {
-                throw HttpErrors.badRequest(
-                    'Invalid request body format',
-                    'INVALID_REQUEST_BODY',
-                    { details: error.message }
-                );
-            }
-
-            // Re-throw other errors for global handler to process
-            throw error;
-        }
-    };
-}
-
-/**
- * Higher-order function that wraps withParams with automatic transaction management
- * Provides atomic transaction boundaries for modification operations
- *
- * Automatically handles:
- * - Transaction creation (BEGIN) if not already in transaction
- * - Transaction commit (COMMIT) on successful completion
- * - Transaction rollback (ROLLBACK) on any error
- * - Connection cleanup (release) in all cases
- *
- * Use for routes that perform write operations requiring atomicity.
- * Read-only routes should use withParams instead.
- */
-export function withTransactionParams(handler: (context: Context, params: RouteParams) => Promise<void>) {
-    return withParams(async (context, params) => {
-        const { system } = params;
-
-        // Always start transaction (only routes call withTransactionParams)
-        const pool = system.db;
-        const tx = await pool.connect();
-        await tx.query('BEGIN');
-
-        // Set search_path for the entire transaction to scope all queries to tenant's namespace
-        // SET LOCAL is transaction-scoped and reverts automatically on COMMIT/ROLLBACK
-        const nsName = context.get('nsName');
-        if (!nsName) {
-            await tx.query('ROLLBACK');
-            tx.release();
-            throw HttpErrors.internal('Transaction started without namespace context', 'NAMESPACE_MISSING');
         }
 
-        // Validate namespace name (prevent SQL injection)
-        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
-            await tx.query('ROLLBACK');
-            tx.release();
-            throw HttpErrors.internal(`Invalid namespace: ${nsName}`, 'NAMESPACE_INVALID');
-        }
-
-        // Set search_path using raw SQL (consistent with BEGIN/COMMIT/ROLLBACK)
-        await tx.query(`SET LOCAL search_path TO "${nsName}", public`);
-
-        system.tx = tx;
-
-        console.info('Transaction started for route', {
+        // Log route operation
+        const logData: any = {
             method: params.method,
-            model: params.model,
-            record: params.record,
-            namespace: nsName
-        });
+            contentType: params.contentType,
+        };
+        if (params.model) logData.model = params.model;
+        if (params.record) logData.record = params.record;
+        if (params.body && Array.isArray(params.body)) logData.recordCount = params.body.length;
+        console.info('Route parameters extracted', logData);
 
-        try {
-            // Execute route handler - observers and database operations will use system.tx
-            await handler(context, params);
-
-            // Always commit (we always start the transaction)
-            await tx.query('COMMIT');
-            console.info('Transaction committed successfully', {
-                method: params.method,
-                model: params.model
-            });
-
-        } catch (error) {
-            // Always rollback on error (we always start the transaction)
-            try {
-                await tx.query('ROLLBACK');
-                console.info('Transaction rolled back due to error', {
-                    method: params.method,
-                    model: params.model,
-                    error: error instanceof Error ? error.message : String(error)
-                });
-            } catch (rollbackError) {
-                console.warn('Failed to rollback transaction', {
-                    rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
-                });
-            }
-
-            throw error; // Re-throw original error
-
-        } finally {
-            // Always clean up (we always start the transaction)
-            tx.release(); // Release connection back to pool
-            system.tx = undefined; // Clear transaction context
-        }
+        // Execute handler with extracted params
+        // Transaction is already started by withTransaction wrapper
+        await handler(context, params);
     });
 }
 

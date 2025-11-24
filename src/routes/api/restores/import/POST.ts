@@ -1,4 +1,4 @@
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { RestoreProcessor } from '@src/lib/restore-processor.js';
@@ -18,7 +18,7 @@ import { randomBytes } from 'crypto';
  * - models: comma-separated list (optional, default: all)
  * - create_models: true|false (optional, default: true)
  */
-export default withParams(async (context, { system }) => {
+export default withTransactionParams(async (context, { system }) => {
     const request = context.req.raw;
     const contentType = request.headers.get('content-type') || '';
 

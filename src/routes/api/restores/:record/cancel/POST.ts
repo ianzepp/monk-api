@@ -1,4 +1,4 @@
-import { withParams } from '@src/lib/api-helpers.js';
+import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
@@ -7,7 +7,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * Cancel a running restore job
  */
-export default withParams(async (context, { system, record }) => {
+export default withTransactionParams(async (context, { system, record }) => {
     // Find most recent running restore for this configuration
     const runningRuns = await system.database.selectAny('restore_runs', {
         where: {
