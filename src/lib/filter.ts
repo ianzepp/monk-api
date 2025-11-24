@@ -1,10 +1,12 @@
 import { FilterWhere } from '@src/lib/filter-where.js';
 import { FilterOrder } from '@src/lib/filter-order.js';
+import { FilterSqlGenerator, type FilterState } from '@src/lib/filter-sql-generator.js';
 import { FilterOp, type FilterWhereInfo, type FilterWhereOptions, type FilterData, type ConditionNode, type FilterOrderInfo, type AggregateSpec, type AggregateFunction } from '@src/lib/filter-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 // Re-export types for convenience
 export type { FilterData, FilterOp, FilterWhereInfo, FilterWhereOptions, FilterOrderInfo, ConditionNode, AggregateSpec, AggregateFunction } from '@src/lib/filter-types.js';
+export type { FilterState } from '@src/lib/filter-sql-generator.js';
 
 /**
  * Filter - Enterprise-Grade Database Query Builder
@@ -359,6 +361,21 @@ export class Filter {
         return this;
     }
 
+    /**
+     * Get current filter state for SQL generation
+     */
+    private getFilterState(): FilterState {
+        return {
+            tableName: this._tableName,
+            select: this._select,
+            whereData: this._whereData,
+            order: this._order,
+            limit: this._limit,
+            offset: this._offset,
+            softDeleteOptions: this._softDeleteOptions
+        };
+    }
+
     // Execute the query
     //
     // 🚨 TODO: ARCHITECTURAL ISSUE - Filter should NOT execute database operations
@@ -368,63 +385,10 @@ export class Filter {
      * Generate SQL query and parameters with comprehensive validation (Issue #102 - toSQL pattern)
      *
      * Returns SQL query and parameters for execution by Database methods.
-     * Uses FilterWhere and FilterOrder for consistent SQL generation with soft delete support.
+     * Uses FilterSqlGenerator for consistent SQL generation with soft delete support.
      */
     toSQL(): { query: string; params: any[] } {
-        try {
-            // Build SELECT clause (no parameters)
-            const selectClause = this.buildSelectClause();
-
-            // Use soft delete options from withSoftDeleteOptions()
-            const options = this._softDeleteOptions;
-
-            // Use FilterWhere for WHERE clause with soft delete options
-            const { whereClause, params: whereParams } = FilterWhere.generate(
-                this._whereData,
-                0,
-                options
-            );
-
-            // Use FilterOrder for ORDER BY clause
-            const orderData = this.extractOrderData();
-            const orderClause = FilterOrder.generate(orderData);
-
-            // Build LIMIT/OFFSET clause
-            const limitClause = this.getLimitClause();
-
-            // Combine all clauses
-            const query = [
-                `SELECT ${selectClause}`,
-                `FROM "${this._tableName}"`,
-                whereClause ? `WHERE ${whereClause}` : '',
-                orderClause, // FilterOrder already includes "ORDER BY" prefix
-                limitClause
-            ].filter(Boolean).join(' ');
-
-            console.debug('SQL query generated successfully', {
-                tableName: this._tableName,
-                paramCount: whereParams.length
-            });
-
-            return { query, params: whereParams };
-        } catch (error) {
-            console.warn('SQL query generation failed', {
-                tableName: this._tableName,
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
-    }
-
-    /**
-     * Build SELECT clause with proper escaping
-     */
-    private buildSelectClause(): string {
-        if (this._select.length === 0 || this._select.includes('*')) {
-            return '*';
-        }
-
-        return this._select.map(col => `"${col}"`).join(', ');
+        return FilterSqlGenerator.toSQL(this.getFilterState());
     }
 
     /**
@@ -434,29 +398,8 @@ export class Filter {
      * to build COUNT queries or other custom SQL statements.
      */
     toWhereSQL(): { whereClause: string; params: any[] } {
-        try {
-            // Use soft delete options from withSoftDeleteOptions()
-            const options = this._softDeleteOptions;
-
-            // Use FilterWhere for consistent WHERE clause generation
-            const result = FilterWhere.generate(this._whereData, 0, options);
-
-            console.debug('WHERE clause generated successfully', {
-                tableName: this._tableName,
-                paramCount: result.params.length
-            });
-
-            return result;
-        } catch (error) {
-            console.warn('WHERE clause generation failed', {
-                tableName: this._tableName,
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
+        return FilterSqlGenerator.toWhereSQL(this.getFilterState());
     }
-
-    // extractWhereData() method removed - now using _whereData directly
 
     /**
      * Generate COUNT query with parameters
@@ -465,27 +408,7 @@ export class Filter {
      * Useful for pagination and result count operations.
      */
     toCountSQL(): { query: string; params: any[] } {
-        try {
-            const { whereClause, params } = this.toWhereSQL();
-
-            let query = `SELECT COUNT(*) as count FROM "${this._tableName}"`;
-            if (whereClause) {
-                query += ` WHERE ${whereClause}`;
-            }
-
-            console.debug('COUNT query generated successfully', {
-                tableName: this._tableName,
-                paramCount: params.length
-            });
-
-            return { query, params };
-        } catch (error) {
-            console.warn('COUNT query generation failed', {
-                tableName: this._tableName,
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
+        return FilterSqlGenerator.toCountSQL(this.getFilterState());
     }
 
     /**
@@ -495,201 +418,28 @@ export class Filter {
      * Useful for analytics, dashboards, and statistical queries.
      */
     toAggregateSQL(aggregations: AggregateSpec, groupBy?: string[]): { query: string; params: any[] } {
-        try {
-            // Build aggregation SELECT clause
-            const aggregateClause = this.buildAggregateClause(aggregations);
-
-            // Build GROUP BY clause if provided
-            const groupByClause = this.buildGroupByClause(groupBy);
-
-            // Get WHERE clause with parameters
-            const { whereClause, params } = this.toWhereSQL();
-
-            // Build complete query
-            const selectParts: string[] = [];
-
-            // Add GROUP BY fields to SELECT
-            if (groupBy && groupBy.length > 0) {
-                selectParts.push(...groupBy.map(col => `"${this.sanitizeFieldName(col)}"`));
-            }
-
-            // Add aggregations to SELECT
-            selectParts.push(aggregateClause);
-
-            const query = [
-                `SELECT ${selectParts.join(', ')}`,
-                `FROM "${this._tableName}"`,
-                whereClause ? `WHERE ${whereClause}` : '',
-                groupByClause
-            ].filter(Boolean).join(' ');
-
-            console.debug('Aggregation query generated successfully', {
-                tableName: this._tableName,
-                aggregationCount: Object.keys(aggregations).length,
-                groupByFields: groupBy?.length || 0,
-                paramCount: params.length
-            });
-
-            return { query, params };
-        } catch (error) {
-            console.warn('Aggregation query generation failed', {
-                tableName: this._tableName,
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
-    }
-
-    /**
-     * Build aggregation SELECT clause from AggregateSpec
-     */
-    private buildAggregateClause(aggregations: AggregateSpec): string {
-        const aggregateParts: string[] = [];
-
-        for (const [alias, aggFunc] of Object.entries(aggregations)) {
-            // Validate alias
-            const sanitizedAlias = this.sanitizeFieldName(alias);
-
-            // Extract function and field
-            if ('$count' in aggFunc) {
-                const field = aggFunc.$count;
-                if (field === '*') {
-                    aggregateParts.push(`COUNT(*) as "${sanitizedAlias}"`);
-                } else {
-                    const sanitizedField = this.sanitizeFieldName(field);
-                    aggregateParts.push(`COUNT("${sanitizedField}") as "${sanitizedAlias}"`);
-                }
-            } else if ('$sum' in aggFunc) {
-                const sanitizedField = this.sanitizeFieldName(aggFunc.$sum);
-                aggregateParts.push(`SUM("${sanitizedField}") as "${sanitizedAlias}"`);
-            } else if ('$avg' in aggFunc) {
-                const sanitizedField = this.sanitizeFieldName(aggFunc.$avg);
-                aggregateParts.push(`AVG("${sanitizedField}") as "${sanitizedAlias}"`);
-            } else if ('$min' in aggFunc) {
-                const sanitizedField = this.sanitizeFieldName(aggFunc.$min);
-                aggregateParts.push(`MIN("${sanitizedField}") as "${sanitizedAlias}"`);
-            } else if ('$max' in aggFunc) {
-                const sanitizedField = this.sanitizeFieldName(aggFunc.$max);
-                aggregateParts.push(`MAX("${sanitizedField}") as "${sanitizedAlias}"`);
-            } else if ('$distinct' in aggFunc) {
-                const sanitizedField = this.sanitizeFieldName(aggFunc.$distinct);
-                aggregateParts.push(`COUNT(DISTINCT "${sanitizedField}") as "${sanitizedAlias}"`);
-            } else {
-                throw HttpErrors.badRequest(`Unknown aggregation function for alias '${alias}'`, 'FILTER_INVALID_AGGREGATION');
-            }
-        }
-
-        if (aggregateParts.length === 0) {
-            throw HttpErrors.badRequest('At least one aggregation function required', 'FILTER_NO_AGGREGATIONS');
-        }
-
-        return aggregateParts.join(', ');
-    }
-
-    /**
-     * Build GROUP BY clause with proper escaping
-     */
-    private buildGroupByClause(groupBy?: string[]): string {
-        if (!groupBy || groupBy.length === 0) {
-            return '';
-        }
-
-        // Validate and sanitize field names
-        const sanitizedFields = groupBy.map(col => {
-            const sanitized = this.sanitizeFieldName(col);
-            return `"${sanitized}"`;
-        });
-
-        return `GROUP BY ${sanitizedFields.join(', ')}`;
-    }
-
-    /**
-     * Sanitize field name to prevent SQL injection
-     */
-    private sanitizeFieldName(field: string): string {
-        if (!field || typeof field !== 'string') {
-            throw HttpErrors.badRequest('Field name must be a non-empty string', 'FILTER_INVALID_FIELD');
-        }
-
-        // Allow alphanumeric and underscore only
-        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field)) {
-            throw HttpErrors.badRequest(`Invalid field name format: ${field}`, 'FILTER_INVALID_FIELD_FORMAT');
-        }
-
-        return field;
+        return FilterSqlGenerator.toAggregateSQL(this.getFilterState(), aggregations, groupBy);
     }
 
     /**
      * Get just the WHERE clause conditions for use in other queries
      */
     getWhereClause(): string {
-        try {
-            // Use soft delete options from withSoftDeleteOptions()
-            const options = this._softDeleteOptions;
-
-            // Use FilterWhere for consistent WHERE clause generation
-            const { whereClause } = FilterWhere.generate(this._whereData, 0, options);
-            return whereClause || '1=1';
-        } catch (error) {
-            console.warn('WHERE clause extraction failed', {
-                tableName: this._tableName,
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
+        return FilterSqlGenerator.getWhereClause(this.getFilterState());
     }
 
     /**
      * Get just the ORDER BY clause for use in other queries
      */
     getOrderClause(): string {
-        try {
-            // Use FilterOrder for consistent ORDER BY generation
-            const orderData = this.extractOrderData();
-            const orderClause = FilterOrder.generate(orderData);
-
-            // Remove "ORDER BY" prefix since getOrderClause() returns just the clause part
-            return orderClause.replace(/^ORDER BY\s+/, '');
-        } catch (error) {
-            console.warn('ORDER clause extraction failed', {
-                tableName: this._tableName,
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
-    }
-
-    /**
-     * Extract ORDER data from Filter's internal state for FilterOrder
-     */
-    private extractOrderData(): any {
-        // Convert Filter's internal _order to FilterOrder format
-        return this._order.map(orderInfo => ({
-            field: orderInfo.field,
-            sort: orderInfo.sort,
-        }));
+        return FilterSqlGenerator.getOrderClause(this.getFilterState());
     }
 
     /**
      * Get just the LIMIT/OFFSET clause for use in other queries
      */
     getLimitClause(): string {
-        try {
-            if (this._limit !== undefined) {
-                let limitClause = `LIMIT ${this._limit}`;
-                if (this._offset !== undefined) {
-                    limitClause += ` OFFSET ${this._offset}`;
-                }
-                return limitClause;
-            }
-            return '';
-        } catch (error) {
-            console.warn('LIMIT clause generation failed', {
-                tableName: this._tableName,
-                error: error instanceof Error ? error.message : String(error)
-            });
-            throw error;
-        }
+        return FilterSqlGenerator.getLimitClause(this.getFilterState());
     }
 
 
