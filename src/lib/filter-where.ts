@@ -14,7 +14,7 @@ import { FilterOp, type FilterWhereInfo, type FilterWhereOptions } from '@src/li
  * Quick Examples:
  * - Simple: `FilterWhere.generate({ name: 'John', age: 25 })`
  * - Offset: `FilterWhere.generate({ id: 'record-123' }, 2)` → uses $3, $4, etc.
- * - Options: `FilterWhere.generate(filter, 0, { includeTrashed: true })`
+ * - Options: `FilterWhere.generate(filter, 0, { trashed: 'include' })`
  *
  * See docs/FILTER.md for complete operator reference and examples.
  */
@@ -290,15 +290,20 @@ export class FilterWhere {
     private buildWhereClause(options: FilterWhereOptions): string {
         const conditions = [];
 
-        // Add soft delete filtering unless explicitly included
-        if (!options.includeTrashed) {
-            conditions.push('"trashed_at" IS NULL');
-        }
+        // ALWAYS exclude permanently deleted records (deleted_at IS NOT NULL)
+        // These are kept for compliance/audit but never visible through API
+        conditions.push('"deleted_at" IS NULL');
 
-        // Add permanent delete filtering unless explicitly included
-        if (!options.includeDeleted) {
-            conditions.push('"deleted_at" IS NULL');
+        // Handle trashed records based on trashed option
+        const trashed = options.trashed || 'exclude';
+        if (trashed === 'exclude') {
+            // Default: exclude trashed records
+            conditions.push('"trashed_at" IS NULL');
+        } else if (trashed === 'only') {
+            // Only show trashed records
+            conditions.push('"trashed_at" IS NOT NULL');
         }
+        // If trashed === 'include', don't add any trashed_at filter (show both)
 
         // Add parsed conditions
         const parsedConditions = this._conditions.map(condition => this.buildSQLCondition(condition)).filter(Boolean);

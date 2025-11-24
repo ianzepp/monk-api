@@ -58,7 +58,7 @@ describe('FilterSqlGenerator - toSQL()', () => {
             select: [],
             whereData: {},
             order: [{ field: 'name', sort: 'asc' }],
-            softDeleteOptions: { includeDeleted: true }
+            softDeleteOptions: { trashed: 'include' }
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -115,7 +115,7 @@ describe('FilterSqlGenerator - toSQL()', () => {
             order: [{ field: 'name', sort: 'asc' }],
             limit: 10,
             offset: 5,
-            softDeleteOptions: { includeDeleted: true }
+            softDeleteOptions: { trashed: 'include' }
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -199,7 +199,7 @@ describe('FilterSqlGenerator - toWhereSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: { includeDeleted: false }
+            softDeleteOptions: { trashed: 'exclude' }
         };
 
         const { whereClause, params } = FilterSqlGenerator.toWhereSQL(state);
@@ -531,9 +531,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
         };
 
         const aggregations = {
-            // @ts-expect-error - Testing invalid aggregation
             invalid: { $invalid: 'amount' }
-        };
+        } as any;
 
         expect(() => {
             FilterSqlGenerator.toAggregateSQL(state, aggregations);
@@ -563,12 +562,13 @@ describe('FilterSqlGenerator - getWhereClause()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: { includeTrashed: true, includeDeleted: true }
+            softDeleteOptions: { trashed: 'include' }
         };
 
         const whereClause = FilterSqlGenerator.getWhereClause(state);
 
-        expect(whereClause).toBe('1=1');
+        // Should only have deleted_at filter, not trashed_at
+        expect(whereClause).toContain('"deleted_at" IS NULL');
     });
 });
 

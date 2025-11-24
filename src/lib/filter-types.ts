@@ -60,9 +60,10 @@ export interface FilterWhereInfo {
     data: any;
 }
 
+export type TrashedOption = 'exclude' | 'include' | 'only';
+
 export interface FilterWhereOptions {
-    includeTrashed?: boolean;
-    includeDeleted?: boolean;
+    trashed?: TrashedOption;
 }
 
 // New tree structure for complex logical operators

@@ -370,27 +370,24 @@ export class Database {
     /**
      * Get default soft delete options based on context
      *
-     * - 'api': Excludes trashed and deleted records (default user-facing behavior)
-     * - 'observer': Includes trashed but excludes deleted (observers may need trashed records)
-     * - 'system': Includes everything (system-level operations)
+     * - 'api': Excludes trashed records (default user-facing behavior)
+     * - 'observer': Includes trashed records (observers may need to process trashed records)
+     * - 'system': Includes trashed records (system-level operations)
+     *
+     * Note: deleted_at records are ALWAYS excluded in all contexts.
+     * They are kept in the database for compliance/audit but never visible through the API.
      */
     private getDefaultSoftDeleteOptions(context?: 'api' | 'observer' | 'system'): FilterWhereOptions {
         switch (context) {
             case 'observer':
-                return {
-                    includeTrashed: true,
-                    includeDeleted: false
-                };
             case 'system':
                 return {
-                    includeTrashed: true,
-                    includeDeleted: true
+                    trashed: 'include'
                 };
             case 'api':
             default:
                 return {
-                    includeTrashed: false,
-                    includeDeleted: false
+                    trashed: 'exclude'
                 };
         }
     }
@@ -600,7 +597,7 @@ export class Database {
             throw HttpErrors.badRequest('revertAny() requires include_trashed=true option to find trashed records', 'REQUEST_INVALID_OPTIONS');
         }
 
-        const trashedRecords = await this.selectAny<T>(modelName, filterData, { includeTrashed: true, includeDeleted: false, context: 'system' });
+        const trashedRecords = await this.selectAny<T>(modelName, filterData, { trashed: 'include', context: 'system' });
         const recordsToRevert = trashedRecords.filter(record => record.trashed_at !== null).map(record => ({ id: record.id, trashed_at: null }));
 
         if (recordsToRevert.length === 0) {

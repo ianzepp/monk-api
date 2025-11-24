@@ -237,22 +237,26 @@ curl -X POST http://localhost:9001/api/find/documents \
 ## Important Behaviors
 
 ### Soft Delete Filtering
-By default, all queries automatically exclude soft-deleted and permanently deleted records:
-```json
-// Automatic filtering applied to all queries:
-// WHERE "trashed_at" IS NULL AND "deleted_at" IS NULL
+By default, all queries automatically exclude soft-deleted records and permanently deleted records:
+```sql
+-- Automatic filtering applied to all queries (trashed=exclude by default):
+WHERE "trashed_at" IS NULL AND "deleted_at" IS NULL
 ```
 
-To include soft-deleted or permanently deleted records, use query parameters:
+**Permanently deleted records (`deleted_at IS NOT NULL`) are ALWAYS excluded from API queries.**
+These records are kept in the database for compliance and audit purposes but are never visible through the API.
+
+To control visibility of trashed records, use the `trashed` query parameter:
 ```bash
-# Include trashed records
-POST /api/find/users?includeTrashed=true
+# Default: exclude trashed records (show only active)
+POST /api/find/users
+POST /api/find/users?trashed=exclude
 
-# Include permanently deleted records
-POST /api/find/users?includeDeleted=true
+# Include both active and trashed records
+POST /api/find/users?trashed=include
 
-# Include both
-POST /api/find/users?includeTrashed=true&includeDeleted=true
+# Show only trashed records
+POST /api/find/users?trashed=only
 ```
 
 ### Empty Array Operators

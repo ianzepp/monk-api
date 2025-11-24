@@ -44,7 +44,7 @@ export default class SqlRevertObserver extends BaseObserver {
             },
             0,
             {
-                includeTrashed: true, // Include trashed records for revert operation
+                trashed: 'include', // Include trashed records for revert operation
             }
         );
 

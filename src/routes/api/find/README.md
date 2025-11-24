@@ -49,7 +49,7 @@ Authorization: Bearer <jwt>
 
 ### Required Permissions
 - **Search Records**: `read_data` permission
-- **Access Trashed Records**: `delete_data` permission (for include_trashed parameter)
+- **Access Trashed Records**: `delete_data` permission (for `trashed=include` or `trashed=only` parameters)
 
 ## Core Endpoint
 
@@ -434,14 +434,15 @@ WHERE deleted_at IS NULL AND (user_conditions)
 WHERE (user_conditions)
 ```
 
-### Context-Based Override Options
+### Context-Based Trashed Record Handling
 
-The Find API provides three distinct contexts that control how soft-deleted and permanently deleted records are handled:
+The Find API provides three distinct contexts that control how trashed records are handled.
+**Note**: Permanently deleted records (`deleted_at IS NOT NULL`) are ALWAYS excluded in all contexts - they are kept for compliance/audit but never visible through the API.
 
 ```json
 {
   "where": {"status": "active"},
-  "include_trashed": true,
+  "trashed": "include",
   "context": "observer"
 }
 ```
@@ -449,17 +450,8 @@ The Find API provides three distinct contexts that control how soft-deleted and 
 ```json
 {
   "where": {"status": "active"},
-  "include_deleted": true,
-  "context": "system"
-}
-```
-
-```json
-{
-  "where": {"status": "active"},
-  "include_trashed": true,
-  "include_deleted": true,
-  "context": "system"
+  "trashed": "only",
+  "context": "api"
 }
 ```
 
@@ -467,28 +459,29 @@ The Find API provides three distinct contexts that control how soft-deleted and 
 
 **api** (default): User-facing operations
 - **Use Case**: Standard API requests from web/mobile clients
-- **Behavior**: Excludes both trashed and deleted records (safest for user data)
-- **SQL Filter**: `WHERE trashed_at IS NULL AND deleted_at IS NULL AND (user_conditions)`
+- **Behavior**: Excludes trashed records by default (shows only active records)
+- **Default SQL Filter**: `WHERE trashed_at IS NULL AND deleted_at IS NULL AND (user_conditions)`
 - **Example**: Regular user searches, data browsing, public API endpoints
+- **Trashed Override**: Can use `trashed=include` or `trashed=only` query parameters
 
-**observer**: Observer pipeline operations  
+**observer**: Observer pipeline operations
 - **Use Case**: Internal system observers that may need to process trashed records
-- **Behavior**: Includes trashed records but excludes permanently deleted ones
-- **SQL Filter**: `WHERE deleted_at IS NULL AND (user_conditions)`
+- **Behavior**: Includes trashed records by default (processes both active and trashed)
+- **Default SQL Filter**: `WHERE deleted_at IS NULL AND (user_conditions)`
 - **Example**: Cleanup observers, audit trails, data recovery processes, background jobs
 
 **system**: System-level operations
 - **Use Case**: Administrative tasks, data migration, system maintenance
-- **Behavior**: Includes all records regardless of deletion status
-- **SQL Filter**: `WHERE (user_conditions)`
+- **Behavior**: Includes trashed records by default (shows both active and trashed)
+- **Default SQL Filter**: `WHERE deleted_at IS NULL AND (user_conditions)`
 - **Example**: Admin dashboards, data exports, system migrations, backup operations
 
 **Context Selection Guidelines:**
 - Use **api** context for all user-facing endpoints (default behavior)
-- Use **observer** context when observers need to process soft-deleted data
-- Use **system** context only for sudo operations requiring full data access
-- The context parameter works independently from `include_trashed` and `include_deleted` flags
-- Context provides a higher-level abstraction while override flags offer fine-grained control
+- Use **observer** context when observers need to process trashed records
+- Use **system** context for sudo operations requiring visibility into trashed records
+- The context parameter sets default trashed behavior, but can be overridden with `trashed` parameter
+- **deleted_at records are NEVER visible** - kept for compliance/audit, not accessible through API
 
 ## Error Handling
 
@@ -677,13 +670,13 @@ The system automatically applies different soft delete filters based on the oper
 private getDefaultSoftDeleteOptions(context?: 'api' | 'observer' | 'system') {
     switch (context) {
         case 'observer':
-            return { includeTrashed: true, includeDeleted: false };  // Observers see trashed
         case 'system':
-            return { includeTrashed: true, includeDeleted: true };  // System sees everything
+            return { trashed: 'include' };  // Observers and system see trashed records
         case 'api':
         default:
-            return { includeTrashed: false, includeDeleted: false }; // Users see only active
+            return { trashed: 'exclude' };  // Users see only active records
     }
+    // Note: deleted_at records are ALWAYS excluded in all contexts
 }
 ```
 
@@ -749,7 +742,7 @@ const { whereClause, params } = FilterWhere.generate({ id: 'record-123' }, 2);
 const { whereClause, params } = FilterWhere.generate(
     { id: { $in: ['id1', 'id2'] } },
     0,
-    { includeTrashed: true }
+    { trashed: 'include' }
 );
 ```
 
@@ -866,7 +859,7 @@ FilterOrder.generate(['name asc', { field: 'created_at', sort: 'desc' }]);
     "last_audit": {"$gte": "2024-01-01"},
     "$not": {"status": "terminated"}
   },
-  "include_trashed": true,
+  "trashed": "include",
   "context": "observer",
   "limit": 100
 }

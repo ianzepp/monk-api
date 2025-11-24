@@ -44,7 +44,7 @@
   - Existence operators ($exists, $null)
   - Search operators ($find, $text)
   - Logical operators ($and, $or, $not, $nand, $nor)
-  - Soft delete options (includeTrashed, includeDeleted)
+  - Soft delete options (trashed: 'exclude' | 'include' | 'only')
   - Parameter offsetting for complex queries
   - Comprehensive validation (field names, operators, data types)
   - Edge cases (null/undefined, nested conditions, special values)

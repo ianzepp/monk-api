@@ -68,10 +68,12 @@ interface RouteParams {
 
 // Helper function to extract select options from request
 function extractSelectOptionsFromContext(context: Context): SelectOptions {
+    const trashedParam = context.req.query('trashed');
+    const trashed = trashedParam === 'include' ? 'include' : trashedParam === 'only' ? 'only' : 'exclude';
+
     return {
         context: 'api',
-        includeTrashed: context.req.query('include_trashed') === 'true',
-        includeDeleted: context.req.query('include_deleted') === 'true',
+        trashed,
     };
 }
 

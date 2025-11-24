@@ -407,11 +407,11 @@ describe('FilterWhere - Soft Delete Options', () => {
         expect(params).toEqual(['active']);
     });
 
-    it('should exclude trashed_at check when includeTrashed: true', () => {
+    it('should not filter trashed_at when trashed: "include"', () => {
         const { whereClause, params } = FilterWhere.generate(
             { status: 'active' },
             0,
-            { includeTrashed: true }
+            { trashed: 'include' }
         );
 
         expect(whereClause).not.toContain('"trashed_at"');
@@ -419,27 +419,27 @@ describe('FilterWhere - Soft Delete Options', () => {
         expect(params).toEqual(['active']);
     });
 
-    it('should exclude deleted_at check when includeDeleted: true', () => {
+    it('should filter only trashed records when trashed: "only"', () => {
         const { whereClause, params } = FilterWhere.generate(
             { status: 'active' },
             0,
-            { includeDeleted: true }
+            { trashed: 'only' }
         );
 
-        expect(whereClause).toContain('"trashed_at" IS NULL');
-        expect(whereClause).not.toContain('"deleted_at"');
+        expect(whereClause).toContain('"trashed_at" IS NOT NULL');
+        expect(whereClause).toContain('"deleted_at" IS NULL');
         expect(params).toEqual(['active']);
     });
 
-    it('should exclude both checks when includeTrashed and includeDeleted are true', () => {
+    it('should always exclude deleted_at records (compliance/audit only)', () => {
         const { whereClause, params } = FilterWhere.generate(
             { status: 'active' },
             0,
-            { includeTrashed: true, includeDeleted: true }
+            { trashed: 'include' }
         );
 
-        expect(whereClause).not.toContain('"trashed_at"');
-        expect(whereClause).not.toContain('"deleted_at"');
+        // deleted_at records are ALWAYS filtered out - they're kept for compliance but never visible
+        expect(whereClause).toContain('"deleted_at" IS NULL');
         expect(params).toEqual(['active']);
     });
 });
@@ -476,29 +476,29 @@ describe('FilterWhere - Parameter Offsetting', () => {
 describe('FilterWhere - Validation', () => {
     it('should throw error for invalid WHERE type (number)', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterWhere.generate(123);
+            FilterWhere.generate(123 as any);
         }).toThrow('WHERE conditions must be object or string');
     });
 
     it('should throw error for invalid WHERE type (boolean)', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterWhere.generate(true);
+            FilterWhere.generate(true as any);
         }).toThrow('WHERE conditions must be object or string');
     });
 
     it('should accept empty WHERE conditions', () => {
-        const { whereClause, params } = FilterWhere.generate({}, 0, { includeTrashed: true, includeDeleted: true });
+        const { whereClause, params } = FilterWhere.generate({}, 0, { trashed: 'include' });
 
-        expect(whereClause).toBe('1=1');
+        // Should only have deleted_at filter (trashed filter excluded with trashed: 'include')
+        expect(whereClause).toContain('"deleted_at" IS NULL');
         expect(params).toEqual([]);
     });
 
     it('should accept null/undefined WHERE conditions', () => {
-        const { whereClause, params } = FilterWhere.generate(null, 0, { includeTrashed: true, includeDeleted: true });
+        const { whereClause, params } = FilterWhere.generate(null, 0, { trashed: 'include' });
 
-        expect(whereClause).toBe('1=1');
+        // Should still have deleted_at filter even with null WHERE
+        expect(whereClause).toContain('"deleted_at" IS NULL');
         expect(params).toEqual([]);
     });
 
@@ -524,7 +524,7 @@ describe('FilterWhere - Validation', () => {
         const { whereClause, params } = FilterWhere.generate(
             { user_name: 'test' },
             0,
-            { includeTrashed: true, includeDeleted: true }
+            { trashed: 'include' }
         );
 
         expect(whereClause).toContain('"user_name"');
@@ -533,36 +533,31 @@ describe('FilterWhere - Validation', () => {
 
     it('should throw error for unsupported operator', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid operator
-            FilterWhere.generate({ age: { $invalid: 25 } });
+            FilterWhere.generate({ age: { $invalid: 25 } } as any);
         }).toThrow('Unsupported filter operator');
     });
 
     it('should throw error for $in with non-array', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterWhere.generate({ status: { $in: 'active' } });
+            FilterWhere.generate({ status: { $in: 'active' } } as any);
         }).toThrow('Operator $in requires array data');
     });
 
     it('should throw error for $null with non-boolean', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterWhere.generate({ deleted_at: { $null: 'yes' } });
+            FilterWhere.generate({ deleted_at: { $null: 'yes' } } as any);
         }).toThrow('$null operator requires boolean value');
     });
 
     it('should throw error for $exists with non-boolean', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterWhere.generate({ email: { $exists: 1 } });
+            FilterWhere.generate({ email: { $exists: 1 } } as any);
         }).toThrow('$exists operator requires boolean value');
     });
 
     it('should throw error for $and with non-array', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterWhere.generate({ $and: { status: 'active' } });
+            FilterWhere.generate({ $and: { status: 'active' } } as any);
         }).toThrow('$and operator requires an array of conditions');
     });
 
@@ -574,8 +569,7 @@ describe('FilterWhere - Validation', () => {
 
     it('should throw error for $and with invalid condition type', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterWhere.generate({ $and: ['invalid', 'condition'] });
+            FilterWhere.generate({ $and: ['invalid', 'condition'] } as any);
         }).toThrow('$and condition at index 0 must be an object');
     });
 });
@@ -593,7 +587,7 @@ describe('FilterWhere - Edge Cases', () => {
             name: 'John',
             age: 25,
             status: 'active'
-        }, 0, { includeTrashed: true, includeDeleted: true });
+        }, 0, { trashed: 'include' });
 
         expect(whereClause).toContain('"name" = $1');
         expect(whereClause).toContain('"age" = $2');
@@ -627,7 +621,7 @@ describe('FilterWhere - Edge Cases', () => {
         const { whereClause, params } = FilterWhere.generate(
             { name: "O'Connor" },
             0,
-            { includeTrashed: true, includeDeleted: true }
+            { trashed: 'include' }
         );
 
         expect(whereClause).toContain('"name" = $1');
@@ -638,7 +632,7 @@ describe('FilterWhere - Edge Cases', () => {
         const { whereClause, params } = FilterWhere.generate(
             { count: 0 },
             0,
-            { includeTrashed: true, includeDeleted: true }
+            { trashed: 'include' }
         );
 
         expect(whereClause).toContain('"count" = $1');
@@ -649,7 +643,7 @@ describe('FilterWhere - Edge Cases', () => {
         const { whereClause, params } = FilterWhere.generate(
             { active: false },
             0,
-            { includeTrashed: true, includeDeleted: true }
+            { trashed: 'include' }
         );
 
         expect(whereClause).toContain('"active" = $1');
@@ -666,8 +660,7 @@ describe('FilterWhere - Static Validate Method', () => {
 
     it('should throw for invalid WHERE data', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterWhere.validate(123);
+            FilterWhere.validate(123 as any);
         }).toThrow('WHERE conditions must be object or string');
     });
 
@@ -685,9 +678,8 @@ describe('FilterWhere - Static Validate Method', () => {
     it('should throw for invalid nested conditions', () => {
         expect(() => {
             FilterWhere.validate({
-                // @ts-expect-error - Testing invalid input
                 $and: ['invalid']
-            });
+            } as any);
         }).toThrow();
     });
 });

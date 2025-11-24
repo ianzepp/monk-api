@@ -180,9 +180,8 @@ describe('FilterOrder - Sort Direction Normalization', () => {
     });
 
     it('should throw error for numeric sort direction', () => {
-        // @ts-expect-error - Testing edge case
         expect(() => {
-            FilterOrder.generate({ name: 1 });
+            FilterOrder.generate({ name: 1 } as any);
         }).toThrow();
     });
 
@@ -216,16 +215,14 @@ describe('FilterOrder - Sort Direction Normalization', () => {
 
 describe('FilterOrder - Input Format Handling', () => {
     it('should return empty for number input', () => {
-        // @ts-expect-error - Testing edge case
-        const orderClause = FilterOrder.generate(123);
+        const orderClause = FilterOrder.generate(123 as any);
 
         // Invalid input returns empty ORDER BY
         expect(orderClause).toBe('');
     });
 
     it('should return empty for boolean input', () => {
-        // @ts-expect-error - Testing edge case
-        const orderClause = FilterOrder.generate(true);
+        const orderClause = FilterOrder.generate(true as any);
 
         // Invalid input returns empty ORDER BY
         expect(orderClause).toBe('');
@@ -260,8 +257,7 @@ describe('FilterOrder - Input Format Handling', () => {
 
 describe('FilterOrder - Array Sanitization', () => {
     it('should skip invalid array items', () => {
-        // @ts-expect-error - Testing edge case
-        const orderClause = FilterOrder.generate([{ field: 'name', sort: 'asc' }, 123, { field: 'age', sort: 'desc' }]);
+        const orderClause = FilterOrder.generate([{ field: 'name', sort: 'asc' }, 123, { field: 'age', sort: 'desc' }] as any);
 
         // Invalid items are skipped, valid ones are processed
         expect(orderClause).toContain('"name" ASC');
@@ -386,8 +382,7 @@ describe('FilterOrder - Static Validate Method', () => {
 
     it('should throw for invalid array item', () => {
         expect(() => {
-            // @ts-expect-error - Testing invalid input
-            FilterOrder.validate([123]);
+            FilterOrder.validate([123] as any);
         }).toThrow('Invalid order specification at index 0');
     });
 });
