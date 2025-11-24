@@ -31,8 +31,8 @@ export default defineConfig({
         // Test environment
         environment: 'node',
 
-        // Only run tests in spec/ matching *.test.ts
-        include: ['spec/**/*.test.ts'],
+        // Only run tests in spec/ matching *.unit.ts
+        include: ['spec/**/*.unit.ts'],
 
         // Exclude integration tests and other directories
         exclude: [
@@ -49,6 +49,7 @@ export default defineConfig({
             include: ['src/**/*.ts'],
             exclude: [
                 'src/**/*.test.ts',
+                'src/**/*.unit.ts',
                 'src/**/test-*.ts',
                 'src/test-setup.ts'
             ]
