@@ -27,7 +27,7 @@ export default withTransactionParams(async (context, { system, body }) => {
     const tenant = context.get('tenant');
     
     // Get current database name by querying PostgreSQL
-    const dbResult = await system.db.query('SELECT current_database() as name');
+    const dbResult = await system.tx.query('SELECT current_database() as name');
     const databaseName = dbResult.rows[0].name;
 
     // Verify we're snapshotting a tenant database, not a sandbox

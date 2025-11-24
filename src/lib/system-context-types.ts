@@ -50,11 +50,9 @@ export interface SystemContext {
     /** Hono request context for accessing request/response and context variables */
     readonly context: Context;
 
-    /** Database connection - always available for database operations */
-    readonly db: any; // Avoid importing pg.Pool to prevent circular deps
-
-    /** Transaction context - set by SQL Observer when transactions needed */
-    tx?: any; // Avoid importing pg.PoolClient to prevent circular deps
+    /** Transaction context with search_path configured for namespace isolation
+     *  Set by withTransaction() before any database operations execute */
+    tx: any; // Avoid importing pg.PoolClient to prevent circular deps
 
     /** Database instance for high-level operations */
     readonly database: any; // Avoid importing Database class to prevent circular deps

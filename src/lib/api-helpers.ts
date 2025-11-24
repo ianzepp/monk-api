@@ -122,8 +122,8 @@ export function withTransaction(handler: (context: Context) => Promise<void>) {
             return createInternalError(context, `Invalid namespace format: ${nsName}`);
         }
 
-        // Acquire client from pool
-        const pool = system.db;
+        // Acquire client from pool (set by middleware via DatabaseConnection.setDatabaseAndNamespaceForRequest)
+        const pool = context.get('database');
         const tx = await pool.connect();
 
         try {

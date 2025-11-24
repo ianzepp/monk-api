@@ -21,7 +21,7 @@ export default withTransactionParams(async (context, { system, model, record, re
           AND relationship_name = $2
           AND relationship_type = 'owned'
     `;
-    const relationshipResult = await system.db.query(relationshipQuery, [model, relationship]);
+    const relationshipResult = await system.tx.query(relationshipQuery, [model, relationship]);
 
     if (relationshipResult.rows.length === 0) {
         throw HttpErrors.notFound(`Relationship '${relationship}' not found for model '${model}'`, 'RELATIONSHIP_NOT_FOUND');

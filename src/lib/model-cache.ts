@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import type { DbContext, TxContext } from '@src/db/index.js';
+import type { TxContext } from '@src/db/index.js';
 import type { SystemContext } from '@src/lib/system-context-types.js';
 
 // Cached model entry
@@ -41,7 +41,7 @@ export class ModelCache {
     /**
      * Get database URL for cache key generation
      */
-    private getDatabaseUrl(dtx: DbContext | TxContext): string {
+    private getDatabaseUrl(dtx: TxContext): string {
         // Use connection string from the database context
         // Extract database name from the connection or use a simple identifier
         try {
@@ -57,7 +57,7 @@ export class ModelCache {
     /**
      * Get or create database-specific cache
      */
-    private getDatabaseCache(dtx: DbContext | TxContext): DatabaseCache {
+    private getDatabaseCache(dtx: TxContext): DatabaseCache {
         const databaseUrl = this.getDatabaseUrl(dtx);
 
         if (!this.databaseCaches.has(databaseUrl)) {
@@ -74,7 +74,7 @@ export class ModelCache {
     /**
      * Load all model timestamps for a database
      */
-    private async loadModelChecksums(dtx: DbContext | TxContext): Promise<{ model_name: string; updated_at: string }[]> {
+    private async loadModelChecksums(dtx: TxContext): Promise<{ model_name: string; updated_at: string }[]> {
         const result = await dtx.query(`
             SELECT s.model_name, s.updated_at
             FROM models s
@@ -87,7 +87,7 @@ export class ModelCache {
     /**
      * Validate cache checksums for a database
      */
-    private async validateCacheChecksums(dtx: DbContext | TxContext, modelNames?: string[]): Promise<void> {
+    private async validateCacheChecksums(dtx: TxContext, modelNames?: string[]): Promise<void> {
         const dbCache = this.getDatabaseCache(dtx);
         const now = Date.now();
 
@@ -145,7 +145,7 @@ export class ModelCache {
     /**
      * Load full model metadata and fields from database
      */
-    private async loadFullModel(dtx: DbContext | TxContext, modelName: string): Promise<{ model: any; fields: any[] }> {
+    private async loadFullModel(dtx: TxContext, modelName: string): Promise<{ model: any; fields: any[] }> {
         // Load model metadata
         const modelResult = await dtx.query(
             `
@@ -189,7 +189,7 @@ export class ModelCache {
      * writes are controlled through describe.ts which invalidates the cache.
      */
     async getModel(system: SystemContext, modelName: string): Promise<any> {
-        const dbCache = this.getDatabaseCache(system.db);
+        const dbCache = this.getDatabaseCache(system.tx);
 
         // 1. Check cache first - trust it if present
         const cached = dbCache.models.get(modelName);
@@ -201,7 +201,7 @@ export class ModelCache {
 
         // 2. Cache miss - load full model and fields from database
         console.info('Model cache miss - loading from database', { modelName });
-        const { model, fields } = await this.loadFullModel(system.db, modelName);
+        const { model, fields } = await this.loadFullModel(system.tx, modelName);
 
         // 3. Store in cache
         dbCache.models.set(modelName, {
@@ -218,7 +218,7 @@ export class ModelCache {
      * Invalidate specific model in cache (for updates)
      */
     invalidateModel(system: SystemContext, modelName: string): void {
-        const dbCache = this.getDatabaseCache(system.db);
+        const dbCache = this.getDatabaseCache(system.tx);
         dbCache.models.delete(modelName);
         console.info('Model cache invalidated manually', { modelName });
     }

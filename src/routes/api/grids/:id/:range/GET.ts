@@ -30,12 +30,11 @@ export default withTransactionParams(async (context, { system }) => {
     // 3. Validate against grid constraints
     validateRangeBounds(range, grid.row_max, grid.col_max);
 
-    // 4. Build SQL query (transaction-aware)
-    const dbContext = system.tx || system.db;
+    // 4. Build SQL query
     const { query, params } = buildSelectQuery(gridId, range);
 
-    // 5. Execute query
-    const result = await dbContext.query(query, params)
+    // 5. Execute query (transaction has search_path set)
+    const result = await system.tx.query(query, params)
     const cells = formatCells(result.rows, format);
 
     // 6. Return with metadata

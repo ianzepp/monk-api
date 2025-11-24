@@ -1,11 +1,11 @@
 import crypto from 'crypto';
-import type { DbContext, TxContext } from '@src/db/index.js';
+import type { TxContext } from '@src/db/index.js';
 
 import type { SystemContext } from '@src/lib/system-context-types.js';
 import { Model, type ModelName } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
 import { Filter, type AggregateSpec } from '@src/lib/filter.js';
-import type { FilterData } from '@src/lib/filter-types.js';
+import type { FilterData, AggregateData } from '@src/lib/filter-types.js';
 import type { FilterWhereOptions } from '@src/lib/filter-types.js';
 import { ModelCache } from '@src/lib/model-cache.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
@@ -55,16 +55,20 @@ export class Database {
     }
 
     /**
-     * Get transaction-aware database context
+     * Get transaction context for database operations
      *
-     * Returns active transaction context if available, otherwise returns database connection.
-     * This ensures all queries execute within the correct transaction scope.
+     * Returns the active transaction context with search_path configured.
+     * All tenant-scoped operations require a transaction for namespace isolation.
      *
      * @private
-     * @returns Transaction context if active, otherwise database connection
+     * @returns Transaction context with search_path set
+     * @throws Error if transaction not initialized (programming error)
      */
-    private get dbContext(): DbContext | TxContext {
-        return this.system.tx || this.system.db;
+    private get dbContext(): TxContext {
+        if (!this.system.tx) {
+            throw new Error('Transaction context not initialized - ensure withTransaction() wrapper is used');
+        }
+        return this.system.tx;
     }
 
     /**
@@ -132,19 +136,30 @@ export class Database {
      * Supports filtering via where clause and respects soft delete settings.
      *
      * @param modelName - Model to aggregate
-     * @param filterData - Filter conditions (where clause)
-     * @param aggregations - Aggregation specifications (e.g., {total: {$count: '*'}})
-     * @param groupBy - Optional fields to group by
+     * @param body - Request body containing aggregate, where, and groupBy fields
      * @param options - Soft delete and context options
      * @returns Array of aggregation results
      */
     async aggregate(
         modelName: ModelName,
-        filterData: FilterData = {},
-        aggregations: AggregateSpec,
-        groupBy?: string[],
+        body: AggregateData | any = {},
         options: SelectOptions = {}
     ): Promise<any[]> {
+        // Validate request body
+        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+            throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
+        }
+
+        // Validate aggregations
+        if (!body.aggregate || typeof body.aggregate !== 'object' || Object.keys(body.aggregate).length === 0) {
+            throw HttpErrors.badRequest('Request must include "aggregate" field with at least one aggregation function', 'BODY_MISSING_FIELD');
+        }
+
+        // Extract parameters
+        const filterData = body.where ? { where: body.where } : {};
+        const aggregations = body.aggregate;
+        const groupBy = body.groupBy || body.group_by;
+
         const model = await this.toModel(modelName);
 
         // Apply context-based soft delete defaults
