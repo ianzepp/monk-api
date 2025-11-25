@@ -16,6 +16,7 @@ import type { ModelRecord } from '@src/lib/model-record.js';
 export default class DdlCreateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['create'] as const;
+    readonly adapters = ['postgresql'] as const;  // Uses PostgreSQL-specific types (UUID, UUID[])
     readonly priority = 10;  // High priority - DDL should run before data transformations
 
     async execute(context: ObserverContext): Promise<void> {

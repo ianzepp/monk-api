@@ -18,6 +18,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 export default class UuidArrayProcessor extends BaseObserver {
     readonly ring = ObserverRing.Enrichment;
     readonly operations = ['create', 'update'] as const;
+    readonly adapters = ['postgresql'] as const;  // PostgreSQL UUID[] handling
 
     /**
      * UUID array fields that need special PostgreSQL handling

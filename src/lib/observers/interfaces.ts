@@ -14,6 +14,7 @@ import type {
     ObserverResult
 } from '@src/lib/observers/types.js';
 import type { ValidationError, ValidationWarning } from '@src/lib/observers/errors.js';
+import type { DatabaseType } from '@src/lib/database/adapter.js';
 
 /**
  * Shared context passed through all observer rings
@@ -63,6 +64,11 @@ export interface Observer {
 
     /** Optional: limit to specific operations (default: all operations) */
     operations?: readonly OperationType[];
+
+    /** Optional: limit to specific database adapters (default: runs on all adapters)
+     *  Use this to create adapter-specific observers, e.g., adapters: ['postgresql']
+     *  for observers that use PostgreSQL-specific SQL features like RETURNING */
+    adapters?: readonly DatabaseType[];
 
     /** Optional: execution priority within a ring (lower numbers execute first, default: 50) */
     priority?: number;

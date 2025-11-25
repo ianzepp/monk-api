@@ -19,6 +19,7 @@ import type { ModelRecord } from '@src/lib/model-record.js';
 export default class DdlUpdateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['update'] as const;
+    readonly adapters = ['postgresql'] as const;  // PostgreSQL DDL
     readonly priority = 10;  // High priority - DDL should run before data transformations
 
     async execute(context: ObserverContext): Promise<void> {
