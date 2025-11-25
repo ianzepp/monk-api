@@ -28,7 +28,6 @@ if (!process.env.NODE_ENV) {
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -36,9 +35,9 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
 
 // Imports
 import { Hono } from 'hono';
-import { getRequestListener } from '@hono/node-server';
+import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
-import { handleMcpRequest } from '@src/mcp/index.js';
+import * as mcpRoutes from '@src/routes/mcp/routes.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 
 // Observer preload
@@ -237,6 +236,11 @@ app.use('/api/*', middleware.systemContextMiddleware);
 app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
 app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpoint-specific docs)
 
+// MCP route (public, uses internal auth via tool calls)
+app.use('/mcp', middleware.requestBodyParserMiddleware);
+mcpRoutes.setHonoApp(app);
+app.post('/mcp', mcpRoutes.McpPost); // POST /mcp (JSON-RPC)
+
 // 30-auth-api: Public auth routes (token acquisition)
 app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
@@ -375,39 +379,18 @@ if (process.argv.includes('--no-startup')) {
     process.exit(0);
 }
 
-// Start HTTP server with MCP support
-console.info('Starting Monk HTTP API Server (Hono) with MCP support');
+// Start HTTP server
+console.info('Starting Monk HTTP API Server (Hono)');
 console.info('Related ecosystem projects:')
 console.info('- monk-cli: Terminal commands for the API (https://github.com/ianzepp/monk-cli)');
 console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
 console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)');
 
-// Create HTTP server that routes /mcp to MCP handler, everything else to Hono
-const honoListener = getRequestListener(app.fetch);
-
-const server = createServer(async (req, res) => {
-    // Route /mcp requests to MCP handler
-    if (req.url?.startsWith('/mcp')) {
-        try {
-            await handleMcpRequest(req, res);
-        } catch (error) {
-            console.error('MCP request error:', error);
-            if (!res.headersSent) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Internal MCP error' }));
-            }
-        }
-        return;
-    }
-
-    // Route everything else to Hono
-    honoListener(req, res);
-});
-
-server.listen(port);
+// Start server using Hono's serve() - MCP is handled as a regular route via app.post('/mcp')
+const server = serve({ fetch: app.fetch, port });
 
 console.info('HTTP API server running', { port, url: `http://localhost:${port}` });
-console.info('MCP endpoint available at', { url: `http://localhost:${port}/mcp` });
+console.info('MCP endpoint available at POST /mcp (JSON-RPC)');
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
