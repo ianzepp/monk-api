@@ -14,7 +14,9 @@ The PostgreSQL system database (`monk`) remains for tenant registry and auth. In
 
 ---
 
-## Phase 1: Database Adapter Interface
+## Phase 1: Database Adapter Interface ✓
+
+**Status**: Complete (commit 210f7b2)
 
 **Goal**: Create abstraction layer without changing existing behavior.
 
@@ -79,7 +81,9 @@ export function createAdapter(dbType: string, db: string, ns: string): DatabaseA
 
 ---
 
-## Phase 2: Tenant Schema Update
+## Phase 2: Tenant Schema Update ✓
+
+**Status**: Complete (commit e7ebeb6)
 
 **Goal**: Add `db_type` field to tenant system.
 
@@ -105,6 +109,8 @@ export function createAdapter(dbType: string, db: string, ns: string): DatabaseA
 - `createNamespace()`: If sqlite, create directory + file instead of schema
 - `dropNamespace()`: If sqlite, delete file
 - `namespaceExists()`: If sqlite, check file exists
+
+**Future refactor**: Consider splitting `NamespaceManager` into `PostgresNamespaceManager` and `SqliteNamespaceManager` classes if the conditional logic grows more complex. Currently uses inline conditionals which is sufficient for the basic operations.
 
 ---
 

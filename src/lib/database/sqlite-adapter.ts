@@ -12,8 +12,20 @@ import { join } from 'path';
 import type Database from 'better-sqlite3';
 import type { DatabaseAdapter, QueryResult, DatabaseType } from './adapter.js';
 
-// Default data directory for SQLite databases
-const SQLITE_DATA_DIR = process.env.SQLITE_DATA_DIR || '/data';
+/**
+ * Get SQLite data directory from environment
+ * @throws Error if SQLITE_DATA_DIR is not configured
+ */
+function getSqliteDataDir(): string {
+    const dir = process.env.SQLITE_DATA_DIR;
+    if (!dir) {
+        throw new Error(
+            'SQLITE_DATA_DIR environment variable is required for SQLite tenants. ' +
+            'Set it to the directory where SQLite database files should be stored.'
+        );
+    }
+    return dir;
+}
 
 /**
  * SQLite implementation of DatabaseAdapter
@@ -37,9 +49,10 @@ export class SqliteAdapter implements DatabaseAdapter {
      *
      * @param db - Directory name under SQLITE_DATA_DIR
      * @param ns - Filename (without .db extension)
+     * @throws Error if SQLITE_DATA_DIR environment variable is not set
      */
     constructor(db: string, ns: string) {
-        this.dbPath = join(SQLITE_DATA_DIR, db, `${ns}.db`);
+        this.dbPath = join(getSqliteDataDir(), db, `${ns}.db`);
     }
 
     /**

@@ -57,6 +57,7 @@ export interface TemplateCloneOptions {
     username?: string; // Optional - defaults to 'root'
     user_access?: string; // Default: 'full'
     description?: string; // Optional tenant description
+    db_type?: 'postgresql' | 'sqlite'; // Database backend (default: 'postgresql')
     // Future extensibility:
     // email?: string;
     // company?: string;
@@ -69,6 +70,7 @@ export interface TemplateCloneOptions {
  */
 export interface TemplateCloneResult {
     tenant: string;
+    dbType: 'postgresql' | 'sqlite';
     dbName: string;
     nsName: string;
     user: {
@@ -98,7 +100,15 @@ export class DatabaseTemplate {
      * @returns Promise<TemplateCloneResult> - New tenant credentials
      */
     static async cloneTemplate(options: TemplateCloneOptions): Promise<TemplateCloneResult> {
-        const { template_name, user_access = 'root' } = options;
+        const { template_name, user_access = 'root', db_type = 'postgresql' } = options;
+
+        // Validate db_type
+        if (db_type !== 'postgresql' && db_type !== 'sqlite') {
+            throw HttpErrors.badRequest(
+                `Invalid db_type '${db_type}'. Must be 'postgresql' or 'sqlite'`,
+                'INVALID_DB_TYPE'
+            );
+        }
 
         // Acquire semaphore to limit concurrent tenant creations
         await tenantCreationSemaphore.acquire();
@@ -123,7 +133,9 @@ export class DatabaseTemplate {
             const username = options.username || 'root';
 
             // 4. Determine target database and generate namespace name
-            const targetDbName = 'db_main'; // Default shared tenant database
+            // For PostgreSQL: db=database name, ns=schema name
+            // For SQLite: db=directory, ns=filename (without .db extension)
+            const targetDbName = db_type === 'sqlite' ? 'sqlite' : 'db_main';
             const targetNsName = DatabaseNaming.generateTenantNsName(tenantName);
 
             // 5. Check if tenant name already exists
@@ -134,12 +146,12 @@ export class DatabaseTemplate {
             }
 
             // 6. Check if namespace already exists
-            if (await NamespaceManager.namespaceExists(targetDbName, targetNsName)) {
+            if (await NamespaceManager.namespaceExists(targetDbName, targetNsName, db_type)) {
                 throw HttpErrors.conflict(`Namespace '${targetNsName}' already exists in ${targetDbName}`, 'NAMESPACE_EXISTS');
             }
 
-            // 7. Create namespace
-            await NamespaceManager.createNamespace(targetDbName, targetNsName);
+            // 7. Create namespace (schema for PostgreSQL, directory+file for SQLite)
+            await NamespaceManager.createNamespace(targetDbName, targetNsName, db_type);
 
             try {
                 // 8. Deploy fixtures to namespace with automatic dependency resolution
@@ -176,14 +188,15 @@ export class DatabaseTemplate {
 
                 // 10. Register tenant in main database
                 const tenantInsertResult = await mainPool.query(
-                    `INSERT INTO tenants (name, database, schema, description, source_template, owner_id, host, is_active)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    `INSERT INTO tenants (name, db_type, database, schema, description, source_template, owner_id, host, is_active)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                      RETURNING id`,
-                    [tenantName, targetDbName, targetNsName, options.description || null, template_name, newUser.id, 'localhost', true]
+                    [tenantName, db_type, targetDbName, targetNsName, options.description || null, template_name, newUser.id, 'localhost', true]
                 );
 
                 return {
                     tenant: tenantName,
+                    dbType: db_type,
                     dbName: targetDbName,
                     nsName: targetNsName,
                     user: {
@@ -201,7 +214,7 @@ export class DatabaseTemplate {
             } catch (error) {
                 // Clean up namespace if fixture deployment or user creation failed
                 try {
-                    await NamespaceManager.dropNamespace(targetDbName, targetNsName);
+                    await NamespaceManager.dropNamespace(targetDbName, targetNsName, db_type);
                 } catch (cleanupError) {
                     console.warn(`Failed to cleanup namespace: ${cleanupError}`);
                 }

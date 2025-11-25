@@ -13,8 +13,9 @@ export interface JWTPayload {
     sub: string;
     user_id: string | null;
     tenant: string;
-    db: string; // Database name (compact JWT field: db_main, db_test, etc.)
-    ns: string; // Namespace name (compact JWT field: ns_tenant_<hash-8>)
+    db_type: 'postgresql' | 'sqlite'; // Database backend type
+    db: string; // Database name (PG) or directory (SQLite)
+    ns: string; // Namespace/schema name (PG) or filename (SQLite)
     access: string;
     access_read: string[];
     access_edit: string[];
@@ -57,6 +58,7 @@ export async function jwtValidationMiddleware(context: Context, next: Next) {
         // Store JWT payload and context values
         context.set('jwtPayload', payload);
         context.set('tenant', payload.tenant);
+        context.set('dbType', payload.db_type || 'postgresql'); // Database backend type (default for legacy tokens)
         context.set('dbName', payload.db); // Extract from compact JWT field
         context.set('nsName', payload.ns); // Extract from compact JWT field
 
