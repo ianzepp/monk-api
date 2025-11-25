@@ -1,8 +1,8 @@
 /**
  * Model Cache Invalidator - Ring 8 Integration
  *
- * Automatically invalidates ModelCache when models are modified.
- * Ensures cache stays consistent without manual invalidation in Describe class.
+ * Automatically invalidates caches when models are modified.
+ * Invalidates both NamespaceCache (new) and ModelCache (deprecated).
  *
  * Note: Model modifications already update models.updated_at (system field),
  * so we only need to invalidate the in-memory cache here.
@@ -36,7 +36,13 @@ export default class ModelCacheInvalidator extends BaseObserver {
             return;
         }
 
-        // Invalidate the model cache
+        // Invalidate NamespaceCache (new schema-aware cache) and reload
+        if (context.system.namespace?.isLoaded()) {
+            context.system.namespace.invalidateModel(model_name);
+            await context.system.namespace.loadOne(context.system, model_name);
+        }
+
+        // Invalidate legacy ModelCache (deprecated)
         const modelCache = ModelCache.getInstance();
         modelCache.invalidateModel(context.system, model_name);
 

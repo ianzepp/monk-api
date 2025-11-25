@@ -1,9 +1,11 @@
 /**
  * Field Cache Invalidator - Ring 8 Integration
  *
- * Automatically invalidates ModelCache when fields are modified.
+ * Automatically invalidates caches when fields are modified.
  * Field changes affect the parent model's cached metadata,
  * so we must both update the parent model's timestamp and invalidate the cache.
+ *
+ * Invalidates both NamespaceCache (new) and ModelCache (deprecated).
  *
  * This observer runs AFTER database changes are committed (Ring 8), ensuring
  * that cache is only invalidated for successfully persisted changes.
@@ -41,9 +43,13 @@ export default class FieldCacheInvalidator extends BaseObserver {
         const query = `UPDATE models SET updated_at = now() WHERE model_name = $1`;
         await SqlUtils.getPool(context.system).query(query, [model_name]);
 
-        // Invalidate the parent model's in-memory cache
-        // Field changes affect the model's cached metadata, so we must
-        // invalidate the model cache to ensure fresh model definitions are loaded
+        // Invalidate NamespaceCache (new schema-aware cache) and reload
+        if (context.system.namespace?.isLoaded()) {
+            context.system.namespace.invalidateModel(model_name);
+            await context.system.namespace.loadOne(context.system, model_name);
+        }
+
+        // Invalidate legacy ModelCache (deprecated)
         const modelCache = ModelCache.getInstance();
         modelCache.invalidateModel(context.system, model_name);
 

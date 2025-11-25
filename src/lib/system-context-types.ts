@@ -60,6 +60,10 @@ export interface SystemContext {
     /** Describe instance for model operations */
     readonly describe: any; // Avoid importing Describe class to prevent circular deps
 
+    /** Namespace cache for model/field metadata (bound to db:ns from JWT)
+     *  Provides schema-aware caching that isolates tenant data properly */
+    readonly namespace: any; // Avoid importing NamespaceCache to prevent circular deps
+
     /**
      * Get comprehensive user information from the request context
      */

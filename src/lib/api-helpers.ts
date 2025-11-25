@@ -136,10 +136,17 @@ export function withTransaction(handler: (context: Context) => Promise<void>) {
             // Set transaction client for observers and database operations
             system.tx = tx;
 
+            // Ensure namespace cache is loaded (one-time per tenant)
+            // This requires tx to be set on system before calling
+            if (system.namespace && !system.namespace.isLoaded()) {
+                await system.namespace.loadAll(system);
+            }
+
             console.info('Transaction started', {
                 namespace: nsName,
                 path: context.req.path,
-                method: context.req.method
+                method: context.req.method,
+                cacheLoaded: system.namespace?.isLoaded() ?? false,
             });
 
             // Execute route handler
