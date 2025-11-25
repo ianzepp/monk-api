@@ -35,7 +35,7 @@ IMPORTANT: Before starting any task, read [AGENTS.md](./AGENTS.md) for project-s
 **Execution Rings (0-9)**: Input validation → Business logic → Database execution → Audit → Integrations
 
 ### Multi-Tenant Capabilities
-- **Database Isolation**: Dedicated PostgreSQL per tenant with JWT-based routing
+- **Namespace Isolation**: Dedicated PostgreSQL schema per tenant with JWT-based routing
 - **Model Independence**: Tenants evolve independently without interference
 - **Template System**: Instant tenant provisioning from pre-configured templates (30x faster)
 - **Sandboxes**: Temporary testing environments with automatic expiration

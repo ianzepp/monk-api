@@ -6,7 +6,7 @@ Lightweight PaaS backend API built with **Hono** and **TypeScript**, featuring o
 
 A high-performance backend API that provides:
 - **Model-first development** - Define your data models in JSON
-- **Multi-tenant architecture** - Each tenant gets isolated databases
+- **Multi-tenant architecture** - Each tenant gets isolated namespace (schema)
 - **Observer pattern** - Event-driven business logic hooks
 - **REST API** - Full programmatic management interface
 
@@ -98,24 +98,21 @@ psql -d monk -f fixtures/infrastructure/init.sql
 
 ### 5. Create Development Tenant
 
-Create a test tenant for development:
+Create a test tenant for development using the tenant management script:
 
 ```bash
-# Create system tenant database
-createdb system
+# Create a tenant with the system fixture (includes root user)
+npm run tenant:create system system
 
-# Initialize tenant model
-psql -d system -f sql/init-tenant.sql
-
-# Create development users
-psql -d system -c "
-INSERT INTO users (name, auth, access, access_read, access_edit, access_full) VALUES
-('Development Root User', 'root', 'root', '{}', '{}', '{}'),
-('Development Full User', 'full', 'full', '{}', '{}', '{}'),
-('Development User', 'user', 'edit', '{}', '{}', '{}')
-ON CONFLICT (auth) DO NOTHING;
-"
+# Or create a tenant with the testing fixture (includes test users)
+npm run tenant:create myapp testing
 ```
+
+The tenant script:
+- Creates a tenant record in the monk database
+- Creates a PostgreSQL namespace (schema) for isolation
+- Deploys the requested fixture with all models and users
+- Returns credentials for the root user
 
 ## Verification
 
@@ -166,8 +163,8 @@ Define data models using JSON with in-house validation:
 
 ### 🔒 Multi-Tenant Architecture
 - JWT-based tenant routing
-- Isolated databases per tenant (`tenant_12345678`)
-- Dynamic database connections
+- Namespace isolation per tenant (PostgreSQL schemas)
+- SHA256-based naming for environment isolation
 
 ### 🎭 Observer System
 Ring-based business logic execution (0-9 rings):
