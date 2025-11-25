@@ -6,10 +6,15 @@
  */
 
 import { randomBytes } from 'crypto';
-import { expect } from 'vitest';
+import { describe } from 'vitest';
 import { HttpClient } from './http-client.js';
 import { AuthClient } from './auth-client.js';
 import { TEST_CONFIG } from './test-config.js';
+
+/**
+ * Database type for test tenants
+ */
+export type TestDbType = 'postgresql' | 'sqlite';
 
 /**
  * Test Tenant Information
@@ -19,6 +24,7 @@ export interface TestTenant {
     username: string;
     token: string;
     httpClient: HttpClient;
+    dbType: TestDbType;
 }
 
 /**
@@ -106,7 +112,8 @@ export class TestHelpers {
     static async createTestTenant(
         testName: string,
         template: string = TEST_CONFIG.DEFAULT_TEMPLATE,
-        username: string = 'root'
+        username: string = 'root',
+        dbType: TestDbType = 'postgresql'
     ): Promise<TestTenant> {
         // Generate unique tenant name (matches shell script pattern)
         // Format: test_{testName}_{timestamp}_{random}
@@ -121,11 +128,12 @@ export class TestHelpers {
             tenant: tenantName,
             template: template,
             username: username,
+            db_type: dbType,
         });
 
         if (!response.success) {
             throw new Error(
-                `Failed to create test tenant '${tenantName}' from template '${template}': ${response.error} (${response.error_code})`
+                `Failed to create test tenant '${tenantName}' from template '${template}' (${dbType}): ${response.error} (${response.error_code})`
             );
         }
 
@@ -134,6 +142,7 @@ export class TestHelpers {
             username: response.data!.username!,
             token: response.data!.token,
             httpClient: authClient.client,
+            dbType,
         };
     }
 
@@ -236,5 +245,44 @@ export function expectSuccess(response: any, message?: string): void {
             : `API request failed\n\nFull Response:\n${errorDetails}`;
         throw new Error(errorMessage);
     }
-    expectSuccess(response);
+}
+
+/**
+ * Run tests against all configured database backends
+ *
+ * Creates a describe block for each database type in TEST_CONFIG.DB_TYPES.
+ * The callback receives the dbType so tests can create tenants with the right backend.
+ *
+ * Set TEST_DB_TYPES environment variable to control which backends to test:
+ * - TEST_DB_TYPES=postgresql (default)
+ * - TEST_DB_TYPES=sqlite
+ * - TEST_DB_TYPES=postgresql,sqlite (both)
+ *
+ * @param name - Test suite name
+ * @param fn - Test function that receives dbType
+ *
+ * @example
+ * ```typescript
+ * describeForAllDbTypes('CRUD Operations', (dbType) => {
+ *     let tenant: TestTenant;
+ *
+ *     beforeAll(async () => {
+ *         tenant = await TestHelpers.createTestTenant('crud', 'system', 'root', dbType);
+ *     });
+ *
+ *     it('should create records', async () => {
+ *         // This test runs once for PostgreSQL, once for SQLite
+ *         const response = await tenant.httpClient.post('/api/data/account', { name: 'Test' });
+ *         expectSuccess(response);
+ *     });
+ * });
+ * ```
+ */
+export function describeForAllDbTypes(
+    name: string,
+    fn: (dbType: TestDbType) => void
+): void {
+    for (const dbType of TEST_CONFIG.DB_TYPES) {
+        describe(`${name} [${dbType}]`, () => fn(dbType as TestDbType));
+    }
 }

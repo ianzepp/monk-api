@@ -398,7 +398,9 @@ For SQLite, these throw clear errors:
 
 ---
 
-## Phase 7: Testing Infrastructure
+## Phase 7: Testing Infrastructure ✓
+
+**Status**: Complete
 
 **Goal**: Run same tests against both backends.
 

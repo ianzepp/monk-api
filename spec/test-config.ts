@@ -47,4 +47,14 @@ export const TEST_CONFIG = {
      * How long to wait after server starts before running tests
      */
     SERVER_STARTUP_WAIT: 3000,
+
+    /**
+     * Database types to test against
+     *
+     * Default: ['postgresql'] - Only PostgreSQL
+     * Set TEST_DB_TYPES=postgresql,sqlite to test both backends
+     *
+     * Used by describeForAllDbTypes() to run tests against multiple backends.
+     */
+    DB_TYPES: (process.env.TEST_DB_TYPES || 'postgresql').split(',') as ('postgresql' | 'sqlite')[],
 } as const;
