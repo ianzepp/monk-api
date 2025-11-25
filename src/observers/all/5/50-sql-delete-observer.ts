@@ -11,54 +11,32 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
-import type { ModelRecord } from '@src/lib/model-record.js';
 
 export default class SqlDeleteObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, model, data } = context;
+        const { system, model, record } = context;
 
-        if (!data || data.length === 0) {
-            return;
-        }
-
-        // Build Map for O(1) lookup when matching DB results back to ModelRecord instances
-        const dataMap = new Map<string, ModelRecord>();
-        const ids: string[] = [];
-
-        for (const record of data) {
-            const id = record.get('id');
-            if (!id) {
-                throw new SystemError('Delete records must have id fields');
-            }
-            dataMap.set(id, record);
-            ids.push(id);
+        const id = record.get('id');
+        if (!id) {
+            throw new SystemError('Delete record must have id field');
         }
 
         // Use FilterWhere for consistent WHERE clause generation
-        const { whereClause, params } = FilterWhere.generate({
-            id: { $in: ids },
-        });
+        const { whereClause, params } = FilterWhere.generate({ id });
 
         const query = `UPDATE "${model.model_name}" SET trashed_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
         const result = await SqlUtils.getPool(system).query(query, params);
 
-        // Existence validation already confirmed these records exist
-        if (result.rows.length !== ids.length) {
-            throw new SystemError(`Delete operation affected ${result.rows.length} records, expected ${ids.length}`);
+        // Existence validation already confirmed this record exists
+        if (result.rows.length === 0) {
+            throw new SystemError(`Delete operation failed - record not found: ${id}`);
         }
 
-        // Update each ModelRecord with final database state
-        for (const row of result.rows) {
-            const dbResult = SqlUtils.convertPostgreSQLTypes(row, model);
-            const record = dataMap.get(dbResult.id);
-            if (record) {
-                record.setCurrent(dbResult);
-            }
-        }
-
-        // No need to set context.result - context.data now contains updated ModelRecord instances
+        // Update the ModelRecord with final database state
+        const dbResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], model);
+        record.setCurrent(dbResult);
     }
 }
