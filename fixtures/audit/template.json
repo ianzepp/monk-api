@@ -1,0 +1,12 @@
+{
+  "name": "audit",
+  "description": "Audit trail and change tracking (history model)",
+  "version": "1.0.0",
+  "is_system": false,
+  "dependencies": ["system"],
+  "models": 1,
+  "features": [
+    "audit-trail",
+    "change-tracking"
+  ]
+}

@@ -9,13 +9,15 @@ Create an empty tenant (cloned from the default template) and bootstrap a full-a
 ```json
 {
   "tenant": "string",        // Required: Tenant identifier
-  "template": "string",      // Optional: Template name to use (defaults to 'system')
+  "template": "string",      // Optional: Template name(s) to use (defaults to 'system')
+                             //           Supports comma-separated values (e.g., "system,audit,exports")
   "username": "string",      // Optional: Desired username
                              //           Required when server is in enterprise mode
                              //           Defaults to 'root' when server is in personal mode
   "database": "string",      // Optional: Custom database name (only when server is in personal mode)
                              //           Defaults to sanitized tenant name if not provided
-  "description": "string"    // Optional: Human-readable description of the tenant
+  "description": "string",   // Optional: Human-readable description of the tenant
+  "adapter": "string"        // Optional: Database adapter - 'postgresql' (default) or 'sqlite'
 }
 ```
 
@@ -60,6 +62,7 @@ The server administrator configures the database naming strategy via the `TENANT
 | 400 | `AUTH_TENANT_MISSING` | "Tenant is required" | Missing tenant field |
 | 400 | `AUTH_USERNAME_MISSING` | "Username is required" | Missing username when server is in enterprise mode |
 | 400 | `AUTH_DATABASE_NOT_ALLOWED` | "database parameter can only be specified when server is in personal mode" | database provided when server is in enterprise mode |
+| 400 | `INVALID_ADAPTER` | "Invalid adapter '...'. Must be 'postgresql' or 'sqlite'" | Invalid adapter value |
 | 404 | `DATABASE_TEMPLATE_NOT_FOUND` | "Template '{name}' not found" | Specified template does not exist |
 | 409 | `DATABASE_TENANT_EXISTS` | "Tenant '{name}' already exists" | Tenant name already registered |
 | 409 | `DATABASE_EXISTS` | "Database '{name}' already exists" | Database name collision (personal mode) |
@@ -153,6 +156,42 @@ curl -X POST http://localhost:9001/auth/register \
 **Result:**
 - New tenant cloned from `saas-starter` template instead of default `system` template
 - All models and data from template are copied to new tenant
+
+---
+
+### Using SQLite Adapter
+
+```bash
+curl -X POST http://localhost:9001/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant": "my-app",
+    "username": "admin",
+    "adapter": "sqlite"
+  }'
+```
+
+**Result:**
+- Tenant created with SQLite backend instead of PostgreSQL
+- Data stored in a SQLite file rather than PostgreSQL schema
+
+---
+
+### Multiple Templates (Comma-Separated)
+
+```bash
+curl -X POST http://localhost:9001/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant": "full-featured-app",
+    "username": "admin",
+    "template": "system,audit,exports,imports"
+  }'
+```
+
+**Result:**
+- All specified templates deployed with automatic dependency resolution
+- `system` deployed first (as dependency), then `audit`, `exports`, `imports`
 
 ## Template System
 

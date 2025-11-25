@@ -105,8 +105,8 @@ export class DatabaseTemplate {
         // Validate db_type
         if (db_type !== 'postgresql' && db_type !== 'sqlite') {
             throw HttpErrors.badRequest(
-                `Invalid db_type '${db_type}'. Must be 'postgresql' or 'sqlite'`,
-                'INVALID_DB_TYPE'
+                `Invalid adapter '${db_type}'. Must be 'postgresql' or 'sqlite'`,
+                'INVALID_ADAPTER'
             );
         }
 
@@ -156,7 +156,9 @@ export class DatabaseTemplate {
             try {
                 // 8. Deploy fixtures to namespace with automatic dependency resolution
                 // This will deploy 'system' first if the template depends on it
-                await FixtureDeployer.deployMultiple([template_name], {
+                // Supports comma-separated fixture names (e.g., "system,audit,exports")
+                const fixtureNames = template_name.split(',').map(s => s.trim()).filter(Boolean);
+                await FixtureDeployer.deployMultiple(fixtureNames, {
                     dbName: targetDbName,
                     nsName: targetNsName,
                 });

@@ -21,6 +21,7 @@ export default class SqlCreateSqliteObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['create'] as const;
     readonly adapters = ['sqlite'] as const;
+    readonly priority = 50;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, model, record } = context;

@@ -130,6 +130,7 @@ const TOOLS = [
                 password: { type: 'string', description: 'Password (required for login)' },
                 description: { type: 'string', description: 'Human-readable tenant description (register only)' },
                 template: { type: 'string', description: 'Template name (register only, defaults to "system")' },
+                adapter: { type: 'string', enum: ['postgresql', 'sqlite'], description: 'Database adapter (register only, defaults to "postgresql")' },
                 format: { type: 'string', enum: ['toon', 'yaml', 'json'], description: 'Response format preference' }
             },
             required: ['action']
@@ -244,6 +245,7 @@ async function handleMonkAuth(sessionId: string, session: McpSession, params: Re
                 template: params.template,
                 username: params.username,
                 description: params.description,
+                adapter: params.adapter,
                 preferences: { response_format: session.format },
             };
             // Auth endpoints need JSON response for token extraction

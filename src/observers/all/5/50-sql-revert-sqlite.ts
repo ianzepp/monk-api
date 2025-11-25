@@ -14,6 +14,7 @@ export default class SqlRevertSqliteObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['revert'] as const;
     readonly adapters = ['sqlite'] as const;
+    readonly priority = 50;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, model, record } = context;

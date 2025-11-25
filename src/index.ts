@@ -71,8 +71,9 @@ import AggregateModelPost from '@src/routes/api/aggregate/:model/POST.js'; // PO
 // Check database connection before doing anything else
 console.info('Checking database connection:');
 console.info('- NODE_ENV:', process.env.NODE_ENV);
+console.info('- PORT:', process.env.PORT);
 console.info('- DATABASE_URL:', process.env.DATABASE_URL);
-console.info('- Tenant naming: SHA256 hashing (environment-isolated)');
+console.info('- SQLITE_DATA_DIR:', process.env.SQLITE_DATA_DIR);
 checkDatabaseConnection();
 
 // Create Hono app

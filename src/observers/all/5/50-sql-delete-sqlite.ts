@@ -14,6 +14,7 @@ export default class SqlDeleteSqliteObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['delete'] as const;
     readonly adapters = ['sqlite'] as const;
+    readonly priority = 50;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, model, record } = context;

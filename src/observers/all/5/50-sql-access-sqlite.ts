@@ -17,6 +17,7 @@ export default class SqlAccessSqliteObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['access'] as const;
     readonly adapters = ['sqlite'] as const;
+    readonly priority = 50;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, model, record } = context;

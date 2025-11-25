@@ -1,13 +1,14 @@
 -- ============================================================================
 -- Monk API - System Fixture Loader
 -- ============================================================================
--- This script loads the system fixture in the correct order
+-- Core system fixture with essential infrastructure models
+--
+-- Dependencies: none
+-- Models: models, fields, users
 --
 -- Usage:
 --   createdb monk_template_system
 --   psql -d monk_template_system -f fixtures/system/load.sql
---
--- Or programmatically via a loader script
 
 \echo '========================================'
 \echo 'Loading System Fixture'
@@ -44,38 +45,13 @@ CREATE TYPE field_type AS ENUM (
 \ir describe/models.sql
 \ir describe/fields.sql
 \ir describe/users.sql
-\ir describe/snapshots.sql
-\ir describe/extracts.sql
-\ir describe/extract_runs.sql
-\ir describe/extract_artifacts.sql
-\ir describe/restores.sql
-\ir describe/restore_runs.sql
-\ir describe/restore_logs.sql
-\ir describe/grids.sql
-\ir describe/grid_cells.sql
-\ir describe/history.sql
 
--- PHASE 3: FUNCTIONS
+-- PHASE 3: DATA (DML)
 \echo ''
-\echo 'Phase 3: Functions & Triggers'
--- No functions needed
-
--- PHASE 4: DATA (DML)
-\echo ''
-\echo 'Phase 4: Data Inserts'
+\echo 'Phase 3: Data Inserts'
 \ir data/models.sql
 \ir data/fields.sql
 \ir data/users.sql
-\ir data/history.sql
-\ir data/extracts.sql        -- Extracts system (registers models + fields)
-\ir data/restores.sql        -- Restores system (registers models + fields)
-\ir data/grids.sql           -- Grid API metadata (registers models + fields)
-\ir data/grid_cells.sql      -- Grid API cells - external model (registers models + fields)
-
--- PHASE 5: POST-LOAD INDEXES
-\echo ''
-\echo 'Phase 5: Additional Indexes'
--- No additional indexes needed (all created with their tables)
 
 -- SUMMARY
 \echo ''
@@ -93,7 +69,7 @@ BEGIN
 
     RAISE NOTICE '';
     RAISE NOTICE 'Database: %', current_database();
-    RAISE NOTICE 'Models:  %', model_count;
+    RAISE NOTICE 'Models:   %', model_count;
     RAISE NOTICE 'Users:    %', user_count;
     RAISE NOTICE '';
 END $$;
