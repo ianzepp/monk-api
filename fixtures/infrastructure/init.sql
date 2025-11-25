@@ -199,6 +199,34 @@ ALTER TABLE "tenant_fixtures"
     FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE;
 
 -- ============================================================================
+-- MCP SESSIONS TABLE
+-- Persists MCP (Model Context Protocol) sessions across server restarts
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS "mcp_sessions" (
+    "id" VARCHAR(255) PRIMARY KEY NOT NULL,             -- Session ID (from mcp-session-id header)
+    "tenant" VARCHAR(255),                              -- Tenant name (if authenticated)
+    "token" TEXT,                                       -- JWT token (if authenticated)
+    "format" VARCHAR(20) DEFAULT 'toon' NOT NULL,       -- Response format preference
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE INDEX "idx_mcp_sessions_tenant" ON "mcp_sessions" ("tenant");
+CREATE INDEX "idx_mcp_sessions_updated" ON "mcp_sessions" ("updated_at");
+
+COMMENT ON TABLE "mcp_sessions" IS 'MCP session storage for persistent authentication across server restarts';
+COMMENT ON COLUMN "mcp_sessions"."id" IS 'Session identifier from mcp-session-id header';
+COMMENT ON COLUMN "mcp_sessions"."tenant" IS 'Authenticated tenant name';
+COMMENT ON COLUMN "mcp_sessions"."token" IS 'JWT authentication token';
+COMMENT ON COLUMN "mcp_sessions"."format" IS 'Response format preference (toon, yaml, json)';
+
+-- Apply updated_at trigger
+CREATE TRIGGER "update_mcp_sessions_updated_at"
+    BEFORE UPDATE ON "mcp_sessions"
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_field();
+
+-- ============================================================================
 -- SUMMARY
 -- ============================================================================
 

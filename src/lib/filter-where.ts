@@ -454,6 +454,12 @@ export class FilterWhere {
                 // For now, implement as ILIKE - can be enhanced with PostgreSQL text search later
                 return `${quotedField} ILIKE ${this.PARAM(`%${data}%`)}`;
 
+            case FilterOp.SEARCH:
+                // PostgreSQL full-text search using to_tsvector and plainto_tsquery
+                // Works with fields that have searchable: true (GIN index)
+                // Searches for all words (AND logic) using plainto_tsquery
+                return `to_tsvector('english', ${quotedField}) @@ plainto_tsquery('english', ${this.PARAM(data)})`;
+
             default:
                 console.warn('Unsupported filter operator', { operator });
                 return null;

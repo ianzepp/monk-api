@@ -48,6 +48,7 @@ export enum FilterOp {
     // Search operations
     FIND = '$find', // Full-text search: { content: { $find: 'search terms' } }
     TEXT = '$text', // Text search: { description: { $text: 'keyword' } }
+    SEARCH = '$search', // PostgreSQL full-text search: { content: { $search: 'typescript programming' } }
 
     // Existence operators
     EXISTS = '$exists', // Field exists: { field: { $exists: true } } → field IS NOT NULL

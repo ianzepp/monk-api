@@ -39,6 +39,7 @@ import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
 import * as mcpRoutes from '@src/routes/mcp/routes.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
+import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
 
 // Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
@@ -182,14 +183,14 @@ app.get('/', context => {
                 '/api/sudo/users/:id',
             ],
             extracts: [
-                '/api/extracts/:id/run',
-                '/api/extracts/:id/cancel',
+                '/api/extracts/:record/run',
+                '/api/extracts/:record/cancel',
                 '/api/extracts/runs/:runId/download',
                 '/api/extracts/artifacts/:artifactId/download'
             ],
             restores: [
-                '/api/restores/:id/run',
-                '/api/restores/:id/cancel',
+                '/api/restores/:record/run',
+                '/api/restores/:record/cancel',
                 '/api/restores/import'
             ],
             grids: [
@@ -240,6 +241,9 @@ app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpo
 app.use('/mcp', middleware.requestBodyParserMiddleware);
 mcpRoutes.setHonoApp(app);
 app.post('/mcp', mcpRoutes.McpPost); // POST /mcp (JSON-RPC)
+
+// Internal API (for fire-and-forget background jobs)
+setInternalApiHonoApp(app);
 
 // 30-auth-api: Public auth routes (token acquisition)
 app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
@@ -319,14 +323,16 @@ app.get('/api/history/:model/:record', historyRoutes.RecordHistoryGet); // List 
 app.get('/api/history/:model/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
 
 // 50-extracts-app: Extract application (data export jobs)
-app.post('/api/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job
-app.post('/api/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
+app.post('/api/extracts/:record/run', extractRoutes.ExtractRun); // Queue extract job
+app.post('/api/extracts/:record/execute', extractRoutes.ExtractExecute); // Execute extract (internal, long-running)
+app.post('/api/extracts/:record/cancel', extractRoutes.ExtractCancel); // Cancel running extract
 app.get('/api/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
 app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
 
 // 51-restores-app: Restore application (data import jobs)
-app.post('/api/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
-app.post('/api/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
+app.post('/api/restores/:record/run', restoreRoutes.RestoreRun); // Queue restore job
+app.post('/api/restores/:record/execute', restoreRoutes.RestoreExecute); // Execute restore (internal, long-running)
+app.post('/api/restores/:record/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
 app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
 
 // 52-grids-app: Grid application (spreadsheet-like cell storage)

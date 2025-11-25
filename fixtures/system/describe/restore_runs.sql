@@ -1,52 +1,56 @@
--- Restore Run Execution Tracking
--- Tracks individual restore job executions with progress and results
+-- ============================================================================
+-- MODEL: restore_runs
+-- ============================================================================
+-- Individual execution runs of restore jobs
 
 CREATE TABLE "restore_runs" (
     -- System fields
-    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    "access_public" boolean DEFAULT false NOT NULL,
-    "access_tenants" uuid[] DEFAULT ARRAY[]::uuid[] NOT NULL,
-    "access_users" uuid[] DEFAULT ARRAY[]::uuid[] NOT NULL,
-    "created_at" timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "created_by" uuid,
-    "updated_at" timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updated_by" uuid,
-    "deleted_at" timestamp,
-    "deleted_by" uuid,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"access_read" uuid[] DEFAULT '{}'::uuid[],
+	"access_edit" uuid[] DEFAULT '{}'::uuid[],
+	"access_full" uuid[] DEFAULT '{}'::uuid[],
+	"access_deny" uuid[] DEFAULT '{}'::uuid[],
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"trashed_at" timestamp,
+	"deleted_at" timestamp,
 
-    -- Restore reference
-    "restore_id" uuid,
-    "restore_name" text,
-    "source_filename" text,
+	-- Relationship
+	"restore_id" uuid NOT NULL,
+	"restore_name" text,
+	"source_filename" text,
 
-    -- Execution status
-    "status" text DEFAULT 'pending' NOT NULL,
-    "progress" integer DEFAULT 0 NOT NULL,
-    "progress_detail" jsonb,
-    "started_at" timestamp,
-    "completed_at" timestamp,
-    "duration_seconds" integer,
+	-- Execution state
+	"status" text DEFAULT 'pending' NOT NULL CHECK ("status" IN ('pending', 'queued', 'running', 'completed', 'failed', 'cancelled')),
+	"progress" integer DEFAULT 0 CHECK ("progress" BETWEEN 0 AND 100),
+	"progress_detail" jsonb,
 
-    -- Results
-    "records_imported" integer DEFAULT 0 NOT NULL,
-    "records_skipped" integer DEFAULT 0 NOT NULL,
-    "records_updated" integer DEFAULT 0 NOT NULL,
-    "models_created" integer DEFAULT 0 NOT NULL,
-    "fields_created" integer DEFAULT 0 NOT NULL,
+	-- Timing
+	"started_at" timestamp,
+	"completed_at" timestamp,
+	"duration_seconds" integer,
 
-    -- Error tracking
-    "error" text,
-    "error_detail" text,
+	-- Results
+	"records_imported" integer DEFAULT 0,
+	"records_skipped" integer DEFAULT 0,
+	"records_updated" integer DEFAULT 0,
+	"models_created" integer DEFAULT 0,
+	"fields_created" integer DEFAULT 0,
 
-    -- Configuration snapshot
-    "config_snapshot" jsonb,
+	-- Error handling
+	"error" text,
+	"error_detail" text,
 
-    CONSTRAINT "restore_runs_status_check" CHECK (status IN ('pending', 'queued', 'running', 'completed', 'failed', 'cancelled')),
-    CONSTRAINT "restore_runs_progress_check" CHECK (progress >= 0 AND progress <= 100)
+	-- Configuration snapshot
+	"config_snapshot" jsonb
 );
 
+-- Foreign key
+ALTER TABLE "restore_runs" ADD CONSTRAINT "restore_runs_restore_id_fk"
+    FOREIGN KEY ("restore_id") REFERENCES "restores"("id")
+    ON DELETE CASCADE;
+
 -- Indexes
-CREATE INDEX "restore_runs_restore_id_idx" ON "restore_runs"("restore_id");
-CREATE INDEX "restore_runs_status_idx" ON "restore_runs"("status");
-CREATE INDEX "restore_runs_created_at_idx" ON "restore_runs"("created_at");
-CREATE INDEX "restore_runs_started_at_idx" ON "restore_runs"("started_at");
+CREATE INDEX "idx_restore_runs_restore_id" ON "restore_runs" ("restore_id");
+CREATE INDEX "idx_restore_runs_status" ON "restore_runs" ("status");
+CREATE INDEX "idx_restore_runs_created_at" ON "restore_runs" ("created_at" DESC);

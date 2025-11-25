@@ -1,4 +1,3 @@
-import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
@@ -21,20 +20,45 @@ export default withTransactionParams(async (context, { system, model, body }) =>
         // If force=true, use body's model_name (will be spread below)
     }
 
+    // Extract inline fields if provided (supports both object and array format)
+    const { fields: inlineFields, ...modelData } = body;
+
     // Create model record via wrapper
     const dataToCreate = {
         model_name: modelName,
-        ...body
+        ...modelData
     };
-
-    console.log('POST /api/describe/:model - Creating model:', {
-        modelFromUrl: modelName,
-        body,
-        dataToCreate
-    });
 
     const result = await system.describe.models.createOne(dataToCreate);
 
-    // Strip system fields before returning
-    setRouteResult(context, stripSystemFields(result));
+    // If inline fields were provided, create them
+    let createdFields: any[] = [];
+    if (inlineFields) {
+        // Normalize fields to array format
+        // Supports: { fieldName: {type, ...} } or [{ field_name, type, ...}]
+        const fieldsArray = Array.isArray(inlineFields)
+            ? inlineFields
+            : Object.entries(inlineFields).map(([fieldName, fieldDef]) => ({
+                  field_name: fieldName,
+                  ...(fieldDef as object)
+              }));
+
+        // Add model_name to each field
+        const fieldsToCreate = fieldsArray.map((field) => ({
+            ...field,
+            model_name: modelName
+        }));
+
+        if (fieldsToCreate.length > 0) {
+            createdFields = await system.describe.fields.createAll(fieldsToCreate);
+        }
+    }
+
+    // Return model with fields if any were created
+    const response = stripSystemFields(result);
+    if (createdFields.length > 0) {
+        response.fields = createdFields.map(stripSystemFields);
+    }
+
+    setRouteResult(context, response);
 });

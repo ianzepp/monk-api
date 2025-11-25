@@ -393,7 +393,7 @@ export class Database {
 
         // Use Filter.toSQL() pattern for proper separation of concerns
         const { query, params } = filter.toSQL();
-        const result = await this.system.database.execute(query, params);
+        const result = await this.execute(query, params);
 
         // Convert PostgreSQL string types back to proper JSON types
         let rows = result.rows.map((row: any) => this.convertPostgreSQLTypes(row, model));

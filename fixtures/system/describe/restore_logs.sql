@@ -1,34 +1,38 @@
--- Restore Log Entries
+-- ============================================================================
+-- MODEL: restore_logs
+-- ============================================================================
 -- Detailed logging for restore operations (info, warnings, errors)
 
 CREATE TABLE "restore_logs" (
     -- System fields
-    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    "access_public" boolean DEFAULT false NOT NULL,
-    "access_tenants" uuid[] DEFAULT ARRAY[]::uuid[] NOT NULL,
-    "access_users" uuid[] DEFAULT ARRAY[]::uuid[] NOT NULL,
-    "created_at" timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "created_by" uuid,
-    "updated_at" timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updated_by" uuid,
-    "deleted_at" timestamp,
-    "deleted_by" uuid,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"access_read" uuid[] DEFAULT '{}'::uuid[],
+	"access_edit" uuid[] DEFAULT '{}'::uuid[],
+	"access_full" uuid[] DEFAULT '{}'::uuid[],
+	"access_deny" uuid[] DEFAULT '{}'::uuid[],
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"trashed_at" timestamp,
+	"deleted_at" timestamp,
 
-    -- Log entry
-    "run_id" uuid NOT NULL,
-    "level" text NOT NULL,
-    "phase" text,
-    "model_name" text,
-    "record_id" text,
-    "message" text NOT NULL,
-    "detail" jsonb,
+	-- Relationship
+	"run_id" uuid NOT NULL,
 
-    CONSTRAINT "restore_logs_level_check" CHECK (level IN ('info', 'warn', 'error')),
-    CONSTRAINT "restore_logs_phase_check" CHECK (phase IS NULL OR phase IN ('upload', 'validation', 'describe_import', 'data_import'))
+	-- Log entry
+	"level" text NOT NULL CHECK ("level" IN ('info', 'warn', 'error')),
+	"phase" text CHECK ("phase" IS NULL OR "phase" IN ('upload', 'validation', 'describe_import', 'data_import')),
+	"model_name" text,
+	"record_id" text,
+	"message" text NOT NULL,
+	"detail" jsonb
 );
 
+-- Foreign key
+ALTER TABLE "restore_logs" ADD CONSTRAINT "restore_logs_run_id_fk"
+    FOREIGN KEY ("run_id") REFERENCES "restore_runs"("id")
+    ON DELETE CASCADE;
+
 -- Indexes
-CREATE INDEX "restore_logs_run_id_idx" ON "restore_logs"("run_id");
-CREATE INDEX "restore_logs_level_idx" ON "restore_logs"("level");
-CREATE INDEX "restore_logs_created_at_idx" ON "restore_logs"("created_at");
-CREATE INDEX "restore_logs_model_name_idx" ON "restore_logs"("model_name");
+CREATE INDEX "idx_restore_logs_run_id" ON "restore_logs" ("run_id");
+CREATE INDEX "idx_restore_logs_level" ON "restore_logs" ("level");
+CREATE INDEX "idx_restore_logs_created_at" ON "restore_logs" ("created_at" DESC);

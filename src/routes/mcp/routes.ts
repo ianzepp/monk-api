@@ -7,6 +7,7 @@
 
 import type { Context } from 'hono';
 import type { Hono } from 'hono';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 // ============================================
 // TYPES
@@ -37,19 +38,75 @@ interface McpSession {
 }
 
 // ============================================
-// SESSION STORAGE
+// SESSION STORAGE (Database-backed with in-memory cache)
 // ============================================
 
-// Simple in-memory session storage (keyed by session ID from header)
-const sessions = new Map<string, McpSession>();
+// In-memory cache for performance (avoids DB hit on every request)
+const sessionCache = new Map<string, McpSession>();
 
-function getOrCreateSession(sessionId: string): McpSession {
-    let session = sessions.get(sessionId);
-    if (!session) {
-        session = { token: null, tenant: null, format: 'toon' };
-        sessions.set(sessionId, session);
+async function loadSessionFromDb(sessionId: string): Promise<McpSession | null> {
+    try {
+        const pool = DatabaseConnection.getMainPool();
+        const result = await pool.query(
+            'SELECT tenant, token, format FROM mcp_sessions WHERE id = $1',
+            [sessionId]
+        );
+        if (result.rows.length > 0) {
+            const row = result.rows[0];
+            return {
+                tenant: row.tenant,
+                token: row.token,
+                format: row.format || 'toon'
+            };
+        }
+    } catch (error) {
+        // Log but don't fail - fall back to empty session
+        console.warn('Failed to load MCP session from DB:', error);
     }
-    return session;
+    return null;
+}
+
+async function saveSessionToDb(sessionId: string, session: McpSession): Promise<void> {
+    try {
+        const pool = DatabaseConnection.getMainPool();
+        await pool.query(
+            `INSERT INTO mcp_sessions (id, tenant, token, format)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (id) DO UPDATE SET
+                tenant = EXCLUDED.tenant,
+                token = EXCLUDED.token,
+                format = EXCLUDED.format,
+                updated_at = CURRENT_TIMESTAMP`,
+            [sessionId, session.tenant, session.token, session.format]
+        );
+    } catch (error) {
+        console.warn('Failed to save MCP session to DB:', error);
+    }
+}
+
+async function getOrCreateSession(sessionId: string): Promise<McpSession> {
+    // Check cache first
+    const cached = sessionCache.get(sessionId);
+    if (cached) {
+        return cached;
+    }
+
+    // Try loading from database
+    const fromDb = await loadSessionFromDb(sessionId);
+    if (fromDb) {
+        sessionCache.set(sessionId, fromDb);
+        return fromDb;
+    }
+
+    // Create new session
+    const newSession: McpSession = { token: null, tenant: null, format: 'toon' };
+    sessionCache.set(sessionId, newSession);
+    return newSession;
+}
+
+async function updateSession(sessionId: string, session: McpSession): Promise<void> {
+    sessionCache.set(sessionId, session);
+    await saveSessionToDb(sessionId, session);
 }
 
 // ============================================
@@ -137,9 +194,10 @@ async function callApi(
     // Build request options
     const init: RequestInit = { method, headers };
 
-    if (body && !['GET', 'HEAD'].includes(method)) {
+    // Always set Content-Type for POST/PUT/PATCH (middleware requires it)
+    if (!['GET', 'HEAD'].includes(method)) {
         headers['Content-Type'] = 'application/json';
-        init.body = JSON.stringify(body);
+        init.body = body ? JSON.stringify(body) : '{}';
     }
 
     // Call Hono app directly (no network)
@@ -163,7 +221,7 @@ async function callApi(
     return data;
 }
 
-async function handleMonkAuth(session: McpSession, params: Record<string, any>): Promise<any> {
+async function handleMonkAuth(sessionId: string, session: McpSession, params: Record<string, any>): Promise<any> {
     const { action, format } = params;
 
     // Update format preference
@@ -200,6 +258,7 @@ async function handleMonkAuth(session: McpSession, params: Record<string, any>):
             if (response.data?.token) {
                 session.token = response.data.token;
                 session.tenant = response.data.tenant || params.tenant;
+                await updateSession(sessionId, session);
             }
             return { ...response, message: `Token cached. Format: ${session.format}` };
         }
@@ -222,6 +281,7 @@ async function handleMonkAuth(session: McpSession, params: Record<string, any>):
             if (response.data?.token) {
                 session.token = response.data.token;
                 session.tenant = response.data.tenant || params.tenant;
+                await updateSession(sessionId, session);
             }
             return { ...response, message: `Token cached. Format: ${session.format}` };
         }
@@ -237,6 +297,7 @@ async function handleMonkAuth(session: McpSession, params: Record<string, any>):
             );
             if (response.data?.token) {
                 session.token = response.data.token;
+                await updateSession(sessionId, session);
             }
             return response;
         }
@@ -251,10 +312,10 @@ async function handleMonkHttp(session: McpSession, params: Record<string, any>):
     return callApi(session, method, path, query, body, requireAuth);
 }
 
-async function handleToolCall(session: McpSession, name: string, args: Record<string, any>): Promise<any> {
+async function handleToolCall(sessionId: string, session: McpSession, name: string, args: Record<string, any>): Promise<any> {
     switch (name) {
         case 'MonkAuth':
-            return handleMonkAuth(session, args);
+            return handleMonkAuth(sessionId, session, args);
         case 'MonkHttp':
             return handleMonkHttp(session, args);
         default:
@@ -281,7 +342,7 @@ function jsonRpcError(id: string | number | null, code: number, message: string,
 export async function McpPost(c: Context) {
     // Get or create session from header
     const sessionId = c.req.header('mcp-session-id') || 'default';
-    const session = getOrCreateSession(sessionId);
+    const session = await getOrCreateSession(sessionId);
 
     let request: JsonRpcRequest;
     try {
@@ -310,7 +371,7 @@ export async function McpPost(c: Context) {
 
             case 'tools/call': {
                 const { name, arguments: args = {} } = params;
-                const result = await handleToolCall(session, name, args);
+                const result = await handleToolCall(sessionId, session, name, args);
                 const content = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
                 return c.json(jsonRpcSuccess(id, {
                     content: [{ type: 'text', text: content }]
