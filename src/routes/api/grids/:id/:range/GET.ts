@@ -33,8 +33,8 @@ export default withTransactionParams(async (context, { system }) => {
     // 4. Build SQL query
     const { query, params } = buildSelectQuery(gridId, range);
 
-    // 5. Execute query (transaction has search_path set)
-    const result = await system.tx.query(query, params)
+    // 5. Execute query via adapter (works with PostgreSQL and SQLite)
+    const result = await system.adapter!.query(query, params)
     const cells = formatCells(result.rows, format);
 
     // 6. Return with metadata

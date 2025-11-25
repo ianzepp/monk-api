@@ -90,6 +90,7 @@ export default class HistoryTracker extends BaseObserver {
         }
 
         // Create history record using raw SQL to avoid observer recursion
+        // Uses adapter.query() for PostgreSQL/SQLite compatibility
         try {
             console.info('Creating history record', {
                 modelName,
@@ -100,7 +101,7 @@ export default class HistoryTracker extends BaseObserver {
                 trackedFieldCount: Object.keys(changes).length
             });
 
-            await system.tx.query(
+            await system.adapter.query(
                 `
                 INSERT INTO history (
                     model_name,
