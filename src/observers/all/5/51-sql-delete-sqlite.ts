@@ -2,7 +2,7 @@
  * SQL Delete Observer (SQLite) - Ring 5 Database Transport Layer
  *
  * Handles DELETE operations for SQLite - soft delete (set trashed_at).
- * Uses UPDATE then SELECT to get the deleted record.
+ * Record already has data loaded; we update timestamps and set current.
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -33,45 +33,12 @@ export default class SqlDeleteSqliteObserver extends BaseObserver {
             throw new SystemError(`Delete operation failed - record not found: ${id}`);
         }
 
-        // SELECT the deleted record to get all fields
-        const selectQuery = `SELECT * FROM "${model.model_name}" WHERE id = $1`;
-        const selectResult = await system.adapter!.query(selectQuery, [id]);
-
-        if (selectResult.rows.length === 0) {
-            throw new SystemError(`Failed to retrieve deleted record: ${id}`);
-        }
-
-        // Update the ModelRecord with final database state
-        const dbResult = this.convertFromSqlite(selectResult.rows[0]);
-        record.setCurrent(dbResult);
-    }
-
-    /**
-     * Convert SQLite result back to JavaScript types
-     */
-    private convertFromSqlite(record: any): any {
-        const converted = { ...record };
-        const arrayFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
-
-        for (const [key, value] of Object.entries(converted)) {
-            if (typeof value === 'string') {
-                if (arrayFields.includes(key)) {
-                    try {
-                        converted[key] = JSON.parse(value);
-                    } catch {
-                        // Keep as string
-                    }
-                } else if ((value.startsWith('[') && value.endsWith(']')) ||
-                           (value.startsWith('{') && value.endsWith('}'))) {
-                    try {
-                        converted[key] = JSON.parse(value);
-                    } catch {
-                        // Keep as string
-                    }
-                }
-            }
-        }
-
-        return converted;
+        // Update ModelRecord with trashed state (no SELECT needed)
+        const currentState = record.toObject();
+        record.setCurrent({
+            ...currentState,
+            trashed_at: timestamp,
+            updated_at: timestamp,
+        });
     }
 }

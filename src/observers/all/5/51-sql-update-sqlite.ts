@@ -2,7 +2,7 @@
  * SQL Update Observer (SQLite) - Ring 5 Database Transport Layer
  *
  * Handles UPDATE operations for SQLite - UPDATE without RETURNING.
- * Uses UPDATE then SELECT to get the updated record.
+ * Record already has original data loaded; we merge updates and set current.
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -27,14 +27,13 @@ export default class SqlUpdateSqliteObserver extends BaseObserver {
 
         const { id, ...updateFields } = plainRecord;
 
-        // Process for SQLite compatibility
+        // Process for SQLite storage
         const processedFields = this.processForSqlite(updateFields);
 
         const fields = Object.keys(processedFields);
         const values = Object.values(processedFields);
 
         if (fields.length === 0) {
-            // No fields to update - skip
             return;
         }
 
@@ -50,17 +49,9 @@ export default class SqlUpdateSqliteObserver extends BaseObserver {
             throw new SystemError(`Update failed - record not found: ${id}`);
         }
 
-        // SELECT the updated record to get all fields
-        const selectQuery = `SELECT * FROM "${model.model_name}" WHERE id = $1`;
-        const selectResult = await system.adapter!.query(selectQuery, [id]);
-
-        if (selectResult.rows.length === 0) {
-            throw new SystemError(`Failed to retrieve updated record: ${id}`);
-        }
-
-        // Update the ModelRecord with final database state
-        const dbResult = this.convertFromSqlite(selectResult.rows[0]);
-        record.setCurrent(dbResult);
+        // Update ModelRecord with merged state (no SELECT needed)
+        // Original data + updates = final state
+        record.setCurrent(plainRecord);
     }
 
     /**
@@ -80,34 +71,5 @@ export default class SqlUpdateSqliteObserver extends BaseObserver {
         }
 
         return processed;
-    }
-
-    /**
-     * Convert SQLite result back to JavaScript types
-     */
-    private convertFromSqlite(record: any): any {
-        const converted = { ...record };
-        const arrayFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
-
-        for (const [key, value] of Object.entries(converted)) {
-            if (typeof value === 'string') {
-                if (arrayFields.includes(key)) {
-                    try {
-                        converted[key] = JSON.parse(value);
-                    } catch {
-                        // Keep as string
-                    }
-                } else if ((value.startsWith('[') && value.endsWith(']')) ||
-                           (value.startsWith('{') && value.endsWith('}'))) {
-                    try {
-                        converted[key] = JSON.parse(value);
-                    } catch {
-                        // Keep as string
-                    }
-                }
-            }
-        }
-
-        return converted;
     }
 }

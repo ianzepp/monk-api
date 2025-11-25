@@ -42,13 +42,13 @@ export default class SqlAccessSqliteObserver extends BaseObserver {
         const values = Object.values(updateFields);
 
         if (fields.length === 0) {
-            // No access fields to update - skip
             return;
         }
 
         // Always update updated_at timestamp
+        const timestamp = new Date().toISOString();
         fields.push('updated_at');
-        values.push(new Date().toISOString());
+        values.push(timestamp);
 
         const setClause = fields.map((field, i) => `"${field}" = $${i + 1}`).join(', ');
         const whereParamIndex = fields.length + 1;
@@ -62,45 +62,10 @@ export default class SqlAccessSqliteObserver extends BaseObserver {
             throw new SystemError(`Access update failed - record not found: ${id}`);
         }
 
-        // SELECT the updated record to get all fields
-        const selectQuery = `SELECT * FROM "${model.model_name}" WHERE id = $1`;
-        const selectResult = await system.adapter!.query(selectQuery, [id]);
-
-        if (selectResult.rows.length === 0) {
-            throw new SystemError(`Failed to retrieve updated record: ${id}`);
-        }
-
-        // Update the ModelRecord with final database state
-        const dbResult = this.convertFromSqlite(selectResult.rows[0]);
-        record.setCurrent(dbResult);
-    }
-
-    /**
-     * Convert SQLite result back to JavaScript types
-     */
-    private convertFromSqlite(record: any): any {
-        const converted = { ...record };
-        const arrayFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
-
-        for (const [key, value] of Object.entries(converted)) {
-            if (typeof value === 'string') {
-                if (arrayFields.includes(key)) {
-                    try {
-                        converted[key] = JSON.parse(value);
-                    } catch {
-                        // Keep as string
-                    }
-                } else if ((value.startsWith('[') && value.endsWith(']')) ||
-                           (value.startsWith('{') && value.endsWith('}'))) {
-                    try {
-                        converted[key] = JSON.parse(value);
-                    } catch {
-                        // Keep as string
-                    }
-                }
-            }
-        }
-
-        return converted;
+        // Update ModelRecord with new ACL state (no SELECT needed)
+        record.setCurrent({
+            ...plainRecord,
+            updated_at: timestamp,
+        });
     }
 }
