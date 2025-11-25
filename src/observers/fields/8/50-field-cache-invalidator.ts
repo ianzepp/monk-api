@@ -23,7 +23,8 @@ export default class FieldCacheInvalidator extends BaseObserver {
     readonly ring = ObserverRing.Integration;  // Ring 8
     readonly operations = ['create', 'update', 'delete'] as const;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+    async execute(context: ObserverContext): Promise<void> {
+        const { record } = context;
         const { model_name, field_name } = record;
 
         if (!model_name) {

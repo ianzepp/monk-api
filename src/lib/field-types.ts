@@ -228,3 +228,51 @@ export function convertRecordMonkToPg(
 
     return converted;
 }
+
+/**
+ * FieldTypeMapper - Converts field type names between user-facing and PostgreSQL formats
+ *
+ * This class provides static methods for bidirectional type name conversion:
+ * - toPg(): Converts user-facing type names (e.g., "decimal") to PostgreSQL types (e.g., "numeric")
+ * - toUser(): Converts PostgreSQL type names back to user-facing types
+ *
+ * Used by:
+ * - Ring 4 type-mapper observer (before database writes)
+ * - Ring 6 type-unmapper observer (after database reads)
+ * - Database.selectAny() for fields model
+ */
+export class FieldTypeMapper {
+    /**
+     * Convert user-facing type name to PostgreSQL type
+     *
+     * @param userType - User-facing type (e.g., "decimal", "text", "uuid[]")
+     * @returns PostgreSQL type (e.g., "numeric", "text", "uuid[]") or undefined if invalid
+     */
+    static toPg(userType: string): string | undefined {
+        return USER_TO_PG_TYPE_MAP[userType];
+    }
+
+    /**
+     * Convert PostgreSQL type name to user-facing type
+     *
+     * @param pgType - PostgreSQL type (e.g., "numeric", "text", "uuid[]")
+     * @returns User-facing type (e.g., "decimal", "text", "uuid[]") or undefined if unknown
+     */
+    static toUser(pgType: string): string | undefined {
+        return PG_TO_USER_TYPE_MAP[pgType];
+    }
+
+    /**
+     * Check if a type name is a valid user-facing type
+     */
+    static isValidUserType(type: string): boolean {
+        return type in USER_TO_PG_TYPE_MAP;
+    }
+
+    /**
+     * Check if a type name is a valid PostgreSQL type
+     */
+    static isValidPgType(type: string): boolean {
+        return type in PG_TO_USER_TYPE_MAP;
+    }
+}

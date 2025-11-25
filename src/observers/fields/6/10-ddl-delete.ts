@@ -18,8 +18,8 @@ export default class DdlDeleteObserver extends BaseObserver {
     readonly operations = ['delete'] as const;
     readonly priority = 10;  // High priority - DDL should run before data transformations
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
-        const { system } = context;
+    async execute(context: ObserverContext): Promise<void> {
+        const { system, record } = context;
         const { model_name, field_name } = record;
 
         // Load model from namespace cache to check if external

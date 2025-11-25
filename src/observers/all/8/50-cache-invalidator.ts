@@ -15,31 +15,24 @@ export default class CacheInvalidator extends BaseAsyncObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { operation, data } = context;
+        const { operation, record } = context;
         const modelName = context.model.model_name;
 
         try {
-            // Invalidate model-level caches (once per execution)
+            // Invalidate model-level caches
             await this.invalidateModelCache(modelName);
 
-            // Process records (ModelRecord instances with both original and current state)
-            const records = Array.isArray(data) ? data : (data ? [data] : []);
-
-            for (const record of records) {
-                // Invalidate record-level caches
-                const recordId = record.get('id');
-                if (recordId) {
-                    await this.invalidateRecordCache(modelName, recordId);
-                }
-
-                // Invalidate relationship caches
-                await this.invalidateRelationshipCaches(modelName, record);
+            // Invalidate record-level caches
+            const recordId = record.get('id');
+            if (recordId) {
+                await this.invalidateRecordCache(modelName, recordId);
             }
+
+            // Invalidate relationship caches
+            await this.invalidateRelationshipCaches(modelName, record);
 
             // Invalidate search/index caches
             await this.invalidateSearchCache(modelName, operation);
-
-            // Mark cache invalidation complete
 
         } catch (error) {
             // Cache invalidation failures are system errors

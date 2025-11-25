@@ -11,7 +11,7 @@ import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { convertRecordPgToMonk } from '@src/lib/field-types.js';
+import { convertRecordPgToMonk, FieldTypeMapper } from '@src/lib/field-types.js';
 import { SQL_MAX_RECURSION } from '@src/lib/constants.js';
 import type {
     DbRecord,
@@ -396,7 +396,25 @@ export class Database {
         const result = await this.system.database.execute(query, params);
 
         // Convert PostgreSQL string types back to proper JSON types
-        return result.rows.map((row: any) => this.convertPostgreSQLTypes(row, model));
+        let rows = result.rows.map((row: any) => this.convertPostgreSQLTypes(row, model));
+
+        // Special handling for 'fields' model: convert PG types to user types
+        // This was previously done by Ring 6 type-unmapper observer for select operations
+        // Since selects now bypass the pipeline, we handle it here
+        // TODO: Consider ACL filtering for selects here in the future
+        if (modelName === 'fields') {
+            rows = rows.map((row: any) => {
+                if (row.type) {
+                    const userType = FieldTypeMapper.toUser(row.type);
+                    if (userType) {
+                        row.type = userType;
+                    }
+                }
+                return row;
+            });
+        }
+
+        return rows;
     }
 
     /**
@@ -541,6 +559,73 @@ export class Database {
             throw HttpErrors.notFound('Record not found', 'RECORD_NOT_FOUND');
         }
 
+        return results[0];
+    }
+
+    /**
+     * Upsert multiple records (insert or update based on ID presence)
+     *
+     * Records WITH an id field are treated as updates (must exist, else error).
+     * Records WITHOUT an id field are treated as inserts (new records).
+     *
+     * This method splits records and runs separate pipelines for inserts vs updates,
+     * then recombines results preserving original input order.
+     *
+     * @param modelName - Model to upsert records in
+     * @param records - Array of record data (with or without id)
+     * @returns Array of upserted records in original input order
+     */
+    async upsertAll<T extends Record<string, any> = Record<string, any>>(
+        modelName: ModelName,
+        records: (DbCreateInput<T> | DbUpdateInput<T>)[]
+    ): Promise<DbRecord<T>[]> {
+        if (records.length === 0) {
+            return [];
+        }
+
+        // Split by presence of ID, tracking original indices for result ordering
+        const toInsert: { index: number; data: DbCreateInput<T> }[] = [];
+        const toUpdate: { index: number; data: DbUpdateInput<T> }[] = [];
+
+        for (let i = 0; i < records.length; i++) {
+            const record = records[i];
+            if ('id' in record && record.id) {
+                toUpdate.push({ index: i, data: record as DbUpdateInput<T> });
+            } else {
+                toInsert.push({ index: i, data: record as DbCreateInput<T> });
+            }
+        }
+
+        // Run separate pipelines (both in same transaction)
+        const inserted = toInsert.length
+            ? await this.createAll<T>(modelName, toInsert.map(item => item.data))
+            : [];
+        const updated = toUpdate.length
+            ? await this.updateAll<T>(modelName, toUpdate.map(item => item.data))
+            : [];
+
+        // Reconstruct original order
+        const results = new Array<DbRecord<T>>(records.length);
+        toInsert.forEach((item, i) => { results[item.index] = inserted[i]; });
+        toUpdate.forEach((item, i) => { results[item.index] = updated[i]; });
+
+        return results;
+    }
+
+    /**
+     * Upsert a single record (insert or update based on ID presence)
+     *
+     * Convenience wrapper around upsertAll() for single record operations.
+     *
+     * @param modelName - Model to upsert record in
+     * @param record - Record data (with or without id)
+     * @returns Upserted record
+     */
+    async upsertOne<T extends Record<string, any> = Record<string, any>>(
+        modelName: ModelName,
+        record: DbCreateInput<T> | DbUpdateInput<T>
+    ): Promise<DbRecord<T>> {
+        const results = await this.upsertAll<T>(modelName, [record]);
         return results[0];
     }
 
@@ -699,8 +784,31 @@ export class Database {
      * Execute observer pipeline within existing transaction context
      */
     private async executeObserverPipeline(operation: OperationType, model: Model, data: any[], depth: number): Promise<any[]> {
-        // Wrap input data in ModelRecord instances
-        const records = data.map(d => new ModelRecord(model, d));
+        // Wrap input data in ModelRecord instances AND collect IDs in single pass
+        const records: ModelRecord[] = [];
+        const ids: string[] = [];
+
+        for (const d of data) {
+            const record = new ModelRecord(model, d);
+            records.push(record);
+
+            // Collect IDs for preloading (non-create operations only)
+            if (operation === 'create') {
+                continue;
+            }
+
+            const id = record.get('id');
+
+            if (typeof id === 'string') {
+                ids.push(id);
+            }
+        }
+
+        // Preload existing records for update/delete/revert/access operations
+        // Single batch query, then single pass to set originals
+        if (ids.length > 0) {
+            await this.preloadExistingRecords(model.model_name, records, ids);
+        }
 
         const runner = new ObserverRunner();
 
@@ -747,6 +855,51 @@ export class Database {
     }
 
     // Database class doesn't handle transactions - System class does
+
+    /**
+     * Preload existing records for update/delete/revert/access operations
+     *
+     * This was previously handled by the Ring 0 record-preloader observer.
+     * Moving it to the Database class (before pipeline entry) preserves batch query
+     * performance while simplifying the observer pipeline.
+     *
+     * Optimized to minimize loops:
+     * - IDs are pre-extracted by caller (single pass when creating ModelRecords)
+     * - Single batch query for all IDs
+     * - Single pass to set originals using Map lookup
+     *
+     * @param modelName - Model to preload records from
+     * @param records - ModelRecord instances to populate with original data
+     * @param ids - Pre-extracted IDs to query
+     */
+    private async preloadExistingRecords(modelName: string, records: ModelRecord[], ids: string[]): Promise<void> {
+        // Batch query for existing records - include trashed for revert operations
+        const existingRows = await this.selectAny(modelName, { where: { id: { $in: ids } } }, {
+            trashed: 'include',
+            context: 'system'
+        });
+
+        // Create lookup map by ID (single iteration via Map constructor)
+        const existingById = new Map(existingRows.map(row => [row.id, row]))
+
+        // Load original data into each ModelRecord (single iteration over records)
+        for (const record of records) {
+            const id = record.get('id');
+            const existing = existingById.get(id);
+
+            if (existing) {
+                record.load(existing);
+            }
+            // If not found, record.isNew() will return true
+            // ExistenceValidator will catch this and throw appropriate error
+        }
+
+        console.info('Preloaded existing records for pipeline', {
+            modelName,
+            requestedCount: ids.length,
+            foundCount: existingRows.length
+        });
+    }
 
     // Access control operations - modify ACLs only, not record data
     /**

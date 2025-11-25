@@ -278,14 +278,10 @@ The `ObserverContext` provides complete access to the operation:
 ```typescript
 interface ObserverContext {
     system: System;                  // Per-request database context
-    model: Model;                  // Full Model object with validation
-    operation: OperationType;        // create, update, delete, select, revert
-    data?: any;                      // Input data for create/update
-    filter?: any;                    // Filter criteria for select (becomes data after ring 5)
-    recordId?: string;               // Target record ID for update/delete/select
-    existing?: any;                  // Existing record data (loaded for updates)
-    result?: any;                    // Database result (available in post-database rings)
-    metadata: Map<string, any>;      // Cross-observer communication
+    model: Model;                    // Full Model object with validation
+    operation: OperationType;        // create, update, delete, revert, access
+    record: ModelRecord;             // Single record being processed
+    recordIndex: number;             // Index in batch (for error messages)
     errors: ValidationError[];       // Accumulated validation errors
     warnings: ValidationWarning[];   // Accumulated non-blocking warnings
     startTime: number;               // Request start time for tracking

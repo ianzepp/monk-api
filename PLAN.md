@@ -1,5 +1,7 @@
 # Plan: Invert Observer Pipeline to Single-Record Processing
 
+**STATUS: COMPLETED** ✓
+
 ## Summary
 
 Refactor the observer pipeline from batch-oriented (`context.data: ModelRecord[]`) to single-record oriented (`context.record: ModelRecord`). The outer loop moves from individual observers up to `ObserverRunner`, eliminating redundant iteration and simplifying observer logic.
@@ -139,63 +141,66 @@ async execute(context: ObserverContext): Promise<void> {
 **Observers to update:**
 
 Ring 0 (Setup):
-- [ ] all/0/05-external-model-guard.ts (remove 'select' from operations)
-- [ ] all/0/10-record-preloader.ts (REMOVE - move logic to Database class)
-- [ ] all/0/50-update-merger.ts
+- [x] all/0/05-external-model-guard.ts (removed 'select' from operations)
+- [x] all/0/10-record-preloader.ts (REMOVED - logic moved to Database class)
+- [x] all/0/50-update-merger.ts
 
 Ring 1 (Input Validation):
-- [ ] all/1/10-frozen-validator.ts
-- [ ] all/1/20-model-sudo-validator.ts
-- [ ] all/1/25-field-sudo-validator.ts
-- [ ] all/1/30-immutable-validator.ts
-- [ ] all/1/40-data-validator.ts
-- [ ] fields/1/10-system-model.ts
-- [ ] fields/1/50-default-value-type-checker.ts
-- [ ] fields/1/50-field-name-validator.ts
-- [ ] models/1/10-system-model.ts
-- [ ] models/1/50-model-name-validator.ts
-- [ ] users/1/50-email-validation.ts
+- [x] all/1/10-frozen-validator.ts
+- [x] all/1/20-model-sudo-validator.ts
+- [x] all/1/25-field-sudo-validator.ts
+- [x] all/1/30-immutable-validator.ts
+- [x] all/1/40-data-validator.ts
+- [x] fields/1/10-system-model.ts
+- [x] fields/1/50-default-value-type-checker.ts
+- [x] fields/1/50-field-name-validator.ts
+- [x] models/1/10-system-model.ts
+- [x] models/1/50-model-name-validator.ts
+- [x] users/1/50-email-validation.ts
 
 Ring 2 (Access Control):
-- [ ] all/2/50-existence-validator.ts
-- [ ] all/2/50-soft-delete-protector.ts
+- [x] all/2/50-existence-validator.ts
+- [x] all/2/50-soft-delete-protector.ts
 
 Ring 3 (Business Logic):
-- [ ] fields/3/50-duplicate-field-checker.ts (may be removable - DB constraint)
-- [ ] fields/3/50-relationship-model-checker.ts
-- [ ] models/3/50-duplicate-model-checker.ts (may be removable - DB constraint)
-- [ ] models/3/50-system-table-protector.ts
+- [x] fields/3/50-duplicate-field-checker.ts (kept - provides better error messages than DB constraint)
+- [x] fields/3/50-relationship-model-checker.ts
+- [x] models/3/50-duplicate-model-checker.ts (kept - provides better error messages than DB constraint)
+- [x] models/3/50-system-table-protector.ts
 
 Ring 4 (Transform):
-- [ ] all/4/50-transform-processor.ts
-- [ ] all/4/50-uuid-array-processor.ts
-- [ ] fields/4/90-type-mapper.ts
+- [x] all/4/50-transform-processor.ts
+- [x] all/4/50-uuid-array-processor.ts
+- [x] fields/4/90-type-mapper.ts
 
 Ring 5 (Database):
-- [ ] all/5/50-sql-access-observer.ts
-- [ ] all/5/50-sql-create-observer.ts
-- [ ] all/5/50-sql-delete-observer.ts
-- [ ] all/5/50-sql-revert-observer.ts
-- [ ] all/5/50-sql-select-observer.ts (REMOVE - selects bypass pipeline)
-- [ ] all/5/50-sql-update-observer.ts
+- [x] all/5/50-sql-access-observer.ts
+- [x] all/5/50-sql-create-observer.ts
+- [x] all/5/50-sql-delete-observer.ts
+- [x] all/5/50-sql-revert-observer.ts
+- [x] all/5/50-sql-select-observer.ts (REMOVED - selects bypass pipeline)
+- [x] all/5/50-sql-update-observer.ts
 
 Ring 6 (Post-DB Transform):
-- [ ] fields/6/10-ddl-create.ts
-- [ ] fields/6/10-ddl-delete.ts
-- [ ] fields/6/10-ddl-update.ts
-- [ ] fields/6/20-ddl-indexes.ts
-- [ ] fields/6/80-type-unmapper.ts (remove 'select' from operations)
-- [ ] models/6/10-ddl-create.ts
-- [ ] models/6/10-ddl-delete.ts
-- [ ] models/6/10-ddl-update.ts
+- [x] fields/6/10-ddl-create.ts
+- [x] fields/6/10-ddl-delete.ts
+- [x] fields/6/10-ddl-update.ts
+- [x] fields/6/20-ddl-indexes.ts
+- [x] fields/6/80-type-unmapper.ts (removed 'select' from operations)
+- [x] models/6/10-ddl-create.ts
+- [x] models/6/10-ddl-delete.ts
+- [x] models/6/10-ddl-update.ts
 
 Ring 7 (Side Effects):
-- [ ] all/7/60-history-tracker.ts
+- [x] all/7/60-history-tracker.ts
 
 Ring 8 (Cache):
-- [ ] all/8/50-cache-invalidator.ts
-- [ ] fields/8/50-field-cache-invalidator.ts
-- [ ] models/8/50-model-cache-invalidator.ts
+- [x] all/8/50-cache-invalidator.ts
+- [x] fields/8/50-field-cache-invalidator.ts
+- [x] models/8/50-model-cache-invalidator.ts
+
+Ring 8 (Integration):
+- [x] snapshots/8/50-snapshot-processor.ts
 
 Ring 9 (Async): (none currently)
 

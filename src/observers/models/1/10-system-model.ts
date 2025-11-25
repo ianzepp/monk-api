@@ -24,7 +24,8 @@ export default class SystemModelValidator extends BaseObserver {
     readonly operations = ['create', 'update', 'delete'] as const;
     readonly priority = 10;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+    async execute(context: ObserverContext): Promise<void> {
+        const { record } = context;
         const { model_name } = record;
 
         if (SYSTEM_MODELS.has(model_name) === false) {

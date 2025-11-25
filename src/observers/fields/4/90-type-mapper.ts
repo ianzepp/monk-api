@@ -27,7 +27,8 @@ export default class TypeMapperObserver extends BaseObserver {
     readonly operations = ['create', 'update'] as const;
     readonly priority = 90;  // Run late in Ring 4, just before database (Ring 5)
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+    async execute(context: ObserverContext): Promise<void> {
+        const { record } = context;
         const { type } = record;
 
         if (!type) {
