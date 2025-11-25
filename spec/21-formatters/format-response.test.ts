@@ -19,7 +19,8 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 
 describe('Format Response Middleware', () => {
     let tenantName: string;
-    let databaseName: string;
+    let dbName: string;
+    let nsName: string;
     const httpClient = new HttpClient('http://localhost:9001');
 
     // Create test tenant before all tests
@@ -30,13 +31,14 @@ describe('Format Response Middleware', () => {
         });
 
         tenantName = result.tenantName;
-        databaseName = result.databaseName;
+        dbName = result.dbName;
+        nsName = result.nsName;
     });
 
     // Clean up test tenant after all tests
     afterAll(async () => {
-        if (tenantName && databaseName) {
-            await TestDatabaseHelper.cleanupTestTenant(tenantName, databaseName);
+        if (tenantName && dbName && nsName) {
+            await TestDatabaseHelper.cleanupTestTenant(tenantName, dbName, nsName);
         }
     });
 

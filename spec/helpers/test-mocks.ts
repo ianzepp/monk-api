@@ -14,7 +14,6 @@ export function createMockSystemContext(
         userId: 'test-user-id',
         context: {} as any, // Context is a Hono context type, not a string
         options: {},
-        db: {} as any,
         database: {} as any,
         describe: {} as any,
         getUser: vi.fn().mockReturnValue({
@@ -47,7 +46,6 @@ export function createMockSystem(
         correlationId: 'test-correlation-id',
         context: {} as any, // Context is a Hono context type, not a string
         options: {},
-        db: {} as any,
         database,
         describe: {} as any,
         getUser: vi.fn().mockReturnValue({
