@@ -4,7 +4,7 @@ import { createErrorResponse, ApiErrorCode } from '@src/lib/api-helpers.js'
 // Access levels in hierarchical order
 export enum AccessLevel {
     DENY = 0,
-    READ = 1, 
+    READ = 1,
     EDIT = 2,
     FULL = 3,
     ROOT = 4
@@ -31,47 +31,47 @@ export function hasMinimumAccess(userAccess: AccessLevel, requiredAccess: Access
 export function requireAccess(minLevel: AccessLevel) {
     return async (c: Context, next: Next) => {
         const user = c.get('user')
-        
+
         if (!user) {
             return createErrorResponse(c, 'Authentication required', ApiErrorCode.NOT_FOUND, 401)
         }
-        
+
         const userAccess = parseAccessLevel(user.access)
-        
+
         if (!hasMinimumAccess(userAccess, minLevel)) {
             const requiredLevel = AccessLevel[minLevel].toLowerCase()
             const userLevel = AccessLevel[userAccess].toLowerCase()
-            
+
             return createErrorResponse(
-                c, 
+                c,
                 `Insufficient access level. Required: ${requiredLevel}, Current: ${userLevel}`,
                 ApiErrorCode.NOT_FOUND,
                 403
             )
         }
-        
+
         // Store access level in context for route handlers
         c.set('userAccess', userAccess)
-        
+
         return next()
     }
 }
 
 // Convenience middleware for common access levels
 export const requireRead = requireAccess(AccessLevel.READ)
-export const requireEdit = requireAccess(AccessLevel.EDIT)  
+export const requireEdit = requireAccess(AccessLevel.EDIT)
 export const requireFull = requireAccess(AccessLevel.FULL)
 export const requireRoot = requireAccess(AccessLevel.ROOT)
 
 // Helper function for route handlers to check method-specific access
 export function checkMethodAccess(c: Context, method: string): boolean {
     const userAccess: AccessLevel = c.get('userAccess') || AccessLevel.DENY
-    
+
     switch (method.toUpperCase()) {
         case 'GET':
             return hasMinimumAccess(userAccess, AccessLevel.READ)
         case 'POST':
-        case 'PUT': 
+        case 'PUT':
         case 'DELETE':
             return hasMinimumAccess(userAccess, AccessLevel.EDIT)
         default:
@@ -84,7 +84,7 @@ export function createAccessError(c: Context, operation: string, requiredLevel: 
     const userAccess: AccessLevel = c.get('userAccess') || AccessLevel.DENY
     const requiredLevelName = AccessLevel[requiredLevel].toLowerCase()
     const userLevelName = AccessLevel[userAccess].toLowerCase()
-    
+
     return createErrorResponse(
         c,
         `Insufficient access for ${operation}. Required: ${requiredLevelName}, Current: ${userLevelName}`,

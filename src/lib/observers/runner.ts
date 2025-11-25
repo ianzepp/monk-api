@@ -1,23 +1,23 @@
 /**
  * Observer Runner
- * 
+ *
  * Executes observers in ordered rings (0-9) with error aggregation,
  * timeout protection, and performance monitoring.
  */
 
-import type { System } from '@src/lib/system.js';
-import { Schema } from '@src/lib/schema.js';
-import { SchemaCache } from '@src/lib/schema-cache.js';
-import { Logger } from '@src/lib/logger.js';
-import type { 
-    Observer, 
-    ObserverContext, 
-    ObserverStats, 
-    ObserverExecutionSummary 
+import type { SystemContext } from '@src/lib/system-context-types.js';
+import { Model } from '@src/lib/model.js';
+import { ModelRecord } from '@src/lib/model-record.js';
+import { ModelCache } from '@src/lib/model-cache.js';
+import type {
+    Observer,
+    ObserverContext,
+    ObserverStats,
+    ObserverExecutionSummary
 } from '@src/lib/observers/interfaces.js';
-import type { 
-    ObserverRing, 
-    OperationType, 
+import type {
+    ObserverRing,
+    OperationType,
     ObserverResult
 } from '@src/lib/observers/types.js';
 import { RING_OPERATION_MATRIX } from '@src/lib/observers/types.js';
@@ -33,35 +33,34 @@ export class ObserverRunner {
     private readonly collectStats = true;
 
     /**
-     * Execute observers for a schema operation with selective ring execution
+     * Execute observers for a model operation with selective ring execution
      */
     async execute(
-        system: System,
+        system: SystemContext,
         operation: OperationType,
-        schema: Schema,
-        data: any[],
-        existing?: any[],
+        model: Model,
+        data: ModelRecord[],
         depth: number = 0,
         filter?: any
     ): Promise<ObserverResult> {
         const startTime = Date.now();
-        
-        // Schema object already resolved by Database.runObserverPipeline()
-        const context = this._createContext(system, operation, schema, data, existing, filter);
+
+        // Model object already resolved by Database.runObserverPipeline()
+        const context = this._createContext(system, operation, model, data, filter);
         const stats: ObserverStats[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
         try {
             // Get relevant rings for this operation (selective execution)
             const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
-            
-            logger.info('Observer rings executing', { 
-                operation, 
-                schemaName: schema.name, 
-                ringCount: relevantRings.length, 
-                rings: relevantRings 
+
+            console.info('Observer rings executing', {
+                operation,
+                modelName: model.model_name,
+                ringCount: relevantRings.length,
+                rings: relevantRings
             });
-            
+
             // Execute only relevant rings for this operation
             for (const ring of relevantRings) {
                 context.currentRing = ring as ObserverRing;
@@ -86,22 +85,18 @@ export class ObserverRunner {
      * Create observer context for execution
      */
     private _createContext(
-        system: System,
+        system: SystemContext,
         operation: OperationType,
-        schema: Schema,
-        data: any[],
-        existing?: any[],
+        model: Model,
+        data: ModelRecord[],
         filter?: any
     ): ObserverContext {
         return {
             system,
             operation,
-            schema,
-            data, // For create/update operations, or populated by ring 5 for select
+            model,
+            data, // For create/update operations (now ModelRecord[])
             filter, // For select operations (rings 0-4), undefined for other operations
-            existing, // For update operations
-            result: undefined,
-            metadata: new Map(),
             errors: [],
             warnings: [],
             startTime: Date.now(),
@@ -120,10 +115,10 @@ export class ObserverRunner {
         totalTime: number
     ): ObserverResult {
         const success = context.errors.length === 0;
-        
+
         // Create execution summary for debugging
         const summary = {
-            schema: context.schema,
+            model: context.model,
             operation: context.operation,
             totalTimeMs: totalTime,
             ringsExecuted,
@@ -134,10 +129,10 @@ export class ObserverRunner {
             stats
         };
 
-        logger.info('Observer execution completed', { 
-            success, 
+        console.info('Observer execution completed', {
+            success,
             operation: context.operation,
-            schemaName: context.schema.name,
+            modelName: context.model.model_name,
             totalTimeMs: totalTime,
             ringsExecuted: ringsExecuted.length,
             observersExecuted: stats.length,
@@ -147,10 +142,8 @@ export class ObserverRunner {
 
         return {
             success,
-            result: context.result,
             errors: context.errors,
-            warnings: context.warnings,
-            metadata: context.metadata
+            warnings: context.warnings
         };
     }
 
@@ -162,22 +155,20 @@ export class ObserverRunner {
         error: unknown,
         totalTime: number
     ): ObserverResult {
-        logger.warn('Observer execution failed', {
+        console.warn('Observer execution failed', {
             operation: context.operation,
-            schemaName: context.schema.name,
+            modelName: context.model.model_name,
             totalTimeMs: totalTime,
             error: error instanceof Error ? error.message : String(error)
         });
-        
+
         return {
             success: false,
-            result: undefined,
             errors: [{
                 message: `Observer execution failed: ${error}`,
                 code: 'OBSERVER_EXECUTION_ERROR'
             }],
-            warnings: context.warnings,
-            metadata: context.metadata
+            warnings: context.warnings
         };
     }
 
@@ -186,13 +177,21 @@ export class ObserverRunner {
      * Execute observers for a specific ring
      */
     private async _executeObserverRing(
-        ring: ObserverRing, 
-        context: ObserverContext, 
+        ring: ObserverRing,
+        context: ObserverContext,
         stats: ObserverStats[]
     ): Promise<boolean> {
-        const observers = ObserverLoader.getObservers(context.schema.name, ring);
-        
-        for (const observer of observers) {
+        const observers = ObserverLoader.getObservers(context.model.model_name, ring);
+
+        // Sort observers by priority (lower numbers execute first)
+        // This ensures deterministic execution order within a ring
+        const sortedObservers = observers.sort((a, b) => {
+            const priorityA = a.priority ?? 50; // Default to 50 if not specified
+            const priorityB = b.priority ?? 50;
+            return priorityA - priorityB;
+        });
+
+        for (const observer of sortedObservers) {
             if (this._shouldExecuteObserver(observer, context)) {
                 const observerStats = await this._executeObserver(observer, context);
                 if (this.collectStats) {
@@ -206,7 +205,7 @@ export class ObserverRunner {
             // Keep as debug - detailed execution flow for development
             return false; // Stop execution
         }
-        
+
         return true; // Continue execution
     }
 
@@ -214,12 +213,12 @@ export class ObserverRunner {
      * Execute a single observer with timeout protection
      */
     private async _executeObserver(
-        observer: Observer, 
+        observer: Observer,
         context: ObserverContext
     ): Promise<ObserverStats> {
         const startTime = Date.now();
         context.currentObserver = observer.name || 'unnamed';
-        
+
         const timeout = observer.timeout || this.defaultTimeout;
         let success = true;
         let errorCount = 0;
@@ -235,7 +234,7 @@ export class ObserverRunner {
         } catch (error) {
             success = false;
             errorCount++;
-            
+
             const validationError = new ValidationError(
                 `Observer execution failed: ${error}`,
                 undefined,
@@ -250,7 +249,7 @@ export class ObserverRunner {
         // Count errors/warnings added by this observer
         const currentErrors = context.errors.length;
         const currentWarnings = context.warnings.length;
-        
+
         errorCount = Math.max(errorCount, currentErrors);
         warningCount = currentWarnings;
 
@@ -259,7 +258,7 @@ export class ObserverRunner {
         return {
             observerName: observer.name || 'unnamed',
             ring: observer.ring,
-            schema: context.schema.name,
+            model: context.model.model_name,
             operation: context.operation,
             executionTimeMs: executionTime,
             success,
@@ -300,8 +299,7 @@ export class ObserverRunner {
         return !!(
             context.system &&
             context.operation &&
-            context.schema &&
-            context.metadata &&
+            context.model &&
             context.errors &&
             context.warnings &&
             typeof context.startTime === 'number'

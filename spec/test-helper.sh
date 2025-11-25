@@ -15,7 +15,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/test-tenant-helper.sh"
 # Complete test setup with template (most common pattern)
 setup_test_with_template() {
     local test_name="$1"
-    local template="${2:-basic}"
+    local template="${2:-testing}"
 
     wait_for_server
     print_step "Creating test tenant from fixtures template"
@@ -33,17 +33,8 @@ setup_test_with_template() {
     echo "$tenant_name"
 }
 
-# Complete test setup with isolated tenant (fallback pattern)
-setup_test_isolated() {
-    local test_name="$1"
-
-    wait_for_server
-    setup_isolated_test "$test_name"
-    print_success "Isolated test environment ready"
-}
-
-# Simple API test setup (no tenant isolation needed)
-setup_test_basic() {
+# Simple server-only test setup (no tenant creation)
+setup_test_server_only() {
     wait_for_server
 }
 
@@ -51,30 +42,66 @@ setup_test_basic() {
 # Authentication Setup Functions
 # ===========================
 
-# Setup admin authentication for current tenant
-setup_admin_auth() {
-    print_step "Setting up authentication for admin user"
-    JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "admin")
+# Setup authentication (full) for current tenant
+setup_full_auth() {
+    print_step "Setting up authentication for full user"
+    JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "full")
 
     if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-        print_success "Admin authentication configured"
+        print_success "authentication (full) configured"
         export JWT_TOKEN
     else
-        test_fail "Failed to authenticate admin user"
+        test_fail "Failed to authenticate full user"
     fi
 }
 
-# Setup root authentication for current tenant
+# Setup authentication (root) for current tenant
 setup_root_auth() {
     print_step "Setting up authentication for root user"
     JWT_TOKEN=$(get_user_token "$TEST_TENANT_NAME" "root")
 
     if [[ -n "$JWT_TOKEN" && "$JWT_TOKEN" != "null" ]]; then
-        print_success "Root authentication configured"
+        print_success "authentication (root) configured"
         export JWT_TOKEN
     else
         test_fail "Failed to authenticate root user"
     fi
+}
+
+# Setup sudo authentication for privileged operations
+setup_sudo_auth() {
+    local reason="${1:-Model management operation}"
+    print_step "Escalating to sudo for protected operations"
+
+    SUDO_TOKEN=$(escalate_sudo "$reason")
+
+    if [[ -n "$SUDO_TOKEN" && "$SUDO_TOKEN" != "null" ]]; then
+        print_success "sudo access configured"
+        export SUDO_TOKEN
+    else
+        test_fail "Failed to escalate to sudo"
+    fi
+}
+
+# HTTP methods using sudo token
+sudo_post() {
+    local endpoint="$1"
+    local data="$2"
+    shift 2
+    api_post "$endpoint" "$data" -H "Authorization: Bearer $SUDO_TOKEN" "$@"
+}
+
+sudo_put() {
+    local endpoint="$1"
+    local data="$2"
+    shift 2
+    api_put "$endpoint" "$data" -H "Authorization: Bearer $SUDO_TOKEN" "$@"
+}
+
+sudo_delete() {
+    local endpoint="$1"
+    shift
+    api_delete "$endpoint" -H "Authorization: Bearer $SUDO_TOKEN" "$@"
 }
 
 # ===========================
@@ -163,12 +190,12 @@ test_endpoint_error() {
 
 # Test non-existent record operations (common pattern)
 test_nonexistent_record() {
-    local schema="$1"
+    local model="$1"
     local operation="$2"
     local data="${3:-{}}"
 
     local fake_id="00000000-0000-0000-0000-000000000000"
-    local endpoint="api/data/$schema/$fake_id"
+    local endpoint="api/data/$model/$fake_id"
 
     case "$operation" in
         "get") test_endpoint_error "GET" "$endpoint" "" "" "Non-existent record retrieval" ;;
@@ -177,17 +204,17 @@ test_nonexistent_record() {
     esac
 }
 
-# Test non-existent schema operations (common pattern)
-test_nonexistent_schema() {
+# Test non-existent model operations (common pattern)
+test_nonexistent_model() {
     local operation="$1"
     local data="${2:-{}}"
 
     local endpoint="api/describe/nonexistent"
 
     case "$operation" in
-        "get") test_endpoint_error "GET" "$endpoint" "" "SCHEMA_NOT_FOUND" "Non-existent schema retrieval" ;;
-        "update") test_endpoint_error "PUT" "$endpoint" "$data" "SCHEMA_NOT_FOUND" "Non-existent schema update" ;;
-        "delete") test_endpoint_error "DELETE" "$endpoint" "" "SCHEMA_NOT_FOUND" "Non-existent schema deletion" ;;
+        "get") test_endpoint_error "GET" "$endpoint" "" "MODEL_NOT_FOUND" "Non-existent model retrieval" ;;
+        "update") test_endpoint_error "PUT" "$endpoint" "$data" "MODEL_NOT_FOUND" "Non-existent model update" ;;
+        "delete") test_endpoint_error "DELETE" "$endpoint" "" "MODEL_NOT_FOUND" "Non-existent model deletion" ;;
     esac
 }
 
@@ -214,8 +241,8 @@ generate_test_account() {
 EOF
 }
 
-# Generate simple schema for testing
-generate_simple_schema() {
+# Generate simple model for testing
+generate_simple_model() {
     local title="$1"
     local required_fields="$2"
 

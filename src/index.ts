@@ -1,10 +1,11 @@
-// Set up global logger instance
-import { logger } from '@src/lib/logger.js';
-global.logger = logger;
-
 // Import process environment as early as possible
 import dotenv from 'dotenv';
-dotenv.config({ debug: true });
+
+// Load environment-specific .env file
+const envFile = process.env.NODE_ENV
+    ? `.env.${process.env.NODE_ENV}`
+    : '.env';
+dotenv.config({ path: envFile, debug: true });
 
 // Sanity check for required env values
 if (!process.env.DATABASE_URL) {
@@ -36,40 +37,41 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
+import * as mcpRoutes from '@src/routes/mcp/routes.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 
 // Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
+import { ObserverValidator } from '@src/lib/observers/validator.js';
 
 // Middleware
 import * as middleware from '@src/lib/middleware/index.js';
 
-// Root API
-
-// Public route handlers (no authentication required)
-import * as publicAuthRoutes from '@src/public/auth/routes.js';
-
-// Public docs  (no authentication required)
-import * as publicDocsRoutes from '@src/public/docs/routes.js';
-
-// Protected API handlers (JWT + user validation required)
+// Route handlers
 import * as authRoutes from '@src/routes/auth/routes.js';
-import * as dataRoutes from '@src/routes/data/routes.js';
-import * as describeRoutes from '@src/routes/describe/routes.js';
-import * as fileRoutes from '@src/routes/file/routes.js';
-import * as aclsRoutes from '@src/routes/acls/routes.js';
-import { sudoRouter } from '@src/routes/sudo/index.js';
+import * as testRoutes from '@src/routes/test/routes.js';
+import * as userRoutes from '@src/routes/api/user/routes.js';
+import * as dataRoutes from '@src/routes/api/data/routes.js';
+import * as describeRoutes from '@src/routes/api/describe/routes.js';
+import * as aclsRoutes from '@src/routes/api/acls/routes.js';
+import * as statRoutes from '@src/routes/api/stat/routes.js';
+import * as docsRoutes from '@src/routes/docs/routes.js';
+import * as historyRoutes from '@src/routes/api/history/routes.js';
+import * as extractRoutes from '@src/routes/api/extracts/routes.js';
+import * as restoreRoutes from '@src/routes/api/restores/routes.js';
+import * as gridRoutes from '@src/routes/api/grids/routes.js';
+import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Special protected endpoints
-import BulkPost from '@src/routes/bulk/POST.js'; // POST /api/bulk
-import FindSchemaPost from '@src/routes/find/:schema/POST.js'; // POST /api/find/:schema
-import AggregateSchemaPost from '@src/routes/aggregate/:schema/POST.js'; // POST /api/aggregate/:schema
+import BulkPost from '@src/routes/api/bulk/POST.js'; // POST /api/bulk
+import FindModelPost from '@src/routes/api/find/:model/POST.js'; // POST /api/find/:model
+import AggregateModelPost from '@src/routes/api/aggregate/:model/POST.js'; // POST /api/aggregate/:model
 
 // Check database connection before doing anything else
-logger.info('Checking database connection:');
-logger.info('- NODE_ENV:', process.env.NODE_ENV);
-logger.info('- DATABASE_URL:', process.env.DATABASE_URL);
-logger.info('- TENANT_NAMING_MODE:', process.env.TENANT_NAMING_MODE || 'default (enterprise)');
+console.info('Checking database connection:');
+console.info('- NODE_ENV:', process.env.NODE_ENV);
+console.info('- DATABASE_URL:', process.env.DATABASE_URL);
+console.info('- Tenant naming: SHA256 hashing (environment-isolated)');
 checkDatabaseConnection();
 
 // Create Hono app
@@ -84,157 +86,254 @@ app.use('*', async (c, next) => {
     const method = c.req.method;
     const path = c.req.path;
 
-    await next();
+    const result = await next();
 
     const duration = Date.now() - start;
     const status = c.res.status;
 
-    logger.info('Request completed', { method, path, status, duration });
+    console.info('Request completed', { method, path, status, duration });
+
+    return result;
 });
 
+// Apply response pipeline to root and health endpoints
+app.use('/', middleware.formatDetectionMiddleware);
+app.use('/', middleware.responsePipelineMiddleware);
+app.use('/health', middleware.formatDetectionMiddleware);
+app.use('/health', middleware.responsePipelineMiddleware);
+
 // Root endpoint
-app.get('/', c => {
-    const response = {
-        name: 'Monk API (Hono)',
-        version: packageJson.version,
-        description: 'Lightweight PaaS backend API built with Hono',
-        endpoints: {
-            home: ['/', '/health'],
-            docs: ['/README.md', '/docs/:api'],
+app.get('/', context => {
+    return context.json({
+        success: true,
+        data: {
+            name: 'Monk API (Hono)',
+            version: packageJson.version,
+            description: 'Lightweight PaaS backend API built with Hono',
+            endpoints: {
+                health: ['/health'],
+            docs: [
+                '/docs',
+                '/docs/auth',
+                '/docs/describe',
+                '/docs/data',
+                '/docs/find',
+                '/docs/aggregate',
+                '/docs/bulk',
+                '/docs/user',
+                '/docs/acls',
+                '/docs/stat',
+                '/docs/history',
+                '/docs/sudo',
+            ],
             auth: [
                 '/auth/login',
                 '/auth/register',
                 '/auth/refresh',
                 '/auth/tenants',
-                '/api/auth/whoami',
-                '/api/auth/sudo'
+                '/auth/templates'
             ],
-            describe: ['/api/describe/:schema'],
+            describe: [
+                '/api/describe',
+                '/api/describe/:model',
+                '/api/describe/:model/fields',
+                '/api/describe/:model/fields/:field'
+            ],
             data: [
-                '/api/data/:schema',
-                '/api/data/:schema/:record',
-                '/api/data/:schema/:record/:relationship',
-                '/api/data/:schema/:record/:relationship/:child'
+                '/api/data/:model',
+                '/api/data/:model/:record',
+                '/api/data/:model/:record/:relationship',
+                '/api/data/:model/:record/:relationship/:child'
             ],
-            find: ['/api/find/:schema'],
-            aggregate: ['/api/aggregate/:schema'],
-            bulk: ['/api/bulk'],
-            file: [
-                '/api/file/list',
-                '/api/file/retrieve',
-                '/api/file/store',
-                '/api/file/stat',
-                '/api/file/delete',
-                '/api/file/size',
-                '/api/file/modify-time'
+            find: [
+                '/api/find/:model'
             ],
-            acls: ['/api/acls/:schema/:record'],
-            sudo: ['/api/sudo/*']
-        },
-        documentation: {
-            home: ['/README.md'],
-            auth: ['/docs/auth'],
-            describe: ['/docs/describe'],
-            data: ['/docs/data'],
-            find: ['/docs/find'],
-            aggregate: ['/docs/aggregate'],
-            bulk: ['/docs/bulk'],
-            file: ['/docs/file'],
-            acls: ['/docs/acls'],
-            sudo: ['/docs/sudo'],
-        },
-    };
-
-    return createSuccessResponse(c, response);
+            aggregate: [
+                '/api/aggregate/:model'
+            ],
+            bulk: [
+                '/api/bulk'
+            ],
+            user: [
+                '/api/user/whoami',
+                '/api/user/sudo',
+                '/api/user/profile',
+                '/api/user/deactivate'
+            ],
+            acls: [
+                '/api/acls/:model/:record'
+            ],
+            stat: [
+                '/api/stat/:model/:record'
+            ],
+            history: [
+                '/api/history/:model/:record',
+                '/api/history/:model/:record/:change'
+            ],
+            sudo: [
+                '/api/sudo/sandboxes/',
+                '/api/sudo/sandboxes/:name',
+                '/api/sudo/sandboxes/:name/extend',
+                '/api/sudo/snapshots/',
+                '/api/sudo/snapshots/:name',
+                '/api/sudo/templates/',
+                '/api/sudo/templates/:name',
+                '/api/sudo/users/',
+                '/api/sudo/users/:id',
+            ],
+            extracts: [
+                '/api/extracts/:id/run',
+                '/api/extracts/:id/cancel',
+                '/api/extracts/runs/:runId/download',
+                '/api/extracts/artifacts/:artifactId/download'
+            ],
+            restores: [
+                '/api/restores/:id/run',
+                '/api/restores/:id/cancel',
+                '/api/restores/import'
+            ],
+            grids: [
+                '/api/grids/:id/:range',
+                '/api/grids/:id/cells'
+            ]
+        }
+        }
+    });
 });
 
 // Health check endpoint (public, no authentication required)
-app.get('/health', c => {
-    return createSuccessResponse(c, {
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        version: packageJson.version,
-        uptime: process.uptime()
+app.get('/health', context => {
+    return context.json({
+        success: true,
+        data: {
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
+        }
     });
 });
 
 // Note: systemContextMiddleware only applied to protected routes that need it
 
 // Public routes (no authentication required)
-app.use('/auth/*', middleware.responseJsonMiddleware); // Public auth: JSON responses
+app.use('/auth/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
+app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for responses
+app.use('/auth/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
+app.use('/test/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
+app.use('/test/*', middleware.formatDetectionMiddleware); // Detect format for responses
+app.use('/test/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
-// Public auth routes (token acquisition)
-app.post('/auth/login', publicAuthRoutes.LoginPost); // POST /auth/login
-app.post('/auth/register', publicAuthRoutes.RegisterPost); // POST /auth/register
-app.post('/auth/refresh', publicAuthRoutes.RefreshPost); // POST /auth/refresh
-app.get('/auth/tenants', publicAuthRoutes.TenantsGet); // GET /auth/tenants
-
-// Public docs routes
-app.get('/README.md', publicDocsRoutes.ReadmeGet); // GET /README.md
-app.get('/docs/:api', publicDocsRoutes.ApiGet); // GET /docs/:api
-
 // Protected API routes - require JWT authentication from /auth
+app.use('/api/*', middleware.requestBodyParserMiddleware);
 app.use('/api/*', middleware.jwtValidationMiddleware);
 app.use('/api/*', middleware.userValidationMiddleware);
+app.use('/api/*', middleware.formatDetectionMiddleware);
+app.use('/api/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
 app.use('/api/*', middleware.systemContextMiddleware);
-app.use('/api/*', middleware.responseJsonMiddleware);
 
-// 30-auth-api: Auth API routes (protected - user account management)
-app.get('/api/auth/whoami', authRoutes.WhoamiGet); // GET /api/auth/whoami
-app.post('/api/auth/sudo', authRoutes.SudoPost); // POST /api/auth/sudo
+// 40-docs-api: Public docs routes (no authentication required)
+app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
+app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpoint-specific docs)
+
+// MCP route (public, uses internal auth via tool calls)
+app.use('/mcp', middleware.requestBodyParserMiddleware);
+mcpRoutes.setHonoApp(app);
+app.post('/mcp', mcpRoutes.McpPost); // POST /mcp (JSON-RPC)
+
+// 30-auth-api: Public auth routes (token acquisition)
+app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
+app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
+app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
+app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
+app.get('/auth/templates', authRoutes.TemplatesGet); // GET /auth/templates
+
+// Test utilities (dev/test environments only)
+app.get('/test/pools', testRoutes.PoolsGet); // GET /test/pools
+app.delete('/test/pools', testRoutes.PoolsDelete); // DELETE /test/pools
 
 // 31-describe-api: Describe API routes
-app.get('/api/describe', describeRoutes.SchemaList); // Lists all schemas
-app.post('/api/describe/:schema', describeRoutes.SchemaPost); // Create schema (with URL name)
-app.get('/api/describe/:schema', describeRoutes.SchemaGet); // Get schema
-app.put('/api/describe/:schema', describeRoutes.SchemaPut); // Update schema
-app.delete('/api/describe/:schema', describeRoutes.SchemaDelete); // Delete schema
+app.get('/api/describe', describeRoutes.ModelList); // Lists all models
+app.post('/api/describe/:model', describeRoutes.ModelPost); // Create model (with URL name)
+app.get('/api/describe/:model', describeRoutes.ModelGet); // Get model
+app.put('/api/describe/:model', describeRoutes.ModelPut); // Update model
+app.delete('/api/describe/:model', describeRoutes.ModelDelete); // Delete model
+
+// 31-describe-api: Field-level Describe API routes
+app.get('/api/describe/:model/fields', describeRoutes.FieldsList); // List all fields in model
+app.post('/api/describe/:model/fields', describeRoutes.FieldsPost); // Create fields in bulk
+app.put('/api/describe/:model/fields', describeRoutes.FieldsPut); // Update fields in bulk
+app.post('/api/describe/:model/fields/:field', describeRoutes.FieldPost); // Create field
+app.get('/api/describe/:model/fields/:field', describeRoutes.FieldGet); // Get field
+app.put('/api/describe/:model/fields/:field', describeRoutes.FieldPut); // Update field
+app.delete('/api/describe/:model/fields/:field', describeRoutes.FieldDelete); // Delete field
 
 // 32-data-api: Data API routes
-app.post('/api/data/:schema', dataRoutes.SchemaPost); // Create records
-app.get('/api/data/:schema', dataRoutes.SchemaGet); // List records
-app.put('/api/data/:schema', dataRoutes.SchemaPut); // Bulk update records
-app.delete('/api/data/:schema', dataRoutes.SchemaDelete); // Bulk delete records
+app.post('/api/data/:model', dataRoutes.ModelPost); // Create records
+app.get('/api/data/:model', dataRoutes.ModelGet); // List records
+app.put('/api/data/:model', dataRoutes.ModelPut); // Bulk update records
+app.delete('/api/data/:model', dataRoutes.ModelDelete); // Bulk delete records
 
-app.get('/api/data/:schema/:record', dataRoutes.RecordGet); // Get single record
-app.put('/api/data/:schema/:record', dataRoutes.RecordPut); // Update single record
-app.delete('/api/data/:schema/:record', dataRoutes.RecordDelete); // Delete single record
+app.get('/api/data/:model/:record', dataRoutes.RecordGet); // Get single record
+app.put('/api/data/:model/:record', dataRoutes.RecordPut); // Update single record
+app.delete('/api/data/:model/:record', dataRoutes.RecordDelete); // Delete single record
 
-app.get('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
-app.post('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
-app.delete('/api/data/:schema/:record/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
-app.get('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
-app.put('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
-app.delete('/api/data/:schema/:record/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
+app.get('/api/data/:model/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
+app.post('/api/data/:model/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
+app.delete('/api/data/:model/:record/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
+app.get('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
+app.put('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
+app.delete('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
 
 // 33-find-api: Find API routes
-app.post('/api/find/:schema', FindSchemaPost);
+app.post('/api/find/:model', FindModelPost);
 
 // 34-aggregate-api: Aggregate API routes
-app.post('/api/aggregate/:schema', AggregateSchemaPost);
+app.post('/api/aggregate/:model', AggregateModelPost);
 
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);
 
-// 37-file-api: File API routes
-app.post('/api/file/list', fileRoutes.ListPost); // Directory listing
-app.post('/api/file/retrieve', fileRoutes.RetrievePost); // File retrieval
-app.post('/api/file/store', fileRoutes.StorePost); // File storage
-app.post('/api/file/stat', fileRoutes.StatPost); // File status
-app.post('/api/file/delete', fileRoutes.DeletePost); // File deletion
-app.post('/api/file/size', fileRoutes.SizePost); // File size
-app.post('/api/file/modify-time', fileRoutes.ModifyTimePost); // File modification time
+// 36-user-api: User API routes (user identity and self-service management)
+app.get('/api/user/whoami', userRoutes.WhoamiGet); // GET /api/user/whoami
+app.post('/api/user/sudo', userRoutes.SudoPost); // POST /api/user/sudo
+app.get('/api/user/profile', userRoutes.ProfileGet); // GET /api/user/profile
+app.put('/api/user/profile', userRoutes.ProfilePut); // PUT /api/user/profile
+app.post('/api/user/deactivate', userRoutes.DeactivatePost); // POST /api/user/deactivate
 
 // 38-acls-api: Acls API routes
-app.get('/api/acls/:schema/:record', aclsRoutes.RecordAclGet); // Get acls for a single record
-app.post('/api/acls/:schema/:record', aclsRoutes.RecordAclPost); // Merge acls for a single record
-app.put('/api/acls/:schema/:record', aclsRoutes.RecordAclPut); // Replace acls for a single record
-app.delete('/api/acls/:schema/:record', aclsRoutes.RecordAclDelete); // Delete acls for a single record
+app.get('/api/acls/:model/:record', aclsRoutes.RecordAclGet); // Get acls for a single record
+app.post('/api/acls/:model/:record', aclsRoutes.RecordAclPost); // Merge acls for a single record
+app.put('/api/acls/:model/:record', aclsRoutes.RecordAclPut); // Replace acls for a single record
+app.delete('/api/acls/:model/:record', aclsRoutes.RecordAclDelete); // Delete acls for a single record
 
-// 39-sudo-api: Sudo API routes (require sudo token from /api/auth/sudo)
+// 39-stat-api: Stat API routes (record metadata without user data)
+app.get('/api/stat/:model/:record', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
+
+// 41-sudo-api: Sudo API routes (require sudo token from /api/user/sudo)
 app.use('/api/sudo/*', middleware.sudoAccessMiddleware);
 app.route('/api/sudo', sudoRouter);
+
+// 42-history-api: History API routes (change tracking and audit trails)
+app.get('/api/history/:model/:record', historyRoutes.RecordHistoryGet); // List all changes for a record
+app.get('/api/history/:model/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
+
+// 50-extracts-app: Extract application (data export jobs)
+app.post('/api/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job
+app.post('/api/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
+app.get('/api/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
+app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
+
+// 51-restores-app: Restore application (data import jobs)
+app.post('/api/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
+app.post('/api/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
+app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
+
+// 52-grids-app: Grid application (spreadsheet-like cell storage)
+app.get('/api/grids/:id/:range', gridRoutes.RangeGet); // Read cells (A1, A1:Z100, A:A, 5:5)
+app.put('/api/grids/:id/:range', gridRoutes.RangePut); // Update cells/range
+app.delete('/api/grids/:id/:range', gridRoutes.RangeDelete); // Clear cells/range
+app.post('/api/grids/:id/cells', gridRoutes.CellsPost); // Bulk upsert cells
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));
@@ -255,44 +354,55 @@ app.notFound(c => {
 const port = Number(process.env.PORT || 9001);
 
 // Initialize observer system
-logger.info('Preloading observer system');
+console.info('Preloading observer system');
 try {
+    // Validate observer files before loading
+    const validationResult = await ObserverValidator.validateAll();
+    if (!validationResult.valid) {
+        console.error(ObserverValidator.formatErrors(validationResult));
+        throw new Error(`Observer validation failed with ${validationResult.errors.length} errors`);
+    }
+
     await ObserverLoader.preloadObservers();
-    logger.info('Observer system ready');
+    console.info('Observer system ready', {
+        observersValidated: validationResult.filesChecked,
+        warnings: validationResult.warnings.length
+    });
 } catch (error) {
     console.error(`❌ Observer system initialization failed:`, error);
-    logger.warn('Continuing without observer system');
+    console.warn('Continuing without observer system');
 }
 
 // Check for --no-startup flag
 if (process.argv.includes('--no-startup')) {
-    logger.info('✅ Startup test successful - all modules loaded without errors');
+    console.info('✅ Startup test successful - all modules loaded without errors');
     process.exit(0);
 }
 
-// Start HTTP server only
-logger.info('Starting Monk HTTP API Server (Hono)');
-logger.info('For FS server, see monk-ftp project: https://github.com/ianzepp/monk-ftp');
-logger.info('For FS-like interaction via the commandline, see monk-cli project: https://github.com/ianzepp/monk-cli');
+// Start HTTP server
+console.info('Starting Monk HTTP API Server (Hono)');
+console.info('Related ecosystem projects:')
+console.info('- monk-cli: Terminal commands for the API (https://github.com/ianzepp/monk-cli)');
+console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
+console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)');
 
-const server = serve({
-    fetch: app.fetch,
-    port,
-});
+// Start server using Hono's serve() - MCP is handled as a regular route via app.post('/mcp')
+const server = serve({ fetch: app.fetch, port });
 
-logger.info('HTTP API server running', { port, url: `http://localhost:${port}` });
+console.info('HTTP API server running', { port, url: `http://localhost:${port}` });
+console.info('MCP endpoint available at POST /mcp (JSON-RPC)');
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-    logger.info('Shutting down HTTP API server gracefully');
+    console.info('Shutting down HTTP API server gracefully');
 
     // Stop HTTP server
     server.close();
-    logger.info('HTTP server stopped');
+    console.info('HTTP server stopped');
 
     // Close database connections
     await closeDatabaseConnection();
-    logger.info('Database connections closed');
+    console.info('Database connections closed');
 
     process.exit(0);
 };

@@ -1,16 +1,28 @@
-# 03-template-infrastructure: Template Infrastructure Tests
+# 03-template-infrastructure: Template System
 
-Tests for template database infrastructure and build system.
+**Priority**: NICE TO HAVE
+**Coverage**: 0% (No tests implemented)
+**Status**: Specification only
 
-**Scope:**
-- Template build system validation
-- Template cloning functionality
-- Template data management
-- Template performance validation
+## Critical / Smoke Tests
 
-**Test Focus:**
-- Template build process
-- Database template cloning
-- Template data integrity
-- Cloning performance benchmarks
+### Missing Tests (No critical tests - infrastructure setup)
+- N/A - Template system validated by successful test execution
+
+## Additional Tests
+
+### Missing Coverage
+- Template build process (npm run fixtures:build)
+- Database template cloning performance
+- Template data integrity after cloning
+- Template model consistency
+- Cloning performance benchmarks (should be <100ms)
 - Template lifecycle management
+
+## Notes
+
+- Templates are built before tests run (fixtures system)
+- Tests implicitly validate templates by using them successfully
+- Could add explicit template validation tests
+- Performance testing would validate cloning speed benefits
+- See fixtures/README.md for template build documentation

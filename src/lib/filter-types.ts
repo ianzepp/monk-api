@@ -1,6 +1,6 @@
 /**
  * Shared types and enums for Filter system
- * 
+ *
  * This file contains all shared interfaces and enums used across
  * Filter, FilterWhere, and FilterOrder classes to eliminate duplication
  * and ensure consistency.
@@ -55,14 +55,15 @@ export enum FilterOp {
 }
 
 export interface FilterWhereInfo {
-    column: string;
+    field: string;
     operator: FilterOp;
     data: any;
 }
 
+export type TrashedOption = 'exclude' | 'include' | 'only';
+
 export interface FilterWhereOptions {
-    includeTrashed?: boolean;
-    includeDeleted?: boolean;
+    trashed?: TrashedOption;
 }
 
 // New tree structure for complex logical operators
@@ -70,7 +71,7 @@ export interface ConditionNode {
     type: 'condition' | 'logical';
 
     // For condition nodes
-    column?: string;
+    field?: string;
     operator?: FilterOp;
     data?: any;
 
@@ -82,12 +83,12 @@ export interface ConditionNode {
 export type SortDirection = 'asc' | 'desc' | 'ASC' | 'DESC';
 
 export interface FilterOrderInfo {
-    column: string;
+    field: string;
     sort: 'asc' | 'desc';
 }
 
 export interface FilterData {
-    schema?: string;
+    model?: string;
     select?: string[];
     where?: any;
     order?: any;
@@ -103,7 +104,7 @@ export interface FilterData {
 /**
  * Aggregation function types
  */
-export type AggregateFunction = 
+export type AggregateFunction =
     | { $count: string | '*' }
     | { $sum: string }
     | { $avg: string }

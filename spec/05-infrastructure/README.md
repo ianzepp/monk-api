@@ -1,38 +1,40 @@
-# 05-infrastructure: Core Infrastructure Tests
+# 05-infrastructure: Infrastructure Management
 
-Infrastructure tests for basic connectivity and server configuration.
+**Priority**: NICE TO HAVE
+**Coverage**: 60% (Database naming tested, API endpoints partial)
+**Status**: Good naming tests, incomplete API coverage
 
-**Scope:**
-- Core system connectivity
-- Server configuration validation
-- Basic infrastructure components
-- Environment setup verification
+## Critical / Smoke Tests
 
-**Test Focus:**
-- Database connectivity testing
-- Server configuration validation
-- API server startup and health
-- Infrastructure dependency verification
-- Environment variable validation
+### Existing Tests (4: 3 shell, 1 TypeScript with 37 tests)
+- Database naming and validation (database-naming.test.ts - 37 comprehensive tests)
+- Sandbox CRUD operations (sandboxes-api.test.sh)
+- Snapshot async workflow (snapshots-api.test.sh)
+- Template management (templates-api.test.sh)
 
-## Tests
+## Additional Tests
 
-### database-naming.test.ts (Unit Test)
-
-Tests the DatabaseNaming service which handles tenant database name generation.
-
-**Test Coverage:**
+### Existing Coverage (database-naming.test.ts)
 - Hash consistency and format validation (tenant_ prefix, 16-char hex)
 - Unicode character handling and normalization
-- Whitespace trimming
+- Whitespace trimming and sanitization
 - Database name validation (alphanumeric + underscore only)
 - PostgreSQL identifier limits (63 chars max)
-- SQL injection prevention
+- SQL injection prevention in naming
 - Security validation for reserved names
+- Template, sandbox, and snapshot naming conventions
 
-**Running:**
-```bash
-npm run test:ts 05
-```
+### Missing Coverage (Shell tests marked as "Future Tests")
+- Complete template API testing (GET /api/sudo/templates, template details)
+- Complete sandbox API testing (team-scoped access validation, extend expiration)
+- Complete snapshot API testing (status transitions, immutability enforcement)
+- Verification that snapshots cannot be created from sandboxes
+- Performance testing for template cloning (should be 30x faster than full copy)
 
-**37 test cases** covering enterprise mode hashing, validation, and integration tests.
+## Notes
+
+- DatabaseNaming service has excellent test coverage (37 tests)
+- Infrastructure APIs (templates, sandboxes, snapshots) have placeholder shell tests
+- Shell tests exist but may have incomplete coverage based on "Future Tests" comments
+- Critical for multi-tenant infrastructure management
+- See PUBLIC.md for complete infrastructure API documentation

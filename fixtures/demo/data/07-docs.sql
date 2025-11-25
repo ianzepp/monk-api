@@ -1,0 +1,80 @@
+-- ============================================================================
+-- DATA: Docs model registration and sample data
+-- ============================================================================
+
+-- Register docs model
+INSERT INTO "models" (model_name, status, description)
+  VALUES ('docs', 'active', 'Large text documentation with full-text search capabilities');
+
+-- Register docs fields
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('docs', 'workspace_id', 'uuid', 'true', 'Foreign key to workspaces table');
+
+INSERT INTO fields (model_name, field_name, type, required, description, minimum, maximum)
+  VALUES ('docs', 'title', 'text', 'true', 'Document title', 2, 200);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('docs', 'content', 'text', 'true', 'Large text content (2KB-50KB, markdown or plain text)', 100000);
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('docs', 'content_type', 'text', 'false', 'Content type/format', ARRAY['markdown', 'plaintext', 'code', 'adr', 'api-spec']);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('docs', 'tags', 'text[]', 'false', 'Document tags for categorization');
+
+INSERT INTO fields (model_name, field_name, type, required, description, enum_values)
+  VALUES ('docs', 'category', 'text', 'false', 'Document category', ARRAY['reference', 'guide', 'adr', 'runbook', 'architecture', 'tutorial']);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('docs', 'author', 'text', 'false', 'Document author name', 100);
+
+INSERT INTO fields (model_name, field_name, type, required, description, maximum)
+  VALUES ('docs', 'version', 'text', 'false', 'Document version', 50);
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('docs', 'metadata', 'jsonb', 'false', 'Document metadata (related_docs, embedding_id, word_count, last_indexed_at)');
+
+INSERT INTO fields (model_name, field_name, type, required, description)
+  VALUES ('docs', 'accessed_at', 'timestamp', 'false', 'Timestamp when document was last accessed (for LRU/popularity tracking)');
+
+-- Sample data for docs (large text documentation)
+-- References workspaces created in 01-workspaces-teams.sql
+
+INSERT INTO docs (workspace_id, title, content, content_type, tags, category, author, version, metadata, created_at, updated_at, accessed_at)
+SELECT
+  w.id,
+  d.title,
+  d.content,
+  d.content_type,
+  d.tags,
+  d.category,
+  d.author,
+  d.version,
+  d.metadata::jsonb,
+  w.created_at + (d.days_after || ' days')::interval,
+  w.created_at + (d.days_after || ' days')::interval + (d.days_since_update || ' days')::interval,
+  now() - (d.days_since_access || ' days')::interval
+FROM workspaces w
+CROSS JOIN LATERAL (
+  VALUES
+    ('API Authentication Guide',
+E'# API Authentication Guide\n\n## Overview\n\nThis document describes the authentication and authorization mechanisms for the Acme API platform. Our API uses OAuth 2.0 with JWT tokens for secure authentication.\n\n## Authentication Flow\n\n### 1. Obtain Access Token\n\nTo authenticate, send a POST request to `/auth/token`:\n\n```bash\ncurl -X POST https://api.acme-corp.com/auth/token \\\n  -H "Content-Type: application/json" \\\n  -d ''{\n    "client_id": "your_client_id",\n    "client_secret": "your_client_secret",\n    "grant_type": "client_credentials"\n  }''\n```\n\n### 2. Use Access Token\n\nInclude the access token in the Authorization header:\n\n```bash\ncurl -X GET https://api.acme-corp.com/v1/users \\\n  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"\n```\n\n## Token Refresh\n\nAccess tokens expire after 1 hour. Use refresh tokens to obtain new access tokens:\n\n```bash\ncurl -X POST https://api.acme-corp.com/auth/refresh \\\n  -H "Content-Type: application/json" \\\n  -d ''{"refresh_token": "YOUR_REFRESH_TOKEN"}''\n```\n\n## Security Best Practices\n\n1. **Never expose tokens**: Store tokens securely, never in client-side code\n2. **Use HTTPS**: Always use HTTPS for API requests\n3. **Rotate secrets**: Regularly rotate client secrets\n4. **Implement rate limiting**: Protect against brute force attacks\n5. **Monitor usage**: Track API usage for anomalies\n\n## Error Handling\n\n### 401 Unauthorized\n\nToken is missing, expired, or invalid. Refresh your token or re-authenticate.\n\n### 403 Forbidden\n\nToken is valid but lacks required permissions.\n\n### 429 Rate Limit Exceeded\n\nToo many requests. Implement exponential backoff.\n\n## Rate Limits\n\n- Standard tier: 1000 requests/hour\n- Premium tier: 10000 requests/hour\n- Enterprise: Custom limits\n\nRate limit headers:\n```\nX-RateLimit-Limit: 1000\nX-RateLimit-Remaining: 999\nX-RateLimit-Reset: 1640995200\n```',
+    'markdown', ARRAY['api', 'authentication', 'oauth'], 'reference', 'Alice Johnson', '2.1.0',
+    '{"word_count": 425, "last_reviewed": "2024-11-01", "related_docs": ["api-quickstart", "security-policy"]}',
+    '40', '15', '2'),
+
+    ('Architecture Decision Record: Database Sharding',
+E'# ADR-003: Implement Database Sharding Strategy\n\n## Status\n\nAccepted\n\n## Context\n\nOur user base has grown to 500K+ active users, and our monolithic PostgreSQL database is showing performance degradation:\n\n- Query latency increased 300% over 6 months\n- Write operations are becoming bottlenecked\n- Backup/restore windows exceed acceptable limits\n- Single point of failure concerns\n\n## Decision\n\nWe will implement horizontal database sharding with the following approach:\n\n### Sharding Strategy\n\n**Hash-based sharding on user_id**\n\n- Shard count: 16 initial shards (expandable to 64)\n- Shard key: MD5(user_id) % shard_count\n- Technology: PostgreSQL 15+ with Citus extension\n\n### Data Distribution\n\n```sql\n-- Example sharding function\nCREATE FUNCTION get_shard_id(user_id UUID) \nRETURNS INTEGER AS $$\nBEGIN\n  RETURN (''x'' || substring(md5(user_id::text), 1, 8))::bit(32)::int % 16;\nEND;\n$$ LANGUAGE plpgsql IMMUTABLE;\n```\n\n### Migration Plan\n\n1. **Phase 1**: Set up shard infrastructure (2 weeks)\n2. **Phase 2**: Implement application-layer sharding logic (3 weeks)\n3. **Phase 3**: Gradual data migration (4 weeks)\n4. **Phase 4**: Cutover and monitoring (1 week)\n\n## Consequences\n\n### Positive\n\n- **Performance**: 10x improvement in write throughput\n- **Scalability**: Linear scaling to 5M+ users\n- **Availability**: Shard-level isolation limits blast radius\n- **Backup efficiency**: Parallel backups reduce window to 30 minutes\n\n### Negative\n\n- **Complexity**: Application code must be shard-aware\n- **Cross-shard queries**: Expensive operations require scatter-gather\n- **Rebalancing**: Moving users between shards is complex\n- **Operational overhead**: Managing 16+ databases\n\n### Mitigation Strategies\n\n1. **Abstraction layer**: Create ShardingService to hide complexity\n2. **Caching**: Implement Redis caching for cross-shard data\n3. **Monitoring**: Comprehensive metrics for each shard\n4. **Documentation**: Detailed runbooks for operations team\n\n## Alternatives Considered\n\n### 1. Vertical Scaling\n\n- **Rejected**: Hitting hardware limits, diminishing returns\n- Cost: $50K/month for larger instance\n- Scalability ceiling: 2M users max\n\n### 2. Read Replicas\n\n- **Rejected**: Doesn''t solve write bottleneck\n- Only improves read performance\n- Replication lag introduces complexity\n\n### 3. NewSQL Databases (CockroachDB, TiDB)\n\n- **Rejected**: Too risky to migrate entire stack\n- Team lacks expertise\n- PostgreSQL compatibility concerns\n\n## References\n\n- [Instagram Engineering: Sharding](https://instagram-engineering.com/sharding-ids-at-instagram-1cf5a71e5a5c)\n- [Notion''s Sharding Journey](https://www.notion.so/blog/sharding)\n- [PostgreSQL Sharding with Citus](https://docs.citusdata.com/)',
+    'markdown', ARRAY['architecture', 'database', 'sharding', 'scalability'], 'adr', 'Bob Martinez', '1.0.0',
+    '{"stakeholders": ["Alice Johnson", "Bob Martinez", "Carol Zhang"], "review_date": "2024-10-15", "implementation_status": "in-progress"}',
+    '55', '10', '5'),
+
+    ('Team Onboarding Runbook',
+E'# New Team Member Onboarding\n\n## Pre-arrival (1 week before)\n\n### IT Setup\n\n- [ ] Create email account\n- [ ] Provision laptop (MacBook Pro M3)\n- [ ] Set up VPN access\n- [ ] Add to GitHub organization\n- [ ] Add to Slack workspace\n- [ ] Provision development environment\n\n### Access Requests\n\n```bash\n# Submit access request\n./scripts/create-user.sh --email new.hire@company.com --role engineer\n\n# Verify access\n./scripts/verify-access.sh --email new.hire@company.com\n```\n\n## Day 1\n\n### Morning (9:00 AM - 12:00 PM)\n\n**9:00 - 9:30**: Welcome meeting with manager\n- Team introduction\n- Review first week schedule\n- Q&A\n\n**9:30 - 10:30**: IT setup\n- Laptop configuration\n- Install required software:\n  - VS Code\n  - Docker Desktop\n  - Node.js 20+\n  - PostgreSQL client\n\n**10:30 - 12:00**: Codebase walkthrough\n- Clone repositories\n- Run local development environment\n- Review architecture documentation\n\n### Afternoon (1:00 PM - 5:00 PM)\n\n**1:00 - 2:00**: Lunch with team\n\n**2:00 - 3:00**: Security & Compliance training\n- Security policies\n- Data handling guidelines\n- Incident response procedures\n\n**3:00 - 5:00**: First ticket\n- Pair programming session\n- Simple bug fix or documentation update\n\n## Week 1\n\n### Development Environment Setup\n\n```bash\n# Install dependencies\nnpm install\n\n# Configure environment\ncp .env.example .env\n# Edit .env with your settings\n\n# Run database migrations\nnpm run db:migrate\n\n# Start development server\nnpm run dev\n```\n\n### Key Resources\n\n- [Engineering Wiki](https://wiki.company.com)\n- [API Documentation](https://api-docs.company.com)\n- [Team Calendar](https://calendar.company.com)\n- [Incident Runbooks](https://runbooks.company.com)\n\n## Week 2-4\n\n- Shadow senior engineer (1 week)\n- Take on first medium-sized feature\n- Participate in code reviews\n- Present at team standup\n\n## 30-Day Check-in\n\nSchedule 1:1 with manager to discuss:\n- Progress and challenges\n- Learning goals\n- Team fit\n- Career development\n\n## Common Issues\n\n### VPN Connection Problems\n\n```bash\n# Reset VPN\nsudo killall openvpn\nsudo openvpn --config ~/vpn/company.ovpn\n```\n\n### Database Connection Failed\n\n1. Verify VPN is connected\n2. Check DATABASE_URL in .env\n3. Confirm firewall rules allow connection\n4. Contact #dev-ops if issue persists\n\n## Emergency Contacts\n\n- IT Support: it-support@company.com (Slack: #it-help)\n- Security: security@company.com\n- Manager: your.manager@company.com',
+    'markdown', ARRAY['onboarding', 'hr', 'runbook'], 'runbook', 'Carol Zhang', '3.2.0',
+    '{"last_onboarding_date": "2024-11-01", "success_rate": "95%", "avg_completion_days": 28}',
+    '70', '5', '1')
+
+  ) AS d(title, content, content_type, tags, category, author, version, metadata, days_after, days_since_update, days_since_access)
+WHERE w.slug IN ('acme-corp', 'techstart-labs', 'devtools-inc', 'cloudscale', 'datapipe', 'secureauth')
+LIMIT 35;

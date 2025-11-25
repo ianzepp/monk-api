@@ -1,8 +1,8 @@
-import type { DbContext, TxContext } from '@src/db/index.js';
+import type { TxContext } from '@src/db/index.js';
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
 import { Describe } from '@src/lib/describe.js';
-import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
+import type { SystemContext, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
 
 /**
  * System class - Per-request context management
@@ -14,17 +14,15 @@ import type { SystemContextWithInfrastructure, SystemOptions, UserInfo } from '@
  * Implements SystemContext interface to provide business context to other components
  * while breaking circular dependencies through dependency injection.
  */
-export class System implements SystemContextWithInfrastructure {
+export class System implements SystemContext {
     public readonly context: Context;
     public readonly userId: string;
     public readonly options: Readonly<SystemOptions>;
     public readonly correlationId: string;
 
-    // Database context - always available for database operations
-    public readonly db: DbContext;
-
-    // Transaction context - set by SQL Observer when transactions needed
-    public tx?: TxContext;
+    // Transaction context - set by withTransaction() with search_path configured
+    // All tenant-scoped database operations MUST use this to ensure proper namespace isolation
+    public tx!: TxContext;
 
     // System services
     public readonly database: Database;
@@ -33,21 +31,8 @@ export class System implements SystemContextWithInfrastructure {
     constructor(c: Context, options: SystemOptions = {}) {
         this.context = c;
 
-        // Get database connection from Hono context (always required)
-        const db = c.get('database');
-        if (!db) {
-            throw new Error('Database context not set - ensure JWT middleware is applied');
-        }
-
-        if (!db) {
-            throw new Error('Unable to initialize database connection - ensure database middleware is applied');
-        }
-
-        // Initialize database connection (always available)
-        this.db = db;
-        this.tx = undefined; // Will be set by SQL Observer when transactions needed
-
         // Initialize service instances with clean dependency injection
+        // Note: system.tx is set by withTransaction() before any database operations
         this.database = new Database(this);
         this.describe = new Describe(this);
 

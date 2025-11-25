@@ -1,58 +1,34 @@
-# 34-Aggregate API Tests
+# 34-aggregate-api: Aggregation Functions
 
-Tests for the Aggregate API endpoint (`/api/aggregate/:schema`).
+**Priority**: MODERATE
+**Coverage**: 40% (Basic coverage only)
+**Status**: COUNT operations tested, numeric aggregations missing
 
-## Test Coverage
+## Critical / Smoke Tests
 
-### Basic Aggregation Functions
-- **basic-count.test.sh** - Simple COUNT(*) aggregations
-  - COUNT all records
-  - COUNT with WHERE filter
-  - COUNT DISTINCT values
-  - Multiple aggregations in single query
+### Existing Tests (2)
+- POST /api/aggregate/:model - COUNT(*) all records (basic-count.test.sh)
+- POST /api/aggregate/:model - GROUP BY single field with COUNT (group-by-basic.test.sh)
 
-### GROUP BY Operations
-- **group-by-basic.test.sh** - GROUP BY with aggregations
-  - Single column GROUP BY
-  - Multiple aggregations per group
-  - Verify grouped results structure
+## Additional Tests
 
-## Running Tests
+### Existing Coverage
+- COUNT with WHERE filter
+- COUNT DISTINCT values
+- Multiple aggregations in single query
+- GROUP BY with multiple aggregations
+- Response format and structure validation
 
-Run all aggregate API tests:
-```bash
-npm run test:sh spec/34-aggregate-api/
-```
+### Missing Tests (5 - marked as TODO)
+- SUM/AVG/MIN/MAX numeric aggregations (needs numeric field model testing)
+- Multi-field GROUP BY operations
+- Complex WHERE clauses combined with GROUP BY
+- Soft delete integration with aggregations (_deleted_at filtering)
+- ACL filtering with aggregations (permission-aware counts)
 
-Run specific test:
-```bash
-npm run test:sh spec/34-aggregate-api/basic-count.test.sh
-```
+## Notes
 
-## Test Scope
-
-These tests verify:
-- ✅ Basic aggregation functions (COUNT, SUM, AVG, MIN, MAX)
-- ✅ COUNT(*) vs COUNT(field) behavior
-- ✅ COUNT DISTINCT functionality
-- ✅ WHERE clause filtering with aggregations
-- ✅ GROUP BY single column
-- ✅ GROUP BY with multiple aggregations
-- ✅ Response format and structure
-- ✅ Error handling for invalid aggregations
-
-## Not Covered (TODO)
-
-- ⚠️ SUM/AVG/MIN/MAX numeric aggregations (needs numeric field in schema)
-- ⚠️ Multi-column GROUP BY
-- ⚠️ Complex WHERE clauses with GROUP BY
-- ⚠️ Soft delete integration with aggregations
-- ⚠️ ACL filtering with aggregations
-- ⚠️ Performance testing with large datasets
-
-## Dependencies
-
-Tests require:
-- `basic` fixture with account schema
-- Account schema fields: name, email, status
-- Authentication via JWT tokens
+- Good basic coverage for COUNT operations
+- Missing comprehensive numeric aggregation testing (SUM, AVG, MIN, MAX)
+- Should test with numeric fields (revenue, quantities, scores) to validate math operations
+- ACL and soft delete integration important for production data accuracy

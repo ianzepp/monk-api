@@ -3,11 +3,11 @@
  *
  * High-performance caching system for translated wildcard patterns.
  * Reduces translation overhead for repeated FS operations and provides
- * intelligent cache management with schema-based invalidation.
+ * intelligent cache management with model-based invalidation.
  *
  * ## Key Features
  * - **Pattern Translation Caching**: Caches WildcardTranslation results
- * - **Schema-based Invalidation**: Invalidates cache when schema data changes
+ * - **Model-based Invalidation**: Invalidates cache when model data changes
  * - **Usage Statistics**: Tracks hit counts and performance metrics
  * - **Memory Management**: LRU eviction and size limits
  * - **Performance Monitoring**: Cache hit/miss rates and optimization insights
@@ -16,7 +16,7 @@
  * - **Cache Key**: SHA256 hash of pattern string for consistent keys
  * - **TTL**: Configurable time-to-live for cache entries
  * - **Size Limits**: Maximum number of cached patterns (default: 1000)
- * - **Schema Tracking**: Maps schemas to cached patterns for targeted invalidation
+ * - **Model Tracking**: Maps models to cached patterns for targeted invalidation
  */
 
 import { createHash } from 'crypto';
@@ -30,7 +30,7 @@ export interface PatternCacheEntry {
     last_used: Date; // Last access time
     hit_count: number; // Number of times accessed
     ttl_expires: Date; // Time-to-live expiration
-    schemas_referenced: string[]; // Schemas this pattern references
+    models_referenced: string[]; // Models this pattern references
 }
 
 export interface CacheStats {
@@ -63,11 +63,11 @@ export interface CacheConfig {
  * High-Performance Pattern Caching System
  *
  * Provides intelligent caching of wildcard pattern translations with
- * schema-aware invalidation and comprehensive performance monitoring.
+ * model-aware invalidation and comprehensive performance monitoring.
  */
 export class PatternCache {
     private static cache: Map<string, PatternCacheEntry> = new Map();
-    private static schemaMap: Map<string, Set<string>> = new Map(); // schema -> pattern_hashes
+    private static modelMap: Map<string, Set<string>> = new Map(); // model -> pattern_hashes
     private static stats = {
         hit_count: 0,
         miss_count: 0,
@@ -97,8 +97,8 @@ export class PatternCache {
         const now = new Date();
         const ttlExpires = new Date(now.getTime() + this.config.default_ttl_minutes * 60 * 1000);
 
-        // Extract schemas referenced by this pattern
-        const schemasReferenced = this.extractReferencedSchemas(pattern, translation);
+        // Extract models referenced by this pattern
+        const modelsReferenced = this.extractReferencedModels(pattern, translation);
 
         const entry: PatternCacheEntry = {
             pattern,
@@ -108,18 +108,18 @@ export class PatternCache {
             last_used: now,
             hit_count: 0,
             ttl_expires: ttlExpires,
-            schemas_referenced: schemasReferenced,
+            models_referenced: modelsReferenced,
         };
 
         // Store cache entry
         this.cache.set(patternHash, entry);
 
-        // Update schema mapping for invalidation
-        for (const schema of schemasReferenced) {
-            if (!this.schemaMap.has(schema)) {
-                this.schemaMap.set(schema, new Set());
+        // Update model mapping for invalidation
+        for (const model of modelsReferenced) {
+            if (!this.modelMap.has(model)) {
+                this.modelMap.set(model, new Set());
             }
-            this.schemaMap.get(schema)!.add(patternHash);
+            this.modelMap.get(model)!.add(patternHash);
         }
 
         // Enforce cache size limits
@@ -146,7 +146,7 @@ export class PatternCache {
         // Check TTL expiration
         if (new Date() > entry.ttl_expires) {
             this.cache.delete(patternHash);
-            this.removeFromSchemaMap(patternHash, entry.schemas_referenced);
+            this.removeFromModelMap(patternHash, entry.models_referenced);
 
             if (this.config.enable_stats) {
                 this.stats.miss_count++;
@@ -166,13 +166,13 @@ export class PatternCache {
     }
 
     /**
-     * Invalidate cache based on schema data changes
+     * Invalidate cache based on model data changes
      */
-    static invalidate(schema: string): void {
-        const patternHashes = this.schemaMap.get(schema);
+    static invalidate(model: string): void {
+        const patternHashes = this.modelMap.get(model);
 
         if (!patternHashes) {
-            return; // No patterns reference this schema
+            return; // No patterns reference this model
         }
 
         let invalidatedCount = 0;
@@ -182,15 +182,15 @@ export class PatternCache {
 
             if (entry) {
                 this.cache.delete(patternHash);
-                this.removeFromSchemaMap(patternHash, entry.schemas_referenced);
+                this.removeFromModelMap(patternHash, entry.models_referenced);
                 invalidatedCount++;
             }
         }
 
-        // Clear the schema mapping
-        this.schemaMap.delete(schema);
+        // Clear the model mapping
+        this.modelMap.delete(model);
 
-        console.debug(`PatternCache: Invalidated ${invalidatedCount} patterns for schema '${schema}'`);
+        console.debug(`PatternCache: Invalidated ${invalidatedCount} patterns for model '${model}'`);
     }
 
     /**
@@ -199,7 +199,7 @@ export class PatternCache {
     static invalidateAll(): void {
         const totalEntries = this.cache.size;
         this.cache.clear();
-        this.schemaMap.clear();
+        this.modelMap.clear();
 
         console.debug(`PatternCache: Cleared all ${totalEntries} cached patterns`);
     }
@@ -269,7 +269,7 @@ export class PatternCache {
             const entry = this.cache.get(patternHash);
             if (entry) {
                 this.cache.delete(patternHash);
-                this.removeFromSchemaMap(patternHash, entry.schemas_referenced);
+                this.removeFromModelMap(patternHash, entry.models_referenced);
             }
         }
 
@@ -288,41 +288,41 @@ export class PatternCache {
     }
 
     /**
-     * Extract schemas referenced by pattern and translation
+     * Extract models referenced by pattern and translation
      */
-    private static extractReferencedSchemas(pattern: string, translation: WildcardTranslation): string[] {
-        const schemas = new Set<string>();
+    private static extractReferencedModels(pattern: string, translation: WildcardTranslation): string[] {
+        const models = new Set<string>();
 
-        // Add explicit schemas from translation
-        for (const schema of translation.schemas) {
-            if (schema && schema !== '*') {
-                schemas.add(schema);
+        // Add explicit models from translation
+        for (const model of translation.models) {
+            if (model && model !== '*') {
+                models.add(model);
             }
         }
 
-        // Parse pattern for schema references
+        // Parse pattern for model references
         const pathParts = pattern.split('/').filter(p => p.length > 0);
 
         if (pathParts.length >= 2 && pathParts[0] === 'data') {
-            const schemaName = pathParts[1];
-            if (schemaName && schemaName !== '*' && !schemaName.includes('*')) {
-                schemas.add(schemaName);
+            const modelName = pathParts[1];
+            if (modelName && modelName !== '*' && !modelName.includes('*')) {
+                models.add(modelName);
             }
         }
 
-        return Array.from(schemas);
+        return Array.from(models);
     }
 
     /**
-     * Remove pattern hash from schema mappings
+     * Remove pattern hash from model mappings
      */
-    private static removeFromSchemaMap(patternHash: string, schemas: string[]): void {
-        for (const schema of schemas) {
-            const patternSet = this.schemaMap.get(schema);
+    private static removeFromModelMap(patternHash: string, models: string[]): void {
+        for (const model of models) {
+            const patternSet = this.modelMap.get(model);
             if (patternSet) {
                 patternSet.delete(patternHash);
                 if (patternSet.size === 0) {
-                    this.schemaMap.delete(schema);
+                    this.modelMap.delete(model);
                 }
             }
         }
@@ -344,7 +344,7 @@ export class PatternCache {
         for (let i = 0; i < evictCount; i++) {
             const [patternHash, entry] = entries[i];
             this.cache.delete(patternHash);
-            this.removeFromSchemaMap(patternHash, entry.schemas_referenced);
+            this.removeFromModelMap(patternHash, entry.models_referenced);
         }
 
         console.debug(`PatternCache: Evicted ${evictCount} least recently used patterns`);
@@ -374,9 +374,9 @@ export class PatternCache {
             totalBytes += JSON.stringify(entry).length * 2; // Unicode characters = 2 bytes
         }
 
-        // Add overhead for Map structure and schema mappings
+        // Add overhead for Map structure and model mappings
         totalBytes += this.cache.size * 100; // Estimated Map overhead
-        totalBytes += this.schemaMap.size * 50; // Estimated schema map overhead
+        totalBytes += this.modelMap.size * 50; // Estimated model map overhead
 
         return totalBytes;
     }

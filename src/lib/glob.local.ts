@@ -7,22 +7,22 @@ export interface GlobOptions {
 
 /**
  * Local glob implementation for simple file pattern matching
- * 
+ *
  * Replaces the external glob package for basic recursive file discovery.
  * Supports simple recursive directory patterns with ignore filters.
  */
 export async function glob(pattern: string, options: GlobOptions = {}): Promise<string[]> {
     const ignore = options.ignore || [];
-    
+
     // Parse pattern - for now, support simple "dir/**/*.ext" patterns
     const parts = pattern.split('/**/');
     if (parts.length !== 2) {
         throw new Error(`Unsupported glob pattern: ${pattern}. Only dir/**/*.ext patterns supported.`);
     }
-    
+
     const baseDir = resolve(parts[0]);
     const filePattern = parts[1]; // e.g., "*.ts"
-    
+
     return findFiles(baseDir, filePattern, ignore);
 }
 
@@ -31,21 +31,21 @@ export async function glob(pattern: string, options: GlobOptions = {}): Promise<
  */
 function findFiles(dir: string, filePattern: string, ignore: string[]): string[] {
     const files: string[] = [];
-    
+
     function traverse(currentDir: string) {
         try {
             const entries = readdirSync(currentDir);
-            
+
             for (const entry of entries) {
                 const fullPath = join(currentDir, entry);
-                
+
                 // Check ignore patterns
                 if (shouldIgnore(fullPath, ignore)) {
                     continue;
                 }
-                
+
                 const stat = statSync(fullPath);
-                
+
                 if (stat.isDirectory()) {
                     traverse(fullPath); // Recurse into subdirectories
                 } else if (matchesPattern(entry, filePattern)) {
@@ -54,10 +54,10 @@ function findFiles(dir: string, filePattern: string, ignore: string[]): string[]
             }
         } catch (error) {
             // Skip directories that can't be read
-            logger.warn(`Warning: Cannot read directory ${currentDir}:`, error);
+            console.warn(`Warning: Cannot read directory ${currentDir}:`, error);
         }
     }
-    
+
     traverse(dir);
     return files;
 }

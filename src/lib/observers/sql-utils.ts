@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 import { SystemError } from '@src/lib/observers/errors.js';
-import { logger } from '@src/lib/logger.js';
+import { convertRecordPgToMonk, convertRecordMonkToPg } from '@src/lib/field-types.js';
 
 /**
  * SQL Observer Utilities
@@ -15,75 +15,31 @@ export class SqlUtils {
      * Convert PostgreSQL string results back to proper JSON types
      *
      * PostgreSQL returns all values as strings by default. This method converts
-     * them back to the correct JSON types based on the schema definition.
+     * them back to the correct JSON types based on the model field metadata.
      */
-    static convertPostgreSQLTypes(record: any, schema: any): any {
-        if (!schema.definition?.properties) {
+    static convertPostgreSQLTypes(record: any, model: any): any {
+        if (!model.typedFields || model.typedFields.size === 0) {
             return record;
         }
 
-        const converted = { ...record };
-        const properties = schema.definition.properties;
-
-        for (const [fieldName, fieldDef] of Object.entries(properties)) {
-            if (converted[fieldName] !== null && converted[fieldName] !== undefined) {
-                const fieldDefinition = fieldDef as any;
-
-                switch (fieldDefinition.type) {
-                    case 'number':
-                    case 'integer':
-                        if (typeof converted[fieldName] === 'string') {
-                            converted[fieldName] = Number(converted[fieldName]);
-                        }
-                        break;
-
-                    case 'boolean':
-                        if (typeof converted[fieldName] === 'string') {
-                            converted[fieldName] = converted[fieldName] === 'true';
-                        }
-                        break;
-
-                    case 'object':
-                    case 'array':
-                        // JSONB fields: PostgreSQL returns these as already parsed objects/arrays
-                        // but in some cases they might come back as strings, so handle both
-                        if (typeof converted[fieldName] === 'string') {
-                            try {
-                                converted[fieldName] = JSON.parse(converted[fieldName]);
-                            } catch (error) {
-                                // If JSON parsing fails, leave as string
-                                // This handles edge cases where JSONB might return malformed data
-                                logger.warn('Failed to parse JSONB field', {
-                                    fieldName,
-                                    error: error instanceof Error ? error.message : String(error),
-                                });
-                            }
-                        }
-                        // If already an object/array, leave as-is (normal PostgreSQL JSONB behavior)
-                        break;
-
-                    // Strings and dates can remain as strings
-                }
-            }
-        }
-
-        return converted;
+        return convertRecordPgToMonk(record, model.typedFields);
     }
 
     /**
      * Process UUID arrays for PostgreSQL compatibility
      *
-     * Converts JavaScript arrays to PostgreSQL array literals for UUID fields
-     * based on metadata flags set by UuidArrayProcessor in Ring 4.
+     * Converts JavaScript arrays to PostgreSQL array literals for UUID fields.
+     * Automatically detects UUID array fields by checking if the field name
+     * is a known UUID array field and the value is an array.
      */
-    static processUuidArrays(record: any, metadata: Map<string, any>): any {
+    static processUuidArrays(record: any): any {
         const processed = { ...record };
 
         // Check each potential UUID array field
         const uuidFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
 
         for (const fieldName of uuidFields) {
-            if (metadata.get(`${fieldName}_is_uuid_array`) && Array.isArray(processed[fieldName])) {
+            if (Array.isArray(processed[fieldName])) {
                 // Convert JavaScript array to PostgreSQL array literal
                 processed[fieldName] = `{${processed[fieldName].join(',')}}`;
             }
@@ -95,36 +51,19 @@ export class SqlUtils {
     /**
      * Process JSONB fields for PostgreSQL compatibility
      *
-     * Converts JavaScript objects and arrays to JSON strings for JSONB columns
-     * based on schema field type definitions (type: object or type: array).
+     * Converts JavaScript objects and arrays to JSON strings for JSONB fields
+     * based on model field type definitions.
      */
-    static processJsonbFields(record: any, schema: any): any {
-        if (!schema.definition?.properties) {
+    static processJsonbFields(record: any, model: any): any {
+        if (!model.typedFields || model.typedFields.size === 0) {
             return record;
         }
 
-        const processed = { ...record };
-        const properties = schema.definition.properties;
-
-        for (const [fieldName, fieldDef] of Object.entries(properties)) {
-            const fieldDefinition = fieldDef as any;
-
-            // Check if this is a JSONB field (object or array type)
-            if (fieldDefinition.type === 'object' || fieldDefinition.type === 'array') {
-                const value = processed[fieldName];
-
-                // Only process non-null values that aren't already strings
-                if (value !== null && value !== undefined && typeof value !== 'string') {
-                    try {
-                        processed[fieldName] = JSON.stringify(value);
-                    } catch (error) {
-                        throw new SystemError(`Failed to serialize JSONB field '${fieldName}': ${error instanceof Error ? error.message : String(error)}`);
-                    }
-                }
-            }
+        try {
+            return convertRecordMonkToPg(record, model.typedFields);
+        } catch (error) {
+            throw new SystemError(error instanceof Error ? error.message : String(error));
         }
-
-        return processed;
     }
 
     /**

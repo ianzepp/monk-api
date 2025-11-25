@@ -7,6 +7,7 @@ export interface JWTPayload {
     access_read: string[]; // ACL read access
     access_edit: string[]; // ACL edit access
     access_full: string[]; // ACL full access
+    format?: string; // Preferred response format (json, toon, or yaml)
     iat: number; // Issued at
     exp: number; // Expires at
     [key: string]: any; // Index signature for Hono compatibility

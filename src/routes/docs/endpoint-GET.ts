@@ -1,0 +1,175 @@
+import type { Context } from 'hono';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
+
+/**
+ * GET /docs/* - Get API documentation (endpoint-specific or API overview)
+ *
+ * Supports two patterns:
+ * 1. API Overview: /docs/api/data → api/data/PUBLIC.md
+ * 2. Endpoint-Specific: /docs/api/data/model/GET → api/data/:model/GET.md
+ *
+ * Mapping: /docs/{path} → src/routes/{path}/PUBLIC.md or {METHOD}.md
+ *
+ * @see Self-documenting API pattern for CLI and AI integration
+ */
+export default async function (context: Context) {
+    const endpoint = context.req.param('endpoint') || '';
+    const segments = endpoint.split('/').filter(s => s.length > 0);
+
+    if (segments.length === 0) {
+        throw HttpErrors.badRequest('Documentation path is required', 'DOCS_PATH_MISSING');
+    }
+
+    // Determine base directory based on environment
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const baseDir = isDevelopment ? 'src' : 'dist';
+
+    // Check if last segment is an HTTP method
+    const lastSegment = segments[segments.length - 1];
+    const validMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+    const isMethodRequest = validMethods.includes(lastSegment.toUpperCase());
+
+    let mdFilePath: string | null = null;
+
+    if (isMethodRequest) {
+        // Pattern 1: Endpoint-specific documentation (METHOD.md)
+        // Example: /docs/api/data/model/GET → api/data/:model/GET.md
+        const method = lastSegment.toUpperCase();
+        const pathSegments = segments.slice(0, -1);
+
+        // Known placeholder mappings
+        const placeholderMap: Record<string, string> = {
+            'model': ':model',
+            'field': ':field',
+            'record': ':record',
+            'relationship': ':relationship',
+            'child': ':child',
+        };
+
+        // Try to find the documentation file with placeholder resolution
+        mdFilePath = findMethodDocumentation(
+            process.cwd(),
+            baseDir,
+            pathSegments,
+            method,
+            placeholderMap
+        );
+
+        if (!mdFilePath) {
+            throw HttpErrors.notFound(
+                `Endpoint documentation not found: ${endpoint}. Try /docs/ to see available APIs.`,
+                'ENDPOINT_DOCS_NOT_FOUND'
+            );
+        }
+    } else {
+        // Pattern 2: API overview documentation (PUBLIC.md)
+        // Example: /docs/api/data → api/data/PUBLIC.md
+        const apiDir = join(process.cwd(), baseDir, 'routes', ...segments);
+        const publicPath = join(apiDir, 'PUBLIC.md');
+
+        if (existsSync(publicPath)) {
+            mdFilePath = publicPath;
+        } else {
+            throw HttpErrors.notFound(
+                `API documentation not found: ${endpoint}. Try /docs/ to see available APIs.`,
+                'API_DOCS_NOT_FOUND'
+            );
+        }
+    }
+
+    try {
+        // Read markdown content
+        const content = readFileSync(mdFilePath, 'utf8');
+
+        // Set proper content-type for markdown
+        context.header('Content-Type', 'text/markdown; charset=utf-8');
+
+        // Return markdown content directly (not JSON)
+        return context.text(content);
+    } catch (error) {
+        throw HttpErrors.internal(
+            'Failed to read documentation file',
+            'DOCS_READ_ERROR'
+        );
+    }
+}
+
+/**
+ * Find method-specific documentation file using placeholder resolution
+ *
+ * Strategy:
+ * 1. Try exact path first
+ * 2. Replace last N segments with placeholders and try
+ * 3. Work backwards replacing more segments
+ *
+ * Example: /docs/api/data/model/GET
+ * - Try: api/data/model/GET.md
+ * - Try: api/data/:model/GET.md (replace 'model' with ':model')
+ * - Try: api/:data/:model/GET.md (unlikely but possible)
+ */
+function findMethodDocumentation(
+    cwd: string,
+    baseDir: string,
+    pathSegments: string[],
+    method: string,
+    placeholderMap: Record<string, string>
+): string | null {
+    const pathsToTry: string[] = [];
+
+    // Strategy 1: Try exact path
+    pathsToTry.push(join(cwd, baseDir, 'routes', ...pathSegments, `${method}.md`));
+
+    // Strategy 2: Replace each segment from right to left with placeholders
+    for (let i = pathSegments.length - 1; i >= 0; i--) {
+        const segment = pathSegments[i];
+        const placeholder = placeholderMap[segment.toLowerCase()];
+
+        if (placeholder) {
+            // Create a new path array with this segment replaced
+            const modifiedSegments = [...pathSegments];
+            modifiedSegments[i] = placeholder;
+            pathsToTry.push(join(cwd, baseDir, 'routes', ...modifiedSegments, `${method}.md`));
+        }
+    }
+
+    // Strategy 3: Try common multi-placeholder patterns
+    // Pattern: model → :model
+    if (pathSegments.length === 3 && pathSegments[2] === 'model') {
+        const base = pathSegments.slice(0, 2);
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', `${method}.md`));
+    }
+
+    // Pattern: model/record → :model/:record
+    // Pattern: model/field → :model/fields/:field
+    if (pathSegments.length === 4 && pathSegments[2] === 'model') {
+        const base = pathSegments.slice(0, 2);
+        const lastSegment = pathSegments[3];
+        const lastPlaceholder = placeholderMap[lastSegment.toLowerCase()];
+        if (lastPlaceholder) {
+            pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', lastPlaceholder, `${method}.md`));
+        }
+    }
+
+    // Pattern: model/record/relationship → :model/:record/:relationship
+    if (pathSegments.length === 5) {
+        const base = pathSegments.slice(0, 2);
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':record', ':relationship', `${method}.md`));
+    }
+
+    // Pattern: model/record/relationship/child → :model/:record/:relationship/:child
+    if (pathSegments.length === 6) {
+        const base = pathSegments.slice(0, 2);
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':record', ':relationship', ':child', `${method}.md`));
+    }
+
+    // Try each path until we find one that exists
+    for (const path of pathsToTry) {
+        if (existsSync(path)) {
+            return path;
+        }
+    }
+
+    return null;
+}

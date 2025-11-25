@@ -36,7 +36,31 @@ export async function systemContextMiddleware(context: Context, next: Next) {
         console.debug(`🔧 System context initialized for request: ${context.req.method} ${context.req.url}`);
 
         // Execute route handler
-        await next();
+        const result = await next();
+
+        // If handler created and finalized a response, return it
+        if (context.finalized) {
+            return result;
+        }
+
+        // Check if route set a result via setRouteResult() without creating a response
+        const routeResult = context.get('routeResult');
+        if (routeResult !== undefined) {
+            // Route used setRouteResult() pattern - create response
+            const routeTotal = context.get('routeTotal');
+            const responseData = {
+                success: true,
+                data: routeResult,
+                ...(routeTotal !== undefined && { total: routeTotal })
+            };
+
+            // Note: Field extraction (?unwrap, ?select=) is handled by fieldExtractionMiddleware
+            // which runs after this middleware in the response chain
+
+            return context.json(responseData, 200);
+        }
+
+        return result;
     } catch (error) {
         // Global error handling with proper error categorization
         console.error(`💥 Request failed: ${context.req.method} ${context.req.url}`, error);
@@ -56,10 +80,22 @@ export async function systemContextMiddleware(context: Context, next: Next) {
 }
 
 /**
- * Helper for route handlers to set their result for automatic formatting
+ * Helper for route handlers to set their result for automatic response creation
  *
- * Use this for data API routes that should be JSON formatted.
- * Describe API routes use system.describe methods with automatic JSON formatting.
+ * Routes using this pattern don't call context.json() directly - instead they store
+ * the result data and let systemContextMiddleware create the response. This response
+ * will be transparently formatted by responseFormatterMiddleware if a non-JSON format
+ * is requested via ?format query parameter.
+ *
+ * Example usage:
+ *   export default withTransactionParams(async (context, { system, model, record, options }) => {
+ *       const result = await system.database.select404(model, { where: { id: record } });
+ *       setRouteResult(context, result);  // Don't return - middleware handles response
+ *   });
+ *
+ * The response will be:
+ *   - JSON by default (99% of requests)
+ *   - TOON/YAML/etc when ?format=toon is specified (transparent to route logic)
  */
 export function setRouteResult(context: Context, result: any) {
     context.set('routeResult', result);

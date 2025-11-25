@@ -5,6 +5,8 @@
  * breaking circular dependencies while maintaining clean architecture.
  */
 
+import type { Context } from 'hono';
+
 /**
  * System options for controlling query behavior
  */
@@ -28,15 +30,15 @@ export interface UserInfo {
 }
 
 /**
- * SystemContext interface - Defines the context needed by business logic components
+ * System Context - Per-request context for database operations
  *
- * This interface provides the essential context information that Database, Schema,
- * and other business logic classes need without creating circular dependencies.
+ * Provides business context (user, options) and infrastructure (db, tx, services)
+ * to all database operations, models, and observers.
  *
  * Design principles:
- * - Contains only business context, not infrastructure concerns
- * - Forward-compatible with Ring 5 observer architecture (Issue #94)
- * - Lightweight and easily mockable for testing
+ * - Per-request instance pattern (not singleton)
+ * - Dependency injection to break circular dependencies
+ * - Contains both business context and infrastructure concerns
  */
 export interface SystemContext {
     /** User ID from authentication context */
@@ -44,6 +46,19 @@ export interface SystemContext {
 
     /** Query behavior options (soft delete handling, etc.) */
     readonly options: Readonly<SystemOptions>;
+
+    /** Hono request context for accessing request/response and context variables */
+    readonly context: Context;
+
+    /** Transaction context with search_path configured for namespace isolation
+     *  Set by withTransaction() before any database operations execute */
+    tx: any; // Avoid importing pg.PoolClient to prevent circular deps
+
+    /** Database instance for high-level operations */
+    readonly database: any; // Avoid importing Database class to prevent circular deps
+
+    /** Describe instance for model operations */
+    readonly describe: any; // Avoid importing Describe class to prevent circular deps
 
     /**
      * Get comprehensive user information from the request context
@@ -54,23 +69,4 @@ export interface SystemContext {
      * Check if the current user has root access level
      */
     isRoot(): boolean;
-
-}
-
-/**
- * Extended system context that includes infrastructure concerns
- * Used during transition period before Ring 5 migration (Issue #94)
- */
-export interface SystemContextWithInfrastructure extends SystemContext {
-    /** Database connection - always available for database operations */
-    readonly db: any; // Avoid importing pg.Pool to prevent circular deps
-
-    /** Transaction context - set by SQL Observer when transactions needed */
-    tx?: any; // Avoid importing pg.PoolClient to prevent circular deps
-
-    /** Database instance for high-level operations */
-    readonly database: any; // Avoid importing Database class to prevent circular deps
-
-    /** Describe instance for schema operations */
-    readonly describe: any; // Avoid importing Describe class to prevent circular deps
 }

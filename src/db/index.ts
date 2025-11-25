@@ -1,5 +1,5 @@
 import pg from 'pg';
-import * as schema from '@src/db/schema.js';
+import * as model from '@src/db/model.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 // Export lazy-loaded centralized pool - ONLY source of database connections
@@ -10,8 +10,8 @@ export const db = new Proxy({} as pg.Pool, {
     },
 });
 
-// Export schema interfaces and constants
-export const builtins = schema;
+// Export model interfaces and constants
+export const builtins = model;
 
 // Types for database operations
 export type DbContext = pg.Pool;
@@ -31,4 +31,19 @@ export async function checkDatabaseConnection(): Promise<boolean> {
 // Graceful shutdown
 export async function closeDatabaseConnection(): Promise<void> {
     await DatabaseConnection.closeConnections();
+}
+
+// Pool management for tests
+export async function closeTestDatabasePools(): Promise<void> {
+    // Close both test_ and tenant_ prefixed pools (tenant_ pools created by test registration)
+    await DatabaseConnection.closePoolsByPrefix('test_');
+    await DatabaseConnection.closePoolsByPrefix('tenant_');
+}
+
+export async function closeDatabasePool(databaseName: string): Promise<void> {
+    await DatabaseConnection.closePool(databaseName);
+}
+
+export function getDatabasePoolStats() {
+    return DatabaseConnection.getPoolStats();
 }

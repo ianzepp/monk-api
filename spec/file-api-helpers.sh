@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # File API Test Helper Library
-# 
+#
 # Provides streamlined functions for testing File API endpoints with clean syntax,
 # response extraction, and File-specific validation patterns.
 #
@@ -18,10 +18,10 @@ file_api_post() {
     local endpoint="$1"
     local data="$2"
     shift 2
-    
+
     local response=$(auth_post "api/file/$endpoint" "$data" "$@")
     assert_success "$response"
-    
+
     # Extract data field when present, fallback to full response for path-first API
     local extracted=$(extract_data "$response")
     if [[ "$extracted" == "null" ]]; then
@@ -35,16 +35,16 @@ file_api_post() {
 file_list() {
     local path="$1"
     local options="${2:-{}}"
-    
+
     local request_data=$(jq -n --arg path "$path" --argjson options "$options" \
         '{path: $path, file_options: $options}')
-    
+
     file_api_post "list" "$request_data"
 }
 
 file_stat() {
     local path="$1"
-    
+
     local request_data=$(jq -n --arg path "$path" '{path: $path}')
     file_api_post "stat" "$request_data"
 }
@@ -52,10 +52,10 @@ file_stat() {
 file_retrieve() {
     local path="$1"
     local options="${2:-{}}"
-    
+
     local request_data=$(jq -n --arg path "$path" --argjson options "$options" \
         '{path: $path, file_options: $options}')
-    
+
     file_api_post "retrieve" "$request_data"
 }
 
@@ -63,10 +63,10 @@ file_store() {
     local path="$1"
     local content="$2"
     local options="${3:-{}}"
-    
+
     local request_data=$(jq -n --arg path "$path" --argjson content "$content" --argjson options "$options" \
         '{path: $path, content: $content, file_options: $options}')
-    
+
     file_api_post "store" "$request_data"
 }
 
@@ -74,23 +74,23 @@ file_delete() {
     local path="$1"
     local options="${2:-{}}"
     local safety_checks="${3:-{}}"
-    
+
     local request_data=$(jq -n --arg path "$path" --argjson options "$options" --argjson safety "$safety_checks" \
         '{path: $path, file_options: $options, safety_checks: $safety}')
-    
+
     file_api_post "delete" "$request_data"
 }
 
 file_size() {
     local path="$1"
-    
+
     local request_data=$(jq -n --arg path "$path" '{path: $path}')
     file_api_post "size" "$request_data"
 }
 
 file_modify_time() {
     local path="$1"
-    
+
     local request_data=$(jq -n --arg path "$path" '{path: $path}')
     file_api_post "modify-time" "$request_data"
 }
@@ -105,14 +105,14 @@ test_file_api_error() {
     local path="$2"
     local expected_error_code="$3"
     local description="$4"
-    
+
     print_step "Testing File API error: $description"
-    
+
     local request_data=$(jq -n --arg path "$path" '{path: $path}')
     local response=$(auth_post "api/file/$endpoint" "$request_data" || echo '{"success":false}')
-    
+
     assert_error "$response"
-    
+
     if [[ -n "$expected_error_code" ]]; then
         local actual_code=$(echo "$response" | jq -r '.error_code // .error // empty')
         if [[ "$actual_code" == "$expected_error_code" ]]; then
@@ -134,11 +134,11 @@ validate_file_metadata() {
     local file_stat="$1"
     local expected_type="$2"
     local description="$3"
-    
+
     # Validate required fields exist
     assert_has_field "file_metadata" "$file_stat"
     assert_has_field "record_info" "$file_stat"
-    
+
     # Validate file type
     local actual_type=$(echo "$file_stat" | jq -r '.file_metadata.type')
     if [[ "$actual_type" == "$expected_type" ]]; then
@@ -146,7 +146,7 @@ validate_file_metadata() {
     else
         test_fail "$description should be $expected_type, got: $actual_type"
     fi
-    
+
     # Validate permissions format
     local permissions=$(echo "$file_stat" | jq -r '.file_metadata.permissions')
     if [[ "$permissions" =~ ^[r-][w-][x-]$ ]]; then
@@ -154,7 +154,7 @@ validate_file_metadata() {
     else
         test_fail "$description permissions invalid format: $permissions"
     fi
-    
+
     # Validate timestamp format
     local modified_time=$(echo "$file_stat" | jq -r '.file_metadata.modified_time')
     if [[ "$modified_time" =~ ^[0-9]{14}$ ]]; then
@@ -167,17 +167,17 @@ validate_file_metadata() {
 # Validate record info structure
 validate_record_info() {
     local file_stat="$1"
-    local expected_schema="$2"
+    local expected_model="$2"
     local expected_record_id="$3"
     local description="$4"
-    
-    local schema=$(echo "$file_stat" | jq -r '.record_info.schema')
-    if [[ "$schema" == "$expected_schema" ]]; then
-        print_success "$description schema: $schema"
+
+    local model=$(echo "$file_stat" | jq -r '.record_info.model')
+    if [[ "$model" == "$expected_model" ]]; then
+        print_success "$description model: $model"
     else
-        test_fail "$description schema should be '$expected_schema', got: $schema"
+        test_fail "$description model should be '$expected_model', got: $model"
     fi
-    
+
     if [[ -n "$expected_record_id" ]]; then
         local record_id=$(echo "$file_stat" | jq -r '.record_info.record_id')
         if [[ "$record_id" == "$expected_record_id" ]]; then
@@ -193,7 +193,7 @@ validate_field_info() {
     local file_stat="$1"
     local expected_field_name="$2"
     local description="$3"
-    
+
     local field_name=$(echo "$file_stat" | jq -r '.record_info.field_name')
     if [[ "$field_name" == "$expected_field_name" ]]; then
         print_success "$description field_name: $field_name"
@@ -207,7 +207,7 @@ validate_file_size() {
     local file_stat="$1"
     local min_size="$2"
     local description="$3"
-    
+
     local size=$(echo "$file_stat" | jq -r '.file_metadata.size')
     if [[ "$size" -ge "$min_size" ]]; then
         print_success "$description size: $size bytes (>= $min_size)"
@@ -217,57 +217,57 @@ validate_file_size() {
 }
 
 # ===========================
-# File API Path Testing Helpers  
+# File API Path Testing Helpers
 # ===========================
 
 # Test complete path hierarchy for a record
 test_record_hierarchy() {
-    local schema="$1"
+    local model="$1"
     local record_id="$2"
     local record_name="$3"
-    
-    print_step "Testing complete File API hierarchy for: $schema/$record_id"
-    
-    # Schema directory
-    local schema_stat=$(file_stat "/data/$schema")
-    validate_file_metadata "$schema_stat" "directory" "Schema directory"
-    validate_record_info "$schema_stat" "$schema" "" "Schema directory"
-    
-    # Record directory  
-    local record_dir_stat=$(file_stat "/data/$schema/$record_id")
+
+    print_step "Testing complete File API hierarchy for: $model/$record_id"
+
+    # Model directory
+    local model_stat=$(file_stat "/data/$model")
+    validate_file_metadata "$model_stat" "directory" "Model directory"
+    validate_record_info "$model_stat" "$model" "" "Model directory"
+
+    # Record directory
+    local record_dir_stat=$(file_stat "/data/$model/$record_id")
     validate_file_metadata "$record_dir_stat" "directory" "Record directory"
-    validate_record_info "$record_dir_stat" "$schema" "$record_id" "Record directory"
-    
+    validate_record_info "$record_dir_stat" "$model" "$record_id" "Record directory"
+
     # Record JSON file
-    local record_file_stat=$(file_stat "/data/$schema/$record_id.json")
+    local record_file_stat=$(file_stat "/data/$model/$record_id.json")
     validate_file_metadata "$record_file_stat" "file" "Record JSON file"
-    validate_record_info "$record_file_stat" "$schema" "$record_id" "Record JSON file"
+    validate_record_info "$record_file_stat" "$model" "$record_id" "Record JSON file"
     validate_file_size "$record_file_stat" "10" "Record JSON file"
-    
+
     print_success "Complete hierarchy validated for: $record_name"
 }
 
 # Test field access for a record
 test_field_access() {
-    local schema="$1"
+    local model="$1"
     local record_id="$2"
     local field_name="$3"
     local expected_content="$4"
-    
-    print_step "Testing field access: $schema/$record_id/$field_name"
-    
+
+    print_step "Testing field access: $model/$record_id/$field_name"
+
     # Field file stat
-    local field_stat=$(file_stat "/data/$schema/$record_id/$field_name")
+    local field_stat=$(file_stat "/data/$model/$record_id/$field_name")
     validate_file_metadata "$field_stat" "file" "Field file"
-    validate_record_info "$field_stat" "$schema" "$record_id" "Field file"
+    validate_record_info "$field_stat" "$model" "$record_id" "Field file"
     validate_field_info "$field_stat" "$field_name" "Field file"
-    
+
     # Validate field size makes sense for content
     if [[ -n "$expected_content" ]]; then
         local expected_min_size=${#expected_content}
         validate_file_size "$field_stat" "$expected_min_size" "Field file"
     fi
-    
+
     print_success "Field access validated: $field_name"
 }
 
@@ -279,12 +279,12 @@ test_field_access() {
 get_template_account() {
     local accounts_response=$(auth_get "api/data/account")
     local accounts_data=$(extract_and_validate_data "$accounts_response" "accounts")
-    
+
     local account_count=$(echo "$accounts_data" | jq 'length')
     if [[ "$account_count" -lt 1 ]]; then
         test_fail "No accounts found in template"
     fi
-    
+
     # Return first account as JSON
     echo "$accounts_data" | jq '.[0]'
 }
@@ -292,13 +292,13 @@ get_template_account() {
 # Extract account info for testing
 extract_account_info() {
     local account="$1"
-    
+
     # Export as global variables for easy access in tests
     ACCOUNT_ID=$(echo "$account" | jq -r '.id')
     ACCOUNT_NAME=$(echo "$account" | jq -r '.name')
     ACCOUNT_EMAIL=$(echo "$account" | jq -r '.email')
-    
+
     export ACCOUNT_ID ACCOUNT_NAME ACCOUNT_EMAIL
-    
+
     print_success "Account info: $ACCOUNT_NAME ($ACCOUNT_ID) - $ACCOUNT_EMAIL"
 }

@@ -1,16 +1,17 @@
 /**
  * Observer Framework Interfaces
- * 
+ *
  * Core interfaces for the observer ring system including context sharing,
  * observer definitions, and execution contracts.
  */
 
-import type { System } from '@src/lib/system.js';
-import type { Schema } from '@src/lib/schema.js';
-import type { 
-    ObserverRing, 
-    OperationType, 
-    ObserverResult 
+import type { SystemContext } from '@src/lib/system-context-types.js';
+import type { Model } from '@src/lib/model.js';
+import type { ModelRecord } from '@src/lib/model-record.js';
+import type {
+    ObserverRing,
+    OperationType,
+    ObserverResult
 } from '@src/lib/observers/types.js';
 import type { ValidationError, ValidationWarning } from '@src/lib/observers/errors.js';
 
@@ -20,31 +21,22 @@ import type { ValidationError, ValidationWarning } from '@src/lib/observers/erro
  */
 export interface ObserverContext {
     /** Per-request database system context */
-    system: System;
+    system: SystemContext;
 
     /** Database operation being performed */
     operation: OperationType;
 
-    /** Loaded Schema object with validation and metadata */
-    schema: Schema;
+    /** Loaded Model object with validation and metadata */
+    model: Model;
 
-    /** Input data for create/update operations */
-    data?: any;
+    /** Input data for create/update/delete operations (wrapped in ModelRecord instances) */
+    data?: ModelRecord[];
 
     /** Filter criteria for select operations (rings 0-4), becomes data after ring 5 */
     filter?: any;
 
     /** Target record ID for update/delete/select operations */
     recordId?: string;
-
-    /** Existing record data (loaded for update operations) */
-    existing?: any;
-
-    /** Database operation result (available in post-database rings) */
-    result?: any;
-
-    /** Cross-observer communication and computed values */
-    metadata: Map<string, any>;
 
     /** Accumulated validation errors from all rings */
     errors: ValidationError[];
@@ -72,6 +64,9 @@ export interface Observer {
     /** Optional: limit to specific operations (default: all operations) */
     operations?: readonly OperationType[];
 
+    /** Optional: execution priority within a ring (lower numbers execute first, default: 50) */
+    priority?: number;
+
     /** Optional: observer name for debugging and error reporting */
     name?: string;
 
@@ -83,7 +78,7 @@ export interface Observer {
      * @param context Shared context with request data and state
      */
     executeTry(context: ObserverContext): Promise<void>;
-    
+
     /**
      * Pure business logic method - implement this in your observer
      * @param context Shared context with request data and state
@@ -104,7 +99,7 @@ export interface ObserverConstructor {
 export interface ObserverStats {
     observerName: string;
     ring: ObserverRing;
-    schema: string;
+    model: string;
     operation: OperationType;
     executionTimeMs: number;
     success: boolean;
@@ -116,7 +111,7 @@ export interface ObserverStats {
  * Observer execution summary for a complete operation
  */
 export interface ObserverExecutionSummary {
-    schema: string;
+    model: string;
     operation: OperationType;
     totalTimeMs: number;
     ringsExecuted: ObserverRing[];

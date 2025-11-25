@@ -1,12 +1,71 @@
 import pg from 'pg';
-import { logger } from '@src/lib/logger.js';
+import type { TxContext } from '@src/db/index.js';
 
 const { Pool, Client } = pg;
 
-export const MONK_DB_MAIN_NAME = 'monk';
 export const MONK_DB_TENANT_PREFIX = 'tenant_';
 export const MONK_DB_TEST_PREFIX = 'test_';
 export const MONK_DB_TEST_TEMPLATE_PREFIX = 'test_template_';
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CRITICAL PRODUCTION SCALABILITY CONCERN: PostgreSQL Connection Pool Exhaustion
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * PROBLEM:
+ * Each tenant database gets its own connection pool. With default PostgreSQL
+ * max_connections=100, you will hit connection limits quickly:
+ *
+ *   Main database:     10 connections
+ *   Per tenant:         5 connections
+ *   Per test tenant:    2 connections
+ *
+ *   Math: 10 + (20 active tenants × 5) = 110 connections → EXCEEDS LIMIT
+ *
+ * SYMPTOMS:
+ * - "sorry, too many clients already" errors
+ * - Failed tenant registrations during burst signups
+ * - Cascading failures as pools can't be created
+ *
+ * SOLUTIONS (in order of recommendation):
+ *
+ * 1. PgBouncer (RECOMMENDED for production):
+ *    - Connection pooler sits between app and PostgreSQL
+ *    - 1000 app connections → 25 PostgreSQL connections
+ *    - Pool mode: 'transaction' (required for multi-database)
+ *    - No code changes needed
+ *    - Industry standard solution
+ *
+ * 2. Reduce pool sizes (INTERIM solution):
+ *    - Change getTenantPool() from 5 → 2 connections
+ *    - Allows ~45 concurrent tenants with default max_connections
+ *    - May impact performance under heavy load per tenant
+ *
+ * 3. Pool eviction (CODE change required):
+ *    - Close pools for tenants inactive >5 minutes
+ *    - Requires background job and idle tracking
+ *    - See database-template.ts for semaphore pattern
+ *
+ * 4. Increase PostgreSQL max_connections:
+ *    - ALTER SYSTEM SET max_connections = 500;
+ *    - Trade-off: ~400KB memory per connection
+ *    - Still eventually hits limits without pooler
+ *
+ * CURRENT MITIGATIONS:
+ * - Idle timeout: 30 seconds (helps but insufficient)
+ * - Tenant creation semaphore: limits concurrent database creation
+ *
+ * MONITORING RECOMMENDATIONS:
+ * - Track active pool count via getPoolStats()
+ * - Alert when total connections > 80% of max_connections
+ * - Monitor tenant creation queue depth
+ *
+ * SEE ALSO:
+ * - database-template.ts: TenantCreationSemaphore for signup throttling
+ * - Docker: Add pgbouncer service to docker-compose.yml
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
 
 /**
  * Centralized Database Connection Manager
@@ -19,18 +78,42 @@ export const MONK_DB_TEST_TEMPLATE_PREFIX = 'test_template_';
 export class DatabaseConnection {
     private static pools = new Map<string, pg.Pool>();
 
+    /**
+     * Get the main database name from DATABASE_URL
+     * Extracts database name from connection string for environment isolation:
+     * - Production: monk
+     * - Development: monk_development
+     * - Test: monk_test
+     */
+    static getMainDatabaseName(): string {
+        const databaseUrl = this.getDatabaseURL();
+        const url = new URL(databaseUrl);
+        const dbName = url.pathname.slice(1); // Remove leading '/'
+
+        if (!dbName) {
+            throw new Error('DATABASE_URL must include a database name in the path');
+        }
+
+        return dbName;
+    }
+
     /** Get connection pool for the primary monk database */
     static getMainPool(): pg.Pool {
-        return this.getPool(MONK_DB_MAIN_NAME, 10);
+        const mainDbName = this.getMainDatabaseName();
+        return this.getPool(mainDbName, 10);
     }
 
     /** Get tenant-specific database pool */
     static getTenantPool(databaseName: string): pg.Pool {
         this.validateTenantDatabaseName(databaseName);
-        return this.getPool(databaseName);
+
+        // Use smaller pool size for test databases to conserve PostgreSQL connections
+        const maxConnections = databaseName.startsWith(MONK_DB_TEST_PREFIX) ? 2 : 5;
+
+        return this.getPool(databaseName, maxConnections);
     }
 
-    /** Convenience helper for postgres administrative client */
+    /** Convenience helper for postgres sudo client */
     static getPostgresClient(): pg.Client {
         return this.getClient('postgres');
     }
@@ -98,9 +181,9 @@ export class DatabaseConnection {
             closePromises.push(
                 pool
                     .end()
-                    .then(() => logger.info('Database pool closed', { database: databaseName }))
+                    .then(() => console.info('Database pool closed', { database: databaseName }))
                     .catch(error => {
-                        logger.warn('Failed to close database pool', {
+                        console.warn('Failed to close database pool', {
                             database: databaseName,
                             error: error instanceof Error ? error.message : String(error),
                         });
@@ -110,14 +193,187 @@ export class DatabaseConnection {
 
         this.pools.clear();
         await Promise.all(closePromises);
-        logger.info('All database connections closed');
+        console.info('All database connections closed');
     }
 
-    /** Attach tenant database pool to Hono context */
+    /** Close a specific database pool */
+    static async closePool(databaseName: string): Promise<void> {
+        const pool = this.pools.get(databaseName);
+        if (!pool) {
+            return;
+        }
+
+        try {
+            await pool.end();
+            this.pools.delete(databaseName);
+            console.info('Database pool closed', { database: databaseName });
+        } catch (error) {
+            console.warn('Failed to close database pool', {
+                database: databaseName,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    /** Close all pools matching a prefix pattern */
+    static async closePoolsByPrefix(prefix: string): Promise<void> {
+        const closePromises: Promise<void>[] = [];
+        const databasesToClose: string[] = [];
+
+        for (const databaseName of this.pools.keys()) {
+            if (databaseName.startsWith(prefix)) {
+                databasesToClose.push(databaseName);
+            }
+        }
+
+        for (const databaseName of databasesToClose) {
+            closePromises.push(this.closePool(databaseName));
+        }
+
+        await Promise.all(closePromises);
+
+        if (databasesToClose.length > 0) {
+            console.info('Closed database pools by prefix', {
+                prefix,
+                count: databasesToClose.length,
+            });
+        }
+    }
+
+    /** Get pool statistics for debugging */
+    static getPoolStats(): {
+        totalPools: number;
+        testPools: number;
+        tenantPools: number;
+        databases: string[];
+    } {
+        const databases = Array.from(this.pools.keys());
+        const testPools = databases.filter(db => db.startsWith(MONK_DB_TEST_PREFIX)).length;
+        const tenantPools = databases.filter(db => db.startsWith(MONK_DB_TENANT_PREFIX)).length;
+
+        return {
+            totalPools: databases.length,
+            testPools,
+            tenantPools,
+            databases,
+        };
+    }
+
+    /**
+     * Attach tenant database pool to Hono context (LEGACY)
+     *
+     * @deprecated Will be updated to use database+namespace in later phases
+     */
     static setDatabaseForRequest(c: any, tenantName: string): void {
         const tenantPool = this.getTenantPool(tenantName);
         c.set('database', tenantPool);
         c.set('databaseDomain', tenantName);
+    }
+
+    /**
+     * Attach tenant database + namespace to Hono context (NEW hybrid architecture)
+     *
+     * Sets both database pool and namespace context from JWT payload.
+     * This will replace setDatabaseForRequest() in later refactor phases.
+     *
+     * @param c - Hono context
+     * @param dbName - Database name (db_main, db_test, etc.)
+     * @param nsName - Namespace name (ns_tenant_*, etc.)
+     */
+    static setDatabaseAndNamespaceForRequest(c: any, dbName: string, nsName: string): void {
+        const pool = this.getPool(dbName);
+        c.set('database', pool);
+        c.set('dbName', dbName);
+        c.set('nsName', nsName);
+    }
+
+    /**
+     * Set search path for namespace-scoped operations
+     *
+     * CRITICAL: Prevents SQL injection via namespace validation
+     *
+     * Sets the PostgreSQL search_path to the specified namespace, making all
+     * unqualified table references resolve to that namespace.
+     *
+     * WARNING: This is session-scoped. Use setLocalSearchPath() for transaction-scoped
+     * isolation which is safer for shared connection pools.
+     *
+     * @param client - PostgreSQL client (TxContext/PoolClient or Client)
+     * @param nsName - Namespace name (must be validated)
+     * @throws Error if namespace name is invalid
+     */
+    static async setSearchPath(client: TxContext | pg.Client, nsName: string): Promise<void> {
+        // Validate namespace (prevent SQL injection)
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+            throw new Error(`Invalid namespace: ${nsName}`);
+        }
+
+        // Use identifier quoting for safety
+        await client.query(`SET search_path TO "${nsName}", public`);
+    }
+
+    /**
+     * Set search path to transaction scope (safer but requires transaction)
+     *
+     * Uses SET LOCAL which is transaction-scoped, reverting after COMMIT/ROLLBACK.
+     * This is safer for shared connection pools as it prevents search_path leakage
+     * between requests.
+     *
+     * @param client - PostgreSQL client (TxContext/PoolClient or Client)
+     * @param nsName - Namespace name (must be validated)
+     * @throws Error if namespace name is invalid
+     */
+    static async setLocalSearchPath(client: TxContext | pg.Client, nsName: string): Promise<void> {
+        // Validate namespace (prevent SQL injection)
+        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
+            throw new Error(`Invalid namespace: ${nsName}`);
+        }
+
+        // LOCAL = transaction-scoped, reverts after commit/rollback
+        await client.query(`SET LOCAL search_path TO "${nsName}", public`);
+    }
+
+    /**
+     * Execute query in specific database + namespace context
+     *
+     * Acquires a client from the pool, sets the search path, executes the query,
+     * and releases the client. Uses SET LOCAL for transaction-scoped isolation.
+     *
+     * @example
+     * await DatabaseConnection.queryInNamespace(
+     *   'db_main',
+     *   'ns_tenant_a1b2c3d4',
+     *   'SELECT * FROM users WHERE id = $1',
+     *   ['user-id']
+     * );
+     *
+     * @param dbName - Database name (db_main, db_test, etc.)
+     * @param nsName - Namespace name (ns_tenant_*, etc.)
+     * @param query - SQL query
+     * @param params - Query parameters
+     * @returns Query result
+     */
+    static async queryInNamespace(
+        dbName: string,
+        nsName: string,
+        query: string,
+        params?: any[],
+    ): Promise<pg.QueryResult> {
+        const pool = this.getPool(dbName);
+        const client = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+            await this.setLocalSearchPath(client, nsName);
+            const result = await client.query(query, params);
+            await client.query('COMMIT');
+            return result;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     /** Retrieve or create pool for specific database */
@@ -130,7 +386,7 @@ export class DatabaseConnection {
             const pool = new Pool(config);
 
             this.pools.set(databaseName, pool);
-            logger.info('Database pool created', { database: databaseName });
+            console.info('Database pool created', { database: databaseName });
         }
 
         return this.pools.get(databaseName)!;
@@ -186,7 +442,7 @@ export class DatabaseConnection {
     }
 
     /** Resolve base DATABASE_URL and ensure supported protocol */
-    private static getDatabaseURL(): string {
+    static getDatabaseURL(): string {
         const databaseUrl = process.env.DATABASE_URL;
 
         if (!databaseUrl) {
@@ -200,6 +456,18 @@ export class DatabaseConnection {
         }
 
         return databaseUrl;
+    }
+
+    /** Extract connection parameters from DATABASE_URL */
+    static getConnectionParams(): { host?: string; port?: string; user?: string } {
+        const databaseUrl = this.getDatabaseURL();
+        const url = new URL(databaseUrl);
+
+        return {
+            host: url.hostname || undefined,
+            port: url.port || undefined,
+            user: url.username || undefined,
+        };
     }
 
     /** Translate connection string into pg.Pool configuration */

@@ -1,22 +1,21 @@
 import { type SortDirection, type FilterOrderInfo } from '@src/lib/filter-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { logger } from '@src/lib/logger.js';
 
 /**
- * FilterOrder - Schema-independent ORDER BY clause generation
- * 
+ * FilterOrder - Model-independent ORDER BY clause generation
+ *
  * The authoritative implementation for ORDER BY clause logic including validation,
  * sanitization, and SQL generation. Matches FilterWhere design patterns for
  * consistency and security.
- * 
+ *
  * Features: Comprehensive validation, SQL injection protection, multiple input formats,
  * proper error handling and logging.
- * 
+ *
  * Quick Examples:
  * - String: `FilterOrder.generate('created_at desc')`
- * - Array: `FilterOrder.generate([{ column: 'priority', sort: 'desc' }])`
+ * - Array: `FilterOrder.generate([{ field: 'priority', sort: 'desc' }])`
  * - Object: `FilterOrder.generate({ created_at: 'desc', name: 'asc' })`
- * 
+ *
  * See docs/FILTER.md for complete examples and security features.
  */
 
@@ -70,9 +69,9 @@ export class FilterOrder {
         if (typeof spec === 'string') {
             FilterOrder.validateOrderString(spec);
         } else if (typeof spec === 'object' && spec !== null) {
-            if (spec.column && spec.sort) {
-                // Explicit format: { "column": "name", "sort": "asc" }
-                FilterOrder.validateColumnName(spec.column);
+            if (spec.field && spec.sort) {
+                // Explicit format: { "field": "name", "sort": "asc" }
+                FilterOrder.validateFieldName(spec.field);
                 FilterOrder.validateSortDirection(spec.sort);
             } else {
                 // Key-value format: { "name": "asc" } or { "name": "asc", "created_at": "desc" }
@@ -80,9 +79,9 @@ export class FilterOrder {
                 if (entries.length === 0) {
                     throw HttpErrors.badRequest('Order object cannot be empty', 'FILTER_EMPTY_ORDER_OBJECT');
                 }
-                
-                for (const [column, sort] of entries) {
-                    FilterOrder.validateColumnName(column);
+
+                for (const [field, sort] of entries) {
+                    FilterOrder.validateFieldName(field);
                     FilterOrder.validateSortDirection(sort as string);
                 }
             }
@@ -100,31 +99,31 @@ export class FilterOrder {
         }
 
         const parts = orderString.trim().split(/\s+/);
-        const column = parts[0];
+        const field = parts[0];
         const sort = parts[1];
-        
-        if (!column) {
-            throw HttpErrors.badRequest('Order string must contain a column name', 'FILTER_MISSING_ORDER_COLUMN');
+
+        if (!field) {
+            throw HttpErrors.badRequest('Order string must contain a field name', 'FILTER_MISSING_ORDER_FIELD');
         }
-        
-        FilterOrder.validateColumnName(column);
-        
+
+        FilterOrder.validateFieldName(field);
+
         if (sort) {
             FilterOrder.validateSortDirection(sort);
         }
     }
 
     /**
-     * Validate column name with proper SQL injection protection
+     * Validate field name with proper SQL injection protection
      */
-    private static validateColumnName(column: any): void {
-        if (!column || typeof column !== 'string') {
-            throw HttpErrors.badRequest('Column name must be a non-empty string', 'FILTER_INVALID_ORDER_COLUMN_NAME');
+    private static validateFieldName(field: any): void {
+        if (!field || typeof field !== 'string') {
+            throw HttpErrors.badRequest('Field name must be a non-empty string', 'FILTER_INVALID_ORDER_FIELD_NAME');
         }
 
-        // Enhanced SQL injection protection for column names (matches FilterWhere)
-        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
-            throw HttpErrors.badRequest(`Invalid column name format: ${column}`, 'FILTER_INVALID_ORDER_COLUMN_FORMAT');
+        // Enhanced SQL injection protection for field names (matches FilterWhere)
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field)) {
+            throw HttpErrors.badRequest(`Invalid field name format: ${field}`, 'FILTER_INVALID_ORDER_FIELD_FORMAT');
         }
     }
 
@@ -167,24 +166,24 @@ export class FilterOrder {
             // Handle string format: "name asc" or "created_at desc"
             this.parseOrderString(orderData);
         } else if (Array.isArray(orderData)) {
-            // Handle array format: [{ column: 'name', sort: 'asc' }]
+            // Handle array format: [{ field: 'name', sort: 'asc' }]
             orderData.forEach(item => {
                 if (!item) return; // Skip null/undefined items
-                
+
                 if (typeof item === 'string') {
                     this.parseOrderString(item);
-                } else if (item.column && item.sort) {
+                } else if (item.field && item.sort) {
                     this._orderInfo.push({
-                        column: this.sanitizeColumnName(item.column),
+                        field: this.sanitizeFieldName(item.field),
                         sort: this.normalizeSortDirection(item.sort)
                     });
                 }
             });
         } else if (typeof orderData === 'object') {
             // Handle object format: { name: 'asc', created_at: 'desc' }
-            for (const [column, sort] of Object.entries(orderData)) {
+            for (const [field, sort] of Object.entries(orderData)) {
                 this._orderInfo.push({
-                    column: this.sanitizeColumnName(column),
+                    field: this.sanitizeFieldName(field),
                     sort: this.normalizeSortDirection(sort as string)
                 });
             }
@@ -192,16 +191,16 @@ export class FilterOrder {
     }
 
     /**
-     * Parse order string: "column direction"
+     * Parse order string: "field direction"
      */
     private parseOrderString(orderString: string): void {
         const parts = orderString.trim().split(/\s+/);
-        const column = parts[0];
+        const field = parts[0];
         const sort = parts[1] || 'asc';
 
-        if (column) {
+        if (field) {
             this._orderInfo.push({
-                column: this.sanitizeColumnName(column),
+                field: this.sanitizeFieldName(field),
                 sort: this.normalizeSortDirection(sort)
             });
         }
@@ -216,19 +215,19 @@ export class FilterOrder {
         }
 
         const orderClauses = this._orderInfo.map(orderInfo => {
-            const { column, sort } = orderInfo;
-            return `"${column}" ${sort.toUpperCase()}`;
+            const { field, sort } = orderInfo;
+            return `"${field}" ${sort.toUpperCase()}`;
         });
 
         return `ORDER BY ${orderClauses.join(', ')}`;
     }
 
     /**
-     * Sanitize column name to prevent injection
+     * Sanitize field name to prevent injection
      */
-    private sanitizeColumnName(column: string): string {
+    private sanitizeFieldName(field: string): string {
         // Remove any non-alphanumeric characters except underscore
-        return column.replace(/[^a-zA-Z0-9_]/g, '');
+        return field.replace(/[^a-zA-Z0-9_]/g, '');
     }
 
     /**

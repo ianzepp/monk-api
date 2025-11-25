@@ -1,6 +1,6 @@
 /**
  * Observer Route Integration Helpers
- * 
+ *
  * Helper functions for integrating the observer pipeline with route handlers
  */
 
@@ -16,23 +16,22 @@ import { createSuccessResponse, createValidationError } from '@src/lib/api-helpe
 export async function executeObserverPipeline(
     system: System,
     operation: OperationType,
-    schemaName: string,
+    modelName: string,
     data?: any,
     recordId?: string,
     existing?: any
 ): Promise<ObserverResult> {
-    // Resolve schema object - this helper needs to do its own resolution
+    // Resolve model object - this helper needs to do its own resolution
     // since it's not going through Database.runObserverPipeline()
-    const schema = await system.database.toSchema(schemaName);
-    
+    const model = await system.database.toModel(modelName);
+
     const runner = new ObserverRunner();
-    
+
     return await runner.execute(
         system,
         operation,
-        schema,
+        model,
         data ? [data] : [], // Convert single record to array
-        existing ? [existing] : undefined,
         0 // depth
     );
 }
@@ -43,7 +42,7 @@ export async function executeObserverPipeline(
 export async function executeObserverPipelineBatch(
     system: System,
     operation: OperationType,
-    schema: string,
+    model: string,
     records: any[]
 ): Promise<{ success: boolean; results: any[]; errors: any[]; warnings: any[] }> {
     const results: any[] = [];
@@ -56,7 +55,7 @@ export async function executeObserverPipelineBatch(
             const result = await executeObserverPipeline(
                 system,
                 operation,
-                schema,
+                model,
                 record,
                 record.id // For updates, the ID should be in the record
             );
@@ -111,10 +110,10 @@ export function handleObserverResult(
     successStatusCode = 200
 ): Response {
     if (!result.success) {
-        const errorMessage = result.errors.length > 0 
+        const errorMessage = result.errors.length > 0
             ? result.errors.map(e => e.message).join('; ')
             : 'Observer pipeline validation failed';
-            
+
         return createValidationError(context, errorMessage, result.errors);
     }
 
@@ -130,10 +129,10 @@ export function handleBatchObserverResult(
     successStatusCode = 200
 ): Response {
     if (!result.success) {
-        const errorMessage = result.errors.length > 0 
+        const errorMessage = result.errors.length > 0
             ? `Batch operation failed: ${result.errors.length} errors`
             : 'Batch observer pipeline validation failed';
-            
+
         return createValidationError(context, errorMessage, result.errors);
     }
 
@@ -145,12 +144,12 @@ export function handleBatchObserverResult(
  */
 export async function loadExistingRecord(
     system: System,
-    schema: string,
+    model: string,
     recordId: string
 ): Promise<any> {
     try {
-        return await system.database.selectOne(schema, { where: { id: recordId } });
+        return await system.database.selectOne(model, { where: { id: recordId } });
     } catch (error) {
-        throw new Error(`Failed to load existing record ${schema}:${recordId}: ${error}`);
+        throw new Error(`Failed to load existing record ${model}:${recordId}: ${error}`);
     }
 }

@@ -1,22 +1,21 @@
 /**
  * Observer Loader
- * 
+ *
  * Handles file-based discovery, loading, and caching of observers.
  * Preloads all observers at server startup for optimal performance.
  */
 
 import { glob } from '@src/lib/glob.local.js';
-import { logger } from '@src/lib/logger.js';
 import { join, dirname, basename, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import type { Observer, ObserverConstructor } from '@src/lib/observers/interfaces.js';
-import type { 
-    ObserverRing, 
+import type {
+    ObserverRing,
     ObserverFilePattern,
-    UniversalSchemaKeyword 
+    UniversalModelKeyword
 } from '@src/lib/observers/types.js';
-import { UNIVERSAL_SCHEMA_KEYWORD } from '@src/lib/observers/types.js';
+import { UNIVERSAL_MODEL_KEYWORD } from '@src/lib/observers/types.js';
 
 /**
  * Observer loader with file-based discovery and caching
@@ -32,7 +31,7 @@ export class ObserverLoader {
      */
     static async preloadObservers(): Promise<void> {
         if (this.loaded) return;
-        
+
         // Prevent concurrent loading attempts
         if (this.loadingPromise) {
             return this.loadingPromise;
@@ -49,25 +48,25 @@ export class ObserverLoader {
     private static async _doPreloadObservers(): Promise<void> {
         try {
             const observerFiles = await this._findObserverFiles();
-            logger.info('Observer files discovered', { fileCount: observerFiles.length });
+            console.info('Observer files discovered', { fileCount: observerFiles.length });
 
             for (const filePattern of observerFiles) {
                 try {
                     await this._loadObserverFile(filePattern);
                 } catch (error) {
-                    logger.warn('Failed to load observer', { 
-                        file: filePattern.filepath, 
-                        error: error instanceof Error ? error.message : String(error) 
+                    console.warn('Failed to load observer', {
+                        file: filePattern.filepath,
+                        error: error instanceof Error ? error.message : String(error)
                     });
                     // Continue loading other observers - don't fail entire startup
                 }
             }
 
             this.loaded = true;
-            logger.info('Observer preloading complete', { cacheEntries: this.cache.size });
+            console.info('Observer preloading complete', { cacheEntries: this.cache.size });
         } catch (error) {
-            logger.warn('Observer preloading failed', { 
-                error: error instanceof Error ? error.message : String(error) 
+            console.warn('Observer preloading failed', {
+                error: error instanceof Error ? error.message : String(error)
             });
             throw new Error(`Observer preloading failed: ${error}`);
         }
@@ -81,10 +80,10 @@ export class ObserverLoader {
         const currentFileUrl = import.meta.url;
         const currentFilePath = fileURLToPath(currentFileUrl);
         const projectRoot = resolve(dirname(currentFilePath), '../../../');
-        
+
         // Search for observer files: src/observers/**/*.ts
         const pattern = join(projectRoot, 'src/observers/**/*.ts');
-        const files = await glob(pattern, { 
+        const files = await glob(pattern, {
             ignore: ['**/*.test.ts', '**/*.spec.ts', '**/README.md']
         });
 
@@ -101,35 +100,35 @@ export class ObserverLoader {
     }
 
     /**
-     * Parse observer file path into schema, ring, and filename components
-     * Expected pattern: src/observers/:schema/:ring_number/file-name.ts
+     * Parse observer file path into model, ring, and filename components
+     * Expected pattern: src/observers/:model/:ring_number/file-name.ts
      */
     private static _parseObserverFilePath(
-        filepath: string, 
+        filepath: string,
         projectRoot: string
     ): ObserverFilePattern | null {
         const relativePath = filepath.replace(projectRoot + '/', '');
         const pathParts = relativePath.split('/');
 
-        // Expected: ['src', 'observers', ':schema', ':ring_number', 'file-name.ts']
+        // Expected: ['src', 'observers', ':model', ':ring_number', 'file-name.ts']
         if (pathParts.length < 5 || pathParts[0] !== 'src' || pathParts[1] !== 'observers') {
-            logger.warn('Invalid observer path pattern', { path: relativePath });
+            console.warn('Invalid observer path pattern', { path: relativePath });
             return null;
         }
 
-        const schema = pathParts[2];
+        const model = pathParts[2];
         const ringStr = pathParts[3];
         const filename = basename(pathParts[pathParts.length - 1], '.ts');
 
         // Validate ring number
         const ringNum = parseInt(ringStr, 10);
         if (isNaN(ringNum) || ringNum < 0 || ringNum > 9) {
-            logger.warn('Invalid ring number in observer path', { path: relativePath, ring: ringStr });
+            console.warn('Invalid ring number in observer path', { path: relativePath, ring: ringStr });
             return null;
         }
 
         return {
-            schema,
+            model,
             ring: ringNum as ObserverRing,
             filename,
             filepath: relativePath
@@ -148,9 +147,9 @@ export class ObserverLoader {
             const projectRoot = resolve(dirname(currentFilePath), '../../../');
             const distPath = filePattern.filepath.replace('src/', 'dist/').replace('.ts', '.js');
             const importPath = resolve(projectRoot, distPath);
-            
+
             const observerModule = await import(importPath);
-            
+
             // Get the default export (should be observer class constructor)
             const ObserverClass = observerModule.default as ObserverConstructor;
             if (!ObserverClass || typeof ObserverClass !== 'function') {
@@ -159,23 +158,23 @@ export class ObserverLoader {
 
             // Instantiate the observer
             const observer = new ObserverClass();
-            
+
             // Validate observer implementation
             this._validateObserver(observer, filePattern);
 
             // Add observer name for debugging if not provided
             if (!observer.name) {
-                observer.name = `${filePattern.schema}:${filePattern.ring}:${filePattern.filename}`;
+                observer.name = `${filePattern.model}:${filePattern.ring}:${filePattern.filename}`;
             }
 
-            // Store in cache by schema:ring key
-            const cacheKey = `${filePattern.schema}:${filePattern.ring}`;
+            // Store in cache by model:ring key
+            const cacheKey = `${filePattern.model}:${filePattern.ring}`;
             if (!this.cache.has(cacheKey)) {
                 this.cache.set(cacheKey, []);
             }
             this.cache.get(cacheKey)!.push(observer);
 
-            logger.info('Observer loaded', { name: observer.name, cacheKey });
+            console.info('Observer loaded', { name: observer.name, cacheKey });
         } catch (error) {
             throw new Error(`Failed to load observer from ${filePattern.filepath}: ${error}`);
         }
@@ -195,32 +194,32 @@ export class ObserverLoader {
 
         // Ring in file path should match ring in observer
         if (observer.ring !== filePattern.ring) {
-            logger.warn('Ring mismatch between file path and observer declaration', { 
-                file: filePattern.filepath, 
-                pathRing: filePattern.ring, 
-                observerRing: observer.ring 
+            console.warn('Ring mismatch between file path and observer declaration', {
+                file: filePattern.filepath,
+                pathRing: filePattern.ring,
+                observerRing: observer.ring
             });
         }
     }
 
     /**
-     * Get cached observers for specific schema and ring
-     * Returns both schema-specific and universal observers
+     * Get cached observers for specific model and ring
+     * Returns both model-specific and universal observers
      */
-    static getObservers(schema: string, ring: ObserverRing): Observer[] {
+    static getObservers(model: string, ring: ObserverRing): Observer[] {
         if (!this.loaded) {
             throw new Error('Observers not loaded - call preloadObservers() first');
         }
 
         const observers: Observer[] = [];
 
-        // Get schema-specific observers
-        const specificKey = `${schema}:${ring}`;
+        // Get model-specific observers
+        const specificKey = `${model}:${ring}`;
         const specific = this.cache.get(specificKey) || [];
         observers.push(...specific);
 
         // Get universal observers (all)
-        const universalKey = `${UNIVERSAL_SCHEMA_KEYWORD}:${ring}`;
+        const universalKey = `${UNIVERSAL_MODEL_KEYWORD}:${ring}`;
         const universal = this.cache.get(universalKey) || [];
         observers.push(...universal);
 

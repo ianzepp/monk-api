@@ -32,7 +32,7 @@ print_warning() {
 # Validate template name
 if [[ -z "$TEMPLATE_NAME" ]]; then
     print_error "Usage: npm run fixtures:lock <template-name>"
-    print_error "Example: npm run fixtures:lock basic_large"
+    print_error "Example: npm run fixtures:lock testing_large"
     exit 1
 fi
 
@@ -40,7 +40,7 @@ fi
 if [[ ! "$TEMPLATE_NAME" =~ ^[a-z_]+$ ]]; then
     print_error "Template name must contain only lowercase letters and underscores"
     print_error "Invalid name: '$TEMPLATE_NAME'"
-    print_error "Valid examples: basic_large, demo_small, test_data"
+    print_error "Valid examples: testing_xl, demo_small, test_data"
     print_error "Invalid examples: Basic-Large, demo-small, TestData"
     exit 1
 fi
@@ -71,7 +71,7 @@ cat > "$LOCK_FILE" <<EOF
   "locked_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "locked_by": "$(whoami)@$(hostname)",
   "reason": "Template locked to prevent accidental regeneration",
-  "schemas": $(find "$FIXTURES_DIR/schemas" -name "*.json" 2>/dev/null | wc -l | xargs),
+  "models": $(find "$FIXTURES_DIR/describe" -name "*.json" 2>/dev/null | wc -l | xargs),
   "data_files": $(find "$FIXTURES_DIR/data" -name "*.json" 2>/dev/null | wc -l | xargs)
 }
 EOF

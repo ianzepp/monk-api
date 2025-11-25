@@ -14,6 +14,7 @@ rc-cleanup-*
 .env
 .env.local
 .env.*.local
+.env.production
 .env.neon
 
 # Neon integration scripts are now safe to commit (use environment variables)
@@ -21,6 +22,9 @@ rc-cleanup-*
 # Database files
 *.db
 *.db-*
+
+# MCP cache files
+.monk-mcp-cache.json
 
 # Template databases (persistent but not in git)
 # These are created locally via npm run fixtures:build
@@ -73,3 +77,5 @@ spec/**/*.d.ts.map
 
 # Warp Code files
 WARP.md
+TODO.md
+DEPRECATED.md

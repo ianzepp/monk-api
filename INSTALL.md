@@ -5,7 +5,7 @@ Lightweight PaaS backend API built with **Hono** and **TypeScript**, featuring o
 ## What is Monk API?
 
 A high-performance backend API that provides:
-- **Schema-first development** - Define your data models in JSON
+- **Model-first development** - Define your data models in JSON
 - **Multi-tenant architecture** - Each tenant gets isolated databases
 - **Observer pattern** - Event-driven business logic hooks
 - **REST API** - Full programmatic management interface
@@ -45,7 +45,7 @@ The `autoinstall` script will:
 1. Copy `.env.example` to `.env`
 2. Auto-detect your PostgreSQL configuration
 3. Install dependencies and build TypeScript
-4. Initialize the main database with schema
+4. Initialize the main database with model
 5. Create a test tenant for development
 
 ## Manual Installation
@@ -92,8 +92,8 @@ Create and initialize the main database:
 # Create main database
 createdb monk
 
-# Initialize schema
-psql -d monk -f sql/init-monk-main.sql
+# Initialize model
+psql -d monk -f fixtures/infrastructure/init.sql
 ```
 
 ### 5. Create Development Tenant
@@ -104,14 +104,14 @@ Create a test tenant for development:
 # Create system tenant database
 createdb system
 
-# Initialize tenant schema
+# Initialize tenant model
 psql -d system -f sql/init-tenant.sql
 
 # Create development users
 psql -d system -c "
 INSERT INTO users (name, auth, access, access_read, access_edit, access_full) VALUES
 ('Development Root User', 'root', 'root', '{}', '{}', '{}'),
-('Development Admin User', 'admin', 'full', '{}', '{}', '{}'),
+('Development Full User', 'full', 'full', '{}', '{}', '{}'),
 ('Development User', 'user', 'edit', '{}', '{}', '{}')
 ON CONFLICT (auth) DO NOTHING;
 "
@@ -142,14 +142,14 @@ Your development environment includes:
 - **Main Database**: `monk` (tenant registry)
 - **System Tenant**: `system` database with test users
 - **Available Users**:
-  - `root@system` - Full administrative privileges
-  - `admin@system` - Administrative operations
+  - `root@system` - Full sudo privileges
+  - `full@system` - Administrative operations
   - `user@system` - Standard user operations
 
 ## Core Features
 
-### 🎯 Schema Management
-Define data models using JSON with JSON Schema validation:
+### 🎯 Model Management
+Define data models using JSON with in-house validation:
 
 ```json
 # user.json
@@ -158,7 +158,7 @@ Define data models using JSON with JSON Schema validation:
   "properties": {
     "name": {"type": "string", "minLength": 1},
     "email": {"type": "string", "format": "email"},
-    "role": {"type": "string", "enum": ["admin", "user"]}
+    "role": {"type": "string", "enum": ["full", "user"]}
   },
   "required": ["name", "email"]
 }
@@ -202,9 +202,9 @@ monk init
 monk tenant create my-app
 monk auth login my-app root
 
-# Schema management
-cat contacts.json | monk describe create schema
-monk describe select schema contacts
+# Model management
+cat contacts.json | monk describe create model
+monk describe select model contacts
 
 # Data operations
 echo '{"name":"John","email":"john@example.com"}' | monk data create contacts
@@ -244,12 +244,12 @@ npm run test:sh 10        # Authentication tests
 npm run test:sh 31-32     # Meta and data API tests
 
 # Individual test
-# npm run test:sh spec/10-auth/public-auth.test.sh
+# npm run test:sh spec/10-auth/auth.test.sh
 ```
 
 ## Performance
 
-- **15x faster schema access** with SHA256 caching
+- **15x faster model access** with SHA256 caching
 - **Ultra-lightweight** (~50KB Hono framework)
 - **Raw SQL performance** without ORM overhead
 - **Multi-runtime support** (Node.js, Bun, Deno, Cloudflare Workers)
@@ -259,8 +259,7 @@ npm run test:sh 31-32     # Meta and data API tests
 - **[Hono](https://hono.dev/)** - Ultra-fast web framework
 - **TypeScript** - Type-safe development
 - **PostgreSQL** - Multi-tenant database architecture
-- **AJV** - High-performance JSON Schema validation
-- **JSON Schema** - Validation and documentation
+- **In-House Validators** - Optimized type and constraint validation
 
 ## Troubleshooting
 

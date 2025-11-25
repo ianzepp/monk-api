@@ -2,13 +2,16 @@
 #
 # TypeScript Test Runner - Unit tests with Vitest
 #
-# Usage: scripts/test-ts.sh [test-pattern]
+# Usage: scripts/test-ts.sh [test-pattern] [vitest-args...]
 #   test-pattern: Number pattern to match test directories (e.g., "05", "31", "01-15")
+#   vitest-args: Additional arguments passed to vitest (e.g., -t "test name")
 #
 # Examples:
 #   npm run test:ts           # Run all TypeScript tests
 #   npm run test:ts 05        # Run only 05-infrastructure tests
 #   npm run test:ts 30-39     # Run tests in range 30-39
+#   npm run test:ts -- -t "should create"  # Run tests matching name
+#   npm run test:ts 31 -- -t "should create"  # Run tests in 31-* matching name
 
 set -e
 
@@ -31,15 +34,26 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
-# Find TypeScript test files based on pattern
-if [[ $# -gt 0 ]]; then
+# Parse arguments: first arg is optional pattern, rest are vitest args
+pattern=""
+vitest_args=()
+
+# Check if first argument looks like a file pattern (not a vitest flag)
+if [[ $# -gt 0 && ! "$1" =~ ^- ]]; then
     pattern="$1"
-    
+    shift
+fi
+
+# Remaining arguments are vitest flags
+vitest_args=("$@")
+
+# Find TypeScript test files based on pattern
+if [[ -n "$pattern" ]]; then
     # Check for range pattern (e.g., "10-39", "01-15")
     if [[ "$pattern" =~ ^([0-9]{2})-([0-9]{2})$ ]]; then
         start_range="${BASH_REMATCH[1]}"
         end_range="${BASH_REMATCH[2]}"
-        
+
         # Validate range (start <= end)
         if [[ $start_range -le $end_range ]]; then
             print_header "Running TypeScript tests in range: $start_range-$end_range"
@@ -55,9 +69,9 @@ if [[ $# -gt 0 ]]; then
             exit 1
         fi
     else
-        # Single directory number (e.g., "05" or "31")
-        print_header "Running TypeScript tests in spec/$pattern-*"
-        test_files=$(find spec -name "*.test.ts" -type f | grep "^spec/$pattern-" | sort)
+        # Any pattern (e.g., "05", "04-connection", "basic-connection.test.ts", etc.)
+        print_header "Running TypeScript tests matching: $pattern"
+        test_files=$(find spec -name "*.test.ts" -type f | grep "$pattern" | sort)
     fi
 else
     # Run all TypeScript tests
@@ -85,11 +99,15 @@ test_count=$(echo "$test_files" | wc -l | xargs)
 echo "Found $test_count test file(s)"
 echo ""
 
-# Run vitest with the specific files
-print_header "Executing: npx vitest run"
+# Run vitest with the specific files and any additional arguments
+if [[ ${#vitest_args[@]} -gt 0 ]]; then
+    print_header "Executing: npx vitest run ${vitest_args[*]}"
+else
+    print_header "Executing: npx vitest run"
+fi
 echo ""
 
-npx vitest run $test_files
+npx vitest run $test_files "${vitest_args[@]}"
 
 exit_code=$?
 

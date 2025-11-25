@@ -1,97 +1,90 @@
 {
-    "title": "Account",
-    "description": "User account schema for testing data operations and authentication scenarios",
-    "type": "object",
-    "properties": {
-        "name": {
-            "type": "string",
-            "minLength": 2,
-            "maxLength": 100,
-            "description": "Account holder full name",
-            "example": "John Smith"
+    "fields": [
+        {
+            "field_name": "name",
+            "type": "text",
+            "required": true,
+            "minimum": 2,
+            "maximum": 100,
+            "description": "Account holder full name"
         },
-        "email": {
-            "type": "string",
-            "format": "email",
-            "maxLength": 255,
-            "description": "Primary email address",
-            "example": "john.smith@example.com"
+        {
+            "field_name": "email",
+            "type": "text",
+            "required": true,
+            "maximum": 255,
+            "description": "Primary email address"
         },
-        "username": {
-            "type": "string",
+        {
+            "field_name": "username",
+            "type": "text",
+            "required": true,
             "pattern": "^[a-zA-Z0-9_-]{3,50}$",
-            "description": "Unique username for login",
-            "example": "jsmith"
+            "description": "Unique username for login"
         },
-        "account_type": {
-            "type": "string",
-            "enum": ["personal", "business", "trial", "premium"],
-            "default": "personal",
+        {
+            "field_name": "account_type",
+            "type": "text",
+            "required": true,
+            "enum_values": ["personal", "business", "trial", "premium"],
+            "default_value": "personal",
             "description": "Type of account"
         },
-        "balance": {
-            "type": "number",
+        {
+            "field_name": "balance",
+            "type": "decimal",
+            "required": false,
             "minimum": 0,
             "maximum": 1000000,
-            "default": 0,
-            "description": "Account balance in USD",
-            "example": 150.75
+            "default_value": 0,
+            "description": "Account balance in USD"
         },
-        "is_active": {
+        {
+            "field_name": "is_active",
             "type": "boolean",
-            "default": true,
+            "required": false,
+            "default_value": true,
             "description": "Whether the account is currently active"
         },
-        "is_verified": {
+        {
+            "field_name": "is_verified",
             "type": "boolean",
-            "default": false,
+            "required": false,
+            "default_value": false,
             "description": "Whether the account email is verified"
         },
-        "credit_limit": {
-            "type": "number",
+        {
+            "field_name": "credit_limit",
+            "type": "decimal",
+            "required": false,
             "minimum": 0,
             "maximum": 10000,
-            "description": "Credit limit for business accounts (null for personal/trial)",
-            "example": 1000
+            "description": "Credit limit for business accounts (null for personal/trial)"
         },
-        "last_login": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Timestamp of last login (null if never logged in)",
-            "example": "2024-01-15T10:30:00Z"
+        {
+            "field_name": "last_login",
+            "type": "timestamp",
+            "required": false,
+            "description": "Timestamp of last login (null if never logged in)"
         },
-        "preferences": {
-            "type": "object",
-            "properties": {
-                "notifications": {
-                    "type": "boolean",
-                    "default": true
-                },
-                "theme": {
-                    "type": "string",
-                    "enum": ["light", "dark"],
-                    "default": "light"
-                },
-                "language": {
-                    "type": "string",
-                    "enum": ["en", "es"],
-                    "default": "en"
-                }
-            },
+        {
+            "field_name": "preferences",
+            "type": "jsonb",
+            "required": false,
             "description": "User preferences and settings"
         },
-        "metadata": {
-            "type": "object",
-            "description": "Additional flexible metadata",
-            "additionalProperties": true
+        {
+            "field_name": "metadata",
+            "type": "jsonb",
+            "required": false,
+            "description": "Additional flexible metadata"
         },
-        "phone": {
-            "type": "string",
+        {
+            "field_name": "phone",
+            "type": "text",
+            "required": false,
             "pattern": "^\\+?[1-9]\\d{1,14}$|^\\+?1 \\([0-9]{3}\\) [0-9]{3}-[0-9]{4}$",
-            "description": "Phone number (optional)",
-            "example": "+1 (555) 123-4567"
+            "description": "Phone number (optional)"
         }
-    },
-    "required": ["name", "email", "username", "account_type"],
-    "additionalProperties": false
+    ]
 }

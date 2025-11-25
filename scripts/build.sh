@@ -67,21 +67,21 @@ main() {
     fi
 
     # Step 3: Copy non-TypeScript assets
-    # Note: src/describedata was removed - test fixture schemas are in spec/fixtures/schema/
+    # Note: src/describedata was removed - test fixture models are in spec/fixtures/model/
     log_info "Checking for additional assets to copy..."
 
     # Copy markdown documentation files
-    if [[ -n "$(find src -name 'PUBLIC.md' 2>/dev/null)" ]]; then
+    if [[ -n "$(find src -name '*.md' 2>/dev/null)" ]]; then
         log_info "Copying documentation files..."
         # Preserve directory structure for documentation
-        find src -name 'PUBLIC.md' -type f | while read -r file; do
+        find src -name '*.md' -type f | while read -r file; do
             # Get relative path from src/
             rel_path="${file#src/}"
             dest_dir="dist/$(dirname "$rel_path")"
             mkdir -p "$dest_dir"
             cp "$file" "$dest_dir/"
         done
-        log_info "Copied $(find src -name 'PUBLIC.md' | wc -l | tr -d ' ') documentation files"
+        log_info "Copied $(find src -name '*.md' | wc -l | tr -d ' ') documentation files"
     else
         log_info "No documentation files to copy"
     fi
@@ -94,7 +94,33 @@ main() {
         log_info "Copied $(find sql -name '*.sql' | wc -l | tr -d ' ') SQL files"
     fi
 
-    # Step 5: Validation
+    # Step 5: Copy compiled fixtures (deploy.sql and template.json)
+    if [[ -d "fixtures" ]]; then
+        log_info "Copying compiled fixtures..."
+        mkdir -p "dist/fixtures"
+
+        # Copy each fixture directory (preserving structure)
+        for fixture_dir in fixtures/*/; do
+            if [[ -d "$fixture_dir" ]]; then
+                fixture_name=$(basename "$fixture_dir")
+                mkdir -p "dist/fixtures/$fixture_name"
+
+                # Copy deploy.sql (compiled fixture)
+                if [[ -f "$fixture_dir/deploy.sql" ]]; then
+                    cp "$fixture_dir/deploy.sql" "dist/fixtures/$fixture_name/"
+                fi
+
+                # Copy template.json (metadata needed for dependency resolution)
+                if [[ -f "$fixture_dir/template.json" ]]; then
+                    cp "$fixture_dir/template.json" "dist/fixtures/$fixture_name/"
+                fi
+            fi
+        done
+
+        log_info "Copied $(find fixtures -name 'deploy.sql' | wc -l | tr -d ' ') compiled fixtures"
+    fi
+
+    # Step 6: Validation
     log_info "Validating compilation output..."
 
     if [[ ! -f "dist/index.js" ]]; then
@@ -111,8 +137,25 @@ main() {
     log_info "  Metadata files: $(find dist/describedata -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  Documentation files: $(find dist -name 'PUBLIC.md' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  SQL files: $(find dist/sql -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')"
+    log_info "  Fixture files: $(find dist/fixtures -name 'deploy.sql' 2>/dev/null | wc -l | tr -d ' ')"
 
     log_info "Compilation completed successfully!"
+
+    # Step 7: Extract TODO/FIXME/HACK tags
+    log_info "Extracting TODO tags from codebase..."
+    if [[ -f "$SCRIPT_DIR/build-todos.sh" ]]; then
+        "$SCRIPT_DIR/build-todos.sh" || log_warn "TODO extraction failed (non-critical)"
+    else
+        log_warn "TODO extraction script not found (skipping)"
+    fi
+
+    # Step 8: Extract @deprecated tags
+    log_info "Extracting @deprecated tags from codebase..."
+    if [[ -f "$SCRIPT_DIR/build-deprecated.sh" ]]; then
+        "$SCRIPT_DIR/build-deprecated.sh" || log_warn "Deprecated extraction failed (non-critical)"
+    else
+        log_warn "Deprecated extraction script not found (skipping)"
+    fi
 }
 
 main "$@"

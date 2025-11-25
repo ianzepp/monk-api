@@ -1,11 +1,52 @@
 import { randomBytes } from 'crypto';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from './database-connection.js';
-import { DatabaseNaming, TenantNamingMode } from './database-naming.js';
+import { DatabaseNaming } from './database-naming.js';
+import { NamespaceManager } from './namespace-manager.js';
+import { FixtureDeployer } from './fixtures/deployer.js';
 
-const execAsync = promisify(exec);
+/**
+ * Semaphore to limit concurrent tenant creation operations
+ *
+ * Each tenant creation via createdb uses 3-5 PostgreSQL connections:
+ * - Connections to template database (read)
+ * - Connections to postgres system database
+ * - Connections to new database (create)
+ *
+ * Limiting to 3 concurrent creations prevents connection exhaustion:
+ * 3 operations × 5 connections = 15 connections (safe for default max_connections=100)
+ */
+class TenantCreationSemaphore {
+    private queue: Array<() => void> = [];
+    private running = 0;
+    private readonly maxConcurrent: number;
+
+    constructor(maxConcurrent: number = 3) {
+        this.maxConcurrent = maxConcurrent;
+    }
+
+    async acquire(): Promise<void> {
+        if (this.running < this.maxConcurrent) {
+            this.running++;
+            return Promise.resolve();
+        }
+
+        return new Promise<void>((resolve) => {
+            this.queue.push(resolve);
+        });
+    }
+
+    release(): void {
+        this.running--;
+        const next = this.queue.shift();
+        if (next) {
+            this.running++;
+            next();
+        }
+    }
+}
+
+const tenantCreationSemaphore = new TenantCreationSemaphore(3);
 
 /**
  * Options for cloning a template database
@@ -13,10 +54,8 @@ const execAsync = promisify(exec);
 export interface TemplateCloneOptions {
     template_name: string;
     tenant_name?: string; // Optional - will be generated if not provided
-    username?: string; // Optional - defaults to 'root' in personal mode
+    username?: string; // Optional - defaults to 'root'
     user_access?: string; // Default: 'full'
-    naming_mode?: 'enterprise' | 'personal'; // Database naming mode (default: enterprise or from env)
-    database?: string; // Custom database name (personal mode only, defaults to sanitized tenant_name)
     description?: string; // Optional tenant description
     // Future extensibility:
     // email?: string;
@@ -30,7 +69,8 @@ export interface TemplateCloneOptions {
  */
 export interface TemplateCloneResult {
     tenant: string;
-    database: string;
+    dbName: string;
+    nsName: string;
     user: {
         id: string;
         name: string;
@@ -52,7 +92,7 @@ export interface TemplateCloneResult {
  */
 export class DatabaseTemplate {
     /**
-     * Clone a template database and create a new tenant with custom user
+     * Clone a template (deploy fixture) and create a new tenant with custom user
      *
      * @param options - Template cloning configuration
      * @returns Promise<TemplateCloneResult> - New tenant credentials
@@ -60,27 +100,15 @@ export class DatabaseTemplate {
     static async cloneTemplate(options: TemplateCloneOptions): Promise<TemplateCloneResult> {
         const { template_name, user_access = 'root' } = options;
 
-        // Get main database connection for tenant registry operations
-        const mainPool = DatabaseConnection.getMainPool();
+        // Acquire semaphore to limit concurrent tenant creations
+        await tenantCreationSemaphore.acquire();
 
         try {
-            // 1. Validate template exists
-            const templateQuery = `
-                SELECT database
-                  FROM tenants
-                 WHERE name = $1
-                   AND tenant_type = 'template'
-                   AND trashed_at IS NULL
-            `;
+            // Get main database connection for tenant registry operations
+            const mainPool = DatabaseConnection.getMainPool();
 
-            // Find the template by name, if it exists
-            const templateResult = await mainPool.query(templateQuery, [`monk_${template_name}`]);
-
-            if (templateResult.rows.length === 0) {
-                throw HttpErrors.notFound(`Template '${template_name}' not found`, 'TEMPLATE_NOT_FOUND');
-            }
-
-            const templateDatabase = templateResult.rows[0].database; // monk_template_basic
+            // 1. Validate template exists (fixtures are in fixtures/ directory)
+            // Note: Template validation is implicit - FixtureDeployer will fail if fixture doesn't exist
 
             // 2. Generate tenant name if not provided
             let tenantName = options.tenant_name;
@@ -91,111 +119,98 @@ export class DatabaseTemplate {
                 tenantName = `demo_${timestamp}_${random}`;
             }
 
-            // 3. Determine naming mode
-            const defaultMode = (process.env.TENANT_NAMING_MODE || 'enterprise') as 'enterprise' | 'personal';
-            const namingMode = options.naming_mode || defaultMode;
-            const mode =
-                namingMode === 'personal' ? TenantNamingMode.PERSONAL : TenantNamingMode.ENTERPRISE;
+            // 3. Set username (defaults to 'root' if not provided)
+            const username = options.username || 'root';
 
-            // 3a. Set default username for personal mode
-            const username = options.username || (mode === TenantNamingMode.PERSONAL ? 'root' : undefined);
-
-            if (!username) {
-                throw HttpErrors.badRequest('Username is required', 'USERNAME_MISSING');
-            }
-
-            // 4. Generate database name
-            let databaseName: string;
-
-            if (mode === TenantNamingMode.PERSONAL && options.database) {
-                // Personal mode with explicit database name
-                databaseName = DatabaseNaming.generateDatabaseName(options.database, mode);
-            } else {
-                // Generate from tenant name (works for both modes)
-                // In personal mode, if database not specified, uses sanitized tenant name
-                databaseName = DatabaseNaming.generateDatabaseName(tenantName, mode);
-            }
+            // 4. Determine target database and generate namespace name
+            const targetDbName = 'db_main'; // Default shared tenant database
+            const targetNsName = DatabaseNaming.generateTenantNsName(tenantName);
 
             // 5. Check if tenant name already exists
-            const existingCheck = await mainPool.query('SELECT COUNT(*) FROM tenants WHERE name = $1', [
-                tenantName,
-            ]);
+            const existingCheck = await mainPool.query('SELECT COUNT(*) FROM tenants WHERE name = $1', [tenantName]);
 
             if (existingCheck.rows[0].count > 0) {
-                throw HttpErrors.conflict(`Tenant '${tenantName}' already exists`, 'TENANT_EXISTS');
+                throw HttpErrors.conflict(`Tenant '${tenantName}' already exists`, 'DATABASE_TENANT_EXISTS');
             }
 
-            // 6. Check if database already exists (critical for personal mode)
-            const dbExistsCheck = await mainPool.query(
-                'SELECT COUNT(*) FROM pg_database WHERE datname = $1',
-                [databaseName]
-            );
-
-            if (dbExistsCheck.rows[0].count > 0) {
-                throw HttpErrors.conflict(
-                    `Database '${databaseName}' already exists`,
-                    'DATABASE_EXISTS'
-                );
+            // 6. Check if namespace already exists
+            if (await NamespaceManager.namespaceExists(targetDbName, targetNsName)) {
+                throw HttpErrors.conflict(`Namespace '${targetNsName}' already exists in ${targetDbName}`, 'NAMESPACE_EXISTS');
             }
 
-            // 7. Clone template database using createdb command (same as test helpers)
+            // 7. Create namespace
+            await NamespaceManager.createNamespace(targetDbName, targetNsName);
+
             try {
-                await execAsync(`createdb "${databaseName}" -T "${templateDatabase}"`);
-            } catch (error) {
-                throw HttpErrors.internal(`Failed to clone template database: ${error}`, 'TEMPLATE_CLONE_FAILED');
-            }
+                // 8. Deploy fixtures to namespace with automatic dependency resolution
+                // This will deploy 'system' first if the template depends on it
+                await FixtureDeployer.deployMultiple([template_name], {
+                    dbName: targetDbName,
+                    nsName: targetNsName,
+                });
 
-            // 8. Register tenant in main database with naming mode and description
-            await mainPool.query(
-                `
-                INSERT INTO tenants (name, database, description, host, is_active, tenant_type, naming_mode)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-            `,
-                [tenantName, databaseName, options.description || null, 'localhost', true, 'normal', namingMode]
-            );
-
-            // 9. Add custom user to cloned database (or use existing if username exists)
-            const tenantPool = DatabaseConnection.getTenantPool(databaseName);
-
-            // Check if user already exists (e.g., root user in template)
-            const existingUserCheck = await tenantPool.query(
-                'SELECT * FROM users WHERE auth = $1 AND deleted_at IS NULL',
-                [username]
-            );
-
-            let newUser;
-            if (existingUserCheck.rows.length > 0) {
-                // User already exists in template - use it
-                newUser = existingUserCheck.rows[0];
-            } else {
-                // Create new user
-                const userResult = await tenantPool.query(
-                    `
-                    INSERT INTO users (name, auth, access, access_read, access_edit, access_full, access_deny)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    RETURNING *
-                `,
-                    [`Demo User (${username})`, username, user_access, '{}', '{}', '{}', '{}']
+                // 9. Check if user already exists (e.g., root user in fixture)
+                const existingUserCheck = await DatabaseConnection.queryInNamespace(
+                    targetDbName,
+                    targetNsName,
+                    'SELECT * FROM users WHERE auth = $1 AND deleted_at IS NULL',
+                    [username]
                 );
-                newUser = userResult.rows[0];
-            }
 
-            return {
-                tenant: tenantName,
-                database: databaseName,
-                user: {
-                    id: newUser.id,
-                    name: newUser.name,
-                    auth: newUser.auth,
-                    access: newUser.access,
-                    access_read: newUser.access_read || [],
-                    access_edit: newUser.access_edit || [],
-                    access_full: newUser.access_full || [],
-                    access_deny: newUser.access_deny || [],
-                },
-                template_used: template_name,
-            };
+                let newUser;
+                if (existingUserCheck.rows.length > 0) {
+                    // User already exists in fixture - use it
+                    newUser = existingUserCheck.rows[0];
+                } else {
+                    // Create new user in namespace
+                    const userResult = await DatabaseConnection.queryInNamespace(
+                        targetDbName,
+                        targetNsName,
+                        `INSERT INTO users (name, auth, access, access_read, access_edit, access_full, access_deny)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7)
+                         RETURNING *`,
+                        [`Demo User (${username})`, username, user_access, '{}', '{}', '{}', '{}']
+                    );
+                    newUser = userResult.rows[0];
+                }
+
+                // 10. Register tenant in main database
+                const tenantInsertResult = await mainPool.query(
+                    `INSERT INTO tenants (name, database, schema, description, source_template, owner_id, host, is_active)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                     RETURNING id`,
+                    [tenantName, targetDbName, targetNsName, options.description || null, template_name, newUser.id, 'localhost', true]
+                );
+
+                return {
+                    tenant: tenantName,
+                    dbName: targetDbName,
+                    nsName: targetNsName,
+                    user: {
+                        id: newUser.id,
+                        name: newUser.name,
+                        auth: newUser.auth,
+                        access: newUser.access,
+                        access_read: newUser.access_read || [],
+                        access_edit: newUser.access_edit || [],
+                        access_full: newUser.access_full || [],
+                        access_deny: newUser.access_deny || [],
+                    },
+                    template_used: template_name,
+                };
+            } catch (error) {
+                // Clean up namespace if fixture deployment or user creation failed
+                try {
+                    await NamespaceManager.dropNamespace(targetDbName, targetNsName);
+                } catch (cleanupError) {
+                    console.warn(`Failed to cleanup namespace: ${cleanupError}`);
+                }
+                throw error;
+            }
         } finally {
+            // Release semaphore to allow next tenant creation
+            tenantCreationSemaphore.release();
+
             // Database connections are managed by DatabaseConnection class
             // No need to manually close pools here
         }
