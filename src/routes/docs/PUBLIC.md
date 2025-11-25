@@ -215,6 +215,25 @@ POST   /auth/register                     → /docs/auth/register/POST
 - **Change Tracking**: `/docs/api/history` - Audit trails and change history
 - **Administration**: `/docs/api/sudo` - User management and administrative operations
 
+## Common Operations Quick Reference
+
+| Task | Endpoint | Method | Notes |
+|------|----------|--------|-------|
+| **Create one record** | `/api/data/:model` | POST | Single object body |
+| **Create many records** | `/api/data/:model` | POST | Array body |
+| **Read one record** | `/api/data/:model/:id` | GET | |
+| **Read all records** | `/api/data/:model` | GET | |
+| **Update one record** | `/api/data/:model/:id` | PUT | |
+| **Update many records** | `/api/data/:model` | PUT | Array of `{id, ...fields}` |
+| **Update by filter** | `/api/bulk` | POST | `operation: "update-any"` with `filter` and `data` |
+| **Delete one record** | `/api/data/:model/:id` | DELETE | Soft delete |
+| **Delete many records** | `/api/data/:model` | DELETE | Array of `{id}` |
+| **Delete by filter** | `/api/bulk` | POST | `operation: "delete-any"` with `filter` |
+| **Search with filters** | `/api/find/:model` | POST | 25+ filter operators |
+| **Aggregate/Analytics** | `/api/aggregate/:model` | POST | `$sum`, `$avg`, `$count`, `$min`, `$max` with `groupBy` |
+| **View change history** | `/api/history/:model/:id` | GET | Requires field tracking enabled |
+| **Cross-model transaction** | `/api/bulk` | POST | Multiple operations, single transaction |
+
 ## Quick Start Workflow
 
 1. **Health Check**: `GET /health` to verify system status
@@ -554,7 +573,7 @@ curl -X POST https://api.example.com/api/find/users?format=toon \
 USER_EMAIL=$(curl https://api.example.com/api/data/users/123?select=email \
   -H "Authorization: Bearer $TOKEN")
 
-# Bulk operations
+# Bulk operations - batch create
 curl -X POST https://api.example.com/api/bulk \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -564,6 +583,39 @@ curl -X POST https://api.example.com/api/bulk \
         "operation": "create-all",
         "model": "users",
         "data": [{"name": "User 1"}, {"name": "User 2"}]
+      }
+    ]
+  }'
+
+# Bulk operations - batch update (update multiple records by ID)
+curl -X POST https://api.example.com/api/bulk \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operations": [
+      {
+        "operation": "update-all",
+        "model": "products",
+        "data": [
+          {"id": "prod_1", "price": 29.99},
+          {"id": "prod_2", "price": 39.99},
+          {"id": "prod_3", "price": 49.99}
+        ]
+      }
+    ]
+  }'
+
+# Bulk operations - batch update by filter (update all matching records)
+curl -X POST https://api.example.com/api/bulk \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operations": [
+      {
+        "operation": "update-any",
+        "model": "orders",
+        "filter": {"where": {"status": "pending"}},
+        "data": {"status": "processing"}
       }
     ]
   }'

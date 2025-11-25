@@ -11,37 +11,22 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { FilterWhere } from '@src/lib/filter-where.js';
-import type { ModelRecord } from '@src/lib/model-record.js';
 
 export default class SqlRevertObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['revert'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, model, data } = context;
+        const { system, model, record } = context;
 
-        if (!data || data.length === 0) {
-            return;
-        }
-
-        // Build Map for O(1) lookup when matching DB results back to ModelRecord instances
-        const dataMap = new Map<string, ModelRecord>();
-        const ids: string[] = [];
-
-        for (const record of data) {
-            const id = record.get('id');
-            if (!id) {
-                throw new SystemError('Revert records must have id fields');
-            }
-            dataMap.set(id, record);
-            ids.push(id);
+        const id = record.get('id');
+        if (!id) {
+            throw new SystemError('Revert record must have id field');
         }
 
         // Use FilterWhere for consistent WHERE clause generation
         const { whereClause, params } = FilterWhere.generate(
-            {
-                id: { $in: ids },
-            },
+            { id },
             0,
             {
                 trashed: 'include', // Include trashed records for revert operation
@@ -53,20 +38,13 @@ export default class SqlRevertObserver extends BaseObserver {
         const query = `UPDATE "${model.model_name}" SET trashed_at = NULL, updated_at = NOW() WHERE ${fullWhereClause} RETURNING *`;
         const result = await SqlUtils.getPool(system).query(query, params);
 
-        // ExistenceValidator already confirmed these are trashed records
-        if (result.rows.length !== ids.length) {
-            throw new SystemError(`Revert operation affected ${result.rows.length} records, expected ${ids.length}`);
+        // ExistenceValidator already confirmed this is a trashed record
+        if (result.rows.length === 0) {
+            throw new SystemError(`Revert operation failed - record not found or not trashed: ${id}`);
         }
 
-        // Update each ModelRecord with final database state
-        for (const row of result.rows) {
-            const dbResult = SqlUtils.convertPostgreSQLTypes(row, model);
-            const record = dataMap.get(dbResult.id);
-            if (record) {
-                record.setCurrent(dbResult);
-            }
-        }
-
-        // No need to set context.result - context.data now contains updated ModelRecord instances
+        // Update the ModelRecord with final database state
+        const dbResult = SqlUtils.convertPostgreSQLTypes(result.rows[0], model);
+        record.setCurrent(dbResult);
     }
 }

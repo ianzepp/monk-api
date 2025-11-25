@@ -504,8 +504,6 @@ describe('Database.aggregate() - Type Conversion', () => {
             { status: 'pending', total: '50' },
         ];
 
-        const mockModel = createMockModel({ modelName: 'orders' });
-        vi.spyOn(database as any, 'toModel').mockResolvedValue(mockModel);
         vi.spyOn(database as any, 'execute').mockResolvedValue({ rows: mockRows });
         convertSpy.mockImplementation((row: any) => ({ ...row, total: parseInt(row.total) }));
 
@@ -517,8 +515,9 @@ describe('Database.aggregate() - Type Conversion', () => {
         const result = await database.aggregate('orders', body);
 
         expect(convertSpy).toHaveBeenCalledTimes(2);
-        expect(convertSpy).toHaveBeenCalledWith(mockRows[0], mockModel);
-        expect(convertSpy).toHaveBeenCalledWith(mockRows[1], mockModel);
+        // Model is passed from namespace.getModel() which is mocked by createMockDatabase
+        expect(convertSpy).toHaveBeenCalledWith(mockRows[0], expect.objectContaining({ modelName: 'orders' }));
+        expect(convertSpy).toHaveBeenCalledWith(mockRows[1], expect.objectContaining({ modelName: 'orders' }));
         expect(result).toEqual([
             { status: 'completed', total: 100 },
             { status: 'pending', total: 50 },
@@ -561,9 +560,12 @@ describe('Database.aggregate() - Error Handling', () => {
         vi.restoreAllMocks();
     });
 
-    it('should propagate toModel errors', async () => {
+    it('should propagate namespace.getModel errors', async () => {
+        // Create database with a getModel that throws
         const error = new Error('Model not found');
-        vi.spyOn(database as any, 'toModel').mockRejectedValue(error);
+        database = createMockDatabase({
+            getModel: vi.fn().mockImplementation(() => { throw error; }),
+        });
 
         const body = { aggregate: { total: { $count: '*' } } };
 
@@ -573,10 +575,6 @@ describe('Database.aggregate() - Error Handling', () => {
     });
 
     it('should propagate SQL execution errors', async () => {
-        const mockModel = createMockModel({ modelName: 'orders' });
-        vi.spyOn(database as any, 'toModel').mockResolvedValue(mockModel);
-        vi.spyOn(database as any, 'getDefaultSoftDeleteOptions').mockReturnValue({});
-
         const sqlError = new Error('SQL syntax error');
         vi.spyOn(database as any, 'execute').mockRejectedValue(sqlError);
 
@@ -588,10 +586,6 @@ describe('Database.aggregate() - Error Handling', () => {
     });
 
     it('should propagate Filter validation errors', async () => {
-        const mockModel = createMockModel({ modelName: 'orders' });
-        vi.spyOn(database as any, 'toModel').mockResolvedValue(mockModel);
-        vi.spyOn(database as any, 'getDefaultSoftDeleteOptions').mockReturnValue({});
-
         // Mock Filter to throw validation error
         vi.spyOn(Filter.prototype, 'assign').mockImplementation(() => {
             throw HttpErrors.badRequest('Invalid WHERE clause', 'FILTER_INVALID_WHERE');
@@ -608,9 +602,6 @@ describe('Database.aggregate() - Error Handling', () => {
     });
 
     it('should propagate FilterSqlGenerator errors for unknown aggregation functions', async () => {
-        const mockModel = createMockModel({ modelName: 'orders' });
-        vi.spyOn(database as any, 'toModel').mockResolvedValue(mockModel);
-        vi.spyOn(database as any, 'getDefaultSoftDeleteOptions').mockReturnValue({});
         vi.spyOn(database as any, 'execute').mockResolvedValue({ rows: [] });
 
         // The actual implementation will throw from FilterSqlGenerator.buildAggregateClause

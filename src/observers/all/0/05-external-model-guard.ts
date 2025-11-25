@@ -1,7 +1,7 @@
 /**
  * External Model Guard Observer - Ring 0 PreValidation
  *
- * Rejects any create/update/delete/select operations on external models.
+ * Rejects any create/update/delete operations on external models.
  * External models are documented in the system but managed by specialized APIs.
  * This runs in Ring 0 to protect ALL code paths (API and internal).
  */
@@ -12,7 +12,7 @@ import { SecurityError } from '@src/lib/observers/errors.js';
 
 export default class ExternalModelGuard extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation; // Ring 0
-    readonly operations = ['select', 'create', 'update', 'delete'] as const;
+    readonly operations = ['create', 'update', 'delete'] as const;
     readonly priority = 5; // Early execution, before most validation
 
     async execute(context: ObserverContext): Promise<void> {

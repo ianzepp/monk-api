@@ -16,8 +16,8 @@ export default class DuplicateFieldChecker extends BaseObserver {
     readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create'] as const;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
-        const { system } = context;
+    async execute(context: ObserverContext): Promise<void> {
+        const { system, record } = context;
         const { model_name, field_name } = record;
 
         if (!model_name || !field_name) {

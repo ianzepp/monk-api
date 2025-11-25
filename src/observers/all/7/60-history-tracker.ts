@@ -20,7 +20,7 @@ export default class HistoryTracker extends BaseObserver {
     private readonly SYSTEM_MODELS = ['models', 'fields', 'users', 'history'];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { system, operation, model, data } = context;
+        const { system, operation, model, record } = context;
         const modelName = model.model_name;
 
         // Skip system models
@@ -35,18 +35,13 @@ export default class HistoryTracker extends BaseObserver {
 
         const trackedFields = Array.from(model.trackedFields);
 
-        // Process each ModelRecord (contains both original and current state)
-        const records = Array.isArray(data) ? data : [data];
-
-        for (const record of records) {
-            await this.createHistoryRecord(
-                system,
-                operation,
-                modelName,
-                trackedFields,
-                record
-            );
-        }
+        await this.createHistoryRecord(
+            system,
+            operation,
+            modelName,
+            trackedFields,
+            record
+        );
     }
 
     /**

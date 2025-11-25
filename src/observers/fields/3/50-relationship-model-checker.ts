@@ -16,8 +16,8 @@ export default class RelationshipModelChecker extends BaseObserver {
     readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
-        const { system } = context;
+    async execute(context: ObserverContext): Promise<void> {
+        const { system, record } = context;
         const { relationship_type, related_model, relationship_name } = record.toObject();
 
         // Skip if not a relationship field

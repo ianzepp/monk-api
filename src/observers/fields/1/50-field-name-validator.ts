@@ -33,7 +33,8 @@ export default class field_nameValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+    async execute(context: ObserverContext): Promise<void> {
+        const { record } = context;
         const { field_name } = record;
 
         if (!field_name) {

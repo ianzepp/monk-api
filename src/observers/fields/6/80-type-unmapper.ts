@@ -60,10 +60,11 @@ const REVERSE_TYPE_MAPPING: Record<string, string> = {
 
 export default class TypeUnmapperObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
-    readonly operations = ['select', 'create', 'update', 'delete'] as const;  // All operations that return data
+    readonly operations = ['create', 'update', 'delete'] as const;  // All write operations that return data
     readonly priority = 80;  // Run after DDL observers (priority 10)
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+    async execute(context: ObserverContext): Promise<void> {
+        const { record } = context;
         const { model_name, field_name, type } = record;
 
         if (!type) {

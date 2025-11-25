@@ -3,7 +3,6 @@ import { System } from '@src/lib/system.js';
 import type { SystemOptions } from '@src/lib/system-context-types.js';
 import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError, HttpErrors } from '@src/lib/errors/http-error.js';
-import { createModel } from '@src/lib/model.js';
 
 /**
  * API Request/Response Helpers
@@ -136,10 +135,17 @@ export function withTransaction(handler: (context: Context) => Promise<void>) {
             // Set transaction client for observers and database operations
             system.tx = tx;
 
+            // Ensure namespace cache is loaded (one-time per tenant)
+            // This requires tx to be set on system before calling
+            if (system.namespace && !system.namespace.isLoaded()) {
+                await system.namespace.loadAll(system);
+            }
+
             console.info('Transaction started', {
                 namespace: nsName,
                 path: context.req.path,
-                method: context.req.method
+                method: context.req.method,
+                cacheLoaded: system.namespace?.isLoaded() ?? false,
             });
 
             // Execute route handler

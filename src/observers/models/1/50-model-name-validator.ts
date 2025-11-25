@@ -35,7 +35,8 @@ export default class model_nameValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+    async execute(context: ObserverContext): Promise<void> {
+        const { record } = context;
         const { model_name } = record;
 
         // Validate required field (previously handled by Ajv, now done explicitly)

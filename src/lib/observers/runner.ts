@@ -3,12 +3,15 @@
  *
  * Executes observers in ordered rings (0-9) with error aggregation,
  * timeout protection, and performance monitoring.
+ *
+ * Single-record model: The runner iterates over records and passes
+ * one record at a time to each observer. This eliminates redundant
+ * looping inside observers and simplifies observer logic.
  */
 
 import type { SystemContext } from '@src/lib/system-context-types.js';
 import { Model } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
-import { ModelCache } from '@src/lib/model-cache.js';
 import type {
     Observer,
     ObserverContext,
@@ -26,7 +29,19 @@ import type { ValidationWarning } from '@src/lib/observers/errors.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
 
 /**
+ * Extended ValidationError with record index for batch error reporting
+ */
+interface IndexedValidationError extends ValidationError {
+    recordIndex?: number;
+}
+
+/**
  * Observer execution engine with ring-based execution
+ *
+ * Execution model:
+ * - Outer loop: iterate over records
+ * - Inner loop: for each record, execute all rings in order
+ * - Observers receive single record via context.record
  */
 export class ObserverRunner {
     private readonly defaultTimeout = 5000; // 5 seconds
@@ -34,69 +49,115 @@ export class ObserverRunner {
 
     /**
      * Execute observers for a model operation with selective ring execution
+     *
+     * Iterates over records, running the full ring pipeline for each record.
+     * Collects errors with record indices for batch error reporting.
+     * Fails entire batch if any record fails validation (before Ring 5).
      */
     async execute(
         system: SystemContext,
         operation: OperationType,
         model: Model,
-        data: ModelRecord[],
-        depth: number = 0,
-        filter?: any
+        records: ModelRecord[],
+        depth: number = 0
     ): Promise<ObserverResult> {
         const startTime = Date.now();
-
-        // Model object already resolved by Database.runObserverPipeline()
-        const context = this._createContext(system, operation, model, data, filter);
         const stats: ObserverStats[] = [];
+        const allErrors: IndexedValidationError[] = [];
+        const allWarnings: ValidationWarning[] = [];
         const ringsExecuted: ObserverRing[] = [];
 
+        // Get relevant rings for this operation (selective execution)
+        const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
+
+        console.info('Observer pipeline started', {
+            operation,
+            modelName: model.model_name,
+            recordCount: records.length,
+            ringCount: relevantRings.length,
+            rings: relevantRings
+        });
+
         try {
-            // Get relevant rings for this operation (selective execution)
-            const relevantRings = RING_OPERATION_MATRIX[operation] || [5]; // Default: Database only
+            // Outer loop: iterate over records
+            for (let recordIndex = 0; recordIndex < records.length; recordIndex++) {
+                const record = records[recordIndex];
 
-            console.info('Observer rings executing', {
-                operation,
-                modelName: model.model_name,
-                ringCount: relevantRings.length,
-                rings: relevantRings
-            });
+                // Create per-record context
+                const context = this._createContext(system, operation, model, record, recordIndex);
 
-            // Execute only relevant rings for this operation
-            for (const ring of relevantRings) {
-                context.currentRing = ring as ObserverRing;
-                ringsExecuted.push(ring as ObserverRing);
+                // Inner loop: execute all rings for this record
+                let recordFailed = false;
+                for (const ring of relevantRings) {
+                    context.currentRing = ring as ObserverRing;
 
-                const shouldContinue = await this._executeObserverRing(ring as ObserverRing, context, stats);
-                if (!shouldContinue) {
-                    break; // Stop execution due to errors
+                    // Track rings executed (only on first record to avoid duplicates)
+                    if (recordIndex === 0) {
+                        ringsExecuted.push(ring as ObserverRing);
+                    }
+
+                    const shouldContinue = await this._executeObserverRing(ring as ObserverRing, context, stats);
+
+                    if (!shouldContinue) {
+                        // Validation failed - collect errors with record index
+                        for (const error of context.errors) {
+                            (error as IndexedValidationError).recordIndex = recordIndex;
+                            allErrors.push(error as IndexedValidationError);
+                        }
+                        recordFailed = true;
+                        break; // Stop processing this record
+                    }
+                }
+
+                // Collect warnings regardless of success/failure
+                allWarnings.push(...context.warnings);
+
+                // If record failed validation (pre-Ring 5), continue to collect more errors
+                // but mark that we have failures
+                if (recordFailed) {
+                    continue;
+                }
+
+                // Collect any errors from post-database rings
+                if (context.errors.length > 0) {
+                    for (const error of context.errors) {
+                        (error as IndexedValidationError).recordIndex = recordIndex;
+                        allErrors.push(error as IndexedValidationError);
+                    }
                 }
             }
 
             const totalTime = Date.now() - startTime;
-            return this._createSuccessResult(context, stats, ringsExecuted, totalTime);
+
+            // If any errors occurred, return failure
+            if (allErrors.length > 0) {
+                return this._createFailureResult(model, operation, allErrors, allWarnings, stats, ringsExecuted, totalTime);
+            }
+
+            return this._createSuccessResult(model, operation, records.length, allWarnings, stats, ringsExecuted, totalTime);
 
         } catch (error) {
             const totalTime = Date.now() - startTime;
-            return this._createErrorResult(context, error, totalTime);
+            return this._createErrorResult(model, operation, error, allWarnings, totalTime);
         }
     }
 
     /**
-     * Create observer context for execution
+     * Create observer context for a single record
      */
     private _createContext(
         system: SystemContext,
         operation: OperationType,
         model: Model,
-        data: ModelRecord[],
-        filter?: any
+        record: ModelRecord,
+        recordIndex: number
     ): ObserverContext {
         return {
             system,
             operation,
             model,
-            data, // For create/update operations (now ModelRecord[])
-            filter, // For select operations (rings 0-4), undefined for other operations
+            record,
+            recordIndex,
             errors: [],
             warnings: [],
             startTime: Date.now(),
@@ -109,55 +170,74 @@ export class ObserverRunner {
      * Create successful execution result
      */
     private _createSuccessResult(
-        context: ObserverContext,
+        model: Model,
+        operation: OperationType,
+        recordCount: number,
+        warnings: ValidationWarning[],
         stats: ObserverStats[],
         ringsExecuted: ObserverRing[],
         totalTime: number
     ): ObserverResult {
-        const success = context.errors.length === 0;
-
-        // Create execution summary for debugging
-        const summary = {
-            model: context.model,
-            operation: context.operation,
-            totalTimeMs: totalTime,
-            ringsExecuted,
-            observersExecuted: stats.length,
-            totalErrors: context.errors.length,
-            totalWarnings: context.warnings.length,
-            success,
-            stats
-        };
-
         console.info('Observer execution completed', {
-            success,
-            operation: context.operation,
-            modelName: context.model.model_name,
+            success: true,
+            operation,
+            modelName: model.model_name,
+            recordCount,
             totalTimeMs: totalTime,
             ringsExecuted: ringsExecuted.length,
             observersExecuted: stats.length,
-            errorCount: context.errors.length,
-            warningCount: context.warnings.length
+            warningCount: warnings.length
         });
 
         return {
-            success,
-            errors: context.errors,
-            warnings: context.warnings
+            success: true,
+            errors: [],
+            warnings
         };
     }
 
     /**
-     * Create error result for execution failures
+     * Create failure result for validation errors
      */
-    private _createErrorResult(
-        context: ObserverContext,
-        error: unknown,
+    private _createFailureResult(
+        model: Model,
+        operation: OperationType,
+        errors: IndexedValidationError[],
+        warnings: ValidationWarning[],
+        stats: ObserverStats[],
+        ringsExecuted: ObserverRing[],
         totalTime: number
     ): ObserverResult {
-        console.warn('Observer execution failed', {
-            operation: context.operation,
-            modelName: context.model.model_name,
+        console.warn('Observer execution failed with validation errors', {
+            success: false,
+            operation,
+            modelName: model.model_name,
+            totalTimeMs: totalTime,
+            ringsExecuted: ringsExecuted.length,
+            errorCount: errors.length,
+            warningCount: warnings.length
+        });
+
+        return {
+            success: false,
+            errors,
+            warnings
+        };
+    }
+
+    /**
+     * Create error result for unexpected execution failures
+     */
+    private _createErrorResult(
+        model: Model,
+        operation: OperationType,
+        error: unknown,
+        warnings: ValidationWarning[],
+        totalTime: number
+    ): ObserverResult {
+        console.warn('Observer execution failed unexpectedly', {
+            operation,
+            modelName: model.model_name,
             totalTimeMs: totalTime,
             error: error instanceof Error ? error.message : String(error)
         });
@@ -167,14 +247,14 @@ export class ObserverRunner {
             errors: [{
                 message: `Observer execution failed: ${error}`,
                 code: 'OBSERVER_EXECUTION_ERROR'
-            }],
-            warnings: context.warnings
+            } as ValidationError],
+            warnings
         };
     }
 
 
     /**
-     * Execute observers for a specific ring
+     * Execute observers for a specific ring on the current record
      */
     private async _executeObserverRing(
         ring: ObserverRing,
@@ -202,8 +282,7 @@ export class ObserverRunner {
 
         // Check for errors after each pre-database ring
         if (context.errors.length > 0 && ring < 5) {
-            // Keep as debug - detailed execution flow for development
-            return false; // Stop execution
+            return false; // Stop execution for this record
         }
 
         return true; // Continue execution
@@ -300,6 +379,8 @@ export class ObserverRunner {
             context.system &&
             context.operation &&
             context.model &&
+            context.record &&
+            typeof context.recordIndex === 'number' &&
             context.errors &&
             context.warnings &&
             typeof context.startTime === 'number'

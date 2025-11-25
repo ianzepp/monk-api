@@ -36,8 +36,7 @@ export default class ModelSudoValidator extends BaseObserver {
             return;
         }
 
-        // Use cached model data - the model object comes from ModelCache via Database.toModel()
-        // This avoids redundant database queries since the model is already loaded and cached
+        // Use cached model data - the model object comes from NamespaceCache
         const requiresSudo = model.sudo ?? false;
 
         if (!requiresSudo) {
@@ -47,7 +46,8 @@ export default class ModelSudoValidator extends BaseObserver {
 
         console.info('Validating sudo access for protected model', {
             operation: context.operation,
-            modelName: model.model_name
+            modelName: model.model_name,
+            recordIndex: context.recordIndex
         });
 
         // Use isSudo() helper which checks: root user, is_sudo flag, or as_sudo flag
@@ -63,6 +63,7 @@ export default class ModelSudoValidator extends BaseObserver {
         console.info('Sudo access validated for protected model', {
             operation: context.operation,
             modelName: model.model_name,
+            recordIndex: context.recordIndex,
             userId: system.getUser?.()?.id,
             elevation_reason: jwtPayload?.elevation_reason
         });

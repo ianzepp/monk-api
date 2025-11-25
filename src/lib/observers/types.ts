@@ -31,20 +31,23 @@ export const DATABASE_RING = ObserverRing.Database;
  * - create: Insert new records
  * - update: Modify existing records
  * - delete: Soft delete records (set trashed_at)
- * - select: Read records (query-only)
  * - revert: Undo soft delete (clear trashed_at)
  * - access: Modify access control lists (ACLs only)
+ *
+ * Note: 'select' is NOT an operation type. Selects bypass the observer pipeline
+ * entirely and go directly through Database.selectAny(). This is because selects:
+ * - Don't modify data (no need for validation rings)
+ * - Don't fit the single-record pipeline model (return multiple records)
+ * - Perform better without observer overhead
  */
-export type OperationType = 'create' | 'update' | 'delete' | 'select' | 'revert' | 'access';
+export type OperationType = 'create' | 'update' | 'delete' | 'revert' | 'access';
 
 /**
  * Ring execution matrix - defines which rings execute for each operation type
  *
  * This optimizes performance by skipping irrelevant rings for certain operations.
- * For example, selects skip business logic rings since they don't modify data.
  */
 export const RING_OPERATION_MATRIX = {
-    'select': [0, 1, 5, 8, 9],           // Validation, Security, Database, Integration, Notification
     'create': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings
     'update': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings
     'delete': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings

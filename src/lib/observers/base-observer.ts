@@ -3,11 +3,13 @@
  *
  * Provides the executeTry/execute pattern for consistent error handling,
  * logging, and timeout management across all observers.
+ *
+ * Single-record model: Observers receive one record at a time via context.record.
+ * The ObserverRunner handles iteration over the batch.
  */
 
 import type { Observer, ObserverContext } from '@src/lib/observers/interfaces.js';
 import type { ObserverRing, OperationType } from '@src/lib/observers/types.js';
-import type { ModelRecord } from '@src/lib/model-record.js';
 import {
     ValidationError,
     BusinessLogicError,
@@ -24,6 +26,11 @@ import {
  * - Execution time tracking and logging
  * - Timeout protection
  * - Consistent logging format
+ *
+ * Single-record model:
+ * - context.record contains the current ModelRecord being processed
+ * - context.recordIndex contains the index in the original batch
+ * - Override execute() to implement your observer logic
  */
 export abstract class BaseObserver implements Observer {
     abstract readonly ring: ObserverRing;
@@ -55,7 +62,7 @@ export abstract class BaseObserver implements Observer {
      */
     async executeTry(context: ObserverContext): Promise<void> {
         const observerName = this.constructor.name;
-        const { system, operation, model } = context;
+        const { operation, model, recordIndex } = context;
         const modelName = model.model_name;
 
         try {
@@ -65,37 +72,36 @@ export abstract class BaseObserver implements Observer {
                 this.createTimeoutPromise(observerName)
             ]);
 
-            // Log successful execution with precise timing
+            // Log successful execution
             console.info(`Observer: ${observerName}`, {
                 ring: this.ring,
                 operation,
                 modelName,
-                status: 'success',
-                length: context.data?.length || 0
+                recordIndex,
+                status: 'success'
             });
 
         } catch (error) {
-            // Log failed execution with precise timing
+            // Log failed execution
             console.info(`Observer: ${observerName}`, {
                 ring: this.ring,
                 operation,
                 modelName,
+                recordIndex,
                 status: 'failed',
-                length: context.data?.length || 0,
                 error: error instanceof Error ? error.message : String(error)
             });
 
-            // Handle observer error (unchanged logic)
-            this.handleObserverError(error, observerName, context, 0); // Duration not needed since timing logged above
+            // Handle observer error
+            this.handleObserverError(error, observerName, context);
         }
     }
 
     /**
-     * Array processing method - handles multiple records
+     * Single-record processing method - override this in your observer
      *
-     * Default implementation processes each record through executeOne().
-     * Override this method for complex observers that need custom array processing,
-     * cross-record business logic, or performance optimizations.
+     * The record is available via context.record (ModelRecord instance).
+     * The record index is available via context.recordIndex.
      *
      * Error handling guidelines:
      * - Throw ValidationError for invalid input data
@@ -103,32 +109,7 @@ export abstract class BaseObserver implements Observer {
      * - Throw SystemError for unrecoverable system failures
      * - Add warnings to context.warnings for non-blocking issues
      */
-    async execute(context: ObserverContext): Promise<void> {
-        const { data } = context;
-
-        // Check if data exists
-        if (!data || data.length === 0) {
-            return;
-        }
-
-        // Default implementation: process each record sequentially
-        for (const record of data) {
-            await this.executeOne(record, context);
-        }
-    }
-
-    /**
-     * Single record processing method - override for simple field validation
-     *
-     * This method is called for each record in the array by the default execute() implementation.
-     * Use this for simple observers that validate/transform individual records.
-     *
-     * For complex observers that need cross-record logic, override execute() instead.
-     */
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
-        // Default implementation: no-op
-        // Observers can implement this for simple per-record processing
-    }
+    abstract execute(context: ObserverContext): Promise<void>;
 
     /**
      * Create timeout promise for observer execution
@@ -147,8 +128,7 @@ export abstract class BaseObserver implements Observer {
     private handleObserverError(
         error: unknown,
         observerName: string,
-        context: ObserverContext,
-        duration: number
+        context: ObserverContext
     ): void {
         if (error instanceof ValidationError) {
             // Recoverable validation errors - collect for user feedback
@@ -164,8 +144,8 @@ export abstract class BaseObserver implements Observer {
                 observerName,
                 operation: context.operation,
                 modelName: context.model?.model_name ?? 'unknown',
-                error: error.message,
-                durationMs: duration
+                recordIndex: context.recordIndex,
+                error: error.message
             });
             throw error; // Propagate to rollback transaction
 
@@ -181,8 +161,8 @@ export abstract class BaseObserver implements Observer {
                 observerName,
                 operation: context.operation,
                 modelName: context.model?.model_name ?? 'unknown',
-                error: error.message,
-                durationMs: duration
+                recordIndex: context.recordIndex,
+                error: error.message
             });
 
         } else {
@@ -197,8 +177,8 @@ export abstract class BaseObserver implements Observer {
                 observerName,
                 operation: context.operation,
                 modelName: context.model?.model_name ?? 'unknown',
-                error: String(error),
-                durationMs: duration
+                recordIndex: context.recordIndex,
+                error: String(error)
             });
         }
     }
@@ -211,20 +191,23 @@ export abstract class BaseObserver implements Observer {
     }
 
     /**
-     * Helper method for observers to validate required fields
+     * Helper method for observers to validate required fields on context.record
      */
-    protected validateRequiredFields(record: any, requiredFields: string[]): void {
+    protected validateRequiredFields(context: ObserverContext, requiredFields: string[]): void {
+        const record = context.record;
         for (const field of requiredFields) {
-            if (record[field] === undefined || record[field] === null || record[field] === '') {
+            const value = record.get(field);
+            if (value === undefined || value === null || value === '') {
                 throw new ValidationError(`Required field '${field}' is missing or empty`, field);
             }
         }
     }
 
     /**
-     * Helper method for observers to validate field format
+     * Helper method for observers to validate field format on context.record
      */
-    protected validateFieldFormat(value: any, field: string, pattern: RegExp, errorMessage?: string): void {
+    protected validateFieldFormat(context: ObserverContext, field: string, pattern: RegExp, errorMessage?: string): void {
+        const value = context.record.get(field);
         if (value && !pattern.test(String(value))) {
             const message = errorMessage || `Field '${field}' has invalid format`;
             throw new ValidationError(message, field);

@@ -15,7 +15,8 @@ export default class DefaultValueTypeChecker extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+    async execute(context: ObserverContext): Promise<void> {
+        const { record } = context;
         const { type, default_value } = record;
 
         // Skip if no default value

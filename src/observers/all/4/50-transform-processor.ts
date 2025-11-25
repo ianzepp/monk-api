@@ -30,12 +30,7 @@ export default class TransformProcessor extends BaseObserver {
     readonly priority = 50;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { model, data } = context;
-
-        // Check if data exists
-        if (!data || data.length === 0) {
-            return;
-        }
+        const { model, record } = context;
 
         const transformFields = model.getTransformFields();
 
@@ -44,34 +39,20 @@ export default class TransformProcessor extends BaseObserver {
             return;
         }
 
-        let transformCount = 0;
-
-        // Apply transforms to each record
-        for (const record of data) {
-            for (const [fieldName, transformType] of transformFields) {
-                // Skip if field not being set in this operation (only transform new values)
-                const value = record.new(fieldName);
-                if (value === null || value === undefined) {
-                    continue;
-                }
-
-                // Apply transform and update field in-place
-                const originalValue = value;
-                const transformedValue = applyTransform(originalValue, transformType);
-
-                if (transformedValue !== originalValue) {
-                    record.set(fieldName, transformedValue);
-                    transformCount++;
-                }
+        // Apply transforms for each field with a transform rule
+        for (const [fieldName, transformType] of transformFields) {
+            // Skip if field not being set in this operation (only transform new values)
+            const value = record.new(fieldName);
+            if (value === null || value === undefined) {
+                continue;
             }
-        }
 
-        if (transformCount > 0) {
-            console.info('Field transforms applied', {
-                modelName: model.model_name,
-                recordCount: data?.length || 0,
-                transformCount,
-            });
+            // Apply transform and update field in-place
+            const transformedValue = applyTransform(value, transformType);
+
+            if (transformedValue !== value) {
+                record.set(fieldName, transformedValue);
+            }
         }
     }
 }

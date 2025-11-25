@@ -1,5 +1,6 @@
 import type { FilterData } from '@src/lib/filter-types.js';
 import type { SystemContext } from '@src/lib/system-context-types.js';
+import { Field, type FieldRow } from '@src/lib/field.js';
 
 export type ModelName = string;
 
@@ -29,6 +30,7 @@ export const SYSTEM_FIELDS = new Set([
 /**
  * Merged validation configuration for a single field
  * Pre-calculated once per model to avoid redundant loops during validation
+ * @deprecated Use model.fields and Field class directly
  */
 export interface FieldValidationConfig {
     fieldName: string;
@@ -40,32 +42,54 @@ export interface FieldValidationConfig {
 
 /**
  * Model wrapper class providing database operation proxies and validation
- * Inspired by cloud-api-2019/src/classes/model.ts
+ *
+ * Holds core metadata and categorized Field maps for O(1) lookups.
+ * Part of the namespace cache refactor (Phase 3).
  */
-
 export class Model {
-    // Model properties from database record
-    public modelName: ModelName;
-    public status: string;
+    // Core metadata (from models table)
+    public readonly modelName: ModelName;
+    public readonly status: string;
+    public readonly sudo?: boolean;
+    public readonly frozen?: boolean;
+    public readonly external?: boolean;
 
-    // Model flags
-    public sudo?: boolean;
-    public frozen?: boolean;
-    public external?: boolean;
+    // All fields for this model - primary collection
+    public readonly fields: Map<string, Field>;      // key: field_name
 
-    // Precalculated field metadata for performance
-    public immutableFields: Set<string>;
-    public sudoFields: Set<string>;
-    public trackedFields: Set<string>;
-    public requiredFields: Set<string>;
-    public typedFields: Map<string, { type: string; is_array: boolean }>;
-    public rangeFields: Map<string, { minimum?: number; maximum?: number; pattern?: RegExp }>;
-    public enumFields: Map<string, string[]>;
-    public transformFields: Map<string, string>;
+    // Categorized views (same Field objects, filtered by attribute)
+    public readonly immutables: Map<string, Field>;  // field.immutable === true
+    public readonly sudos: Map<string, Field>;       // field.sudo === true
+    public readonly requireds: Map<string, Field>;   // field.required === true
+    public readonly trackeds: Map<string, Field>;    // field.tracked === true
+    public readonly typeds: Map<string, Field>;      // field.type is set
+    public readonly enums: Map<string, Field>;       // field.enumValues has values
+    public readonly transforms: Map<string, Field>;  // field.transform is set
+    public readonly constraints: Map<string, Field>; // field has min/max/pattern
 
-    // Merged validation configuration (optimized for single-loop validation)
-    // Combines all validation metadata into one array, excludes system fields
-    public validationFields: FieldValidationConfig[];
+    // ============================================================
+    // BACKWARD COMPATIBILITY - Legacy properties (deprecated)
+    // These will be removed in a future version
+    // ============================================================
+
+    /** @deprecated Use model.immutables.has(fieldName) instead */
+    public readonly immutableFields: Set<string>;
+    /** @deprecated Use model.sudos.has(fieldName) instead */
+    public readonly sudoFields: Set<string>;
+    /** @deprecated Use model.trackeds.has(fieldName) instead */
+    public readonly trackedFields: Set<string>;
+    /** @deprecated Use model.requireds.has(fieldName) instead */
+    public readonly requiredFields: Set<string>;
+    /** @deprecated Use model.typeds and Field.type/isArray instead */
+    public readonly typedFields: Map<string, { type: string; is_array: boolean }>;
+    /** @deprecated Use model.constraints and Field.minimum/maximum/pattern instead */
+    public readonly rangeFields: Map<string, { minimum?: number; maximum?: number; pattern?: RegExp }>;
+    /** @deprecated Use model.enums and Field.enumValues instead */
+    public readonly enumFields: Map<string, string[]>;
+    /** @deprecated Use model.transforms and Field.transform instead */
+    public readonly transformFields: Map<string, string>;
+    /** @deprecated Use model.fields and iterate with Field class methods */
+    public readonly validationFields: FieldValidationConfig[];
 
     constructor(
         private system: SystemContext,
@@ -78,142 +102,170 @@ export class Model {
         this.frozen = modelRecord.frozen;
         this.external = modelRecord.external;
 
-        // Precalculate immutable, sudo, tracked, required, type, range, enum, and transform fields from field metadata for O(1) lookups
-        this.immutableFields = new Set<string>();
-        this.sudoFields = new Set<string>();
-        this.trackedFields = new Set<string>();
-        this.requiredFields = new Set<string>();
+        // Initialize all maps
+        this.fields = new Map();
+        this.immutables = new Map();
+        this.sudos = new Map();
+        this.requireds = new Map();
+        this.trackeds = new Map();
+        this.typeds = new Map();
+        this.enums = new Map();
+        this.transforms = new Map();
+        this.constraints = new Map();
+
+        // Legacy compatibility
+        this.immutableFields = new Set();
+        this.sudoFields = new Set();
+        this.trackedFields = new Set();
+        this.requiredFields = new Set();
         this.typedFields = new Map();
         this.rangeFields = new Map();
         this.enumFields = new Map();
         this.transformFields = new Map();
 
+        // Process fields from modelRecord._fields
         if (modelRecord._fields && Array.isArray(modelRecord._fields)) {
-            for (const field of modelRecord._fields) {
-                const fieldName = field.field_name;
+            for (const fieldRow of modelRecord._fields) {
+                const field = new Field(fieldRow as FieldRow);
+                const fieldName = field.fieldName;
 
-                // Existing fields
-                if (field.immutable === true) {
-                    this.immutableFields.add(fieldName);
-                }
-                if (field.sudo === true) {
-                    this.sudoFields.add(fieldName);
-                }
-                if (field.tracked === true) {
-                    this.trackedFields.add(fieldName);
-                }
+                // Store in primary collection
+                this.fields.set(fieldName, field);
 
-                // New validation fields
-                if (field.required === true) {
-                    this.requiredFields.add(fieldName);
+                // Categorized views
+                if (field.immutable) {
+                    this.immutables.set(fieldName, field);
+                    this.immutableFields.add(fieldName); // Legacy
                 }
-
+                if (field.sudo) {
+                    this.sudos.set(fieldName, field);
+                    this.sudoFields.add(fieldName); // Legacy
+                }
+                if (field.required) {
+                    this.requireds.set(fieldName, field);
+                    this.requiredFields.add(fieldName); // Legacy
+                }
+                if (field.tracked) {
+                    this.trackeds.set(fieldName, field);
+                    this.trackedFields.add(fieldName); // Legacy
+                }
                 if (field.type) {
+                    this.typeds.set(fieldName, field);
+                    // Legacy format
                     this.typedFields.set(fieldName, {
                         type: field.type,
-                        is_array: field.is_array || false,
+                        is_array: field.isArray,
                     });
                 }
-
-                // Range/pattern constraints
-                if (field.minimum !== null || field.maximum !== null || field.pattern) {
-                    const range: { minimum?: number; maximum?: number; pattern?: RegExp } = {};
-                    if (field.minimum !== null && field.minimum !== undefined) {
-                        range.minimum = Number(field.minimum);
-                    }
-                    if (field.maximum !== null && field.maximum !== undefined) {
-                        range.maximum = Number(field.maximum);
-                    }
-                    if (field.pattern) {
-                        try {
-                            range.pattern = new RegExp(field.pattern);
-                        } catch (error) {
-                            console.warn(`Invalid regex pattern for ${fieldName}`, { pattern: field.pattern });
-                        }
-                    }
-                    this.rangeFields.set(fieldName, range);
+                if (field.hasEnum()) {
+                    this.enums.set(fieldName, field);
+                    this.enumFields.set(fieldName, field.enumValues!); // Legacy
                 }
-
-                // Enum values
-                if (field.enum_values && Array.isArray(field.enum_values) && field.enum_values.length > 0) {
-                    this.enumFields.set(fieldName, field.enum_values);
+                if (field.hasTransform()) {
+                    this.transforms.set(fieldName, field);
+                    this.transformFields.set(fieldName, field.transform!); // Legacy
                 }
-
-                // Transforms
-                if (field.transform) {
-                    this.transformFields.set(fieldName, field.transform);
+                if (field.hasConstraints()) {
+                    this.constraints.set(fieldName, field);
+                    // Legacy format
+                    this.rangeFields.set(fieldName, {
+                        minimum: field.minimum,
+                        maximum: field.maximum,
+                        pattern: field.pattern,
+                    });
                 }
             }
         }
 
-        // Build merged validation field configs (optimized for single-loop validation)
+        // Build legacy validation fields
         this.validationFields = this.buildValidationFields();
 
         console.info('Model initialized with metadata', {
             modelName: this.modelName,
             frozen: this.frozen,
-            immutableFields: this.immutableFields.size,
-            sudoFields: this.sudoFields.size,
-            trackedFields: this.trackedFields.size,
-            requiredFields: this.requiredFields.size,
-            typedFields: this.typedFields.size,
-            rangeFields: this.rangeFields.size,
-            enumFields: this.enumFields.size,
-            transformFields: this.transformFields.size,
-            validationFields: this.validationFields.length
+            fields: this.fields.size,
+            immutables: this.immutables.size,
+            sudos: this.sudos.size,
+            requireds: this.requireds.size,
+            trackeds: this.trackeds.size,
+            typeds: this.typeds.size,
+            enums: this.enums.size,
+            transforms: this.transforms.size,
+            constraints: this.constraints.size,
         });
     }
 
     /**
      * Build merged validation field configurations
-     * Combines all validation metadata into a single array for optimal single-loop validation
-     * Automatically excludes system fields
+     * @deprecated Use model.fields with Field class methods
      */
     private buildValidationFields(): FieldValidationConfig[] {
-        const fields: FieldValidationConfig[] = [];
+        const configs: FieldValidationConfig[] = [];
 
         // Collect all unique field names that have any validation metadata
         const allFieldNames = new Set<string>([
-            ...this.requiredFields,
-            ...this.typedFields.keys(),
-            ...this.rangeFields.keys(),
-            ...this.enumFields.keys(),
+            ...this.requireds.keys(),
+            ...this.typeds.keys(),
+            ...this.constraints.keys(),
+            ...this.enums.keys(),
         ]);
 
         // Build config for each field (excluding system fields)
         for (const fieldName of allFieldNames) {
-            // Skip system fields
             if (SYSTEM_FIELDS.has(fieldName)) {
                 continue;
             }
 
+            const field = this.fields.get(fieldName);
+            if (!field) continue;
+
             const config: FieldValidationConfig = {
                 fieldName,
-                required: this.requiredFields.has(fieldName),
+                required: field.required,
             };
 
-            // Add type info if exists
-            const typeInfo = this.typedFields.get(fieldName);
-            if (typeInfo) {
-                config.type = typeInfo;
+            if (field.type) {
+                config.type = { type: field.type, is_array: field.isArray };
             }
 
-            // Add constraints if exists
-            const constraints = this.rangeFields.get(fieldName);
-            if (constraints) {
-                config.constraints = constraints;
+            if (field.hasConstraints()) {
+                config.constraints = {
+                    minimum: field.minimum,
+                    maximum: field.maximum,
+                    pattern: field.pattern,
+                };
             }
 
-            // Add enum if exists
-            const enumValues = this.enumFields.get(fieldName);
-            if (enumValues) {
-                config.enum = enumValues;
+            if (field.hasEnum()) {
+                config.enum = field.enumValues;
             }
 
-            fields.push(config);
+            configs.push(config);
         }
 
-        return fields;
+        return configs;
+    }
+
+    // ============================================================
+    // NEW API - Use these in new code
+    // ============================================================
+
+    /**
+     * Check if a field exists in this model
+     * Returns true if the field is either a system field or defined in fields table
+     */
+    hasField(fieldName: string): boolean {
+        if (SYSTEM_FIELDS.has(fieldName)) {
+            return true;
+        }
+        return this.fields.has(fieldName);
+    }
+
+    /**
+     * Get a field by name
+     */
+    getField(fieldName: string): Field | undefined {
+        return this.fields.get(fieldName);
     }
 
     /**
@@ -230,97 +282,79 @@ export class Model {
         return this.frozen === true;
     }
 
+    // ============================================================
+    // LEGACY API - Kept for backward compatibility
+    // These will be removed in a future version
+    // ============================================================
+
     /**
-     * Check if a field is immutable (cannot be changed once set)
+     * @deprecated Use model.immutables.has(fieldName) instead
      */
     isFieldImmutable(fieldName: string): boolean {
-        return this.immutableFields.has(fieldName);
+        return this.immutables.has(fieldName);
     }
 
     /**
-     * Get all immutable fields for this model
+     * @deprecated Use model.immutables instead
      */
     getImmutableFields(): Set<string> {
         return this.immutableFields;
     }
 
     /**
-     * Check if a field requires sudo access to modify
+     * @deprecated Use model.sudos.has(fieldName) instead
      */
     isFieldSudo(fieldName: string): boolean {
-        return this.sudoFields.has(fieldName);
+        return this.sudos.has(fieldName);
     }
 
     /**
-     * Get all sudo-protected fields for this model
+     * @deprecated Use model.sudos instead
      */
     getSudoFields(): Set<string> {
         return this.sudoFields;
     }
 
     /**
-     * Get all required fields for this model
+     * @deprecated Use model.requireds instead
      */
     getRequiredFields(): Set<string> {
         return this.requiredFields;
     }
 
     /**
-     * Get all typed fields with their type information
+     * @deprecated Use model.typeds instead
      */
     getTypedFields(): Map<string, { type: string; is_array: boolean }> {
         return this.typedFields;
     }
 
     /**
-     * Get all fields with range/pattern constraints
+     * @deprecated Use model.constraints instead
      */
     getRangeFields(): Map<string, { minimum?: number; maximum?: number; pattern?: RegExp }> {
         return this.rangeFields;
     }
 
     /**
-     * Get all fields with enum constraints
+     * @deprecated Use model.enums instead
      */
     getEnumFields(): Map<string, string[]> {
         return this.enumFields;
     }
 
     /**
-     * Get all fields with transform operations
+     * @deprecated Use model.transforms instead
      */
     getTransformFields(): Map<string, string> {
         return this.transformFields;
     }
 
     /**
-     * Get merged validation field configurations
-     * Optimized for single-loop validation - contains all validation metadata
-     * in one structure, with system fields already excluded
+     * @deprecated Use model.fields with Field class methods
      */
     getValidationFields(): FieldValidationConfig[] {
         return this.validationFields;
-    }
-
-    /**
-     * Check if a field exists in this model
-     * Returns true if the field is either a system field or has metadata
-     */
-    hasField(fieldName: string): boolean {
-        // System fields always exist
-        if (SYSTEM_FIELDS.has(fieldName)) {
-            return true;
-        }
-
-        // Check if field has any metadata (type, immutable, sudo, etc.)
-        return this.typedFields.has(fieldName) ||
-               this.immutableFields.has(fieldName) ||
-               this.sudoFields.has(fieldName) ||
-               this.requiredFields.has(fieldName) ||
-               this.trackedFields.has(fieldName) ||
-               this.rangeFields.has(fieldName) ||
-               this.enumFields.has(fieldName) ||
-               this.transformFields.has(fieldName);
     }
 
     get model_name(): ModelName {
@@ -459,19 +493,4 @@ export class Model {
             status: this.status,
         };
     }
-}
-
-/**
- * Factory function to create Model instances
- */
-export async function createModel(system: SystemContext, modelName: string): Promise<Model> {
-    const modelInfo = await system.database.toModel(modelName);
-
-    if (!modelInfo) {
-        throw new Error(`Model '${modelName}' not found`);
-    }
-
-    return new Model(system, modelName, {
-        status: 'active', // Assume active for legacy calls
-    });
 }

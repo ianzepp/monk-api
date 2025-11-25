@@ -2,6 +2,7 @@ import type { TxContext } from '@src/db/index.js';
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
 import { Describe } from '@src/lib/describe.js';
+import { NamespaceCacheManager, NamespaceCache } from '@src/lib/namespace-cache.js';
 import type { SystemContext, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
 
 /**
@@ -28,6 +29,9 @@ export class System implements SystemContext {
     public readonly database: Database;
     public readonly describe!: Describe;
 
+    // Namespace cache bound to this request's db:ns (from JWT)
+    public readonly namespace: NamespaceCache;
+
     constructor(c: Context, options: SystemOptions = {}) {
         this.context = c;
 
@@ -35,6 +39,19 @@ export class System implements SystemContext {
         // Note: system.tx is set by withTransaction() before any database operations
         this.database = new Database(this);
         this.describe = new Describe(this);
+
+        // Bind namespace cache from JWT claims (db/ns set by jwt-validation middleware)
+        // For routes without JWT (auth routes), these will be undefined
+        const db = c.get('dbName') as string | undefined;
+        const ns = c.get('nsName') as string | undefined;
+
+        if (db && ns) {
+            this.namespace = NamespaceCacheManager.getInstance().getNamespaceCache(db, ns);
+        } else {
+            // For auth routes that don't have tenant context, create a placeholder
+            // These routes don't use namespace cache anyway
+            this.namespace = null as any;
+        }
 
         // Store query options as read-only
         this.options = Object.freeze({ ...options });

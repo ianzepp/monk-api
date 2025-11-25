@@ -11,7 +11,7 @@
  *
  * Performance:
  * - Zero database queries: uses Model.getSudoFields() from cached field metadata
- * - O(n × m) where n=records, m=changed fields (typically small)
+ * - O(m) where m=changed fields (typically small)
  * - Precalculated Set<string> for O(1) sudo field lookup
  *
  * Use cases:
@@ -34,13 +34,8 @@ export default class FieldSudoValidator extends BaseObserver {
     readonly priority = 25;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { model, system, data, operation } = context;
+        const { model, system, record, operation } = context;
         const modelName = model.model_name;
-
-        // Check if data exists
-        if (!data || data.length === 0) {
-            return;
-        }
 
         // Get sudo-protected fields from cached model metadata (O(1))
         const sudoFields = model.getSudoFields();
@@ -57,21 +52,18 @@ export default class FieldSudoValidator extends BaseObserver {
         // Track which sudo fields are being modified
         const sudoFieldsModified: Set<string> = new Set();
 
-        // Check each record for sudo field modifications
-        for (const record of data) {
-            // Convert to plain object to iterate fields
-            const plainRecord = record.toObject();
+        // Convert to plain object to iterate fields
+        const plainRecord = record.toObject();
 
-            // Check each field in the record
-            for (const fieldName of Object.keys(plainRecord)) {
-                // Skip non-sudo fields
-                if (!sudoFields.has(fieldName)) {
-                    continue;
-                }
-
-                // Sudo field is being modified
-                sudoFieldsModified.add(fieldName);
+        // Check each field in the record
+        for (const fieldName of Object.keys(plainRecord)) {
+            // Skip non-sudo fields
+            if (!sudoFields.has(fieldName)) {
+                continue;
             }
+
+            // Sudo field is being modified
+            sudoFieldsModified.add(fieldName);
         }
 
         // If sudo fields are being modified but user lacks sudo token
@@ -82,7 +74,7 @@ export default class FieldSudoValidator extends BaseObserver {
                 modelName,
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
-                recordCount: data?.length || 0,
+                recordIndex: context.recordIndex,
                 userId: system.getUser?.()?.id
             });
 
@@ -100,7 +92,7 @@ export default class FieldSudoValidator extends BaseObserver {
                 modelName,
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
-                recordCount: data?.length || 0,
+                recordIndex: context.recordIndex,
                 userId: system.getUser?.()?.id,
                 elevation_reason: jwtPayload.elevation_reason
             });

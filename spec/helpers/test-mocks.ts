@@ -98,30 +98,45 @@ export function createMockModel(
 }
 
 /**
+ * Create a mock NamespaceCache for testing
+ */
+export function createMockNamespace(overrides?: {
+    getModel?: any;
+}): any {
+    const defaultModel = createMockModel({ modelName: 'orders' });
+
+    return {
+        getModel: overrides?.getModel ?? vi.fn().mockReturnValue(defaultModel),
+        isLoaded: vi.fn().mockReturnValue(true),
+        invalidateModel: vi.fn(),
+        loadOne: vi.fn().mockResolvedValue(undefined),
+        loadAll: vi.fn().mockResolvedValue(undefined),
+    };
+}
+
+/**
  * Create a mock Database with common spy methods
  */
 export function createMockDatabase(overrides?: {
-    toModel?: any;
+    getModel?: any;
     execute?: any;
     getDefaultSoftDeleteOptions?: any;
     convertPostgreSQLTypes?: any;
     aggregate?: any;
 }): Database {
+    // Create mock namespace with getModel
+    const mockNamespace = createMockNamespace({
+        getModel: overrides?.getModel,
+    });
+
     const mockSystem = createMockSystemContext({
         database: {} as any,
+        namespace: mockNamespace,
     });
 
     const database = new Database(mockSystem);
 
     // Set up default spies
-    if (overrides?.toModel !== undefined) {
-        vi.spyOn(database as any, 'toModel').mockImplementation(overrides.toModel);
-    } else {
-        vi.spyOn(database as any, 'toModel').mockResolvedValue(
-            createMockModel({ modelName: 'orders' })
-        );
-    }
-
     if (overrides?.execute !== undefined) {
         vi.spyOn(database as any, 'execute').mockImplementation(overrides.execute);
     } else {

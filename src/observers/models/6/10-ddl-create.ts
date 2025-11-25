@@ -18,8 +18,8 @@ export default class DdlCreateObserver extends BaseObserver {
     readonly operations = ['create'] as const;
     readonly priority = 10;  // High priority - DDL should run before data transformations
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
-        const { system } = context;
+    async execute(context: ObserverContext): Promise<void> {
+        const { system, record } = context;
         const { model_name, external } = record;
 
         // Skip DDL operations for external models (managed elsewhere)

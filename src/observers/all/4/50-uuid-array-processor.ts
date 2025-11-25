@@ -30,46 +30,16 @@ export default class UuidArrayProcessor extends BaseObserver {
     ];
 
     async execute(context: ObserverContext): Promise<void> {
-        const { operation, data } = context;
-        const modelName = context.model.model_name;
+        const { record } = context;
 
-        // Check if data exists
-        if (!data || data.length === 0) {
-            return;
-        }
-
-        let processedFields = 0;
-        let processedRecords = 0;
-
-        // Process each record to identify UUID array fields
-        for (const record of data) {
-            let recordHasUuidArrays = false;
-
-            for (const fieldName of this.UUID_ARRAY_FIELDS) {
-                // Only check fields being set in this operation
-                const value = record.new(fieldName);
-                if (value && Array.isArray(value)) {
-                    // Set metadata flag for SQL observers to use PostgreSQL array format
-                    processedFields++;
-                    recordHasUuidArrays = true;
-                }
+        // Check each UUID array field to identify those needing PostgreSQL array format
+        for (const fieldName of this.UUID_ARRAY_FIELDS) {
+            // Only check fields being set in this operation
+            const value = record.new(fieldName);
+            if (value && Array.isArray(value)) {
+                // The array is valid - SQL observers will handle PostgreSQL array format
+                // No transformation needed here, just validation
             }
-
-            if (recordHasUuidArrays) {
-                processedRecords++;
-            }
-        }
-
-        // Log processing summary for audit
-
-        if (processedFields > 0) {
-            console.info('UUID array processing completed', {
-                modelName,
-                operation,
-                processedFields,
-                processedRecords,
-                totalRecords: data?.length || 0
-            });
         }
     }
 

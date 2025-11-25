@@ -7,7 +7,7 @@
  * Performance:
  * - Zero database queries: uses Model.getImmutableFields() from cached field metadata
  * - O(n) field check: iterates over changed fields only (not all fields)
- * - Uses ModelRecord.old() to access original values loaded by RecordPreloader
+ * - Uses ModelRecord.old() to access original values loaded by record preloading
  *
  * Use cases:
  * - Audit fields (created_by, created_at) that should never change
@@ -19,7 +19,6 @@
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
-import type { ModelRecord } from '@src/lib/model-record.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { ValidationError } from '@src/lib/observers/errors.js';
@@ -29,8 +28,8 @@ export default class ImmutableValidator extends BaseObserver {
     readonly operations = ['update'] as const;
     readonly priority = 30;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
-        const { model } = context;
+    async execute(context: ObserverContext): Promise<void> {
+        const { model, record } = context;
         const modelName = model.model_name;
 
         // Get immutable fields from cached model metadata (O(1))
@@ -41,7 +40,7 @@ export default class ImmutableValidator extends BaseObserver {
             return;
         }
 
-        // Check if record has original data (should be loaded by RecordPreloader)
+        // Check if record has original data (should be loaded by record preloading in Database)
         if (record.isNew()) {
             // New records don't have immutability constraints
             return;
@@ -68,6 +67,7 @@ export default class ImmutableValidator extends BaseObserver {
                 console.info('Allowing first write to immutable field', {
                     modelName,
                     recordId,
+                    recordIndex: context.recordIndex,
                     field: fieldName,
                     newValue
                 });
@@ -93,6 +93,7 @@ export default class ImmutableValidator extends BaseObserver {
             console.warn('Blocked update to immutable fields', {
                 modelName,
                 recordId,
+                recordIndex: context.recordIndex,
                 violations: violations.length,
                 details: violations
             });

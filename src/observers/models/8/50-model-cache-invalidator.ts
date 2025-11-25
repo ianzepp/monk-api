@@ -1,8 +1,7 @@
 /**
  * Model Cache Invalidator - Ring 8 Integration
  *
- * Automatically invalidates ModelCache when models are modified.
- * Ensures cache stays consistent without manual invalidation in Describe class.
+ * Automatically invalidates NamespaceCache when models are modified.
  *
  * Note: Model modifications already update models.updated_at (system field),
  * so we only need to invalidate the in-memory cache here.
@@ -18,14 +17,14 @@
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
-import { ModelCache } from '@src/lib/model-cache.js';
 import type { ModelRecord } from '@src/lib/model-record.js';
 
 export default class ModelCacheInvalidator extends BaseObserver {
     readonly ring = ObserverRing.Integration;  // Ring 8
     readonly operations = ['create', 'update', 'delete'] as const;
 
-    async executeOne(record: ModelRecord, context: ObserverContext): Promise<void> {
+    async execute(context: ObserverContext): Promise<void> {
+        const { record } = context;
         const { model_name } = record;
 
         if (!model_name) {
@@ -36,9 +35,9 @@ export default class ModelCacheInvalidator extends BaseObserver {
             return;
         }
 
-        // Invalidate the model cache
-        const modelCache = ModelCache.getInstance();
-        modelCache.invalidateModel(context.system, model_name);
+        // Invalidate NamespaceCache and reload
+        context.system.namespace.invalidateModel(model_name);
+        await context.system.namespace.loadOne(context.system, model_name);
 
         console.info('Model cache invalidated by observer', {
             operation: context.operation,

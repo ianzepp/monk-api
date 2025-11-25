@@ -30,28 +30,20 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
     protected readonly timeoutMs = 600000; // 10 minutes for large databases
 
     async execute(context: ObserverContext): Promise<void> {
-        // In Ring 8, context.data contains the created snapshot records
-        const snapshots = context.data || [];
+        const { record } = context;
 
-        if (!Array.isArray(snapshots) || snapshots.length === 0) {
+        // Only process pending snapshots
+        const status = record.get('status');
+        if (status !== 'pending') {
+            console.info('Skipping snapshot - not pending', {
+                snapshot_id: record.get('id'),
+                snapshot_name: record.get('name'),
+                status
+            });
             return;
         }
 
-        // Process each snapshot (usually just one)
-        for (const snapshot of snapshots) {
-            // Only process pending snapshots
-            const status = snapshot.get('status');
-            if (status !== 'pending') {
-                console.info('Skipping snapshot - not pending', {
-                    snapshot_id: snapshot.get('id'),
-                    snapshot_name: snapshot.get('name'),
-                    status
-                });
-                continue;
-            }
-
-            await this.processSnapshot(snapshot, context);
-        }
+        await this.processSnapshot(record, context);
     }
 
     private async processSnapshot(snapshot: any, context: ObserverContext): Promise<void> {
