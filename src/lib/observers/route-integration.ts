@@ -21,9 +21,8 @@ export async function executeObserverPipeline(
     recordId?: string,
     existing?: any
 ): Promise<ObserverResult> {
-    // Resolve model object - this helper needs to do its own resolution
-    // since it's not going through Database.runObserverPipeline()
-    const model = await system.database.toModel(modelName);
+    // Get model from namespace cache
+    const model = system.namespace.getModel(modelName);
 
     const runner = new ObserverRunner();
 

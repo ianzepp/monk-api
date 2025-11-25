@@ -214,6 +214,6 @@ describe('PUT /api/describe/:model/fields/:field - Update Field', () => {
         });
 
         expect(response.success).toBe(false);
-        expect(response.error_code).toBe('INTERNAL_ERROR');
+        expect(response.error_code).toBe('FIELD_NOT_FOUND');
     });
 });

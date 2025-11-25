@@ -12,43 +12,13 @@ import type {
  * DescribeFields - Wrapper for field operations on 'fields' table
  *
  * Provides Database-like interface for field metadata operations with
- * field-specific validation (name rules, reserved words, model protection).
+ * field-specific validation (name rules, reserved words).
+ *
+ * Note: Model sudo protection is handled by the 20-model-sudo-validator observer
+ * which runs in Ring 1 for all create/update/delete operations.
  */
 export class DescribeFields {
     constructor(private system: System) {}
-
-    /**
-     * Validate that model is not protected (requires sudo access)
-     *
-     * Uses cached model to check sudo requirement. This is a data-driven approach
-     * that allows marking any model as requiring sudo access without code changes.
-     */
-    private async validateModelProtection(modelName: string): Promise<void> {
-        // Load model from cache to check sudo requirement
-        const model = await this.system.database.toModel(modelName);
-
-        // Check if model requires sudo access
-        if (!model.sudo) {
-            // Model doesn't require sudo - allow modification
-            return;
-        }
-
-        // Model requires sudo - verify user has sudo token
-        const jwtPayload = this.system.context.get('jwtPayload');
-
-        if (!jwtPayload?.is_sudo) {
-            throw HttpErrors.forbidden(
-                `Model '${modelName}' requires sudo access. Use POST /api/user/sudo to get short-lived sudo token.`,
-                'MODEL_REQUIRES_SUDO'
-            );
-        }
-
-        console.info('Sudo access validated for protected model modification', {
-            modelName,
-            userId: this.system.getUser?.()?.id,
-            elevation_reason: jwtPayload.elevation_reason
-        });
-    }
 
     /**
      * Validate field name follows PostgreSQL naming rules
@@ -104,15 +74,10 @@ export class DescribeFields {
     /**
      * Create new field
      *
-     * Validates model protection and field name, then creates field record.
+     * Validates field name, then creates field record.
      * Observer pipeline will handle DDL (ALTER TABLE ADD COLUMN) and type mapping.
      */
     async createOne(data: DbCreateInput<Omit<FieldRecord, keyof SystemFields>>): Promise<FieldRecord> {
-        // Validate model is not protected
-        if (data.model_name) {
-            await this.validateModelProtection(data.model_name);
-        }
-
         // Validate field name
         if (data.field_name) {
             this.validateFieldName(data.field_name);
@@ -133,15 +98,12 @@ export class DescribeFields {
     /**
      * Create multiple fields in bulk
      *
-     * Validates model protection and field names for all fields, then creates field records.
+     * Validates field names for all fields, then creates field records.
      * Observer pipeline will handle DDL (ALTER TABLE ADD COLUMN) and type mapping for each.
      */
     async createAll(dataArray: DbCreateInput<Omit<FieldRecord, keyof SystemFields>>[]): Promise<FieldRecord[]> {
-        // Validate all models and field names before creating
+        // Validate field names before creating
         for (const data of dataArray) {
-            if (data.model_name) {
-                await this.validateModelProtection(data.model_name);
-            }
             if (data.field_name) {
                 this.validateFieldName(data.field_name);
             }
@@ -164,17 +126,9 @@ export class DescribeFields {
     /**
      * Update multiple fields in bulk
      *
-     * Validates model protection for all fields before updating.
      * Observer pipeline handles structural changes (ALTER TABLE) and type mapping.
      */
     async updateAll(updates: DbUpdateInput<FieldRecord>[]): Promise<FieldRecord[]> {
-        // Validate all models before updating
-        for (const update of updates) {
-            if (update.model_name) {
-                await this.validateModelProtection(update.model_name);
-            }
-        }
-
         console.info('Updating fields in bulk via observer pipeline', {
             fieldCount: updates.length
         });
@@ -186,18 +140,11 @@ export class DescribeFields {
     /**
      * Update field by filter (throws 404 if not found)
      *
-     * Validates model protection before updating.
      * Observer pipeline handles structural changes (ALTER TABLE) and type mapping.
      */
     async update404(filter: FilterData, updates: Partial<FieldRecord>, message?: string): Promise<FieldRecord> {
-        // Extract model name from filter for validation
-        const modelName = filter.where?.model_name;
-        if (modelName) {
-            await this.validateModelProtection(modelName);
-        }
-
         console.info('Updating field via observer pipeline', {
-            modelName,
+            modelName: filter.where?.model_name,
             fieldName: filter.where?.field_name
         });
 
@@ -208,18 +155,11 @@ export class DescribeFields {
     /**
      * Delete field by filter (throws 404 if not found)
      *
-     * Validates model protection before deleting.
      * Observer pipeline will handle DDL (ALTER TABLE DROP COLUMN).
      */
     async delete404(filter: FilterData, message?: string): Promise<FieldRecord> {
-        // Extract model name from filter for validation
-        const modelName = filter.where?.model_name;
-        if (modelName) {
-            await this.validateModelProtection(modelName);
-        }
-
         console.info('Deleting field via observer pipeline', {
-            modelName,
+            modelName: filter.where?.model_name,
             fieldName: filter.where?.field_name
         });
 

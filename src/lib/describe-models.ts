@@ -10,49 +10,13 @@ import type {
 /**
  * DescribeModels - Wrapper for model operations on 'models' table
  *
- * Provides Database-like interface for model metadata operations with
- * model-specific validation (protection checks, system model guards).
+ * Provides Database-like interface for model metadata operations.
+ *
+ * Note: Model sudo protection is handled by the 20-model-sudo-validator observer
+ * which runs in Ring 1 for all create/update/delete operations.
  */
 export class DescribeModels {
     constructor(private system: System) {}
-
-    /**
-     * Validate that system models (status='system') are not modified without proper privileges
-     *
-     * System models (models, users, fields, history) are core infrastructure and require
-     * sudo access to modify, unlike the model.sudo flag which protects DATA operations.
-     */
-    private async validateSystemModelProtection(modelName: string): Promise<void> {
-        // Try to load model from cache
-        let model;
-        try {
-            model = await this.system.database.toModel(modelName);
-        } catch (error) {
-            // Model doesn't exist yet - allow creation
-            return;
-        }
-
-        // Only protect system models (status='system')
-        if (model.status !== 'system') {
-            return;
-        }
-
-        // System model - verify user has sudo token
-        const jwtPayload = this.system.context.get('jwtPayload');
-
-        if (!jwtPayload?.is_sudo) {
-            throw HttpErrors.forbidden(
-                `Model '${modelName}' is a system model and requires sudo access. Use POST /api/user/sudo.`,
-                'MODEL_REQUIRES_SUDO'
-            );
-        }
-
-        console.info('Sudo access validated for system model modification', {
-            modelName,
-            userId: this.system.getUser?.()?.id,
-            elevation_reason: jwtPayload.elevation_reason
-        });
-    }
 
     /**
      * Select multiple models with optional filtering
@@ -79,7 +43,6 @@ export class DescribeModels {
     /**
      * Create new model
      *
-     * Validates model name and protection, then creates model record.
      * Observer pipeline will handle DDL generation (CREATE TABLE).
      */
     async createOne(data: DbCreateInput<Omit<ModelRecord, keyof SystemFields>>): Promise<ModelRecord> {
@@ -96,8 +59,6 @@ export class DescribeModels {
 
     /**
      * Update model by filter (throws 404 if not found)
-     *
-     * Validates model protection before updating.
      */
     async update404(filter: FilterData, updates: Partial<ModelRecord>, message?: string): Promise<ModelRecord> {
         // Extract model name for logging
@@ -117,7 +78,6 @@ export class DescribeModels {
     /**
      * Delete model by filter (throws 404 if not found)
      *
-     * Validates model protection before deleting.
      * Observer pipeline will handle DDL (DROP TABLE).
      */
     async delete404(filter: FilterData, message?: string): Promise<ModelRecord> {

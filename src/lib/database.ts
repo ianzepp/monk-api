@@ -80,18 +80,6 @@ export class Database {
     }
 
     /**
-     * Resolve model name to Model instance with caching
-     *
-     * Uses NamespaceCache for schema-aware caching.
-     *
-     * @param modelName - Name of the model to load
-     * @returns Model instance with metadata and validation methods
-     */
-    async toModel(modelName: ModelName): Promise<Model> {
-        return this.system.namespace.getModel(modelName);
-    }
-
-    /**
      * Get relationship metadata by parent model and relationship name
      *
      * Uses NamespaceCache for schema-aware caching.
@@ -148,7 +136,7 @@ export class Database {
      * @returns Total count of matching records
      */
     async count(modelName: ModelName, filterData: FilterData = {}): Promise<number> {
-        const model = await this.toModel(modelName);
+        const model = this.system.namespace.getModel(modelName);
         const filter = new Filter(model.model_name).assign(filterData);
 
         // Issue #102: Use toCountSQL() pattern instead of manual query building
@@ -189,7 +177,7 @@ export class Database {
         const aggregations = body.aggregate;
         const groupBy = body.groupBy || body.group_by;
 
-        const model = await this.toModel(modelName);
+        const model = this.system.namespace.getModel(modelName);
 
         // Apply context-based soft delete defaults
         const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
@@ -393,7 +381,7 @@ export class Database {
         filterData: FilterData = {},
         options: SelectOptions = {}
     ): Promise<DbRecord<T>[]> {
-        const model = await this.toModel(modelName);
+        const model = this.system.namespace.getModel(modelName);
 
         // Apply context-based soft delete defaults
         const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
@@ -672,8 +660,8 @@ export class Database {
             depth,
         });
 
-        // 🎯 SINGLE POINT: Convert modelName → model object here
-        const model = await this.toModel(modelName);
+        // 🎯 SINGLE POINT: Get model from namespace cache
+        const model = this.system.namespace.getModel(modelName);
 
         try {
             // Execute observer pipeline with resolved model object

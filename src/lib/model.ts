@@ -494,19 +494,3 @@ export class Model {
         };
     }
 }
-
-/**
- * Factory function to create Model instances
- * @deprecated Use system.namespace.getModel(modelName) instead
- */
-export async function createModel(system: SystemContext, modelName: string): Promise<Model> {
-    const modelInfo = await system.database.toModel(modelName);
-
-    if (!modelInfo) {
-        throw new Error(`Model '${modelName}' not found`);
-    }
-
-    return new Model(system, modelName, {
-        status: 'active', // Assume active for legacy calls
-    });
-}

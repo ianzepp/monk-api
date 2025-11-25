@@ -13,7 +13,7 @@ describe('Aggregate API - Edge Cases', () => {
         });
 
         database = createMockDatabase({
-            toModel: vi.fn().mockResolvedValue(mockModel),
+            getModel: vi.fn().mockReturnValue(mockModel),
         });
     });
 

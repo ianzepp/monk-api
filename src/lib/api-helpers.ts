@@ -3,7 +3,6 @@ import { System } from '@src/lib/system.js';
 import type { SystemOptions } from '@src/lib/system-context-types.js';
 import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError, HttpErrors } from '@src/lib/errors/http-error.js';
-import { createModel } from '@src/lib/model.js';
 
 /**
  * API Request/Response Helpers
