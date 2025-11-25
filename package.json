@@ -1,6 +1,6 @@
 {
     "name": "monk-api",
-    "version": "3.0.0",
+    "version": "4.0.0",
     "description": "Lightweight PaaS backend API built with Hono",
     "agents": "IMPORTANT: Before starting ANY task, READ ./AGENTS.md for project-specific instructions and patterns",
     "main": "dist/index.js",
@@ -27,7 +27,6 @@
         "test:ts": "scripts/test-ts.sh \"$@\"",
         "test:unit": "vitest --config vitest.unit.config.ts",
         "test:bench": "vitest bench --config vitest.bench.config.ts",
-        "mcp:server": "tsx mcp-server/monk-api-tools.ts",
         "version:patch": "npm version patch",
         "version:minor": "npm version minor",
         "version:major": "npm version major",
