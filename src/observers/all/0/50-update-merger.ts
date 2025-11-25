@@ -19,32 +19,14 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 export default class UpdateMerger extends BaseObserver {
     readonly ring = ObserverRing.DataPreparation;
     readonly operations = ['update'] as const;
-    readonly priority = 50; // Run after RecordPreloader (priority 10)
+    readonly priority = 50; // Run after record preloading in Database class
 
     async execute(context: ObserverContext): Promise<void> {
-        const { data } = context;
-        const modelName = context.model.model_name;
+        const { record } = context;
 
-        if (!data || data.length === 0) {
-            console.info('No update data found for timestamp processing', { modelName });
-            return;
+        // Set updated_at timestamp (unless explicitly provided)
+        if (!record.has('updated_at')) {
+            record.set('updated_at', new Date().toISOString());
         }
-
-        const currentTimestamp = new Date().toISOString();
-        let processedCount = 0;
-
-        // Set updated_at timestamp on each record (unless explicitly provided)
-        for (const record of data) {
-            if (!record.has('updated_at')) {
-                record.set('updated_at', currentTimestamp);
-                processedCount++;
-            }
-        }
-
-        console.info('Update timestamp processing completed', {
-            modelName,
-            totalRecords: data.length,
-            timestampsSet: processedCount
-        });
     }
 }

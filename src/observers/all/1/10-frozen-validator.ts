@@ -29,7 +29,7 @@ export default class FrozenValidator extends BaseObserver {
     readonly priority = 10;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { model, operation, data } = context;
+        const { model, operation } = context;
 
         // Use cached model metadata - zero DB queries
         if (model.isFrozen()) {
@@ -38,7 +38,7 @@ export default class FrozenValidator extends BaseObserver {
             console.warn(`Blocked ${operation} on frozen model`, {
                 modelName,
                 operation,
-                recordCount: data?.length || 0,
+                recordIndex: context.recordIndex,
                 frozen: true
             });
 

@@ -18,6 +18,9 @@ import type { ValidationError, ValidationWarning } from '@src/lib/observers/erro
 /**
  * Shared context passed through all observer rings
  * Contains request state, data, and cross-observer communication
+ *
+ * Single-record model: Each observer receives one record at a time.
+ * The ObserverRunner handles iteration over the batch.
  */
 export interface ObserverContext {
     /** Per-request database system context */
@@ -29,14 +32,11 @@ export interface ObserverContext {
     /** Loaded Model object with validation and metadata */
     model: Model;
 
-    /** Input data for create/update/delete operations (wrapped in ModelRecord instances) */
-    data?: ModelRecord[];
+    /** Single record being processed (wrapped in ModelRecord instance) */
+    record: ModelRecord;
 
-    /** Filter criteria for select operations (rings 0-4), becomes data after ring 5 */
-    filter?: any;
-
-    /** Target record ID for update/delete/select operations */
-    recordId?: string;
+    /** Index of this record in the original batch (for error messages) */
+    recordIndex: number;
 
     /** Accumulated validation errors from all rings */
     errors: ValidationError[];
