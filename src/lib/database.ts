@@ -7,7 +7,7 @@ import { Model, type ModelName } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
 import { Filter, type AggregateSpec } from '@src/lib/filter.js';
 import type { FilterData, AggregateData } from '@src/lib/filter-types.js';
-import type { FilterWhereOptions } from '@src/lib/filter-types.js';
+import type { FilterWhereOptions, AdapterType } from '@src/lib/filter-types.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
@@ -145,11 +145,19 @@ export class Database {
      *
      * @param modelName - Model to count records from
      * @param filterData - Optional filter conditions (where clause)
+     * @param options - Soft delete and context options
      * @returns Total count of matching records
      */
-    async count(modelName: ModelName, filterData: FilterData = {}): Promise<number> {
+    async count(modelName: ModelName, filterData: FilterData = {}, options: SelectOptions = {}): Promise<number> {
         const model = this.system.namespace.getModel(modelName);
-        const filter = new Filter(model.model_name).assign(filterData);
+
+        // Apply context-based soft delete defaults (includes adapterType)
+        const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
+        const mergedOptions = { ...defaultOptions, ...options };
+
+        const filter = new Filter(model.model_name)
+            .assign(filterData)
+            .withSoftDeleteOptions(mergedOptions);
 
         // Issue #102: Use toCountSQL() pattern instead of manual query building
         const { query, params } = filter.toCountSQL();
@@ -438,18 +446,25 @@ export class Database {
      *
      * Note: deleted_at records are ALWAYS excluded in all contexts.
      * They are kept in the database for compliance/audit but never visible through the API.
+     *
+     * Also includes adapterType for dialect-specific SQL generation (PostgreSQL vs SQLite).
      */
     private getDefaultSoftDeleteOptions(context?: 'api' | 'observer' | 'system'): FilterWhereOptions {
+        // Get adapter type for dialect-specific SQL generation
+        const adapterType: AdapterType = this.system.adapter?.getType() || 'postgresql';
+
         switch (context) {
             case 'observer':
             case 'system':
                 return {
-                    trashed: 'include'
+                    trashed: 'include',
+                    adapterType
                 };
             case 'api':
             default:
                 return {
-                    trashed: 'exclude'
+                    trashed: 'exclude',
+                    adapterType
                 };
         }
     }

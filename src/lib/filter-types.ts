@@ -62,9 +62,11 @@ export interface FilterWhereInfo {
 }
 
 export type TrashedOption = 'exclude' | 'include' | 'only';
+export type AdapterType = 'postgresql' | 'sqlite';
 
 export interface FilterWhereOptions {
     trashed?: TrashedOption;
+    adapterType?: AdapterType;
 }
 
 // New tree structure for complex logical operators
