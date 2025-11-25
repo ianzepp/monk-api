@@ -4,6 +4,7 @@ import { Database } from '@src/lib/database.js';
 import { Describe } from '@src/lib/describe.js';
 import { NamespaceCacheManager, NamespaceCache } from '@src/lib/namespace-cache.js';
 import type { SystemContext, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
+import type { DatabaseAdapter, DatabaseType } from '@src/lib/database/adapter.js';
 
 /**
  * System class - Per-request context management
@@ -21,8 +22,16 @@ export class System implements SystemContext {
     public readonly options: Readonly<SystemOptions>;
     public readonly correlationId: string;
 
+    // Database backend type from JWT (postgresql or sqlite)
+    public readonly dbType: DatabaseType;
+
+    // Database adapter - set by withTransaction() for query execution
+    // Provides abstraction layer for PostgreSQL and SQLite backends
+    public adapter: DatabaseAdapter | null = null;
+
     // Transaction context - set by withTransaction() with search_path configured
     // All tenant-scoped database operations MUST use this to ensure proper namespace isolation
+    // @deprecated Use adapter.query() instead - tx is kept for backwards compatibility
     public tx!: TxContext;
 
     // System services
@@ -35,8 +44,11 @@ export class System implements SystemContext {
     constructor(c: Context, options: SystemOptions = {}) {
         this.context = c;
 
+        // Initialize database backend type from JWT (default to postgresql for legacy tokens)
+        this.dbType = (c.get('dbType') as DatabaseType) || 'postgresql';
+
         // Initialize service instances with clean dependency injection
-        // Note: system.tx is set by withTransaction() before any database operations
+        // Note: system.adapter and system.tx are set by withTransaction() before any database operations
         this.database = new Database(this);
         this.describe = new Describe(this);
 

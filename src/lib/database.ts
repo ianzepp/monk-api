@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import type { TxContext } from '@src/db/index.js';
 
 import type { SystemContext } from '@src/lib/system-context-types.js';
+import type { DatabaseAdapter } from '@src/lib/database/adapter.js';
 import { Model, type ModelName } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
 import { Filter, type AggregateSpec } from '@src/lib/filter.js';
@@ -63,11 +64,26 @@ export class Database {
     }
 
     /**
+     * Get database adapter for query operations
+     *
+     * Returns the active database adapter (PostgreSQL or SQLite).
+     * All tenant-scoped operations require an adapter set by withTransaction().
+     *
+     * @private
+     * @returns Database adapter for query execution
+     * @throws Error if adapter not initialized (programming error)
+     */
+    private get adapter(): DatabaseAdapter {
+        if (!this.system.adapter) {
+            throw new Error('Database adapter not initialized - ensure withTransaction() wrapper is used');
+        }
+        return this.system.adapter;
+    }
+
+    /**
      * Get transaction context for database operations
      *
-     * Returns the active transaction context with search_path configured.
-     * All tenant-scoped operations require a transaction for namespace isolation.
-     *
+     * @deprecated Use adapter property instead. This is kept for backwards compatibility.
      * @private
      * @returns Transaction context with search_path set
      * @throws Error if transaction not initialized (programming error)
@@ -109,7 +125,8 @@ export class Database {
     /**
      * Execute raw SQL query with optional parameters
      *
-     * Low-level query execution using current transaction or database connection.
+     * Low-level query execution using the database adapter.
+     * Works with both PostgreSQL and SQLite backends.
      * Automatically uses parameterized queries when params provided.
      *
      * @param query - SQL query string
@@ -117,12 +134,7 @@ export class Database {
      * @returns Query result with rows and metadata
      */
     async execute(query: string, params: any[] = []): Promise<any> {
-        const dbContext = this.dbContext;
-        if (params.length > 0) {
-            return await dbContext.query(query, params);
-        } else {
-            return await dbContext.query(query);
-        }
+        return await this.adapter.query(query, params);
     }
 
     /**
