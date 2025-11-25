@@ -82,8 +82,6 @@ function applyFieldExtraction(data: any, context: Context): any {
         ...data
     };
 
-    console.info('INJECT:', context.req.method, context.req.path, result);
-
     // Step 1a: System field filtering (applied to data before unwrap/select)
     if (statParam === 'false' || accessParam === 'false') {
         const includeStat = statParam !== 'false';
