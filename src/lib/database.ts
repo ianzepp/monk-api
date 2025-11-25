@@ -7,9 +7,6 @@ import { ModelRecord } from '@src/lib/model-record.js';
 import { Filter, type AggregateSpec } from '@src/lib/filter.js';
 import type { FilterData, AggregateData } from '@src/lib/filter-types.js';
 import type { FilterWhereOptions } from '@src/lib/filter-types.js';
-import { ModelCache } from '@src/lib/model-cache.js';
-import { RelationshipCache, type CachedRelationship } from '@src/lib/relationship-cache.js';
-import type { Field } from '@src/lib/field.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
@@ -25,6 +22,15 @@ import type {
     DbAccessInput,
     DbAccessUpdate,
 } from '@src/lib/database-types.js';
+
+/**
+ * Relationship metadata returned by getRelationship()
+ */
+export interface CachedRelationship {
+    fieldName: string;      // Foreign key field on child model
+    childModel: string;     // Child model name
+    relationshipType: string; // 'owned', 'referenced', etc.
+}
 
 /**
  * Options for database select operations with context-aware soft delete handling
@@ -76,30 +82,19 @@ export class Database {
     /**
      * Resolve model name to Model instance with caching
      *
-     * Uses NamespaceCache when available (schema-aware caching).
-     * Falls back to ModelCache for backward compatibility.
+     * Uses NamespaceCache for schema-aware caching.
      *
      * @param modelName - Name of the model to load
      * @returns Model instance with metadata and validation methods
      */
     async toModel(modelName: ModelName): Promise<Model> {
-        // Prefer NamespaceCache when available (schema-aware)
-        if (this.system.namespace?.isLoaded()) {
-            return this.system.namespace.getModel(modelName);
-        }
-
-        // Fallback to ModelCache (deprecated, will be removed)
-        const modelCache = ModelCache.getInstance();
-        const modelRecord = await modelCache.getModel(this.system, modelName);
-        const model = new Model(this.system, modelName, modelRecord);
-        return model;
+        return this.system.namespace.getModel(modelName);
     }
 
     /**
      * Get relationship metadata by parent model and relationship name
      *
-     * Uses NamespaceCache when available (schema-aware caching).
-     * Falls back to RelationshipCache for backward compatibility.
+     * Uses NamespaceCache for schema-aware caching.
      *
      * @param parentModel - Parent model name (the model being queried)
      * @param relationshipName - Relationship name defined on the child field
@@ -107,40 +102,20 @@ export class Database {
      * @throws HttpErrors.notFound if relationship doesn't exist
      */
     async getRelationship(parentModel: string, relationshipName: string): Promise<CachedRelationship> {
-        // Prefer NamespaceCache when available (schema-aware)
-        if (this.system.namespace?.isLoaded()) {
-            const fields = this.system.namespace.getRelationships(parentModel, relationshipName);
-            if (fields.length === 0) {
-                throw HttpErrors.notFound(
-                    `Relationship '${relationshipName}' not found for model '${parentModel}'`,
-                    'RELATIONSHIP_NOT_FOUND'
-                );
-            }
-            // Return first field as CachedRelationship format (for backward compatibility)
-            const field = fields[0];
-            return {
-                fieldName: field.fieldName,
-                childModel: field.modelName,
-                relationshipType: field.relationshipType || 'owned',
-            };
-        }
-
-        // Fallback to RelationshipCache (deprecated, will be removed)
-        const relationshipCache = RelationshipCache.getInstance();
-        const relationship = await relationshipCache.getRelationship(
-            this.system,
-            parentModel,
-            relationshipName
-        );
-
-        if (!relationship) {
+        const fields = this.system.namespace.getRelationships(parentModel, relationshipName);
+        if (fields.length === 0) {
             throw HttpErrors.notFound(
                 `Relationship '${relationshipName}' not found for model '${parentModel}'`,
                 'RELATIONSHIP_NOT_FOUND'
             );
         }
-
-        return relationship;
+        // Return first field as CachedRelationship format (for backward compatibility)
+        const field = fields[0];
+        return {
+            fieldName: field.fieldName,
+            childModel: field.modelName,
+            relationshipType: field.relationshipType || 'owned',
+        };
     }
 
     /**

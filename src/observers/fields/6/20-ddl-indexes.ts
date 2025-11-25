@@ -13,7 +13,6 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField } from '@src/lib/describe.js';
-import { ModelCache } from '@src/lib/model-cache.js';
 import type { ModelRecord } from '@src/lib/model-record.js';
 
 export default class DdlIndexesObserver extends BaseObserver {
@@ -25,8 +24,8 @@ export default class DdlIndexesObserver extends BaseObserver {
         const { system } = context;
         const { model_name, field_name } = record;
 
-        // Load model from cache to check if external
-        const model = await ModelCache.getInstance().getModel(system, model_name);
+        // Load model from namespace cache to check if external
+        const model = system.namespace.getModel(model_name);
 
         // Skip DDL operations for external models (managed elsewhere)
         if (model.external === true) {

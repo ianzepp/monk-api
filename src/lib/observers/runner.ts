@@ -8,7 +8,6 @@
 import type { SystemContext } from '@src/lib/system-context-types.js';
 import { Model } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
-import { ModelCache } from '@src/lib/model-cache.js';
 import type {
     Observer,
     ObserverContext,

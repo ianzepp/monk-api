@@ -2,7 +2,6 @@ import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { ModelCache } from '@src/lib/model-cache.js';
 /**
  * GET /api/describe/:model/fields - List all fields for a model
  *

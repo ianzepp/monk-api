@@ -36,7 +36,7 @@ export default class ModelSudoValidator extends BaseObserver {
             return;
         }
 
-        // Use cached model data - the model object comes from ModelCache via Database.toModel()
+        // Use cached model data - the model object comes from NamespaceCache via Database.toModel()
         // This avoids redundant database queries since the model is already loaded and cached
         const requiresSudo = model.sudo ?? false;
 

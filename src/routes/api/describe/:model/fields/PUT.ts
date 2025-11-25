@@ -3,7 +3,6 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { ModelCache } from '@src/lib/model-cache.js';
 
 /**
  * PUT /api/describe/:model/fields
@@ -27,14 +26,13 @@ export default withTransactionParams(async (context, { system, model, body }) =>
         }
     }
 
-    // Get model from cache (includes _fields with IDs)
-    const cachedModel = await ModelCache.getInstance().getModel(system, model!);
-    const cachedFields = cachedModel._fields as any[];
+    // Get model from namespace cache (includes fields with IDs)
+    const cachedModel = system.namespace.getModel(model!);
 
     // Build a map of field_name -> id for quick lookup
     const fieldNameToId = new Map<string, string>();
-    for (const f of cachedFields) {
-        fieldNameToId.set(f.field_name, f.id);
+    for (const [fieldName, field] of cachedModel.fields) {
+        fieldNameToId.set(fieldName, field.id);
     }
 
     // Map field_name to id for each update

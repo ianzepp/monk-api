@@ -1,8 +1,7 @@
 /**
  * Model Cache Invalidator - Ring 8 Integration
  *
- * Automatically invalidates caches when models are modified.
- * Invalidates both NamespaceCache (new) and ModelCache (deprecated).
+ * Automatically invalidates NamespaceCache when models are modified.
  *
  * Note: Model modifications already update models.updated_at (system field),
  * so we only need to invalidate the in-memory cache here.
@@ -18,7 +17,6 @@
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
-import { ModelCache } from '@src/lib/model-cache.js';
 import type { ModelRecord } from '@src/lib/model-record.js';
 
 export default class ModelCacheInvalidator extends BaseObserver {
@@ -36,15 +34,9 @@ export default class ModelCacheInvalidator extends BaseObserver {
             return;
         }
 
-        // Invalidate NamespaceCache (new schema-aware cache) and reload
-        if (context.system.namespace?.isLoaded()) {
-            context.system.namespace.invalidateModel(model_name);
-            await context.system.namespace.loadOne(context.system, model_name);
-        }
-
-        // Invalidate legacy ModelCache (deprecated)
-        const modelCache = ModelCache.getInstance();
-        modelCache.invalidateModel(context.system, model_name);
+        // Invalidate NamespaceCache and reload
+        context.system.namespace.invalidateModel(model_name);
+        await context.system.namespace.loadOne(context.system, model_name);
 
         console.info('Model cache invalidated by observer', {
             operation: context.operation,
