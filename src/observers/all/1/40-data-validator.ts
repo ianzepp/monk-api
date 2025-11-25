@@ -1,21 +1,7 @@
 /**
- * Data Validator Observer - Optimized Single-Loop Architecture
+ * Data Validator Observer - Single-Record Architecture
  *
- * Replaces JSON Model (AJV) validation with in-house validators for better
- * performance and full model/field feature support.
- *
- * Performance Optimizations:
- * - Single loop over records (not N separate loops)
- * - Single loop over relevant fields only (not all fields repeatedly)
- * - Pre-merged validation metadata from Model class (O(1) access)
- * - Pre-compiled regex patterns (compiled once per model, not per record)
- * - System fields already excluded from validationFields
- * - Collects ALL validation errors before throwing (user-friendly)
- *
- * Complexity:
- * - Old approach: O(records × (all_fields × 5)) = 100 × (50 × 5) = 25,000 iterations
- * - New approach: O(records × relevant_fields) = 100 × 10 = 1,000 iterations
- * - Performance improvement: ~25x faster
+ * Validates field data against model constraints for each record.
  *
  * Validates:
  * - Required fields (required=true must be present and non-null)
@@ -25,8 +11,7 @@
  * - Enum values (allowed value lists)
  *
  * Ring 1 (Input Validation) - Priority 40
- * Runs after: FreezeValidator (20), FieldSudoValidator (25), ImmutableValidator (30)
- * Runs before: SudoValidator (50)
+ * Runs after: FreezeValidator (10), ModelSudoValidator (20), FieldSudoValidator (25), ImmutableValidator (30)
  */
 
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
@@ -39,7 +24,6 @@ import type { FieldValidationConfig } from '@src/lib/model.js';
 import { validateScalarType, validateArrayType } from '@src/lib/validators/types.js';
 
 interface ValidationErrorDetail {
-    record: number;
     field: string;
     message: string;
     code: string;
@@ -51,41 +35,35 @@ export default class DataValidator extends BaseObserver {
     readonly priority = 40;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { model, data } = context;
-
-        // Check if data exists
-        if (!data || data.length === 0) {
-            return;
-        }
+        const { model, record, operation } = context;
 
         // Get pre-merged validation fields (already excludes system fields)
         const validationFields = model.getValidationFields();
 
         // Early exit if no fields require validation
         if (validationFields.length === 0) {
-            console.info('No validation fields defined', { modelName: model.model_name });
             return;
         }
 
         const errors: ValidationErrorDetail[] = [];
 
-        // OPTIMIZED: Single loop over records, single loop over relevant fields
-        for (const [recordIndex, record] of data.entries()) {
-            for (const field of validationFields) {
-                // For UPDATE operations, only validate fields being updated
-                // Existing DB values are already valid, no need to re-validate
-                if (context.operation === 'update' && !record.has(field.fieldName)) {
-                    continue; // Skip fields not in update payload
-                }
-
-                // Get merged view: new value if changed, otherwise original value
-                const value = record.get(field.fieldName);
-                this.validateField(field, value, recordIndex, errors);
+        // Validate each field that has validation rules
+        for (const field of validationFields) {
+            // For UPDATE operations, only validate fields being updated
+            // Existing DB values are already valid, no need to re-validate
+            if (operation === 'update' && !record.has(field.fieldName)) {
+                continue; // Skip fields not in update payload
             }
+
+            // Get merged view: new value if changed, otherwise original value
+            const value = record.get(field.fieldName);
+            this.validateField(field, value, errors);
         }
 
         // Throw if any validation errors occurred
-        this.throwIfErrors(errors, model.model_name, data?.length || 0, validationFields.length);
+        if (errors.length > 0) {
+            this.throwErrors(errors, model.model_name, context.recordIndex);
+        }
     }
 
     /**
@@ -95,11 +73,10 @@ export default class DataValidator extends BaseObserver {
     private validateField(
         field: FieldValidationConfig,
         value: any,
-        recordIndex: number,
         errors: ValidationErrorDetail[]
     ): void {
         // Check required first - if missing, skip other validations
-        if (this.checkRequired(field, value, recordIndex, errors)) {
+        if (this.checkRequired(field, value, errors)) {
             return; // Field is required but missing - skip other checks
         }
 
@@ -109,15 +86,15 @@ export default class DataValidator extends BaseObserver {
         }
 
         // Validate type - if wrong type, skip constraint/enum checks
-        if (this.checkType(field, value, recordIndex, errors)) {
+        if (this.checkType(field, value, errors)) {
             return; // Type validation failed - skip other checks
         }
 
         // Validate constraints (min/max/pattern)
-        this.checkConstraints(field, value, recordIndex, errors);
+        this.checkConstraints(field, value, errors);
 
         // Validate enum values
-        this.checkEnum(field, value, recordIndex, errors);
+        this.checkEnum(field, value, errors);
     }
 
     /**
@@ -127,7 +104,6 @@ export default class DataValidator extends BaseObserver {
     private checkRequired(
         field: FieldValidationConfig,
         value: any,
-        recordIndex: number,
         errors: ValidationErrorDetail[]
     ): boolean {
         // Early return: field is not required
@@ -142,7 +118,6 @@ export default class DataValidator extends BaseObserver {
 
         // Field is required but missing or null
         errors.push({
-            record: recordIndex,
             field: field.fieldName,
             message: `Field '${field.fieldName}' is required but missing or null`,
             code: 'REQUIRED_FIELD_MISSING',
@@ -157,7 +132,6 @@ export default class DataValidator extends BaseObserver {
     private checkType(
         field: FieldValidationConfig,
         value: any,
-        recordIndex: number,
         errors: ValidationErrorDetail[]
     ): boolean {
         // Early return: no type constraint
@@ -174,7 +148,6 @@ export default class DataValidator extends BaseObserver {
 
         // Type validation failed
         errors.push({
-            record: recordIndex,
             field: field.fieldName,
             message: `Field '${field.fieldName}' ${typeError}`,
             code: 'INVALID_TYPE',
@@ -188,7 +161,6 @@ export default class DataValidator extends BaseObserver {
     private checkConstraints(
         field: FieldValidationConfig,
         value: any,
-        recordIndex: number,
         errors: ValidationErrorDetail[]
     ): void {
         // Early return: no constraints
@@ -205,7 +177,6 @@ export default class DataValidator extends BaseObserver {
 
         // Constraint validation failed
         errors.push({
-            record: recordIndex,
             field: field.fieldName,
             message: `Field '${field.fieldName}' ${constraintError}`,
             code: this.getConstraintErrorCode(constraintError),
@@ -218,7 +189,6 @@ export default class DataValidator extends BaseObserver {
     private checkEnum(
         field: FieldValidationConfig,
         value: any,
-        recordIndex: number,
         errors: ValidationErrorDetail[]
     ): void {
         // Early return: no enum constraint
@@ -233,7 +203,6 @@ export default class DataValidator extends BaseObserver {
 
         // Invalid enum value
         errors.push({
-            record: recordIndex,
             field: field.fieldName,
             message: `Field '${field.fieldName}' value '${value}' is not in allowed list: [${field.enum.join(', ')}]`,
             code: 'INVALID_ENUM_VALUE',
@@ -296,50 +265,27 @@ export default class DataValidator extends BaseObserver {
     }
 
     /**
-     * Throw validation error if any errors were collected
+     * Throw validation error with all collected errors for this record
      */
-    private throwIfErrors(
+    private throwErrors(
         errors: ValidationErrorDetail[],
         modelName: string,
-        recordCount: number,
-        validatedFieldCount: number
+        recordIndex: number
     ): void {
-        if (errors.length === 0) {
-            // All validation passed
-            console.info('Data validation passed', {
-                modelName,
-                recordCount,
-                validatedFields: validatedFieldCount,
-            });
-            return;
-        }
-
-        // Group errors by record for logging
-        const errorsByRecord = new Map<number, ValidationErrorDetail[]>();
-        for (const error of errors) {
-            const recordErrors = errorsByRecord.get(error.record) || [];
-            recordErrors.push(error);
-            errorsByRecord.set(error.record, recordErrors);
-        }
-
         console.warn('Data validation failed', {
             modelName,
-            totalRecords: recordCount,
-            failedRecords: errorsByRecord.size,
-            totalErrors: errors.length,
+            recordIndex,
+            errorCount: errors.length,
         });
 
-        // Format error message with violation details (show first 5)
+        // Format error message with violation details
         const violationSummary = errors
-            .slice(0, 5)
-            .map((e) => `  [${e.record}].${e.field}: ${e.message}`)
+            .map((e) => `  ${e.field}: ${e.message}`)
             .join('\n');
 
-        const additionalErrors = errors.length > 5 ? `\n  ... and ${errors.length - 5} more errors` : '';
-
         throw new ValidationError(
-            `Data validation failed for model '${modelName}' with ${errors.length} error(s):\n${violationSummary}${additionalErrors}`,
-            undefined, // No specific field
+            `Data validation failed for record[${recordIndex}] in model '${modelName}' with ${errors.length} error(s):\n${violationSummary}`,
+            errors[0].field, // First violated field
             'DATA_VALIDATION_FAILED'
         );
     }
