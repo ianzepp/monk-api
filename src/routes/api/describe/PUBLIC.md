@@ -22,9 +22,11 @@ All Describe API routes are prefixed with `/api/describe`
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | [`/api/describe/:model/fields`](:model/fields/GET.md) | List all fields in model |
+| POST | [`/api/describe/:model/fields`](:model/fields/POST.md) | **Bulk create** multiple fields |
+| PUT | [`/api/describe/:model/fields`](:model/fields/PUT.md) | **Bulk update** multiple fields |
 | GET | [`/api/describe/:model/fields/:field`](:model/fields/:field/GET.md) | Retrieve field definition |
-| POST | [`/api/describe/:model/fields/:field`](:model/fields/:field/POST.md) | Add a new field to model |
-| PUT | [`/api/describe/:model/fields/:field`](:model/fields/:field/PUT.md) | Update field properties |
+| POST | [`/api/describe/:model/fields/:field`](:model/fields/:field/POST.md) | Add a single field to model |
+| PUT | [`/api/describe/:model/fields/:field`](:model/fields/:field/PUT.md) | Update single field properties |
 | DELETE | [`/api/describe/:model/fields/:field`](:model/fields/:field/DELETE.md) | Remove field from model |
 
 ## Content Type
@@ -38,46 +40,48 @@ All endpoints require a valid JWT token in the Authorization header: `Bearer <to
 
 ## Quick Start
 
-### Creating a Model with Fields
+### Creating a Model with Fields (Recommended)
+
+Use bulk field creation for efficiency - one request instead of many:
 
 ```bash
 # Step 1: Create model
 curl -X POST http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "model_name": "users",
-    "status": "pending"
-  }'
+  -d '{"status": "pending"}'
 
-# Step 2: Add name field
-curl -X POST http://localhost:9001/api/describe/users/fields/name \
+# Step 2: Add ALL fields in one request
+curl -X POST http://localhost:9001/api/describe/users/fields \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "type": "text",
-    "required": true,
-    "description": "User full name"
-  }'
+  -d '[
+    {"field_name": "name", "type": "text", "required": true, "description": "User full name"},
+    {"field_name": "email", "type": "text", "required": true, "unique": true, "index": true, "pattern": "^[^@]+@[^@]+\\.[^@]+$"},
+    {"field_name": "age", "type": "integer", "minimum": 0, "maximum": 150},
+    {"field_name": "is_active", "type": "boolean", "default_value": true}
+  ]'
 
-# Step 3: Add email field
-curl -X POST http://localhost:9001/api/describe/users/fields/email \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "text",
-    "required": true,
-    "unique": true,
-    "pattern": "^[^@]+@[^@]+\\.[^@]+$",
-    "index": true,
-    "description": "User email address"
-  }'
-
-# Step 4: Activate model
+# Step 3: Activate model
 curl -X PUT http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status": "active"}'
+```
+
+### Adding a Single Field
+
+For adding individual fields to an existing model:
+
+```bash
+curl -X POST http://localhost:9001/api/describe/users/fields/phone \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "text",
+    "transform": "normalize_phone",
+    "description": "Phone number"
+  }'
 ```
 
 ---

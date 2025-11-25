@@ -3,6 +3,7 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { ModelCache } from '@src/lib/model-cache.js';
 
 /**
  * PUT /api/describe/:model/fields
@@ -14,29 +15,46 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * @returns Array of updated field records from fields table
  */
 export default withTransactionParams(async (context, { system, model, body }) => {
-    // TODO: Complete implementation - need to map field_name to id using model cache
-    throw HttpErrors.notImplemented(
-        'Bulk field update endpoint is incomplete - use PUT /api/describe/:model/fields/:field for single field updates',
-        'ENDPOINT_INCOMPLETE'
-    );
-
     // Validate body is an array
     if (!Array.isArray(body)) {
-        throw HttpErrors.badRequest('Request body must be an array of field updates');
+        throw HttpErrors.badRequest('Request body must be an array of field updates', 'BODY_NOT_ARRAY');
     }
 
     // Validate each field has field_name
     for (const field of body as any[]) {
         if (!field.field_name) {
-            throw HttpErrors.badRequest('Each field update must include field_name');
+            throw HttpErrors.badRequest('Each field update must include field_name', 'FIELD_NAME_REQUIRED');
         }
     }
 
-    // Inject model_name into each field update
-    const fieldsToUpdate = body.map((field: any) => ({
-        model_name: model!,
-        ...field
-    }));
+    // Get model from cache (includes _fields with IDs)
+    const cachedModel = await ModelCache.getInstance().getModel(system, model!);
+    const cachedFields = cachedModel._fields as any[];
+
+    // Build a map of field_name -> id for quick lookup
+    const fieldNameToId = new Map<string, string>();
+    for (const f of cachedFields) {
+        fieldNameToId.set(f.field_name, f.id);
+    }
+
+    // Map field_name to id for each update
+    const fieldsToUpdate = body.map((field: any) => {
+        const fieldId = fieldNameToId.get(field.field_name);
+        if (!fieldId) {
+            throw HttpErrors.notFound(
+                `Field '${field.field_name}' not found in model '${model}'`,
+                'FIELD_NOT_FOUND'
+            );
+        }
+
+        // Remove field_name from updates (it's not updateable), add id
+        const { field_name, ...updates } = field;
+        return {
+            id: fieldId,
+            model_name: model!,
+            ...updates
+        };
+    });
 
     console.log('PUT /api/describe/:model/fields - Updating fields in bulk:', {
         model: model!,
