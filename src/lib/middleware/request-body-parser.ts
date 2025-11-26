@@ -2,31 +2,88 @@
  * Request Body Parser Middleware
  *
  * Parses request bodies based on Content-Type header.
- * Supports multiple formats to reduce token usage for LLM integrations:
- * - application/json (default)
- * - application/toon, text/plain (TOON format)
- * - application/yaml, text/yaml
- * - application/toml (TOML configuration format)
- * - application/msgpack (MessagePack binary format)
+ * Supports multiple formats to reduce token usage for LLM integrations.
  *
  * Sets context.get('parsedBody') for route handlers to consume.
  */
 
 import type { Context, Next } from 'hono';
-import { JsonFormatter, ToonFormatter, YamlFormatter, TomlFormatter, MorseFormatter, MessagePackFormatter } from '@src/lib/formatters/index.js';
+import { getFormatter } from '@src/lib/formatters/index.js';
+
+/**
+ * Content-Type to format name mapping
+ */
+const CONTENT_TYPE_MAP: Array<{ match: string | RegExp; format: string }> = [
+    { match: 'application/json', format: 'json' },
+    { match: 'application/toon', format: 'toon' },
+    { match: 'application/yaml', format: 'yaml' },
+    { match: 'application/x-yaml', format: 'yaml' },
+    { match: 'text/yaml', format: 'yaml' },
+    { match: 'text/x-yaml', format: 'yaml' },
+    { match: 'application/toml', format: 'toml' },
+    { match: 'application/x-toml', format: 'toml' },
+    { match: 'text/toml', format: 'toml' },
+    { match: 'application/msgpack', format: 'msgpack' },
+    { match: 'application/x-msgpack', format: 'msgpack' },
+    { match: 'application/morse', format: 'morse' },
+];
+
+/**
+ * Detect format from Content-Type header and body content
+ */
+function detectFormat(contentType: string, body: string): string {
+    const ct = contentType.toLowerCase();
+
+    // Check explicit content types
+    for (const { match, format } of CONTENT_TYPE_MAP) {
+        if (typeof match === 'string' && ct.includes(match)) {
+            return format;
+        }
+        if (match instanceof RegExp && match.test(ct)) {
+            return format;
+        }
+    }
+
+    // Heuristics for text/plain
+    if (ct.includes('text/plain')) {
+        const trimmed = body.trim();
+        // TOON: starts with { (object notation)
+        if (trimmed.startsWith('{')) {
+            return 'toon';
+        }
+        // Morse: only dots, dashes, spaces, slashes
+        if (/^[.\-\s\/]+$/.test(trimmed)) {
+            return 'morse';
+        }
+    }
+
+    // Default to JSON
+    return 'json';
+}
+
+/**
+ * Error response for unavailable format
+ */
+function formatUnavailableResponse(context: Context, format: string) {
+    return context.json({
+        success: false,
+        error: `Format '${format}' is not available for parsing`,
+        error_code: 'FORMAT_UNAVAILABLE',
+        details: `Install the optional package: npm install @monk/${format}`
+    }, 400);
+}
 
 /**
  * Parses request body based on Content-Type header
  */
 export async function requestBodyParserMiddleware(context: Context, next: Next) {
-    const contentType = context.req.header('content-type')?.toLowerCase() || '';
-
     // Skip parsing if no body (GET, DELETE, etc.)
     if (context.req.method === 'GET' || context.req.method === 'DELETE' || context.req.method === 'HEAD') {
         return await next();
     }
 
     try {
+        const contentType = context.req.header('content-type') || '';
         const rawBody = await context.req.text();
 
         // Skip if empty body
@@ -34,42 +91,21 @@ export async function requestBodyParserMiddleware(context: Context, next: Next) 
             return await next();
         }
 
-        let parsedBody: any;
+        // Detect format and get formatter
+        const format = detectFormat(contentType, rawBody);
+        const formatter = getFormatter(format);
 
-        // Parse based on Content-Type
-        if (contentType.includes('application/toon') ||
-            (contentType.includes('text/plain') && rawBody.trim().startsWith('{'))) {
-            // TOON format
-            parsedBody = ToonFormatter.decode(rawBody);
-        } else if (contentType.includes('application/yaml') ||
-                   contentType.includes('application/x-yaml') ||
-                   contentType.includes('text/yaml') ||
-                   contentType.includes('text/x-yaml')) {
-            // YAML format
-            parsedBody = YamlFormatter.decode(rawBody);
-        } else if (contentType.includes('application/morse') ||
-                   (contentType.includes('text/plain') && /^[.\-\s\/]+$/.test(rawBody.trim()))) {
-            // Morse code format (dots, dashes, spaces, slashes)
-            parsedBody = MorseFormatter.decode(rawBody);
-        } else if (contentType.includes('application/toml') ||
-                   contentType.includes('application/x-toml') ||
-                   contentType.includes('text/toml')) {
-            // TOML format
-            parsedBody = TomlFormatter.decode(rawBody);
-        } else if (contentType.includes('application/msgpack') ||
-                   contentType.includes('application/x-msgpack')) {
-            // MessagePack format (base64-encoded binary)
-            parsedBody = MessagePackFormatter.decode(rawBody);
-        } else {
-            // Default to JSON (including application/json and no Content-Type)
-            parsedBody = JsonFormatter.decode(rawBody);
+        if (!formatter) {
+            return formatUnavailableResponse(context, format);
         }
+
+        // Parse the body
+        const parsedBody = formatter.decode(rawBody);
 
         // Store parsed body in context for route handlers
         context.set('parsedBody', parsedBody);
 
         // Override context.req.json() to return parsed body
-        const originalJson = context.req.json.bind(context.req);
         context.req.json = async function() {
             return parsedBody;
         } as any;

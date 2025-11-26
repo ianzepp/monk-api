@@ -1,9 +1,9 @@
 /**
- * MessagePack Formatter
+ * @monk/msgpack - MessagePack Formatter
  *
  * MessagePack format encoding/decoding wrapper.
  * MessagePack is a binary serialization format that's more compact than JSON.
- * 
+ *
  * Use cases:
  * - Binary efficiency (30-50% smaller than JSON)
  * - High-performance APIs
@@ -12,16 +12,21 @@
  * - Mobile apps with bandwidth constraints
  */
 
-import { encode as encodeMsgPack, decode as decodeMsgPack } from '@msgpack/msgpack';
+import { encode, decode } from '@msgpack/msgpack';
 
-export const MessagePackFormatter = {
+export interface Formatter {
+    encode(data: any): string;
+    decode(text: string): any;
+    contentType: string;
+}
+
+export const MessagePackFormatter: Formatter = {
     /**
      * Encode data to MessagePack binary format
      * Returns base64-encoded string for HTTP transport
      */
     encode(data: any): string {
-        const buffer = encodeMsgPack(data);
-        // Convert Uint8Array to base64 for HTTP transport
+        const buffer = encode(data);
         return Buffer.from(buffer).toString('base64');
     },
 
@@ -30,14 +35,9 @@ export const MessagePackFormatter = {
      * Accepts base64-encoded string from HTTP transport
      */
     decode(text: string): any {
-        // Decode base64 string to buffer
         const buffer = Buffer.from(text, 'base64');
-        return decodeMsgPack(buffer);
+        return decode(buffer);
     },
 
-    /**
-     * Content-Type for responses
-     * Using application/msgpack as the standard MIME type
-     */
     contentType: 'application/msgpack'
 };

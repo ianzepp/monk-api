@@ -1,15 +1,18 @@
 /**
- * Markdown formatter for API responses
+ * @monk/markdown - Markdown Formatter
  *
  * Converts JSON objects and arrays into readable Markdown format:
- * - Arrays of objects → Markdown tables
- * - Single objects → Key-value lists
- * - Nested structures → Indented sections
+ * - Arrays of objects -> Markdown tables
+ * - Single objects -> Key-value lists
+ * - Nested structures -> Indented sections
  */
 
-/**
- * Converts a value to a markdown-safe string
- */
+export interface Formatter {
+    encode(data: any): string;
+    decode(text: string): any;
+    contentType: string;
+}
+
 function stringifyValue(value: any): string {
     if (value === null || value === undefined) {
         return '';
@@ -20,20 +23,15 @@ function stringifyValue(value: any): string {
     return String(value);
 }
 
-/**
- * Converts an array of objects to a markdown table
- */
 function arrayToMarkdownTable(arr: any[]): string {
     if (arr.length === 0) {
         return '_Empty array_\n';
     }
 
-    // If array contains non-objects, format as list
     if (typeof arr[0] !== 'object' || arr[0] === null) {
         return arr.map((item, i) => `${i + 1}. ${stringifyValue(item)}`).join('\n') + '\n';
     }
 
-    // Get all unique keys from all objects
     const allKeys = new Set<string>();
     arr.forEach(obj => {
         if (obj && typeof obj === 'object') {
@@ -43,11 +41,9 @@ function arrayToMarkdownTable(arr: any[]): string {
 
     const keys = Array.from(allKeys);
 
-    // Build table header
     let table = '| ' + keys.join(' | ') + ' |\n';
     table += '| ' + keys.map(() => '---').join(' | ') + ' |\n';
 
-    // Build table rows
     arr.forEach(obj => {
         const row = keys.map(key => {
             const value = obj?.[key];
@@ -59,9 +55,6 @@ function arrayToMarkdownTable(arr: any[]): string {
     return table;
 }
 
-/**
- * Converts a single object to markdown key-value pairs
- */
 function objectToMarkdown(obj: any, indent: number = 0): string {
     const prefix = '  '.repeat(indent);
     let output = '';
@@ -72,11 +65,9 @@ function objectToMarkdown(obj: any, indent: number = 0): string {
         } else if (Array.isArray(value)) {
             output += `${prefix}- **${key}**:\n`;
             if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
-                // Array of objects - use table
                 const table = arrayToMarkdownTable(value);
                 output += table.split('\n').map(line => line ? `${prefix}  ${line}` : '').join('\n') + '\n';
             } else {
-                // Simple array - use list
                 output += value.map((item, i) => `${prefix}  ${i + 1}. ${stringifyValue(item)}`).join('\n') + '\n';
             }
         } else if (typeof value === 'object') {
@@ -90,13 +81,9 @@ function objectToMarkdown(obj: any, indent: number = 0): string {
     return output;
 }
 
-/**
- * Main encode function
- */
 function encodeMarkdown(data: any): string {
     let output = '';
 
-    // Handle success/error wrapper common in API responses
     if (data && typeof data === 'object' && 'success' in data) {
         output += `# API Response\n\n`;
         output += `**Status**: ${data.success ? '✓ Success' : '✗ Error'}\n\n`;
@@ -117,7 +104,6 @@ function encodeMarkdown(data: any): string {
             }
         }
 
-        // Include other top-level fields
         const otherFields = Object.keys(data).filter(k => k !== 'success' && k !== 'data' && k !== 'error');
         if (otherFields.length > 0) {
             output += `\n## Additional Information\n\n`;
@@ -138,12 +124,12 @@ function encodeMarkdown(data: any): string {
     return output;
 }
 
-export const MarkdownFormatter = {
+export const MarkdownFormatter: Formatter = {
     encode(data: any): string {
         return encodeMarkdown(data);
     },
 
-    decode(text: string): any {
+    decode(_text: string): any {
         throw new Error('Markdown decoding is not supported. Markdown is a presentation format, not a data serialization format.');
     },
 

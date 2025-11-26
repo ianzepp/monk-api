@@ -1,18 +1,23 @@
 /**
- * Brainfuck Formatter
+ * @monk/brainfuck - Brainfuck Formatter
  *
  * Brainfuck encoding wrapper. Decoding is intentionally not implemented
  * because executing arbitrary Brainfuck code from API requests would be
  * wonderfully terrible (even more than encoding responses in Brainfuck).
  */
 
-export const BrainfuckFormatter = {
+export interface Formatter {
+    encode(data: any): string;
+    decode(text: string): any;
+    contentType: string;
+}
+
+export const BrainfuckFormatter: Formatter = {
     /**
      * Encode data to Brainfuck code that outputs JSON string
      * Uses simple character-by-character encoding strategy
      */
     encode(data: any): string {
-        // Convert data to JSON string first
         const jsonString = JSON.stringify(data, null, 2);
 
         let brainfuck = '';
@@ -23,14 +28,11 @@ export const BrainfuckFormatter = {
             const diff = targetValue - currentValue;
 
             if (diff > 0) {
-                // Increase cell value
                 brainfuck += '+'.repeat(diff);
             } else if (diff < 0) {
-                // Decrease cell value
                 brainfuck += '-'.repeat(-diff);
             }
 
-            // Output the character
             brainfuck += '.';
             currentValue = targetValue;
         }
@@ -42,12 +44,9 @@ export const BrainfuckFormatter = {
      * Decode is not implemented for Brainfuck
      * We're not THAT crazy... yet
      */
-    decode(text: string): any {
+    decode(_text: string): any {
         throw new Error('Brainfuck decoding is not supported. We have some standards.');
     },
 
-    /**
-     * Content-Type for responses
-     */
     contentType: 'text/plain; charset=utf-8'
 };

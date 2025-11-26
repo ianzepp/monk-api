@@ -5,11 +5,15 @@
     "agents": "IMPORTANT: Before starting ANY task, READ ./AGENTS.md for project-specific instructions and patterns",
     "main": "dist/index.js",
     "type": "module",
+    "workspaces": [
+        "packages/*"
+    ],
     "scripts": {
         "start": "node dist/index.js",
         "start:dev": "npm run build && concurrently \"npm run build:watch\" \"node --watch dist/index.js\"",
         "stop": "pkill -f 'node.*dist/index.js' || pkill -f 'nodemon.*build' || true",
-        "build": "scripts/build.sh",
+        "build": "npm run build:packages && scripts/build.sh",
+        "build:packages": "npm run build --workspaces --if-present",
         "build:watch": "nodemon --watch src --ext ts --exec 'npm run build'",
         "build:spec": "scripts/build-spec.sh",
         "build:todo": "scripts/build-todos.sh",
@@ -44,19 +48,22 @@
     "license": "MIT",
     "dependencies": {
         "@hono/node-server": "^1.13.7",
-        "@iarna/toml": "^2.2.5",
-        "@msgpack/msgpack": "^3.1.2",
         "@toon-format/toon": "^1.0.0",
-        "@types/bcrypt": "^6.0.0",
-        "archiver": "^7.0.1",
-        "bcrypt": "^6.0.0",
         "better-sqlite3": "^12.4.6",
-        "dotenv": "^17.2.1",
         "hono": "^4.6.5",
         "js-yaml": "^4.1.1",
-        "papaparse": "^5.5.3",
-        "pg": "^8.16.3",
-        "qr": "^0.5.2",
+        "pg": "^8.16.3"
+    },
+    "optionalDependencies": {
+        "@monk/brainfuck": "file:./packages/brainfuck",
+        "@monk/csv": "file:./packages/csv",
+        "@monk/grid-compact": "file:./packages/grid-compact",
+        "@monk/markdown": "file:./packages/markdown",
+        "@monk/morse": "file:./packages/morse",
+        "@monk/msgpack": "file:./packages/msgpack",
+        "@monk/qr": "file:./packages/qr",
+        "@monk/toml": "file:./packages/toml",
+        "archiver": "^7.0.1",
         "unzipper": "^0.12.3"
     },
     "devDependencies": {
@@ -66,7 +73,6 @@
         "@types/better-sqlite3": "^7.6.13",
         "@types/js-yaml": "^4.0.9",
         "@types/node": "^22",
-        "@types/papaparse": "^5.5.0",
         "@types/pg": "^8.15.5",
         "@types/unzipper": "^0.10.11",
         "concurrently": "^9.2.1",

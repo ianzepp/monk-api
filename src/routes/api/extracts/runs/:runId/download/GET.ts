@@ -1,11 +1,15 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { createReadStream, createWriteStream } from 'fs';
-import { stat, readdir } from 'fs/promises';
-import { join } from 'path';
-import { createGzip } from 'zlib';
-import archiver from 'archiver';
+import { stat } from 'fs/promises';
 import { System } from '@src/lib/system.js';
+
+// Optional dependency - loaded dynamically
+let archiver: any = null;
+try {
+    archiver = (await import('archiver')).default;
+} catch {
+    // archiver not installed - ZIP download unavailable
+}
 
 /**
  * GET /api/extracts/runs/:runId/download
@@ -13,6 +17,13 @@ import { System } from '@src/lib/system.js';
  * Download all artifacts for a run as a ZIP archive
  */
 export default async function (context: Context) {
+    // Check if archiver is available
+    if (!archiver) {
+        throw HttpErrors.serviceUnavailable(
+            'ZIP download is not available. Install optional dependency: npm install archiver'
+        );
+    }
+
     const system = new System(context);
     const runId = context.req.param('runId');
     // Get run record

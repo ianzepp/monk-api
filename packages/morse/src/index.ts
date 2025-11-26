@@ -1,9 +1,15 @@
 /**
- * Morse Code Formatter
+ * @monk/morse - Morse Code Formatter
  *
  * Text-based morse code encoding/decoding.
  * Converts text to dots (.) and dashes (-) representation.
  */
+
+export interface Formatter {
+    encode(data: any): string;
+    decode(text: string): any;
+    contentType: string;
+}
 
 const MORSE_CODE: Record<string, string> = {
     'A': '.-',    'B': '-...',  'C': '-.-.',  'D': '-..',   'E': '.',
@@ -22,24 +28,19 @@ const MORSE_CODE: Record<string, string> = {
     '\n': '//'
 };
 
-// Reverse lookup: morse code to character
 const MORSE_TO_CHAR: Record<string, string> = Object.fromEntries(
     Object.entries(MORSE_CODE).map(([char, morse]) => [morse, char])
 );
 
-export const MorseFormatter = {
+export const MorseFormatter: Formatter = {
     /**
      * Encode text to morse code (dots and dashes)
      * Uses hex encoding first to avoid case sensitivity issues
      */
     encode(data: any): string {
-        // Convert data to JSON string
         const jsonString = JSON.stringify(data, null, 2);
-
-        // Hex encode to preserve all data (case-insensitive encoding)
         const hexString = Buffer.from(jsonString).toString('hex').toUpperCase();
 
-        // Convert hex to morse (only 0-9 and A-F needed)
         return hexString
             .split('')
             .map(char => MORSE_CODE[char] || '')
@@ -52,21 +53,14 @@ export const MorseFormatter = {
      * Decodes from hex to restore original JSON
      */
     decode(text: string): any {
-        // Split by spaces to get individual morse codes
         const hexString = text
             .split(' ')
             .map(code => MORSE_TO_CHAR[code] || '')
             .join('');
 
-        // Hex decode to get original JSON
         const jsonString = Buffer.from(hexString, 'hex').toString();
-
-        // Parse as JSON
         return JSON.parse(jsonString);
     },
 
-    /**
-     * Content-Type for responses
-     */
     contentType: 'text/plain; charset=utf-8'
 };

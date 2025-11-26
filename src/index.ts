@@ -1,11 +1,11 @@
 // Import process environment as early as possible
-import dotenv from 'dotenv';
+import { loadEnv } from '@src/lib/env/load-env.js';
 
 // Load environment-specific .env file
 const envFile = process.env.NODE_ENV
     ? `.env.${process.env.NODE_ENV}`
     : '.env';
-dotenv.config({ path: envFile, debug: true });
+loadEnv({ path: envFile, debug: true });
 
 // Sanity check for required env values
 if (!process.env.DATABASE_URL) {

@@ -118,6 +118,10 @@ export class HttpErrors {
         return new HttpError(501, message, errorCode);
     }
 
+    static serviceUnavailable(message = 'Service unavailable', errorCode = 'SERVICE_UNAVAILABLE') {
+        return new HttpError(503, message, errorCode);
+    }
+
     /**
      * Remap error code if it matches the source code
      * Preserves all error properties (message, status, details, stack)
