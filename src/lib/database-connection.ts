@@ -1,7 +1,9 @@
 import pg from 'pg';
-import type { TxContext } from '@src/db/index.js';
 
 const { Pool, Client } = pg;
+
+/** Transaction context type - a connected pool client */
+export type TxContext = pg.PoolClient;
 
 export const MONK_DB_TENANT_PREFIX = 'tenant_';
 export const MONK_DB_TEST_PREFIX = 'test_';
@@ -238,6 +240,12 @@ export class DatabaseConnection {
                 count: databasesToClose.length,
             });
         }
+    }
+
+    /** Close all test and tenant pools - used by test cleanup */
+    static async closeTestPools(): Promise<void> {
+        await this.closePoolsByPrefix(MONK_DB_TEST_PREFIX);
+        await this.closePoolsByPrefix(MONK_DB_TENANT_PREFIX);
     }
 
     /** Get pool statistics for debugging */

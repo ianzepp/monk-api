@@ -36,7 +36,7 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
 // Imports
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
 
@@ -73,7 +73,7 @@ console.info('- NODE_ENV:', process.env.NODE_ENV);
 console.info('- PORT:', process.env.PORT);
 console.info('- DATABASE_URL:', process.env.DATABASE_URL);
 console.info('- SQLITE_DATA_DIR:', process.env.SQLITE_DATA_DIR);
-checkDatabaseConnection();
+DatabaseConnection.healthCheck();
 
 // Create Hono app
 const app = new Hono();
@@ -504,7 +504,7 @@ const gracefulShutdown = async () => {
     console.info('HTTP server stopped');
 
     // Close database connections
-    await closeDatabaseConnection();
+    await DatabaseConnection.closeConnections();
     console.info('Database connections closed');
 
     process.exit(0);
