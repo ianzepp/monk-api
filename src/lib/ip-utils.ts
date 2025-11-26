@@ -32,8 +32,8 @@ export function getClientIp(context: Context): string {
         return normalizeIp(String(connInfo));
     }
 
-    // Default to localhost if we can't determine
-    return '127.0.0.1';
+    // Fail secure: don't default to localhost as that would bypass IP restrictions
+    throw new Error('Unable to determine client IP address - check proxy configuration');
 }
 
 /**

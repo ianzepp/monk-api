@@ -113,10 +113,13 @@ export async function registerAppTenant(appName: string): Promise<{
         throw new Error(`Namespace ${nsName} already exists but tenant record missing`);
     }
 
-    // Create namespace
-    await NamespaceManager.createNamespace(dbName, nsName, 'postgresql');
+    // Use transaction to ensure namespace + tenant are created atomically
+    await mainPool.query('BEGIN');
 
     try {
+        // Create namespace
+        await NamespaceManager.createNamespace(dbName, nsName, 'postgresql');
+
         // Deploy system fixture (minimal schema)
         await FixtureDeployer.deployMultiple(['system'], {
             dbType: 'postgresql',
@@ -169,6 +172,8 @@ export async function registerAppTenant(appName: string): Promise<{
             ]
         );
 
+        await mainPool.query('COMMIT');
+
         // Generate long-lived token
         const token = await JWTGenerator.generateToken({
             id: userId,
@@ -188,7 +193,10 @@ export async function registerAppTenant(appName: string): Promise<{
         return { token, tenantName, dbName, nsName, userId };
 
     } catch (error) {
-        // Cleanup namespace on failure
+        // Rollback transaction on failure
+        await mainPool.query('ROLLBACK');
+
+        // Cleanup namespace (may have been created before transaction started)
         try {
             await NamespaceManager.dropNamespace(dbName, nsName, 'postgresql');
         } catch (cleanupError) {
