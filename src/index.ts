@@ -243,12 +243,16 @@ app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpo
 // Apps mount under /app/* and use API-based data access
 app.use('/app/*', middleware.requestBodyParserMiddleware);
 
+// Track loaded apps for startup logging
+const loadedApps: string[] = [];
+
 // Load @monk/mcp if installed
 try {
     const { loadApp } = await import('@src/lib/apps/loader.js');
     const mcpApp = await loadApp('mcp', app);
     if (mcpApp) {
         app.route('/app/mcp', mcpApp);
+        loadedApps.push('mcp');
     }
 } catch (error) {
     if (error instanceof Error && !error.message.includes('Cannot find package')) {
@@ -408,6 +412,16 @@ console.info('Related ecosystem projects:')
 console.info('- monk-cli: Terminal commands for the API (https://github.com/ianzepp/monk-cli)');
 console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
 console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)');
+
+// Log loaded app packages
+if (loadedApps.length > 0) {
+    console.info('Loaded app packages:');
+    for (const appName of loadedApps) {
+        console.info(`- @monk/${appName} → /app/${appName}`);
+    }
+} else {
+    console.info('No app packages loaded');
+}
 
 // Start server using Hono's serve()
 const server = serve({ fetch: app.fetch, port });
