@@ -7,5 +7,5 @@
 export { createInProcessClient } from './in-process-client.js';
 export type { InProcessClient, ApiResponse, RequestOptions } from './in-process-client.js';
 
-export { loadApp, registerAppTenant, registerAppModels, getOptionalApps } from './loader.js';
+export { loadApp, registerAppTenant, registerAppModels, discoverApps } from './loader.js';
 export type { AppFactory, AppContext } from './loader.js';

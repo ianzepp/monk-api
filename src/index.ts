@@ -246,10 +246,12 @@ app.use('/app/*', middleware.requestBodyParserMiddleware);
 // Track loaded apps for startup logging
 const loadedApps: string[] = [];
 
-// Load all installed @monk-app/* packages
+// Discover and load all installed @monk-app/* packages
 try {
-    const { loadApp, getOptionalApps } = await import('@src/lib/apps/loader.js');
-    for (const appName of getOptionalApps()) {
+    const { loadApp, discoverApps } = await import('@src/lib/apps/loader.js');
+    const discoveredApps = await discoverApps();
+
+    for (const appName of discoveredApps) {
         const appInstance = await loadApp(appName, app);
         if (appInstance) {
             app.route(`/app/${appName}`, appInstance);

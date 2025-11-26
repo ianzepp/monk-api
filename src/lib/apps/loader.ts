@@ -327,16 +327,23 @@ export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | nu
 }
 
 /**
- * Get list of optional app package names.
+ * Discover installed @monk-app/* packages by scanning node_modules.
+ *
+ * @returns Array of app names (without @monk-app/ prefix)
  */
-export function getOptionalApps(): string[] {
-    return [
-        'mcp',
-        'grids',
-        'extracts',
-        'restores',
-        'openapi',
-        'comments',
-        'notifications',
-    ];
+export async function discoverApps(): Promise<string[]> {
+    const { readdir } = await import('fs/promises');
+    const { join } = await import('path');
+
+    const scopeDir = join(process.cwd(), 'node_modules', '@monk-app');
+
+    try {
+        const entries = await readdir(scopeDir, { withFileTypes: true });
+        return entries
+            .filter(entry => entry.isDirectory() || entry.isSymbolicLink())
+            .map(entry => entry.name);
+    } catch {
+        // @monk-app directory doesn't exist - no apps installed
+        return [];
+    }
 }
