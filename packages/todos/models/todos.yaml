@@ -1,0 +1,30 @@
+model_name: todos
+description: Todo items for task tracking
+
+fields:
+  - field_name: title
+    type: text
+    required: true
+    description: Short title describing the task
+
+  - field_name: description
+    type: text
+    description: Detailed description of what needs to be done
+
+  - field_name: status
+    type: text
+    default_value: pending
+    description: Current status (pending, in_progress, completed)
+
+  - field_name: priority
+    type: text
+    default_value: medium
+    description: Priority level (low, medium, high)
+
+  - field_name: due_date
+    type: timestamp
+    description: When the task should be completed
+
+  - field_name: completed_at
+    type: timestamp
+    description: When the task was marked complete

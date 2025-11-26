@@ -4,6 +4,9 @@
  * Dynamically loads installed @monk-app/* app packages at startup.
  * App packages export a createApp() function that returns a Hono app.
  *
+ * Model definitions are loaded from YAML files in the package's models/ directory.
+ * Each .yaml file defines one model with its fields.
+ *
  * App tenants are isolated namespaces with IP restrictions (localhost only)
  * that prevent external login. Apps use long-lived JWT tokens for API access.
  *
@@ -14,11 +17,15 @@
 
 import type { Hono } from 'hono';
 import { randomUUID } from 'crypto';
+import { readdir, readFile } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { DatabaseNaming } from '@src/lib/database-naming.js';
 import { NamespaceManager } from '@src/lib/namespace-manager.js';
 import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
+import { YamlFormatter } from '@src/lib/formatters/yaml.js';
 import type { SystemInit } from '@src/lib/system.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { createInProcessClient, type InProcessClient } from './in-process-client.js';
@@ -293,6 +300,57 @@ export async function registerAppModels(
 }
 
 /**
+ * Load model definitions from YAML files in the package's models/ directory.
+ *
+ * Each .yaml file should contain a single model definition:
+ * ```yaml
+ * model_name: todos
+ * description: Todo items
+ * fields:
+ *   - field_name: title
+ *     type: text
+ *     required: true
+ * ```
+ *
+ * @param packagePath - Path to the package directory (dist/ for compiled packages)
+ * @param appName - App name for logging
+ * @returns Array of model definitions
+ */
+async function loadAppModelsFromYaml(packagePath: string, appName: string): Promise<AppModelDefinition[]> {
+    const models: AppModelDefinition[] = [];
+
+    // Look for models/ directory relative to package path
+    // For compiled packages: node_modules/@monk-app/todos/dist/index.js → models/ is at ../models/
+    const modelsDir = join(dirname(packagePath), '..', 'models');
+
+    try {
+        const entries = await readdir(modelsDir, { withFileTypes: true });
+        const yamlFiles = entries.filter(e => e.isFile() && (e.name.endsWith('.yaml') || e.name.endsWith('.yml')));
+
+        for (const file of yamlFiles) {
+            const filePath = join(modelsDir, file.name);
+            const content = await readFile(filePath, 'utf-8');
+            const model = YamlFormatter.decode(content) as AppModelDefinition;
+
+            if (!model.model_name) {
+                console.warn(`YAML model file ${file.name} missing model_name, skipping`);
+                continue;
+            }
+
+            models.push(model);
+            console.info(`Loaded model definition: ${model.model_name} from ${file.name}`);
+        }
+    } catch (error) {
+        // No models directory - that's fine, app may not need models
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+            console.warn(`Failed to load models for @monk-app/${appName}:`, error);
+        }
+    }
+
+    return models;
+}
+
+/**
  * Load an app package and initialize its tenant.
  *
  * @param appName - App name without @monk/ prefix (e.g., 'mcp')
@@ -301,6 +359,10 @@ export async function registerAppModels(
  */
 export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | null> {
     try {
+        // Resolve package path to find models directory
+        const packageUrl = import.meta.resolve(`@monk-app/${appName}`);
+        const packagePath = fileURLToPath(packageUrl);
+
         // Try to import the package from @monk-app/* scope
         const mod = await import(`@monk-app/${appName}`);
 
@@ -336,10 +398,10 @@ export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | nu
             honoApp,
         };
 
-        // Register app models if declared (before creating the app)
-        // Uses System.describe directly to avoid HTTP router locking
-        if (Array.isArray(mod.MODELS) && mod.MODELS.length > 0) {
-            await registerAppModels(dbName, nsName, userId, appName, mod.MODELS);
+        // Load and register app models from YAML files
+        const models = await loadAppModelsFromYaml(packagePath, appName);
+        if (models.length > 0) {
+            await registerAppModels(dbName, nsName, userId, appName, models);
         }
 
         // Call the app's createApp function

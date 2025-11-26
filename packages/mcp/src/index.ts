@@ -27,22 +27,7 @@ export interface AppContext {
     honoApp: any; // Hono
 }
 
-/**
- * Model definitions for this app.
- * Exported for the loader to register during startup.
- * Field definitions match the system fixture's fields table schema.
- */
-export const MODELS = [
-    {
-        model_name: 'sessions',
-        description: 'MCP Sessions',
-        fields: [
-            { field_name: 'session_id', type: 'text', required: true },
-            { field_name: 'user_tenant', type: 'text' },
-            { field_name: 'user_token', type: 'text' },
-        ],
-    },
-];
+// Model definitions are in models/sessions.yaml
 
 // JSON-RPC response helpers
 function jsonRpcSuccess(id: string | number | null, result: any): JsonRpcResponse {
