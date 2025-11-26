@@ -63,8 +63,9 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
             // Note: We can't reliably get the source database name from the context here
             // The snapshot POST route should store source_database in the snapshot record
             // For now, we'll query the current transaction's database name
-            const dbResult = await context.system.tx.query('SELECT current_database() as name');
-            const sourceDatabase = dbResult.rows[0].name;
+            // Note: This observer is PostgreSQL-only (adapters = ['postgresql']) so adapter is guaranteed to be PostgresAdapter
+            const dbResult = await context.system.adapter!.query('SELECT current_database() as name');
+            const sourceDatabase = dbResult.rows[0].name as string;
 
             console.info('Starting pg_dump for snapshot', {
                 snapshot_name: snapshot.name,

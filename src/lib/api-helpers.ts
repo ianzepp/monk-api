@@ -140,7 +140,8 @@ export function withTransaction(handler: (context: Context) => Promise<void>) {
             system.adapter = adapter;
 
             // For PostgreSQL, also set legacy tx for backwards compatibility
-            // Some observers and routes still use system.tx directly
+            // @deprecated system.tx - use system.adapter.query() instead
+            // Kept for SqlUtils.getPool() fallback until all observers are migrated
             if (dbType === 'postgresql') {
                 system.tx = adapter.getRawConnection();
             }

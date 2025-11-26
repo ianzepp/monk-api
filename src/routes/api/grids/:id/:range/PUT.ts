@@ -1,4 +1,3 @@
-import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
@@ -79,20 +78,19 @@ export default withTransactionParams(async (context, { system, body }) => {
         }
     }
 
-    // 5. Execute updates (transaction-aware)
-    const dbContext = system.tx!; // withTransactionParams ensures tx exists
+    // 5. Execute updates via adapter (works with PostgreSQL and SQLite)
     const updatedCells: any[] = [];
 
     for (const cell of cells) {
         if (cell.value === null || cell.value === undefined) {
             // Delete cell for null values (sparse storage)
-            await dbContext.query(
+            await system.adapter!.query(
                 'DELETE FROM grid_cells WHERE grid_id = $1 AND row = $2 AND col = $3',
                 [gridId, cell.row, cell.col]
             );
         } else {
-            // Upsert cell
-            const result = await dbContext.query(
+            // Upsert cell (ON CONFLICT syntax works for both PostgreSQL and SQLite 3.24+)
+            const result = await system.adapter!.query(
                 `INSERT INTO grid_cells (grid_id, row, col, value)
                  VALUES ($1, $2, $3, $4)
                  ON CONFLICT (grid_id, row, col)

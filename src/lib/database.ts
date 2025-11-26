@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import type { TxContext } from '@src/db/index.js';
 
 import type { SystemContext } from '@src/lib/system-context-types.js';
 import type { DatabaseAdapter } from '@src/lib/database/adapter.js';
@@ -78,21 +77,6 @@ export class Database {
             throw new Error('Database adapter not initialized - ensure withTransaction() wrapper is used');
         }
         return this.system.adapter;
-    }
-
-    /**
-     * Get transaction context for database operations
-     *
-     * @deprecated Use adapter property instead. This is kept for backwards compatibility.
-     * @private
-     * @returns Transaction context with search_path set
-     * @throws Error if transaction not initialized (programming error)
-     */
-    private get dbContext(): TxContext {
-        if (!this.system.tx) {
-            throw new Error('Transaction context not initialized - ensure withTransaction() wrapper is used');
-        }
-        return this.system.tx;
     }
 
     /**

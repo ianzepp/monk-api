@@ -67,11 +67,11 @@ export class SqlUtils {
     }
 
     /**
-     * Get transaction-aware database context
-     * Uses transaction if available, otherwise uses database connection
+     * Get database adapter for query execution
+     * @deprecated This method is deprecated. Use system.adapter.query() directly instead.
      */
     static getPool(system: any): any {
-        return system.tx || system.db;
+        return system.adapter || system.tx || system.db;
     }
 
     /**
