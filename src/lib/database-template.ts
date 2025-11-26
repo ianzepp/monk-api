@@ -1,9 +1,10 @@
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from './database-connection.js';
 import { DatabaseNaming } from './database-naming.js';
 import { NamespaceManager } from './namespace-manager.js';
 import { FixtureDeployer } from './fixtures/deployer.js';
+import { createAdapterFrom } from './database/index.js';
 
 /**
  * Semaphore to limit concurrent tenant creation operations
@@ -134,8 +135,8 @@ export class DatabaseTemplate {
 
             // 4. Determine target database and generate namespace name
             // For PostgreSQL: db=database name, ns=schema name
-            // For SQLite: db=directory, ns=filename (without .db extension)
-            const targetDbName = db_type === 'sqlite' ? 'sqlite' : 'db_main';
+            // For SQLite: db=directory name, ns=filename (without .db extension)
+            const targetDbName = 'db_main';
             const targetNsName = DatabaseNaming.generateTenantNsName(tenantName);
 
             // 5. Check if tenant name already exists
@@ -159,33 +160,54 @@ export class DatabaseTemplate {
                 // Supports comma-separated fixture names (e.g., "system,audit,exports")
                 const fixtureNames = template_name.split(',').map(s => s.trim()).filter(Boolean);
                 await FixtureDeployer.deployMultiple(fixtureNames, {
+                    dbType: db_type,
                     dbName: targetDbName,
                     nsName: targetNsName,
                 });
 
                 // 9. Check if user already exists (e.g., root user in fixture)
-                const existingUserCheck = await DatabaseConnection.queryInNamespace(
-                    targetDbName,
-                    targetNsName,
-                    'SELECT * FROM users WHERE auth = $1 AND deleted_at IS NULL',
-                    [username]
-                );
+                // Use adapter for db_type-aware queries
+                const adapter = createAdapterFrom(db_type, targetDbName, targetNsName);
+                await adapter.connect();
 
                 let newUser;
-                if (existingUserCheck.rows.length > 0) {
-                    // User already exists in fixture - use it
-                    newUser = existingUserCheck.rows[0];
-                } else {
-                    // Create new user in namespace
-                    const userResult = await DatabaseConnection.queryInNamespace(
-                        targetDbName,
-                        targetNsName,
-                        `INSERT INTO users (name, auth, access, access_read, access_edit, access_full, access_deny)
-                         VALUES ($1, $2, $3, $4, $5, $6, $7)
-                         RETURNING *`,
-                        [`Demo User (${username})`, username, user_access, '{}', '{}', '{}', '{}']
+                try {
+                    const existingUserCheck = await adapter.query<any>(
+                        'SELECT * FROM users WHERE auth = $1 AND deleted_at IS NULL',
+                        [username]
                     );
-                    newUser = userResult.rows[0];
+
+                    if (existingUserCheck.rows.length > 0) {
+                        // User already exists in fixture - use it
+                        newUser = existingUserCheck.rows[0];
+                    } else {
+                        // Create new user in namespace
+                        // Generate ID app-side for SQLite compatibility (no RETURNING)
+                        const userId = randomUUID();
+                        const timestamp = new Date().toISOString();
+                        const emptyArray = db_type === 'sqlite' ? '[]' : '{}';
+
+                        await adapter.query(
+                            `INSERT INTO users (id, name, auth, access, access_read, access_edit, access_full, access_deny, created_at, updated_at)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                            [userId, `Demo User (${username})`, username, user_access, emptyArray, emptyArray, emptyArray, emptyArray, timestamp, timestamp]
+                        );
+
+                        newUser = {
+                            id: userId,
+                            name: `Demo User (${username})`,
+                            auth: username,
+                            access: user_access,
+                            access_read: [],
+                            access_edit: [],
+                            access_full: [],
+                            access_deny: [],
+                            created_at: timestamp,
+                            updated_at: timestamp,
+                        };
+                    }
+                } finally {
+                    await adapter.disconnect();
                 }
 
                 // 10. Register tenant in main database
