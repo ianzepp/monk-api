@@ -19,9 +19,10 @@ import { SystemError } from '@src/lib/observers/errors.js';
 import { SYSTEM_MODELS } from '@src/lib/model.js';
 import type { ModelRecord } from '@src/lib/model-record.js';
 
-export default class SystemModelValidator extends BaseObserver {
+export default class ModelSystemModelValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
     readonly operations = ['create', 'update', 'delete'] as const;
+    readonly models = ['models'] as const;
     readonly priority = 10;
 
     async execute(context: ObserverContext): Promise<void> {

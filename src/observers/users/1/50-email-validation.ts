@@ -14,6 +14,7 @@ import type { ModelRecord } from '@src/lib/model-record.js';
 export default class EmailValidator extends BaseObserver {
     ring = ObserverRing.InputValidation;
     operations = ['create', 'update'] as const;
+    models = ['users'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { record } = context;

@@ -32,6 +32,7 @@ const RESERVED_WORDS = new Set([
 export default class field_nameValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
+    readonly models = ['fields'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { record } = context;

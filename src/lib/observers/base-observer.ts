@@ -35,6 +35,7 @@ import {
 export abstract class BaseObserver implements Observer {
     abstract readonly ring: ObserverRing;
     readonly operations?: readonly OperationType[];
+    readonly models?: readonly string[];
 
     /**
      * Execution priority within a ring (lower numbers execute first)

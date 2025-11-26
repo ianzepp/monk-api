@@ -12,10 +12,11 @@ import { SystemError } from '@src/lib/observers/errors.js';
 import { isSystemField } from '@src/lib/describe.js';
 import { USER_TO_SQLITE } from '@src/lib/database/type-mappings.js';
 
-export default class DdlCreateSqliteObserver extends BaseObserver {
+export default class FieldDdlCreateSqliteObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['create'] as const;
     readonly adapters = ['sqlite'] as const;
+    readonly models = ['fields'] as const;
     readonly priority = 10;
 
     async execute(context: ObserverContext): Promise<void> {

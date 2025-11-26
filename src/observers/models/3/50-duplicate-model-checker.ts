@@ -15,6 +15,7 @@ import type { ModelRecord } from '@src/lib/model-record.js';
 export default class DuplicateModelChecker extends BaseObserver {
     readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create'] as const;
+    readonly models = ['models'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, record } = context;

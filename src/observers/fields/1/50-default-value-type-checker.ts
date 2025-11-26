@@ -14,6 +14,7 @@ import type { ModelRecord } from '@src/lib/model-record.js';
 export default class DefaultValueTypeChecker extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
+    readonly models = ['fields'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { record } = context;

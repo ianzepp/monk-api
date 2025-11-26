@@ -1,13 +1,11 @@
 /**
- * DDL Update Observer (SQLite) - Ring 6 PostDatabase
+ * DDL Delete Observer (SQLite) - Ring 6 PostDatabase
  *
- * Handles field updates for SQLite. SQLite has limited ALTER TABLE support:
- * - Cannot change column type
- * - Cannot add/remove NOT NULL constraint
- * - Cannot change default value
+ * Handles field deletion for SQLite. SQLite doesn't support DROP COLUMN directly,
+ * so we skip this operation. The column will remain but be unused.
  *
- * For most field updates, we log a warning. The field metadata is updated
- * but the underlying column remains unchanged.
+ * Note: Full column removal in SQLite requires recreating the table, which is
+ * complex and risky. For most use cases, leaving the column is acceptable.
  */
 
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -15,10 +13,11 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { isSystemField } from '@src/lib/describe.js';
 
-export default class DdlUpdateSqliteObserver extends BaseObserver {
+export default class FieldDdlDeleteSqliteObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
-    readonly operations = ['update'] as const;
+    readonly operations = ['delete'] as const;
     readonly adapters = ['sqlite'] as const;
+    readonly models = ['fields'] as const;
     readonly priority = 10;
 
     async execute(context: ObserverContext): Promise<void> {
@@ -40,17 +39,8 @@ export default class DdlUpdateSqliteObserver extends BaseObserver {
             return;
         }
 
-        // Check what changed
-        const typeChanged = record.changed('type');
-        const requiredChanged = record.changed('required');
-        const defaultChanged = record.changed('default_value');
-
-        if (typeChanged || requiredChanged || defaultChanged) {
-            console.warn(`SQLite: Field '${model_name}.${field_name}' metadata updated but column not modified (SQLite limitation)`);
-        }
-
-        // SQLite doesn't support ALTER COLUMN, so we just log and continue
-        // The field metadata is updated in the fields table, but the actual
-        // column definition in the user table remains unchanged
+        // SQLite doesn't support ALTER TABLE DROP COLUMN in older versions
+        // Modern SQLite 3.35+ does, but we'll skip for safety
+        console.warn(`SQLite: Field '${field_name}' marked as deleted but column remains in table '${model_name}'`);
     }
 }

@@ -19,6 +19,7 @@ export default class DdlIndexesObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['create', 'update', 'delete'] as const;
     readonly adapters = ['postgresql'] as const;  // PostgreSQL CREATE INDEX
+    readonly models = ['fields'] as const;
     readonly priority = 20;  // After field DDL (priority 10)
 
     async execute(context: ObserverContext): Promise<void> {

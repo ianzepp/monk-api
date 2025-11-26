@@ -9,10 +9,11 @@ import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 
-export default class DdlUpdateSqliteObserver extends BaseObserver {
+export default class ModelDdlUpdateSqliteObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['update'] as const;
     readonly adapters = ['sqlite'] as const;
+    readonly models = ['models'] as const;
     readonly priority = 10;
 
     async execute(context: ObserverContext): Promise<void> {

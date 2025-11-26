@@ -34,6 +34,7 @@ const SYSTEM_PREFIXES = ['pg_', 'information_schema', 'sql_', 'sys_'];
 export default class model_nameValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;  // Ring 1
     readonly operations = ['create', 'update'] as const;
+    readonly models = ['models'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { record } = context;

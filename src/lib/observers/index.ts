@@ -23,8 +23,7 @@ export {
 export type {
     OperationType,
     ObserverResult,
-    UniversalModelKeyword,
-    ObserverFilePattern
+    UniversalModelKeyword
 } from '@src/lib/observers/types.js';
 
 // Error types and base observer
@@ -42,4 +41,3 @@ export { BaseObserver } from '@src/lib/observers/base-observer.js';
 // Core implementation classes
 export { ObserverLoader } from '@src/lib/observers/loader.js';
 export { ObserverRunner } from '@src/lib/observers/runner.js';
-export { ObserverValidator } from '@src/lib/observers/validator.js';

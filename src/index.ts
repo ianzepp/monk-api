@@ -42,7 +42,6 @@ import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
 
 // Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
-import { ObserverValidator } from '@src/lib/observers/validator.js';
 
 // Middleware
 import * as middleware from '@src/lib/middleware/index.js';
@@ -453,20 +452,12 @@ const port = Number(process.env.PORT || 9001);
 // Initialize observer system
 console.info('Preloading observer system');
 try {
-    // Validate observer files before loading
-    const validationResult = await ObserverValidator.validateAll();
-    if (!validationResult.valid) {
-        console.error(ObserverValidator.formatErrors(validationResult));
-        throw new Error(`Observer validation failed with ${validationResult.errors.length} errors`);
-    }
-
-    await ObserverLoader.preloadObservers();
+    ObserverLoader.preloadObservers();
     console.info('Observer system ready', {
-        observersValidated: validationResult.filesChecked,
-        warnings: validationResult.warnings.length
+        observerCount: ObserverLoader.getObserverCount()
     });
 } catch (error) {
-    console.error(`❌ Observer system initialization failed:`, error);
+    console.error(`Observer system initialization failed:`, error);
     console.warn('Continuing without observer system');
 }
 

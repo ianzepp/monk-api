@@ -16,10 +16,11 @@ import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 import { isSystemField } from '@src/lib/describe.js';
 import type { ModelRecord } from '@src/lib/model-record.js';
 
-export default class DdlUpdateObserver extends BaseObserver {
+export default class FieldDdlUpdateObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['update'] as const;
     readonly adapters = ['postgresql'] as const;  // PostgreSQL DDL
+    readonly models = ['fields'] as const;
     readonly priority = 10;  // High priority - DDL should run before data transformations
 
     async execute(context: ObserverContext): Promise<void> {
