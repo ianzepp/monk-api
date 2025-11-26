@@ -1,0 +1,4 @@
+# App configuration for @monk-app/todos
+name: todos
+scope: tenant
+description: Todo list application - models installed in user's tenant

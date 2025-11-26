@@ -4,58 +4,113 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| App infrastructure | **Done** | Loader, in-process client, tenant registration |
-| `@monk-app/mcp` | **Done** | MCP integration package |
+| App infrastructure | **Done** | Loader, in-process client, scope detection |
+| YAML model definitions | **Done** | Models defined in `models/*.yaml` |
+| App scopes (app/tenant) | **Done** | Two scope types with different behaviors |
+| `@monk-app/mcp` | **Done** | MCP integration (scope: app) |
+| `@monk-app/todos` | **Done** | Reference implementation (scope: tenant) |
 | SystemInit pattern | **Done** | Decoupled System from Hono Context |
 | Lazy app loading | **Done** | `/app/:appName/*` wildcard route |
-| App model registration | **Done** | Via SystemInit, no mock context |
 | App observer registration | Planned | Load observers from app packages |
-| `@monk-app/grids` | Planned | Extract from core |
+| `@monk-app/grids` | Planned | Extract from core (scope: tenant) |
 | `@monk-app/extracts` | Planned | Extract from core |
 | `@monk-app/restores` | Planned | Extract from core |
 | `@monk-app/openapi` | Planned | New package |
-| `@monk-app/comments` | Planned | New package |
+| `@monk-app/comments` | Planned | New package (scope: tenant) |
 | `@monk-app/notifications` | Planned | New package |
 
-## Problem Statement
+## App Scopes
 
-As the Monk API grows, the boundary between "core API" and "application logic" has blurred. Features like grids, extracts, and restores are applications built on top of the API, not fundamental API operations. This creates issues:
+Apps can operate in two different scopes:
 
-1. **Dependency bloat**: Core `package.json` includes deps like `archiver` and `unzipper` that only matter for specific features
-2. **Scope creep**: Every new feature adds to the core API surface
-3. **Client overhead**: Clients install everything even if they only need a subset
-4. **Maintenance burden**: Changes to app-specific code risk breaking core API
-5. **Interface drift**: External bindings package (`monk-api-bindings-ts`) can drift from actual API
+### scope: app
 
-## Implemented Solution
+App has its own isolated tenant for internal data storage.
 
-Application-level features are extracted into separate `@monk-app/*` packages that:
+```yaml
+# packages/mcp/app.yaml
+name: mcp
+scope: app
+description: MCP integration - has its own tenant for session storage
+```
 
-- Are optionally installed per client need
-- Communicate with core API via in-process HTTP client
-- Own their own dependencies
-- Can be developed/versioned independently
-- Run in isolated tenant namespaces
+- Creates `@monk/{appName}` tenant with localhost-only access
+- Uses long-lived app JWT token for API calls
+- Data stored in app's namespace
+- No authentication required to access app routes
+- Example: MCP stores sessions in its own tenant
 
-### Package Scopes
+### scope: tenant
 
-- `@monk/*` - Core packages (formatters, bindings)
-- `@monk-app/*` - App packages (mcp, grids, etc.)
+Models installed in user's tenant, data belongs to user.
 
-## Repository Structure
+```yaml
+# packages/todos/app.yaml
+name: todos
+scope: tenant
+description: Todo list - models installed in user's tenant
+```
+
+- No app tenant created
+- Requires JWT authentication on all requests
+- Models installed in user's tenant on first request
+- Uses user's JWT for all API calls
+- Data stored in user's namespace
+- Example: Todos, grids, comments
+
+### Comparison
+
+| Aspect | scope: app | scope: tenant |
+|--------|------------|---------------|
+| App tenant | Created (`@monk/mcp`) | None |
+| Auth required | No | Yes (JWT) |
+| Models installed in | App's namespace | User's namespace |
+| Data belongs to | App | User |
+| JWT used | App's token | User's token |
+| Use case | App internal state | User features |
+
+## Package Structure
 
 ```
-monk-api/
-  package.json              # Root: monk-api server
-  src/                      # Server source code
+packages/{appName}/
+  app.yaml                # App configuration (name, scope)
+  models/
+    {model}.yaml          # One YAML file per model
+  package.json
+  tsconfig.json
+  scripts/
+    build.sh
+  src/
+    index.ts              # Exports createApp()
+    docs/
+      PUBLIC.md           # Documentation
+```
 
-  packages/
-    bindings/               # @monk/bindings - TypeScript SDK
-    formatter-*/            # @monk/formatter-* - Response formatters
-    mcp/                    # @monk-app/mcp - MCP integration (implemented)
-    grids/                  # @monk-app/grids - Optional application (planned)
-    extracts/               # @monk-app/extracts - Optional application (planned)
-    restores/               # @monk-app/restores - Optional application (planned)
+### app.yaml
+
+```yaml
+name: todos
+scope: tenant           # or "app"
+description: Todo list application
+```
+
+### Model YAML Format
+
+```yaml
+# models/todos.yaml
+model_name: todos
+description: Todo items for task tracking
+
+fields:
+  - field_name: title
+    type: text
+    required: true
+    description: Short title describing the task
+
+  - field_name: status
+    type: text
+    default_value: pending
+    description: Current status (pending, in_progress, completed)
 ```
 
 ## Architecture
@@ -75,325 +130,163 @@ The core API handles foundational operations only:
 
 ### App Package Scope (@monk-app/*)
 
-Application features that build on core API (mounted under `/app/*` routes):
+| Package | Route | Scope | Purpose | Status |
+|---------|-------|-------|---------|--------|
+| `@monk-app/mcp` | `/app/mcp/*` | app | MCP protocol integration | **Done** |
+| `@monk-app/todos` | `/app/todos/*` | tenant | Reference todo list | **Done** |
+| `@monk-app/grids` | `/app/grids/*` | tenant | Excel-like spreadsheet cells | Planned |
+| `@monk-app/extracts` | `/app/extracts/*` | app | Data export/backup archives | Planned |
+| `@monk-app/restores` | `/app/restores/*` | app | Data import from archives | Planned |
+| `@monk-app/comments` | `/app/comments/*` | tenant | Threaded comments on any record | Planned |
 
-| Package | Route | Purpose | Status |
-|---------|-------|---------|--------|
-| `@monk-app/mcp` | `/app/mcp/*` | Model Context Protocol integration | **Done** |
-| `@monk-app/grids` | `/app/grids/*` | Excel-like spreadsheet cells | Planned |
-| `@monk-app/extracts` | `/app/extracts/*` | Data export/backup archives | Planned |
-| `@monk-app/restores` | `/app/restores/*` | Data import from archives | Planned |
-| `@monk-app/openapi` | `/openapi.json` | OpenAPI spec generation | Planned |
-| `@monk-app/comments` | `/app/comments/*` | Threaded comments on any record | Planned |
-| `@monk-app/notifications` | `/app/notifications/*` | Outbound notifications | Planned |
+## App Loader
 
-## Implemented Components
+### Loading Flow
 
-### App Loader (`src/lib/apps/loader.ts`)
+```
+Request: GET /app/todos/
 
-Dynamically discovers and loads installed `@monk-app/*` packages at startup:
-
-```typescript
-// Auto-discovery of @monk-app/* packages
-const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
-const appPackages = Object.keys(packageJson.dependencies || {})
-    .filter(name => name.startsWith('@monk-app/'))
-    .map(name => name.replace('@monk-app/', ''));
+1. Load app.yaml to determine scope
+2. If scope=tenant:
+   a. Run JWT validation middleware
+   b. Load app instance (cached)
+   c. Install models in user's tenant (if not already)
+   d. Forward request with user's auth
+3. If scope=app:
+   a. Load app instance (cached)
+   b. App uses its own tenant token
+   c. Forward request
 ```
 
-Key features:
-- Auto-discovers packages from `package.json` dependencies
-- Creates isolated tenant namespace per app (`@monk/appName`)
-- Registers app-specific models via `SystemInit` (no mock context)
-- Generates long-lived JWT tokens for app API access
-- Lazy loads apps on first request
-
-### App Tenant Registration
-
-Each app gets an isolated tenant:
+### Loader Functions
 
 ```typescript
-export async function registerAppTenant(appName: string): Promise<{
-    token: string;
-    tenantName: string;
-    dbName: string;
-    nsName: string;
-    userId: string;
-}>
-```
+// Load app configuration
+loadAppConfig(appName: string): Promise<AppConfig>
 
-App tenants:
-- Use namespace prefix `ns_app_` instead of `ns_tenant_`
-- Have `allowed_ips` restricted to localhost (127.0.0.1, ::1)
-- Cannot be logged into via `/auth/login` from external IPs
-- Get long-lived JWT tokens (1 year expiry)
+// Load app-scoped app (has own tenant)
+loadAppScopedApp(appName: string, honoApp: Hono): Promise<Hono | null>
 
-### In-Process Client (`src/lib/apps/in-process-client.ts`)
-
-Routes API calls through Hono without network overhead:
-
-```typescript
-export interface InProcessClient {
-    get<T>(path: string, query?: Record<string, string>): Promise<ApiResponse<T>>;
-    post<T>(path: string, body?: any): Promise<ApiResponse<T>>;
-    put<T>(path: string, body?: any): Promise<ApiResponse<T>>;
-    delete<T>(path: string): Promise<ApiResponse<T>>;
-    request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResponse<T>>;
-}
-```
-
-Security:
-- Prevents circular routing (`/app/*` calls blocked)
-- Forwards authentication from original request
-- All responses are JSON
-
-### App Context Interface
-
-Apps receive context when created:
-
-```typescript
-export interface AppContext {
-    /** In-process client for API calls (uses app's JWT token) */
-    client: InProcessClient;
-    /** App's JWT token for API authentication */
-    token: string;
-    /** App name (e.g., 'mcp') */
-    appName: string;
-    /** Full tenant name (e.g., '@monk/mcp') */
-    tenantName: string;
-    /** Reference to main Hono app for in-process routing */
-    honoApp: Hono;
-}
-
-export type AppFactory = (context: AppContext) => Hono | Promise<Hono>;
+// Load tenant-scoped app (uses user's tenant)
+loadTenantScopedApp(appName: string, honoApp: Hono, userContext: Context): Promise<Hono | null>
 ```
 
 ### Model Registration
 
-Apps can define models that are registered in their tenant namespace:
+Models are registered idempotently on first request:
 
 ```typescript
-export interface AppModelDefinition {
-    model_name: string;
-    description?: string;
-    fields: Array<{
-        field_name: string;
-        type: string;
-        required?: boolean;
-        // ... other field properties
-    }>;
-}
-
-export async function registerAppModels(
+registerAppModels(
+    dbType: 'postgresql' | 'sqlite',
     dbName: string,
     nsName: string,
     userId: string,
+    tenantName: string,
     appName: string,
     models: AppModelDefinition[]
 ): Promise<void>
 ```
 
-Uses `SystemInit` pattern for context-free System creation:
+For tenant-scoped apps, this runs in the user's namespace.
+For app-scoped apps, this runs in the app's namespace.
+
+## Tenant-Scoped App Pattern
+
+For apps like todos, grids, comments where data belongs to the user:
 
 ```typescript
-const systemInit: SystemInit = {
-    dbType: 'postgresql',
-    dbName,
-    nsName,
-    userId,
-    access: 'root',
-    tenant: `@monk/${appName}`,
-    isSudoToken: true,
-};
+// packages/todos/src/index.ts
 
-const system = new System(systemInit);
-```
+export function createApp(context: AppContext): Hono {
+    const app = new Hono();
+    const { honoApp } = context;
 
-### Route Mounting (`src/index.ts`)
-
-Apps are mounted via lazy-loading wildcard route:
-
-```typescript
-// Lazy-load apps on first request to their routes
-app.all('/app/:appName/*', async (c) => {
-    const appName = c.req.param('appName');
-
-    // Load app if not cached
-    let loadPromise = appLoadPromises.get(appName);
-    if (!loadPromise) {
-        const { loadApp } = await import('@src/lib/apps/loader.js');
-        loadPromise = loadApp(appName, app);
-        appLoadPromises.set(appName, loadPromise);
-    }
-
-    const appInstance = await loadPromise;
-    if (!appInstance) {
-        throw HttpErrors.notFound(`App not found: ${appName}`, 'APP_NOT_FOUND');
-    }
-
-    // Rewrite URL and forward to app
-    const url = new URL(c.req.url);
-    url.pathname = url.pathname.replace(`/app/${appName}`, '') || '/';
-
-    const newRequest = new Request(url.toString(), {
-        method: c.req.method,
-        headers: c.req.raw.headers,
-        body: c.req.raw.body,
-        duplex: 'half',  // Required for streaming bodies
+    // Create client per-request using user's auth
+    app.get('/', async (c) => {
+        const client = createClient(c, honoApp);  // Uses c.req.header('Authorization')
+        const result = await client.get('/api/data/todos');
+        return c.json(result);
     });
 
-    return appInstance.fetch(newRequest);
-});
-```
-
-### SystemInit Pattern (`src/lib/system.ts`)
-
-System can now be created without Hono context:
-
-```typescript
-export interface SystemInit {
-    dbType: DatabaseType;
-    dbName: string;
-    nsName: string;
-    userId: string;
-    access: string;
-    tenant: string;
-    accessRead?: string[];
-    accessEdit?: string[];
-    accessFull?: string[];
-    isSudoToken?: boolean;
-    correlationId?: string;
+    return app;
 }
 
-// Create from JWT payload
-export function systemInitFromJWT(payload: JWTPayload, correlationId?: string): SystemInit;
-
-// System constructor accepts either
-class System {
-    constructor(init: SystemInit, options?: SystemOptions);
-    constructor(context: Context, options?: SystemOptions);  // Legacy
+// Helper to create per-request client
+function createClient(c: Context, honoApp: any) {
+    const authHeader = c.req.header('Authorization');
+    // ... forwards user's JWT to API calls
 }
 ```
 
-### Sudo Logic Consolidation
+## App-Scoped App Pattern
 
-Sudo checks are now centralized in System:
-
-```typescript
-class System {
-    // Check if operation has sudo access
-    isSudo(): boolean {
-        return this.isRoot() || this._isSudoToken || this._asSudo;
-    }
-
-    // Set self-service sudo flag
-    setAsSudo(value: boolean): void;
-}
-```
-
-Used by:
-- `model-sudo-validator.ts` - checks `system.isSudo()`
-- `field-sudo-validator.ts` - checks `system.isSudo()`
-- `withSelfServiceSudo()` - calls `system.setAsSudo()`
-
-## MCP Package (`packages/mcp/`)
-
-The MCP package is fully implemented:
-
-```
-packages/mcp/
-  package.json            # @monk-app/mcp
-  tsconfig.json
-  scripts/
-    build.sh              # Build script
-  src/
-    index.ts              # Exports createApp() and MODELS
-    docs/
-      PUBLIC.md           # Package documentation
-```
-
-### Package Interface
+For apps like MCP that need their own storage:
 
 ```typescript
 // packages/mcp/src/index.ts
-import type { AppContext, AppFactory } from '../../src/lib/apps/loader.js';
 
-export const MODELS: AppModelDefinition[] = [
-    {
-        model_name: 'mcp_sessions',
-        description: 'MCP protocol sessions',
-        fields: [
-            { field_name: 'session_id', type: 'text', required: true },
-            // ...
-        ],
-    },
-];
-
-export const createApp: AppFactory = async (context: AppContext) => {
+export function createApp(context: AppContext): Hono {
     const app = new Hono();
-    // ... route definitions
+    const { client } = context;  // Pre-bound to app's token
+
+    // Use app's client for internal storage
+    app.post('/', async (c) => {
+        const session = await client.post('/api/data/sessions', {...});
+        // ...
+    });
+
     return app;
-};
-```
-
-### Documentation Endpoint
-
-App documentation is served via `/docs/app/:appName`:
-
-```
-GET /docs/app/mcp         → packages/mcp/dist/docs/PUBLIC.md
-GET /docs/app/mcp/tools   → packages/mcp/dist/docs/tools.md
-```
-
-## Middleware Chain
-
-The request flow with SystemInit:
-
-```
-jwtValidationMiddleware
-  → verifies JWT
-  → creates SystemInit from JWT payload
-  → sets context.set('systemInit', systemInit)
-
-userValidationMiddleware
-  → validates user exists in DB
-  → enriches systemInit with fresh access arrays from DB
-
-systemContextMiddleware
-  → creates System from systemInit (or falls back to legacy context)
-  → sets context.set('system', system)
-
-route handlers
-  → use context.get('system')
-```
-
-## Planned: App Observer Registration
-
-App packages can register observers that integrate into the core observer pipeline:
-
-```
-packages/openapi/
-  src/
-    observers/
-      models/
-        7/                          # Ring 7 (after-commit)
-          regenerate-spec.ts        # Regenerate model spec on model change
-```
-
-The `ObserverLoader` will be extended to scan app packages:
-
-```typescript
-static async preloadObservers(): Promise<void> {
-    // 1. Load core observers from src/observers/
-    await this._loadCoreObservers();
-
-    // 2. Load app package observers
-    for (const name of installedApps) {
-        const packagePath = `node_modules/@monk-app/${name}/dist/observers`;
-        // ... load observers
-    }
 }
 ```
+
+MCP also stores user tokens in sessions to make API calls on behalf of users.
+
+## Implemented Apps
+
+### @monk-app/mcp (scope: app)
+
+MCP protocol integration for LLM agents.
+
+```
+packages/mcp/
+  app.yaml                # scope: app
+  models/
+    sessions.yaml         # Session storage
+  src/
+    index.ts
+    sessions.ts
+    handlers.ts
+    tools.ts
+```
+
+Has its own tenant (`@monk/mcp`) for storing:
+- Session IDs
+- User tenant names
+- User JWT tokens (for API calls on behalf of users)
+
+### @monk-app/todos (scope: tenant)
+
+Reference implementation for tenant-scoped apps.
+
+```
+packages/todos/
+  app.yaml                # scope: tenant
+  models/
+    todos.yaml            # Todo items
+  src/
+    index.ts
+    docs/
+      PUBLIC.md
+```
+
+Routes:
+- `GET /app/todos/` - List todos
+- `POST /app/todos/` - Create todo
+- `GET /app/todos/:id` - Get todo
+- `PUT /app/todos/:id` - Update todo
+- `DELETE /app/todos/:id` - Delete todo
+- `POST /app/todos/:id/complete` - Mark complete
+- `POST /app/todos/:id/reopen` - Reopen
 
 ## Migration Path
 
@@ -403,55 +296,54 @@ static async preloadObservers(): Promise<void> {
 - [x] Phase 2: Create App Infrastructure (loader, in-process client)
 - [x] Phase 5: Extract MCP (`packages/mcp/`)
 - [x] SystemInit pattern for context-free System creation
-- [x] Consolidate sudo logic in System.isSudo()
+- [x] YAML model definitions
+- [x] App scopes (app vs tenant)
+- [x] Reference tenant-scoped app (todos)
 
 ### In Progress
 
-- [ ] Phase 3: Extract Grids to `@monk-app/grids`
-- [ ] Phase 4: Extract Extracts/Restores to `@monk-app/extracts`, `@monk-app/restores`
+- [ ] Phase 3: Extract Grids to `@monk-app/grids` (scope: tenant)
+- [ ] Phase 4: Extract Extracts/Restores
 
 ### Planned
 
 - [ ] App observer registration
 - [ ] OpenAPI, Comments, Notifications packages
-- [ ] Bindings sync with actual API
+- [ ] Feature flags to enable/disable apps per tenant
 
 ## Considerations
 
 ### Performance
 
-In-process fetch has serialization overhead but no network latency. For most use cases this is negligible.
+- App code is cached globally (stateless)
+- Model installation tracked per-tenant
+- In-process fetch has no network latency
 
 ### Auth Propagation
 
-Apps receive their own JWT token with root access to their tenant namespace. The in-process client uses this token for API calls.
+- App-scoped: Uses app's long-lived token
+- Tenant-scoped: Forwards user's JWT from request
 
 ### Error Handling
 
 API errors return as JSON responses:
 
 ```typescript
-const res = await client.get(`/api/data/grids/${id}`);
-if (!res.success) {
-    return c.json(res, res.error_code === 'NOT_FOUND' ? 404 : 400);
-}
+const result = await client.get(`/api/data/todos/${id}`);
+return c.json(result, result.success ? 200 : 404);
 ```
 
 ### Circular Routing Prevention
 
-The in-process client enforces that app packages can only call `/api/*` paths, never `/app/*`.
+The in-process client blocks `/app/*` calls to prevent circular routing.
 
-## Open Questions
+## Future: Feature Flags
 
-1. **Versioning**: Should app packages version independently or stay in sync with core API?
-   - Recommendation: Stay in sync while in monorepo
+Apps could be enabled/disabled per tenant:
 
-2. **URL Prefix**: `/app/*` is confirmed as the prefix
+```sql
+-- Option: JSON field on tenants
+ALTER TABLE tenants ADD COLUMN enabled_apps text[] DEFAULT '{}';
+```
 
-3. **MCP Integration**: App routes require explicit MCP tool registration
-
-4. **npm Scope**: Using `@monk-app/*` for apps, `@monk/*` for core packages
-
-## Bindings Sync Issues (as of 4.4+)
-
-The bindings package needs updates to match actual API. See TODO section in bindings package.
+Loader would check: "Is this app enabled for this tenant?"

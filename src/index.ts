@@ -242,38 +242,77 @@ app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpo
 // App packages - dynamically loaded from @monk-app/* packages on first request
 // Apps mount under /app/* and use API-based data access
 // Lazy loading ensures observers are ready before model creation
-// NOTE: No body parser middleware - apps handle their own body parsing and we forward raw request
+//
+// Two scopes:
+// - scope: app    - App has its own tenant (e.g., MCP for sessions)
+// - scope: tenant - Models installed in user's tenant, requires JWT auth
 
-// Cache for loaded app instances
-const appCache = new Map<string, Hono>();
+// Cache for app-scoped app instances
+const appScopedCache = new Map<string, Hono>();
 const appLoadPromises = new Map<string, Promise<Hono | null>>();
+
+// Cache for app configs (scope detection)
+const appConfigCache = new Map<string, { scope: 'app' | 'tenant' }>();
 
 // Lazy app loader - initializes app on first request
 app.all('/app/:appName/*', async (c) => {
     const appName = c.req.param('appName');
 
-    // Check cache first
-    let appInstance = appCache.get(appName);
+    // Load app config to determine scope
+    let config = appConfigCache.get(appName);
+    if (!config) {
+        const { loadAppConfig } = await import('@src/lib/apps/loader.js');
+        const loaded = await loadAppConfig(appName);
+        config = { scope: loaded.scope };
+        appConfigCache.set(appName, config);
+    }
 
-    if (!appInstance) {
-        // Prevent concurrent initialization of the same app
-        let loadPromise = appLoadPromises.get(appName);
+    let appInstance: Hono | null = null;
 
-        if (!loadPromise) {
-            const { loadApp } = await import('@src/lib/apps/loader.js');
-            loadPromise = loadApp(appName, app);
-            appLoadPromises.set(appName, loadPromise);
+    if (config.scope === 'tenant') {
+        // Tenant-scoped app: requires JWT authentication
+        // Run JWT validation middleware manually
+        const jwtPayload = c.get('jwtPayload');
+        if (!jwtPayload) {
+            // Need to run JWT validation
+            try {
+                await middleware.jwtValidationMiddleware(c, async () => {});
+            } catch (error) {
+                return c.json({
+                    success: false,
+                    error: 'Authentication required for this app',
+                    error_code: 'AUTH_REQUIRED'
+                }, 401);
+            }
         }
 
-        try {
-            const loaded = await loadPromise;
-            if (loaded) {
-                appInstance = loaded;
-                appCache.set(appName, loaded);
-                console.info(`Loaded app package: @monk-app/${appName}`);
+        // Load tenant-scoped app (models installed in user's tenant)
+        const { loadTenantScopedApp } = await import('@src/lib/apps/loader.js');
+        appInstance = await loadTenantScopedApp(appName, app, c);
+
+    } else {
+        // App-scoped: use cached instance or load
+        appInstance = appScopedCache.get(appName) || null;
+
+        if (!appInstance) {
+            let loadPromise = appLoadPromises.get(appName);
+
+            if (!loadPromise) {
+                const { loadAppScopedApp } = await import('@src/lib/apps/loader.js');
+                loadPromise = loadAppScopedApp(appName, app);
+                appLoadPromises.set(appName, loadPromise);
             }
-        } finally {
-            appLoadPromises.delete(appName);
+
+            try {
+                const loaded = await loadPromise;
+                if (loaded) {
+                    appInstance = loaded;
+                    appScopedCache.set(appName, loaded);
+                    console.info(`Loaded app-scoped package: @monk-app/${appName}`);
+                }
+            } finally {
+                appLoadPromises.delete(appName);
+            }
         }
     }
 
@@ -290,9 +329,12 @@ app.all('/app/:appName/*', async (c) => {
     const url = new URL(c.req.url);
     url.pathname = subPath;
 
+    // For tenant-scoped apps, forward the original Authorization header
+    const headers = new Headers(c.req.raw.headers);
+
     const newRequest = new Request(url.toString(), {
         method: c.req.method,
-        headers: c.req.raw.headers,
+        headers,
         body: c.req.raw.body,
         // @ts-ignore - duplex is needed for streaming bodies
         duplex: 'half',

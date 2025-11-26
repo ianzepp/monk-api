@@ -1,20 +1,22 @@
 /**
  * App Package Loader
  *
- * Dynamically loads installed @monk-app/* app packages at startup.
+ * Dynamically loads installed @monk-app/* app packages.
  * App packages export a createApp() function that returns a Hono app.
+ *
+ * Two scopes are supported:
+ * - scope: app   - App has its own tenant for internal data (e.g., MCP sessions)
+ * - scope: tenant - Models installed in user's tenant, data belongs to user
  *
  * Model definitions are loaded from YAML files in the package's models/ directory.
  * Each .yaml file defines one model with its fields.
- *
- * App tenants are isolated namespaces with IP restrictions (localhost only)
- * that prevent external login. Apps use long-lived JWT tokens for API access.
  *
  * Package scopes:
  * - @monk/* - core packages (formatters, bindings)
  * - @monk-app/* - app packages (mcp, grids, etc.)
  */
 
+import type { Context } from 'hono';
 import type { Hono } from 'hono';
 import { randomUUID } from 'crypto';
 import { readdir, readFile } from 'fs/promises';
@@ -24,7 +26,7 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { DatabaseNaming } from '@src/lib/database-naming.js';
 import { NamespaceManager } from '@src/lib/namespace-manager.js';
 import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
-import { JWTGenerator } from '@src/lib/jwt-generator.js';
+import { JWTGenerator, type JWTPayload } from '@src/lib/jwt-generator.js';
 import { YamlFormatter } from '@src/lib/formatters/yaml.js';
 import type { SystemInit } from '@src/lib/system.js';
 import { runTransaction } from '@src/lib/transaction.js';
@@ -32,6 +34,51 @@ import { createInProcessClient, type InProcessClient } from './in-process-client
 
 // App token expiry: 1 year (in seconds)
 const APP_TOKEN_EXPIRY = 365 * 24 * 60 * 60;
+
+/**
+ * App configuration from app.yaml
+ */
+export interface AppConfig {
+    name: string;
+    scope: 'app' | 'tenant';
+    description?: string;
+}
+
+// Cache for app configs
+const appConfigCache = new Map<string, AppConfig>();
+
+/**
+ * Load app configuration from app.yaml
+ */
+export async function loadAppConfig(appName: string): Promise<AppConfig> {
+    // Check cache first
+    const cached = appConfigCache.get(appName);
+    if (cached) return cached;
+
+    try {
+        const packageUrl = import.meta.resolve(`@monk-app/${appName}`);
+        const packagePath = fileURLToPath(packageUrl);
+        const configPath = join(dirname(packagePath), '..', 'app.yaml');
+
+        const content = await readFile(configPath, 'utf-8');
+        const config = YamlFormatter.decode(content) as AppConfig;
+
+        // Validate required fields
+        if (!config.name) config.name = appName;
+        if (!config.scope) config.scope = 'app'; // Default to app-scoped for backwards compat
+
+        appConfigCache.set(appName, config);
+        return config;
+    } catch (error) {
+        // No app.yaml - default to app-scoped
+        const defaultConfig: AppConfig = {
+            name: appName,
+            scope: 'app',
+        };
+        appConfigCache.set(appName, defaultConfig);
+        return defaultConfig;
+    }
+}
 
 /**
  * Context passed to app createApp() function
@@ -236,31 +283,35 @@ export interface AppModelDefinition {
 }
 
 /**
- * Register models for an app in its tenant namespace.
+ * Register models for an app in a target namespace.
  *
  * Uses runTransaction for proper transaction lifecycle management.
  * This is idempotent - creates models if they don't exist.
  *
+ * @param dbType - Database type (postgresql or sqlite)
  * @param dbName - Database name
  * @param nsName - Namespace name
  * @param userId - User ID for the operation
+ * @param tenantName - Tenant name for logging
  * @param appName - App name for logging
  * @param models - Array of model definitions to register
  */
 export async function registerAppModels(
+    dbType: 'postgresql' | 'sqlite',
     dbName: string,
     nsName: string,
     userId: string,
+    tenantName: string,
     appName: string,
     models: AppModelDefinition[]
 ): Promise<void> {
     const systemInit: SystemInit = {
-        dbType: 'postgresql',
+        dbType,
         dbName,
         nsName,
         userId,
         access: 'root',
-        tenant: `@monk/${appName}`,
+        tenant: tenantName,
         isSudoToken: true, // App model registration runs with sudo
     };
 
@@ -277,7 +328,7 @@ export async function registerAppModels(
 
             if (!existing) {
                 // Create model
-                console.info(`Creating model ${model_name} for app ${appName}`);
+                console.info(`Creating model ${model_name} for app ${appName} in ${tenantName}`);
                 await system.describe.models.createOne({
                     model_name,
                     description,
@@ -290,12 +341,10 @@ export async function registerAppModels(
                         ...field,
                     });
                 }
-            } else {
-                console.info(`Model ${model_name} already exists for app ${appName}`);
             }
         }
     }, {
-        logContext: { appName, operation: 'registerAppModels' },
+        logContext: { appName, tenantName, operation: 'registerAppModels' },
     });
 }
 
@@ -351,13 +400,16 @@ async function loadAppModelsFromYaml(packagePath: string, appName: string): Prom
 }
 
 /**
- * Load an app package and initialize its tenant.
+ * Load an app-scoped app package (has its own tenant for internal data).
+ *
+ * Used for apps like MCP that need their own storage for sessions, config, etc.
+ * The app's in-process client uses the app's token by default.
  *
  * @param appName - App name without @monk/ prefix (e.g., 'mcp')
  * @param honoApp - Main Hono app instance for in-process client
  * @returns Initialized Hono app for the package, or null if not installed
  */
-export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | null> {
+export async function loadAppScopedApp(appName: string, honoApp: Hono): Promise<Hono | null> {
     try {
         // Resolve package path to find models directory
         const packageUrl = import.meta.resolve(`@monk-app/${appName}`);
@@ -401,7 +453,7 @@ export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | nu
         // Load and register app models from YAML files
         const models = await loadAppModelsFromYaml(packagePath, appName);
         if (models.length > 0) {
-            await registerAppModels(dbName, nsName, userId, appName, models);
+            await registerAppModels('postgresql', dbName, nsName, userId, tenantName, appName, models);
         }
 
         // Call the app's createApp function
@@ -416,6 +468,122 @@ export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | nu
         }
         return null;
     }
+}
+
+// Cache for tenant-scoped app instances (app code is stateless, can be shared)
+const tenantScopedAppCache = new Map<string, Hono>();
+
+// Track which tenants have models installed for each app
+const tenantModelInstallCache = new Map<string, Set<string>>();
+
+/**
+ * Load a tenant-scoped app package (models installed in user's tenant).
+ *
+ * Used for apps like grids/todos where data belongs to the user's tenant.
+ * The app's in-process client uses the user's JWT from the request.
+ *
+ * @param appName - App name without @monk/ prefix (e.g., 'todos')
+ * @param honoApp - Main Hono app instance for in-process client
+ * @param userContext - Original request context (must have jwtPayload set)
+ * @returns Initialized Hono app for the package, or null if not installed
+ */
+export async function loadTenantScopedApp(
+    appName: string,
+    honoApp: Hono,
+    userContext: Context
+): Promise<Hono | null> {
+    // Get user's JWT payload from context (set by jwtValidationMiddleware)
+    const jwtPayload = userContext.get('jwtPayload') as JWTPayload | undefined;
+    if (!jwtPayload) {
+        throw new Error(`Tenant-scoped app ${appName} requires authentication`);
+    }
+
+    try {
+        // Check if app is already loaded (code is stateless, can be cached)
+        let appInstance: Hono | null = tenantScopedAppCache.get(appName) || null;
+
+        if (!appInstance) {
+            // Resolve package path to find models directory
+            const packageUrl = import.meta.resolve(`@monk-app/${appName}`);
+            const packagePath = fileURLToPath(packageUrl);
+
+            // Try to import the package
+            const mod = await import(`@monk-app/${appName}`);
+
+            if (typeof mod.createApp !== 'function') {
+                console.warn(`App package @monk-app/${appName} does not export createApp()`);
+                return null;
+            }
+
+            // Load models from YAML (cached in the function)
+            const models = await loadAppModelsFromYaml(packagePath, appName);
+
+            // Store models in cache for per-tenant installation
+            if (!tenantModelInstallCache.has(appName)) {
+                tenantModelInstallCache.set(appName, new Set());
+            }
+
+            // Create app context with user's credentials
+            // Note: client is created per-request below, not here
+            const appContext: AppContext = {
+                client: null as any, // Set per-request
+                token: '', // Set per-request
+                appName,
+                tenantName: '', // Set per-request
+                honoApp,
+            };
+
+            // Create the app instance (stateless, no user-specific data)
+            const created = await mod.createApp(appContext);
+            appInstance = created;
+            tenantScopedAppCache.set(appName, created);
+
+            console.info(`Loaded tenant-scoped app: @monk-app/${appName}`);
+        }
+
+        // Check if models are installed in this user's tenant
+        const tenantKey = `${jwtPayload.db}:${jwtPayload.ns}`;
+        const installedTenants = tenantModelInstallCache.get(appName) || new Set();
+
+        if (!installedTenants.has(tenantKey)) {
+            // Load and install models in user's tenant
+            const packageUrl = import.meta.resolve(`@monk-app/${appName}`);
+            const packagePath = fileURLToPath(packageUrl);
+            const models = await loadAppModelsFromYaml(packagePath, appName);
+
+            if (models.length > 0) {
+                await registerAppModels(
+                    jwtPayload.db_type,
+                    jwtPayload.db,
+                    jwtPayload.ns,
+                    jwtPayload.sub,
+                    jwtPayload.tenant,
+                    appName,
+                    models
+                );
+            }
+
+            installedTenants.add(tenantKey);
+            tenantModelInstallCache.set(appName, installedTenants);
+        }
+
+        return appInstance;
+
+    } catch (error) {
+        if (error instanceof Error && !error.message.includes('Cannot find package')) {
+            console.warn(`Failed to load @monk-app/${appName}:`, error.message);
+        }
+        return null;
+    }
+}
+
+/**
+ * Load an app package (dispatcher based on scope).
+ *
+ * @deprecated Use loadAppScopedApp or loadTenantScopedApp directly
+ */
+export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | null> {
+    return loadAppScopedApp(appName, honoApp);
 }
 
 /**
