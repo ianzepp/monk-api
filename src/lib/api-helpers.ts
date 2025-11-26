@@ -3,6 +3,8 @@ import { System } from '@src/lib/system.js';
 import type { SystemOptions } from '@src/lib/system-context-types.js';
 import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError, HttpErrors } from '@src/lib/errors/http-error.js';
+import { createAdapter } from '@src/lib/database/index.js';
+import type { DatabaseType } from '@src/lib/database/adapter.js';
 
 /**
  * API Request/Response Helpers
@@ -96,11 +98,12 @@ function extractPositionFromError(errorMessage: string): { line?: number; field?
  * Does NOT extract parameters - pure transaction lifecycle management
  *
  * Automatically handles:
+ * - Database adapter creation based on JWT db_type (postgresql or sqlite)
  * - Transaction creation (BEGIN)
- * - Namespace isolation (SET LOCAL search_path from JWT token.ns)
+ * - Namespace isolation (SET LOCAL search_path for PostgreSQL)
  * - Transaction commit (COMMIT) on successful completion
  * - Transaction rollback (ROLLBACK) on any error
- * - Connection cleanup (release) in all cases
+ * - Connection cleanup (disconnect) in all cases
  * - Error formatting if route handler doesn't catch and rethrow
  *
  * All tenant-scoped routes should use this wrapper (directly or via withTransactionParams).
@@ -109,7 +112,9 @@ function extractPositionFromError(errorMessage: string): { line?: number; field?
 export function withTransaction(handler: (context: Context) => Promise<void>) {
     return async (context: Context) => {
         const system = context.get('system');
-        const nsName = context.get('nsName');  // From JWT token.ns (verified and trusted)
+        const dbType = (context.get('dbType') as DatabaseType) || 'postgresql';
+        const dbName = context.get('dbName') as string;
+        const nsName = context.get('nsName') as string;  // From JWT token.ns (verified and trusted)
 
         // Validate namespace exists (should always exist for tenant-scoped routes)
         if (!nsName) {
@@ -121,27 +126,34 @@ export function withTransaction(handler: (context: Context) => Promise<void>) {
             return createInternalError(context, `Invalid namespace format: ${nsName}`);
         }
 
-        // Acquire client from pool (set by middleware via DatabaseConnection.setDatabaseAndNamespaceForRequest)
-        const pool = context.get('database');
-        const tx = await pool.connect();
+        // Create database adapter based on tenant's database type
+        const adapter = createAdapter({ dbType, db: dbName, ns: nsName });
 
         try {
+            // Connect to database
+            await adapter.connect();
+
             // Start transaction
-            await tx.query('BEGIN');
+            await adapter.beginTransaction();
 
-            // Set namespace isolation (transaction-scoped, reverts on COMMIT/ROLLBACK)
-            await tx.query(`SET LOCAL search_path TO "${nsName}", public`);
+            // Set adapter for database operations
+            system.adapter = adapter;
 
-            // Set transaction client for observers and database operations
-            system.tx = tx;
+            // For PostgreSQL, also set legacy tx for backwards compatibility
+            // @deprecated system.tx - use system.adapter.query() instead
+            // Kept for SqlUtils.getPool() fallback until all observers are migrated
+            if (dbType === 'postgresql') {
+                system.tx = adapter.getRawConnection();
+            }
 
             // Ensure namespace cache is loaded (one-time per tenant)
-            // This requires tx to be set on system before calling
+            // This requires adapter to be set on system before calling
             if (system.namespace && !system.namespace.isLoaded()) {
                 await system.namespace.loadAll(system);
             }
 
             console.info('Transaction started', {
+                dbType,
                 namespace: nsName,
                 path: context.req.path,
                 method: context.req.method,
@@ -152,14 +164,15 @@ export function withTransaction(handler: (context: Context) => Promise<void>) {
             await handler(context);
 
             // Commit on success
-            await tx.query('COMMIT');
-            console.info('Transaction committed', { namespace: nsName });
+            await adapter.commit();
+            console.info('Transaction committed', { dbType, namespace: nsName });
 
         } catch (error) {
             // Rollback on error
             try {
-                await tx.query('ROLLBACK');
+                await adapter.rollback();
                 console.info('Transaction rolled back', {
+                    dbType,
                     namespace: nsName,
                     error: error instanceof Error ? error.message : String(error)
                 });
@@ -180,7 +193,8 @@ export function withTransaction(handler: (context: Context) => Promise<void>) {
 
         } finally {
             // Always clean up
-            tx.release();
+            await adapter.disconnect();
+            system.adapter = null;
             system.tx = undefined;
         }
     };

@@ -25,10 +25,18 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 export default withTransactionParams(async (context, { system, body }) => {
     const userId = context.get('userId');
     const tenant = context.get('tenant');
-    
+
+    // Snapshots require PostgreSQL (uses pg_dump)
+    if (system.adapter?.getType() !== 'postgresql') {
+        throw HttpErrors.badRequest(
+            'Snapshots are only supported for PostgreSQL databases',
+            'SNAPSHOT_REQUIRES_POSTGRESQL'
+        );
+    }
+
     // Get current database name by querying PostgreSQL
-    const dbResult = await system.tx.query('SELECT current_database() as name');
-    const databaseName = dbResult.rows[0].name;
+    const dbResult = await system.adapter.query('SELECT current_database() as name');
+    const databaseName = dbResult.rows[0].name as string;
 
     // Verify we're snapshotting a tenant database, not a sandbox
     if (!databaseName.startsWith('tenant_')) {

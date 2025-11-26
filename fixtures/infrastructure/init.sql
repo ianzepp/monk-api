@@ -39,8 +39,11 @@ COMMENT ON COLUMN "tenant_fixtures"."deployed_at" IS 'Timestamp when fixture was
 CREATE TABLE IF NOT EXISTS "tenants" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "name" VARCHAR(255) NOT NULL UNIQUE,              -- Tenant identifier for authentication
-    "database" VARCHAR(255) NOT NULL,                 -- Database name: db_main, db_test, db_premium_*, etc.
-    "schema" VARCHAR(255) NOT NULL,                   -- Schema (namespace) name: ns_tenant_{hash}
+    "db_type" VARCHAR(20) DEFAULT 'postgresql' NOT NULL CHECK (
+        "db_type" IN ('postgresql', 'sqlite')
+    ),                                                -- Database backend type
+    "database" VARCHAR(255) NOT NULL,                 -- Database name (PG) or directory (SQLite)
+    "schema" VARCHAR(255) NOT NULL,                   -- Schema name (PG) or filename (SQLite)
     "template_version" INTEGER DEFAULT 1 NOT NULL,    -- Version of template used for creation
     "description" TEXT,                               -- Optional description
     "source_template" VARCHAR(255),                   -- Template used for creation
@@ -74,8 +77,9 @@ CREATE INDEX "idx_tenants_deleted" ON "tenants" ("deleted_at") WHERE "deleted_at
 
 COMMENT ON TABLE "tenants" IS 'Production tenant namespaces for users and organizations';
 COMMENT ON COLUMN "tenants"."name" IS 'Unique tenant identifier used in authentication';
-COMMENT ON COLUMN "tenants"."database" IS 'Physical database name (db_main, db_test, db_premium_*, etc.)';
-COMMENT ON COLUMN "tenants"."schema" IS 'Schema (namespace) within database (format: ns_tenant_{hash-8})';
+COMMENT ON COLUMN "tenants"."db_type" IS 'Database backend: postgresql (default) or sqlite';
+COMMENT ON COLUMN "tenants"."database" IS 'Database name (PG: db_main, etc.) or directory (SQLite)';
+COMMENT ON COLUMN "tenants"."schema" IS 'Schema name (PG: ns_tenant_{hash}) or filename (SQLite)';
 COMMENT ON COLUMN "tenants"."template_version" IS 'Template model version this tenant was created with';
 COMMENT ON COLUMN "tenants"."source_template" IS 'Template used to create this tenant';
 COMMENT ON COLUMN "tenants"."naming_mode" IS 'Database naming: enterprise (SHA256 hash) or personal (custom name)';
@@ -197,6 +201,34 @@ CREATE TRIGGER "update_requests_updated_at"
 ALTER TABLE "tenant_fixtures"
     ADD CONSTRAINT "tenant_fixtures_tenant_id_fkey"
     FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE;
+
+-- ============================================================================
+-- MCP SESSIONS TABLE
+-- Persists MCP (Model Context Protocol) sessions across server restarts
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS "mcp_sessions" (
+    "id" VARCHAR(255) PRIMARY KEY NOT NULL,             -- Session ID (from mcp-session-id header)
+    "tenant" VARCHAR(255),                              -- Tenant name (if authenticated)
+    "token" TEXT,                                       -- JWT token (if authenticated)
+    "format" VARCHAR(20) DEFAULT 'toon' NOT NULL,       -- Response format preference
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE INDEX "idx_mcp_sessions_tenant" ON "mcp_sessions" ("tenant");
+CREATE INDEX "idx_mcp_sessions_updated" ON "mcp_sessions" ("updated_at");
+
+COMMENT ON TABLE "mcp_sessions" IS 'MCP session storage for persistent authentication across server restarts';
+COMMENT ON COLUMN "mcp_sessions"."id" IS 'Session identifier from mcp-session-id header';
+COMMENT ON COLUMN "mcp_sessions"."tenant" IS 'Authenticated tenant name';
+COMMENT ON COLUMN "mcp_sessions"."token" IS 'JWT authentication token';
+COMMENT ON COLUMN "mcp_sessions"."format" IS 'Response format preference (toon, yaml, json)';
+
+-- Apply updated_at trigger
+CREATE TRIGGER "update_mcp_sessions_updated_at"
+    BEFORE UPDATE ON "mcp_sessions"
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_field();
 
 -- ============================================================================
 -- SUMMARY

@@ -6,6 +6,7 @@
  */
 
 import type { Context } from 'hono';
+import type { DatabaseAdapter, DatabaseType } from './database/adapter.js';
 
 /**
  * System options for controlling query behavior
@@ -50,8 +51,17 @@ export interface SystemContext {
     /** Hono request context for accessing request/response and context variables */
     readonly context: Context;
 
+    /** Database backend type (postgresql or sqlite) from JWT */
+    readonly dbType: DatabaseType;
+
+    /** Database adapter for query execution
+     *  Set by withTransaction() before any database operations execute
+     *  Provides abstraction layer for PostgreSQL and SQLite backends */
+    adapter: DatabaseAdapter | null;
+
     /** Transaction context with search_path configured for namespace isolation
-     *  Set by withTransaction() before any database operations execute */
+     *  Set by withTransaction() before any database operations execute
+     *  @deprecated Use adapter.query() instead - tx is kept for backwards compatibility */
     tx: any; // Avoid importing pg.PoolClient to prevent circular deps
 
     /** Database instance for high-level operations */

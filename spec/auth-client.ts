@@ -32,6 +32,7 @@ export interface RegistrationParams {
     username?: string;
     database?: string;
     description?: string;
+    db_type?: 'postgresql' | 'sqlite';
 }
 
 /**

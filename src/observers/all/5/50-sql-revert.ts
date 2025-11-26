@@ -15,6 +15,7 @@ import { FilterWhere } from '@src/lib/filter-where.js';
 export default class SqlRevertObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['revert'] as const;
+    readonly adapters = ['postgresql'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, model, record } = context;

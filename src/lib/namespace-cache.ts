@@ -7,7 +7,6 @@
  * Part of the namespace cache refactor (Phase 2).
  */
 
-import type { TxContext } from '@src/db/index.js';
 import { Field, type FieldRow } from '@src/lib/field.js';
 import { Model } from '@src/lib/model.js';
 import type { SystemContext } from '@src/lib/system-context-types.js';
@@ -138,10 +137,14 @@ export class NamespaceCache {
      * Actual database queries and cache population
      */
     private async doLoadAll(system: SystemContext): Promise<void> {
-        const tx = system.tx;
+        // Use adapter (supports both PostgreSQL and SQLite)
+        const adapter = system.adapter;
+        if (!adapter) {
+            throw new Error('NamespaceCache.doLoadAll: No adapter available on system context');
+        }
 
         // Load all active/system models
-        const modelResult = await tx.query(`
+        const modelResult = await adapter.query(`
             SELECT *
             FROM models
             WHERE status IN ('active', 'system')
@@ -150,7 +153,7 @@ export class NamespaceCache {
         `);
 
         // Load all fields for active models
-        const fieldResult = await tx.query(`
+        const fieldResult = await adapter.query(`
             SELECT f.*
             FROM fields f
             INNER JOIN models m ON f.model_name = m.model_name
@@ -163,7 +166,7 @@ export class NamespaceCache {
 
         // Group fields by model
         const fieldsByModel = new Map<string, FieldRow[]>();
-        for (const row of fieldResult.rows as FieldRow[]) {
+        for (const row of fieldResult.rows as unknown as FieldRow[]) {
             const fields = fieldsByModel.get(row.model_name) || [];
             fields.push(row);
             fieldsByModel.set(row.model_name, fields);
@@ -214,10 +217,14 @@ export class NamespaceCache {
      * Reload single model after invalidation
      */
     async loadOne(system: SystemContext, modelName: string): Promise<void> {
-        const tx = system.tx;
+        // Use adapter (supports both PostgreSQL and SQLite)
+        const adapter = system.adapter;
+        if (!adapter) {
+            throw new Error('NamespaceCache.loadOne: No adapter available on system context');
+        }
 
         // Load model
-        const modelResult = await tx.query(`
+        const modelResult = await adapter.query(`
             SELECT *
             FROM models
             WHERE model_name = $1
@@ -243,7 +250,7 @@ export class NamespaceCache {
         const modelRow = modelResult.rows[0] as any;
 
         // Load fields for this model
-        const fieldResult = await tx.query(`
+        const fieldResult = await adapter.query(`
             SELECT *
             FROM fields
             WHERE model_name = $1
@@ -259,7 +266,7 @@ export class NamespaceCache {
         }
 
         // Build new Field objects
-        const fieldRows = fieldResult.rows as FieldRow[];
+        const fieldRows = fieldResult.rows as unknown as FieldRow[];
         const fieldsMap = new Map<string, Field>();
 
         for (const fieldRow of fieldRows) {

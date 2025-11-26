@@ -20,26 +20,34 @@ import { FilterOp, type FilterWhereInfo, type FilterWhereOptions } from '@src/li
  */
 
 export class FilterWhere {
-    private _paramValues: any[] = [];
-    private _paramIndex: number = 0;
-    private _conditions: FilterWhereInfo[] = [];
+    protected _paramValues: any[] = [];
+    protected _paramIndex: number = 0;
+    protected _conditions: FilterWhereInfo[] = [];
 
-    constructor(private startingParamIndex: number = 0) {
+    constructor(protected startingParamIndex: number = 0) {
         this._paramIndex = startingParamIndex;
+    }
+
+    /**
+     * Factory method for creating nested filter instances
+     * Override in subclasses to ensure correct dialect is used for nested conditions
+     */
+    protected createNestedFilter(startIndex: number): FilterWhere {
+        return new FilterWhere(startIndex);
     }
 
     /**
      * Add parameter to collection and return PostgreSQL placeholder
      * Supports parameter index offsetting for complex queries
      */
-    private PARAM(value: any): string {
+    protected PARAM(value: any): string {
         this._paramValues.push(value);
         return `$${++this._paramIndex}`;
     }
 
     /**
      * Static method for quick WHERE clause generation with validation
-     * This is the authoritative entry point for all WHERE clause generation
+     * This is the PostgreSQL implementation - use FilterWhereSqlite for SQLite dialect
      */
     static generate(whereData: any, startingParamIndex: number = 0, options: FilterWhereOptions = {}): { whereClause: string; params: any[] } {
         try {
@@ -208,7 +216,7 @@ export class FilterWhere {
     /**
      * Parse filter data object into conditions
      */
-    private parseWhereData(whereData: any): void {
+    protected parseWhereData(whereData: any): void {
         if (!whereData || typeof whereData !== 'object') {
             return;
         }
@@ -317,8 +325,9 @@ export class FilterWhere {
 
     /**
      * Build individual SQL condition with proper parameterization
+     * Protected to allow dialect-specific overrides (e.g., SQLite)
      */
-    private buildSQLCondition(whereInfo: FilterWhereInfo): string | null {
+    protected buildSQLCondition(whereInfo: FilterWhereInfo): string | null {
         const { field, operator, data } = whereInfo;
 
         // Handle logical operators (no specific field)
@@ -454,6 +463,12 @@ export class FilterWhere {
                 // For now, implement as ILIKE - can be enhanced with PostgreSQL text search later
                 return `${quotedField} ILIKE ${this.PARAM(`%${data}%`)}`;
 
+            case FilterOp.SEARCH:
+                // PostgreSQL full-text search using to_tsvector and plainto_tsquery
+                // Works with fields that have searchable: true (GIN index)
+                // Searches for all words (AND logic) using plainto_tsquery
+                return `to_tsvector('english', ${quotedField}) @@ plainto_tsquery('english', ${this.PARAM(data)})`;
+
             default:
                 console.warn('Unsupported filter operator', { operator });
                 return null;
@@ -462,8 +477,9 @@ export class FilterWhere {
 
     /**
      * Build SQL for size operator with nested operators
+     * Protected to allow dialect-specific overrides (e.g., SQLite uses json_array_length)
      */
-    private buildSizeOperatorSQL(arrayLengthExpression: string, operator: FilterOp, value: any): string {
+    protected buildSizeOperatorSQL(arrayLengthExpression: string, operator: FilterOp, value: any): string {
         switch (operator) {
             case FilterOp.EQ:
                 return `${arrayLengthExpression} = ${this.PARAM(value)}`;
@@ -550,13 +566,14 @@ export class FilterWhere {
      * Build nested condition for logical operators
      * Recursively processes nested filter conditions
      */
-    private buildNestedCondition(condition: any): string | null {
+    protected buildNestedCondition(condition: any): string | null {
         if (!condition || typeof condition !== 'object') {
             return null;
         }
 
-        // Create a temporary FilterWhere instance for the nested condition
-        const nestedFilter = new FilterWhere(this._paramIndex);
+        // Create a temporary filter instance for the nested condition
+        // Uses factory method to ensure correct dialect in subclasses
+        const nestedFilter = this.createNestedFilter(this._paramIndex);
         nestedFilter.parseWhereData(condition);
 
         // Build the nested conditions

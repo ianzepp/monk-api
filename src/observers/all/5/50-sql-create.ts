@@ -14,6 +14,7 @@ import { SqlUtils } from '@src/lib/observers/sql-utils.js';
 export default class SqlCreateObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
     readonly operations = ['create'] as const;
+    readonly adapters = ['postgresql'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, model, record } = context;

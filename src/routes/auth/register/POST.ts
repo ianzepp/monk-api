@@ -19,9 +19,11 @@ import { JWTGenerator } from '@src/lib/jwt-generator.js';
  * - template (optional): Template name to use (defaults to 'system')
  * - username (optional): Username for the tenant admin (defaults to 'root')
  * - description (optional): Human-readable description of the tenant
+ * - adapter (optional): Database adapter - 'postgresql' (default) or 'sqlite'
  *
  * Error codes:
  * - AUTH_TENANT_MISSING: Missing tenant field (400)
+ * - INVALID_ADAPTER: Invalid adapter value (400)
  * - DATABASE_TEMPLATE_NOT_FOUND: Template does not exist (404)
  * - DATABASE_TENANT_EXISTS: Tenant name already registered (409)
  * - DATABASE_EXISTS: Database name already exists (409)
@@ -30,7 +32,7 @@ import { JWTGenerator } from '@src/lib/jwt-generator.js';
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, template, username, description } = await context.req.json();
+    const { tenant, template, username, description, adapter } = await context.req.json();
 
     // Input validation
     if (!tenant) {
@@ -46,6 +48,7 @@ export default async function (context: Context) {
         username: username || 'root',
         user_access: 'root',
         description: description,
+        db_type: adapter, // Pass through adapter as db_type (defaults to 'postgresql' if undefined)
     });
 
     // Generate JWT token for the new user
@@ -53,6 +56,7 @@ export default async function (context: Context) {
         id: cloneResult.user.id,
         user_id: cloneResult.user.id,
         tenant: cloneResult.tenant,
+        dbType: cloneResult.dbType,
         dbName: cloneResult.dbName,
         nsName: cloneResult.nsName,
         access: cloneResult.user.access,

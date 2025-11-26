@@ -1,6 +1,8 @@
 import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import { join } from 'path';
 import { DatabaseConnection } from '../database-connection.js';
+import { SqliteAdapter } from '../database/sqlite-adapter.js';
 import { HttpErrors } from '../errors/http-error.js';
 
 /**
@@ -21,10 +23,13 @@ interface FixtureMetadata {
  * Specifies where to deploy a fixture.
  */
 export interface DeployTarget {
-    /** Database name (db_main, db_test, db_premium_*, etc.) */
+    /** Database type: 'postgresql' or 'sqlite' */
+    dbType: 'postgresql' | 'sqlite';
+
+    /** Database name (db_main, db_test, db_premium_*, etc.) or SQLite directory */
     dbName: string;
 
-    /** Namespace/schema name (ns_tenant_*, ns_test_*, etc.) */
+    /** Namespace/schema name (ns_tenant_*, ns_test_*, etc.) or SQLite filename */
     nsName: string;
 }
 
@@ -56,11 +61,29 @@ export class FixtureDeployer {
      * @throws Error if deployment fails
      */
     static async deploy(fixtureName: string, target: DeployTarget): Promise<void> {
-        console.log(`Deploying ${fixtureName} to ${target.dbName}.${target.nsName}`);
+        console.log(`Deploying ${fixtureName} to ${target.dbName}.${target.nsName} (${target.dbType})`);
 
-        // 1. Read compiled fixture
-        const fixturePath = join(process.cwd(), 'fixtures', fixtureName, 'deploy.sql');
+        // 1. Determine fixture file based on adapter
+        const fixtureDir = join(process.cwd(), 'fixtures', fixtureName);
+        const sqliteFile = join(fixtureDir, 'deploy.sqlite.sql');
+        const pgFile = join(fixtureDir, 'deploy.sql');
 
+        let fixturePath: string;
+        if (target.dbType === 'sqlite') {
+            // SQLite: prefer .sqlite.sql, fall back to .sql if not found
+            fixturePath = existsSync(sqliteFile) ? sqliteFile : pgFile;
+            if (!existsSync(sqliteFile)) {
+                throw HttpErrors.internal(
+                    `SQLite fixture not found: ${sqliteFile}\n` +
+                        `Fixture '${fixtureName}' does not support SQLite adapter.`,
+                    'DATABASE_TEMPLATE_CLONE_FAILED'
+                );
+            }
+        } else {
+            fixturePath = pgFile;
+        }
+
+        // 2. Read compiled fixture
         let sql: string;
         try {
             sql = await readFile(fixturePath, 'utf-8');
@@ -72,18 +95,28 @@ export class FixtureDeployer {
             );
         }
 
-        // 2. Inject parameters with proper identifier quoting
+        // 3. Execute based on adapter type
+        if (target.dbType === 'sqlite') {
+            await this.deploySqlite(sql, target);
+        } else {
+            await this.deployPostgresql(sql, target);
+        }
+    }
+
+    /**
+     * Deploy fixture to PostgreSQL
+     */
+    private static async deployPostgresql(sql: string, target: DeployTarget): Promise<void> {
+        // Inject parameters with proper identifier quoting
         const parameterized = sql
             .replace(/:database/g, `"${target.dbName}"`)
             .replace(/:schema/g, `"${target.nsName}"`);
 
-        // 3. Execute within transaction (automatic rollback on failure)
         const pool = DatabaseConnection.getPool(target.dbName);
         const client = await pool.connect();
 
         try {
             // Note: The compiled SQL already wraps itself in BEGIN/COMMIT
-            // We execute it as-is
             await client.query(parameterized);
             console.log(`✓ Deployed successfully`);
         } catch (error) {
@@ -91,6 +124,32 @@ export class FixtureDeployer {
             throw error;
         } finally {
             client.release();
+        }
+    }
+
+    /**
+     * Deploy fixture to SQLite
+     */
+    private static async deploySqlite(sql: string, target: DeployTarget): Promise<void> {
+        const adapter = new SqliteAdapter(target.dbName, target.nsName);
+
+        try {
+            await adapter.connect();
+
+            // Execute the SQL directly - SQLite's exec() handles multiple statements
+            // The SQL already contains BEGIN/COMMIT
+            const db = (adapter as any).db;
+            if (!db) {
+                throw new Error('SQLite adapter not connected');
+            }
+            db.exec(sql);
+
+            console.log(`✓ Deployed successfully`);
+        } catch (error) {
+            console.error(`✗ Deployment failed`);
+            throw error;
+        } finally {
+            await adapter.disconnect();
         }
     }
 

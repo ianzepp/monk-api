@@ -107,11 +107,16 @@ Submit an ordered list of operations—spanning CRUD actions, ACL updates, read 
 | `access-any` | Update ACL fields for records matching a filter. | `model`, `filter`, `data` |
 | `access-404` | ACL update that raises 404 when missing. | `model`, `id` or `filter`, `data`, optional `message` |
 
+### Upsert
+| Operation | Description | Requirements |
+|-----------|-------------|--------------|
+| `upsert` / `upsert-one` | Insert or update a single record based on ID presence. | `model`, `data` (object) |
+| `upsert-all` | Insert or update multiple records based on ID presence. | `model`, `data` (array of objects) |
+
 ### Unsupported
 | Operation | Status |
 |-----------|--------|
 | `select-max` | Not implemented (returns empty array) |
-| `upsert`, `upsert-one`, `upsert-all` | Not implemented (throws 422 `OPERATION_UNSUPPORTED`) |
 
 ## Validation Rules
 - `create-all`, `update-all`, `delete-all`, `access-all` require `data` to be an array. `update-all`, `delete-all`, `access-all` require each element to include an `id`.

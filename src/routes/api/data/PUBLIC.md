@@ -24,6 +24,18 @@ All Data API routes require authentication via JWT token in the Authorization he
 - `include_deleted=true` - Include permanently deleted records (where `deleted_at IS NOT NULL`) - requires root access
 - `permanent=true` - Perform permanent delete operations (sets `deleted_at`) - requires root access
 
+### GET Parameters
+
+- `where={json}` - Filter criteria as JSON-encoded object (e.g., `?where={"status":"active"}`)
+
+### POST Parameters
+
+- `upsert=true` - Enable upsert mode: records with ID are updated, records without ID are created
+
+### PATCH Parameters
+
+- `where={json}` - Filter criteria for bulk update (body contains changes to apply to all matching records)
+
 ### Response Transformation Parameters
 
 - `unwrap` - Remove envelope, return data array directly
@@ -40,9 +52,10 @@ See individual endpoint documentation for detailed examples.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/data/:model`](:model/GET.md) | Query all records in a model with optional filtering for trashed/deleted records. |
-| POST | [`/api/data/:model`](:model/POST.md) | Create one or more records in a model with full observer pipeline validation. |
-| PUT | [`/api/data/:model`](:model/PUT.md) | Update multiple records by ID, or use PATCH + include_trashed=true to revert trashed records. |
+| GET | [`/api/data/:model`](:model/GET.md) | Query records with optional `?where` filter. |
+| POST | [`/api/data/:model`](:model/POST.md) | Create records. Use `?upsert=true` to insert or update based on ID presence. |
+| PUT | [`/api/data/:model`](:model/PUT.md) | Update multiple records by ID (body is array of `{id, ...changes}`). |
+| PATCH | [`/api/data/:model`](:model/PUT.md) | Filter-based update via `?where` (body is changes object), or revert with `?include_trashed=true`. |
 | DELETE | [`/api/data/:model`](:model/DELETE.md) | Soft delete or permanently remove multiple records (permanent=true requires root). |
 
 ### Single Record Operations
@@ -59,6 +72,7 @@ See individual endpoint documentation for detailed examples.
 |--------|------|-------------|
 | GET | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/GET.md) | List all child records for a parent relationship. |
 | POST | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/POST.md) | Create a child record with automatic parent foreign key assignment. |
+| PUT | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/PUT.md) | Bulk update child records (not yet implemented). |
 | DELETE | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/DELETE.md) | Remove or detach multiple child records from parent. |
 | GET | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/GET.md) | Fetch a specific child record through parent relationship. |
 | PUT | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/PUT.md) | Update a specific child record while preserving parent relationship. |
@@ -118,7 +132,11 @@ curl -X POST http://localhost:9001/api/data/users \
 curl -X GET http://localhost:9001/api/data/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# Update records
+# Query with filter
+curl -X GET 'http://localhost:9001/api/data/users?where={"status":"active"}' \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Update records by ID
 curl -X PUT http://localhost:9001/api/data/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
@@ -129,6 +147,29 @@ curl -X DELETE http://localhost:9001/api/data/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '[{"id": "user-1"}]'
+```
+
+### Upsert Operations
+
+```bash
+# Upsert: insert new records OR update existing (by ID presence)
+curl -X POST 'http://localhost:9001/api/data/users?upsert=true' \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {"name": "New User", "email": "new@example.com"},
+    {"id": "existing-user-id", "name": "Updated Name"}
+  ]'
+```
+
+### Filter-Based Updates
+
+```bash
+# Update all records matching a filter (PATCH + ?where)
+curl -X PATCH 'http://localhost:9001/api/data/users?where={"department":"Sales"}' \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "active"}'
 ```
 
 ### Response Transformation

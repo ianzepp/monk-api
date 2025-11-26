@@ -1,12 +1,13 @@
 /**
  * User Context Validation Middleware
- * 
+ *
  * Uses JWT context values to validate user exists in tenant database.
  * Requires jwtValidationMiddleware to run first to populate context.
  */
 
 import type { Context, Next } from 'hono';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { createAdapterFrom } from '@src/lib/database/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import type { JWTPayload } from './jwt-validation.js';
 
@@ -19,6 +20,7 @@ import type { JWTPayload } from './jwt-validation.js';
 export async function userValidationMiddleware(context: Context, next: Next) {
     // Get JWT context values (set by jwtValidationMiddleware)
     const tenant = context.get('tenant');
+    const dbType = context.get('dbType') || 'postgresql';
     const dbName = context.get('dbName');
     const nsName = context.get('nsName');
     const jwtPayload = context.get('jwtPayload');
@@ -32,19 +34,30 @@ export async function userValidationMiddleware(context: Context, next: Next) {
         // Set up database and namespace connection for the tenant
         DatabaseConnection.setDatabaseAndNamespaceForRequest(context, dbName, nsName);
 
-        // Look up user in the specific tenant namespace
-        const userResult = await DatabaseConnection.queryInNamespace(
-            dbName,
-            nsName,
-            'SELECT id, name, access, access_read, access_edit, access_full FROM users WHERE id = $1 AND trashed_at IS NULL',
-            [userId]
-        );
+        // Look up user using adapter (supports both PostgreSQL and SQLite)
+        const adapter = createAdapterFrom(dbType, dbName, nsName);
+        await adapter.connect();
 
-        if (userResult.rows.length === 0) {
-            throw HttpErrors.unauthorized('User not found or inactive', 'USER_NOT_FOUND');
+        let user;
+        try {
+            const userResult = await adapter.query<any>(
+                'SELECT id, name, access, access_read, access_edit, access_full FROM users WHERE id = $1 AND trashed_at IS NULL',
+                [userId]
+            );
+
+            if (userResult.rows.length === 0) {
+                throw HttpErrors.unauthorized('User not found or inactive', 'USER_NOT_FOUND');
+            }
+
+            user = userResult.rows[0];
+        } finally {
+            await adapter.disconnect();
         }
 
-        const user = userResult.rows[0];
+        // Parse JSON arrays for SQLite (stored as JSON strings)
+        const accessRead = typeof user.access_read === 'string' ? JSON.parse(user.access_read) : (user.access_read || []);
+        const accessEdit = typeof user.access_edit === 'string' ? JSON.parse(user.access_edit) : (user.access_edit || []);
+        const accessFull = typeof user.access_full === 'string' ? JSON.parse(user.access_full) : (user.access_full || []);
 
         // Enrich context with actual user data from database
         context.set('user', {
@@ -54,14 +67,14 @@ export async function userValidationMiddleware(context: Context, next: Next) {
             tenant: tenant,
             dbName: dbName,
             nsName: nsName,
-            access_read: user.access_read || [],
-            access_edit: user.access_edit || [],
-            access_full: user.access_full || []
+            access_read: accessRead,
+            access_edit: accessEdit,
+            access_full: accessFull
         });
         context.set('userId', user.id);
-        context.set('accessReadIds', user.access_read || []);
-        context.set('accessEditIds', user.access_edit || []);
-        context.set('accessFullIds', user.access_full || []);
+        context.set('accessReadIds', accessRead);
+        context.set('accessEditIds', accessEdit);
+        context.set('accessFullIds', accessFull);
 
         return await next();
 

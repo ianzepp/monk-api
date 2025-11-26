@@ -28,9 +28,9 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Username is required', 'AUTH_USERNAME_MISSING');
     }
 
-    // Look up tenant record to get database and schema
+    // Look up tenant record to get database type, database, and schema
     const authDb = DatabaseConnection.getMainPool();
-    const tenantResult = await authDb.query('SELECT name, database, schema FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
+    const tenantResult = await authDb.query('SELECT name, db_type, database, schema FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
 
     if (!tenantResult.rows || tenantResult.rows.length === 0) {
         return context.json(
@@ -45,7 +45,7 @@ export default async function (context: Context) {
         console.info('Found tenant record:', { tenant: tenantResult.rows[0] });
     }
 
-    const { name, database: dbName, schema: nsName } = tenantResult.rows[0];
+    const { name, db_type: dbType, database: dbName, schema: nsName } = tenantResult.rows[0];
 
     // Look up user in the tenant's namespace
     const userResult = await DatabaseConnection.queryInNamespace(
@@ -75,6 +75,7 @@ export default async function (context: Context) {
         sub: user.id,
         user_id: user.id,
         tenant: name,
+        db_type: dbType || 'postgresql', // Database backend type (default for legacy tenants)
         db: dbName, // Compact JWT field
         ns: nsName, // Compact JWT field
         access: user.access,

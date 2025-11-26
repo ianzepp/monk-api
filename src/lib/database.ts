@@ -1,12 +1,12 @@
 import crypto from 'crypto';
-import type { TxContext } from '@src/db/index.js';
 
 import type { SystemContext } from '@src/lib/system-context-types.js';
+import type { DatabaseAdapter } from '@src/lib/database/adapter.js';
 import { Model, type ModelName } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
 import { Filter, type AggregateSpec } from '@src/lib/filter.js';
 import type { FilterData, AggregateData } from '@src/lib/filter-types.js';
-import type { FilterWhereOptions } from '@src/lib/filter-types.js';
+import type { FilterWhereOptions, AdapterType } from '@src/lib/filter-types.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 import { ObserverRecursionError, SystemError } from '@src/lib/observers/errors.js';
 import type { OperationType } from '@src/lib/observers/types.js';
@@ -63,20 +63,20 @@ export class Database {
     }
 
     /**
-     * Get transaction context for database operations
+     * Get database adapter for query operations
      *
-     * Returns the active transaction context with search_path configured.
-     * All tenant-scoped operations require a transaction for namespace isolation.
+     * Returns the active database adapter (PostgreSQL or SQLite).
+     * All tenant-scoped operations require an adapter set by withTransaction().
      *
      * @private
-     * @returns Transaction context with search_path set
-     * @throws Error if transaction not initialized (programming error)
+     * @returns Database adapter for query execution
+     * @throws Error if adapter not initialized (programming error)
      */
-    private get dbContext(): TxContext {
-        if (!this.system.tx) {
-            throw new Error('Transaction context not initialized - ensure withTransaction() wrapper is used');
+    private get adapter(): DatabaseAdapter {
+        if (!this.system.adapter) {
+            throw new Error('Database adapter not initialized - ensure withTransaction() wrapper is used');
         }
-        return this.system.tx;
+        return this.system.adapter;
     }
 
     /**
@@ -109,7 +109,8 @@ export class Database {
     /**
      * Execute raw SQL query with optional parameters
      *
-     * Low-level query execution using current transaction or database connection.
+     * Low-level query execution using the database adapter.
+     * Works with both PostgreSQL and SQLite backends.
      * Automatically uses parameterized queries when params provided.
      *
      * @param query - SQL query string
@@ -117,12 +118,7 @@ export class Database {
      * @returns Query result with rows and metadata
      */
     async execute(query: string, params: any[] = []): Promise<any> {
-        const dbContext = this.dbContext;
-        if (params.length > 0) {
-            return await dbContext.query(query, params);
-        } else {
-            return await dbContext.query(query);
-        }
+        return await this.adapter.query(query, params);
     }
 
     /**
@@ -133,11 +129,19 @@ export class Database {
      *
      * @param modelName - Model to count records from
      * @param filterData - Optional filter conditions (where clause)
+     * @param options - Soft delete and context options
      * @returns Total count of matching records
      */
-    async count(modelName: ModelName, filterData: FilterData = {}): Promise<number> {
+    async count(modelName: ModelName, filterData: FilterData = {}, options: SelectOptions = {}): Promise<number> {
         const model = this.system.namespace.getModel(modelName);
-        const filter = new Filter(model.model_name).assign(filterData);
+
+        // Apply context-based soft delete defaults (includes adapterType)
+        const defaultOptions = this.getDefaultSoftDeleteOptions(options.context);
+        const mergedOptions = { ...defaultOptions, ...options };
+
+        const filter = new Filter(model.model_name)
+            .assign(filterData)
+            .withSoftDeleteOptions(mergedOptions);
 
         // Issue #102: Use toCountSQL() pattern instead of manual query building
         const { query, params } = filter.toCountSQL();
@@ -393,7 +397,7 @@ export class Database {
 
         // Use Filter.toSQL() pattern for proper separation of concerns
         const { query, params } = filter.toSQL();
-        const result = await this.system.database.execute(query, params);
+        const result = await this.execute(query, params);
 
         // Convert PostgreSQL string types back to proper JSON types
         let rows = result.rows.map((row: any) => this.convertPostgreSQLTypes(row, model));
@@ -426,34 +430,76 @@ export class Database {
      *
      * Note: deleted_at records are ALWAYS excluded in all contexts.
      * They are kept in the database for compliance/audit but never visible through the API.
+     *
+     * Also includes adapterType for dialect-specific SQL generation (PostgreSQL vs SQLite).
      */
     private getDefaultSoftDeleteOptions(context?: 'api' | 'observer' | 'system'): FilterWhereOptions {
+        // Get adapter type for dialect-specific SQL generation
+        const adapterType: AdapterType = this.system.adapter?.getType() || 'postgresql';
+
         switch (context) {
             case 'observer':
             case 'system':
                 return {
-                    trashed: 'include'
+                    trashed: 'include',
+                    adapterType
                 };
             case 'api':
             default:
                 return {
-                    trashed: 'exclude'
+                    trashed: 'exclude',
+                    adapterType
                 };
         }
     }
 
     /**
-     * Convert PostgreSQL string results back to proper JSON types
+     * Convert database results back to proper JSON types
      *
-     * PostgreSQL returns all values as strings by default. This method converts
-     * them back to the correct JSON types based on the model field metadata.
+     * Handles two cases:
+     * 1. PostgreSQL: Converts string numbers/booleans to proper JS types based on field metadata
+     * 2. SQLite: Also parses JSON string arrays for system fields (access_read, etc.)
+     *
+     * SQLite stores uuid[] fields as TEXT with JSON strings like '[]' or '["uuid1","uuid2"]'
+     * PostgreSQL returns these as native arrays, so we need to parse them for SQLite.
      */
     private convertPostgreSQLTypes(record: any, model: any): any {
-        if (!model.typedFields || model.typedFields.size === 0) {
-            return record;
+        let converted = record;
+
+        // Convert typed fields (user-defined fields with type metadata)
+        if (model.typedFields && model.typedFields.size > 0) {
+            converted = convertRecordPgToMonk(converted, model.typedFields);
         }
 
-        return convertRecordPgToMonk(record, model.typedFields);
+        // For SQLite: Parse JSON array strings for system fields
+        // These are uuid[] in PostgreSQL but TEXT with JSON in SQLite
+        if (this.system.adapter?.getType() === 'sqlite') {
+            converted = this.convertSqliteJsonArrays(converted);
+        }
+
+        return converted;
+    }
+
+    /**
+     * Parse SQLite JSON array strings for system fields
+     *
+     * SQLite stores uuid[] fields as TEXT containing JSON strings.
+     * This parses them back to actual arrays for API consistency.
+     */
+    private convertSqliteJsonArrays(record: any): any {
+        const JSON_ARRAY_FIELDS = ['access_read', 'access_edit', 'access_full', 'access_deny'];
+
+        for (const field of JSON_ARRAY_FIELDS) {
+            if (field in record && typeof record[field] === 'string') {
+                try {
+                    record[field] = JSON.parse(record[field]);
+                } catch {
+                    // If parsing fails, leave as-is (might already be an array or invalid)
+                }
+            }
+        }
+
+        return record;
     }
 
     /**

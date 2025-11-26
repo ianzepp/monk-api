@@ -357,6 +357,15 @@ export class ObserverRunner {
             }
         }
 
+        // Check adapter targeting (e.g., PostgreSQL-only observers)
+        // If no adapters specified, observer runs on all adapters
+        if (observer.adapters && observer.adapters.length > 0) {
+            const currentAdapter = context.system.adapter?.getType();
+            if (!currentAdapter || !observer.adapters.includes(currentAdapter)) {
+                return false;
+            }
+        }
+
         return true;
     }
 

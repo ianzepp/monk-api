@@ -23,6 +23,12 @@ export default class HistoryTracker extends BaseObserver {
         const { system, operation, model, record } = context;
         const modelName = model.model_name;
 
+        // Skip if history model doesn't exist in this namespace
+        // (history table is part of the 'audit' fixture, not always present)
+        if (!system.namespace?.hasModel('history')) {
+            return;
+        }
+
         // Skip system models
         if (this.SYSTEM_MODELS.includes(modelName)) {
             return;
@@ -90,6 +96,7 @@ export default class HistoryTracker extends BaseObserver {
         }
 
         // Create history record using raw SQL to avoid observer recursion
+        // Uses adapter.query() for PostgreSQL/SQLite compatibility
         try {
             console.info('Creating history record', {
                 modelName,
@@ -100,7 +107,7 @@ export default class HistoryTracker extends BaseObserver {
                 trackedFieldCount: Object.keys(changes).length
             });
 
-            await system.tx.query(
+            await system.adapter.query(
                 `
                 INSERT INTO history (
                     model_name,

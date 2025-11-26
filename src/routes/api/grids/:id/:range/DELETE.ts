@@ -1,4 +1,3 @@
-import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 import { setRouteResult } from '@src/lib/middleware/system-context.js';
 import { parseRange, validateRangeBounds } from '@src/routes/api/grids/range-parser.js';
@@ -29,12 +28,11 @@ export default withTransactionParams(async (context, { system }) => {
     // 3. Validate against grid constraints
     validateRangeBounds(range, grid.row_max, grid.col_max);
 
-    // 4. Build DELETE query (transaction-aware)
-    const dbContext = system.tx!; // withTransactionParams ensures tx exists
+    // 4. Build DELETE query
     const { query, params } = buildDeleteQuery(gridId, range);
 
-    // 5. Execute delete
-    const result = await dbContext.query(query, params);
+    // 5. Execute delete via adapter (works with PostgreSQL and SQLite)
+    const result = await system.adapter!.query(query, params);
 
     // 6. Return with metadata
     setRouteResult(context, {

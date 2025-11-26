@@ -15,6 +15,7 @@ export interface JWTUserData {
     id: string;
     user_id?: string | null;
     tenant: string;
+    dbType?: 'postgresql' | 'sqlite'; // Maps to 'db_type' in JWT (default: 'postgresql')
     dbName: string; // Maps to 'db' in JWT
     nsName: string; // Maps to 'ns' in JWT
     access: string;
@@ -72,6 +73,7 @@ export class JWTGenerator {
             sub: userData.id,
             user_id: userData.user_id ?? userData.id,
             tenant: userData.tenant,
+            db_type: userData.dbType || 'postgresql', // Database backend type
             db: userData.dbName, // Compact JWT field
             ns: userData.nsName, // Compact JWT field
             access: userData.access,
@@ -106,6 +108,7 @@ export class JWTGenerator {
             sub: userData.id,
             user_id: userData.user_id ?? userData.id,
             tenant: userData.tenant,
+            db_type: userData.dbType || 'postgresql',
             db: userData.dbName,
             ns: userData.nsName,
             access: userData.access, // Keep original access level
@@ -137,7 +140,7 @@ export class JWTGenerator {
      */
     static async generateFakeToken(
         targetUser: { id: string; access: string; access_read?: string[]; access_edit?: string[]; access_full?: string[] },
-        currentUser: { tenant: string; dbName: string; nsName: string },
+        currentUser: { tenant: string; dbType?: 'postgresql' | 'sqlite'; dbName: string; nsName: string },
         options: FakeTokenOptions
     ): Promise<string> {
         const now = Math.floor(Date.now() / 1000);
@@ -147,6 +150,7 @@ export class JWTGenerator {
             sub: targetUser.id,
             user_id: targetUser.id,
             tenant: currentUser.tenant,
+            db_type: currentUser.dbType || 'postgresql',
             db: currentUser.dbName,
             ns: currentUser.nsName,
             access: targetUser.access,

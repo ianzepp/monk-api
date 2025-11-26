@@ -25,6 +25,7 @@ import type { ModelRecord } from '@src/lib/model-record.js';
 export default class TypeMapperObserver extends BaseObserver {
     readonly ring = ObserverRing.Enrichment;  // Ring 4
     readonly operations = ['create', 'update'] as const;
+    readonly adapters = ['postgresql'] as const;  // Maps to PostgreSQL types
     readonly priority = 90;  // Run late in Ring 4, just before database (Ring 5)
 
     async execute(context: ObserverContext): Promise<void> {

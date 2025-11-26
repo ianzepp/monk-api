@@ -1,4 +1,5 @@
 import { FilterWhere } from '@src/lib/filter-where.js';
+import { FilterWhereSqlite } from '@src/lib/filter-where-sqlite.js';
 import { FilterOrder } from '@src/lib/filter-order.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import type { FilterWhereOptions, FilterOrderInfo, AggregateSpec } from '@src/lib/filter-types.js';
@@ -39,8 +40,8 @@ export class FilterSqlGenerator {
             // Build SELECT clause (no parameters)
             const selectClause = this.buildSelectClause(state.select);
 
-            // Use FilterWhere for WHERE clause with soft delete options
-            const { whereClause, params: whereParams } = FilterWhere.generate(
+            // Generate WHERE clause using appropriate dialect (PostgreSQL or SQLite)
+            const { whereClause, params: whereParams } = this.generateWhere(
                 state.whereData,
                 0,
                 state.softDeleteOptions
@@ -84,8 +85,8 @@ export class FilterSqlGenerator {
      */
     static toWhereSQL(state: FilterState): { whereClause: string; params: any[] } {
         try {
-            // Use FilterWhere for consistent WHERE clause generation
-            const result = FilterWhere.generate(
+            // Generate WHERE clause using appropriate dialect (PostgreSQL or SQLite)
+            const result = this.generateWhere(
                 state.whereData,
                 0,
                 state.softDeleteOptions
@@ -197,8 +198,8 @@ export class FilterSqlGenerator {
      */
     static getWhereClause(state: FilterState): string {
         try {
-            // Use FilterWhere for consistent WHERE clause generation
-            const { whereClause } = FilterWhere.generate(
+            // Generate WHERE clause using appropriate dialect (PostgreSQL or SQLite)
+            const { whereClause } = this.generateWhere(
                 state.whereData,
                 0,
                 state.softDeleteOptions
@@ -352,5 +353,20 @@ export class FilterSqlGenerator {
         }
 
         return field;
+    }
+
+    /**
+     * Generate WHERE clause using appropriate dialect (PostgreSQL or SQLite)
+     * Factory method that selects the right FilterWhere implementation based on adapterType
+     */
+    private static generateWhere(
+        whereData: any,
+        startingParamIndex: number,
+        options: FilterWhereOptions
+    ): { whereClause: string; params: any[] } {
+        if (options.adapterType === 'sqlite') {
+            return FilterWhereSqlite.generate(whereData, startingParamIndex, options);
+        }
+        return FilterWhere.generate(whereData, startingParamIndex, options);
     }
 }

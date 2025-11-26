@@ -39,6 +39,7 @@ import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
 import * as mcpRoutes from '@src/routes/mcp/routes.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
+import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
 
 // Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
@@ -65,13 +66,16 @@ import { sudoRouter } from '@src/routes/api/sudo/index.js';
 // Special protected endpoints
 import BulkPost from '@src/routes/api/bulk/POST.js'; // POST /api/bulk
 import FindModelPost from '@src/routes/api/find/:model/POST.js'; // POST /api/find/:model
+import FindTargetGet from '@src/routes/api/find/:model/:target/GET.js'; // GET /api/find/:model/:target
+import AggregateModelGet from '@src/routes/api/aggregate/:model/GET.js'; // GET /api/aggregate/:model
 import AggregateModelPost from '@src/routes/api/aggregate/:model/POST.js'; // POST /api/aggregate/:model
 
 // Check database connection before doing anything else
 console.info('Checking database connection:');
 console.info('- NODE_ENV:', process.env.NODE_ENV);
+console.info('- PORT:', process.env.PORT);
 console.info('- DATABASE_URL:', process.env.DATABASE_URL);
-console.info('- Tenant naming: SHA256 hashing (environment-isolated)');
+console.info('- SQLITE_DATA_DIR:', process.env.SQLITE_DATA_DIR);
 checkDatabaseConnection();
 
 // Create Hono app
@@ -182,14 +186,14 @@ app.get('/', context => {
                 '/api/sudo/users/:id',
             ],
             extracts: [
-                '/api/extracts/:id/run',
-                '/api/extracts/:id/cancel',
+                '/api/extracts/:record/run',
+                '/api/extracts/:record/cancel',
                 '/api/extracts/runs/:runId/download',
                 '/api/extracts/artifacts/:artifactId/download'
             ],
             restores: [
-                '/api/restores/:id/run',
-                '/api/restores/:id/cancel',
+                '/api/restores/:record/run',
+                '/api/restores/:record/cancel',
                 '/api/restores/import'
             ],
             grids: [
@@ -241,6 +245,9 @@ app.use('/mcp', middleware.requestBodyParserMiddleware);
 mcpRoutes.setHonoApp(app);
 app.post('/mcp', mcpRoutes.McpPost); // POST /mcp (JSON-RPC)
 
+// Internal API (for fire-and-forget background jobs)
+setInternalApiHonoApp(app);
+
 // 30-auth-api: Public auth routes (token acquisition)
 app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
@@ -280,6 +287,7 @@ app.delete('/api/data/:model/:record', dataRoutes.RecordDelete); // Delete singl
 
 app.get('/api/data/:model/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
 app.post('/api/data/:model/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
+app.put('/api/data/:model/:record/:relationship', dataRoutes.RelationshipPut); // Bulk update related records (stub)
 app.delete('/api/data/:model/:record/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
 app.get('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
 app.put('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
@@ -287,8 +295,10 @@ app.delete('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRec
 
 // 33-find-api: Find API routes
 app.post('/api/find/:model', FindModelPost);
+app.get('/api/find/:model/:target', FindTargetGet);
 
 // 34-aggregate-api: Aggregate API routes
+app.get('/api/aggregate/:model', AggregateModelGet);
 app.post('/api/aggregate/:model', AggregateModelPost);
 
 // 35-bulk-api: Bulk API routes
@@ -319,14 +329,16 @@ app.get('/api/history/:model/:record', historyRoutes.RecordHistoryGet); // List 
 app.get('/api/history/:model/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
 
 // 50-extracts-app: Extract application (data export jobs)
-app.post('/api/extracts/:id/run', extractRoutes.ExtractRun); // Execute extract job
-app.post('/api/extracts/:id/cancel', extractRoutes.ExtractCancel); // Cancel running extract
+app.post('/api/extracts/:record/run', extractRoutes.ExtractRun); // Queue extract job
+app.post('/api/extracts/:record/execute', extractRoutes.ExtractExecute); // Execute extract (internal, long-running)
+app.post('/api/extracts/:record/cancel', extractRoutes.ExtractCancel); // Cancel running extract
 app.get('/api/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
 app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
 
 // 51-restores-app: Restore application (data import jobs)
-app.post('/api/restores/:id/run', restoreRoutes.RestoreRun); // Execute restore job
-app.post('/api/restores/:id/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
+app.post('/api/restores/:record/run', restoreRoutes.RestoreRun); // Queue restore job
+app.post('/api/restores/:record/execute', restoreRoutes.RestoreExecute); // Execute restore (internal, long-running)
+app.post('/api/restores/:record/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
 app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
 
 // 52-grids-app: Grid application (spreadsheet-like cell storage)

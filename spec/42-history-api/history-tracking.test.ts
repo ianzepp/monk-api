@@ -19,7 +19,8 @@ describe('History API - Change Tracking', () => {
     let testRecordId: string;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('history-api');
+        // History tracking requires 'audit' fixture which includes the history table
+        tenant = await TestHelpers.createTestTenant('history-api', 'system,audit');
 
         // Create test model
         await tenant.httpClient.post('/api/describe/accounts', {});
