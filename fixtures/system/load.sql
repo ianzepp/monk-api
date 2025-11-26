@@ -4,7 +4,7 @@
 -- Core system fixture with essential infrastructure models
 --
 -- Dependencies: none
--- Models: models, fields, users
+-- Models: models, fields, users, filters
 --
 -- Usage:
 --   createdb monk_template_system
@@ -45,6 +45,7 @@ CREATE TYPE field_type AS ENUM (
 \ir describe/models.sql
 \ir describe/fields.sql
 \ir describe/users.sql
+\ir describe/filters.sql
 
 -- PHASE 3: DATA (DML)
 \echo ''
@@ -52,6 +53,7 @@ CREATE TYPE field_type AS ENUM (
 \ir data/models.sql
 \ir data/fields.sql
 \ir data/users.sql
+\ir data/filters.sql
 
 -- SUMMARY
 \echo ''

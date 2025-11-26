@@ -66,6 +66,8 @@ import { sudoRouter } from '@src/routes/api/sudo/index.js';
 // Special protected endpoints
 import BulkPost from '@src/routes/api/bulk/POST.js'; // POST /api/bulk
 import FindModelPost from '@src/routes/api/find/:model/POST.js'; // POST /api/find/:model
+import FindTargetGet from '@src/routes/api/find/:model/:target/GET.js'; // GET /api/find/:model/:target
+import AggregateModelGet from '@src/routes/api/aggregate/:model/GET.js'; // GET /api/aggregate/:model
 import AggregateModelPost from '@src/routes/api/aggregate/:model/POST.js'; // POST /api/aggregate/:model
 
 // Check database connection before doing anything else
@@ -285,6 +287,7 @@ app.delete('/api/data/:model/:record', dataRoutes.RecordDelete); // Delete singl
 
 app.get('/api/data/:model/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
 app.post('/api/data/:model/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
+app.put('/api/data/:model/:record/:relationship', dataRoutes.RelationshipPut); // Bulk update related records (stub)
 app.delete('/api/data/:model/:record/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
 app.get('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
 app.put('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
@@ -292,8 +295,10 @@ app.delete('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRec
 
 // 33-find-api: Find API routes
 app.post('/api/find/:model', FindModelPost);
+app.get('/api/find/:model/:target', FindTargetGet);
 
 // 34-aggregate-api: Aggregate API routes
+app.get('/api/aggregate/:model', AggregateModelGet);
 app.post('/api/aggregate/:model', AggregateModelPost);
 
 // 35-bulk-api: Bulk API routes

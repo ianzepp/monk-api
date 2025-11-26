@@ -62,7 +62,7 @@ export class TestDatabaseHelper {
             // 2. Deploy fixtures to namespace
             // System fixture is always deployed first, then the requested template
             const fixtures = template === 'system' ? ['system'] : ['system', template];
-            await FixtureDeployer.deployMultiple(fixtures, { dbName, nsName });
+            await FixtureDeployer.deployMultiple(fixtures, { dbName, nsName, dbType: 'postgresql' });
 
             // 3. Register tenant in main database
             // Use a fixed test owner_id (will be cleaned up with tenant)

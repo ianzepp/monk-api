@@ -411,8 +411,10 @@ export class BulkProcessor {
 
             case BulkOperationType.Upsert:
             case BulkOperationType.UpsertOne:
+                return await this.system.database.upsertOne(modelName, data);
+
             case BulkOperationType.UpsertAll:
-                throw HttpErrors.unprocessableEntity('Upsert operations not yet implemented', 'OPERATION_UNSUPPORTED');
+                return await this.system.database.upsertAll(modelName, data);
 
             // Access control operations
             case BulkOperationType.Access:

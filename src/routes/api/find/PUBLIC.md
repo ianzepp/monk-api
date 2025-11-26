@@ -3,13 +3,14 @@
 The Find API provides advanced search and filtering capabilities for records across models. Execute complex queries with sophisticated filtering, sorting, and aggregation operations.
 
 ## Base Path
-All Find API operations use: `POST /api/find/:model`
+`/api/find/:model`
 
 ## Endpoint Summary
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | [`/api/find/:model`](#post-apifindmodel) | Run complex filtered, sorted, and paginated queries with advanced operators. |
+| GET | [`/api/find/:model/:target`](#get-apifindmodeltarget) | Execute a saved filter by ID or name. |
 
 ## Content Type
 - **Request**: `application/json`
@@ -17,6 +18,74 @@ All Find API operations use: `POST /api/find/:model`
 
 ## Authentication Required
 Requires valid JWT token in Authorization header: `Bearer <token>`
+
+---
+
+## Saved Filters
+
+Filters can be saved to the `filters` model and re-executed by ID or name. This is useful for:
+- Dashboard widgets with fixed queries
+- Reusable report definitions
+- Complex queries that are expensive to construct client-side
+- "Bookmarked" searches users can re-run
+
+### Creating a Saved Filter
+
+```bash
+POST /api/data/filters
+[{
+  "name": "active-users",
+  "model_name": "users",
+  "description": "All active users sorted by creation date",
+  "where": { "status": "active" },
+  "order": ["created_at desc"],
+  "limit": 100
+}]
+```
+
+### Executing a Saved Filter
+
+```bash
+# By name
+GET /api/find/users/active-users
+
+# By UUID
+GET /api/find/users/550e8400-e29b-41d4-a716-446655440000
+```
+
+### Saved Filter Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | text | yes | Unique name within the model |
+| `model_name` | text | yes | Target model this filter executes against |
+| `description` | text | no | Human-readable description |
+| `select` | jsonb | no | Fields to return (array of field names) |
+| `where` | jsonb | no | Filter conditions |
+| `order` | jsonb | no | Sort order (array of "field asc/desc" strings) |
+| `limit` | integer | no | Maximum records to return |
+| `offset` | integer | no | Number of records to skip |
+
+---
+
+## GET /api/find/:model/:target
+
+Execute a saved filter by ID or name.
+
+### Parameters
+
+- `:model` - The target model (must match the saved filter's `model_name`)
+- `:target` - Either a UUID (filter ID) or a string (filter name)
+
+### Success Response (200)
+
+Returns the query results (same format as POST /api/find/:model).
+
+### Error Responses
+
+| Status | Error Code | Description |
+|--------|------------|-------------|
+| 404 | `FILTER_NOT_FOUND` | Saved filter not found or model_name mismatch |
 
 ---
 

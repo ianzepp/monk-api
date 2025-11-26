@@ -1,8 +1,54 @@
 # Aggregate API
 
-## POST /api/aggregate/:model
+Perform aggregation queries on model data.
 
-Perform aggregation queries with optional GROUP BY support.
+## GET /api/aggregate/:model (Shorthand)
+
+Simple aggregations via query parameters. For complex queries, use POST.
+
+### Query Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `count` | Count all records | `?count` |
+| `sum=field` | Sum of field values | `?sum=amount` |
+| `avg=field` | Average of field values | `?avg=price` |
+| `min=field` | Minimum field value | `?min=created_at` |
+| `max=field` | Maximum field value | `?max=updated_at` |
+| `where={json}` | Filter criteria | `?where={"status":"active"}` |
+
+### Examples
+
+```bash
+# Count all users
+GET /api/aggregate/users?count
+
+# Count active users
+GET /api/aggregate/users?count&where={"status":"active"}
+
+# Get max updated_at timestamp
+GET /api/aggregate/orders?max=updated_at
+
+# Get sum and average (multiple aggregations)
+GET /api/aggregate/orders?sum=amount&avg=amount&where={"status":"paid"}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": [
+    { "count": 1523 }
+  ]
+}
+```
+
+---
+
+## POST /api/aggregate/:model (Full)
+
+Perform complex aggregation queries with multiple functions and GROUP BY support.
 
 ### Request Body
 
