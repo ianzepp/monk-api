@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { DatabaseConnection } from '../database-connection.js';
-import { SqliteAdapter } from '../database/sqlite-adapter.js';
+import { createAdapterFrom } from '../database/index.js';
 import { HttpErrors } from '../errors/http-error.js';
 
 /**
@@ -131,14 +131,15 @@ export class FixtureDeployer {
      * Deploy fixture to SQLite
      */
     private static async deploySqlite(sql: string, target: DeployTarget): Promise<void> {
-        const adapter = new SqliteAdapter(target.dbName, target.nsName);
+        const adapter = createAdapterFrom('sqlite', target.dbName, target.nsName);
 
         try {
             await adapter.connect();
 
             // Execute the SQL directly - SQLite's exec() handles multiple statements
             // The SQL already contains BEGIN/COMMIT
-            const db = (adapter as any).db;
+            // Access raw connection (works for both better-sqlite3 and bun:sqlite)
+            const db = adapter.getRawConnection() as { exec: (sql: string) => void };
             if (!db) {
                 throw new Error('SQLite adapter not connected');
             }

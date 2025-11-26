@@ -7,6 +7,42 @@ const envFile = process.env.NODE_ENV
     : '.env';
 loadEnv({ path: envFile, debug: true });
 
+// Default to standalone mode if DATABASE_URL not set
+// This enables zero-config startup: just run the binary
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = 'sqlite:root';
+}
+
+// Import standalone mode detection (must be early, before env validation)
+import {
+    isStandaloneMode,
+    initializeStandaloneDatabase,
+    logStandaloneStatus
+} from '@src/lib/standalone.js';
+
+// Check for standalone mode (sqlite:tenant format)
+const standaloneMode = isStandaloneMode();
+
+// Set defaults for standalone mode
+if (standaloneMode) {
+    // Set default SQLITE_DATA_DIR if not specified
+    if (!process.env.SQLITE_DATA_DIR) {
+        process.env.SQLITE_DATA_DIR = '.data';
+    }
+    // Set default PORT if not specified
+    if (!process.env.PORT) {
+        process.env.PORT = '9001';
+    }
+    // Set default JWT_SECRET if not specified (for standalone convenience)
+    if (!process.env.JWT_SECRET) {
+        process.env.JWT_SECRET = 'standalone-dev-secret-change-in-production';
+    }
+    // Set default NODE_ENV if not specified
+    if (!process.env.NODE_ENV) {
+        process.env.NODE_ENV = 'development';
+    }
+}
+
 // Sanity check for required env values
 if (!process.env.DATABASE_URL) {
     throw Error('Fatal: environment is missing "DATABASE_URL"');
@@ -24,18 +60,28 @@ if (!process.env.NODE_ENV) {
     throw Error('Fatal: environment is missing "NODE_ENV"');
 }
 
-// Import package.json for version info
-import { readFileSync } from 'fs';
+// Import package.json for version info (with fallback for compiled binary)
+import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+let packageJson = { name: 'monk-api', version: '4.0.1', description: 'Lightweight PaaS backend API' };
+try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const pkgPath = join(__dirname, '../package.json');
+    if (existsSync(pkgPath)) {
+        packageJson = JSON.parse(readFileSync(pkgPath, 'utf8'));
+    }
+} catch {
+    // Use default values in compiled binary
+}
 
 // Imports
 import { Hono } from 'hono';
-import { serve } from '@hono/node-server';
+
+// Runtime detection
+const isBun = typeof Bun !== 'undefined';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
@@ -73,7 +119,16 @@ console.info('- NODE_ENV:', process.env.NODE_ENV);
 console.info('- PORT:', process.env.PORT);
 console.info('- DATABASE_URL:', process.env.DATABASE_URL);
 console.info('- SQLITE_DATA_DIR:', process.env.SQLITE_DATA_DIR);
-DatabaseConnection.healthCheck();
+console.info('- Standalone mode:', standaloneMode);
+
+if (standaloneMode) {
+    // Initialize standalone SQLite database (creates if doesn't exist)
+    await initializeStandaloneDatabase();
+    logStandaloneStatus();
+} else {
+    // Normal mode: check PostgreSQL connection
+    DatabaseConnection.healthCheck();
+}
 
 // Create Hono app
 const app = new Hono();
@@ -490,17 +545,33 @@ try {
     console.info('No app packages installed');
 }
 
-// Start server using Hono's serve()
-const server = serve({ fetch: app.fetch, port });
+// Start server using runtime-appropriate method
+let server: { close?: () => void; stop?: () => void };
 
-console.info('HTTP API server running', { port, url: `http://localhost:${port}` });
+if (isBun) {
+    // Use Bun's native server
+    server = Bun.serve({
+        fetch: app.fetch,
+        port,
+    });
+    console.info('HTTP API server running (Bun)', { port, url: `http://localhost:${port}` });
+} else {
+    // Use Node.js adapter
+    const { serve } = await import('@hono/node-server');
+    server = serve({ fetch: app.fetch, port });
+    console.info('HTTP API server running (Node)', { port, url: `http://localhost:${port}` });
+}
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
     console.info('Shutting down HTTP API server gracefully');
 
-    // Stop HTTP server
-    server.close();
+    // Stop HTTP server (Bun uses stop(), Node uses close())
+    if (server.stop) {
+        server.stop();
+    } else if (server.close) {
+        server.close();
+    }
     console.info('HTTP server stopped');
 
     // Close database connections
@@ -513,4 +584,5 @@ const gracefulShutdown = async () => {
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
 
-export default app;
+// Named export for testing (avoid default export - Bun auto-serves default exports with fetch())
+export { app };

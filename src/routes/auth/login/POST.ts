@@ -2,8 +2,10 @@ import type { Context } from 'hono';
 import { sign } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { createAdapterFrom } from '@src/lib/database/index.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import { getClientIp, isIpAllowed } from '@src/lib/ip-utils.js';
+import { isStandaloneMode, getStandaloneTenant } from '@src/lib/standalone.js';
 
 /**
  * POST /auth/login - Authenticate user with tenant and username
@@ -29,12 +31,33 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Username is required', 'AUTH_USERNAME_MISSING');
     }
 
-    // Look up tenant record to get database type, database, schema, and IP restrictions
-    const authDb = DatabaseConnection.getMainPool();
-    const tenantResult = await authDb.query('SELECT name, db_type, database, schema, allowed_ips FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
+    // Look up tenant record - standalone mode bypasses PostgreSQL
+    let tenantRecord: {
+        name: string;
+        db_type: string;
+        database: string;
+        schema: string;
+        allowed_ips: string[] | null;
+    } | null = null;
+
+    if (isStandaloneMode()) {
+        // Standalone mode: use hardcoded tenant config
+        tenantRecord = getStandaloneTenant(tenant);
+    } else {
+        // Normal mode: query PostgreSQL tenant registry
+        const authDb = DatabaseConnection.getMainPool();
+        const tenantResult = await authDb.query(
+            'SELECT name, db_type, database, schema, allowed_ips FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
+            [tenant]
+        );
+
+        if (tenantResult.rows && tenantResult.rows.length > 0) {
+            tenantRecord = tenantResult.rows[0];
+        }
+    }
 
     // Check tenant exists
-    if (!tenantResult.rows || tenantResult.rows.length === 0) {
+    if (!tenantRecord) {
         return context.json(
             {
                 success: false,
@@ -44,8 +67,6 @@ export default async function (context: Context) {
             401
         );
     }
-
-    const tenantRecord = tenantResult.rows[0];
 
     // Check IP restrictions - return same error as "not found" for security
     if (tenantRecord.allowed_ips && tenantRecord.allowed_ips.length > 0) {
@@ -68,12 +89,30 @@ export default async function (context: Context) {
     const { name, db_type: dbType, database: dbName, schema: nsName } = tenantRecord;
 
     // Look up user in the tenant's namespace
-    const userResult = await DatabaseConnection.queryInNamespace(
-        dbName,
-        nsName,
-        'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
-        [username]
-    );
+    // Use adapter for SQLite, DatabaseConnection for PostgreSQL
+    let userResult: { rows: any[] };
+
+    if (dbType === 'sqlite') {
+        // SQLite: use adapter system
+        const adapter = createAdapterFrom('sqlite', dbName, nsName);
+        await adapter.connect();
+        try {
+            userResult = await adapter.query(
+                'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+                [username]
+            );
+        } finally {
+            await adapter.disconnect();
+        }
+    } else {
+        // PostgreSQL: use existing connection pool
+        userResult = await DatabaseConnection.queryInNamespace(
+            dbName,
+            nsName,
+            'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+            [username]
+        );
+    }
 
     if (!userResult.rows || userResult.rows.length === 0) {
         return context.json(

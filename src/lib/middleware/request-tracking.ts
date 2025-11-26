@@ -3,10 +3,14 @@
  *
  * Records all API requests to the database for analytics, monitoring,
  * and connection health verification. Runs early in middleware chain.
+ *
+ * In standalone mode (sqlite:tenant), request tracking is skipped since
+ * there's no infrastructure database.
  */
 
 import type { Context, Next } from 'hono';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { isStandaloneMode } from '@src/lib/standalone.js';
 
 /**
  * Request tracking middleware - logs all requests to database
@@ -18,6 +22,11 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
  * Should be applied early in middleware chain, before authentication.
  */
 export async function requestTrackingMiddleware(context: Context, next: Next) {
+    // Skip request tracking in standalone mode (no infrastructure database)
+    if (isStandaloneMode()) {
+        return await next();
+    }
+
     // Extract request information
     const method = context.req.method;
     const url = context.req.url;
