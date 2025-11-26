@@ -239,25 +239,25 @@ app.use('/api/*', middleware.systemContextMiddleware);
 app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
 app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpoint-specific docs)
 
-// App packages - dynamically loaded from @monk/* packages
+// App packages - dynamically loaded from @monk-app/* packages
 // Apps mount under /app/* and use API-based data access
 app.use('/app/*', middleware.requestBodyParserMiddleware);
 
 // Track loaded apps for startup logging
 const loadedApps: string[] = [];
 
-// Load @monk/mcp if installed
+// Load all installed @monk-app/* packages
 try {
-    const { loadApp } = await import('@src/lib/apps/loader.js');
-    const mcpApp = await loadApp('mcp', app);
-    if (mcpApp) {
-        app.route('/app/mcp', mcpApp);
-        loadedApps.push('mcp');
+    const { loadApp, getOptionalApps } = await import('@src/lib/apps/loader.js');
+    for (const appName of getOptionalApps()) {
+        const appInstance = await loadApp(appName, app);
+        if (appInstance) {
+            app.route(`/app/${appName}`, appInstance);
+            loadedApps.push(appName);
+        }
     }
 } catch (error) {
-    if (error instanceof Error && !error.message.includes('Cannot find package')) {
-        console.warn('Failed to load @monk/mcp:', error.message);
-    }
+    console.warn('Failed to load app packages:', error instanceof Error ? error.message : error);
 }
 
 // Internal API (for fire-and-forget background jobs)
@@ -417,7 +417,7 @@ console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.co
 if (loadedApps.length > 0) {
     console.info('Loaded app packages:');
     for (const appName of loadedApps) {
-        console.info(`- @monk/${appName} → /app/${appName}`);
+        console.info(`- @monk-app/${appName} → /app/${appName}`);
     }
 } else {
     console.info('No app packages loaded');

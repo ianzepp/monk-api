@@ -1,5 +1,5 @@
 {
-  "name": "@monk/mcp",
+  "name": "@monk-app/mcp",
   "version": "1.0.0",
   "description": "MCP (Model Context Protocol) integration for Monk API",
   "main": "dist/index.js",

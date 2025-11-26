@@ -1,11 +1,15 @@
 /**
  * App Package Loader
  *
- * Dynamically loads installed @monk/* app packages at startup.
+ * Dynamically loads installed @monk-app/* app packages at startup.
  * App packages export a createApp() function that returns a Hono app.
  *
  * App tenants are isolated namespaces with IP restrictions (localhost only)
  * that prevent external login. Apps use long-lived JWT tokens for API access.
+ *
+ * Package scopes:
+ * - @monk/* - core packages (formatters, bindings)
+ * - @monk-app/* - app packages (mcp, grids, etc.)
  */
 
 import type { Hono } from 'hono';
@@ -271,11 +275,11 @@ export async function registerAppModels(
  */
 export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | null> {
     try {
-        // Try to import the package
-        const mod = await import(`@monk/${appName}`);
+        // Try to import the package from @monk-app/* scope
+        const mod = await import(`@monk-app/${appName}`);
 
         if (typeof mod.createApp !== 'function') {
-            console.warn(`App package @monk/${appName} does not export createApp()`);
+            console.warn(`App package @monk-app/${appName} does not export createApp()`);
             return null;
         }
 
@@ -309,7 +313,7 @@ export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | nu
         // Call the app's createApp function
         const app = await mod.createApp(appContext);
 
-        console.info(`Loaded app package: @monk/${appName}`);
+        console.info(`Loaded app package: @monk-app/${appName}`);
 
         return app;
 
