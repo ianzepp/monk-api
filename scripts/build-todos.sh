@@ -4,7 +4,7 @@ set -euo pipefail
 # Extract TODO/FIXME/HACK comments from codebase
 # Generates TODO.md with categorized tags and surrounding context
 
-OUTPUT_FILE="TODO.md"
+OUTPUT_FILE="planning/TODO.md"
 SOURCE_DIRS="src"
 
 # Define tags to search for (order matters for priority)

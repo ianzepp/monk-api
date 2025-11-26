@@ -4,7 +4,7 @@ set -euo pipefail
 # Extract @deprecated tags from codebase
 # Generates DEPRECATED.md with JSDoc @deprecated annotations and surrounding context
 
-OUTPUT_FILE="DEPRECATED.md"
+OUTPUT_FILE="planning/DEPRECATED.md"
 SOURCE_DIRS="src"
 
 # Colors for terminal output
