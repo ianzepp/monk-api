@@ -72,14 +72,9 @@ export interface SystemContext {
     readonly tenant: string;
 
     /** Database adapter for query execution
-     *  Set by withTransaction() before any database operations execute
+     *  Set by runTransaction() before any database operations execute
      *  Provides abstraction layer for PostgreSQL and SQLite backends */
     adapter: DatabaseAdapter | null;
-
-    /** Transaction context with search_path configured for namespace isolation
-     *  Set by withTransaction() before any database operations execute
-     *  @deprecated Use adapter.query() instead - tx is kept for backwards compatibility */
-    tx: any; // Avoid importing pg.PoolClient to prevent circular deps
 
     /** Database instance for high-level operations */
     readonly database: any; // Avoid importing Database class to prevent circular deps

@@ -9,7 +9,7 @@
  */
 
 import type { Context, Next } from 'hono';
-import type { JWTPayload } from '@src/lib/jwt-interface.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'toml' | 'csv' | 'brainfuck' | 'morse' | 'qr' | 'markdown' | 'msgpack' | 'grid-compact';
 

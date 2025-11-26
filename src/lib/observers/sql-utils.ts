@@ -71,7 +71,10 @@ export class SqlUtils {
      * @deprecated This method is deprecated. Use system.adapter.query() directly instead.
      */
     static getPool(system: any): any {
-        return system.adapter || system.tx || system.db;
+        if (!system.adapter) {
+            throw new SystemError('Database adapter not available - ensure operation runs within runTransaction()');
+        }
+        return system.adapter;
     }
 
     /**

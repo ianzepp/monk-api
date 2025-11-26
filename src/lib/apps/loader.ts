@@ -19,8 +19,8 @@ import { DatabaseNaming } from '@src/lib/database-naming.js';
 import { NamespaceManager } from '@src/lib/namespace-manager.js';
 import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
-import { System, type SystemInit } from '@src/lib/system.js';
-import { createAdapter } from '@src/lib/database/index.js';
+import type { SystemInit } from '@src/lib/system.js';
+import { runTransaction } from '@src/lib/transaction.js';
 import { createInProcessClient, type InProcessClient } from './in-process-client.js';
 
 // App token expiry: 1 year (in seconds)
@@ -231,7 +231,7 @@ export interface AppModelDefinition {
 /**
  * Register models for an app in its tenant namespace.
  *
- * Uses System.describe directly to avoid HTTP routing issues during startup.
+ * Uses runTransaction for proper transaction lifecycle management.
  * This is idempotent - creates models if they don't exist.
  *
  * @param dbName - Database name
@@ -247,7 +247,6 @@ export async function registerAppModels(
     appName: string,
     models: AppModelDefinition[]
 ): Promise<void> {
-    // Create System with internal initialization (no Hono context required)
     const systemInit: SystemInit = {
         dbType: 'postgresql',
         dbName,
@@ -258,24 +257,7 @@ export async function registerAppModels(
         isSudoToken: true, // App model registration runs with sudo
     };
 
-    const system = new System(systemInit);
-
-    // Create adapter and set up transaction (same pattern as api-helpers withTransaction)
-    const adapter = createAdapter({ dbType: 'postgresql', db: dbName, ns: nsName });
-
-    try {
-        await adapter.connect();
-        await adapter.beginTransaction();
-
-        // Set adapter on system for database operations
-        system.adapter = adapter;
-        system.tx = adapter.getRawConnection() as any;
-
-        // Load namespace cache if needed
-        if (system.namespace && !system.namespace.isLoaded()) {
-            await system.namespace.loadAll(system);
-        }
-
+    await runTransaction(systemInit, async (system) => {
         // Register each model
         for (const modelDef of models) {
             const { model_name, description, fields } = modelDef;
@@ -305,17 +287,9 @@ export async function registerAppModels(
                 console.info(`Model ${model_name} already exists for app ${appName}`);
             }
         }
-
-        await adapter.commit();
-
-    } catch (error) {
-        await adapter.rollback();
-        throw error;
-    } finally {
-        await adapter.disconnect();
-        system.adapter = null;
-        system.tx = undefined as any;
-    }
+    }, {
+        logContext: { appName, operation: 'registerAppModels' },
+    });
 }
 
 /**

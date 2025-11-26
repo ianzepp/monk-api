@@ -10,7 +10,7 @@ import type { Context, Next } from 'hono';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import type { JWTPayload } from './jwt-validation.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import type { SystemInit } from '@src/lib/system.js';
 
 /**

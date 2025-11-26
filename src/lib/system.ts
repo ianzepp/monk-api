@@ -1,11 +1,10 @@
-import type { TxContext } from '@src/db/index.js';
 import type { Context } from 'hono';
 import { Database } from '@src/lib/database.js';
 import { Describe } from '@src/lib/describe.js';
 import { NamespaceCacheManager, NamespaceCache } from '@src/lib/namespace-cache.js';
 import type { SystemContext, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
 import type { DatabaseAdapter, DatabaseType } from '@src/lib/database/adapter.js';
-import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 /**
  * Initialization parameters for System.
@@ -88,14 +87,9 @@ export class System implements SystemContext {
     private readonly _isSudoToken: boolean;
     private _asSudo: boolean = false;
 
-    // Database adapter - set by withTransaction() for query execution
+    // Database adapter - set by runTransaction() for query execution
     // Provides abstraction layer for PostgreSQL and SQLite backends
     public adapter: DatabaseAdapter | null = null;
-
-    // Transaction context - set by withTransaction() with search_path configured
-    // All tenant-scoped database operations MUST use this to ensure proper namespace isolation
-    // @deprecated Use adapter.query() instead - tx is kept for backwards compatibility
-    public tx!: TxContext;
 
     // System services
     public readonly database: Database;
@@ -154,7 +148,7 @@ export class System implements SystemContext {
         }
 
         // Initialize service instances with clean dependency injection
-        // Note: system.adapter and system.tx are set by withTransaction() before any database operations
+        // Note: system.adapter is set by runTransaction() before any database operations
         this.database = new Database(this);
         this.describe = new Describe(this);
 

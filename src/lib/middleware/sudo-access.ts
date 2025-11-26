@@ -11,7 +11,7 @@
 
 import type { Context, Next } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import type { JWTPayload } from './jwt-validation.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 /**
  * Sudo access validation middleware

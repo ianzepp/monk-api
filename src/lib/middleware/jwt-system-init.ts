@@ -1,5 +1,5 @@
 /**
- * JWT Token Validation Middleware
+ * JWT System Init Middleware
  *
  * Verifies JWT signature and extracts payload without database validation.
  * Only validates that token is structurally valid and properly signed.
@@ -10,32 +10,7 @@ import type { Context, Next } from 'hono';
 import { verify } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { systemInitFromJWT } from '@src/lib/system.js';
-
-export interface JWTPayload {
-    sub: string;
-    user_id: string | null;
-    tenant: string;
-    db_type: 'postgresql' | 'sqlite'; // Database backend type
-    db: string; // Database name (PG) or directory (SQLite)
-    ns: string; // Namespace/schema name (PG) or filename (SQLite)
-    access: string;
-    access_read: string[];
-    access_edit: string[];
-    access_full: string[];
-    iat: number;
-    exp: number;
-    // Sudo elevation metadata (optional)
-    is_sudo?: boolean; // True if this is a short-lived sudo token
-    elevated_from?: string; // Original access level before sudo
-    elevated_at?: string; // When sudo was granted
-    elevation_reason?: string; // Why sudo was requested
-    // User impersonation metadata (optional)
-    is_fake?: boolean; // True if this is a fake/impersonation token
-    faked_by_user_id?: string; // ID of root user doing the faking
-    faked_by_username?: string; // Name of root user doing the faking
-    faked_at?: string; // When impersonation was initiated
-    [key: string]: any;
-}
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 function getJwtSecret(): string {
     return process.env['JWT_SECRET']!;

@@ -16,7 +16,7 @@
  */
 
 import type { Context, Next } from 'hono';
-import type { JWTPayload } from '@src/lib/jwt-interface.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 // Field extraction utilities
 import { extract } from '@src/lib/field-extractor.js';

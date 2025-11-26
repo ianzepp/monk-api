@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { sign } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import { getClientIp, isIpAllowed } from '@src/lib/ip-utils.js';
 
 /**

@@ -235,7 +235,7 @@ Grid API uses the **external model pattern** - model definition lives in the sys
 1. **Model definition** in `models`/`fields` tables (for documentation/discovery)
 2. **Marked `external: true`** - Data API refuses to interact with it
 3. **Table created manually** in tenant initialization SQL
-4. **Grid API uses raw SQL** via `system.db`/`system.tx` (no observer pipeline)
+4. **Grid API uses raw SQL** via `system.adapter` (no observer pipeline)
 5. **DDL observer skips** external models (no auto-generation)
 
 **Benefits:**
@@ -449,8 +449,8 @@ if (model.external !== true) {
 
 **Use raw SQL for operations:**
 ```typescript
-// Get transaction-aware database context
-const dbContext = system.tx || system.db;
+// Get transaction-aware database adapter
+const adapter = system.adapter;
 
 // Direct SQL query (no observer pipeline)
 const query = `
@@ -462,11 +462,11 @@ const query = `
     ORDER BY row, col
 `;
 
-const result = await dbContext.query(query, [gridId, startRow, endRow, startCol, endCol]);
+const result = await adapter.query(query, [gridId, startRow, endRow, startCol, endCol]);
 ```
 
 **Transaction support:**
-- Grid API respects `system.tx` if active
+- Grid API uses `system.adapter` which is set within transaction scope
 - Multiple grid operations can participate in same transaction
 - Rollback works correctly
 
@@ -540,11 +540,11 @@ export async function GridOperation(c: Context) {
     }
 
     // 4. Build SQL query (transaction-aware)
-    const dbContext = system.tx || system.db;
+    const adapter = system.adapter;
     const { query, params } = buildQuery(gridId, range, ...);
 
     // 5. Execute query
-    const result = await dbContext.query(query, params);
+    const result = await adapter.query(query, params);
 
     // 6. Return with metadata
     return c.json({

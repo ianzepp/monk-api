@@ -29,7 +29,7 @@ export async function systemContextMiddleware(context: Context, next: Next) {
             deleted: context.req.query('include_deleted') === 'true',
         };
 
-        // Get systemInit from context (set by jwt-validation, enriched by user-validation)
+        // Get systemInit from context (set by jwt-system-init, enriched by user-validation)
         const systemInit = context.get('systemInit') as SystemInit | undefined;
 
         // Create System instance - prefer systemInit, fallback to legacy context constructor
