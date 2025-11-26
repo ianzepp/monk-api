@@ -1,0 +1,32 @@
+{
+  "name": "@monk/bindings",
+  "version": "1.0.0",
+  "description": "TypeScript bindings for Monk API",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "monk",
+    "api",
+    "typescript",
+    "bindings"
+  ],
+  "author": "Ian Zepp <ian.zepp@protonmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
