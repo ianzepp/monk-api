@@ -37,7 +37,6 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
-import * as mcpRoutes from '@src/routes/mcp/routes.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
 
@@ -240,10 +239,22 @@ app.use('/api/*', middleware.systemContextMiddleware);
 app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
 app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpoint-specific docs)
 
-// MCP route (public, uses internal auth via tool calls)
-app.use('/mcp', middleware.requestBodyParserMiddleware);
-mcpRoutes.setHonoApp(app);
-app.post('/mcp', mcpRoutes.McpPost); // POST /mcp (JSON-RPC)
+// App packages - dynamically loaded from @monk/* packages
+// Apps mount under /app/* and use API-based data access
+app.use('/app/*', middleware.requestBodyParserMiddleware);
+
+// Load @monk/mcp if installed
+try {
+    const { loadApp } = await import('@src/lib/apps/loader.js');
+    const mcpApp = await loadApp('mcp', app);
+    if (mcpApp) {
+        app.route('/app/mcp', mcpApp);
+    }
+} catch (error) {
+    if (error instanceof Error && !error.message.includes('Cannot find package')) {
+        console.warn('Failed to load @monk/mcp:', error.message);
+    }
+}
 
 // Internal API (for fire-and-forget background jobs)
 setInternalApiHonoApp(app);
@@ -398,11 +409,10 @@ console.info('- monk-cli: Terminal commands for the API (https://github.com/ianz
 console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
 console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)');
 
-// Start server using Hono's serve() - MCP is handled as a regular route via app.post('/mcp')
+// Start server using Hono's serve()
 const server = serve({ fetch: app.fetch, port });
 
 console.info('HTTP API server running', { port, url: `http://localhost:${port}` });
-console.info('MCP endpoint available at POST /mcp (JSON-RPC)');
 
 // Graceful shutdown
 const gracefulShutdown = async () => {

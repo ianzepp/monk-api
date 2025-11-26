@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS "tenants" (
     "owner_id" uuid NOT NULL,                         -- User who owns this tenant
     "host" VARCHAR(255) DEFAULT 'localhost',          -- Database host (future multi-host support)
     "is_active" BOOLEAN DEFAULT true NOT NULL,        -- Enable/disable tenant access
+    "allowed_ips" INET[] DEFAULT NULL,               -- IP whitelist (NULL = no restriction)
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "trashed_at" TIMESTAMP,                           -- Soft delete timestamp
@@ -62,7 +63,7 @@ CREATE TABLE IF NOT EXISTS "tenants" (
     "access_full" uuid[] DEFAULT '{}'::uuid[],        -- ACL full access
     "access_deny" uuid[] DEFAULT '{}'::uuid[],        -- ACL deny access
     CONSTRAINT "tenants_database_schema_unique" UNIQUE("database", "schema"),
-    CONSTRAINT "tenants_schema_prefix" CHECK ("schema" LIKE 'ns_tenant_%')
+    CONSTRAINT "tenants_schema_prefix" CHECK ("schema" LIKE 'ns_tenant_%' OR "schema" LIKE 'ns_app_%')
 );
 
 CREATE INDEX "idx_tenants_name_active" ON "tenants" ("name", "is_active");
@@ -85,6 +86,7 @@ COMMENT ON COLUMN "tenants"."source_template" IS 'Template used to create this t
 COMMENT ON COLUMN "tenants"."naming_mode" IS 'Database naming: enterprise (SHA256 hash) or personal (custom name)';
 COMMENT ON COLUMN "tenants"."owner_id" IS 'UUID of user who owns this tenant';
 COMMENT ON COLUMN "tenants"."is_active" IS 'Whether tenant is enabled for authentication';
+COMMENT ON COLUMN "tenants"."allowed_ips" IS 'IP whitelist for login (NULL = any IP, array = restricted to listed IPs)';
 
 -- ============================================================================
 -- SANDBOXES TABLE

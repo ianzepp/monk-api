@@ -63,6 +63,7 @@
         "@monk/formatter-msgpack": "file:./packages/formatter-msgpack",
         "@monk/formatter-qr": "file:./packages/formatter-qr",
         "@monk/formatter-toml": "file:./packages/formatter-toml",
+        "@monk/mcp": "file:./packages/mcp",
         "archiver": "^7.0.1",
         "unzipper": "^0.12.3"
     },
