@@ -1,13 +1,15 @@
 /**
  * JWT Token Validation Middleware
- * 
+ *
  * Verifies JWT signature and extracts payload without database validation.
  * Only validates that token is structurally valid and properly signed.
+ * Creates SystemInit for use by System class.
  */
 
 import type { Context, Next } from 'hono';
 import { verify } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { systemInitFromJWT } from '@src/lib/system.js';
 
 export interface JWTPayload {
     sub: string;
@@ -55,24 +57,21 @@ export async function jwtValidationMiddleware(context: Context, next: Next) {
         const token = authHeader.substring(7);
         const payload = await verify(token, getJwtSecret()) as JWTPayload;
 
-        // Store JWT payload and context values
+        // Store JWT payload for middleware that needs raw payload access
         context.set('jwtPayload', payload);
-        context.set('tenant', payload.tenant);
-        context.set('dbType', payload.db_type || 'postgresql'); // Database backend type (default for legacy tokens)
-        context.set('dbName', payload.db); // Extract from compact JWT field
-        context.set('nsName', payload.ns); // Extract from compact JWT field
 
-        // Add isSudo() helper to context
-        // Checks if user has sudo access via any method:
-        // 1. access='root' (automatic sudo)
-        // 2. is_sudo=true (explicit sudo token)
-        // 3. as_sudo=true (temporary self-service sudo)
-        const isSudo = () => {
-            const jwtPayload = context.get('jwtPayload') as JWTPayload;
-            const asSudo = context.get('as_sudo');
-            return jwtPayload?.access === 'root' || jwtPayload?.is_sudo === true || asSudo === true;
-        };
-        context.set('isSudo', isSudo);
+        // Create SystemInit from JWT for System class initialization
+        // This is the canonical source of auth context for the request
+        const correlationId = context.req.header('x-request-id');
+        const systemInit = systemInitFromJWT(payload, correlationId || undefined);
+        context.set('systemInit', systemInit);
+
+        // Legacy context values for backwards compatibility
+        // TODO: Migrate middleware to use systemInit directly
+        context.set('tenant', payload.tenant);
+        context.set('dbType', systemInit.dbType);
+        context.set('dbName', systemInit.dbName);
+        context.set('nsName', systemInit.nsName);
 
         return await next();
 

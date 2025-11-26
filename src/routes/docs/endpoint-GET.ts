@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, existsSync, realpathSync } from 'fs';
+import { join, resolve } from 'path';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -192,7 +192,17 @@ function findMethodDocumentation(
  * - /docs/app/mcp/tools → tools.md or tools/PUBLIC.md
  */
 async function serveAppDocs(context: Context, appName: string, subPath: string): Promise<Response> {
-    const appDocsDir = join(process.cwd(), 'node_modules', '@monk-app', appName, 'dist', 'docs');
+    // Security: Validate appName contains only safe characters (alphanumeric, dash, underscore)
+    if (!/^[a-zA-Z0-9_-]+$/.test(appName)) {
+        throw HttpErrors.badRequest('Invalid app name', 'INVALID_APP_NAME');
+    }
+
+    // Security: Reject path traversal attempts in subPath
+    if (subPath.includes('..') || subPath.includes('\0')) {
+        throw HttpErrors.badRequest('Invalid documentation path', 'INVALID_PATH');
+    }
+
+    const appDocsDir = resolve(process.cwd(), 'node_modules', '@monk-app', appName, 'dist', 'docs');
 
     // Determine which file to serve
     let mdFilePath: string | null = null;
@@ -219,8 +229,14 @@ async function serveAppDocs(context: Context, appName: string, subPath: string):
         );
     }
 
+    // Security: Verify resolved path is within the expected docs directory
+    const realPath = realpathSync(mdFilePath);
+    if (!realPath.startsWith(appDocsDir)) {
+        throw HttpErrors.badRequest('Invalid documentation path', 'INVALID_PATH');
+    }
+
     try {
-        const content = readFileSync(mdFilePath, 'utf8');
+        const content = readFileSync(realPath, 'utf8');
         context.header('Content-Type', 'text/markdown; charset=utf-8');
         return context.text(content);
     } catch (error) {

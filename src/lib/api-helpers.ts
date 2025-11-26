@@ -342,8 +342,8 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
  * that need to bypass model-level sudo protection.
  *
  * Used by User API endpoints that allow users to modify their own records in sudo-protected
- * models (like the users table). Sets the 'as_sudo' flag which observers can check
- * alongside 'is_sudo' from JWT tokens.
+ * models (like the users table). Sets the 'as_sudo' flag on System which observers check
+ * via system.isSudo().
  *
  * Automatically handles:
  * - Setting as_sudo=true flag before handler execution
@@ -356,7 +356,7 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
  * Example usage:
  * ```typescript
  * export default withTransactionParams(async (context, { system, body }) => {
- *     const result = await withSelfServiceSudo(context, async () => {
+ *     const result = await withSelfServiceSudo(system, async () => {
  *         return await system.database.updateOne('users', userId, updates);
  *     });
  *     setRouteResult(context, result);
@@ -364,14 +364,14 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
  * ```
  */
 export async function withSelfServiceSudo<T>(
-    context: Context,
+    system: System,
     handler: () => Promise<T>
 ): Promise<T> {
-    context.set('as_sudo', true);
+    system.setAsSudo(true);
     try {
         return await handler();
     } finally {
-        context.set('as_sudo', undefined);
+        system.setAsSudo(false);
     }
 }
 

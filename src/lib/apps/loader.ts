@@ -12,14 +12,14 @@
  * - @monk-app/* - app packages (mcp, grids, etc.)
  */
 
-import type { Hono, Context } from 'hono';
+import type { Hono } from 'hono';
 import { randomUUID } from 'crypto';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { DatabaseNaming } from '@src/lib/database-naming.js';
 import { NamespaceManager } from '@src/lib/namespace-manager.js';
 import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
-import { System } from '@src/lib/system.js';
+import { System, type SystemInit } from '@src/lib/system.js';
 import { createAdapter } from '@src/lib/database/index.js';
 import { createInProcessClient, type InProcessClient } from './in-process-client.js';
 
@@ -247,29 +247,18 @@ export async function registerAppModels(
     appName: string,
     models: AppModelDefinition[]
 ): Promise<void> {
-    // Create a mock Hono context with the app's JWT claims
-    // Includes jwtPayload with root access for sudo checks
-    const jwtPayload = { access: 'root', db: dbName, ns: nsName };
-    const mockContext = {
-        get: (key: string) => {
-            switch (key) {
-                case 'dbType': return 'postgresql';
-                case 'dbName': return dbName;
-                case 'nsName': return nsName;
-                case 'userId': return userId;
-                case 'access': return 'root';
-                case 'jwtPayload': return jwtPayload;
-                case 'isSudo': return () => true;  // App model registration runs with sudo
-                default: return undefined;
-            }
-        },
-        set: () => {},
-        req: {
-            header: () => undefined,
-        },
-    } as unknown as Context;
+    // Create System with internal initialization (no Hono context required)
+    const systemInit: SystemInit = {
+        dbType: 'postgresql',
+        dbName,
+        nsName,
+        userId,
+        access: 'root',
+        tenant: `@monk/${appName}`,
+        isSudoToken: true, // App model registration runs with sudo
+    };
 
-    const system = new System(mockContext);
+    const system = new System(systemInit);
 
     // Create adapter and set up transaction (same pattern as api-helpers withTransaction)
     const adapter = createAdapter({ dbType: 'postgresql', db: dbName, ns: nsName });
