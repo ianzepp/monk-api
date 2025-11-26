@@ -239,28 +239,67 @@ app.use('/api/*', middleware.systemContextMiddleware);
 app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
 app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpoint-specific docs)
 
-// App packages - dynamically loaded from @monk-app/* packages
+// App packages - dynamically loaded from @monk-app/* packages on first request
 // Apps mount under /app/* and use API-based data access
-app.use('/app/*', middleware.requestBodyParserMiddleware);
+// Lazy loading ensures observers are ready before model creation
+// NOTE: No body parser middleware - apps handle their own body parsing and we forward raw request
 
-// Track loaded apps for startup logging
-const loadedApps: string[] = [];
+// Cache for loaded app instances
+const appCache = new Map<string, Hono>();
+const appLoadPromises = new Map<string, Promise<Hono | null>>();
 
-// Discover and load all installed @monk-app/* packages
-try {
-    const { loadApp, discoverApps } = await import('@src/lib/apps/loader.js');
-    const discoveredApps = await discoverApps();
+// Lazy app loader - initializes app on first request
+app.all('/app/:appName/*', async (c) => {
+    const appName = c.req.param('appName');
 
-    for (const appName of discoveredApps) {
-        const appInstance = await loadApp(appName, app);
-        if (appInstance) {
-            app.route(`/app/${appName}`, appInstance);
-            loadedApps.push(appName);
+    // Check cache first
+    let appInstance = appCache.get(appName);
+
+    if (!appInstance) {
+        // Prevent concurrent initialization of the same app
+        let loadPromise = appLoadPromises.get(appName);
+
+        if (!loadPromise) {
+            const { loadApp } = await import('@src/lib/apps/loader.js');
+            loadPromise = loadApp(appName, app);
+            appLoadPromises.set(appName, loadPromise);
+        }
+
+        try {
+            const loaded = await loadPromise;
+            if (loaded) {
+                appInstance = loaded;
+                appCache.set(appName, loaded);
+                console.info(`Loaded app package: @monk-app/${appName}`);
+            }
+        } finally {
+            appLoadPromises.delete(appName);
         }
     }
-} catch (error) {
-    console.warn('Failed to load app packages:', error instanceof Error ? error.message : error);
-}
+
+    if (!appInstance) {
+        return c.json({ success: false, error: `App not found: ${appName}`, error_code: 'APP_NOT_FOUND' }, 404);
+    }
+
+    // Rewrite URL to remove /app/{appName} prefix for the sub-app
+    const originalPath = c.req.path;
+    const appPrefix = `/app/${appName}`;
+    const subPath = originalPath.slice(appPrefix.length) || '/';
+
+    // Create new request with rewritten path
+    const url = new URL(c.req.url);
+    url.pathname = subPath;
+
+    const newRequest = new Request(url.toString(), {
+        method: c.req.method,
+        headers: c.req.raw.headers,
+        body: c.req.raw.body,
+        // @ts-ignore - duplex is needed for streaming bodies
+        duplex: 'half',
+    });
+
+    return appInstance.fetch(newRequest);
+});
 
 // Internal API (for fire-and-forget background jobs)
 setInternalApiHonoApp(app);
@@ -415,14 +454,20 @@ console.info('- monk-cli: Terminal commands for the API (https://github.com/ianz
 console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
 console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)');
 
-// Log loaded app packages
-if (loadedApps.length > 0) {
-    console.info('Loaded app packages:');
-    for (const appName of loadedApps) {
-        console.info(`- @monk-app/${appName} → /app/${appName}`);
+// Log available app packages (lazy-loaded on first request)
+try {
+    const { discoverApps } = await import('@src/lib/apps/loader.js');
+    const availableApps = await discoverApps();
+    if (availableApps.length > 0) {
+        console.info('Available app packages (lazy-loaded on first request):');
+        for (const appName of availableApps) {
+            console.info(`- @monk-app/${appName} → /app/${appName}`);
+        }
+    } else {
+        console.info('No app packages installed');
     }
-} else {
-    console.info('No app packages loaded');
+} catch (error) {
+    console.info('No app packages installed');
 }
 
 // Start server using Hono's serve()

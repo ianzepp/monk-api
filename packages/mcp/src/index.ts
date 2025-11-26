@@ -27,16 +27,22 @@ export interface AppContext {
     honoApp: any; // Hono
 }
 
-// Session model definition for registration
-const SESSION_MODEL = {
-    model_name: 'sessions',
-    model_label: 'MCP Sessions',
-    fields: [
-        { field_name: 'session_id', field_type: 'string', field_label: 'Session ID', is_required: true },
-        { field_name: 'user_tenant', field_type: 'string', field_label: 'User Tenant' },
-        { field_name: 'user_token', field_type: 'text', field_label: 'User Token' },
-    ],
-};
+/**
+ * Model definitions for this app.
+ * Exported for the loader to register during startup.
+ * Field definitions match the system fixture's fields table schema.
+ */
+export const MODELS = [
+    {
+        model_name: 'sessions',
+        description: 'MCP Sessions',
+        fields: [
+            { field_name: 'session_id', type: 'text', required: true },
+            { field_name: 'user_tenant', type: 'text' },
+            { field_name: 'user_token', type: 'text' },
+        ],
+    },
+];
 
 // JSON-RPC response helpers
 function jsonRpcSuccess(id: string | number | null, result: any): JsonRpcResponse {
@@ -47,30 +53,6 @@ function jsonRpcError(id: string | number | null, code: number, message: string,
     return { jsonrpc: '2.0', id, error: { code, message, data } };
 }
 
-// Flag to track if sessions model has been initialized
-let sessionsModelInitialized = false;
-
-/**
- * Initialize sessions model on first request (lazy initialization).
- * This avoids making API calls during app creation which would lock the router.
- */
-async function ensureSessionsModel(client: AppContext['client']): Promise<void> {
-    if (sessionsModelInitialized) return;
-
-    try {
-        const describeRes = await client.get('/api/describe/sessions');
-        if (!describeRes.success) {
-            console.info('Creating sessions model for @monk/mcp');
-            await client.post('/api/describe/sessions', {
-                model_label: SESSION_MODEL.model_label,
-            });
-            await client.post('/api/describe/sessions/fields', SESSION_MODEL.fields);
-        }
-        sessionsModelInitialized = true;
-    } catch (error) {
-        console.warn('Failed to register sessions model:', error);
-    }
-}
 
 /**
  * Create the MCP Hono app.
@@ -84,15 +66,9 @@ export function createApp(context: AppContext): Hono {
     // Set reference to main Hono app for API calls
     setHonoApp(context.honoApp);
 
-    // Store client for lazy model initialization
-    const client = context.client;
-
     // POST / - JSON-RPC endpoint
     app.post('/', async (c) => {
-        // Lazy initialize sessions model on first request
-        await ensureSessionsModel(client);
-
-        // Get or create session from header
+        // Get or create session from header (model already exists from startup)
         const sessionId = c.req.header('mcp-session-id') || 'default';
         const session = await getOrCreateSession(sessionId);
 

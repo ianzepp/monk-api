@@ -12,13 +12,15 @@
  * - @monk-app/* - app packages (mcp, grids, etc.)
  */
 
-import type { Hono } from 'hono';
+import type { Hono, Context } from 'hono';
 import { randomUUID } from 'crypto';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { DatabaseNaming } from '@src/lib/database-naming.js';
 import { NamespaceManager } from '@src/lib/namespace-manager.js';
 import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
+import { System } from '@src/lib/system.js';
+import { createAdapter } from '@src/lib/database/index.js';
 import { createInProcessClient, type InProcessClient } from './in-process-client.js';
 
 // App token expiry: 1 year (in seconds)
@@ -211,58 +213,119 @@ export async function registerAppTenant(appName: string): Promise<{
 }
 
 /**
+ * Model definition for app registration.
+ * Field definitions match the system fixture's fields table schema.
+ */
+export interface AppModelDefinition {
+    model_name: string;
+    description?: string;
+    fields: Array<{
+        field_name: string;
+        type: string;
+        required?: boolean;
+        default_value?: string;
+        description?: string;
+    }>;
+}
+
+/**
  * Register models for an app in its tenant namespace.
  *
- * This is idempotent - creates models if they don't exist,
- * or updates them if the definition has changed.
+ * Uses System.describe directly to avoid HTTP routing issues during startup.
+ * This is idempotent - creates models if they don't exist.
  *
- * @param appContext - App context with client and token
+ * @param dbName - Database name
+ * @param nsName - Namespace name
+ * @param userId - User ID for the operation
+ * @param appName - App name for logging
  * @param models - Array of model definitions to register
  */
 export async function registerAppModels(
-    appContext: AppContext,
-    models: Array<{
-        model_name: string;
-        model_label?: string;
-        fields: Array<{
-            field_name: string;
-            field_type: string;
-            field_label?: string;
-            is_required?: boolean;
-            default_value?: any;
-        }>;
-    }>
+    dbName: string,
+    nsName: string,
+    userId: string,
+    appName: string,
+    models: AppModelDefinition[]
 ): Promise<void> {
-    const { client, appName } = appContext;
-
-    for (const modelDef of models) {
-        const { model_name, model_label, fields } = modelDef;
-
-        // Check if model exists
-        const describeRes = await client.get(`/api/describe/${model_name}`);
-
-        if (!describeRes.success) {
-            // Create model
-            console.info(`Creating model ${model_name} for app ${appName}`);
-            const createRes = await client.post(`/api/describe/${model_name}`, {
-                model_label: model_label || model_name,
-            });
-
-            if (!createRes.success) {
-                throw new Error(`Failed to create model ${model_name}: ${createRes.error}`);
+    // Create a mock Hono context with the app's JWT claims
+    // Includes jwtPayload with root access for sudo checks
+    const jwtPayload = { access: 'root', db: dbName, ns: nsName };
+    const mockContext = {
+        get: (key: string) => {
+            switch (key) {
+                case 'dbType': return 'postgresql';
+                case 'dbName': return dbName;
+                case 'nsName': return nsName;
+                case 'userId': return userId;
+                case 'access': return 'root';
+                case 'jwtPayload': return jwtPayload;
+                case 'isSudo': return () => true;  // App model registration runs with sudo
+                default: return undefined;
             }
+        },
+        set: () => {},
+        req: {
+            header: () => undefined,
+        },
+    } as unknown as Context;
 
-            // Create fields
-            if (fields.length > 0) {
-                const fieldsRes = await client.post(`/api/describe/${model_name}/fields`, fields);
-                if (!fieldsRes.success) {
-                    throw new Error(`Failed to create fields for ${model_name}: ${fieldsRes.error}`);
-                }
-            }
-        } else {
-            // Model exists - check fields (simplified: just log for now)
-            console.info(`Model ${model_name} already exists for app ${appName}`);
+    const system = new System(mockContext);
+
+    // Create adapter and set up transaction (same pattern as api-helpers withTransaction)
+    const adapter = createAdapter({ dbType: 'postgresql', db: dbName, ns: nsName });
+
+    try {
+        await adapter.connect();
+        await adapter.beginTransaction();
+
+        // Set adapter on system for database operations
+        system.adapter = adapter;
+        system.tx = adapter.getRawConnection() as any;
+
+        // Load namespace cache if needed
+        if (system.namespace && !system.namespace.isLoaded()) {
+            await system.namespace.loadAll(system);
         }
+
+        // Register each model
+        for (const modelDef of models) {
+            const { model_name, description, fields } = modelDef;
+
+            // Check if model exists
+            const existing = await system.describe.models.selectOne(
+                { where: { model_name } },
+                { context: 'system' }
+            );
+
+            if (!existing) {
+                // Create model
+                console.info(`Creating model ${model_name} for app ${appName}`);
+                await system.describe.models.createOne({
+                    model_name,
+                    description,
+                });
+
+                // Create fields
+                for (const field of fields) {
+                    await system.describe.fields.createOne({
+                        model_name,
+                        ...field,
+                    });
+                }
+            } else {
+                console.info(`Model ${model_name} already exists for app ${appName}`);
+            }
+        }
+
+        await adapter.commit();
+
+    } catch (error) {
+        await adapter.rollback();
+        throw error;
+    } finally {
+        await adapter.disconnect();
+        system.adapter = null;
+        system.tx = undefined as any;
     }
 }
 
@@ -310,17 +373,21 @@ export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | nu
             honoApp,
         };
 
+        // Register app models if declared (before creating the app)
+        // Uses System.describe directly to avoid HTTP router locking
+        if (Array.isArray(mod.MODELS) && mod.MODELS.length > 0) {
+            await registerAppModels(dbName, nsName, userId, appName, mod.MODELS);
+        }
+
         // Call the app's createApp function
         const app = await mod.createApp(appContext);
-
-        console.info(`Loaded app package: @monk-app/${appName}`);
 
         return app;
 
     } catch (error) {
         // Package not installed - skip silently
         if (error instanceof Error && !error.message.includes('Cannot find package')) {
-            console.warn(`Failed to load @monk/${appName}:`, error.message);
+            console.warn(`Failed to load @monk-app/${appName}:`, error.message);
         }
         return null;
     }
