@@ -55,14 +55,14 @@
         "pg": "^8.16.3"
     },
     "optionalDependencies": {
-        "@monk/brainfuck": "file:./packages/brainfuck",
-        "@monk/csv": "file:./packages/csv",
-        "@monk/grid-compact": "file:./packages/grid-compact",
-        "@monk/markdown": "file:./packages/markdown",
-        "@monk/morse": "file:./packages/morse",
-        "@monk/msgpack": "file:./packages/msgpack",
-        "@monk/qr": "file:./packages/qr",
-        "@monk/toml": "file:./packages/toml",
+        "@monk/formatter-brainfuck": "file:./packages/formatter-brainfuck",
+        "@monk/formatter-csv": "file:./packages/formatter-csv",
+        "@monk/formatter-grid-compact": "file:./packages/formatter-grid-compact",
+        "@monk/formatter-markdown": "file:./packages/formatter-markdown",
+        "@monk/formatter-morse": "file:./packages/formatter-morse",
+        "@monk/formatter-msgpack": "file:./packages/formatter-msgpack",
+        "@monk/formatter-qr": "file:./packages/formatter-qr",
+        "@monk/formatter-toml": "file:./packages/formatter-toml",
         "archiver": "^7.0.1",
         "unzipper": "^0.12.3"
     },

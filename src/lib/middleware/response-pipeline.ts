@@ -31,14 +31,14 @@ import { encrypt } from '@src/lib/encryption/aes-gcm.js';
 import { createArmor } from '@src/lib/encryption/pgp-armor.js';
 
 /**
- * Error response for unavailable format (missing optional @monk/* package)
+ * Error response for unavailable format (missing optional @monk/formatter-* package)
  */
 function formatUnavailableError(format: string): { text: string; contentType: string } {
     const error = {
         success: false,
         error: `Format '${format}' is not available`,
         error_code: 'FORMAT_UNAVAILABLE',
-        details: `Install the optional package: npm install @monk/${format}`
+        details: `Install the optional package: npm install @monk/formatter-${format}`
     };
     return {
         text: JSON.stringify(error, null, 2),

@@ -69,7 +69,7 @@ function formatUnavailableResponse(context: Context, format: string) {
         success: false,
         error: `Format '${format}' is not available for parsing`,
         error_code: 'FORMAT_UNAVAILABLE',
-        details: `Install the optional package: npm install @monk/${format}`
+        details: `Install the optional package: npm install @monk/formatter-${format}`
     }, 400);
 }
 

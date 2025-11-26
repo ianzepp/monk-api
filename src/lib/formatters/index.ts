@@ -6,7 +6,7 @@
  * Core Formatters (always available):
  * - json, toon, yaml
  *
- * Optional Formatters (loaded from @monk/* packages if installed):
+ * Optional Formatters (loaded from @monk/formatter-* packages if installed):
  * - toml, csv, msgpack, qr, brainfuck, morse, markdown, grid-compact
  *
  * Usage:
@@ -44,8 +44,8 @@ formatters.set('yaml', YamlFormatter);
 export { JsonFormatter, ToonFormatter, YamlFormatter };
 
 /**
- * Optional formatters - loaded dynamically from @monk/* packages
- * Convention: @monk/<format> exports <PascalCaseFormat>Formatter
+ * Optional formatters - loaded dynamically from @monk/formatter-* packages
+ * Convention: @monk/formatter-<format> exports <PascalCaseFormat>Formatter
  */
 const optionalFormats = [
     'toml',
@@ -72,7 +72,7 @@ function toFormatterName(format: string): string {
 // Load optional formatters at module initialization
 for (const format of optionalFormats) {
     try {
-        const mod = await import(`@monk/${format}`);
+        const mod = await import(`@monk/formatter-${format}`);
         const formatterName = toFormatterName(format);
         if (mod[formatterName]) {
             formatters.set(format, mod[formatterName]);
