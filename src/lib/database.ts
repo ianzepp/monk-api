@@ -454,17 +454,52 @@ export class Database {
     }
 
     /**
-     * Convert PostgreSQL string results back to proper JSON types
+     * Convert database results back to proper JSON types
      *
-     * PostgreSQL returns all values as strings by default. This method converts
-     * them back to the correct JSON types based on the model field metadata.
+     * Handles two cases:
+     * 1. PostgreSQL: Converts string numbers/booleans to proper JS types based on field metadata
+     * 2. SQLite: Also parses JSON string arrays for system fields (access_read, etc.)
+     *
+     * SQLite stores uuid[] fields as TEXT with JSON strings like '[]' or '["uuid1","uuid2"]'
+     * PostgreSQL returns these as native arrays, so we need to parse them for SQLite.
      */
     private convertPostgreSQLTypes(record: any, model: any): any {
-        if (!model.typedFields || model.typedFields.size === 0) {
-            return record;
+        let converted = record;
+
+        // Convert typed fields (user-defined fields with type metadata)
+        if (model.typedFields && model.typedFields.size > 0) {
+            converted = convertRecordPgToMonk(converted, model.typedFields);
         }
 
-        return convertRecordPgToMonk(record, model.typedFields);
+        // For SQLite: Parse JSON array strings for system fields
+        // These are uuid[] in PostgreSQL but TEXT with JSON in SQLite
+        if (this.system.adapter?.getType() === 'sqlite') {
+            converted = this.convertSqliteJsonArrays(converted);
+        }
+
+        return converted;
+    }
+
+    /**
+     * Parse SQLite JSON array strings for system fields
+     *
+     * SQLite stores uuid[] fields as TEXT containing JSON strings.
+     * This parses them back to actual arrays for API consistency.
+     */
+    private convertSqliteJsonArrays(record: any): any {
+        const JSON_ARRAY_FIELDS = ['access_read', 'access_edit', 'access_full', 'access_deny'];
+
+        for (const field of JSON_ARRAY_FIELDS) {
+            if (field in record && typeof record[field] === 'string') {
+                try {
+                    record[field] = JSON.parse(record[field]);
+                } catch {
+                    // If parsing fails, leave as-is (might already be an array or invalid)
+                }
+            }
+        }
+
+        return record;
     }
 
     /**
