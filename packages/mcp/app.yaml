@@ -1,4 +1,3 @@
 # App configuration for @monk-app/mcp
 name: mcp
-scope: app
 description: MCP integration - has its own tenant for session storage

@@ -4,76 +4,96 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| App infrastructure | **Done** | Loader, in-process client, scope detection |
+| App infrastructure | **Done** | Loader, in-process client, hybrid model support |
 | YAML model definitions | **Done** | Models defined in `models/*.yaml` |
-| App scopes (app/tenant) | **Done** | Two scope types with different behaviors |
-| `@monk-app/mcp` | **Done** | MCP integration (scope: app) |
-| `@monk-app/todos` | **Done** | Reference implementation (scope: tenant) |
+| Per-model `external` flag | **Done** | Models can be app-scoped or tenant-scoped |
+| Hybrid app support | **Done** | Apps can have both external and tenant models |
+| `@monk-app/mcp` | **Done** | MCP integration (external models) |
+| `@monk-app/todos` | **Done** | Reference implementation (tenant models) |
+| `@monk-app/openapi` | **Done** | OpenAPI spec generator (no models) |
 | SystemInit pattern | **Done** | Decoupled System from Hono Context |
 | Lazy app loading | **Done** | `/app/:appName/*` wildcard route |
-| App observer registration | Planned | Load observers from app packages |
-| `@monk-app/grids` | Planned | Extract from core (scope: tenant) |
-| `@monk-app/extracts` | Planned | Extract from core |
+| `@monk-app/grids` | Planned | Extract from core (tenant models) |
+| `@monk-app/extracts` | Planned | Extract from core (hybrid: external + tenant models) |
 | `@monk-app/restores` | Planned | Extract from core |
-| `@monk-app/openapi` | Planned | New package |
-| `@monk-app/comments` | Planned | New package (scope: tenant) |
+| `@monk-app/comments` | Planned | New package (tenant models) |
 | `@monk-app/notifications` | Planned | New package |
 
-## App Scopes
+## Model Namespaces
 
-Apps can operate in two different scopes:
+Model namespace is determined per-model via the `external` field in model YAML files:
 
-### scope: app
+### external: true (App Namespace)
 
-App has its own isolated tenant for internal data storage.
-
-```yaml
-# packages/mcp/app.yaml
-name: mcp
-scope: app
-description: MCP integration - has its own tenant for session storage
-```
-
-- Creates `@monk/{appName}` tenant with localhost-only access
-- Uses long-lived app JWT token for API calls
-- Data stored in app's namespace
-- No authentication required to access app routes
-- Example: MCP stores sessions in its own tenant
-
-### scope: tenant
-
-Models installed in user's tenant, data belongs to user.
+Model is installed in the app's namespace (shared infrastructure).
 
 ```yaml
-# packages/todos/app.yaml
-name: todos
-scope: tenant
-description: Todo list - models installed in user's tenant
+# models/sessions.yaml
+model_name: sessions
+description: MCP Sessions
+external: true
+
+fields:
+  - field_name: session_id
+    type: text
+    required: true
 ```
 
-- No app tenant created
-- Requires JWT authentication on all requests
-- Models installed in user's tenant on first request
+- Creates `@monk/{appName}` tenant if needed
+- Installed once at app startup
+- Data managed by the app on behalf of tenants
+- Use `tenant_id` column for multi-tenant data isolation
+- No JWT auth required for app routes (unless app has tenant models too)
+
+### external: false (Tenant Namespace, Default)
+
+Model is installed in the user's tenant namespace.
+
+```yaml
+# models/todos.yaml
+model_name: todos
+description: Todo items for task tracking
+
+fields:
+  - field_name: title
+    type: text
+    required: true
+```
+
+- Installed in user's tenant on first request
+- Requires JWT authentication
+- Data belongs to the user
 - Uses user's JWT for all API calls
-- Data stored in user's namespace
-- Example: Todos, grids, comments
+
+### Hybrid Apps
+
+Apps can have models in both namespaces. For example, an "extracts" app might have:
+
+```
+models/
+  extract_jobs.yaml      # external: true - shared job definitions
+  extract_runs.yaml      # external: true - run history (with tenant_id)
+  export_config.yaml     # external: false - per-tenant preferences
+```
+
+External models are installed at app startup, tenant models on first user request.
 
 ### Comparison
 
-| Aspect | scope: app | scope: tenant |
-|--------|------------|---------------|
-| App tenant | Created (`@monk/mcp`) | None |
-| Auth required | No | Yes (JWT) |
-| Models installed in | App's namespace | User's namespace |
+| Aspect | external: true | external: false |
+|--------|----------------|-----------------|
+| Namespace | App (`@monk/{app}`) | User's tenant |
+| Installed | App startup | First user request |
+| Auth required | No (for this model) | Yes (JWT) |
 | Data belongs to | App | User |
-| JWT used | App's token | User's token |
-| Use case | App internal state | User features |
+| Multi-tenant | Via `tenant_id` column | Schema isolation |
+| Use case | Shared infrastructure | User-owned data |
 
 ## Package Structure
 
 ```
 packages/{appName}/
-  app.yaml                # App configuration (name, scope)
+  app.yaml                # App configuration (name, description)
   models/
     {model}.yaml          # One YAML file per model
   package.json
@@ -90,9 +110,10 @@ packages/{appName}/
 
 ```yaml
 name: todos
-scope: tenant           # or "app"
 description: Todo list application
 ```
+
+Note: The `scope` field is deprecated. Use per-model `external` field instead.
 
 ### Model YAML Format
 
@@ -100,6 +121,7 @@ description: Todo list application
 # models/todos.yaml
 model_name: todos
 description: Todo items for task tracking
+external: false          # Optional, defaults to false (tenant namespace)
 
 fields:
   - field_name: title
@@ -130,13 +152,14 @@ The core API handles foundational operations only:
 
 ### App Package Scope (@monk-app/*)
 
-| Package | Route | Scope | Purpose | Status |
-|---------|-------|-------|---------|--------|
-| `@monk-app/mcp` | `/app/mcp/*` | app | MCP protocol integration | **Done** |
+| Package | Route | Models | Purpose | Status |
+|---------|-------|--------|---------|--------|
+| `@monk-app/mcp` | `/app/mcp/*` | external | MCP protocol integration | **Done** |
 | `@monk-app/todos` | `/app/todos/*` | tenant | Reference todo list | **Done** |
+| `@monk-app/openapi` | `/app/openapi/*` | none | OpenAPI spec generator | **Done** |
 | `@monk-app/grids` | `/app/grids/*` | tenant | Excel-like spreadsheet cells | Planned |
-| `@monk-app/extracts` | `/app/extracts/*` | app | Data export/backup archives | Planned |
-| `@monk-app/restores` | `/app/restores/*` | app | Data import from archives | Planned |
+| `@monk-app/extracts` | `/app/extracts/*` | hybrid | Data export/backup archives | Planned |
+| `@monk-app/restores` | `/app/restores/*` | hybrid | Data import from archives | Planned |
 | `@monk-app/comments` | `/app/comments/*` | tenant | Threaded comments on any record | Planned |
 
 ## App Loader
@@ -146,34 +169,31 @@ The core API handles foundational operations only:
 ```
 Request: GET /app/todos/
 
-1. Load app.yaml to determine scope
-2. If scope=tenant:
-   a. Run JWT validation middleware
-   b. Load app instance (cached)
-   c. Install models in user's tenant (if not already)
-   d. Forward request with user's auth
-3. If scope=app:
-   a. Load app instance (cached)
-   b. App uses its own tenant token
-   c. Forward request
+1. Check if app has tenant models (requires JWT auth)
+2. If auth needed and not present, run JWT validation
+3. Load app instance (cached)
+4. Separate models by external flag
+5. Install external models in app namespace (once per app)
+6. Install tenant models in user's namespace (once per tenant)
+7. Forward request to app
 ```
 
 ### Loader Functions
 
 ```typescript
-// Load app configuration
-loadAppConfig(appName: string): Promise<AppConfig>
+// Load app with hybrid model support (recommended)
+loadHybridApp(appName: string, honoApp: Hono, userContext?: Context): Promise<Hono | null>
 
-// Load app-scoped app (has own tenant)
-loadAppScopedApp(appName: string, honoApp: Hono): Promise<Hono | null>
+// Check if app has tenant models (requires auth)
+appHasTenantModels(appName: string): boolean
 
-// Load tenant-scoped app (uses user's tenant)
-loadTenantScopedApp(appName: string, honoApp: Hono, userContext: Context): Promise<Hono | null>
+// Check if app has external models
+appHasExternalModels(appName: string): boolean
 ```
 
 ### Model Registration
 
-Models are registered idempotently on first request:
+Models are registered idempotently:
 
 ```typescript
 registerAppModels(
@@ -187,71 +207,91 @@ registerAppModels(
 ): Promise<void>
 ```
 
-For tenant-scoped apps, this runs in the user's namespace.
-For app-scoped apps, this runs in the app's namespace.
+The `external` flag on each model is preserved when creating the model record.
 
-## Tenant-Scoped App Pattern
+## App Patterns
 
-For apps like todos, grids, comments where data belongs to the user:
+### Tenant-Only App (e.g., todos)
+
+For apps where all data belongs to the user:
 
 ```typescript
 // packages/todos/src/index.ts
-
 export function createApp(context: AppContext): Hono {
     const app = new Hono();
     const { honoApp } = context;
 
-    // Create client per-request using user's auth
     app.get('/', async (c) => {
-        const client = createClient(c, honoApp);  // Uses c.req.header('Authorization')
+        const client = createClient(c, honoApp);  // Uses user's JWT
         const result = await client.get('/api/data/todos');
         return c.json(result);
     });
 
     return app;
 }
-
-// Helper to create per-request client
-function createClient(c: Context, honoApp: any) {
-    const authHeader = c.req.header('Authorization');
-    // ... forwards user's JWT to API calls
-}
 ```
 
-## App-Scoped App Pattern
+### External-Only App (e.g., mcp)
 
-For apps like MCP that need their own storage:
+For apps that manage shared infrastructure:
 
 ```typescript
 // packages/mcp/src/index.ts
-
 export function createApp(context: AppContext): Hono {
     const app = new Hono();
     const { client } = context;  // Pre-bound to app's token
 
-    // Use app's client for internal storage
     app.post('/', async (c) => {
         const session = await client.post('/api/data/sessions', {...});
-        // ...
+        return c.json(session);
     });
 
     return app;
 }
 ```
 
-MCP also stores user tokens in sessions to make API calls on behalf of users.
+### Hybrid App (e.g., extracts)
+
+For apps with both external infrastructure and tenant preferences:
+
+```typescript
+// packages/extracts/src/index.ts
+export function createApp(context: AppContext): Hono {
+    const app = new Hono();
+    const { honoApp } = context;
+
+    app.post('/jobs', async (c) => {
+        // External model - use app client
+        const appClient = getAppClient(context);
+        const job = await appClient.post('/api/data/extract_jobs', {
+            tenant_id: getTenantId(c),  // Track which tenant owns this
+            ...
+        });
+        return c.json(job);
+    });
+
+    app.get('/config', async (c) => {
+        // Tenant model - use user's JWT
+        const userClient = createClient(c, honoApp);
+        const config = await userClient.get('/api/data/export_config');
+        return c.json(config);
+    });
+
+    return app;
+}
+```
 
 ## Implemented Apps
 
-### @monk-app/mcp (scope: app)
+### @monk-app/mcp (external models)
 
 MCP protocol integration for LLM agents.
 
 ```
 packages/mcp/
-  app.yaml                # scope: app
+  app.yaml
   models/
-    sessions.yaml         # Session storage
+    sessions.yaml         # external: true
   src/
     index.ts
     sessions.ts
@@ -264,15 +304,15 @@ Has its own tenant (`@monk/mcp`) for storing:
 - User tenant names
 - User JWT tokens (for API calls on behalf of users)
 
-### @monk-app/todos (scope: tenant)
+### @monk-app/todos (tenant models)
 
 Reference implementation for tenant-scoped apps.
 
 ```
 packages/todos/
-  app.yaml                # scope: tenant
+  app.yaml
   models/
-    todos.yaml            # Todo items
+    todos.yaml            # external: false (default)
   src/
     index.ts
     docs/
@@ -288,6 +328,20 @@ Routes:
 - `POST /app/todos/:id/complete` - Mark complete
 - `POST /app/todos/:id/reopen` - Reopen
 
+### @monk-app/openapi (no models)
+
+OpenAPI specification generator.
+
+```
+packages/openapi/
+  app.yaml
+  src/
+    index.ts
+```
+
+Routes:
+- `GET /app/openapi/openapi.json` - Generate OpenAPI spec from tenant models
+
 ## Migration Path
 
 ### Completed
@@ -297,18 +351,19 @@ Routes:
 - [x] Phase 5: Extract MCP (`packages/mcp/`)
 - [x] SystemInit pattern for context-free System creation
 - [x] YAML model definitions
-- [x] App scopes (app vs tenant)
+- [x] Per-model `external` flag for namespace control
+- [x] Hybrid app support
 - [x] Reference tenant-scoped app (todos)
+- [x] OpenAPI spec generator (openapi)
 
 ### In Progress
 
-- [ ] Phase 3: Extract Grids to `@monk-app/grids` (scope: tenant)
-- [ ] Phase 4: Extract Extracts/Restores
+- [ ] Phase 3: Extract Grids to `@monk-app/grids`
+- [ ] Phase 4: Extract Extracts/Restores (hybrid apps)
 
 ### Planned
 
-- [ ] App observer registration
-- [ ] OpenAPI, Comments, Notifications packages
+- [ ] Comments, Notifications packages
 - [ ] Feature flags to enable/disable apps per tenant
 
 ## Considerations
@@ -316,13 +371,23 @@ Routes:
 ### Performance
 
 - App code is cached globally (stateless)
-- Model installation tracked per-tenant
+- Model definitions cached per app
+- External model installation tracked globally
+- Tenant model installation tracked per-tenant
 - In-process fetch has no network latency
 
 ### Auth Propagation
 
-- App-scoped: Uses app's long-lived token
-- Tenant-scoped: Forwards user's JWT from request
+- External models: App uses its own long-lived token
+- Tenant models: App forwards user's JWT from request
+- Hybrid apps: Use appropriate client based on model type
+
+### Schema Isolation
+
+- External models and tenant models are in different PG schemas
+- No cross-schema foreign keys possible
+- App code bridges the schemas via `tenant_id` columns
+- Row-level isolation (external) vs schema isolation (tenant)
 
 ### Error Handling
 
@@ -342,7 +407,6 @@ The in-process client blocks `/app/*` calls to prevent circular routing.
 Apps could be enabled/disabled per tenant:
 
 ```sql
--- Option: JSON field on tenants
 ALTER TABLE tenants ADD COLUMN enabled_apps text[] DEFAULT '{}';
 ```
 

@@ -243,38 +243,29 @@ app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpo
 // Apps mount under /app/* and use API-based data access
 // Lazy loading ensures observers are ready before model creation
 //
-// Two scopes:
-// - scope: app    - App has its own tenant (e.g., MCP for sessions)
-// - scope: tenant - Models installed in user's tenant, requires JWT auth
+// Model namespace is per-model via the `external` field:
+// - external: true  - Model installed in app's namespace (shared infrastructure)
+// - external: false - Model installed in user's tenant (requires JWT auth)
 
-// Cache for app-scoped app instances
-const appScopedCache = new Map<string, Hono>();
+// Track pending app load promises to prevent duplicate loads
 const appLoadPromises = new Map<string, Promise<Hono | null>>();
-
-// Cache for app configs (scope detection)
-const appConfigCache = new Map<string, { scope: 'app' | 'tenant' }>();
 
 // Lazy app loader - initializes app on first request
 app.all('/app/:appName/*', async (c) => {
     const appName = c.req.param('appName');
 
-    // Load app config to determine scope
-    let config = appConfigCache.get(appName);
-    if (!config) {
-        const { loadAppConfig } = await import('@src/lib/apps/loader.js');
-        const loaded = await loadAppConfig(appName);
-        config = { scope: loaded.scope };
-        appConfigCache.set(appName, config);
-    }
+    // Import loader functions
+    const { loadHybridApp, appHasTenantModels } = await import('@src/lib/apps/loader.js');
 
-    let appInstance: Hono | null = null;
+    // Check if app has tenant models (requires JWT auth)
+    // Note: This check may return false on first load before models are cached,
+    // so we also check after loading if auth is needed for tenant model installation
+    const needsAuth = appHasTenantModels(appName);
 
-    if (config.scope === 'tenant') {
-        // Tenant-scoped app: requires JWT authentication
-        // Run JWT validation middleware manually
+    // If app has tenant models, ensure user is authenticated
+    if (needsAuth) {
         const jwtPayload = c.get('jwtPayload');
         if (!jwtPayload) {
-            // Need to run JWT validation
             try {
                 await middleware.jwtValidationMiddleware(c, async () => {});
             } catch (error) {
@@ -285,33 +276,36 @@ app.all('/app/:appName/*', async (c) => {
                 }, 401);
             }
         }
+    }
 
-        // Load tenant-scoped app (models installed in user's tenant)
-        const { loadTenantScopedApp } = await import('@src/lib/apps/loader.js');
-        appInstance = await loadTenantScopedApp(appName, app, c);
+    // Load app (handles both external and tenant models)
+    let loadPromise = appLoadPromises.get(appName);
+    if (!loadPromise) {
+        loadPromise = loadHybridApp(appName, app, c);
+        appLoadPromises.set(appName, loadPromise);
+    }
 
-    } else {
-        // App-scoped: use cached instance or load
-        appInstance = appScopedCache.get(appName) || null;
+    let appInstance: Hono | null = null;
+    try {
+        appInstance = await loadPromise;
+    } finally {
+        appLoadPromises.delete(appName);
+    }
 
-        if (!appInstance) {
-            let loadPromise = appLoadPromises.get(appName);
-
-            if (!loadPromise) {
-                const { loadAppScopedApp } = await import('@src/lib/apps/loader.js');
-                loadPromise = loadAppScopedApp(appName, app);
-                appLoadPromises.set(appName, loadPromise);
-            }
-
+    // After first load, check again if auth is needed (models now cached)
+    if (!needsAuth && appHasTenantModels(appName)) {
+        const jwtPayload = c.get('jwtPayload');
+        if (!jwtPayload) {
             try {
-                const loaded = await loadPromise;
-                if (loaded) {
-                    appInstance = loaded;
-                    appScopedCache.set(appName, loaded);
-                    console.info(`Loaded app-scoped package: @monk-app/${appName}`);
-                }
-            } finally {
-                appLoadPromises.delete(appName);
+                await middleware.jwtValidationMiddleware(c, async () => {});
+                // Re-load to install tenant models now that we have auth
+                appInstance = await loadHybridApp(appName, app, c);
+            } catch (error) {
+                return c.json({
+                    success: false,
+                    error: 'Authentication required for this app',
+                    error_code: 'AUTH_REQUIRED'
+                }, 401);
             }
         }
     }
@@ -329,7 +323,7 @@ app.all('/app/:appName/*', async (c) => {
     const url = new URL(c.req.url);
     url.pathname = subPath;
 
-    // For tenant-scoped apps, forward the original Authorization header
+    // Forward the original Authorization header
     const headers = new Headers(c.req.raw.headers);
 
     const newRequest = new Request(url.toString(), {

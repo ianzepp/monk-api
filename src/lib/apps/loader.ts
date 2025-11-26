@@ -4,9 +4,12 @@
  * Dynamically loads installed @monk-app/* app packages.
  * App packages export a createApp() function that returns a Hono app.
  *
- * Two scopes are supported:
- * - scope: app   - App has its own tenant for internal data (e.g., MCP sessions)
- * - scope: tenant - Models installed in user's tenant, data belongs to user
+ * Model namespace is determined per-model via the `external` field:
+ * - external: true  - Model installed in app's namespace (shared infrastructure)
+ * - external: false - Model installed in user's tenant (default, user data)
+ *
+ * Apps can have models in both namespaces (hybrid apps). External models are
+ * installed at app startup, tenant models are installed on first user request.
  *
  * Model definitions are loaded from YAML files in the package's models/ directory.
  * Each .yaml file defines one model with its fields.
@@ -37,10 +40,14 @@ const APP_TOKEN_EXPIRY = 365 * 24 * 60 * 60;
 
 /**
  * App configuration from app.yaml
+ *
+ * The `scope` field is deprecated - model namespace is now determined
+ * per-model via the `external` field in model YAML files.
  */
 export interface AppConfig {
     name: string;
-    scope: 'app' | 'tenant';
+    /** @deprecated Use per-model `external` field instead */
+    scope?: 'app' | 'tenant';
     description?: string;
 }
 
@@ -65,15 +72,14 @@ export async function loadAppConfig(appName: string): Promise<AppConfig> {
 
         // Validate required fields
         if (!config.name) config.name = appName;
-        if (!config.scope) config.scope = 'app'; // Default to app-scoped for backwards compat
+        // scope is now optional - determined per-model via external field
 
         appConfigCache.set(appName, config);
         return config;
     } catch (error) {
-        // No app.yaml - default to app-scoped
+        // No app.yaml - use defaults
         const defaultConfig: AppConfig = {
             name: appName,
-            scope: 'app',
         };
         appConfigCache.set(appName, defaultConfig);
         return defaultConfig;
@@ -273,6 +279,11 @@ export async function registerAppTenant(appName: string): Promise<{
 export interface AppModelDefinition {
     model_name: string;
     description?: string;
+    /**
+     * If true, model is installed in app's namespace (shared infrastructure).
+     * If false (default), model is installed in user's tenant (user data).
+     */
+    external?: boolean;
     fields: Array<{
         field_name: string;
         type: string;
@@ -318,7 +329,7 @@ export async function registerAppModels(
     await runTransaction(systemInit, async (system) => {
         // Register each model
         for (const modelDef of models) {
-            const { model_name, description, fields } = modelDef;
+            const { model_name, description, external, fields } = modelDef;
 
             // Check if model exists
             const existing = await system.describe.models.selectOne(
@@ -327,11 +338,12 @@ export async function registerAppModels(
             );
 
             if (!existing) {
-                // Create model
-                console.info(`Creating model ${model_name} for app ${appName} in ${tenantName}`);
+                // Create model with external flag
+                console.info(`Creating model ${model_name} for app ${appName} in ${tenantName} (external: ${external ?? false})`);
                 await system.describe.models.createOne({
                     model_name,
                     description,
+                    external: external ?? false,
                 });
 
                 // Create fields
@@ -470,37 +482,87 @@ export async function loadAppScopedApp(appName: string, honoApp: Hono): Promise<
     }
 }
 
-// Cache for tenant-scoped app instances (app code is stateless, can be shared)
-const tenantScopedAppCache = new Map<string, Hono>();
+// Cache for app instances (app code is stateless, can be shared)
+const appInstanceCache = new Map<string, Hono>();
 
-// Track which tenants have models installed for each app
-const tenantModelInstallCache = new Map<string, Set<string>>();
+// Cache for loaded model definitions per app
+const appModelsCache = new Map<string, AppModelDefinition[]>();
+
+// Track which apps have external models installed in app namespace
+const externalModelsInstalledCache = new Set<string>();
+
+// Track which tenants have tenant models installed for each app
+const tenantModelsInstalledCache = new Map<string, Set<string>>();
+
+// Cache for app tenant credentials (for apps with external models)
+const appTenantCache = new Map<string, {
+    token: string;
+    tenantName: string;
+    dbName: string;
+    nsName: string;
+    userId: string;
+}>();
 
 /**
- * Load a tenant-scoped app package (models installed in user's tenant).
- *
- * Used for apps like grids/todos where data belongs to the user's tenant.
- * The app's in-process client uses the user's JWT from the request.
- *
- * @param appName - App name without @monk/ prefix (e.g., 'todos')
- * @param honoApp - Main Hono app instance for in-process client
- * @param userContext - Original request context (must have jwtPayload set)
- * @returns Initialized Hono app for the package, or null if not installed
+ * Separate models into external (app namespace) and tenant (user namespace) groups.
  */
-export async function loadTenantScopedApp(
-    appName: string,
-    honoApp: Hono,
-    userContext: Context
-): Promise<Hono | null> {
-    // Get user's JWT payload from context (set by jwtValidationMiddleware)
-    const jwtPayload = userContext.get('jwtPayload') as JWTPayload | undefined;
-    if (!jwtPayload) {
-        throw new Error(`Tenant-scoped app ${appName} requires authentication`);
+function separateModelsByScope(models: AppModelDefinition[]): {
+    externalModels: AppModelDefinition[];
+    tenantModels: AppModelDefinition[];
+} {
+    const externalModels: AppModelDefinition[] = [];
+    const tenantModels: AppModelDefinition[] = [];
+
+    for (const model of models) {
+        if (model.external) {
+            externalModels.push(model);
+        } else {
+            tenantModels.push(model);
+        }
     }
 
+    return { externalModels, tenantModels };
+}
+
+/**
+ * Check if an app has external models (requires app tenant).
+ */
+export function appHasExternalModels(appName: string): boolean {
+    const models = appModelsCache.get(appName);
+    if (!models) return false;
+    return models.some(m => m.external);
+}
+
+/**
+ * Check if an app has tenant models (installed per-user).
+ */
+export function appHasTenantModels(appName: string): boolean {
+    const models = appModelsCache.get(appName);
+    if (!models) return false;
+    return models.some(m => !m.external);
+}
+
+/**
+ * Load an app package with hybrid model support.
+ *
+ * Handles apps that may have models in both namespaces:
+ * - external: true models → installed in app's namespace (once at startup)
+ * - external: false models → installed in user's tenant (per-tenant)
+ *
+ * @param appName - App name without @monk/ prefix (e.g., 'todos', 'extracts')
+ * @param honoApp - Main Hono app instance for in-process client
+ * @param userContext - Original request context (may have jwtPayload for tenant models)
+ * @returns Initialized Hono app for the package, or null if not installed
+ */
+export async function loadHybridApp(
+    appName: string,
+    honoApp: Hono,
+    userContext?: Context
+): Promise<Hono | null> {
     try {
-        // Check if app is already loaded (code is stateless, can be cached)
-        let appInstance: Hono | null = tenantScopedAppCache.get(appName) || null;
+        // Step 1: Load app instance and model definitions (cached)
+        let appInstance: Hono | null = appInstanceCache.get(appName) || null;
+        let models: AppModelDefinition[] = appModelsCache.get(appName) || [];
 
         if (!appInstance) {
             // Resolve package path to find models directory
@@ -515,56 +577,78 @@ export async function loadTenantScopedApp(
                 return null;
             }
 
-            // Load models from YAML (cached in the function)
-            const models = await loadAppModelsFromYaml(packagePath, appName);
+            // Load models from YAML
+            models = await loadAppModelsFromYaml(packagePath, appName);
+            appModelsCache.set(appName, models);
 
-            // Store models in cache for per-tenant installation
-            if (!tenantModelInstallCache.has(appName)) {
-                tenantModelInstallCache.set(appName, new Set());
-            }
-
-            // Create app context with user's credentials
-            // Note: client is created per-request below, not here
+            // Create app context (client is per-request in tenant-scoped apps)
             const appContext: AppContext = {
-                client: null as any, // Set per-request
-                token: '', // Set per-request
+                client: null as any,
+                token: '',
                 appName,
-                tenantName: '', // Set per-request
+                tenantName: '',
                 honoApp,
             };
 
-            // Create the app instance (stateless, no user-specific data)
+            // Create the app instance (stateless, can be cached)
             const created = await mod.createApp(appContext);
             appInstance = created;
-            tenantScopedAppCache.set(appName, created);
+            appInstanceCache.set(appName, created);
 
-            console.info(`Loaded tenant-scoped app: @monk-app/${appName}`);
+            console.info(`Loaded app: @monk-app/${appName}`);
         }
 
-        // Check if models are installed in this user's tenant
-        const tenantKey = `${jwtPayload.db}:${jwtPayload.ns}`;
-        const installedTenants = tenantModelInstallCache.get(appName) || new Set();
+        // Step 2: Separate models by scope
+        const { externalModels, tenantModels } = separateModelsByScope(models);
 
-        if (!installedTenants.has(tenantKey)) {
-            // Load and install models in user's tenant
-            const packageUrl = import.meta.resolve(`@monk-app/${appName}`);
-            const packagePath = fileURLToPath(packageUrl);
-            const models = await loadAppModelsFromYaml(packagePath, appName);
-
-            if (models.length > 0) {
-                await registerAppModels(
-                    jwtPayload.db_type,
-                    jwtPayload.db,
-                    jwtPayload.ns,
-                    jwtPayload.sub,
-                    jwtPayload.tenant,
-                    appName,
-                    models
-                );
+        // Step 3: Install external models in app namespace (once per app)
+        if (externalModels.length > 0 && !externalModelsInstalledCache.has(appName)) {
+            // Register app tenant if not already done
+            let appTenant = appTenantCache.get(appName);
+            if (!appTenant) {
+                appTenant = await registerAppTenant(appName);
+                appTenantCache.set(appName, appTenant);
             }
 
-            installedTenants.add(tenantKey);
-            tenantModelInstallCache.set(appName, installedTenants);
+            // Install external models in app's namespace
+            await registerAppModels(
+                'postgresql',
+                appTenant.dbName,
+                appTenant.nsName,
+                appTenant.userId,
+                appTenant.tenantName,
+                appName,
+                externalModels
+            );
+
+            externalModelsInstalledCache.add(appName);
+            console.info(`Installed ${externalModels.length} external model(s) for @monk-app/${appName}`);
+        }
+
+        // Step 4: Install tenant models in user's namespace (per-tenant)
+        if (tenantModels.length > 0 && userContext) {
+            const jwtPayload = userContext.get('jwtPayload') as JWTPayload | undefined;
+            if (jwtPayload) {
+                const tenantKey = `${jwtPayload.db}:${jwtPayload.ns}`;
+                const installedTenants = tenantModelsInstalledCache.get(appName) || new Set();
+
+                if (!installedTenants.has(tenantKey)) {
+                    // Install tenant models in user's namespace
+                    await registerAppModels(
+                        jwtPayload.db_type,
+                        jwtPayload.db,
+                        jwtPayload.ns,
+                        jwtPayload.sub,
+                        jwtPayload.tenant,
+                        appName,
+                        tenantModels
+                    );
+
+                    installedTenants.add(tenantKey);
+                    tenantModelsInstalledCache.set(appName, installedTenants);
+                    console.info(`Installed ${tenantModels.length} tenant model(s) for @monk-app/${appName} in ${jwtPayload.tenant}`);
+                }
+            }
         }
 
         return appInstance;
@@ -578,12 +662,25 @@ export async function loadTenantScopedApp(
 }
 
 /**
- * Load an app package (dispatcher based on scope).
+ * Load a tenant-scoped app package (models installed in user's tenant).
  *
- * @deprecated Use loadAppScopedApp or loadTenantScopedApp directly
+ * @deprecated Use loadHybridApp instead - supports both external and tenant models.
+ */
+export async function loadTenantScopedApp(
+    appName: string,
+    honoApp: Hono,
+    userContext: Context
+): Promise<Hono | null> {
+    return loadHybridApp(appName, honoApp, userContext);
+}
+
+/**
+ * Load an app package.
+ *
+ * @deprecated Use loadHybridApp instead - handles all model scopes.
  */
 export async function loadApp(appName: string, honoApp: Hono): Promise<Hono | null> {
-    return loadAppScopedApp(appName, honoApp);
+    return loadHybridApp(appName, honoApp);
 }
 
 /**

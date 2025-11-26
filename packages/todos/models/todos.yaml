@@ -2,6 +2,14 @@ model_name: todos
 description: Todo items for task tracking
 
 fields:
+  - field_name: parent_id
+    type: uuid
+    description: Parent todo ID for subtasks (self-referential)
+    relationship_type: belongs_to
+    related_model: todos
+    related_field: id
+    relationship_name: parent
+
   - field_name: title
     type: text
     required: true
