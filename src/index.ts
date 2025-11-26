@@ -59,7 +59,6 @@ import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as historyRoutes from '@src/routes/api/history/routes.js';
 import * as extractRoutes from '@src/routes/api/extracts/routes.js';
 import * as restoreRoutes from '@src/routes/api/restores/routes.js';
-import * as gridRoutes from '@src/routes/api/grids/routes.js';
 import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Special protected endpoints
@@ -432,12 +431,6 @@ app.post('/api/restores/:record/run', restoreRoutes.RestoreRun); // Queue restor
 app.post('/api/restores/:record/execute', restoreRoutes.RestoreExecute); // Execute restore (internal, long-running)
 app.post('/api/restores/:record/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
 app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
-
-// 52-grids-app: Grid application (spreadsheet-like cell storage)
-app.get('/api/grids/:id/:range', gridRoutes.RangeGet); // Read cells (A1, A1:Z100, A:A, 5:5)
-app.put('/api/grids/:id/:range', gridRoutes.RangePut); // Update cells/range
-app.delete('/api/grids/:id/:range', gridRoutes.RangeDelete); // Clear cells/range
-app.post('/api/grids/:id/cells', gridRoutes.CellsPost); // Bulk upsert cells
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

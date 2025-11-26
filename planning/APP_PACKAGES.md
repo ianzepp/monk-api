@@ -13,7 +13,7 @@
 | `@monk-app/openapi` | **Done** | OpenAPI spec generator (no models) |
 | SystemInit pattern | **Done** | Decoupled System from Hono Context |
 | Lazy app loading | **Done** | `/app/:appName/*` wildcard route |
-| `@monk-app/grids` | Planned | Extract from core (tenant models) |
+| `@monk-app/grids` | **Done** | Excel-like spreadsheet cells (tenant models) |
 | `@monk-app/extracts` | Planned | Extract from core (hybrid: external + tenant models) |
 | `@monk-app/restores` | Planned | Extract from core |
 | `@monk-app/comments` | Planned | New package (tenant models) |
@@ -157,7 +157,7 @@ The core API handles foundational operations only:
 | `@monk-app/mcp` | `/app/mcp/*` | external | MCP protocol integration | **Done** |
 | `@monk-app/todos` | `/app/todos/*` | tenant | Reference todo list | **Done** |
 | `@monk-app/openapi` | `/app/openapi/*` | none | OpenAPI spec generator | **Done** |
-| `@monk-app/grids` | `/app/grids/*` | tenant | Excel-like spreadsheet cells | Planned |
+| `@monk-app/grids` | `/app/grids/*` | tenant | Excel-like spreadsheet cells | **Done** |
 | `@monk-app/extracts` | `/app/extracts/*` | hybrid | Data export/backup archives | Planned |
 | `@monk-app/restores` | `/app/restores/*` | hybrid | Data import from archives | Planned |
 | `@monk-app/comments` | `/app/comments/*` | tenant | Threaded comments on any record | Planned |
@@ -355,10 +355,10 @@ Routes:
 - [x] Hybrid app support
 - [x] Reference tenant-scoped app (todos)
 - [x] OpenAPI spec generator (openapi)
+- [x] Phase 3: Extract Grids to `@monk-app/grids`
 
 ### In Progress
 
-- [ ] Phase 3: Extract Grids to `@monk-app/grids`
 - [ ] Phase 4: Extract Extracts/Restores (hybrid apps)
 
 ### Planned

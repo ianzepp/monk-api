@@ -1,0 +1,26 @@
+model_name: grid_cells
+description: Sparse cell storage for grids (one row per populated cell)
+
+fields:
+  - field_name: grid_id
+    type: uuid
+    required: true
+    description: Parent grid ID
+    relationship_type: belongs_to
+    related_model: grids
+    related_field: id
+    relationship_name: grid
+
+  - field_name: row
+    type: integer
+    required: true
+    description: Row number (1-based)
+
+  - field_name: col
+    type: text
+    required: true
+    description: Column letter (A-Z)
+
+  - field_name: value
+    type: text
+    description: Cell value (null means empty/deleted)

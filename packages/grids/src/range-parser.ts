@@ -2,16 +2,14 @@
  * Grid Range Parser - Excel-style Range Notation
  *
  * Parses Excel-style range notation into structured coordinates
- * for SQL query generation.
+ * for query generation.
  *
  * Supported formats:
  * - Single cell: "A1", "B5", "Z100"
  * - Range: "A1:Z100", "B2:D10"
  * - Row range: "5:5", "1:10"
- * - Field range: "A:A", "B:Z"
+ * - Column range: "A:A", "B:Z"
  */
-
-import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 export interface ParsedRange {
     type: 'single' | 'range' | 'row' | 'col';
@@ -29,24 +27,18 @@ export interface ParsedRange {
  *
  * @param rangeStr - Range string (e.g., "A1", "A1:Z100", "5:5", "A:A")
  * @returns ParsedRange object with coordinates
- * @throws HttpError if range format is invalid
+ * @throws Error if range format is invalid
  */
 export function parseRange(rangeStr: string): ParsedRange {
     // Validate input
     if (!rangeStr || typeof rangeStr !== 'string') {
-        throw HttpErrors.badRequest(
-            'Range parameter is required',
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error('Range parameter is required');
     }
 
     const trimmed = rangeStr.trim().toUpperCase();
 
     if (!trimmed) {
-        throw HttpErrors.badRequest(
-            'Range parameter cannot be empty',
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error('Range parameter cannot be empty');
     }
 
     // Check if this is a range notation (contains colon)
@@ -64,20 +56,14 @@ function parseSingleCell(cell: string): ParsedRange {
     const match = cell.match(/^([A-Z])(\d+)$/);
 
     if (!match) {
-        throw HttpErrors.badRequest(
-            `Invalid cell format: ${cell}. Expected format: A1, B5, Z100`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Invalid cell format: ${cell}. Expected format: A1, B5, Z100`);
     }
 
     const col = match[1];
     const row = parseInt(match[2], 10);
 
     if (row <= 0) {
-        throw HttpErrors.badRequest(
-            `Row number must be positive: ${row}`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Row number must be positive: ${row}`);
     }
 
     return {
@@ -95,10 +81,7 @@ function parseRangeNotation(rangeStr: string): ParsedRange {
     const parts = rangeStr.split(':');
 
     if (parts.length !== 2) {
-        throw HttpErrors.badRequest(
-            `Invalid range format: ${rangeStr}. Expected format: A1:Z100, 5:5, or A:A`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Invalid range format: ${rangeStr}. Expected format: A1:Z100, 5:5, or A:A`);
     }
 
     const [start, end] = parts;
@@ -108,7 +91,7 @@ function parseRangeNotation(rangeStr: string): ParsedRange {
         return parseRowRange(start, end);
     }
 
-    // Field range (e.g., "A:A", "B:Z")
+    // Column range (e.g., "A:A", "B:Z")
     if (/^[A-Z]$/.test(start) && /^[A-Z]$/.test(end)) {
         return parseColRange(start, end);
     }
@@ -118,10 +101,7 @@ function parseRangeNotation(rangeStr: string): ParsedRange {
         return parseCellRange(start, end);
     }
 
-    throw HttpErrors.badRequest(
-        `Invalid range format: ${rangeStr}. Expected format: A1:Z100, 5:5, or A:A`,
-        'INVALID_RANGE'
-    );
+    throw new Error(`Invalid range format: ${rangeStr}. Expected format: A1:Z100, 5:5, or A:A`);
 }
 
 /**
@@ -132,17 +112,11 @@ function parseRowRange(startStr: string, endStr: string): ParsedRange {
     const endRow = parseInt(endStr, 10);
 
     if (startRow <= 0 || endRow <= 0) {
-        throw HttpErrors.badRequest(
-            `Row numbers must be positive: ${startStr}:${endStr}`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Row numbers must be positive: ${startStr}:${endStr}`);
     }
 
     if (startRow > endRow) {
-        throw HttpErrors.badRequest(
-            `Invalid range: start row ${startRow} is after end row ${endRow}`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Invalid range: start row ${startRow} is after end row ${endRow}`);
     }
 
     return {
@@ -155,14 +129,11 @@ function parseRowRange(startStr: string, endStr: string): ParsedRange {
 }
 
 /**
- * Parse field range (e.g., "A:A", "B:Z")
+ * Parse column range (e.g., "A:A", "B:Z")
  */
 function parseColRange(startCol: string, endCol: string): ParsedRange {
     if (startCol > endCol) {
-        throw HttpErrors.badRequest(
-            `Invalid range: start field ${startCol} is after end field ${endCol}`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Invalid range: start column ${startCol} is after end column ${endCol}`);
     }
 
     return {
@@ -181,10 +152,7 @@ function parseCellRange(start: string, end: string): ParsedRange {
     const endMatch = end.match(/^([A-Z])(\d+)$/);
 
     if (!startMatch || !endMatch) {
-        throw HttpErrors.badRequest(
-            `Invalid cell range format: ${start}:${end}`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Invalid cell range format: ${start}:${end}`);
     }
 
     const startCol = startMatch[1];
@@ -193,24 +161,15 @@ function parseCellRange(start: string, end: string): ParsedRange {
     const endRow = parseInt(endMatch[2], 10);
 
     if (startRow <= 0 || endRow <= 0) {
-        throw HttpErrors.badRequest(
-            `Row numbers must be positive: ${start}:${end}`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Row numbers must be positive: ${start}:${end}`);
     }
 
     if (startRow > endRow) {
-        throw HttpErrors.badRequest(
-            `Invalid range: start row ${startRow} is after end row ${endRow}`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Invalid range: start row ${startRow} is after end row ${endRow}`);
     }
 
     if (startCol > endCol) {
-        throw HttpErrors.badRequest(
-            `Invalid range: start field ${startCol} is after end field ${endCol}`,
-            'GRID_INVALID_RANGE'
-        );
+        throw new Error(`Invalid range: start column ${startCol} is after end column ${endCol}`);
     }
 
     return {
@@ -228,25 +187,19 @@ function parseCellRange(start: string, end: string): ParsedRange {
  *
  * @param range - Parsed range object
  * @param rowMax - Maximum row count for grid
- * @param colMax - Maximum field letter for grid
- * @throws HttpError if range exceeds grid bounds
+ * @param colMax - Maximum column letter for grid
+ * @throws Error if range exceeds grid bounds
  */
 export function validateRangeBounds(range: ParsedRange, rowMax: number, colMax: string): void {
     // Validate row bounds
     if (range.maxRow && range.maxRow > rowMax) {
-        throw HttpErrors.badRequest(
-            `Row ${range.maxRow} exceeds grid limit ${rowMax}`,
-            'GRID_ROW_OUT_OF_BOUNDS'
-        );
+        throw new Error(`Row ${range.maxRow} exceeds grid limit ${rowMax}`);
     }
 
-    // Validate field bounds
+    // Validate column bounds
     const checkCol = (col: string) => {
         if (col > colMax) {
-            throw HttpErrors.badRequest(
-                `Field ${col} exceeds grid limit ${colMax}`,
-                'GRID_FIELD_OUT_OF_BOUNDS'
-            );
+            throw new Error(`Column ${col} exceeds grid limit ${colMax}`);
         }
     };
 
@@ -256,26 +209,76 @@ export function validateRangeBounds(range: ParsedRange, rowMax: number, colMax: 
 }
 
 /**
- * Return a compacted version of the full grids cells response
- *
- * @param cells
- * @param format
- * @returns
+ * Check if a cell is within the specified range
  */
-export function formatCells(cells: any[], format?: string) {
-    // Format: grid-compact
+export function isCellInRange(cell: { row: number; col: string }, range: ParsedRange): boolean {
+    switch (range.type) {
+        case 'single':
+            return cell.row === range.row && cell.col === range.col;
+
+        case 'range':
+            return (
+                cell.row >= range.startRow! &&
+                cell.row <= range.endRow! &&
+                cell.col >= range.startCol! &&
+                cell.col <= range.endCol!
+            );
+
+        case 'row':
+            return cell.row >= range.startRow! && cell.row <= range.endRow!;
+
+        case 'col':
+            return cell.col >= range.startCol! && cell.col <= range.endCol!;
+
+        default:
+            return false;
+    }
+}
+
+/**
+ * Build where clause conditions for a range query
+ */
+export function buildRangeWhereClause(gridId: string, range: ParsedRange): Record<string, any> {
+    const where: Record<string, any> = { grid_id: gridId };
+
+    switch (range.type) {
+        case 'single':
+            where.row = range.row;
+            where.col = range.col;
+            break;
+
+        case 'range':
+            where['row[gte]'] = range.startRow;
+            where['row[lte]'] = range.endRow;
+            where['col[gte]'] = range.startCol;
+            where['col[lte]'] = range.endCol;
+            break;
+
+        case 'row':
+            where['row[gte]'] = range.startRow;
+            where['row[lte]'] = range.endRow;
+            break;
+
+        case 'col':
+            where['col[gte]'] = range.startCol;
+            where['col[lte]'] = range.endCol;
+            break;
+    }
+
+    return where;
+}
+
+/**
+ * Format cells for response (standard or compact format)
+ */
+export function formatCells(cells: any[], format?: string): any[] {
     if (format === 'grid-compact') {
         return cells.map(cell => [cell.row, cell.col, cell.value]);
     }
 
-    // TODO: future custom formats handled here
-
-    // No custom format matched. Return standard format
-    return cells.map((cell: any) => {
-        return {
-            row: cell.row,
-            col: cell.col,
-            value: cell.value
-        };
-    });
+    return cells.map((cell: any) => ({
+        row: cell.row,
+        col: cell.col,
+        value: cell.value
+    }));
 }
