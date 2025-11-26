@@ -22,6 +22,7 @@ import type { ModelRecord } from '@src/lib/model-record.js';
 export default class ModelCacheInvalidator extends BaseObserver {
     readonly ring = ObserverRing.Integration;  // Ring 8
     readonly operations = ['create', 'update', 'delete'] as const;
+    readonly models = ['models'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { record } = context;

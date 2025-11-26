@@ -67,18 +67,7 @@ export interface ObserverResult {
 
 /**
  * Universal model targeting keyword
- * Used in observer file paths to target all models
+ * Used to indicate an observer applies to all models
  */
 export const UNIVERSAL_MODEL_KEYWORD = 'all' as const;
 export type UniversalModelKeyword = typeof UNIVERSAL_MODEL_KEYWORD;
-
-/**
- * Observer file pattern for directory structure:
- * src/observers/:model/:ring_number/file-name.ts
- */
-export interface ObserverFilePattern {
-    model: string | UniversalModelKeyword;
-    ring: ObserverRing;
-    filename: string;
-    filepath: string;
-}

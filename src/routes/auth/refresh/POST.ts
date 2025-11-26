@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { verify, sign } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 /**
  * POST /auth/refresh - Refresh JWT token using valid token

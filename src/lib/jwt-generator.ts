@@ -6,7 +6,37 @@
  */
 
 import { sign, verify } from 'hono/jwt';
-import type { JWTPayload } from './middleware/jwt-validation.js';
+
+/**
+ * JWT Payload structure for all Monk API tokens
+ */
+export interface JWTPayload {
+    sub: string;
+    user_id: string | null;
+    tenant: string;
+    db_type: 'postgresql' | 'sqlite'; // Database backend type
+    db: string; // Database name (PG) or directory (SQLite)
+    ns: string; // Namespace/schema name (PG) or filename (SQLite)
+    access: string;
+    access_read: string[];
+    access_edit: string[];
+    access_full: string[];
+    iat: number;
+    exp: number;
+    // Sudo elevation metadata (optional)
+    is_sudo?: boolean; // True if this is a short-lived sudo token
+    elevated_from?: string; // Original access level before sudo
+    elevated_at?: string; // When sudo was granted
+    elevation_reason?: string; // Why sudo was requested
+    // User impersonation metadata (optional)
+    is_fake?: boolean; // True if this is a fake/impersonation token
+    faked_by_user_id?: string; // ID of root user doing the faking
+    faked_by_username?: string; // Name of root user doing the faking
+    faked_at?: string; // When impersonation was initiated
+    // Response format preference (optional)
+    format?: string;
+    [key: string]: any;
+}
 
 /**
  * Standard user data for JWT generation

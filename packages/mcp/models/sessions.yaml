@@ -1,0 +1,17 @@
+model_name: sessions
+description: MCP Sessions
+external: true
+
+fields:
+  - field_name: session_id
+    type: text
+    required: true
+    description: Unique session identifier
+
+  - field_name: user_tenant
+    type: text
+    description: Tenant name for authenticated user
+
+  - field_name: user_token
+    type: text
+    description: JWT token for authenticated user

@@ -9,11 +9,11 @@
  */
 
 import type { Context, Next } from 'hono';
-import type { JWTPayload } from '@src/lib/jwt-interface.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
-export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'toml' | 'csv' | 'brainfuck' | 'morse' | 'qr' | 'markdown' | 'msgpack';
+export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'toml' | 'csv' | 'brainfuck' | 'morse' | 'qr' | 'markdown' | 'msgpack' | 'grid-compact';
 
-const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'toml', 'csv', 'brainfuck', 'morse', 'qr', 'markdown', 'msgpack'];
+const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'toml', 'csv', 'brainfuck', 'morse', 'qr', 'markdown', 'msgpack', 'grid-compact'];
 
 /**
  * Resolves the response format for the current request

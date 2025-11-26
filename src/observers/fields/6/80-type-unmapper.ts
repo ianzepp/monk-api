@@ -62,6 +62,7 @@ export default class TypeUnmapperObserver extends BaseObserver {
     readonly ring = ObserverRing.PostDatabase;  // Ring 6
     readonly operations = ['create', 'update', 'delete'] as const;  // All write operations that return data
     readonly adapters = ['postgresql'] as const;  // Maps PostgreSQL type names
+    readonly models = ['fields'] as const;
     readonly priority = 80;  // Run after DDL observers (priority 10)
 
     async execute(context: ObserverContext): Promise<void> {

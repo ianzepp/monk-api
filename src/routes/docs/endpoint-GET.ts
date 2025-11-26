@@ -1,14 +1,15 @@
 import type { Context } from 'hono';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, existsSync, realpathSync } from 'fs';
+import { join, resolve } from 'path';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
  * GET /docs/* - Get API documentation (endpoint-specific or API overview)
  *
- * Supports two patterns:
- * 1. API Overview: /docs/api/data → api/data/PUBLIC.md
- * 2. Endpoint-Specific: /docs/api/data/model/GET → api/data/:model/GET.md
+ * Supports three patterns:
+ * 1. App Docs: /docs/app/mcp → node_modules/@monk-app/mcp/dist/docs/PUBLIC.md
+ * 2. API Overview: /docs/api/data → api/data/PUBLIC.md
+ * 3. Endpoint-Specific: /docs/api/data/model/GET → api/data/:model/GET.md
  *
  * Mapping: /docs/{path} → src/routes/{path}/PUBLIC.md or {METHOD}.md
  *
@@ -20,6 +21,13 @@ export default async function (context: Context) {
 
     if (segments.length === 0) {
         throw HttpErrors.badRequest('Documentation path is required', 'DOCS_PATH_MISSING');
+    }
+
+    // Pattern 1: App documentation - /docs/app/{appName}
+    if (segments[0] === 'app' && segments.length >= 2) {
+        const appName = segments[1];
+        const subPath = segments.slice(2).join('/');
+        return serveAppDocs(context, appName, subPath);
     }
 
     // Determine base directory based on environment
@@ -172,4 +180,66 @@ function findMethodDocumentation(
     }
 
     return null;
+}
+
+/**
+ * Serve documentation from an app package.
+ *
+ * Looks for docs in: node_modules/@monk-app/{appName}/dist/docs/
+ *
+ * Patterns:
+ * - /docs/app/mcp → PUBLIC.md
+ * - /docs/app/mcp/tools → tools.md or tools/PUBLIC.md
+ */
+async function serveAppDocs(context: Context, appName: string, subPath: string): Promise<Response> {
+    // Security: Validate appName contains only safe characters (alphanumeric, dash, underscore)
+    if (!/^[a-zA-Z0-9_-]+$/.test(appName)) {
+        throw HttpErrors.badRequest('Invalid app name', 'INVALID_APP_NAME');
+    }
+
+    // Security: Reject path traversal attempts in subPath
+    if (subPath.includes('..') || subPath.includes('\0')) {
+        throw HttpErrors.badRequest('Invalid documentation path', 'INVALID_PATH');
+    }
+
+    const appDocsDir = resolve(process.cwd(), 'node_modules', '@monk-app', appName, 'dist', 'docs');
+
+    // Determine which file to serve
+    let mdFilePath: string | null = null;
+
+    if (!subPath) {
+        // Root app docs: PUBLIC.md
+        mdFilePath = join(appDocsDir, 'PUBLIC.md');
+    } else {
+        // Sub-path: try {subPath}.md then {subPath}/PUBLIC.md
+        const directPath = join(appDocsDir, `${subPath}.md`);
+        const publicPath = join(appDocsDir, subPath, 'PUBLIC.md');
+
+        if (existsSync(directPath)) {
+            mdFilePath = directPath;
+        } else if (existsSync(publicPath)) {
+            mdFilePath = publicPath;
+        }
+    }
+
+    if (!mdFilePath || !existsSync(mdFilePath)) {
+        throw HttpErrors.notFound(
+            `App documentation not found: @monk-app/${appName}${subPath ? '/' + subPath : ''}`,
+            'APP_DOCS_NOT_FOUND'
+        );
+    }
+
+    // Security: Verify resolved path is within the expected docs directory
+    const realPath = realpathSync(mdFilePath);
+    if (!realPath.startsWith(appDocsDir)) {
+        throw HttpErrors.badRequest('Invalid documentation path', 'INVALID_PATH');
+    }
+
+    try {
+        const content = readFileSync(realPath, 'utf8');
+        context.header('Content-Type', 'text/markdown; charset=utf-8');
+        return context.text(content);
+    } catch (error) {
+        throw HttpErrors.internal('Failed to read app documentation', 'APP_DOCS_READ_ERROR');
+    }
 }

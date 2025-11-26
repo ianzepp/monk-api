@@ -70,6 +70,10 @@ export interface Observer {
      *  for observers that use PostgreSQL-specific SQL features like RETURNING */
     adapters?: readonly DatabaseType[];
 
+    /** Optional: limit to specific models (default: runs on all models)
+     *  Use 'all' or omit to run on all models, or specify model names like ['users', 'posts'] */
+    models?: readonly string[];
+
     /** Optional: execution priority within a ring (lower numbers execute first, default: 50) */
     priority?: number;
 

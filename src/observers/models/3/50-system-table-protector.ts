@@ -25,6 +25,7 @@ const SYSTEM_TABLES = new Set([
 export default class SystemTableProtector extends BaseObserver {
     readonly ring = ObserverRing.Business;  // Ring 3
     readonly operations = ['create'] as const;
+    readonly models = ['models'] as const;
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, record } = context;

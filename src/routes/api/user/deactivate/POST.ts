@@ -34,7 +34,7 @@ export default withTransactionParams(async (context: Context, { system, body }) 
 
     // Soft delete - set trashed_at timestamp with self-service sudo
     const deactivatedAt = new Date().toISOString();
-    await withSelfServiceSudo(context, async () => {
+    await withSelfServiceSudo(system, async () => {
         await system.database.updateOne('users', user.id, {
             trashed_at: deactivatedAt,
             updated_at: deactivatedAt

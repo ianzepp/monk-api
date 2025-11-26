@@ -11,7 +11,7 @@
 
 import type { Context, Next } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import type { JWTPayload } from './jwt-validation.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 /**
  * Sudo access validation middleware
@@ -19,21 +19,23 @@ import type { JWTPayload } from './jwt-validation.js';
  * Validates user has sudo access via one of:
  * - access='root' (automatic sudo, like Linux root user)
  * - is_sudo=true (explicit sudo token from POST /api/user/sudo)
- * - as_sudo=true (temporary self-service sudo flag)
+ *
+ * Note: as_sudo flag is not checked here because it's set by route handlers
+ * after this middleware runs. Self-service sudo operations don't use this middleware.
  *
  * Applied to /api/sudo/* routes that require privileged access.
  */
 export async function sudoAccessMiddleware(context: Context, next: Next) {
     const jwtPayload = context.get('jwtPayload') as JWTPayload;
     const user = context.get('user');
-    const isSudo = context.get('isSudo') as (() => boolean);
 
     if (!jwtPayload || !user) {
         throw HttpErrors.unauthorized('Valid JWT required for sudo operations', 'JWT_REQUIRED');
     }
 
-    // Check sudo access via helper (checks root, is_sudo, or as_sudo)
-    if (!isSudo || !isSudo()) {
+    // Check sudo access from JWT (root access or explicit sudo token)
+    const hasSudo = jwtPayload.access === 'root' || jwtPayload.is_sudo === true;
+    if (!hasSudo) {
         throw HttpErrors.forbidden(
             'Sudo access required - root users have automatic access, others must use POST /api/user/sudo',
             'SUDO_ACCESS_REQUIRED'

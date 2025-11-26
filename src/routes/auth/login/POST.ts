@@ -2,7 +2,8 @@ import type { Context } from 'hono';
 import { sign } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import type { JWTPayload } from '@src/lib/middleware/jwt-validation.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
+import { getClientIp, isIpAllowed } from '@src/lib/ip-utils.js';
 
 /**
  * POST /auth/login - Authenticate user with tenant and username
@@ -28,10 +29,11 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Username is required', 'AUTH_USERNAME_MISSING');
     }
 
-    // Look up tenant record to get database type, database, and schema
+    // Look up tenant record to get database type, database, schema, and IP restrictions
     const authDb = DatabaseConnection.getMainPool();
-    const tenantResult = await authDb.query('SELECT name, db_type, database, schema FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
+    const tenantResult = await authDb.query('SELECT name, db_type, database, schema, allowed_ips FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL', [tenant]);
 
+    // Check tenant exists
     if (!tenantResult.rows || tenantResult.rows.length === 0) {
         return context.json(
             {
@@ -41,11 +43,29 @@ export default async function (context: Context) {
             },
             401
         );
-    } else {
-        console.info('Found tenant record:', { tenant: tenantResult.rows[0] });
     }
 
-    const { name, db_type: dbType, database: dbName, schema: nsName } = tenantResult.rows[0];
+    const tenantRecord = tenantResult.rows[0];
+
+    // Check IP restrictions - return same error as "not found" for security
+    if (tenantRecord.allowed_ips && tenantRecord.allowed_ips.length > 0) {
+        const clientIp = getClientIp(context);
+        if (!isIpAllowed(clientIp, tenantRecord.allowed_ips)) {
+            console.info('Login blocked by IP restriction', { tenant, clientIp, allowed: tenantRecord.allowed_ips });
+            return context.json(
+                {
+                    success: false,
+                    error: 'Authentication failed',
+                    error_code: 'AUTH_LOGIN_FAILED',
+                },
+                401
+            );
+        }
+    }
+
+    console.info('Found tenant record:', { tenant: tenantRecord });
+
+    const { name, db_type: dbType, database: dbName, schema: nsName } = tenantRecord;
 
     // Look up user in the tenant's namespace
     const userResult = await DatabaseConnection.queryInNamespace(

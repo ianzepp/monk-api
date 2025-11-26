@@ -135,6 +135,25 @@ export class DatabaseNaming {
     }
 
     /**
+     * Generate app namespace (schema) name
+     *
+     * Used for @monk/* app packages that need their own isolated tenant.
+     * Uses SHA256 hashing for consistent naming across server restarts.
+     *
+     * Format: ns_app_<8-char-hex>
+     * Example: "mcp" → "ns_app_a1b2c3d4"
+     *
+     * @param appName - App name without @monk/ prefix (e.g., 'mcp')
+     * @returns PostgreSQL schema name with ns_app_ prefix
+     */
+    static generateAppNsName(appName: string): string {
+        // Normalize and hash for consistent naming
+        const normalizedName = appName.trim().normalize('NFC');
+        const hash = createHash('sha256').update(normalizedName, 'utf8').digest('hex').substring(0, 8);
+        return `ns_app_${hash}`;
+    }
+
+    /**
      * Check if a database name follows tenant naming conventions
      *
      * Valid prefixes:
@@ -175,6 +194,7 @@ export class DatabaseNaming {
      * - ns_tenant_ (production tenants)
      * - ns_test_ (test namespaces)
      * - ns_sandbox_ (sandbox namespaces)
+     * - ns_app_ (app package tenants)
      *
      * @param nsName - Namespace name to check
      * @returns true if name follows conventions
@@ -183,7 +203,8 @@ export class DatabaseNaming {
         return (
             nsName.startsWith('ns_tenant_') ||
             nsName.startsWith('ns_test_') ||
-            nsName.startsWith('ns_sandbox_')
+            nsName.startsWith('ns_sandbox_') ||
+            nsName.startsWith('ns_app_')
         );
     }
 

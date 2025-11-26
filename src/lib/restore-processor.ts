@@ -1,12 +1,17 @@
 import type { System } from '@src/lib/system.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { YamlFormatter } from '@src/lib/formatters/yaml.js';
-import { createReadStream, createWriteStream, mkdirSync } from 'fs';
-import { stat, readFile, readdir, unlink, rm } from 'fs/promises';
+import { createReadStream, mkdirSync } from 'fs';
+import { readFile, readdir, rm } from 'fs/promises';
 import { join } from 'path';
-import { createHash } from 'crypto';
-import { createGunzip } from 'zlib';
-import { Extract } from 'unzipper';
+
+// Optional dependency - loaded dynamically
+let Extract: typeof import('unzipper').Extract | null = null;
+try {
+    Extract = (await import('unzipper')).Extract;
+} catch {
+    // unzipper not installed - restore from ZIP unavailable
+}
 
 /**
  * RestoreProcessor - Handles data restoration jobs
@@ -287,6 +292,12 @@ export class RestoreProcessor {
      * Extract uploaded ZIP file
      */
     private async extractUploadedFile(runId: string, filepath: string, destDir: string): Promise<void> {
+        if (!Extract) {
+            throw HttpErrors.serviceUnavailable(
+                'ZIP extraction is not available. Install optional dependency: npm install unzipper'
+            );
+        }
+
         return new Promise((resolve, reject) => {
             createReadStream(filepath)
                 .pipe(Extract({ path: destDir }))

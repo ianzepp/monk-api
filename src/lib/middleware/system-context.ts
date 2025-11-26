@@ -4,12 +4,12 @@
  * Hono middleware that initializes System context and attaches it to the request context.
  * Provides global error handling and automatic response formatting.
  *
- * This middleware eliminates the need for handleContextDb/handleContextTx wrapper functions
- * by doing all the system setup once per request and making it available on context.system.
+ * Requires jwtValidationMiddleware and userValidationMiddleware to run first
+ * to populate context.systemInit with authentication data.
  */
 
 import type { Context, Next } from 'hono';
-import { System } from '@src/lib/system.js';
+import { System, type SystemInit } from '@src/lib/system.js';
 import { createValidationError, createInternalError } from '@src/lib/api-helpers.js';
 import { ValidationError, BusinessLogicError, SystemError } from '@src/lib/observers/errors.js';
 
@@ -18,6 +18,8 @@ import { ValidationError, BusinessLogicError, SystemError } from '@src/lib/obser
  *
  * Attaches system to context.set('system', system) for use in route handlers.
  * Provides global error handling with proper error categorization.
+ *
+ * Uses systemInit from context (set by jwtValidationMiddleware, enriched by userValidationMiddleware).
  */
 export async function systemContextMiddleware(context: Context, next: Next) {
     try {
@@ -27,8 +29,13 @@ export async function systemContextMiddleware(context: Context, next: Next) {
             deleted: context.req.query('include_deleted') === 'true',
         };
 
-        // Create System instance for this request
-        const system = new System(context, options);
+        // Get systemInit from context (set by jwt-system-init, enriched by user-validation)
+        const systemInit = context.get('systemInit') as SystemInit | undefined;
+
+        // Create System instance - prefer systemInit, fallback to legacy context constructor
+        const system = systemInit
+            ? new System(systemInit, options)
+            : new System(context, options);
 
         // Attach system to Hono context for route handler access
         context.set('system', system);

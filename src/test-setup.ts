@@ -1,9 +1,9 @@
 // Test setup - runs before all tests
 import { beforeAll, afterAll } from 'vitest';
-import { config } from 'dotenv';
+import { loadEnv } from '@src/lib/env/load-env.js';
 
 // Load environment variables from .env file
-config();
+loadEnv();
 
 beforeAll(async () => {
     console.info('🧪 Setting up test environment...');

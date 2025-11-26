@@ -2,7 +2,6 @@
  * Response Pipeline Middleware
  *
  * Single middleware that orchestrates all response transformations in a predetermined order.
- * Replaces the complex override-stacking approach with a clean, linear pipeline.
  *
  * Pipeline Order:
  * 1. Field Extraction - Apply ?unwrap, ?select=, ?stat=false, ?access=false
@@ -14,40 +13,38 @@
  * - When routes call context.json(data), pipeline processes the data
  * - Returns final formatted/encrypted response
  * - No response cloning, no re-parsing, no multiple overrides
- *
- * Edge Cases Handled:
- * - Direct text responses (docs) - Skip pipeline, use original context.text()
- * - Error responses - Go through full pipeline (format + encrypt)
- * - Primitive values - Pass through without processing
- * - Missing dependencies (JWT for encryption) - Graceful fallback
  */
 
 import type { Context, Next } from 'hono';
-import type { JWTPayload } from '@src/lib/jwt-interface.js';
-import type { ResponseFormat } from './format-detection.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 // Field extraction utilities
 import { extract } from '@src/lib/field-extractor.js';
 import { filterSystemFields } from '@src/lib/system-field-filter.js';
 
-// Formatters
-import {
-    JsonFormatter,
-    ToonFormatter,
-    YamlFormatter,
-    TomlFormatter,
-    CsvFormatter,
-    MessagePackFormatter,
-    BrainfuckFormatter,
-    MorseFormatter,
-    QrFormatter,
-    MarkdownFormatter
-} from '@src/lib/formatters/index.js';
+// Formatter registry
+import { getFormatter, JsonFormatter } from '@src/lib/formatters/index.js';
 
 // Encryption utilities
 import { deriveKeyFromJWT, extractSaltFromPayload } from '@src/lib/encryption/key-derivation.js';
 import { encrypt } from '@src/lib/encryption/aes-gcm.js';
 import { createArmor } from '@src/lib/encryption/pgp-armor.js';
+
+/**
+ * Error response for unavailable format (missing optional @monk/formatter-* package)
+ */
+function formatUnavailableError(format: string): { text: string; contentType: string } {
+    const error = {
+        success: false,
+        error: `Format '${format}' is not available`,
+        error_code: 'FORMAT_UNAVAILABLE',
+        details: `Install the optional package: npm install @monk/formatter-${format}`
+    };
+    return {
+        text: JSON.stringify(error, null, 2),
+        contentType: JsonFormatter.contentType
+    };
+}
 
 /**
  * Pipeline Step 1: Field Extraction
@@ -113,91 +110,25 @@ function applyFieldExtraction(data: any, context: Context): any {
 /**
  * Pipeline Step 2: Format Conversion
  *
- * Converts data to string in requested format:
- * - JSON (default)
- * - TOON, YAML, TOML, CSV
- * - MessagePack, Brainfuck, Morse, QR, Markdown
- *
- * Returns { text, contentType } for next pipeline step
+ * Converts data to string in requested format using the formatter registry.
+ * Returns { text, contentType } for next pipeline step.
  */
 function applyFormatter(data: any, context: Context): { text: string; contentType: string } {
-    const format = (context.get('responseFormat') as ResponseFormat) || 'json';
+    const format = (context.get('responseFormat') as string) || 'json';
+    const formatter = getFormatter(format);
+
+    if (!formatter) {
+        return formatUnavailableError(format);
+    }
 
     try {
-        switch (format) {
-            case 'json':
-                return {
-                    text: JSON.stringify(data, null, 2),
-                    contentType: JsonFormatter.contentType
-                };
+        // Special case: CSV auto-unwraps envelope
+        const inputData = (format === 'csv' && data?.data !== undefined) ? data.data : data;
 
-            case 'toon':
-                return {
-                    text: ToonFormatter.encode(data),
-                    contentType: ToonFormatter.contentType
-                };
-
-            case 'yaml':
-                return {
-                    text: YamlFormatter.encode(data),
-                    contentType: YamlFormatter.contentType
-                };
-
-            case 'toml':
-                return {
-                    text: TomlFormatter.encode(data),
-                    contentType: TomlFormatter.contentType
-                };
-
-            case 'csv':
-                // CSV automatically unwraps envelope
-                let csvData = data;
-                if (data && typeof data === 'object' && 'data' in data) {
-                    csvData = data.data;
-                }
-                return {
-                    text: CsvFormatter.encode(csvData),
-                    contentType: CsvFormatter.contentType
-                };
-
-            case 'msgpack':
-                return {
-                    text: MessagePackFormatter.encode(data),
-                    contentType: MessagePackFormatter.contentType
-                };
-
-            case 'brainfuck':
-                return {
-                    text: BrainfuckFormatter.encode(data),
-                    contentType: BrainfuckFormatter.contentType
-                };
-
-            case 'morse':
-                return {
-                    text: MorseFormatter.encode(data),
-                    contentType: MorseFormatter.contentType
-                };
-
-            case 'qr':
-                return {
-                    text: QrFormatter.encode(data),
-                    contentType: QrFormatter.contentType
-                };
-
-            case 'markdown':
-                return {
-                    text: MarkdownFormatter.encode(data),
-                    contentType: MarkdownFormatter.contentType
-                };
-
-            default:
-                // Fallback to JSON for unknown formats
-                console.warn(`Unknown format '${format}', falling back to JSON`);
-                return {
-                    text: JSON.stringify(data, null, 2),
-                    contentType: JsonFormatter.contentType
-                };
-        }
+        return {
+            text: formatter.encode(inputData),
+            contentType: formatter.contentType
+        };
     } catch (error) {
         // If formatting fails, gracefully fall back to JSON
         console.error(`Format encoding failed (${format}), falling back to JSON:`, error);

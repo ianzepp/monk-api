@@ -45,9 +45,8 @@ export default class FieldSudoValidator extends BaseObserver {
             return;
         }
 
-        // Check if user has sudo token
-        const jwtPayload = system.context.get('jwtPayload');
-        const hasSudo = jwtPayload?.is_sudo === true;
+        // Check if user has sudo access (root, sudo token, or as_sudo flag)
+        const hasSudo = system.isSudo();
 
         // Track which sudo fields are being modified
         const sudoFieldsModified: Set<string> = new Set();
@@ -93,8 +92,7 @@ export default class FieldSudoValidator extends BaseObserver {
                 operation,
                 sudoFields: Array.from(sudoFieldsModified),
                 recordIndex: context.recordIndex,
-                userId: system.getUser?.()?.id,
-                elevation_reason: jwtPayload.elevation_reason
+                userId: system.getUser()?.id
             });
         }
     }

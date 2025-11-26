@@ -90,7 +90,7 @@ export default withTransactionParams(async (context: Context, { system, body }) 
     }
 
     // Update user profile with self-service sudo
-    const updated = await withSelfServiceSudo(context, async () => {
+    const updated = await withSelfServiceSudo(system, async () => {
         updates.updated_at = new Date().toISOString();
         return await system.database.updateOne('users', user.id, updates);
     });

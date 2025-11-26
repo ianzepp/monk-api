@@ -1,0 +1,3 @@
+# App configuration for @monk-app/openapi
+name: openapi
+description: OpenAPI specification generator - dynamically generates OpenAPI JSON from tenant models

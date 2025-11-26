@@ -1,11 +1,11 @@
 // Import process environment as early as possible
-import dotenv from 'dotenv';
+import { loadEnv } from '@src/lib/env/load-env.js';
 
 // Load environment-specific .env file
 const envFile = process.env.NODE_ENV
     ? `.env.${process.env.NODE_ENV}`
     : '.env';
-dotenv.config({ path: envFile, debug: true });
+loadEnv({ path: envFile, debug: true });
 
 // Sanity check for required env values
 if (!process.env.DATABASE_URL) {
@@ -36,14 +36,12 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
 // Imports
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { checkDatabaseConnection, closeDatabaseConnection } from '@src/db/index.js';
-import * as mcpRoutes from '@src/routes/mcp/routes.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
 
 // Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
-import { ObserverValidator } from '@src/lib/observers/validator.js';
 
 // Middleware
 import * as middleware from '@src/lib/middleware/index.js';
@@ -60,7 +58,6 @@ import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as historyRoutes from '@src/routes/api/history/routes.js';
 import * as extractRoutes from '@src/routes/api/extracts/routes.js';
 import * as restoreRoutes from '@src/routes/api/restores/routes.js';
-import * as gridRoutes from '@src/routes/api/grids/routes.js';
 import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Special protected endpoints
@@ -76,7 +73,7 @@ console.info('- NODE_ENV:', process.env.NODE_ENV);
 console.info('- PORT:', process.env.PORT);
 console.info('- DATABASE_URL:', process.env.DATABASE_URL);
 console.info('- SQLITE_DATA_DIR:', process.env.SQLITE_DATA_DIR);
-checkDatabaseConnection();
+DatabaseConnection.healthCheck();
 
 // Create Hono app
 const app = new Hono();
@@ -240,10 +237,103 @@ app.use('/api/*', middleware.systemContextMiddleware);
 app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
 app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpoint-specific docs)
 
-// MCP route (public, uses internal auth via tool calls)
-app.use('/mcp', middleware.requestBodyParserMiddleware);
-mcpRoutes.setHonoApp(app);
-app.post('/mcp', mcpRoutes.McpPost); // POST /mcp (JSON-RPC)
+// App packages - dynamically loaded from @monk-app/* packages on first request
+// Apps mount under /app/* and use API-based data access
+// Lazy loading ensures observers are ready before model creation
+//
+// Model namespace is per-model via the `external` field:
+// - external: true  - Model installed in app's namespace (shared infrastructure)
+// - external: false - Model installed in user's tenant (requires JWT auth)
+
+// Track pending app load promises to prevent duplicate loads
+const appLoadPromises = new Map<string, Promise<Hono | null>>();
+
+// Lazy app loader - initializes app on first request
+app.all('/app/:appName/*', async (c) => {
+    const appName = c.req.param('appName');
+
+    // Import loader functions
+    const { loadHybridApp, appHasTenantModels } = await import('@src/lib/apps/loader.js');
+
+    // Check if app has tenant models (requires JWT auth)
+    // Note: This check may return false on first load before models are cached,
+    // so we also check after loading if auth is needed for tenant model installation
+    const needsAuth = appHasTenantModels(appName);
+
+    // If app has tenant models, ensure user is authenticated
+    if (needsAuth) {
+        const jwtPayload = c.get('jwtPayload');
+        if (!jwtPayload) {
+            try {
+                await middleware.jwtValidationMiddleware(c, async () => {});
+            } catch (error) {
+                return c.json({
+                    success: false,
+                    error: 'Authentication required for this app',
+                    error_code: 'AUTH_REQUIRED'
+                }, 401);
+            }
+        }
+    }
+
+    // Load app (handles both external and tenant models)
+    let loadPromise = appLoadPromises.get(appName);
+    if (!loadPromise) {
+        loadPromise = loadHybridApp(appName, app, c);
+        appLoadPromises.set(appName, loadPromise);
+    }
+
+    let appInstance: Hono | null = null;
+    try {
+        appInstance = await loadPromise;
+    } finally {
+        appLoadPromises.delete(appName);
+    }
+
+    // After first load, check again if auth is needed (models now cached)
+    if (!needsAuth && appHasTenantModels(appName)) {
+        const jwtPayload = c.get('jwtPayload');
+        if (!jwtPayload) {
+            try {
+                await middleware.jwtValidationMiddleware(c, async () => {});
+                // Re-load to install tenant models now that we have auth
+                appInstance = await loadHybridApp(appName, app, c);
+            } catch (error) {
+                return c.json({
+                    success: false,
+                    error: 'Authentication required for this app',
+                    error_code: 'AUTH_REQUIRED'
+                }, 401);
+            }
+        }
+    }
+
+    if (!appInstance) {
+        return c.json({ success: false, error: `App not found: ${appName}`, error_code: 'APP_NOT_FOUND' }, 404);
+    }
+
+    // Rewrite URL to remove /app/{appName} prefix for the sub-app
+    const originalPath = c.req.path;
+    const appPrefix = `/app/${appName}`;
+    const subPath = originalPath.slice(appPrefix.length) || '/';
+
+    // Create new request with rewritten path
+    const url = new URL(c.req.url);
+    url.pathname = subPath;
+
+    // Forward the original Authorization header
+    const headers = new Headers(c.req.raw.headers);
+
+    const newRequest = new Request(url.toString(), {
+        method: c.req.method,
+        headers,
+        body: c.req.raw.body,
+        // @ts-ignore - duplex is needed for streaming bodies
+        duplex: 'half',
+    });
+
+    return appInstance.fetch(newRequest);
+});
 
 // Internal API (for fire-and-forget background jobs)
 setInternalApiHonoApp(app);
@@ -341,12 +431,6 @@ app.post('/api/restores/:record/execute', restoreRoutes.RestoreExecute); // Exec
 app.post('/api/restores/:record/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
 app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
 
-// 52-grids-app: Grid application (spreadsheet-like cell storage)
-app.get('/api/grids/:id/:range', gridRoutes.RangeGet); // Read cells (A1, A1:Z100, A:A, 5:5)
-app.put('/api/grids/:id/:range', gridRoutes.RangePut); // Update cells/range
-app.delete('/api/grids/:id/:range', gridRoutes.RangeDelete); // Clear cells/range
-app.post('/api/grids/:id/cells', gridRoutes.CellsPost); // Bulk upsert cells
-
 // Error handling
 app.onError((err, c) => createInternalError(c, err));
 
@@ -368,20 +452,12 @@ const port = Number(process.env.PORT || 9001);
 // Initialize observer system
 console.info('Preloading observer system');
 try {
-    // Validate observer files before loading
-    const validationResult = await ObserverValidator.validateAll();
-    if (!validationResult.valid) {
-        console.error(ObserverValidator.formatErrors(validationResult));
-        throw new Error(`Observer validation failed with ${validationResult.errors.length} errors`);
-    }
-
-    await ObserverLoader.preloadObservers();
+    ObserverLoader.preloadObservers();
     console.info('Observer system ready', {
-        observersValidated: validationResult.filesChecked,
-        warnings: validationResult.warnings.length
+        observerCount: ObserverLoader.getObserverCount()
     });
 } catch (error) {
-    console.error(`❌ Observer system initialization failed:`, error);
+    console.error(`Observer system initialization failed:`, error);
     console.warn('Continuing without observer system');
 }
 
@@ -398,11 +474,26 @@ console.info('- monk-cli: Terminal commands for the API (https://github.com/ianz
 console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
 console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)');
 
-// Start server using Hono's serve() - MCP is handled as a regular route via app.post('/mcp')
+// Log available app packages (lazy-loaded on first request)
+try {
+    const { discoverApps } = await import('@src/lib/apps/loader.js');
+    const availableApps = await discoverApps();
+    if (availableApps.length > 0) {
+        console.info('Available app packages (lazy-loaded on first request):');
+        for (const appName of availableApps) {
+            console.info(`- @monk-app/${appName} → /app/${appName}`);
+        }
+    } else {
+        console.info('No app packages installed');
+    }
+} catch (error) {
+    console.info('No app packages installed');
+}
+
+// Start server using Hono's serve()
 const server = serve({ fetch: app.fetch, port });
 
 console.info('HTTP API server running', { port, url: `http://localhost:${port}` });
-console.info('MCP endpoint available at POST /mcp (JSON-RPC)');
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
@@ -413,7 +504,7 @@ const gracefulShutdown = async () => {
     console.info('HTTP server stopped');
 
     // Close database connections
-    await closeDatabaseConnection();
+    await DatabaseConnection.closeConnections();
     console.info('Database connections closed');
 
     process.exit(0);

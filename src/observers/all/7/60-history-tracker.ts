@@ -82,18 +82,14 @@ export default class HistoryTracker extends BaseObserver {
         }
 
         // Get user context
-        const user = system.getUser?.();
+        const user = system.getUser();
         const userId = user?.id || null;
 
-        // Extract metadata
-        const metadata: any = {};
-        if (system.context) {
-            const jwtPayload = system.context.get('jwtPayload');
-            if (jwtPayload) {
-                metadata.user_role = jwtPayload.role;
-                metadata.user_tenant = jwtPayload.tenant;
-            }
-        }
+        // Extract metadata from system properties
+        const metadata: any = {
+            user_role: system.access,
+            user_tenant: system.tenant
+        };
 
         // Create history record using raw SQL to avoid observer recursion
         // Uses adapter.query() for PostgreSQL/SQLite compatibility

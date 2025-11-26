@@ -40,6 +40,7 @@ export interface UserInfo {
  * - Per-request instance pattern (not singleton)
  * - Dependency injection to break circular dependencies
  * - Contains both business context and infrastructure concerns
+ * - Can be created from JWT payload (HTTP) or directly (internal operations)
  */
 export interface SystemContext {
     /** User ID from authentication context */
@@ -48,21 +49,32 @@ export interface SystemContext {
     /** Query behavior options (soft delete handling, etc.) */
     readonly options: Readonly<SystemOptions>;
 
-    /** Hono request context for accessing request/response and context variables */
-    readonly context: Context;
+    /**
+     * Hono request context for accessing request/response and context variables.
+     * Null for internal operations that don't originate from HTTP requests.
+     * @deprecated Access properties directly instead of through context
+     */
+    readonly context: Context | null;
 
     /** Database backend type (postgresql or sqlite) from JWT */
     readonly dbType: DatabaseType;
 
+    /** Database name */
+    readonly dbName: string;
+
+    /** Namespace/schema name */
+    readonly nsName: string;
+
+    /** Access level (root, full, edit, read, deny) */
+    readonly access: string;
+
+    /** Tenant name */
+    readonly tenant: string;
+
     /** Database adapter for query execution
-     *  Set by withTransaction() before any database operations execute
+     *  Set by runTransaction() before any database operations execute
      *  Provides abstraction layer for PostgreSQL and SQLite backends */
     adapter: DatabaseAdapter | null;
-
-    /** Transaction context with search_path configured for namespace isolation
-     *  Set by withTransaction() before any database operations execute
-     *  @deprecated Use adapter.query() instead - tx is kept for backwards compatibility */
-    tx: any; // Avoid importing pg.PoolClient to prevent circular deps
 
     /** Database instance for high-level operations */
     readonly database: any; // Avoid importing Database class to prevent circular deps
@@ -83,4 +95,13 @@ export interface SystemContext {
      * Check if the current user has root access level
      */
     isRoot(): boolean;
+
+    /**
+     * Check if the current operation has sudo access.
+     * Sudo access is granted via:
+     * 1. Root access level (automatic sudo)
+     * 2. Explicit sudo token (is_sudo=true in JWT)
+     * 3. Self-service sudo flag (set via setAsSudo)
+     */
+    isSudo(): boolean;
 }

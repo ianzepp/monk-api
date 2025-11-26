@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { closeTestDatabasePools, getDatabasePoolStats } from '@src/db/index.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 /**
  * DELETE /test/pools
@@ -24,9 +24,9 @@ export default async function (context: Context) {
     }
 
     try {
-        const statsBefore = getDatabasePoolStats();
-        await closeTestDatabasePools();
-        const statsAfter = getDatabasePoolStats();
+        const statsBefore = DatabaseConnection.getPoolStats();
+        await DatabaseConnection.closeTestPools();
+        const statsAfter = DatabaseConnection.getPoolStats();
 
         return context.json({
             success: true,

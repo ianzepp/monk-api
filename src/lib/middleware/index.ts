@@ -12,6 +12,6 @@ export { formatDetectionMiddleware } from './format-detection.js';
 export { requestBodyParserMiddleware } from './request-body-parser.js';
 export { responsePipelineMiddleware } from './response-pipeline.js';
 export { requestTrackingMiddleware } from './request-tracking.js';
-export { jwtValidationMiddleware } from './jwt-validation.js';
+export { jwtValidationMiddleware } from './jwt-system-init.js';
 export { userValidationMiddleware } from './user-validation.js';
 export { sudoAccessMiddleware } from './sudo-access.js';

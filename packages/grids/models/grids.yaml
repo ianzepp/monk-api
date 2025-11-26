@@ -1,0 +1,26 @@
+model_name: grids
+description: Grid metadata for spreadsheet-like data storage
+
+fields:
+  - field_name: name
+    type: text
+    required: true
+    description: Human-readable grid name
+
+  - field_name: description
+    type: text
+    description: Purpose and notes about the grid
+
+  - field_name: row_count
+    type: integer
+    description: Current number of populated rows (auto-calculated)
+
+  - field_name: row_max
+    type: integer
+    default_value: "1000"
+    description: Maximum row number allowed (1-based)
+
+  - field_name: col_max
+    type: text
+    default_value: "Z"
+    description: Maximum column letter allowed (A-Z)

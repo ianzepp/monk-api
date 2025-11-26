@@ -3,13 +3,15 @@
  *
  * Uses JWT context values to validate user exists in tenant database.
  * Requires jwtValidationMiddleware to run first to populate context.
+ * Enriches systemInit with validated user data from database.
  */
 
 import type { Context, Next } from 'hono';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import type { JWTPayload } from './jwt-validation.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
+import type { SystemInit } from '@src/lib/system.js';
 
 /**
  * User validation middleware - validates user exists in tenant database
@@ -59,6 +61,15 @@ export async function userValidationMiddleware(context: Context, next: Next) {
         const accessEdit = typeof user.access_edit === 'string' ? JSON.parse(user.access_edit) : (user.access_edit || []);
         const accessFull = typeof user.access_full === 'string' ? JSON.parse(user.access_full) : (user.access_full || []);
 
+        // Enrich systemInit with validated user data from database
+        // This ensures System has fresh access arrays, not stale JWT data
+        const systemInit = context.get('systemInit') as SystemInit;
+        if (systemInit) {
+            systemInit.accessRead = accessRead;
+            systemInit.accessEdit = accessEdit;
+            systemInit.accessFull = accessFull;
+        }
+
         // Enrich context with actual user data from database
         context.set('user', {
             id: user.id,
@@ -71,6 +82,8 @@ export async function userValidationMiddleware(context: Context, next: Next) {
             access_edit: accessEdit,
             access_full: accessFull
         });
+
+        // Legacy context values for backwards compatibility
         context.set('userId', user.id);
         context.set('accessReadIds', accessRead);
         context.set('accessEditIds', accessEdit);

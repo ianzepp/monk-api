@@ -28,6 +28,7 @@ export default class SnapshotProcessor extends BaseAsyncObserver {
     readonly ring = ObserverRing.Integration;  // Ring 8
     readonly operations = ['create'] as const;
     readonly adapters = ['postgresql'] as const;  // Uses pg_dump
+    readonly models = ['snapshots'] as const;
     protected readonly timeoutMs = 600000; // 10 minutes for large databases
 
     async execute(context: ObserverContext): Promise<void> {

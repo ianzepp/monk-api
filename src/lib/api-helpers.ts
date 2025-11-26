@@ -1,10 +1,9 @@
 import type { Context } from 'hono';
-import { System } from '@src/lib/system.js';
+import { System, type SystemInit } from '@src/lib/system.js';
 import type { SystemOptions } from '@src/lib/system-context-types.js';
 import type { SelectOptions } from '@src/lib/database.js';
 import { isHttpError, HttpErrors } from '@src/lib/errors/http-error.js';
-import { createAdapter } from '@src/lib/database/index.js';
-import type { DatabaseType } from '@src/lib/database/adapter.js';
+import { runTransaction } from '@src/lib/transaction.js';
 
 /**
  * API Request/Response Helpers
@@ -97,6 +96,9 @@ function extractPositionFromError(errorMessage: string): { line?: number; field?
  * Core transaction wrapper that handles BEGIN, SET LOCAL, COMMIT/ROLLBACK
  * Does NOT extract parameters - pure transaction lifecycle management
  *
+ * Delegates to runTransaction() for the actual transaction lifecycle, then
+ * handles Hono-specific error formatting.
+ *
  * Automatically handles:
  * - Database adapter creation based on JWT db_type (postgresql or sqlite)
  * - Transaction creation (BEGIN)
@@ -111,91 +113,38 @@ function extractPositionFromError(errorMessage: string): { line?: number; field?
  */
 export function withTransaction(handler: (context: Context) => Promise<void>) {
     return async (context: Context) => {
-        const system = context.get('system');
-        const dbType = (context.get('dbType') as DatabaseType) || 'postgresql';
-        const dbName = context.get('dbName') as string;
-        const nsName = context.get('nsName') as string;  // From JWT token.ns (verified and trusted)
+        const systemInit = context.get('systemInit') as SystemInit;
 
-        // Validate namespace exists (should always exist for tenant-scoped routes)
-        if (!nsName) {
-            return createInternalError(context, 'Transaction started without namespace context');
+        // Validate we have system init (should be set by jwt-system-init middleware)
+        if (!systemInit) {
+            return createInternalError(context, 'Transaction started without systemInit context');
         }
 
         // Defense in depth: validate namespace format (even though JWT is verified)
-        if (!/^[a-zA-Z0-9_]+$/.test(nsName)) {
-            return createInternalError(context, `Invalid namespace format: ${nsName}`);
+        if (!/^[a-zA-Z0-9_]+$/.test(systemInit.nsName)) {
+            return createInternalError(context, `Invalid namespace format: ${systemInit.nsName}`);
         }
 
-        // Create database adapter based on tenant's database type
-        const adapter = createAdapter({ dbType, db: dbName, ns: nsName });
-
         try {
-            // Connect to database
-            await adapter.connect();
-
-            // Start transaction
-            await adapter.beginTransaction();
-
-            // Set adapter for database operations
-            system.adapter = adapter;
-
-            // For PostgreSQL, also set legacy tx for backwards compatibility
-            // @deprecated system.tx - use system.adapter.query() instead
-            // Kept for SqlUtils.getPool() fallback until all observers are migrated
-            if (dbType === 'postgresql') {
-                system.tx = adapter.getRawConnection();
-            }
-
-            // Ensure namespace cache is loaded (one-time per tenant)
-            // This requires adapter to be set on system before calling
-            if (system.namespace && !system.namespace.isLoaded()) {
-                await system.namespace.loadAll(system);
-            }
-
-            console.info('Transaction started', {
-                dbType,
-                namespace: nsName,
-                path: context.req.path,
-                method: context.req.method,
-                cacheLoaded: system.namespace?.isLoaded() ?? false,
+            await runTransaction(systemInit, async (system) => {
+                // Make system available to route handler via context
+                context.set('system', system);
+                await handler(context);
+            }, {
+                logContext: {
+                    path: context.req.path,
+                    method: context.req.method,
+                },
             });
 
-            // Execute route handler
-            await handler(context);
-
-            // Commit on success
-            await adapter.commit();
-            console.info('Transaction committed', { dbType, namespace: nsName });
-
         } catch (error) {
-            // Rollback on error
-            try {
-                await adapter.rollback();
-                console.info('Transaction rolled back', {
-                    dbType,
-                    namespace: nsName,
-                    error: error instanceof Error ? error.message : String(error)
-                });
-            } catch (rollbackError) {
-                console.warn('Failed to rollback transaction', {
-                    rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
-                });
-            }
-
-            // If error is already an HttpError or properly formatted, rethrow it
-            // Otherwise, wrap it in proper error format
+            // If error is already an HttpError, rethrow for error handler
             if (isHttpError(error)) {
                 throw error;
             }
 
-            // If route handler didn't catch and format the error, format it here
+            // Format unexpected errors for API response
             return createInternalError(context, error instanceof Error ? error : String(error));
-
-        } finally {
-            // Always clean up
-            await adapter.disconnect();
-            system.adapter = null;
-            system.tx = undefined;
         }
     };
 }
@@ -342,8 +291,8 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
  * that need to bypass model-level sudo protection.
  *
  * Used by User API endpoints that allow users to modify their own records in sudo-protected
- * models (like the users table). Sets the 'as_sudo' flag which observers can check
- * alongside 'is_sudo' from JWT tokens.
+ * models (like the users table). Sets the 'as_sudo' flag on System which observers check
+ * via system.isSudo().
  *
  * Automatically handles:
  * - Setting as_sudo=true flag before handler execution
@@ -356,7 +305,7 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
  * Example usage:
  * ```typescript
  * export default withTransactionParams(async (context, { system, body }) => {
- *     const result = await withSelfServiceSudo(context, async () => {
+ *     const result = await withSelfServiceSudo(system, async () => {
  *         return await system.database.updateOne('users', userId, updates);
  *     });
  *     setRouteResult(context, result);
@@ -364,14 +313,14 @@ export function withTransactionParams(handler: (context: Context, params: RouteP
  * ```
  */
 export async function withSelfServiceSudo<T>(
-    context: Context,
+    system: System,
     handler: () => Promise<T>
 ): Promise<T> {
-    context.set('as_sudo', true);
+    system.setAsSudo(true);
     try {
         return await handler();
     } finally {
-        context.set('as_sudo', undefined);
+        system.setAsSudo(false);
     }
 }
 

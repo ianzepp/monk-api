@@ -50,22 +50,18 @@ export default class ModelSudoValidator extends BaseObserver {
             recordIndex: context.recordIndex
         });
 
-        // Use isSudo() helper which checks: root user, is_sudo flag, or as_sudo flag
-        const isSudo = system.context.get('isSudo') as (() => boolean);
-
-        if (!isSudo || !isSudo()) {
+        // Use system.isSudo() which checks: root user, is_sudo token, or as_sudo flag
+        if (!system.isSudo()) {
             throw new SystemError(
                 `Model '${model.model_name}' requires sudo access. Root users have automatic access, others must use POST /api/user/sudo.`
             );
         }
 
-        const jwtPayload = system.context.get('jwtPayload');
         console.info('Sudo access validated for protected model', {
             operation: context.operation,
             modelName: model.model_name,
             recordIndex: context.recordIndex,
-            userId: system.getUser?.()?.id,
-            elevation_reason: jwtPayload?.elevation_reason
+            userId: system.getUser()?.id
         });
     }
 }
