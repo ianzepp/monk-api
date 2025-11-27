@@ -1,6 +1,6 @@
 # POST /auth/register
 
-Create an empty tenant (cloned from the default template) and bootstrap a full-access user. A JWT token for the new user is returned so the caller can immediately interact with protected APIs.
+Create a new tenant with core system tables and bootstrap a full-access user. A JWT token for the new user is returned so the caller can immediately interact with protected APIs.
 
 **Note**: The API server administrator controls the database naming mode via the `TENANT_NAMING_MODE` environment variable. This is not client-configurable for security reasons.
 
@@ -9,8 +9,6 @@ Create an empty tenant (cloned from the default template) and bootstrap a full-a
 ```json
 {
   "tenant": "string",        // Required: Tenant identifier
-  "template": "string",      // Optional: Template name(s) to use (defaults to 'system')
-                             //           Supports comma-separated values (e.g., "system,audit,exports")
   "username": "string",      // Optional: Desired username
                              //           Required when server is in enterprise mode
                              //           Defaults to 'root' when server is in personal mode
@@ -63,10 +61,8 @@ The server administrator configures the database naming strategy via the `TENANT
 | 400 | `AUTH_USERNAME_MISSING` | "Username is required" | Missing username when server is in enterprise mode |
 | 400 | `AUTH_DATABASE_NOT_ALLOWED` | "database parameter can only be specified when server is in personal mode" | database provided when server is in enterprise mode |
 | 400 | `INVALID_ADAPTER` | "Invalid adapter '...'. Must be 'postgresql' or 'sqlite'" | Invalid adapter value |
-| 404 | `DATABASE_TEMPLATE_NOT_FOUND` | "Template '{name}' not found" | Specified template does not exist |
 | 409 | `DATABASE_TENANT_EXISTS` | "Tenant '{name}' already exists" | Tenant name already registered |
 | 409 | `DATABASE_EXISTS` | "Database '{name}' already exists" | Database name collision (personal mode) |
-| 500 | `DATABASE_TEMPLATE_CLONE_FAILED` | "Failed to clone template database: ..." | Template cloning failed |
 
 ## Example Usage
 
@@ -141,24 +137,6 @@ curl -X POST http://localhost:9001/auth/register \
 
 ---
 
-### Using Custom Template
-
-```bash
-curl -X POST http://localhost:9001/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenant": "my-saas-app",
-    "template": "saas-starter",
-    "username": "admin"
-  }'
-```
-
-**Result:**
-- New tenant cloned from `saas-starter` template instead of default `system` template
-- All models and data from template are copied to new tenant
-
----
-
 ### Using SQLite Adapter
 
 ```bash
@@ -175,28 +153,9 @@ curl -X POST http://localhost:9001/auth/register \
 - Tenant created with SQLite backend instead of PostgreSQL
 - Data stored in a SQLite file rather than PostgreSQL schema
 
----
-
-### Multiple Templates (Comma-Separated)
-
-```bash
-curl -X POST http://localhost:9001/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenant": "full-featured-app",
-    "username": "admin",
-    "template": "system,audit,exports,imports"
-  }'
-```
-
-**Result:**
-- All specified templates deployed with automatic dependency resolution
-- `system` deployed first (as dependency), then `audit`, `exports`, `imports`
-
-
 ## Implementation Notes
 
-- **Transaction Safety**: Template cloning is atomic - either fully succeeds or fully rolls back
+- **Transaction Safety**: Tenant creation is atomic - either fully succeeds or fully rolls back
 - **User Creation**: First user is always created with `access='root'` for administrative control
 - **JWT Generation**: Token is issued immediately for seamless onboarding experience
 - **Database Prefixing**: All databases get `tenant_` prefix to prevent system database collisions
