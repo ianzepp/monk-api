@@ -1,12 +1,19 @@
 /**
- * Database Adapter Factory
+ * Database Module
  *
- * Creates the appropriate database adapter based on tenant configuration.
- * This is the single entry point for creating database adapters.
+ * Exports:
+ * - Database service class for high-level operations
+ * - Database adapter factory for low-level connections
+ * - Types for both service and adapters
  *
  * Uses bun:sqlite for SQLite (no native dependencies).
  */
 
+// Database Service (high-level operations)
+export { Database } from './service.js';
+export type { CachedRelationship, SelectOptions } from './types.js';
+
+// Database Adapters (low-level connections)
 export type { DatabaseAdapter, QueryResult, DatabaseType, AdapterConfig } from './adapter.js';
 export { PostgresAdapter } from './postgres-adapter.js';
 export { BunSqliteAdapter } from './bun-sqlite-adapter.js';
