@@ -123,8 +123,8 @@ function applyFormatter(data: any, context: Context): { data: Uint8Array; conten
     }
 
     try {
-        // Special case: CSV auto-unwraps envelope
-        const inputData = (format === 'csv' && data?.data !== undefined) ? data.data : data;
+        // Special case: CSV and SQLite auto-unwrap envelope (they expect arrays)
+        const inputData = ((format === 'csv' || format === 'sqlite') && data?.data !== undefined) ? data.data : data;
 
         return {
             data: formatter.encode(inputData),
