@@ -4,13 +4,13 @@
  * Records all API requests to the database for analytics, monitoring,
  * and connection health verification. Runs early in middleware chain.
  *
- * In standalone mode (sqlite:tenant), request tracking is skipped since
- * there's no infrastructure database.
+ * In SQLite mode, request tracking is skipped since the requests table
+ * has been removed from the simplified infrastructure schema.
  */
 
 import type { Context, Next } from 'hono';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { isStandaloneMode } from '@src/lib/standalone.js';
+import { parseInfraConfig } from '@src/lib/infrastructure.js';
 
 /**
  * Request tracking middleware - logs all requests to database
@@ -20,10 +20,14 @@ import { isStandaloneMode } from '@src/lib/standalone.js';
  * 2. Verifies PostgreSQL connectivity early in request lifecycle
  *
  * Should be applied early in middleware chain, before authentication.
+ *
+ * Note: Request tracking is disabled in SQLite mode and when the
+ * requests table doesn't exist (simplified infrastructure schema).
  */
 export async function requestTrackingMiddleware(context: Context, next: Next) {
-    // Skip request tracking in standalone mode (no infrastructure database)
-    if (isStandaloneMode()) {
+    // Skip request tracking in SQLite mode (no requests table)
+    const config = parseInfraConfig();
+    if (config.dbType === 'sqlite') {
         return await next();
     }
 
@@ -61,6 +65,14 @@ export async function requestTrackingMiddleware(context: Context, next: Next) {
         // Database connection verified - continue with request
         return await next();
     } catch (error) {
+        // Check if error is because requests table doesn't exist
+        const errorMessage = String(error);
+        if (errorMessage.includes('relation "requests" does not exist')) {
+            // Table doesn't exist - skip tracking silently
+            console.info('Request tracking disabled (requests table not found)');
+            return await next();
+        }
+
         // Database connection failed - this is a critical system issue
         console.error('Database connection failed during request tracking:', error);
 

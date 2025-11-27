@@ -5,7 +5,7 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import { getClientIp, isIpAllowed } from '@src/lib/ip-utils.js';
-import { isStandaloneMode, getStandaloneTenant } from '@src/lib/standalone.js';
+import { Infrastructure } from '@src/lib/infrastructure.js';
 
 /**
  * POST /auth/login - Authenticate user with tenant and username
@@ -31,30 +31,8 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Username is required', 'AUTH_USERNAME_MISSING');
     }
 
-    // Look up tenant record - standalone mode bypasses PostgreSQL
-    let tenantRecord: {
-        name: string;
-        db_type: string;
-        database: string;
-        schema: string;
-        allowed_ips: string[] | null;
-    } | null = null;
-
-    if (isStandaloneMode()) {
-        // Standalone mode: use hardcoded tenant config
-        tenantRecord = getStandaloneTenant(tenant);
-    } else {
-        // Normal mode: query PostgreSQL tenant registry
-        const authDb = DatabaseConnection.getMainPool();
-        const tenantResult = await authDb.query(
-            'SELECT name, db_type, database, schema, allowed_ips FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
-            [tenant]
-        );
-
-        if (tenantResult.rows && tenantResult.rows.length > 0) {
-            tenantRecord = tenantResult.rows[0];
-        }
-    }
+    // Look up tenant record from infrastructure database
+    const tenantRecord = await Infrastructure.getTenant(tenant);
 
     // Check tenant exists
     if (!tenantRecord) {
@@ -66,22 +44,6 @@ export default async function (context: Context) {
             },
             401
         );
-    }
-
-    // Check IP restrictions - return same error as "not found" for security
-    if (tenantRecord.allowed_ips && tenantRecord.allowed_ips.length > 0) {
-        const clientIp = getClientIp(context);
-        if (!isIpAllowed(clientIp, tenantRecord.allowed_ips)) {
-            console.info('Login blocked by IP restriction', { tenant, clientIp, allowed: tenantRecord.allowed_ips });
-            return context.json(
-                {
-                    success: false,
-                    error: 'Authentication failed',
-                    error_code: 'AUTH_LOGIN_FAILED',
-                },
-                401
-            );
-        }
     }
 
     console.info('Found tenant record:', { tenant: tenantRecord });

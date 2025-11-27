@@ -13,18 +13,15 @@ if (!process.env.DATABASE_URL) {
     process.env.DATABASE_URL = 'sqlite:root';
 }
 
-// Import standalone mode detection (must be early, before env validation)
-import {
-    isStandaloneMode,
-    initializeStandaloneDatabase,
-    logStandaloneStatus
-} from '@src/lib/standalone.js';
+// Import infrastructure management
+import { Infrastructure, parseInfraConfig } from '@src/lib/infrastructure.js';
 
-// Check for standalone mode (sqlite:tenant format)
-const standaloneMode = isStandaloneMode();
+// Check infrastructure mode (sqlite vs postgresql)
+const infraConfig = parseInfraConfig();
+const isSqliteMode = infraConfig.dbType === 'sqlite';
 
-// Set defaults for standalone mode
-if (standaloneMode) {
+// Set defaults for SQLite mode (zero-config standalone)
+if (isSqliteMode) {
     // Set default SQLITE_DATA_DIR if not specified
     if (!process.env.SQLITE_DATA_DIR) {
         process.env.SQLITE_DATA_DIR = '.data';
@@ -119,16 +116,20 @@ console.info('- NODE_ENV:', process.env.NODE_ENV);
 console.info('- PORT:', process.env.PORT);
 console.info('- DATABASE_URL:', process.env.DATABASE_URL);
 console.info('- SQLITE_DATA_DIR:', process.env.SQLITE_DATA_DIR);
-console.info('- Standalone mode:', standaloneMode);
+console.info('- Infrastructure mode:', infraConfig.dbType);
 
-if (standaloneMode) {
-    // Initialize standalone SQLite database (creates if doesn't exist)
-    await initializeStandaloneDatabase();
-    logStandaloneStatus();
-} else {
-    // Normal mode: check PostgreSQL connection
+// Initialize infrastructure (creates tenants table if needed)
+await Infrastructure.initialize();
+
+if (!isSqliteMode) {
+    // PostgreSQL mode: also verify connection pool health
     DatabaseConnection.healthCheck();
 }
+
+console.info('Infrastructure ready', {
+    dbType: infraConfig.dbType,
+    database: infraConfig.database,
+});
 
 // Create Hono app
 const app = new Hono();

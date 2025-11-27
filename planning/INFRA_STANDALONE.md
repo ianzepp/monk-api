@@ -6,20 +6,19 @@ Enable Monk API to run entirely on SQLite without PostgreSQL dependency. Full mu
 
 ## Architecture
 
-### Current (PostgreSQL-dependent)
+### Current (Unified)
 ```
-DATABASE_URL=postgresql://...
-    → monk DB (infrastructure: tenants, sandboxes, requests, mcp_sessions)
-    → db_main (tenant schemas: ns_tenant_*)
-    → Tenant data can be PostgreSQL or SQLite
-```
+DATABASE_URL=postgresql://localhost/monk
+  └── monk database
+      ├── public schema → tenants, tenant_fixtures
+      ├── ns_tenant_acme → models, fields, users, filters, [user tables]
+      └── ns_tenant_demo → models, fields, users, filters, [user tables]
 
-### Target (SQLite standalone)
-```
-DATABASE_URL=sqlite:monk
-    → .data/infra/monk.db (infrastructure: tenants, tenant_fixtures)
-    → .data/db_main/*.db (tenant databases)
-    → Full multi-tenant, all SQLite
+DATABASE_URL=sqlite:monk (or absent)
+  └── .data/monk/
+      ├── public.db → tenants, tenant_fixtures
+      ├── ns_tenant_acme.db → models, fields, users, filters, [user tables]
+      └── ns_tenant_demo.db → models, fields, users, filters, [user tables]
 ```
 
 ## Infrastructure Tables (Simplified)
@@ -28,7 +27,7 @@ DATABASE_URL=sqlite:monk
 - `tenants` - Core tenant registry
 - `tenant_fixtures` - Track deployed fixtures per tenant
 
-**Drop:**
+**Dropped:**
 - `sandboxes` - Unused, future feature
 - `requests` - Space hog, minimal value
 - `mcp_sessions` - MCP server manages its own tenant now
@@ -41,26 +40,26 @@ DATABASE_URL=sqlite:monk
 - [x] `Infrastructure` class with embedded SQL schemas
 - [x] Infrastructure initialization tested on SQLite
 - [x] Build script (`scripts/build-standalone.sh`) - 59MB binary
+- [x] Wire `Infrastructure` class into startup
+- [x] Replace `DatabaseConnection.getMainPool()` usage in auth routes
+- [x] Remove single-tenant bypass hacks from `standalone.ts`
+- [x] Update `auth/login` to use `Infrastructure.getTenant()`
+- [x] Update `auth/register` to use `Infrastructure.createTenant()`
+- [x] Remove request-tracking middleware dependency on standalone.ts
+- [x] Delete standalone.ts
+- [x] Test full flow: register → login → create data → query
 
-### In Progress
-- [ ] Wire `Infrastructure` class into startup
-- [ ] Replace `DatabaseConnection.getMainPool()` usage in auth routes
-- [ ] Remove single-tenant bypass hacks from `standalone.ts`
-
-### TODO
-- [ ] Update `auth/login` to use `Infrastructure.getTenant()`
-- [ ] Update `auth/register` to use `Infrastructure.createTenant()`
-- [ ] Update `DatabaseTemplate.cloneTemplate()` for SQLite infrastructure
-- [ ] Remove request-tracking middleware (or make it optional)
-- [ ] Test full flow: register → login → create data → query
+### Not Needed (Simplified)
+- ~~Update `DatabaseTemplate.cloneTemplate()` for SQLite infrastructure~~ (replaced by Infrastructure.createTenant())
+- ~~Remove request-tracking middleware~~ (skips SQLite mode automatically)
 
 ## Database URL Convention
 
 ```bash
-# PostgreSQL infrastructure + mixed tenant backends
+# PostgreSQL infrastructure + tenant schemas in same database
 DATABASE_URL=postgresql://user@host:5432/monk
 
-# SQLite infrastructure + SQLite tenants only
+# SQLite infrastructure + SQLite tenants
 DATABASE_URL=sqlite:monk
 
 # Default (no DATABASE_URL set)
@@ -70,22 +69,20 @@ DATABASE_URL=sqlite:monk
 ## File Locations (SQLite mode)
 
 ```
-.data/
-├── infra/
-│   └── monk.db          # Infrastructure (tenants, tenant_fixtures)
-└── db_main/
-    ├── ns_tenant_abc123.db
-    ├── ns_tenant_def456.db
-    └── ...
+.data/monk/
+├── public.db              # Infrastructure (tenants, tenant_fixtures)
+├── ns_tenant_acme.db      # Tenant data
+├── ns_tenant_demo.db      # Tenant data
+└── ...
 ```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/lib/infrastructure.ts` | Embedded SQL schemas, tenant CRUD |
+| `src/lib/infrastructure.ts` | Embedded SQL schemas, tenant CRUD, initialization |
 | `src/lib/database/bun-sqlite-adapter.ts` | Bun-native SQLite adapter |
-| `src/lib/standalone.ts` | Standalone mode detection (needs refactor) |
+| `src/lib/database/sqlite-adapter.ts` | Node.js SQLite adapter (better-sqlite3) |
 | `scripts/build-standalone.sh` | Compile to single binary |
 
 ## Infrastructure Schema
@@ -121,7 +118,7 @@ CREATE TABLE tenant_fixtures (
 );
 ```
 
-## Usage (Target State)
+## Usage
 
 ```bash
 # Build standalone binary
@@ -134,12 +131,12 @@ cd dist-standalone
 # Register a tenant
 curl -X POST http://localhost:9001/auth/register \
   -H 'Content-Type: application/json' \
-  -d '{"tenant": "mycompany", "template": "system"}'
+  -d '{"tenant": "mycompany", "username": "admin"}'
 
 # Login
 curl -X POST http://localhost:9001/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"tenant": "mycompany", "username": "root"}'
+  -d '{"tenant": "mycompany", "username": "admin"}'
 ```
 
 ## Migration Path

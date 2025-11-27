@@ -1,0 +1,953 @@
+/**
+ * Infrastructure Database Management
+ *
+ * Manages the core infrastructure (tenants registry) and tenant provisioning.
+ * Supports both PostgreSQL and SQLite backends.
+ *
+ * Architecture:
+ *   PostgreSQL: monk database, public schema (infra), ns_tenant_* schemas (tenants)
+ *   SQLite: .data/monk/public.db (infra), .data/monk/ns_tenant_*.db (tenants)
+ *
+ * Usage:
+ *   await Infrastructure.initialize();  // At startup
+ *   const tenant = await Infrastructure.getTenant('acme');
+ *   const result = await Infrastructure.createTenant({ name: 'newco' });
+ */
+
+import { randomUUID } from 'crypto';
+import { existsSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import type { DatabaseAdapter, DatabaseType } from './database/adapter.js';
+
+// =============================================================================
+// INFRASTRUCTURE SCHEMA (tenants registry)
+// =============================================================================
+
+const INFRA_SCHEMA_POSTGRESQL = `
+-- Tenant fixtures tracking
+CREATE TABLE IF NOT EXISTS "tenant_fixtures" (
+    "tenant_id" uuid NOT NULL,
+    "fixture_name" VARCHAR(255) NOT NULL,
+    "deployed_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY ("tenant_id", "fixture_name")
+);
+
+CREATE INDEX IF NOT EXISTS "idx_tenant_fixtures_tenant" ON "tenant_fixtures" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_tenant_fixtures_fixture" ON "tenant_fixtures" ("fixture_name");
+
+-- Tenants registry
+CREATE TABLE IF NOT EXISTS "tenants" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "name" VARCHAR(255) NOT NULL UNIQUE,
+    "db_type" VARCHAR(20) DEFAULT 'postgresql' NOT NULL CHECK ("db_type" IN ('postgresql', 'sqlite')),
+    "database" VARCHAR(255) NOT NULL,
+    "schema" VARCHAR(255) NOT NULL,
+    "template_version" INTEGER DEFAULT 1 NOT NULL,
+    "description" TEXT,
+    "source_template" VARCHAR(255),
+    "owner_id" uuid NOT NULL,
+    "is_active" BOOLEAN DEFAULT true NOT NULL,
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TIMESTAMP,
+    "deleted_at" TIMESTAMP,
+    CONSTRAINT "tenants_database_schema_unique" UNIQUE("database", "schema")
+);
+
+CREATE INDEX IF NOT EXISTS "idx_tenants_name_active" ON "tenants" ("name", "is_active");
+CREATE INDEX IF NOT EXISTS "idx_tenants_database" ON "tenants" ("database");
+CREATE INDEX IF NOT EXISTS "idx_tenants_owner" ON "tenants" ("owner_id");
+
+-- Foreign key (added after both tables exist)
+DO $$ BEGIN
+    ALTER TABLE "tenant_fixtures"
+        ADD CONSTRAINT "tenant_fixtures_tenant_id_fkey"
+        FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+`;
+
+const INFRA_SCHEMA_SQLITE = `
+-- Tenant fixtures tracking
+CREATE TABLE IF NOT EXISTS "tenant_fixtures" (
+    "tenant_id" TEXT NOT NULL,
+    "fixture_name" TEXT NOT NULL,
+    "deployed_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY ("tenant_id", "fixture_name")
+);
+
+CREATE INDEX IF NOT EXISTS "idx_tenant_fixtures_tenant" ON "tenant_fixtures" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_tenant_fixtures_fixture" ON "tenant_fixtures" ("fixture_name");
+
+-- Tenants registry
+CREATE TABLE IF NOT EXISTS "tenants" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "name" TEXT NOT NULL UNIQUE,
+    "db_type" TEXT DEFAULT 'sqlite' NOT NULL CHECK ("db_type" IN ('postgresql', 'sqlite')),
+    "database" TEXT NOT NULL,
+    "schema" TEXT NOT NULL,
+    "template_version" INTEGER DEFAULT 1 NOT NULL,
+    "description" TEXT,
+    "source_template" TEXT,
+    "owner_id" TEXT NOT NULL,
+    "is_active" INTEGER DEFAULT 1 NOT NULL,
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    CONSTRAINT "tenants_database_schema_unique" UNIQUE("database", "schema")
+);
+
+CREATE INDEX IF NOT EXISTS "idx_tenants_name_active" ON "tenants" ("name", "is_active");
+CREATE INDEX IF NOT EXISTS "idx_tenants_database" ON "tenants" ("database");
+CREATE INDEX IF NOT EXISTS "idx_tenants_owner" ON "tenants" ("owner_id");
+`;
+
+// =============================================================================
+// TENANT SCHEMA (models, fields, users, filters)
+// =============================================================================
+
+const TENANT_SCHEMA_POSTGRESQL = `
+-- Enable pgcrypto extension for UUID generation
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Create enum type for field data types
+DO $$ BEGIN
+    CREATE TYPE field_type AS ENUM (
+        'text', 'integer', 'bigint', 'bigserial', 'numeric', 'boolean',
+        'jsonb', 'uuid', 'timestamp', 'date',
+        'text[]', 'integer[]', 'numeric[]', 'uuid[]'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Models table
+CREATE TABLE IF NOT EXISTS "models" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    "model_name" text NOT NULL,
+    "status" text DEFAULT 'active' NOT NULL,
+    "description" text,
+    "sudo" boolean DEFAULT false NOT NULL,
+    "frozen" boolean DEFAULT false NOT NULL,
+    "immutable" boolean DEFAULT false NOT NULL,
+    "external" boolean DEFAULT false NOT NULL,
+    CONSTRAINT "model_name_unique" UNIQUE("model_name")
+);
+
+-- Fields table
+CREATE TABLE IF NOT EXISTS "fields" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    "model_name" text NOT NULL,
+    "field_name" text NOT NULL,
+    "type" field_type NOT NULL,
+    "required" boolean DEFAULT false NOT NULL,
+    "default_value" text,
+    "description" text,
+    "relationship_type" text,
+    "related_model" text,
+    "related_field" text,
+    "relationship_name" text,
+    "cascade_delete" boolean DEFAULT false,
+    "required_relationship" boolean DEFAULT false,
+    "minimum" numeric,
+    "maximum" numeric,
+    "pattern" text,
+    "enum_values" text[],
+    "is_array" boolean DEFAULT false,
+    "immutable" boolean DEFAULT false NOT NULL,
+    "sudo" boolean DEFAULT false NOT NULL,
+    "unique" boolean DEFAULT false NOT NULL,
+    "index" boolean DEFAULT false NOT NULL,
+    "tracked" boolean DEFAULT false NOT NULL,
+    "searchable" boolean DEFAULT false NOT NULL,
+    "transform" text
+);
+
+ALTER TABLE "fields" DROP CONSTRAINT IF EXISTS "fields_models_name_model_name_fk";
+ALTER TABLE "fields" ADD CONSTRAINT "fields_models_name_model_name_fk"
+    FOREIGN KEY ("model_name") REFERENCES "models"("model_name")
+    ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_fields_model_field"
+    ON "fields" ("model_name", "field_name");
+
+-- Users table
+CREATE TABLE IF NOT EXISTS "users" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "name" text NOT NULL,
+    "auth" text NOT NULL,
+    "access" text CHECK ("access" IN ('root', 'full', 'edit', 'read', 'deny')) NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    CONSTRAINT "users_auth_unique" UNIQUE("auth")
+);
+
+-- Filters table
+CREATE TABLE IF NOT EXISTS "filters" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    "name" text NOT NULL,
+    "model_name" text NOT NULL,
+    "description" text,
+    "select" jsonb,
+    "where" jsonb,
+    "order" jsonb,
+    "limit" integer,
+    "offset" integer
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_filters_model_name"
+    ON "filters" ("model_name", "name");
+
+ALTER TABLE "filters" DROP CONSTRAINT IF EXISTS "filters_models_model_name_fk";
+ALTER TABLE "filters" ADD CONSTRAINT "filters_models_model_name_fk"
+    FOREIGN KEY ("model_name") REFERENCES "models"("model_name")
+    ON DELETE CASCADE ON UPDATE CASCADE;
+`;
+
+const TENANT_SCHEMA_SQLITE = `
+-- Models table
+CREATE TABLE IF NOT EXISTS "models" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    "model_name" TEXT NOT NULL,
+    "status" TEXT DEFAULT 'active' NOT NULL,
+    "description" TEXT,
+    "sudo" INTEGER DEFAULT 0 NOT NULL,
+    "frozen" INTEGER DEFAULT 0 NOT NULL,
+    "immutable" INTEGER DEFAULT 0 NOT NULL,
+    "external" INTEGER DEFAULT 0 NOT NULL,
+    CONSTRAINT "model_name_unique" UNIQUE("model_name")
+);
+
+-- Fields table
+CREATE TABLE IF NOT EXISTS "fields" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    "model_name" TEXT NOT NULL,
+    "field_name" TEXT NOT NULL,
+    "type" TEXT NOT NULL CHECK ("type" IN (
+        'text', 'integer', 'bigint', 'bigserial', 'numeric', 'boolean',
+        'jsonb', 'uuid', 'timestamp', 'date',
+        'text[]', 'integer[]', 'numeric[]', 'uuid[]'
+    )),
+    "required" INTEGER DEFAULT 0 NOT NULL,
+    "default_value" TEXT,
+    "description" TEXT,
+    "relationship_type" TEXT,
+    "related_model" TEXT,
+    "related_field" TEXT,
+    "relationship_name" TEXT,
+    "cascade_delete" INTEGER DEFAULT 0,
+    "required_relationship" INTEGER DEFAULT 0,
+    "minimum" REAL,
+    "maximum" REAL,
+    "pattern" TEXT,
+    "enum_values" TEXT,
+    "is_array" INTEGER DEFAULT 0,
+    "immutable" INTEGER DEFAULT 0 NOT NULL,
+    "sudo" INTEGER DEFAULT 0 NOT NULL,
+    "unique" INTEGER DEFAULT 0 NOT NULL,
+    "index" INTEGER DEFAULT 0 NOT NULL,
+    "tracked" INTEGER DEFAULT 0 NOT NULL,
+    "searchable" INTEGER DEFAULT 0 NOT NULL,
+    "transform" TEXT,
+    FOREIGN KEY ("model_name") REFERENCES "models"("model_name")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_fields_model_field" ON "fields" ("model_name", "field_name");
+
+-- Users table
+CREATE TABLE IF NOT EXISTS "users" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "name" TEXT NOT NULL,
+    "auth" TEXT NOT NULL,
+    "access" TEXT CHECK ("access" IN ('root', 'full', 'edit', 'read', 'deny')) NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    CONSTRAINT "users_auth_unique" UNIQUE("auth")
+);
+
+-- Filters table
+CREATE TABLE IF NOT EXISTS "filters" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    "name" TEXT NOT NULL,
+    "model_name" TEXT NOT NULL,
+    "description" TEXT,
+    "select" TEXT,
+    "where" TEXT,
+    "order" TEXT,
+    "limit" INTEGER,
+    "offset" INTEGER,
+    FOREIGN KEY ("model_name") REFERENCES "models"("model_name") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_filters_model_name" ON "filters" ("model_name", "name");
+`;
+
+// =============================================================================
+// TENANT SEED DATA (model/field metadata + root user)
+// =============================================================================
+
+const TENANT_SEED_POSTGRESQL = `
+-- Register core models
+INSERT INTO "models" (model_name, status, sudo) VALUES
+    ('models', 'system', true),
+    ('fields', 'system', true),
+    ('users', 'system', true),
+    ('filters', 'system', false)
+ON CONFLICT (model_name) DO NOTHING;
+
+-- Fields for models
+INSERT INTO "fields" (model_name, field_name, type, required, default_value, description) VALUES
+    ('models', 'model_name', 'text', true, NULL, 'Unique name for the model'),
+    ('models', 'status', 'text', false, 'active', 'Model status (active, disabled, system)'),
+    ('models', 'description', 'text', false, NULL, 'Human-readable description of the model'),
+    ('models', 'sudo', 'boolean', false, NULL, 'Whether model modifications require sudo access'),
+    ('models', 'frozen', 'boolean', false, NULL, 'Whether all data changes are prevented on this model'),
+    ('models', 'immutable', 'boolean', false, NULL, 'Whether records are write-once'),
+    ('models', 'external', 'boolean', false, NULL, 'Whether model is managed externally')
+ON CONFLICT (model_name, field_name) DO NOTHING;
+
+-- Fields for fields
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
+    ('fields', 'model_name', 'text', true, 'Name of the model this field belongs to'),
+    ('fields', 'field_name', 'text', true, 'Name of the field'),
+    ('fields', 'type', 'text', true, 'Data type of the field'),
+    ('fields', 'required', 'boolean', false, 'Whether the field is required'),
+    ('fields', 'default_value', 'text', false, 'Default value for the field'),
+    ('fields', 'description', 'text', false, 'Human-readable description'),
+    ('fields', 'relationship_type', 'text', false, 'Type of relationship'),
+    ('fields', 'related_model', 'text', false, 'Related model for relationships'),
+    ('fields', 'related_field', 'text', false, 'Related field for relationships'),
+    ('fields', 'relationship_name', 'text', false, 'Name of the relationship'),
+    ('fields', 'cascade_delete', 'boolean', false, 'Whether to cascade delete'),
+    ('fields', 'required_relationship', 'boolean', false, 'Whether the relationship is required'),
+    ('fields', 'minimum', 'numeric', false, 'Minimum value constraint'),
+    ('fields', 'maximum', 'numeric', false, 'Maximum value constraint'),
+    ('fields', 'pattern', 'text', false, 'Regular expression pattern'),
+    ('fields', 'enum_values', 'text[]', false, 'Allowed enum values'),
+    ('fields', 'is_array', 'boolean', false, 'Whether the field is an array'),
+    ('fields', 'immutable', 'boolean', false, 'Whether the field value cannot be changed'),
+    ('fields', 'sudo', 'boolean', false, 'Whether modifying requires sudo'),
+    ('fields', 'unique', 'boolean', false, 'Whether values must be unique'),
+    ('fields', 'index', 'boolean', false, 'Whether to create an index'),
+    ('fields', 'tracked', 'boolean', false, 'Whether changes are tracked'),
+    ('fields', 'searchable', 'boolean', false, 'Whether full-text search is enabled'),
+    ('fields', 'transform', 'text', false, 'Auto-transform values')
+ON CONFLICT (model_name, field_name) DO NOTHING;
+
+-- Fields for users
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
+    ('users', 'name', 'text', true, 'User display name'),
+    ('users', 'auth', 'text', true, 'Authentication identifier'),
+    ('users', 'access', 'text', true, 'User access level')
+ON CONFLICT (model_name, field_name) DO NOTHING;
+
+-- Fields for filters
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
+    ('filters', 'name', 'text', true, 'Unique name for this saved filter'),
+    ('filters', 'model_name', 'text', true, 'Target model'),
+    ('filters', 'description', 'text', false, 'Human-readable description'),
+    ('filters', 'select', 'jsonb', false, 'Fields to return'),
+    ('filters', 'where', 'jsonb', false, 'Filter conditions'),
+    ('filters', 'order', 'jsonb', false, 'Sort order'),
+    ('filters', 'limit', 'integer', false, 'Maximum records'),
+    ('filters', 'offset', 'integer', false, 'Records to skip')
+ON CONFLICT (model_name, field_name) DO NOTHING;
+`;
+
+// SQLite seed uses explicit IDs since no RETURNING support
+function getTenantSeedSqlite(rootUserId: string, rootUsername: string): string {
+    const displayName = rootUsername === 'root' ? 'Root User' : `User (${rootUsername})`;
+    return `
+-- Register core models
+INSERT OR IGNORE INTO "models" (id, model_name, status, sudo) VALUES
+    ('${randomUUID()}', 'models', 'system', 1),
+    ('${randomUUID()}', 'fields', 'system', 1),
+    ('${randomUUID()}', 'users', 'system', 1),
+    ('${randomUUID()}', 'filters', 'system', 0);
+
+-- Fields for models
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, default_value, description) VALUES
+    ('${randomUUID()}', 'models', 'model_name', 'text', 1, NULL, 'Unique name for the model'),
+    ('${randomUUID()}', 'models', 'status', 'text', 0, 'active', 'Model status'),
+    ('${randomUUID()}', 'models', 'description', 'text', 0, NULL, 'Human-readable description'),
+    ('${randomUUID()}', 'models', 'sudo', 'boolean', 0, NULL, 'Whether model modifications require sudo'),
+    ('${randomUUID()}', 'models', 'frozen', 'boolean', 0, NULL, 'Whether data changes are prevented'),
+    ('${randomUUID()}', 'models', 'immutable', 'boolean', 0, NULL, 'Whether records are write-once'),
+    ('${randomUUID()}', 'models', 'external', 'boolean', 0, NULL, 'Whether model is managed externally');
+
+-- Fields for fields
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, description) VALUES
+    ('${randomUUID()}', 'fields', 'model_name', 'text', 1, 'Name of the model'),
+    ('${randomUUID()}', 'fields', 'field_name', 'text', 1, 'Name of the field'),
+    ('${randomUUID()}', 'fields', 'type', 'text', 1, 'Data type'),
+    ('${randomUUID()}', 'fields', 'required', 'boolean', 0, 'Whether required'),
+    ('${randomUUID()}', 'fields', 'default_value', 'text', 0, 'Default value'),
+    ('${randomUUID()}', 'fields', 'description', 'text', 0, 'Description'),
+    ('${randomUUID()}', 'fields', 'relationship_type', 'text', 0, 'Relationship type'),
+    ('${randomUUID()}', 'fields', 'related_model', 'text', 0, 'Related model'),
+    ('${randomUUID()}', 'fields', 'related_field', 'text', 0, 'Related field'),
+    ('${randomUUID()}', 'fields', 'relationship_name', 'text', 0, 'Relationship name'),
+    ('${randomUUID()}', 'fields', 'cascade_delete', 'boolean', 0, 'Cascade delete'),
+    ('${randomUUID()}', 'fields', 'required_relationship', 'boolean', 0, 'Required relationship'),
+    ('${randomUUID()}', 'fields', 'minimum', 'numeric', 0, 'Minimum value'),
+    ('${randomUUID()}', 'fields', 'maximum', 'numeric', 0, 'Maximum value'),
+    ('${randomUUID()}', 'fields', 'pattern', 'text', 0, 'Regex pattern'),
+    ('${randomUUID()}', 'fields', 'enum_values', 'text[]', 0, 'Enum values'),
+    ('${randomUUID()}', 'fields', 'is_array', 'boolean', 0, 'Is array'),
+    ('${randomUUID()}', 'fields', 'immutable', 'boolean', 0, 'Immutable'),
+    ('${randomUUID()}', 'fields', 'sudo', 'boolean', 0, 'Requires sudo'),
+    ('${randomUUID()}', 'fields', 'unique', 'boolean', 0, 'Must be unique'),
+    ('${randomUUID()}', 'fields', 'index', 'boolean', 0, 'Create index'),
+    ('${randomUUID()}', 'fields', 'tracked', 'boolean', 0, 'Track changes'),
+    ('${randomUUID()}', 'fields', 'searchable', 'boolean', 0, 'Full-text search'),
+    ('${randomUUID()}', 'fields', 'transform', 'text', 0, 'Auto-transform');
+
+-- Fields for users
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, description) VALUES
+    ('${randomUUID()}', 'users', 'name', 'text', 1, 'User display name'),
+    ('${randomUUID()}', 'users', 'auth', 'text', 1, 'Authentication identifier'),
+    ('${randomUUID()}', 'users', 'access', 'text', 1, 'User access level');
+
+-- Fields for filters
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, description) VALUES
+    ('${randomUUID()}', 'filters', 'name', 'text', 1, 'Filter name'),
+    ('${randomUUID()}', 'filters', 'model_name', 'text', 1, 'Target model'),
+    ('${randomUUID()}', 'filters', 'description', 'text', 0, 'Description'),
+    ('${randomUUID()}', 'filters', 'select', 'jsonb', 0, 'Fields to return'),
+    ('${randomUUID()}', 'filters', 'where', 'jsonb', 0, 'Filter conditions'),
+    ('${randomUUID()}', 'filters', 'order', 'jsonb', 0, 'Sort order'),
+    ('${randomUUID()}', 'filters', 'limit', 'integer', 0, 'Max records'),
+    ('${randomUUID()}', 'filters', 'offset', 'integer', 0, 'Records to skip');
+
+-- Root user
+INSERT OR IGNORE INTO "users" (id, name, auth, access) VALUES
+    ('${rootUserId}', '${displayName}', '${rootUsername}', 'root');
+`;
+}
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+export interface InfraConfig {
+    dbType: DatabaseType;
+    database: string;  // 'monk' for both PG and SQLite
+    schema: string;    // 'public' for infra
+}
+
+let cachedConfig: InfraConfig | null = null;
+
+/**
+ * Parse DATABASE_URL and determine infrastructure configuration
+ *
+ * DATABASE_URL formats:
+ *   postgresql://user:pass@host:port/dbname  → PostgreSQL mode
+ *   sqlite:monk                               → SQLite mode
+ *   (absent)                                  → SQLite mode (default)
+ */
+export function parseInfraConfig(): InfraConfig {
+    if (cachedConfig) {
+        return cachedConfig;
+    }
+
+    const databaseUrl = process.env.DATABASE_URL || '';
+
+    if (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')) {
+        // PostgreSQL mode - extract database name from URL
+        const url = new URL(databaseUrl);
+        const database = url.pathname.slice(1) || 'monk';
+
+        cachedConfig = {
+            dbType: 'postgresql',
+            database,
+            schema: 'public',
+        };
+    } else {
+        // SQLite mode (default)
+        // DATABASE_URL=sqlite:monk or absent → database='monk'
+        const database = databaseUrl.startsWith('sqlite:')
+            ? databaseUrl.slice(7) || 'monk'
+            : 'monk';
+
+        cachedConfig = {
+            dbType: 'sqlite',
+            database,
+            schema: 'public',
+        };
+    }
+
+    return cachedConfig;
+}
+
+// =============================================================================
+// TENANT RECORD TYPE
+// =============================================================================
+
+export interface TenantRecord {
+    id: string;
+    name: string;
+    db_type: DatabaseType;
+    database: string;
+    schema: string;
+    owner_id: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface UserRecord {
+    id: string;
+    name: string;
+    auth: string;
+    access: string;
+}
+
+export interface CreateTenantResult {
+    tenant: TenantRecord;
+    user: UserRecord;
+}
+
+// =============================================================================
+// INFRASTRUCTURE CLASS
+// =============================================================================
+
+export class Infrastructure {
+    private static infraAdapter: DatabaseAdapter | null = null;
+
+    /**
+     * Get or create the infrastructure database adapter
+     *
+     * This is a singleton that connects to the infrastructure database
+     * (tenants registry). For SQLite, this is .data/monk/public.db.
+     * For PostgreSQL, this is the public schema in the monk database.
+     */
+    static async getAdapter(): Promise<DatabaseAdapter> {
+        if (this.infraAdapter) {
+            return this.infraAdapter;
+        }
+
+        const config = parseInfraConfig();
+        const { createAdapterFrom, preloadSqliteAdapter } = await import('./database/index.js');
+
+        // Ensure SQLite adapter is loaded for correct runtime
+        if (config.dbType === 'sqlite') {
+            await preloadSqliteAdapter();
+
+            // Ensure data directory exists
+            const dataDir = process.env.SQLITE_DATA_DIR || '.data';
+            const dbDir = join(dataDir, config.database);
+            if (!existsSync(dbDir)) {
+                mkdirSync(dbDir, { recursive: true });
+            }
+        }
+
+        this.infraAdapter = createAdapterFrom(config.dbType, config.database, config.schema);
+        return this.infraAdapter;
+    }
+
+    /**
+     * Initialize infrastructure tables
+     *
+     * Idempotent - safe to call multiple times.
+     * Creates tenants and tenant_fixtures tables if they don't exist.
+     */
+    static async initialize(): Promise<void> {
+        const config = parseInfraConfig();
+        const adapter = await this.getAdapter();
+
+        console.info('Initializing infrastructure', { dbType: config.dbType, database: config.database });
+
+        await adapter.connect();
+
+        try {
+            const schema = config.dbType === 'sqlite' ? INFRA_SCHEMA_SQLITE : INFRA_SCHEMA_POSTGRESQL;
+
+            if (config.dbType === 'sqlite') {
+                // SQLite: execute via raw connection (handles multiple statements)
+                const db = adapter.getRawConnection() as { exec: (sql: string) => void };
+                db.exec(schema);
+            } else {
+                // PostgreSQL: execute as single query
+                await adapter.query(schema);
+            }
+
+            console.info('Infrastructure ready');
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    /**
+     * Check if infrastructure is initialized
+     */
+    static async isInitialized(): Promise<boolean> {
+        const adapter = await this.getAdapter();
+        await adapter.connect();
+
+        try {
+            const config = parseInfraConfig();
+            const sql = config.dbType === 'sqlite'
+                ? `SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'`
+                : `SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='tenants'`;
+
+            const result = await adapter.query<{ name?: string; table_name?: string }>(sql);
+            return result.rows.length > 0;
+        } catch {
+            return false;
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    /**
+     * Get tenant by name
+     */
+    static async getTenant(tenantName: string): Promise<TenantRecord | null> {
+        const adapter = await this.getAdapter();
+        await adapter.connect();
+
+        try {
+            const result = await adapter.query<TenantRecord>(
+                `SELECT id, name, db_type, database, schema, owner_id, is_active, created_at, updated_at
+                 FROM tenants
+                 WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL`,
+                [tenantName]
+            );
+
+            if (result.rows.length === 0) {
+                return null;
+            }
+
+            const row = result.rows[0];
+            return {
+                ...row,
+                is_active: Boolean(row.is_active),
+            };
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    /**
+     * Create a new tenant with full provisioning
+     *
+     * This method:
+     * 1. Creates the tenant database/schema
+     * 2. Deploys core tables (models, fields, users, filters)
+     * 3. Seeds model/field metadata
+     * 4. Creates root user
+     * 5. Registers tenant in infrastructure database
+     */
+    static async createTenant(options: {
+        name: string;
+        db_type?: DatabaseType;
+        owner_username?: string;
+        description?: string;
+    }): Promise<CreateTenantResult> {
+        const config = parseInfraConfig();
+        const dbType = options.db_type || config.dbType;
+        const ownerUsername = options.owner_username || 'root';
+
+        // Validate tenant name
+        const tenantName = options.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        if (!tenantName || tenantName.length < 2) {
+            throw new Error('Tenant name must be at least 2 characters');
+        }
+
+        // Generate IDs
+        const tenantId = randomUUID();
+        const rootUserId = randomUUID();
+        const schemaName = `ns_tenant_${tenantName}`;
+        const database = config.database;  // Always 'monk'
+
+        console.info('Creating tenant', { name: tenantName, dbType, schema: schemaName });
+
+        // Check if tenant already exists
+        const existing = await this.getTenant(tenantName);
+        if (existing) {
+            throw new Error(`Tenant '${tenantName}' already exists`);
+        }
+
+        // Step 1: Create tenant database/schema
+        await this.provisionTenantDatabase(dbType, database, schemaName);
+
+        // Step 2: Deploy tenant schema and seed data
+        await this.deployTenantSchema(dbType, database, schemaName, rootUserId, ownerUsername);
+
+        // Step 3: Register tenant in infrastructure
+        const infraAdapter = await this.getAdapter();
+        await infraAdapter.connect();
+
+        try {
+            const timestamp = new Date().toISOString();
+
+            await infraAdapter.query(
+                `INSERT INTO tenants (id, name, db_type, database, schema, owner_id, description, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [
+                    tenantId,
+                    tenantName,
+                    dbType,
+                    database,
+                    schemaName,
+                    rootUserId,
+                    options.description || null,
+                    timestamp,
+                    timestamp,
+                ]
+            );
+        } finally {
+            await infraAdapter.disconnect();
+        }
+
+        console.info('Tenant created', { name: tenantName, id: tenantId });
+
+        return {
+            tenant: {
+                id: tenantId,
+                name: tenantName,
+                db_type: dbType,
+                database,
+                schema: schemaName,
+                owner_id: rootUserId,
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            },
+            user: {
+                id: rootUserId,
+                name: ownerUsername === 'root' ? 'Root User' : `User (${ownerUsername})`,
+                auth: ownerUsername,
+                access: 'root',
+            },
+        };
+    }
+
+    /**
+     * Soft delete a tenant
+     *
+     * Sets deleted_at and is_active=false. Tenant cannot log in after this.
+     * Database/schema files remain for recovery.
+     */
+    static async deleteTenant(tenantName: string): Promise<boolean> {
+        const adapter = await this.getAdapter();
+        await adapter.connect();
+
+        try {
+            const timestamp = new Date().toISOString();
+
+            const result = await adapter.query(
+                `UPDATE tenants
+                 SET deleted_at = $1, is_active = false, updated_at = $1
+                 WHERE name = $2 AND deleted_at IS NULL`,
+                [timestamp, tenantName]
+            );
+
+            return result.rowCount > 0;
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    /**
+     * List all active tenants
+     */
+    static async listTenants(): Promise<TenantRecord[]> {
+        const adapter = await this.getAdapter();
+        await adapter.connect();
+
+        try {
+            const result = await adapter.query<TenantRecord>(
+                `SELECT id, name, db_type, database, schema, owner_id, is_active, created_at, updated_at
+                 FROM tenants
+                 WHERE is_active = true AND trashed_at IS NULL AND deleted_at IS NULL
+                 ORDER BY created_at DESC`
+            );
+
+            return result.rows.map(row => ({
+                ...row,
+                is_active: Boolean(row.is_active),
+            }));
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    /**
+     * Record fixture deployment for a tenant
+     */
+    static async recordFixtureDeployment(tenantId: string, fixtureName: string): Promise<void> {
+        const adapter = await this.getAdapter();
+        await adapter.connect();
+
+        try {
+            await adapter.query(
+                `INSERT INTO tenant_fixtures (tenant_id, fixture_name, deployed_at)
+                 VALUES ($1, $2, CURRENT_TIMESTAMP)
+                 ON CONFLICT (tenant_id, fixture_name) DO NOTHING`,
+                [tenantId, fixtureName]
+            );
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    // =========================================================================
+    // PRIVATE METHODS
+    // =========================================================================
+
+    /**
+     * Create the tenant database/schema
+     */
+    private static async provisionTenantDatabase(
+        dbType: DatabaseType,
+        database: string,
+        schemaName: string
+    ): Promise<void> {
+        const { createAdapterFrom } = await import('./database/index.js');
+
+        if (dbType === 'sqlite') {
+            // SQLite: Ensure directory exists, file created on connect
+            const dataDir = process.env.SQLITE_DATA_DIR || '.data';
+            const dbPath = join(dataDir, database, `${schemaName}.db`);
+            const dirPath = dirname(dbPath);
+
+            if (!existsSync(dirPath)) {
+                mkdirSync(dirPath, { recursive: true });
+            }
+
+            // Touch file by connecting (adapter creates file)
+            const adapter = createAdapterFrom('sqlite', database, schemaName);
+            await adapter.connect();
+            await adapter.disconnect();
+        } else {
+            // PostgreSQL: Create schema
+            const adapter = createAdapterFrom('postgresql', database, 'public');
+            await adapter.connect();
+
+            try {
+                await adapter.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+            } finally {
+                await adapter.disconnect();
+            }
+        }
+    }
+
+    /**
+     * Deploy tenant schema (tables) and seed data
+     */
+    private static async deployTenantSchema(
+        dbType: DatabaseType,
+        database: string,
+        schemaName: string,
+        rootUserId: string,
+        rootUsername: string
+    ): Promise<void> {
+        const { createAdapterFrom } = await import('./database/index.js');
+        const adapter = createAdapterFrom(dbType, database, schemaName);
+
+        await adapter.connect();
+
+        try {
+            if (dbType === 'sqlite') {
+                // SQLite: Execute schema + seed via raw connection
+                const db = adapter.getRawConnection() as { exec: (sql: string) => void };
+
+                db.exec('BEGIN');
+                try {
+                    db.exec(TENANT_SCHEMA_SQLITE);
+                    db.exec(getTenantSeedSqlite(rootUserId, rootUsername));
+                    db.exec('COMMIT');
+                } catch (error) {
+                    db.exec('ROLLBACK');
+                    throw error;
+                }
+            } else {
+                // PostgreSQL: Execute schema + seed
+                await adapter.beginTransaction();
+
+                try {
+                    await adapter.query(TENANT_SCHEMA_POSTGRESQL);
+                    await adapter.query(TENANT_SEED_POSTGRESQL);
+
+                    // Create root user (PostgreSQL has RETURNING, but we already have the ID)
+                    await adapter.query(
+                        `INSERT INTO users (id, name, auth, access)
+                         VALUES ($1, $2, $3, 'root')
+                         ON CONFLICT (auth) DO NOTHING`,
+                        [rootUserId, rootUsername === 'root' ? 'Root User' : `User (${rootUsername})`, rootUsername]
+                    );
+
+                    await adapter.commit();
+                } catch (error) {
+                    await adapter.rollback();
+                    throw error;
+                }
+            }
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+}
