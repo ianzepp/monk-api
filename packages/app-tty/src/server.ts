@@ -37,12 +37,17 @@ const TELNET_INIT = new Uint8Array([
 ]);
 
 /**
- * Filter out telnet IAC command sequences from input
+ * Filter out telnet IAC command sequences and NUL bytes from input
  */
 function filterTelnetCommands(data: Uint8Array): Uint8Array {
     const result: number[] = [];
     let i = 0;
     while (i < data.length) {
+        // Skip NUL bytes (telnet sends these after certain sequences)
+        if (data[i] === 0) {
+            i++;
+            continue;
+        }
         if (data[i] === TELNET_IAC) {
             // Skip IAC and the command that follows
             if (i + 1 < data.length) {
@@ -154,10 +159,12 @@ export function createTTYServer(config: TTYConfig) {
 }
 
 /**
- * Write to socket
+ * Write to socket (converts \n to \r\n for telnet)
  */
 function write(socket: Socket<SessionData>, text: string) {
-    socket.write(text);
+    // Telnet requires CRLF line endings
+    const telnetText = text.replace(/\r?\n/g, '\r\n');
+    socket.write(telnetText);
 }
 
 /**
@@ -193,7 +200,11 @@ async function handleInput(socket: Socket<SessionData>, text: string, config: TT
             }
             return;
         }
-        write(socket, text);
+        // Echo but skip \r (telnet sends \r\n, we only echo visible chars + \n)
+        const echoText = text.replace(/\r/g, '');
+        if (echoText) {
+            write(socket, echoText);
+        }
     } else {
         // Mask password
         if (text === '\x7f' || text === '\b') {
@@ -201,8 +212,10 @@ async function handleInput(socket: Socket<SessionData>, text: string, config: TT
             write(socket, '\b \b');
             return;
         }
-        if (text !== '\r' && text !== '\n') {
-            write(socket, '*');
+        // Count printable chars for masking (exclude \r and \n)
+        const printable = text.replace(/[\r\n]/g, '');
+        if (printable.length > 0) {
+            write(socket, '*'.repeat(printable.length));
         }
     }
 
@@ -222,6 +235,8 @@ async function handleInput(socket: Socket<SessionData>, text: string, config: TT
             continue;
         }
 
+        // Ensure we're on a new line before processing
+        write(socket, '\n');
         await processLine(socket, trimmed, config);
     }
 }
