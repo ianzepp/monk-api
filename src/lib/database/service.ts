@@ -254,6 +254,24 @@ export class Database {
     }
 
     // ========================================================================
+    // Expire Operations (Permanent Delete)
+    // ========================================================================
+
+    async expireAll<T extends Record<string, any> = Record<string, any>>(
+        modelName: ModelName,
+        expires: DbDeleteInput[]
+    ): Promise<DbRecord<T>[]> {
+        return mutateOps.expireAll<T>(this.system, modelName, expires);
+    }
+
+    async expireOne<T extends Record<string, any> = Record<string, any>>(
+        modelName: ModelName,
+        recordId: string
+    ): Promise<DbRecord<T>> {
+        return mutateOps.expireOne<T>(this.system, modelName, recordId);
+    }
+
+    // ========================================================================
     // Access Control Operations
     // ========================================================================
 

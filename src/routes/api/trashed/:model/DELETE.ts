@@ -29,14 +29,9 @@ export default withTransaction(async ({ system, params, body }) => {
         }
     }
 
-    // Convert to update input format with deleted_at set
-    const permanentUpdates = body.map(id => ({
-        id,
-        deleted_at: new Date().toISOString()
-    }));
+    // Convert to expire input format
+    const expires = body.map(id => ({ id }));
 
-    // Permanently delete all records by setting deleted_at
-    const result = await system.database.updateAll(model, permanentUpdates);
-
-    return result;
+    // Permanently delete all records (sets deleted_at via observer pipeline)
+    return await system.database.expireAll(model, expires);
 });

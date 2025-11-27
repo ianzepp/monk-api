@@ -329,3 +329,37 @@ export async function revertAny<T extends Record<string, any> = Record<string, a
 
     return await revertAll<T>(system, modelName, recordsToRevert);
 }
+
+// ============================================================================
+// EXPIRE Operations (Permanent Delete - sets deleted_at)
+// ============================================================================
+
+/**
+ * Permanently delete multiple records by setting deleted_at
+ *
+ * This is irreversible - records will no longer be visible via API.
+ */
+export async function expireAll<T extends Record<string, any> = Record<string, any>>(
+    system: SystemContext,
+    modelName: string,
+    expires: DbDeleteInput[]
+): Promise<DbRecord<T>[]> {
+    return await runObserverPipeline(system, 'expire', modelName, expires, boundSelectAny(system));
+}
+
+/**
+ * Permanently delete a single record by ID
+ */
+export async function expireOne<T extends Record<string, any> = Record<string, any>>(
+    system: SystemContext,
+    modelName: string,
+    recordId: string
+): Promise<DbRecord<T>> {
+    const results = await expireAll<T>(system, modelName, [{ id: recordId }]);
+
+    if (results.length === 0) {
+        throw HttpErrors.notFound('Record not found', 'RECORD_NOT_FOUND');
+    }
+
+    return results[0];
+}

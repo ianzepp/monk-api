@@ -18,11 +18,7 @@ All Data API routes require authentication via JWT token in the Authorization he
 
 ## Query Parameters
 
-### Global Parameters
-
-- `permanent=true` - Perform permanent delete operations (sets `deleted_at`) - requires root access
-
-> **Note**: For querying and managing trashed records, use the dedicated [Trashed API](../trashed/PUBLIC.md).
+> **Note**: For managing trashed records (view, restore, permanent delete), use the dedicated [Trashed API](../trashed/PUBLIC.md).
 
 ### GET Parameters
 
@@ -56,15 +52,15 @@ See individual endpoint documentation for detailed examples.
 | POST | [`/api/data/:model`](:model/POST.md) | Create records. Use `?upsert=true` to insert or update based on ID presence. |
 | PUT | [`/api/data/:model`](:model/PUT.md) | Update multiple records by ID (body is array of `{id, ...changes}`). |
 | PATCH | [`/api/data/:model`](:model/PUT.md) | Filter-based update via `?where` (body is changes object). |
-| DELETE | [`/api/data/:model`](:model/DELETE.md) | Soft delete or permanently remove multiple records (permanent=true requires root). |
+| DELETE | [`/api/data/:model`](:model/DELETE.md) | Soft delete multiple records (sets `trashed_at`). |
 
 ### Single Record Operations
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/data/:model/:record`](:model/:record/GET.md) | Retrieve a single record by UUID with optional trashed/deleted metadata. |
+| GET | [`/api/data/:model/:record`](:model/:record/GET.md) | Retrieve a single record by UUID. |
 | PUT | [`/api/data/:model/:record`](:model/:record/PUT.md) | Update a single record (full replacement or partial patch). |
-| DELETE | [`/api/data/:model/:record`](:model/:record/DELETE.md) | Soft delete or permanently remove a single record (permanent=true requires root). |
+| DELETE | [`/api/data/:model/:record`](:model/:record/DELETE.md) | Soft delete a single record (sets `trashed_at`). |
 
 ### Relationship Operations
 
@@ -73,27 +69,30 @@ See individual endpoint documentation for detailed examples.
 | GET | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/GET.md) | List all child records for a parent relationship. |
 | POST | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/POST.md) | Create a child record with automatic parent foreign key assignment. |
 | PUT | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/PUT.md) | Bulk update child records (not yet implemented). |
-| DELETE | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/DELETE.md) | Remove or detach multiple child records from parent. |
+| DELETE | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/DELETE.md) | Soft delete all child records belonging to parent. |
 | GET | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/GET.md) | Fetch a specific child record through parent relationship. |
 | PUT | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/PUT.md) | Update a specific child record while preserving parent relationship. |
-| DELETE | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/DELETE.md) | Soft delete or permanently remove a specific child record. |
+| DELETE | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/DELETE.md) | Soft delete a specific child record. |
 
 ## Delete Operations
 
-### Soft Delete (Default)
+### Soft Delete
+
+All DELETE operations perform soft delete:
 
 - Sets `trashed_at` to current timestamp
 - Record remains in database and can be recovered
 - Excluded from normal queries
 - Available to all authenticated users
-- To view/restore trashed records, use the [Trashed API](../trashed/PUBLIC.md)
 
-### Permanent Delete (permanent=true)
+### Permanent Delete
 
-- Sets `deleted_at` to current timestamp
-- Record remains in database but marked as permanently deleted
-- **Requires root access level**
-- Records are kept for audit/compliance but never visible through API
+To permanently delete records (set `deleted_at`), use the [Trashed API](../trashed/PUBLIC.md):
+
+1. First soft delete via `DELETE /api/data/:model/:id`
+2. Then permanently delete via `DELETE /api/trashed/:model/:id`
+
+Permanently deleted records are kept for audit/compliance but never visible through API.
 
 ## Model Protection
 
