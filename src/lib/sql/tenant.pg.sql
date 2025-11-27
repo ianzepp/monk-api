@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 DO $$ BEGIN
     CREATE TYPE field_type AS ENUM (
         'text', 'integer', 'bigint', 'bigserial', 'numeric', 'boolean',
-        'jsonb', 'uuid', 'timestamp', 'date',
+        'jsonb', 'uuid', 'timestamp', 'date', 'binary',
         'text[]', 'integer[]', 'numeric[]', 'uuid[]'
     );
 EXCEPTION

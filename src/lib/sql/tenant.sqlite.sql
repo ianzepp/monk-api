@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS "fields" (
     "field_name" TEXT NOT NULL,
     "type" TEXT NOT NULL CHECK ("type" IN (
         'text', 'integer', 'bigint', 'bigserial', 'numeric', 'boolean',
-        'jsonb', 'uuid', 'timestamp', 'date',
+        'jsonb', 'uuid', 'timestamp', 'date', 'binary',
         'text[]', 'integer[]', 'numeric[]', 'uuid[]'
     )),
     "required" INTEGER DEFAULT 0 NOT NULL,

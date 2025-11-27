@@ -65,21 +65,21 @@ This document expands on VFS_DESIGN.md with implementation details based on anal
 
 **Per-Request Context** (`src/lib/system.ts`):
 ```typescript
-interface System {
+class System {
   userId: string;
-  tenantId: string;
+  tenant: string;              // Tenant name (NOT tenantId)
   dbType: 'postgresql' | 'sqlite';
   dbName: string;
-  nsName: string;        // Namespace (schema)
-  access: AccessLevel;   // 'root' | 'full' | 'edit' | 'read' | 'deny'
+  nsName: string;              // Namespace (schema)
+  access: string;              // 'root' | 'full' | 'edit' | 'read' | 'deny'
 
   // Services
-  database: DatabaseService;
-  describe: DescribeService;
-  adapter: DatabaseAdapter;
+  database: Database;          // src/lib/database/service.ts
+  describe: Describe;          // src/lib/describe.ts (has .models and .fields)
+  adapter: DatabaseAdapter | null;  // Set by runTransaction()
 
   // Methods
-  getUser(): Promise<User>;
+  getUser(): UserInfo;         // Synchronous, returns { id, tenant, role, ... }
   isRoot(): boolean;
   isSudo(): boolean;
 }
@@ -427,8 +427,10 @@ class DataMount implements Mount {
     }
 
     if (parts.type === 'model') {
-      // Verify model exists
-      const schema = await this.system.describe.getModel(parts.model);
+      // Verify model exists via describe.models.selectOne()
+      const schema = await this.system.describe.models.selectOne({
+        where: { model_name: parts.model }
+      });
       if (!schema) throw new VFSError('ENOENT', path);
       return {
         name: parts.model,
@@ -440,7 +442,10 @@ class DataMount implements Mount {
     }
 
     if (parts.type === 'record') {
-      const record = await this.system.database.selectOne(parts.model, { id: parts.id });
+      // selectOne takes (model, filterData) where filterData has { where: { ... } }
+      const record = await this.system.database.selectOne(parts.model, {
+        where: { id: parts.id }
+      });
       if (!record) throw new VFSError('ENOENT', path);
       const content = JSON.stringify(record, null, 2);
       return {
@@ -460,8 +465,8 @@ class DataMount implements Mount {
     const parts = this.parsePath(path);
 
     if (parts.type === 'root') {
-      // List all models
-      const models = await this.system.describe.listModels();
+      // List all models via describe.models.selectAny()
+      const models = await this.system.describe.models.selectAny();
       return models.map(m => ({
         name: m.model_name,
         type: 'directory',
@@ -493,7 +498,9 @@ class DataMount implements Mount {
       throw new VFSError('EISDIR', path);
     }
 
-    const record = await this.system.database.selectOne(parts.model, { id: parts.id });
+    const record = await this.system.database.selectOne(parts.model, {
+      where: { id: parts.id }
+    });
     if (!record) throw new VFSError('ENOENT', path);
     return JSON.stringify(record, null, 2);
   }
@@ -507,9 +514,12 @@ class DataMount implements Mount {
     const data = JSON.parse(content);
 
     // Check if record exists
-    const existing = await this.system.database.selectOne(parts.model, { id: parts.id });
+    const existing = await this.system.database.selectOne(parts.model, {
+      where: { id: parts.id }
+    });
     if (existing) {
-      await this.system.database.updateOne(parts.model, { id: parts.id }, data);
+      // updateOne takes (model, recordId, changes)
+      await this.system.database.updateOne(parts.model, parts.id, data);
     } else {
       await this.system.database.createOne(parts.model, { ...data, id: parts.id });
     }
@@ -521,7 +531,8 @@ class DataMount implements Mount {
       throw new VFSError('EISDIR', path);
     }
 
-    await this.system.database.deleteOne(parts.model, { id: parts.id });
+    // deleteOne takes (model, recordId)
+    await this.system.database.deleteOne(parts.model, parts.id);
   }
 
   private parsePath(path: string): ParsedDataPath {
@@ -561,7 +572,10 @@ class DescribeMount implements Mount {
     }
 
     const modelName = this.basename(path).replace(/\.(yaml|json)$/, '');
-    const schema = await this.system.describe.getModel(modelName);
+    // Use describe.models.selectOne()
+    const schema = await this.system.describe.models.selectOne({
+      where: { model_name: modelName }
+    });
     if (!schema) throw new VFSError('ENOENT', path);
 
     return {
@@ -576,7 +590,8 @@ class DescribeMount implements Mount {
   async readdir(path: string): Promise<VFSEntry[]> {
     if (path !== '/') throw new VFSError('ENOTDIR', path);
 
-    const models = await this.system.describe.listModels();
+    // Use describe.models.selectAny()
+    const models = await this.system.describe.models.selectAny();
     return models.map(m => ({
       name: `${m.model_name}.yaml`,
       type: 'file',
@@ -588,17 +603,29 @@ class DescribeMount implements Mount {
 
   async read(path: string): Promise<string> {
     const modelName = this.basename(path).replace(/\.(yaml|json)$/, '');
-    const schema = await this.system.describe.getModelWithFields(modelName);
-    if (!schema) throw new VFSError('ENOENT', path);
 
-    return this.toYaml(schema);
+    // Get model and its fields separately
+    const model = await this.system.describe.models.selectOne({
+      where: { model_name: modelName }
+    });
+    if (!model) throw new VFSError('ENOENT', path);
+
+    const fields = await this.system.describe.fields.selectAny({
+      where: { model_name: modelName }
+    });
+
+    return this.toYaml({ ...model, fields });
   }
 
   // Optional: schema editing
   async write(path: string, content: string): Promise<void> {
     const modelName = this.basename(path).replace(/\.(yaml|json)$/, '');
     const schema = yaml.parse(content);
-    await this.system.describe.updateModel(modelName, schema);
+    // Use describe.models.update404()
+    await this.system.describe.models.update404(
+      { where: { model_name: modelName } },
+      schema
+    );
   }
 
   private toYaml(schema: ModelSchema): string {
@@ -626,10 +653,11 @@ class SystemMount implements Mount {
     ['version', async () => process.env.npm_package_version || '5.1.0'],
     ['uptime', async () => this.formatUptime()],
     ['whoami', async () => {
-      const user = await this.system.getUser();
+      // getUser() is synchronous, returns UserInfo
+      const user = this.system.getUser();
       return JSON.stringify(user, null, 2);
     }],
-    ['tenant', async () => this.system.tenantId],
+    ['tenant', async () => this.system.tenant],  // NOT tenantId
     ['database', async () => this.system.dbName],
     ['namespace', async () => this.system.nsName],
     ['access', async () => this.system.access],
@@ -697,51 +725,132 @@ class SystemMount implements Mount {
 
 ### Database Model: `vfs_nodes`
 
-```yaml
-model_name: vfs_nodes
-status: system
-description: Virtual filesystem nodes for persistent storage
+> **IMPORTANT**: System tables are defined via SQL, not YAML.
+> The `vfs_nodes` table must be added to three files:
+> 1. `src/lib/sql/tenant.pg.sql` - PostgreSQL DDL + seed data
+> 2. `src/lib/sql/tenant.sqlite.sql` - SQLite DDL
+> 3. `src/lib/infrastructure.ts` - `TENANT_SEED_SQLITE` constant
 
-fields:
-  - field_name: parent_id
-    type: uuid
-    index: true
-    description: Parent directory (null for root)
-  - field_name: name
-    type: text
-    required: true
-    description: File or directory name
-  - field_name: path
-    type: text
-    required: true
-    description: Full absolute path (denormalized for fast lookups)
-  - field_name: node_type
-    type: text
-    required: true
-    enum_values: [file, directory, symlink]
-  - field_name: content
-    type: bytea
-    description: File content (null for directories)
-  - field_name: target
-    type: text
-    description: Symlink target path
-  - field_name: mode
-    type: integer
-    default: 420  # 0o644
-    description: Unix permission bits
-  - field_name: size
-    type: integer
-    default: 0
-    description: Content size in bytes
-  - field_name: owner_id
-    type: uuid
-    description: Owner user ID
+#### PostgreSQL DDL (`tenant.pg.sql`)
 
-indexes:
-  - fields: [path]
-    unique: true
-  - fields: [parent_id]
+```sql
+-- VFS Nodes table (virtual filesystem storage)
+CREATE TABLE IF NOT EXISTS "vfs_nodes" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    "parent_id" uuid,
+    "name" text NOT NULL,
+    "path" text NOT NULL,
+    "node_type" text NOT NULL CHECK ("node_type" IN ('file', 'directory', 'symlink')),
+    "content" bytea,
+    "target" text,
+    "mode" integer DEFAULT 420 NOT NULL,
+    "size" integer DEFAULT 0 NOT NULL,
+    "owner_id" uuid,
+    CONSTRAINT "vfs_nodes_path_unique" UNIQUE("path")
+);
+
+CREATE INDEX IF NOT EXISTS "idx_vfs_nodes_parent" ON "vfs_nodes" ("parent_id");
+
+-- Seed: Register model
+INSERT INTO "models" (model_name, status, sudo, description) VALUES
+    ('vfs_nodes', 'system', true, 'Virtual filesystem nodes for persistent storage')
+ON CONFLICT (model_name) DO NOTHING;
+
+-- Seed: Register fields
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
+    ('vfs_nodes', 'parent_id', 'uuid', false, 'Parent directory (null for root)'),
+    ('vfs_nodes', 'name', 'text', true, 'File or directory name'),
+    ('vfs_nodes', 'path', 'text', true, 'Full absolute path'),
+    ('vfs_nodes', 'node_type', 'text', true, 'Node type: file, directory, symlink'),
+    ('vfs_nodes', 'content', 'bytea', false, 'File content (null for directories)'),
+    ('vfs_nodes', 'target', 'text', false, 'Symlink target path'),
+    ('vfs_nodes', 'mode', 'integer', false, 'Unix permission bits'),
+    ('vfs_nodes', 'size', 'integer', false, 'Content size in bytes'),
+    ('vfs_nodes', 'owner_id', 'uuid', false, 'Owner user ID')
+ON CONFLICT (model_name, field_name) DO NOTHING;
 ```
+
+#### SQLite DDL (`tenant.sqlite.sql`)
+
+```sql
+-- VFS Nodes table (virtual filesystem storage)
+CREATE TABLE IF NOT EXISTS "vfs_nodes" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    "parent_id" TEXT,
+    "name" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "node_type" TEXT NOT NULL CHECK ("node_type" IN ('file', 'directory', 'symlink')),
+    "content" BLOB,
+    "target" TEXT,
+    "mode" INTEGER DEFAULT 420 NOT NULL,
+    "size" INTEGER DEFAULT 0 NOT NULL,
+    "owner_id" TEXT,
+    CONSTRAINT "vfs_nodes_path_unique" UNIQUE("path")
+);
+
+CREATE INDEX IF NOT EXISTS "idx_vfs_nodes_parent" ON "vfs_nodes" ("parent_id");
+```
+
+#### SQLite Seed (`infrastructure.ts` - TENANT_SEED_SQLITE)
+
+```typescript
+// Add to TENANT_SEED_SQLITE constant:
+
+-- Register vfs_nodes model
+INSERT OR IGNORE INTO "models" (id, model_name, status, sudo, description) VALUES
+    ('${randomUUID()}', 'vfs_nodes', 'system', 1, 'Virtual filesystem nodes');
+
+-- Fields for vfs_nodes
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, description) VALUES
+    ('${randomUUID()}', 'vfs_nodes', 'parent_id', 'uuid', 0, 'Parent directory'),
+    ('${randomUUID()}', 'vfs_nodes', 'name', 'text', 1, 'File or directory name'),
+    ('${randomUUID()}', 'vfs_nodes', 'path', 'text', 1, 'Full absolute path'),
+    ('${randomUUID()}', 'vfs_nodes', 'node_type', 'text', 1, 'Node type'),
+    ('${randomUUID()}', 'vfs_nodes', 'content', 'bytea', 0, 'File content'),
+    ('${randomUUID()}', 'vfs_nodes', 'target', 'text', 0, 'Symlink target'),
+    ('${randomUUID()}', 'vfs_nodes', 'mode', 'integer', 0, 'Unix permissions'),
+    ('${randomUUID()}', 'vfs_nodes', 'size', 'integer', 0, 'Content size'),
+    ('${randomUUID()}', 'vfs_nodes', 'owner_id', 'uuid', 0, 'Owner user ID');
+```
+
+#### Binary Type Support (PREREQUISITE)
+
+> **NOTE**: The `bytea` type is NOT currently supported in the field type system.
+> Before implementing vfs_nodes, add `bytea` support:
+>
+> 1. **`src/lib/sql/tenant.pg.sql`** - Add `'bytea'` to `field_type` enum
+> 2. **`src/lib/sql/tenant.sqlite.sql`** - Add `'bytea'` to CHECK constraint
+> 3. **`src/lib/field-types.ts`** - Add mappings:
+>    ```typescript
+>    // USER_TO_PG_TYPE_MAP
+>    'bytea': 'bytea',
+>
+>    // PG_TO_USER_TYPE_MAP
+>    'bytea': 'bytea',
+>    ```
+> 4. **`src/lib/database/type-mappings.ts`** - Add SQLite mapping:
+>    ```typescript
+>    // USER_TO_SQLITE
+>    'bytea': 'BLOB',
+>    ```
+>
+> For SQLite, `bytea` maps to `BLOB`. Buffer values are stored/retrieved natively.
 
 ### ModelBackedStorage Implementation
 
@@ -750,13 +859,18 @@ class ModelBackedStorage implements Mount {
   constructor(private system: System) {}
 
   async stat(path: string): Promise<VFSEntry> {
-    const node = await this.system.database.selectOne('vfs_nodes', { path });
+    // selectOne takes (model, filterData) with { where: { ... } }
+    const node = await this.system.database.selectOne('vfs_nodes', {
+      where: { path }
+    });
     if (!node) throw new VFSError('ENOENT', path);
     return this.toEntry(node);
   }
 
   async readdir(path: string): Promise<VFSEntry[]> {
-    const parent = await this.system.database.selectOne('vfs_nodes', { path });
+    const parent = await this.system.database.selectOne('vfs_nodes', {
+      where: { path }
+    });
     if (!parent) throw new VFSError('ENOENT', path);
     if (parent.node_type !== 'directory') throw new VFSError('ENOTDIR', path);
 
@@ -769,7 +883,9 @@ class ModelBackedStorage implements Mount {
   }
 
   async read(path: string): Promise<Buffer> {
-    const node = await this.system.database.selectOne('vfs_nodes', { path });
+    const node = await this.system.database.selectOne('vfs_nodes', {
+      where: { path }
+    });
     if (!node) throw new VFSError('ENOENT', path);
     if (node.node_type === 'directory') throw new VFSError('EISDIR', path);
     return node.content || Buffer.alloc(0);
@@ -777,18 +893,23 @@ class ModelBackedStorage implements Mount {
 
   async write(path: string, content: Buffer | string): Promise<void> {
     const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
-    const existing = await this.system.database.selectOne('vfs_nodes', { path });
+    const existing = await this.system.database.selectOne('vfs_nodes', {
+      where: { path }
+    });
 
     if (existing) {
       if (existing.node_type === 'directory') throw new VFSError('EISDIR', path);
-      await this.system.database.updateOne('vfs_nodes', { id: existing.id }, {
+      // updateOne takes (model, recordId, changes)
+      await this.system.database.updateOne('vfs_nodes', existing.id, {
         content: buffer,
         size: buffer.length,
       });
     } else {
       // Create new file
       const parentPath = this.dirname(path);
-      const parent = await this.system.database.selectOne('vfs_nodes', { path: parentPath });
+      const parent = await this.system.database.selectOne('vfs_nodes', {
+        where: { path: parentPath }
+      });
       if (!parent) throw new VFSError('ENOENT', parentPath);
 
       await this.system.database.createOne('vfs_nodes', {
@@ -805,11 +926,15 @@ class ModelBackedStorage implements Mount {
   }
 
   async mkdir(path: string, mode = 0o755): Promise<void> {
-    const existing = await this.system.database.selectOne('vfs_nodes', { path });
+    const existing = await this.system.database.selectOne('vfs_nodes', {
+      where: { path }
+    });
     if (existing) throw new VFSError('EEXIST', path);
 
     const parentPath = this.dirname(path);
-    const parent = await this.system.database.selectOne('vfs_nodes', { path: parentPath });
+    const parent = await this.system.database.selectOne('vfs_nodes', {
+      where: { path: parentPath }
+    });
     if (!parent) throw new VFSError('ENOENT', parentPath);
 
     await this.system.database.createOne('vfs_nodes', {
@@ -823,14 +948,19 @@ class ModelBackedStorage implements Mount {
   }
 
   async unlink(path: string): Promise<void> {
-    const node = await this.system.database.selectOne('vfs_nodes', { path });
+    const node = await this.system.database.selectOne('vfs_nodes', {
+      where: { path }
+    });
     if (!node) throw new VFSError('ENOENT', path);
     if (node.node_type === 'directory') throw new VFSError('EISDIR', path);
-    await this.system.database.deleteOne('vfs_nodes', { id: node.id });
+    // deleteOne takes (model, recordId)
+    await this.system.database.deleteOne('vfs_nodes', node.id);
   }
 
   async rmdir(path: string): Promise<void> {
-    const node = await this.system.database.selectOne('vfs_nodes', { path });
+    const node = await this.system.database.selectOne('vfs_nodes', {
+      where: { path }
+    });
     if (!node) throw new VFSError('ENOENT', path);
     if (node.node_type !== 'directory') throw new VFSError('ENOTDIR', path);
 
@@ -841,18 +971,22 @@ class ModelBackedStorage implements Mount {
     });
     if (children.length > 0) throw new VFSError('ENOTEMPTY', path);
 
-    await this.system.database.deleteOne('vfs_nodes', { id: node.id });
+    await this.system.database.deleteOne('vfs_nodes', node.id);
   }
 
   async rename(oldPath: string, newPath: string): Promise<void> {
-    const node = await this.system.database.selectOne('vfs_nodes', { path: oldPath });
+    const node = await this.system.database.selectOne('vfs_nodes', {
+      where: { path: oldPath }
+    });
     if (!node) throw new VFSError('ENOENT', oldPath);
 
     const newParentPath = this.dirname(newPath);
-    const newParent = await this.system.database.selectOne('vfs_nodes', { path: newParentPath });
+    const newParent = await this.system.database.selectOne('vfs_nodes', {
+      where: { path: newParentPath }
+    });
     if (!newParent) throw new VFSError('ENOENT', newParentPath);
 
-    await this.system.database.updateOne('vfs_nodes', { id: node.id }, {
+    await this.system.database.updateOne('vfs_nodes', node.id, {
       parent_id: newParent.id,
       name: this.basename(newPath),
       path: newPath,
@@ -888,12 +1022,13 @@ class ModelBackedStorage implements Mount {
   }
 
   private async updateDescendantPaths(oldPrefix: string, newPrefix: string): Promise<void> {
-    // Raw SQL for efficiency - update all paths that start with oldPrefix
-    await this.system.adapter.raw(`
-      UPDATE vfs_nodes
-      SET path = ? || SUBSTRING(path FROM ?)
-      WHERE path LIKE ?
-    `, [newPrefix, oldPrefix.length + 1, oldPrefix + '%']);
+    // Use database.execute() for raw SQL
+    // Note: Syntax differs between PostgreSQL and SQLite
+    const sql = this.system.dbType === 'sqlite'
+      ? `UPDATE vfs_nodes SET path = ? || SUBSTR(path, ?) WHERE path LIKE ?`
+      : `UPDATE vfs_nodes SET path = $1 || SUBSTRING(path FROM $2) WHERE path LIKE $3`;
+
+    await this.system.database.execute(sql, [newPrefix, oldPrefix.length + 1, oldPrefix + '%']);
   }
 }
 ```
@@ -925,7 +1060,8 @@ interface Session {
 ```typescript
 // packages/app-tty/src/session-handler.ts
 import { VFS } from '../../../src/lib/vfs/index.js';
-import { createSystemFromToken } from '../../../src/lib/system.js';
+import { System, systemInitFromJWT } from '../../../src/lib/system.js';
+import { verifyToken } from '../../../src/lib/jwt-generator.js';
 
 // After successful login (line ~147):
 if (result.success && result.data?.token) {
@@ -933,7 +1069,10 @@ if (result.success && result.data?.token) {
   session.state = 'AUTHENTICATED';
 
   // Create VFS for this session
-  const system = await createSystemFromToken(session.token);
+  // Note: systemInitFromJWT takes decoded JWT payload, not raw token string
+  const payload = await verifyToken(session.token);
+  const systemInit = systemInitFromJWT(payload);
+  const system = new System(systemInit);
   session.vfs = new VFS(system);
 
   writeToStream(stream, '\n\n');
@@ -1177,6 +1316,13 @@ async function initializeTenantVFS(system: System): Promise<void> {
 
 ## Implementation Phases
 
+### Phase 0: Prerequisites
+- [ ] Add `bytea` type support to field type system
+  - [ ] `src/lib/sql/tenant.pg.sql` - Add to `field_type` enum
+  - [ ] `src/lib/sql/tenant.sqlite.sql` - Add to CHECK constraint
+  - [ ] `src/lib/field-types.ts` - Add USER_TO_PG and PG_TO_USER mappings
+  - [ ] `src/lib/database/type-mappings.ts` - Add USER_TO_SQLITE mapping (BLOB)
+
 ### Phase 1: Core VFS (Foundation)
 - [ ] Create `src/lib/vfs/types.ts` with interfaces
 - [ ] Create `src/lib/vfs/index.ts` with VFS class
@@ -1193,13 +1339,16 @@ async function initializeTenantVFS(system: System): Promise<void> {
 
 ### Phase 3: TTY Refactor
 - [ ] Add `vfs` property to Session interface
-- [ ] Create VFS instance on login
+- [ ] Create VFS instance on login (using `systemInitFromJWT` + `new System()`)
 - [ ] Refactor `commands.ts` to use VFS
 - [ ] Remove `parsePath()` and switch statements
 - [ ] Verify backwards compatibility
 
 ### Phase 4: Real Storage
-- [ ] Create `vfs_nodes` model definition
+- [ ] Add `vfs_nodes` table to SQL schemas:
+  - [ ] `src/lib/sql/tenant.pg.sql` - DDL + seed data
+  - [ ] `src/lib/sql/tenant.sqlite.sql` - DDL
+  - [ ] `src/lib/infrastructure.ts` - TENANT_SEED_SQLITE
 - [ ] Implement `ModelBackedStorage`
 - [ ] Add tenant initialization for `/home`, `/tmp`, `/etc`
 - [ ] Support user home directories
@@ -1209,6 +1358,449 @@ async function initializeTenantVFS(system: System): Promise<void> {
 - [ ] Implement `sftp-handler.ts`
 - [ ] Map all SFTP operations to VFS
 - [ ] Test with VSCode Remote / vim netrw
+
+### Phase 6: Event Notifications
+- [ ] Create `src/lib/vfs/event-bus.ts` with VFSEventBus
+- [ ] Create `src/observers/vfs_nodes/7/50-vfs-event-emitter.ts`
+- [ ] Add `watch` command to TTY
+- [ ] Add `tail -f` support to TTY
+- [ ] Add SSE endpoint `/api/vfs/watch/*`
+- [ ] Add `cleanupHandlers` to Session interface for subscription cleanup
+
+---
+
+## Event Notifications (Watch/Notify)
+
+The observer pipeline provides a natural hook for filesystem event notifications. This enables `tail -f`, live watches, and IDE integration.
+
+### Event Types
+
+```typescript
+type VFSEventType = 'create' | 'modify' | 'delete' | 'rename' | 'attrib';
+
+interface VFSEvent {
+  type: VFSEventType;
+  path: string;
+  oldPath?: string;        // For rename events
+  timestamp: Date;
+  userId: string;          // Who made the change
+  nodeType: 'file' | 'directory' | 'symlink';
+}
+```
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     VFS Mutation (write, unlink, mkdir, etc.)        │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Observer Pipeline                               │
+│                                                                      │
+│  Ring 5: Database mutation executes                                  │
+│  Ring 7: VFSEventObserver (async) emits event to EventBus           │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         EventBus                                     │
+│                                                                      │
+│  • Maintains subscriptions by path pattern                           │
+│  • Supports glob patterns: /home/user/*, /api/data/orders/**        │
+│  • Per-tenant isolation                                              │
+└────────┬────────────────────┬───────────────────────┬───────────────┘
+         │                    │                       │
+         ▼                    ▼                       ▼
+┌─────────────┐      ┌─────────────┐         ┌─────────────┐
+│    TTY      │      │  WebSocket  │         │     SSE     │
+│  Sessions   │      │   Clients   │         │   Clients   │
+│             │      │             │         │             │
+│  tail -f    │      │  IDE/Editor │         │  Dashboard  │
+│  watch cmd  │      │  Integration│         │  Live feed  │
+└─────────────┘      └─────────────┘         └─────────────┘
+```
+
+### Observer Implementation
+
+```typescript
+// src/observers/vfs_nodes/7/50-vfs-event-emitter.ts
+import { BaseAsyncObserver } from '@src/lib/observers/base-async-observer.js';
+import { ObserverRing } from '@src/lib/observers/types.js';
+import type { ObserverContext } from '@src/lib/observers/interfaces.js';
+import { VFSEventBus } from '@src/lib/vfs/event-bus.js';
+
+export default class VFSEventEmitter extends BaseAsyncObserver {
+  readonly ring = ObserverRing.Async;  // Ring 7
+  readonly models = ['vfs_nodes'] as const;
+  readonly operations = ['create', 'update', 'delete'] as const;
+  readonly priority = 50;
+
+  async execute(context: ObserverContext): Promise<void> {
+    const { operation, record, previous } = context;
+    const { tenant } = context.system;
+
+    const eventType = this.mapOperation(operation, record, previous);
+
+    const event: VFSEvent = {
+      type: eventType,
+      path: record.path,
+      oldPath: previous?.path !== record.path ? previous?.path : undefined,
+      timestamp: new Date(),
+      userId: context.system.userId,
+      nodeType: record.node_type,
+    };
+
+    await VFSEventBus.emit(tenant, event);
+  }
+
+  private mapOperation(op: string, record: any, previous?: any): VFSEventType {
+    if (op === 'create') return 'create';
+    if (op === 'delete') return 'delete';
+    if (op === 'update') {
+      if (previous?.path !== record.path) return 'rename';
+      if (previous?.mode !== record.mode) return 'attrib';
+      return 'modify';
+    }
+    return 'modify';
+  }
+}
+```
+
+### EventBus Implementation
+
+```typescript
+// src/lib/vfs/event-bus.ts
+type Subscriber = (event: VFSEvent) => void | Promise<void>;
+
+interface Subscription {
+  pattern: string;          // Glob pattern
+  regex: RegExp;            // Compiled pattern
+  callback: Subscriber;
+  id: string;
+}
+
+class VFSEventBusImpl {
+  // Per-tenant subscriptions
+  private subscriptions = new Map<string, Subscription[]>();
+
+  subscribe(tenant: string, pattern: string, callback: Subscriber): string {
+    const id = crypto.randomUUID();
+    const regex = this.globToRegex(pattern);
+
+    if (!this.subscriptions.has(tenant)) {
+      this.subscriptions.set(tenant, []);
+    }
+
+    this.subscriptions.get(tenant)!.push({ pattern, regex, callback, id });
+    return id;
+  }
+
+  unsubscribe(tenant: string, id: string): void {
+    const subs = this.subscriptions.get(tenant);
+    if (subs) {
+      const idx = subs.findIndex(s => s.id === id);
+      if (idx !== -1) subs.splice(idx, 1);
+    }
+  }
+
+  async emit(tenant: string, event: VFSEvent): Promise<void> {
+    const subs = this.subscriptions.get(tenant) || [];
+
+    const matches = subs.filter(s =>
+      s.regex.test(event.path) ||
+      (event.oldPath && s.regex.test(event.oldPath))
+    );
+
+    await Promise.allSettled(
+      matches.map(s => s.callback(event))
+    );
+  }
+
+  private globToRegex(pattern: string): RegExp {
+    // Convert glob to regex: * = [^/]*, ** = .*
+    const escaped = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*\*/g, '{{GLOBSTAR}}')
+      .replace(/\*/g, '[^/]*')
+      .replace(/{{GLOBSTAR}}/g, '.*');
+    return new RegExp(`^${escaped}$`);
+  }
+}
+
+export const VFSEventBus = new VFSEventBusImpl();
+```
+
+### TTY Integration: `watch` Command
+
+```typescript
+// packages/app-tty/src/commands.ts
+commands['watch'] = async (session, args, write) => {
+  const pattern = args[0] || session.cwd;
+  const resolved = session.vfs!.resolve(session.cwd, pattern);
+
+  write(`Watching ${resolved} for changes (Ctrl+C to stop)\n`);
+
+  const subId = VFSEventBus.subscribe(session.tenant, resolved + '/**', (event) => {
+    const symbol = {
+      create: '+',
+      modify: '~',
+      delete: '-',
+      rename: '>',
+      attrib: '@',
+    }[event.type];
+
+    const time = event.timestamp.toISOString().slice(11, 19);
+    write(`[${time}] ${symbol} ${event.path}\n`);
+  });
+
+  // Cleanup on disconnect
+  session.cleanupHandlers.push(() => {
+    VFSEventBus.unsubscribe(session.tenant, subId);
+  });
+};
+```
+
+### TTY Integration: `tail -f`
+
+```typescript
+commands['tail'] = async (session, args, write) => {
+  const follow = args.includes('-f');
+  const path = args.find(a => !a.startsWith('-')) || '';
+  const resolved = session.vfs!.resolve(session.cwd, path);
+
+  // Show last N lines
+  const content = await session.vfs!.read(resolved);
+  const lines = content.toString().split('\n');
+  const lastLines = lines.slice(-10);
+  write(lastLines.join('\n') + '\n');
+
+  if (!follow) return;
+
+  // Subscribe to modifications
+  write('--- following ---\n');
+
+  let lastSize = content.length;
+
+  const subId = VFSEventBus.subscribe(session.tenant, resolved, async (event) => {
+    if (event.type !== 'modify') return;
+
+    const newContent = await session.vfs!.read(resolved);
+    if (newContent.length > lastSize) {
+      // Write only the new part
+      write(newContent.slice(lastSize).toString());
+      lastSize = newContent.length;
+    }
+  });
+
+  session.cleanupHandlers.push(() => {
+    VFSEventBus.unsubscribe(session.tenant, subId);
+  });
+};
+```
+
+### HTTP/WebSocket Endpoint (Future)
+
+```typescript
+// src/routes/api/vfs/watch/GET.ts
+// SSE endpoint for file watching
+app.get('/api/vfs/watch/*', async (c) => {
+  const system = c.get('system');
+  const pattern = c.req.param('*') || '/';
+
+  return streamSSE(c, async (stream) => {
+    const subId = VFSEventBus.subscribe(system.tenant, pattern, async (event) => {
+      await stream.writeSSE({
+        event: event.type,
+        data: JSON.stringify(event),
+      });
+    });
+
+    // Keep alive until client disconnects
+    stream.onAbort(() => {
+      VFSEventBus.unsubscribe(system.tenant, subId);
+    });
+  });
+});
+```
+
+---
+
+## Future Concepts (Plan 9 / BeOS Inspiration)
+
+These ideas from Plan 9 (Bell Labs, 1992) and BeOS (1995) blur the line between filesystem and database. Captured here for future exploration.
+
+### Live Queries (BeOS)
+
+BeOS had "live queries" - saved searches that notified when results changed. Monk has the `filters` table for saved queries. Combined with event notifications:
+
+```typescript
+// Filter defines the query (already exists)
+// filters: { name: 'high-value', model_name: 'orders', where: { amount: { $gt: 1000 } } }
+
+// Extend VFSEventBus to support filter subscriptions
+VFSEventBus.subscribeFilter(tenant, 'high-value', (event) => {
+  // event.type: 'enter' | 'exit' | 'modify'
+  // Notified when records enter/exit the filter's result set
+});
+```
+
+**Open questions:**
+- How to efficiently detect when a record enters/exits a query result?
+- Does the observer pipeline have enough context to evaluate filter conditions?
+- Performance implications of evaluating filters on every mutation?
+
+### Query Files (BeOS / filters integration)
+
+Expose saved filters as virtual directories under a mount:
+
+```
+/queries/                          # QueryMount
+  high-value-orders/               # Filter: orders where amount > 1000
+    abc123.json                    # Matching record
+    def456.json                    # Matching record
+  pending-orders/                  # Filter: orders where status = 'pending'
+    ...
+  recent-users/                    # Filter: users created in last 24h
+    ...
+```
+
+```typescript
+class QueryMount implements Mount {
+  async readdir(path: string): Promise<VFSEntry[]> {
+    if (path === '/') {
+      // List all filters
+      const filters = await this.system.database.selectAny('filters');
+      return filters.map(f => ({
+        name: f.name,
+        type: 'directory',
+        ...
+      }));
+    }
+
+    // Path is /:filterName - execute the filter query
+    const filterName = path.split('/')[1];
+    const filter = await this.system.database.selectOne('filters', {
+      where: { name: filterName }
+    });
+
+    const records = await this.system.database.selectAny(filter.model_name, {
+      where: filter.where,
+      order: filter.order,
+      limit: filter.limit,
+    });
+
+    return records.map(r => ({
+      name: `${r.id}.json`,
+      type: 'file',
+      ...
+    }));
+  }
+}
+```
+
+**Open questions:**
+- Should query results be cached? For how long?
+- How to handle filters that span multiple models?
+- With live queries, `watch /queries/high-value-orders` would notify on result changes
+
+### Extended Attributes (BeOS)
+
+BeOS files had arbitrary key-value attributes beyond standard metadata. Could add to vfs_nodes:
+
+```sql
+-- Option A: JSONB column
+ALTER TABLE vfs_nodes ADD COLUMN xattrs JSONB DEFAULT '{}';
+
+-- Option B: Separate table
+CREATE TABLE vfs_xattrs (
+  node_id UUID REFERENCES vfs_nodes(id),
+  name TEXT NOT NULL,
+  value BYTEA,
+  PRIMARY KEY (node_id, name)
+);
+```
+
+```typescript
+// VFS methods
+await vfs.setxattr('/home/user/doc.pdf', 'author', 'Ian Zepp');
+await vfs.setxattr('/home/user/doc.pdf', 'tags', ['important', 'q4']);
+const author = await vfs.getxattr('/home/user/doc.pdf', 'author');
+const all = await vfs.listxattr('/home/user/doc.pdf');
+
+// Query by attribute (via /api/find integration)
+await vfs.find('/home', { where: { 'xattr.tags': { $contains: 'important' } } });
+```
+
+**Open questions:**
+- JSONB column vs separate table? (JSONB simpler, separate table more queryable)
+- Size limits on attribute values?
+- How to expose in SFTP? (SFTP has limited xattr support)
+
+### Union Mounts (Plan 9)
+
+Overlay multiple directories to create a merged view:
+
+```typescript
+// Conceptual API
+vfs.union('/bin', [
+  { path: '/system/bin', priority: 0 },   // Base layer
+  { path: '/app/myapp/bin', priority: 1 }, // App overrides
+  { path: '/home/user/bin', priority: 2 }, // User overrides (highest priority)
+]);
+
+// Reading /bin/foo checks layers in reverse priority order
+// Writing goes to highest-priority writable layer
+```
+
+```
+/bin/
+  ls        → from /system/bin/ls
+  git       → from /system/bin/git
+  mycommand → from /home/user/bin/mycommand (user override)
+```
+
+**Open questions:**
+- Persist union definitions in database? Or session-scoped only?
+- How to handle writes? Always to top layer? Error if read-only?
+- How to show which layer a file comes from? (`ls -l` annotation?)
+
+### Bind Mounts (Plan 9)
+
+Mount any path at any other location (aliases):
+
+```typescript
+// Conceptual API
+vfs.bind('/api/data/orders', '/orders');  // Alias for convenience
+vfs.bind('/api/data/users/me', '/me');    // Dynamic based on session
+
+// Now these are equivalent:
+await vfs.read('/orders/123.json');
+await vfs.read('/api/data/orders/123.json');
+```
+
+**Open questions:**
+- Persist binds or session-scoped?
+- Symlinks already provide this - is bind mount different enough to justify?
+- Circular bind detection?
+
+### Per-Session Namespaces (Plan 9)
+
+Plan 9's killer feature: each process could have its own filesystem namespace. Already partially implemented via per-session VFS instances, but could extend:
+
+```typescript
+// Session-specific mounts
+session.vfs.mount('/scratch', new TempStorageMount(session.id));
+session.vfs.bind(`/home/${session.username}`, '/home/me');
+
+// Different sessions see different /home/me
+```
+
+**Open questions:**
+- How much namespace customization to allow?
+- Security implications of user-defined mounts?
+- Persist custom namespace or recreate on login?
 
 ---
 
@@ -1220,7 +1812,8 @@ async function initializeTenantVFS(system: System): Promise<void> {
 | **Caching?** | No caching initially. Add optional per-session cache later if needed. |
 | **Symlinks across mounts?** | Support. Resolve at VFS layer before delegating to mount. |
 | **Large files?** | Add streaming `readStream()`/`writeStream()` for files >1MB. |
-| **Watch/notify?** | Out of scope for v1. Could leverage observers later. |
+| **Event persistence?** | Events are ephemeral (in-memory). Could add event log table for replay. |
+| **Live queries?** | Integrate with filters table + event bus. Needs efficient change detection. |
 | **Field-level filesystem?** | Good for v3, implement after VFS foundation is solid. |
 
 ---
@@ -1233,4 +1826,38 @@ async function initializeTenantVFS(system: System): Promise<void> {
 ---
 
 *Document created: 2025-11-27*
-*Status: Analysis complete, ready for implementation*
+*Last updated: 2025-11-27*
+*Status: Corrected to match actual codebase APIs*
+
+### Corrections Made (2025-11-27)
+- Fixed `System` interface: `tenant` not `tenantId`, `Database` not `DatabaseService`
+- Fixed `getUser()`: synchronous, returns `UserInfo`
+- Fixed describe service calls: `describe.models.selectOne()` not `describe.getModel()`
+- Fixed database method signatures: `selectOne(model, { where })`, `updateOne(model, id, changes)`, `deleteOne(model, id)`
+- Replaced YAML model definition with SQL DDL for `vfs_nodes`
+- Added `bytea` type prerequisite (not currently in field type system)
+- Fixed `createSystemFromToken` → `systemInitFromJWT` + `new System()`
+- Fixed `adapter.raw()` → `database.execute()`
+- Added Phase 0 for prerequisites
+- Added Event Notifications section with observer-based watch/notify
+- Added Phase 6 for event notifications implementation
+- Added Future Concepts section (Plan 9/BeOS ideas): live queries, query files, xattrs, union/bind mounts, per-session namespaces
+- Noted that saved queries use existing `filters` table
+
+### Implementation Notes (2025-11-27) - Phase 0 & 1
+
+**Phase 0: Binary type**
+- User-facing type renamed from `bytea` to `binary` for better UX
+- Follows same pattern as `decimal` → `numeric` in PostgreSQL
+
+**Phase 1: VFS Core**
+- VFS constructor does not auto-mount; consumers call `mount()` explicitly
+- Added `setFallback(handler: Mount)` instead of hardcoded `this.storage` fallback
+- Throws `ENOENT` if no mount matches and no fallback set
+- Added `mountPath` field to `ResolvedPath` interface for cross-mount rename detection
+- SystemMount `startTime` is per-instance (session uptime), not module-level (server uptime)
+
+**Files created:**
+- `src/lib/vfs/types.ts` - VFSEntry, VFSError, Mount interface, ResolvedPath
+- `src/lib/vfs/index.ts` - VFS class with mount resolution and path utilities
+- `src/lib/vfs/mounts/system-mount.ts` - Read-only /system mount
