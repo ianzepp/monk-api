@@ -19,20 +19,20 @@
         "typescript": "^5.6.3",
       },
       "optionalDependencies": {
-        "@monk-app/grids": "workspace:packages/grids",
-        "@monk-app/mcp": "workspace:packages/mcp",
-        "@monk-app/openapi": "workspace:packages/openapi",
-        "@monk-app/todos": "workspace:packages/todos",
-        "@monk/bindings": "workspace:packages/bindings",
-        "@monk/formatter-brainfuck": "workspace:packages/formatter-brainfuck",
-        "@monk/formatter-csv": "workspace:packages/formatter-csv",
-        "@monk/formatter-grid-compact": "workspace:packages/formatter-grid-compact",
-        "@monk/formatter-markdown": "workspace:packages/formatter-markdown",
-        "@monk/formatter-morse": "workspace:packages/formatter-morse",
-        "@monk/formatter-msgpack": "workspace:packages/formatter-msgpack",
-        "@monk/formatter-qr": "workspace:packages/formatter-qr",
-        "@monk/formatter-toml": "workspace:packages/formatter-toml",
-        "@monk/formatter-toon": "workspace:packages/formatter-toon",
+        "@monk-app/grids": "workspace:*",
+        "@monk-app/mcp": "workspace:*",
+        "@monk-app/openapi": "workspace:*",
+        "@monk-app/todos": "workspace:*",
+        "@monk/bindings": "workspace:*",
+        "@monk/formatter-brainfuck": "workspace:*",
+        "@monk/formatter-csv": "workspace:*",
+        "@monk/formatter-grid-compact": "workspace:*",
+        "@monk/formatter-markdown": "workspace:*",
+        "@monk/formatter-morse": "workspace:*",
+        "@monk/formatter-msgpack": "workspace:*",
+        "@monk/formatter-qr": "workspace:*",
+        "@monk/formatter-toml": "workspace:*",
+        "@monk/formatter-toon": "workspace:*",
       },
     },
     "packages/bindings": {
@@ -42,9 +42,19 @@
         "typescript": "^5.6.3",
       },
     },
+    "packages/common": {
+      "name": "@monk/common",
+      "version": "1.0.0",
+      "devDependencies": {
+        "typescript": "^5.6.3",
+      },
+    },
     "packages/formatter-brainfuck": {
       "name": "@monk/formatter-brainfuck",
       "version": "1.0.0",
+      "dependencies": {
+        "@monk/common": "workspace:*",
+      },
       "devDependencies": {
         "typescript": "^5.6.3",
       },
@@ -53,6 +63,7 @@
       "name": "@monk/formatter-csv",
       "version": "1.0.0",
       "dependencies": {
+        "@monk/common": "workspace:*",
         "papaparse": "^5.5.3",
       },
       "devDependencies": {
@@ -63,6 +74,9 @@
     "packages/formatter-grid-compact": {
       "name": "@monk/formatter-grid-compact",
       "version": "1.0.0",
+      "dependencies": {
+        "@monk/common": "workspace:*",
+      },
       "devDependencies": {
         "typescript": "^5.6.3",
       },
@@ -70,6 +84,9 @@
     "packages/formatter-markdown": {
       "name": "@monk/formatter-markdown",
       "version": "1.0.0",
+      "dependencies": {
+        "@monk/common": "workspace:*",
+      },
       "devDependencies": {
         "typescript": "^5.6.3",
       },
@@ -77,6 +94,9 @@
     "packages/formatter-morse": {
       "name": "@monk/formatter-morse",
       "version": "1.0.0",
+      "dependencies": {
+        "@monk/common": "workspace:*",
+      },
       "devDependencies": {
         "@types/node": "^22",
         "typescript": "^5.6.3",
@@ -86,6 +106,7 @@
       "name": "@monk/formatter-msgpack",
       "version": "1.0.0",
       "dependencies": {
+        "@monk/common": "workspace:*",
         "@msgpack/msgpack": "^3.1.2",
       },
       "devDependencies": {
@@ -97,9 +118,21 @@
       "name": "@monk/formatter-qr",
       "version": "1.0.0",
       "dependencies": {
+        "@monk/common": "workspace:*",
         "qr": "^0.5.2",
       },
       "devDependencies": {
+        "typescript": "^5.6.3",
+      },
+    },
+    "packages/formatter-sqlite": {
+      "name": "@monk/formatter-sqlite",
+      "version": "1.0.0",
+      "dependencies": {
+        "@monk/common": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.2.13",
         "typescript": "^5.6.3",
       },
     },
@@ -108,6 +141,7 @@
       "version": "1.0.0",
       "dependencies": {
         "@iarna/toml": "^2.2.5",
+        "@monk/common": "workspace:*",
       },
       "devDependencies": {
         "typescript": "^5.6.3",
@@ -117,6 +151,7 @@
       "name": "@monk/formatter-toon",
       "version": "1.0.0",
       "dependencies": {
+        "@monk/common": "workspace:*",
         "@toon-format/toon": "^1.0.0",
       },
       "devDependencies": {
@@ -181,6 +216,8 @@
 
     "@monk/bindings": ["@monk/bindings@workspace:packages/bindings"],
 
+    "@monk/common": ["@monk/common@workspace:packages/common"],
+
     "@monk/formatter-brainfuck": ["@monk/formatter-brainfuck@workspace:packages/formatter-brainfuck"],
 
     "@monk/formatter-csv": ["@monk/formatter-csv@workspace:packages/formatter-csv"],
@@ -194,6 +231,8 @@
     "@monk/formatter-msgpack": ["@monk/formatter-msgpack@workspace:packages/formatter-msgpack"],
 
     "@monk/formatter-qr": ["@monk/formatter-qr@workspace:packages/formatter-qr"],
+
+    "@monk/formatter-sqlite": ["@monk/formatter-sqlite@workspace:packages/formatter-sqlite"],
 
     "@monk/formatter-toml": ["@monk/formatter-toml@workspace:packages/formatter-toml"],
 

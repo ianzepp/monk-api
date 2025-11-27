@@ -10,6 +10,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@monk/common": "workspace:*",
     "@toon-format/toon": "^1.0.0"
   },
   "devDependencies": {

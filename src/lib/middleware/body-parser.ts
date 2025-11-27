@@ -9,6 +9,7 @@
 
 import type { Context, Next } from 'hono';
 import { getFormatter } from '@src/lib/formatters/index.js';
+import { fromBytes } from '@monk/common';
 
 /**
  * Content-Type to format name mapping
@@ -28,12 +29,14 @@ const CONTENT_TYPE_MAP: Array<{ match: string | RegExp; format: string }> = [
     { match: 'application/morse', format: 'morse' },
     { match: 'text/csv', format: 'csv' },
     { match: 'application/csv', format: 'csv' },
+    { match: 'application/x-sqlite3', format: 'sqlite' },
+    { match: 'application/vnd.sqlite3', format: 'sqlite' },
 ];
 
 /**
  * Detect format from Content-Type header and body content
  */
-function detectFormat(contentType: string, body: string): string {
+function detectFormat(contentType: string, body: Uint8Array): string {
     const ct = contentType.toLowerCase();
 
     // Check explicit content types
@@ -46,15 +49,15 @@ function detectFormat(contentType: string, body: string): string {
         }
     }
 
-    // Heuristics for text/plain
+    // Heuristics for text/plain (decode to string for inspection)
     if (ct.includes('text/plain')) {
-        const trimmed = body.trim();
+        const text = fromBytes(body).trim();
         // TOON: starts with { (object notation)
-        if (trimmed.startsWith('{')) {
+        if (text.startsWith('{')) {
             return 'toon';
         }
         // Morse: only dots, dashes, spaces, slashes
-        if (/^[.\-\s\/]+$/.test(trimmed)) {
+        if (/^[.\-\s\/]+$/.test(text)) {
             return 'morse';
         }
     }
@@ -86,10 +89,11 @@ export async function bodyParserMiddleware(context: Context, next: Next) {
 
     try {
         const contentType = context.req.header('content-type') || '';
-        const rawBody = await context.req.text();
+        const arrayBuffer = await context.req.arrayBuffer();
+        const rawBody = new Uint8Array(arrayBuffer);
 
         // Skip if empty body
-        if (!rawBody || rawBody.trim().length === 0) {
+        if (rawBody.length === 0) {
             return await next();
         }
 

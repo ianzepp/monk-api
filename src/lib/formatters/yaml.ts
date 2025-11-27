@@ -5,29 +5,22 @@
  */
 
 import { dump as encodeYaml, load as decodeYaml } from 'js-yaml';
+import { type Formatter, toBytes, fromBytes } from '@monk/common';
 
-export const YamlFormatter = {
-    /**
-     * Encode data to YAML string
-     */
-    encode(data: any): string {
-        return encodeYaml(data, {
+export const YamlFormatter: Formatter = {
+    encode(data: any): Uint8Array {
+        const yaml = encodeYaml(data, {
             indent: 2,
             lineWidth: 120,
             noRefs: true,
             sortKeys: false,
         });
+        return toBytes(yaml);
     },
 
-    /**
-     * Decode YAML string to data
-     */
-    decode(text: string): any {
-        return decodeYaml(text);
+    decode(data: Uint8Array): any {
+        return decodeYaml(fromBytes(data));
     },
 
-    /**
-     * Content-Type for responses
-     */
     contentType: 'application/yaml; charset=utf-8'
 };

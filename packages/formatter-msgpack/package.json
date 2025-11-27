@@ -10,6 +10,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@monk/common": "workspace:*",
     "@msgpack/msgpack": "^3.1.2"
   },
   "devDependencies": {

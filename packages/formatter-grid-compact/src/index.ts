@@ -16,11 +16,7 @@
  * - High-frequency polling scenarios
  */
 
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes } from '@monk/common';
 
 function validateGridResponse(data: any): void {
     if (!data || typeof data !== 'object') {
@@ -37,7 +33,7 @@ function validateGridResponse(data: any): void {
 }
 
 export const GridCompactFormatter: Formatter = {
-    encode(data: any): string {
+    encode(data: any): Uint8Array {
         validateGridResponse(data);
 
         const compacted = {
@@ -52,10 +48,10 @@ export const GridCompactFormatter: Formatter = {
             ...(data.deleted !== undefined && { deleted: data.deleted })
         };
 
-        return JSON.stringify(compacted);
+        return toBytes(JSON.stringify(compacted));
     },
 
-    decode(_text: string): never {
+    decode(_data: Uint8Array): never {
         throw new Error('grid-compact is a response-only format. Use standard JSON for requests.');
     },
 

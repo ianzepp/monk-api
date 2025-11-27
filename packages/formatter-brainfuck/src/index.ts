@@ -6,18 +6,10 @@
  * wonderfully terrible (even more than encoding responses in Brainfuck).
  */
 
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes } from '@monk/common';
 
 export const BrainfuckFormatter: Formatter = {
-    /**
-     * Encode data to Brainfuck code that outputs JSON string
-     * Uses simple character-by-character encoding strategy
-     */
-    encode(data: any): string {
+    encode(data: any): Uint8Array {
         const jsonString = JSON.stringify(data, null, 2);
 
         let brainfuck = '';
@@ -37,14 +29,10 @@ export const BrainfuckFormatter: Formatter = {
             currentValue = targetValue;
         }
 
-        return brainfuck;
+        return toBytes(brainfuck);
     },
 
-    /**
-     * Decode is not implemented for Brainfuck
-     * We're not THAT crazy... yet
-     */
-    decode(_text: string): any {
+    decode(_data: Uint8Array): any {
         throw new Error('Brainfuck decoding is not supported. We have some standards.');
     },
 

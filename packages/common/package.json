@@ -1,7 +1,7 @@
 {
-  "name": "@monk/formatter-morse",
+  "name": "@monk/common",
   "version": "1.0.0",
-  "description": "Morse code formatter for Monk API",
+  "description": "Shared interfaces and utilities for Monk packages",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -9,11 +9,7 @@
     "build": "tsc",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "@monk/common": "workspace:*"
-  },
   "devDependencies": {
-    "@types/node": "^22",
     "typescript": "^5.6.3"
   },
   "license": "MIT"

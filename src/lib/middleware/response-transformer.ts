@@ -24,6 +24,7 @@ import { filterSystemFields } from '@src/lib/system-field-filter.js';
 
 // Formatter registry
 import { getFormatter, JsonFormatter } from '@src/lib/formatters/index.js';
+import { fromBytes, toBytes } from '@monk/common';
 
 // Encryption utilities
 import { deriveKeyFromJWT, extractSaltFromPayload } from '@src/lib/encryption/key-derivation.js';
@@ -33,7 +34,7 @@ import { createArmor } from '@src/lib/encryption/pgp-armor.js';
 /**
  * Error response for unavailable format (missing optional @monk/formatter-* package)
  */
-function formatUnavailableError(format: string): { text: string; contentType: string } {
+function formatUnavailableError(format: string): { data: Uint8Array; contentType: string } {
     const error = {
         success: false,
         error: `Format '${format}' is not available`,
@@ -41,7 +42,7 @@ function formatUnavailableError(format: string): { text: string; contentType: st
         details: `Install the optional package: npm install @monk/formatter-${format}`
     };
     return {
-        text: JSON.stringify(error, null, 2),
+        data: toBytes(JSON.stringify(error, null, 2)),
         contentType: JsonFormatter.contentType
     };
 }
@@ -110,10 +111,10 @@ function applyFieldExtraction(data: any, context: Context): any {
 /**
  * Pipeline Step 2: Format Conversion
  *
- * Converts data to string in requested format using the formatter registry.
- * Returns { text, contentType } for next pipeline step.
+ * Converts data to bytes in requested format using the formatter registry.
+ * Returns { data, contentType } for next pipeline step.
  */
-function applyFormatter(data: any, context: Context): { text: string; contentType: string } {
+function applyFormatter(data: any, context: Context): { data: Uint8Array; contentType: string } {
     const format = (context.get('responseFormat') as string) || 'json';
     const formatter = getFormatter(format);
 
@@ -126,14 +127,14 @@ function applyFormatter(data: any, context: Context): { text: string; contentTyp
         const inputData = (format === 'csv' && data?.data !== undefined) ? data.data : data;
 
         return {
-            text: formatter.encode(inputData),
+            data: formatter.encode(inputData),
             contentType: formatter.contentType
         };
     } catch (error) {
         // If formatting fails, gracefully fall back to JSON
         console.error(`Format encoding failed (${format}), falling back to JSON:`, error);
         return {
-            text: JSON.stringify(data, null, 2),
+            data: toBytes(JSON.stringify(data, null, 2)),
             contentType: JsonFormatter.contentType
         };
     }
@@ -142,7 +143,7 @@ function applyFormatter(data: any, context: Context): { text: string; contentTyp
 /**
  * Pipeline Step 3: Encryption (Optional)
  *
- * Encrypts formatted text if ?encrypt=pgp is present:
+ * Encrypts formatted data if ?encrypt=pgp is present:
  * - Derives encryption key from JWT token using PBKDF2
  * - Encrypts with AES-256-GCM
  * - Returns PGP-style ASCII armor
@@ -155,11 +156,11 @@ function applyFormatter(data: any, context: Context): { text: string; contentTyp
  *
  * Encrypts ALL responses including errors (prevents info leakage)
  */
-function applyEncryption(text: string, context: Context): string {
+function applyEncryption(data: Uint8Array, context: Context): { data: Uint8Array; encrypted: boolean } {
     const encryptParam = context.req.query('encrypt');
 
     if (encryptParam !== 'pgp') {
-        return text; // No encryption requested
+        return { data, encrypted: false }; // No encryption requested
     }
 
     try {
@@ -186,18 +187,21 @@ function applyEncryption(text: string, context: Context): string {
         const salt = extractSaltFromPayload(jwtPayload);
         const key = deriveKeyFromJWT(jwt, salt);
 
+        // Convert to string for encryption (encryption works on text)
+        const text = fromBytes(data);
+
         // Encrypt the formatted text
         const encryptionResult = encrypt(text, key);
 
         // Create PGP-style ASCII armor
         const armored = createArmor(encryptionResult);
 
-        return armored;
+        return { data: toBytes(armored), encrypted: true };
     } catch (error) {
         // Encryption failed - log error and return unencrypted
         // This allows the API to remain functional even if encryption fails
         console.error('Encryption failed, returning unencrypted response:', error);
-        return text;
+        return { data, encrypted: false };
     }
 }
 
@@ -212,7 +216,6 @@ function applyEncryption(text: string, context: Context): string {
 export async function responseTransformerMiddleware(context: Context, next: Next) {
     // Store original methods
     const originalJson = context.json.bind(context);
-    const originalText = context.text.bind(context);
 
     // Override context.json() to intercept ALL JSON responses
     context.json = function (data: any, init?: any) {
@@ -231,22 +234,21 @@ export async function responseTransformerMiddleware(context: Context, next: Next
         result = applyFieldExtraction(result, context);
 
         // Step 2: Format Conversion (?format=yaml|csv|toon|etc)
-        const { text, contentType } = applyFormatter(result, context);
+        const formatted = applyFormatter(result, context);
 
         // Step 3: Encryption (?encrypt=pgp)
-        const finalText = applyEncryption(text, context);
+        const { data: finalData, encrypted } = applyEncryption(formatted.data, context);
 
         // ========== PIPELINE END ==========
 
         // Determine final content type and headers
-        const isEncrypted = context.req.query('encrypt') === 'pgp';
-        const finalContentType = isEncrypted ? 'text/plain; charset=utf-8' : contentType;
+        const finalContentType = encrypted ? 'text/plain; charset=utf-8' : formatted.contentType;
 
         const headers: Record<string, string> = {
             'Content-Type': finalContentType
         };
 
-        if (isEncrypted) {
+        if (encrypted) {
             headers['X-Monk-Encrypted'] = 'pgp';
             headers['X-Monk-Cipher'] = 'AES-256-GCM';
         }
@@ -254,8 +256,8 @@ export async function responseTransformerMiddleware(context: Context, next: Next
         // Extract status code
         const status = typeof init === 'number' ? init : init?.status || 200;
 
-        // Return final response using original text method
-        return originalText(finalText, status, headers);
+        // Return final response with byte data
+        return new Response(finalData, { status, headers });
     } as any; // Type assertion needed for Hono method override
 
     // Execute route handlers

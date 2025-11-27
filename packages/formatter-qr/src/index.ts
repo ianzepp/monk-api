@@ -10,23 +10,19 @@
  */
 
 import encodeQR from 'qr';
-
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes } from '@monk/common';
 
 export const QrFormatter: Formatter = {
-    encode(data: any): string {
+    encode(data: any): Uint8Array {
         const jsonString = JSON.stringify(data, null, 2);
-        return encodeQR(jsonString, 'ascii', {
+        const qr = encodeQR(jsonString, 'ascii', {
             ecc: 'medium',
             border: 2,
         });
+        return toBytes(qr);
     },
 
-    decode(_text: string): any {
+    decode(_data: Uint8Array): any {
         throw new Error('QR code decoding is not supported. Please scan the QR code with a reader app.');
     },
 

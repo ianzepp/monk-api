@@ -30,6 +30,7 @@ import { NamespaceManager } from '@src/lib/namespace-manager.js';
 import { Infrastructure } from '@src/lib/infrastructure.js';
 import { JWTGenerator, type JWTPayload } from '@src/lib/jwt-generator.js';
 import { YamlFormatter } from '@src/lib/formatters/yaml.js';
+import { toBytes } from '@monk/common';
 import type { SystemInit } from '@src/lib/system.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { createInProcessClient, type InProcessClient } from './in-process-client.js';
@@ -67,7 +68,7 @@ export async function loadAppConfig(appName: string): Promise<AppConfig> {
         const configPath = join(dirname(packagePath), '..', 'app.yaml');
 
         const content = await readFile(configPath, 'utf-8');
-        const config = YamlFormatter.decode(content) as AppConfig;
+        const config = YamlFormatter.decode(toBytes(content)) as AppConfig;
 
         // Validate required fields
         if (!config.name) config.name = appName;
@@ -360,7 +361,7 @@ async function loadAppModelsFromYaml(packagePath: string, appName: string): Prom
         for (const file of yamlFiles) {
             const filePath = join(modelsDir, file.name);
             const content = await readFile(filePath, 'utf-8');
-            const model = YamlFormatter.decode(content) as AppModelDefinition;
+            const model = YamlFormatter.decode(toBytes(content)) as AppModelDefinition;
 
             if (!model.model_name) {
                 console.warn(`YAML model file ${file.name} missing model_name, skipping`);

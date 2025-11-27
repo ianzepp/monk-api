@@ -1,7 +1,7 @@
 {
-  "name": "@monk/formatter-morse",
+  "name": "@monk/formatter-sqlite",
   "version": "1.0.0",
-  "description": "Morse code formatter for Monk API",
+  "description": "SQLite formatter for Monk API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -13,7 +13,7 @@
     "@monk/common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22",
+    "@types/bun": "^1.2.13",
     "typescript": "^5.6.3"
   },
   "license": "MIT"

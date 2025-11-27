@@ -15,12 +15,7 @@
  */
 
 import Papa from 'papaparse';
-
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes, fromBytes } from '@monk/common';
 
 /**
  * Validate that data is an array of objects suitable for CSV export
@@ -66,7 +61,7 @@ function flattenForCsv(data: any[]): any[] {
 }
 
 export const CsvFormatter: Formatter = {
-    encode(data: any): string {
+    encode(data: any): Uint8Array {
         validateCsvData(data);
         const flatData = flattenForCsv(data);
         const csv = Papa.unparse(flatData, {
@@ -77,10 +72,11 @@ export const CsvFormatter: Formatter = {
             delimiter: ',',
             newline: '\n',
         });
-        return csv;
+        return toBytes(csv);
     },
 
-    decode(text: string): any[] {
+    decode(data: Uint8Array): any[] {
+        const text = fromBytes(data);
         const result = Papa.parse(text, {
             header: true,
             skipEmptyLines: true,

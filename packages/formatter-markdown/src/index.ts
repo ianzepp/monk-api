@@ -7,11 +7,7 @@
  * - Nested structures -> Indented sections
  */
 
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes } from '@monk/common';
 
 function stringifyValue(value: any): string {
     if (value === null || value === undefined) {
@@ -125,11 +121,11 @@ function encodeMarkdown(data: any): string {
 }
 
 export const MarkdownFormatter: Formatter = {
-    encode(data: any): string {
-        return encodeMarkdown(data);
+    encode(data: any): Uint8Array {
+        return toBytes(encodeMarkdown(data));
     },
 
-    decode(_text: string): any {
+    decode(_data: Uint8Array): any {
         throw new Error('Markdown decoding is not supported. Markdown is a presentation format, not a data serialization format.');
     },
 
