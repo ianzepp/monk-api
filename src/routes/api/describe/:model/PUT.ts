@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
@@ -9,12 +7,13 @@ import { stripSystemFields } from '@src/lib/describe.js';
  * Updates model properties like status, sudo, frozen.
  * Does not modify fields - use field endpoints for that.
  */
-export default withTransactionParams(async (context, { system, model, body }) => {
+export default withTransaction(async ({ system, params, body }) => {
+    const { model } = params;
     const result = await system.describe.models.update404(
         { where: { model_name: model } },
         body,
         `Model '${model}' not found`
     );
     // Strip system fields before returning
-    setRouteResult(context, stripSystemFields(result));
+    return stripSystemFields(result);
 });

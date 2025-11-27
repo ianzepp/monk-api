@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * GET /api/data/:model - List all records in model
@@ -13,11 +11,14 @@ import { setRouteResult } from '@src/lib/middleware/system-context.js';
  *
  * @see docs/routes/DATA_API.md
  */
-export default withTransactionParams(async (context, { system, model, options }) => {
+export default withTransaction(async ({ system, params, query }) => {
+    const { model } = params;
+
     // Parse optional where filter from query parameter
-    const whereParam = context.req.query('where');
+    const whereParam = query.where;
     const filterData = whereParam ? { where: JSON.parse(whereParam) } : {};
 
-    const result = await system.database.selectAny(model!, filterData, options);
-    setRouteResult(context, result);
+    return await system.database.selectAny(model, filterData, {
+        context: 'api' as const,
+    });
 });

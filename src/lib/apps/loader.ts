@@ -21,14 +21,13 @@
 
 import type { Context } from 'hono';
 import type { Hono } from 'hono';
-import { randomUUID } from 'crypto';
 import { readdir, readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { DatabaseNaming } from '@src/lib/database-naming.js';
 import { NamespaceManager } from '@src/lib/namespace-manager.js';
-import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
+import { Infrastructure } from '@src/lib/infrastructure.js';
 import { JWTGenerator, type JWTPayload } from '@src/lib/jwt-generator.js';
 import { YamlFormatter } from '@src/lib/formatters/yaml.js';
 import type { SystemInit } from '@src/lib/system.js';
@@ -186,39 +185,9 @@ export async function registerAppTenant(appName: string): Promise<{
         // Create namespace
         await NamespaceManager.createNamespace(dbName, nsName, 'postgresql');
 
-        // Deploy system fixture (minimal schema)
-        await FixtureDeployer.deployMultiple(['system'], {
-            dbType: 'postgresql',
-            dbName,
-            nsName,
-        });
-
-        // Check if root user already exists (system fixture may create one)
-        const existingUser = await DatabaseConnection.queryInNamespace(
-            dbName,
-            nsName,
-            'SELECT id FROM users WHERE auth = $1',
-            ['root']
-        );
-
-        let userId: string;
-
-        if (existingUser.rows.length > 0) {
-            // Use existing root user
-            userId = existingUser.rows[0].id;
-        } else {
-            // Create root user
-            userId = randomUUID();
-            const timestamp = new Date().toISOString();
-
-            await DatabaseConnection.queryInNamespace(
-                dbName,
-                nsName,
-                `INSERT INTO users (id, name, auth, access, access_read, access_edit, access_full, access_deny, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                [userId, `App Root (${appName})`, 'root', 'root', '{}', '{}', '{}', '{}', timestamp, timestamp]
-            );
-        }
+        // Deploy tenant schema (models, fields, users, filters) and create root user
+        // Returns ROOT_USER_ID since we pass 'root' as owner
+        const ownerUserId = await Infrastructure.deployTenantSchema('postgresql', dbName, nsName, 'root');
 
         // Register tenant with IP restrictions
         await mainPool.query(
@@ -231,7 +200,7 @@ export async function registerAppTenant(appName: string): Promise<{
                 nsName,
                 `App tenant for @monk/${appName}`,
                 'system',
-                userId,
+                ownerUserId,
                 'localhost',
                 true,
                 ['127.0.0.1', '::1'], // Localhost only
@@ -240,10 +209,10 @@ export async function registerAppTenant(appName: string): Promise<{
 
         await mainPool.query('COMMIT');
 
-        // Generate long-lived token
+        // Generate long-lived token for owner (ROOT_USER_ID for app tenants)
         const token = await JWTGenerator.generateToken({
-            id: userId,
-            user_id: userId,
+            id: ownerUserId,
+            user_id: ownerUserId,
             tenant: tenantName,
             dbType: 'postgresql',
             dbName,
@@ -256,7 +225,7 @@ export async function registerAppTenant(appName: string): Promise<{
 
         console.info(`Created app tenant: ${tenantName}`);
 
-        return { token, tenantName, dbName, nsName, userId };
+        return { token, tenantName, dbName, nsName, userId: ownerUserId };
 
     } catch (error) {
         // Rollback transaction on failure
@@ -274,7 +243,7 @@ export async function registerAppTenant(appName: string): Promise<{
 
 /**
  * Model definition for app registration.
- * Field definitions match the system fixture's fields table schema.
+ * Field definitions match the Infrastructure tenant schema's fields table.
  */
 export interface AppModelDefinition {
     model_name: string;

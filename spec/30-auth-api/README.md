@@ -1,24 +1,21 @@
 # 30-auth-api: Authentication API
 
 **Priority**: CRITICAL
-**Coverage**: 100% (5 of 5 tested endpoints, 83% with fake impersonation)
+**Coverage**: 100% (4 of 4 tested endpoints, 80% with fake impersonation)
 **Status**: COMPLETE - All core auth endpoints fully tested and implemented
 
 ## Critical / Smoke Tests
 
-### Tested (5) - COMPLETE ✅
-- POST /auth/register - User registration with tenant creation from templates ✅ (6 tests | 3 skipped)
-  - Tests: Tenant creation, custom username, system/demo templates, invalid template, duplicate tenant
-  - Skipped: Enterprise mode database restrictions, personal mode collisions, template clone failures
+### Tested (4) - COMPLETE ✅
+- POST /auth/register - User registration with tenant creation ✅ (3 tests | 2 skipped)
+  - Tests: Tenant creation, custom username, duplicate tenant
+  - Skipped: Enterprise mode database restrictions, personal mode collisions
 - POST /auth/login - Authenticate with valid credentials and comprehensive error handling ✅ (6 tests | 1 skipped)
   - Tests: Valid login, format preference, missing tenant, missing username, nonexistent tenant, invalid username
   - Skipped: null/undefined tenant edge case
 - GET /auth/tenants - List available tenants (personal mode only) ✅ (5 tests)
   - Personal mode: Returns tenant list with users, includes new tenants, verifies sorting, allows unauthenticated access
   - Enterprise mode (not tested): Returns 403 AUTH_TENANT_LIST_NOT_AVAILABLE
-- GET /auth/templates - List available templates (personal mode only) ✅ (6 tests)
-  - Personal mode: Returns template list, includes system/demo templates, verifies sorting, includes descriptions
-  - Enterprise mode (not tested): Returns 403 AUTH_TEMPLATE_LIST_NOT_AVAILABLE
 - POST /auth/refresh - JWT token refresh mechanism ✅ (12 tests | 3 skipped)
   - Tests: Token validation (missing, empty, null), refresh operations (valid, invalid format, tampered), response format (structure, expires_in, uniqueness), security (access preservation, timestamp updates)
   - Skipped: Expired token (requires manual TTL), format preference (login limitation), rate limiting (requires middleware)
@@ -39,7 +36,7 @@
 
 ### Completed Work
 - Register and login endpoints: comprehensive test suites with error code coverage
-- Tenants and templates endpoints: mode-aware tests (personal mode fully tested, enterprise mode validated)
+- Tenants endpoint: mode-aware tests (personal mode fully tested, enterprise mode validated)
 - All error codes standardized with AUTH_ prefix for router-thrown errors and DATABASE_ prefix for database operations
 - Error codes documented in src/routes/auth/PUBLIC.md master error codes reference table
 - Tests use lightweight TestHelpers utility for tenant creation with unique naming (timestamp + random hex)

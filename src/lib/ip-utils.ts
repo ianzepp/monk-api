@@ -25,8 +25,8 @@ export function getClientIp(context: Context): string {
         return normalizeIp(realIp.trim());
     }
 
-    // Fall back to connection remote address (Hono/Node specific)
-    // In Hono with @hono/node-server, this may be available via env
+    // Fall back to connection remote address
+    // May be available via Hono env depending on runtime
     const connInfo = context.env?.remoteAddr || context.env?.ip;
     if (connInfo) {
         return normalizeIp(String(connInfo));

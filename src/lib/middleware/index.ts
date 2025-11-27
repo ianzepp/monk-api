@@ -7,11 +7,10 @@
  * - Request parsing and authentication
  */
 
-export { systemContextMiddleware, setRouteResult } from './system-context.js';
-export { formatDetectionMiddleware } from './format-detection.js';
-export { requestBodyParserMiddleware } from './request-body-parser.js';
-export { responsePipelineMiddleware } from './response-pipeline.js';
-export { requestTrackingMiddleware } from './request-tracking.js';
-export { jwtValidationMiddleware } from './jwt-system-init.js';
-export { userValidationMiddleware } from './user-validation.js';
-export { sudoAccessMiddleware } from './sudo-access.js';
+export { contextInitializerMiddleware } from './context-initializer.js';
+export { formatDetectorMiddleware } from './format-detector.js';
+export { bodyParserMiddleware } from './body-parser.js';
+export { responseTransformerMiddleware } from './response-transformer.js';
+export { requestTrackerMiddleware } from './request-tracker.js';
+export { jwtValidatorMiddleware } from './jwt-validator.js';
+export { userValidatorMiddleware } from './user-validator.js';

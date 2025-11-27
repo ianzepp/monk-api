@@ -15,7 +15,7 @@
  * 8. Edge Cases & Error Handling
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { Filter } from '@src/lib/filter.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
@@ -613,7 +613,7 @@ describe('Filter - Edge Cases', () => {
     it('should handle soft delete options', () => {
         const filter = new Filter('users')
             .assign({ where: { status: 'active' } })
-            .withSoftDeleteOptions({ trashed: 'exclude' });
+            .withTrashed({ trashed: 'exclude' });
 
         const { query } = filter.toSQL();
         expect(query).toContain('WHERE');

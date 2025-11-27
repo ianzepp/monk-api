@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'bun:test';
 import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
@@ -6,10 +6,10 @@ import { expectSuccess, expectError } from '../test-assertions.js';
  * ACLs API Tests
  *
  * Tests the Access Control List management endpoints:
- * - GET /api/acls/:model/:record - Get ACLs for a record
- * - POST /api/acls/:model/:record - Append/merge ACLs (additive)
- * - PUT /api/acls/:model/:record - Replace ACLs (complete replacement)
- * - DELETE /api/acls/:model/:record - Clear all ACLs
+ * - GET /api/acls/:model/:id - Get ACLs for a record
+ * - POST /api/acls/:model/:id - Append/merge ACLs (additive)
+ * - PUT /api/acls/:model/:id - Replace ACLs (complete replacement)
+ * - DELETE /api/acls/:model/:id - Clear all ACLs
  *
  * ACL fields:
  * - access_read: Users who can read the record
@@ -70,7 +70,7 @@ describe('ACLs API', () => {
         });
     });
 
-    describe('GET /api/acls/:model/:record - Retrieve ACLs', () => {
+    describe('GET /api/acls/:model/:id - Retrieve ACLs', () => {
         it('should return ACL data for a record', async () => {
             const response = await tenant.httpClient.get(`/api/acls/accounts/${testRecordId}`);
 
@@ -92,7 +92,7 @@ describe('ACLs API', () => {
         });
     });
 
-    describe('POST /api/acls/:model/:record - Append/Merge ACLs', () => {
+    describe('POST /api/acls/:model/:id - Append/Merge ACLs', () => {
         it('should add ACL entries', async () => {
             const response = await tenant.httpClient.post(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid1, uuid2],
@@ -157,7 +157,7 @@ describe('ACLs API', () => {
         });
     });
 
-    describe('PUT /api/acls/:model/:record - Replace ACLs', () => {
+    describe('PUT /api/acls/:model/:id - Replace ACLs', () => {
         it('should completely replace all ACL lists', async () => {
             const response = await tenant.httpClient.put(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid6],
@@ -222,7 +222,7 @@ describe('ACLs API', () => {
         });
     });
 
-    describe('DELETE /api/acls/:model/:record - Clear ACLs', () => {
+    describe('DELETE /api/acls/:model/:id - Clear ACLs', () => {
         it('should clear all ACLs', async () => {
             // First add some ACLs
             await tenant.httpClient.post(`/api/acls/accounts/${testRecordId}`, {

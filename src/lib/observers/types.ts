@@ -32,6 +32,7 @@ export const DATABASE_RING = ObserverRing.Database;
  * - update: Modify existing records
  * - delete: Soft delete records (set trashed_at)
  * - revert: Undo soft delete (clear trashed_at)
+ * - expire: Permanent delete records (set deleted_at)
  * - access: Modify access control lists (ACLs only)
  *
  * Note: 'select' is NOT an operation type. Selects bypass the observer pipeline
@@ -40,7 +41,7 @@ export const DATABASE_RING = ObserverRing.Database;
  * - Don't fit the single-record pipeline model (return multiple records)
  * - Perform better without observer overhead
  */
-export type OperationType = 'create' | 'update' | 'delete' | 'revert' | 'access';
+export type OperationType = 'create' | 'update' | 'delete' | 'revert' | 'expire' | 'access';
 
 /**
  * Ring execution matrix - defines which rings execute for each operation type
@@ -52,6 +53,7 @@ export const RING_OPERATION_MATRIX = {
     'update': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings
     'delete': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings
     'revert': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings - undoing soft deletes
+    'expire': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // ALL rings - permanent delete
     'access': [0, 1, 2, 5, 6, 7, 8, 9],        // Skip enrichment (ring 4), skip business logic (ring 3) - ACL-only operation
 } as const;
 

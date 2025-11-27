@@ -94,14 +94,13 @@ import ModelDdlDeleteSqlite from '@src/observers/models/6/10-model-ddl-delete-sq
 // =============================================================================
 // Ring 7: Audit
 // =============================================================================
-import HistoryTracker from '@src/observers/all/7/60-history-tracker.js';
+import TrackedObserver from '@src/observers/all/7/60-tracked.js';
 
 // =============================================================================
 // Ring 8: Integration
 // =============================================================================
 import FieldCacheInvalidator from '@src/observers/fields/8/50-field-cache-invalidator.js';
 import ModelCacheInvalidator from '@src/observers/models/8/50-model-cache-invalidator.js';
-import SnapshotProcessor from '@src/observers/snapshots/8/50-snapshot-processor.js';
 
 // =============================================================================
 // Observer Registry
@@ -176,10 +175,9 @@ export const observers: Observer[] = [
     new ModelDdlDeleteSqlite(),
 
     // Ring 7: Audit
-    new HistoryTracker(),
+    new TrackedObserver(),
 
     // Ring 8: Integration
     new FieldCacheInvalidator(),
     new ModelCacheInvalidator(),
-    new SnapshotProcessor(),
 ];

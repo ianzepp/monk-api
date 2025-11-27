@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
@@ -11,7 +9,8 @@ import { stripSystemFields } from '@src/lib/describe.js';
  * Request body: Field definition in Monk format (type, required, etc.)
  * @returns Created field record from fields table
  */
-export default withTransactionParams(async (context, { system, model, field, body }) => {
+export default withTransaction(async ({ system, params, body }) => {
+    const { model, field } = params;
     const result = await system.describe.fields.createOne({
         model_name: model!,
         field_name: field!,
@@ -19,5 +18,5 @@ export default withTransactionParams(async (context, { system, model, field, bod
     });
 
     // Strip system fields before returning
-    setRouteResult(context, stripSystemFields(result));
+    return stripSystemFields(result);
 });

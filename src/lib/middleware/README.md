@@ -11,12 +11,12 @@ The Monk API uses a single **Response Pipeline Middleware** that orchestrates al
 ### For Protected Routes (`/api/*`)
 
 ```
-1. requestBodyParserMiddleware     - Decode TOON/YAML/JSON request bodies
-2. jwtValidationMiddleware         - Validate JWT token
-3. userValidationMiddleware        - Validate user exists
-4. formatDetectionMiddleware       - Detect desired response format (?format=)
-5. responsePipelineMiddleware      - [SINGLE OVERRIDE POINT]
-6. systemContextMiddleware         - Provide database context
+1. bodyParserMiddleware     - Decode TOON/YAML/JSON request bodies
+2. jwtValidatorMiddleware         - Validate JWT token
+3. userValidatorMiddleware        - Validate user exists
+4. formatDetectorMiddleware       - Detect desired response format (?format=)
+5. responseTransformerMiddleware      - [SINGLE OVERRIDE POINT]
+6. contextInitializerMiddleware         - Provide database context
    ↓
    Route Handler Executes
    ↓
@@ -26,9 +26,9 @@ The Monk API uses a single **Response Pipeline Middleware** that orchestrates al
 ### For Public Routes (`/auth/*`)
 
 ```
-1. requestBodyParserMiddleware     - Decode request bodies
-2. formatDetectionMiddleware       - Detect desired response format
-3. responsePipelineMiddleware      - [SINGLE OVERRIDE POINT]
+1. bodyParserMiddleware     - Decode request bodies
+2. formatDetectorMiddleware       - Detect desired response format
+3. responseTransformerMiddleware      - [SINGLE OVERRIDE POINT]
    ↓
    Route Handler Executes
    ↓
@@ -52,7 +52,7 @@ This led to:
 
 ### The Solution (Current Approach)
 
-**Single middleware** (`responsePipelineMiddleware`) that:
+**Single middleware** (`responseTransformerMiddleware`) that:
 1. Overrides `context.json()` ONCE before route handlers run
 2. When routes call `context.json(data)`, runs transformations in order
 3. Returns final formatted/encrypted response
@@ -222,7 +222,7 @@ GET /api/user/whoami?select=access&format=toon
 
 ## Middleware Details
 
-### requestBodyParserMiddleware
+### bodyParserMiddleware
 
 **Purpose**: Decode request bodies from various formats to JSON
 
@@ -235,7 +235,7 @@ GET /api/user/whoami?select=access&format=toon
 
 ---
 
-### formatDetectionMiddleware
+### formatDetectorMiddleware
 
 **Purpose**: Detect which format the client wants for responses
 
@@ -250,7 +250,7 @@ GET /api/user/whoami?select=access&format=toon
 
 ---
 
-### responsePipelineMiddleware
+### responseTransformerMiddleware
 
 **Purpose**: Transform JSON responses through extraction → formatting → encryption
 
@@ -271,7 +271,7 @@ GET /api/user/whoami?select=access&format=toon
 
 ---
 
-### systemContextMiddleware
+### contextInitializerMiddleware
 
 **Purpose**: Provide database context to routes
 
@@ -294,7 +294,7 @@ To add a new transformation step:
    }
    ```
 
-2. Add step to pipeline in `responsePipelineMiddleware()`:
+2. Add step to pipeline in `responseTransformerMiddleware()`:
    ```typescript
    // Step 1: Field Extraction
    result = applyFieldExtraction(result, context);

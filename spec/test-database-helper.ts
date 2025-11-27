@@ -1,15 +1,13 @@
 import { randomBytes } from 'crypto';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { DatabaseNaming } from '@src/lib/database-naming.js';
-import { NamespaceManager } from '@src/lib/namespace-manager.js';
-import { FixtureDeployer } from '@src/lib/fixtures/deployer.js';
+import { Infrastructure } from '@src/lib/infrastructure.js';
 
 /**
  * Test Tenant Configuration
  */
 export interface TestTenantConfig {
     testName: string;
-    template?: string; // Default: "testing"
+    template?: string; // Ignored - kept for API compatibility
 }
 
 /**
@@ -25,95 +23,52 @@ export interface TestTenantResult {
  * Test Database Helper
  *
  * Provides utilities for creating and cleaning up test tenants in Vitest tests.
- * Matches the behavior of shell test helpers (spec/test-tenant-helper.sh).
+ * Uses Infrastructure.createTenant() for tenant provisioning.
  */
 export class TestDatabaseHelper {
     /**
-     * Create a test tenant using namespace architecture
+     * Create a test tenant using Infrastructure
      *
-     * NEW: Uses namespace-based architecture instead of database cloning
      * - Generates tenant name: test_{testName}_{timestamp}_{random}
-     * - Creates namespace in db_test: ns_test_{8-char-hash}
-     * - Deploys fixtures to namespace
-     * - Registers tenant in monk.tenants table
+     * - Uses Infrastructure.createTenant() for full provisioning
+     * - Returns database and namespace info
      *
      * @param config - Test tenant configuration
      * @returns Promise with tenant name, database name, and namespace name
      */
     static async createTestTenant(config: TestTenantConfig): Promise<TestTenantResult> {
-        const { testName, template = 'testing' } = config;
+        const { testName } = config;
 
         // Generate test tenant name
         const timestamp = Date.now();
         const random = randomBytes(4).toString('hex');
         const tenantName = `test_${testName}_${timestamp}_${random}`;
 
-        // Use db_test database and generate namespace name
-        // Use tenant namespace prefix (ns_tenant_) to satisfy tenants table constraint
-        const dbName = 'db_test';
-        const nsName = DatabaseNaming.generateTenantNsName(tenantName);
+        // Create tenant via Infrastructure (handles schema creation and seeding)
+        const result = await Infrastructure.createTenant({
+            name: tenantName,
+            owner_username: 'root',
+        });
 
-        const mainPool = DatabaseConnection.getMainPool();
-
-        try {
-            // 1. Create namespace in db_test
-            await NamespaceManager.createNamespace(dbName, nsName);
-
-            // 2. Deploy fixtures to namespace
-            // System fixture is always deployed first, then the requested template
-            const fixtures = template === 'system' ? ['system'] : ['system', template];
-            await FixtureDeployer.deployMultiple(fixtures, { dbName, nsName, dbType: 'postgresql' });
-
-            // 3. Register tenant in main database
-            // Use a fixed test owner_id (will be cleaned up with tenant)
-            const testOwnerId = '00000000-0000-0000-0000-000000000000';
-            await mainPool.query(
-                `INSERT INTO tenants (name, database, schema, host, is_active, owner_id)
-                 VALUES ($1, $2, $3, $4, $5, $6)`,
-                [tenantName, dbName, nsName, 'localhost', true, testOwnerId]
-            );
-
-            return {
-                tenantName,
-                dbName,
-                nsName,
-            };
-        } catch (error) {
-            // Cleanup on failure
-            try {
-                await NamespaceManager.dropNamespace(dbName, nsName);
-            } catch {
-                // Ignore cleanup errors
-            }
-            throw error;
-        }
+        return {
+            tenantName: result.tenant.name,
+            dbName: result.tenant.database,
+            nsName: result.tenant.schema,
+        };
     }
 
     /**
      * Clean up a test tenant
      *
-     * NEW: Namespace-based cleanup
-     * - Drops the namespace (schema) and all objects within it
-     * - Removes tenant from registry
+     * Uses Infrastructure.deleteTenant() for soft delete.
      *
      * @param tenantName - Tenant name to clean up
-     * @param dbName - Database name (e.g., db_test)
-     * @param nsName - Namespace name (e.g., ns_test_abc123)
+     * @param _dbName - Unused, kept for API compatibility
+     * @param _nsName - Unused, kept for API compatibility
      */
-    static async cleanupTestTenant(tenantName: string, dbName: string, nsName: string): Promise<void> {
-        const mainPool = DatabaseConnection.getMainPool();
-
+    static async cleanupTestTenant(tenantName: string, _dbName?: string, _nsName?: string): Promise<void> {
         try {
-            // 1. Drop namespace (CASCADE drops all objects within it)
-            try {
-                await NamespaceManager.dropNamespace(dbName, nsName);
-            } catch (error) {
-                // Namespace might not exist, that's ok
-                console.warn(`Warning: Failed to drop namespace ${dbName}.${nsName}:`, error);
-            }
-
-            // 2. Remove tenant from registry
-            await mainPool.query('DELETE FROM tenants WHERE name = $1', [tenantName]);
+            await Infrastructure.deleteTenant(tenantName);
         } catch (error) {
             console.error(`Error cleaning up test tenant ${tenantName}:`, error);
             throw error;
@@ -123,7 +78,6 @@ export class TestDatabaseHelper {
     /**
      * Clean up all test tenants
      *
-     * NEW: Namespace-based cleanup
      * Removes all tenants with names starting with "test_"
      */
     static async cleanupAllTestTenants(): Promise<void> {
@@ -132,12 +86,12 @@ export class TestDatabaseHelper {
         try {
             // Get all test tenants
             const result = await mainPool.query(
-                `SELECT name, database, schema FROM tenants WHERE name LIKE 'test_%'`
+                `SELECT name FROM tenants WHERE name LIKE 'test_%' AND deleted_at IS NULL`
             );
 
             // Clean up each tenant
             for (const row of result.rows) {
-                await this.cleanupTestTenant(row.name, row.database, row.schema);
+                await this.cleanupTestTenant(row.name);
             }
         } catch (error) {
             console.error('Error cleaning up test tenants:', error);

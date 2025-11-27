@@ -1,10 +1,14 @@
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
-export default withTransactionParams(async (context, { system, model, body, options }) => {
+export default withTransaction(async ({ system, params, body }) => {
+    const { model } = params;
+
     console.debug('routes/aggregate-model: model=%j', model);
 
+    // Support trashed option in body for aggregations
+    const trashed = body?.trashed;
+    const options = { context: 'api' as const, ...(trashed && { trashed }) };
     const result = await system.database.aggregate(model!, body, options);
 
-    setRouteResult(context, result);
+    return result;
 });

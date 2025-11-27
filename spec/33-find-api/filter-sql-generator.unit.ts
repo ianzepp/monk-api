@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { FilterSqlGenerator, type FilterState } from '@src/lib/filter-sql-generator.js';
 import type { FilterOrderInfo, AggregateSpec } from '@src/lib/filter-types.js';
 
@@ -9,7 +9,8 @@ describe('FilterSqlGenerator - toSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -25,7 +26,8 @@ describe('FilterSqlGenerator - toSQL()', () => {
             select: ['id', 'name', 'email'],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -41,7 +43,8 @@ describe('FilterSqlGenerator - toSQL()', () => {
             select: [],
             whereData: { status: 'active' },
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -58,7 +61,8 @@ describe('FilterSqlGenerator - toSQL()', () => {
             select: [],
             whereData: {},
             order: [{ field: 'name', sort: 'asc' }],
-            softDeleteOptions: { trashed: 'include' }
+            accessUserIds: [],
+            trashedOption: { trashed: 'include' }
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -76,7 +80,8 @@ describe('FilterSqlGenerator - toSQL()', () => {
             whereData: {},
             order: [],
             limit: 10,
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -95,7 +100,8 @@ describe('FilterSqlGenerator - toSQL()', () => {
             order: [],
             limit: 10,
             offset: 20,
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -115,7 +121,8 @@ describe('FilterSqlGenerator - toSQL()', () => {
             order: [{ field: 'name', sort: 'asc' }],
             limit: 10,
             offset: 5,
-            softDeleteOptions: { trashed: 'include' }
+            accessUserIds: [],
+            trashedOption: { trashed: 'include' }
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -135,7 +142,8 @@ describe('FilterSqlGenerator - toSQL()', () => {
             select: ['*'],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toSQL(state);
@@ -153,7 +161,8 @@ describe('FilterSqlGenerator - toWhereSQL()', () => {
             select: [],
             whereData: { status: 'active' },
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { whereClause, params } = FilterSqlGenerator.toWhereSQL(state);
@@ -168,7 +177,8 @@ describe('FilterSqlGenerator - toWhereSQL()', () => {
             select: [],
             whereData: { status: 'active', role: 'admin' },
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { whereClause, params } = FilterSqlGenerator.toWhereSQL(state);
@@ -184,7 +194,8 @@ describe('FilterSqlGenerator - toWhereSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { whereClause, params } = FilterSqlGenerator.toWhereSQL(state);
@@ -199,7 +210,8 @@ describe('FilterSqlGenerator - toWhereSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: { trashed: 'exclude' }
+            accessUserIds: [],
+            trashedOption: { trashed: 'exclude' }
         };
 
         const { whereClause, params } = FilterSqlGenerator.toWhereSQL(state);
@@ -216,7 +228,8 @@ describe('FilterSqlGenerator - toCountSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toCountSQL(state);
@@ -232,7 +245,8 @@ describe('FilterSqlGenerator - toCountSQL()', () => {
             select: [],
             whereData: { status: 'active' },
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toCountSQL(state);
@@ -249,7 +263,8 @@ describe('FilterSqlGenerator - toCountSQL()', () => {
             select: [],
             whereData: {},
             order: [{ field: 'name', sort: 'asc' }],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toCountSQL(state);
@@ -267,7 +282,8 @@ describe('FilterSqlGenerator - toCountSQL()', () => {
             order: [],
             limit: 10,
             offset: 5,
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const { query, params } = FilterSqlGenerator.toCountSQL(state);
@@ -286,7 +302,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -307,7 +324,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -326,7 +344,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -345,7 +364,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -364,7 +384,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -383,7 +404,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -402,7 +424,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -421,7 +444,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -444,7 +468,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -466,7 +491,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -491,7 +517,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: { status: 'completed' },
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -511,7 +538,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {};
@@ -527,7 +555,8 @@ describe('FilterSqlGenerator - toAggregateSQL()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations = {
@@ -547,7 +576,8 @@ describe('FilterSqlGenerator - getWhereClause()', () => {
             select: [],
             whereData: { status: 'active' },
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const whereClause = FilterSqlGenerator.getWhereClause(state);
@@ -562,7 +592,8 @@ describe('FilterSqlGenerator - getWhereClause()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: { trashed: 'include' }
+            accessUserIds: [],
+            trashedOption: { trashed: 'include' }
         };
 
         const whereClause = FilterSqlGenerator.getWhereClause(state);
@@ -579,7 +610,8 @@ describe('FilterSqlGenerator - getOrderClause()', () => {
             select: [],
             whereData: {},
             order: [{ field: 'name', sort: 'asc' }],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const orderClause = FilterSqlGenerator.getOrderClause(state);
@@ -595,7 +627,8 @@ describe('FilterSqlGenerator - getOrderClause()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const orderClause = FilterSqlGenerator.getOrderClause(state);
@@ -612,7 +645,8 @@ describe('FilterSqlGenerator - getLimitClause()', () => {
             whereData: {},
             order: [],
             limit: 10,
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const limitClause = FilterSqlGenerator.getLimitClause(state);
@@ -628,7 +662,8 @@ describe('FilterSqlGenerator - getLimitClause()', () => {
             order: [],
             limit: 10,
             offset: 20,
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const limitClause = FilterSqlGenerator.getLimitClause(state);
@@ -642,7 +677,8 @@ describe('FilterSqlGenerator - getLimitClause()', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const limitClause = FilterSqlGenerator.getLimitClause(state);
@@ -657,7 +693,8 @@ describe('FilterSqlGenerator - getLimitClause()', () => {
             whereData: {},
             order: [],
             offset: 20,
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const limitClause = FilterSqlGenerator.getLimitClause(state);
@@ -673,7 +710,8 @@ describe('FilterSqlGenerator - Field Validation', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -691,7 +729,8 @@ describe('FilterSqlGenerator - Field Validation', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -709,7 +748,8 @@ describe('FilterSqlGenerator - Field Validation', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -728,7 +768,8 @@ describe('FilterSqlGenerator - Field Validation', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {
@@ -746,7 +787,8 @@ describe('FilterSqlGenerator - Field Validation', () => {
             select: [],
             whereData: {},
             order: [],
-            softDeleteOptions: {}
+            accessUserIds: [],
+            trashedOption: {}
         };
 
         const aggregations: AggregateSpec = {

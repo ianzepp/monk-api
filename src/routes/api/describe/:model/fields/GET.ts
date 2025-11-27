@@ -1,13 +1,12 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 /**
  * GET /api/describe/:model/fields - List all fields for a model
  *
  * Returns array of all field definitions for the specified model.
  */
-export default withTransactionParams(async (context, { system, model }) => {
+export default withTransaction(async ({ system, params }) => {
+    const { model } = params;
     const modelRecord = await system.describe.models.selectOne({ model: model });
 
     if (!modelRecord) {
@@ -20,5 +19,5 @@ export default withTransactionParams(async (context, { system, model }) => {
         order: { field_name: 'asc' }
     });
 
-    setRouteResult(context, fields);
+    return fields;
 });

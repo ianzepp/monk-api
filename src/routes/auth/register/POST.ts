@@ -1,75 +1,87 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { DatabaseTemplate } from '@src/lib/database-template.js';
+import { Infrastructure, parseInfraConfig } from '@src/lib/infrastructure.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
+import type { DatabaseType } from '@src/lib/database/adapter.js';
 
 /**
- * POST /auth/register - User registration
+ * POST /auth/register - Tenant registration
  *
- * Creates a new tenant from a specified template with a user-specified tenant name.
- * Returns a JWT token for immediate access to the new tenant.
- *
- * Database names are always generated using SHA256 hashing to ensure:
- * - Environment isolation (same tenant in dev/test/prod gets same hash)
- * - No naming conflicts between environments
- * - Privacy (tenant name not exposed in database name)
+ * Creates a new tenant with core tables (models, fields, users, filters)
+ * and a root user. Returns a JWT token for immediate access.
  *
  * Request body:
  * - tenant (required): User-facing tenant name
- * - template (optional): Template name to use (defaults to 'system')
  * - username (optional): Username for the tenant admin (defaults to 'root')
  * - description (optional): Human-readable description of the tenant
- * - adapter (optional): Database adapter - 'postgresql' (default) or 'sqlite'
+ * - adapter (optional): Database adapter - 'postgresql' or 'sqlite' (inherits from infra config if not specified)
  *
  * Error codes:
  * - AUTH_TENANT_MISSING: Missing tenant field (400)
  * - INVALID_ADAPTER: Invalid adapter value (400)
- * - DATABASE_TEMPLATE_NOT_FOUND: Template does not exist (404)
  * - DATABASE_TENANT_EXISTS: Tenant name already registered (409)
- * - DATABASE_EXISTS: Database name already exists (409)
- * - DATABASE_TEMPLATE_CLONE_FAILED: Template cloning operation failed (500)
  *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, template, username, description, adapter } = await context.req.json();
+    const { tenant, username, description, adapter } = await context.req.json();
 
     // Input validation
     if (!tenant) {
         throw HttpErrors.badRequest('Tenant is required', 'AUTH_TENANT_MISSING');
     }
 
-    // Clone specified template (defaults to 'system') with user-provided tenant name
-    const templateName = template || 'system';
+    // Validate adapter if specified
+    let dbType: DatabaseType | undefined;
+    if (adapter) {
+        if (adapter !== 'postgresql' && adapter !== 'sqlite') {
+            throw HttpErrors.badRequest(
+                "Invalid adapter. Must be 'postgresql' or 'sqlite'",
+                'INVALID_ADAPTER'
+            );
+        }
+        dbType = adapter;
+    }
 
-    const cloneResult = await DatabaseTemplate.cloneTemplate({
-        template_name: templateName,
-        tenant_name: tenant,
-        username: username || 'root',
-        user_access: 'root',
-        description: description,
-        db_type: adapter, // Pass through adapter as db_type (defaults to 'postgresql' if undefined)
-    });
+    // Create tenant with full provisioning
+    let result;
+    try {
+        result = await Infrastructure.createTenant({
+            name: tenant,
+            db_type: dbType,
+            owner_username: username || 'root',
+            description: description,
+        });
+    } catch (error: any) {
+        // Check for duplicate tenant error
+        if (error.message?.includes('already exists')) {
+            throw HttpErrors.conflict(
+                `Tenant '${tenant}' already exists`,
+                'DATABASE_TENANT_EXISTS'
+            );
+        }
+        throw error;
+    }
 
     // Generate JWT token for the new user
     const token = await JWTGenerator.generateToken({
-        id: cloneResult.user.id,
-        user_id: cloneResult.user.id,
-        tenant: cloneResult.tenant,
-        dbType: cloneResult.dbType,
-        dbName: cloneResult.dbName,
-        nsName: cloneResult.nsName,
-        access: cloneResult.user.access,
-        access_read: cloneResult.user.access_read,
-        access_edit: cloneResult.user.access_edit,
-        access_full: cloneResult.user.access_full,
+        id: result.user.id,
+        user_id: result.user.id,
+        tenant: result.tenant.name,
+        dbType: result.tenant.db_type,
+        dbName: result.tenant.database,
+        nsName: result.tenant.schema,
+        access: result.user.access,
+        access_read: [],
+        access_edit: [],
+        access_full: [],
     });
 
     return context.json({
         success: true,
         data: {
-            tenant: cloneResult.tenant,
-            username: cloneResult.user.auth,
+            tenant: result.tenant.name,
+            username: result.user.auth,
             token: token,
             expires_in: 24 * 60 * 60,
         },

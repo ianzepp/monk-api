@@ -170,4 +170,3 @@ renderTenantDropdown(tenants);
 
 - [`POST /auth/login`](../login/POST.md) - Login to a specific tenant
 - [`POST /auth/register`](../register/POST.md) - Create a new tenant
-- [`GET /auth/templates`](../templates/GET.md) - List available templates (personal mode)

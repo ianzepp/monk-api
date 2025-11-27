@@ -1,5 +1,4 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@src/lib/middleware/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
@@ -58,13 +57,16 @@ export default async function (context: Context) {
         expires_in: 900
     });
 
-    setRouteResult(context, {
-        sudo_token: sudoToken,
-        expires_in: 900,
-        token_type: 'Bearer',
-        access_level: user.access,
-        is_sudo: true,
-        warning: 'Sudo token expires in 15 minutes',
-        reason: reason
+    return context.json({
+        success: true,
+        data: {
+            sudo_token: sudoToken,
+            expires_in: 900,
+            token_type: 'Bearer',
+            access_level: user.access,
+            is_sudo: true,
+            warning: 'Sudo token expires in 15 minutes',
+            reason: reason
+        }
     });
 }

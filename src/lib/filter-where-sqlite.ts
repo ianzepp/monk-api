@@ -19,13 +19,13 @@ export class FilterWhereSqlite extends FilterWhere {
     /**
      * Static method for SQLite WHERE clause generation with validation
      */
-    static generate(whereData: any, startingParamIndex: number = 0, options: import('@src/lib/filter-types.js').FilterWhereOptions = {}): { whereClause: string; params: any[] } {
+    static generate(whereData: any, startingParamIndex: number = 0, options: import('@src/lib/filter-types.js').FilterWhereOptions = {}, accessUserIds: string[] = []): { whereClause: string; params: any[] } {
         try {
             // Validate using parent's validation (same for all dialects)
             FilterWhere.validateWhereData(whereData);
 
             const filterWhere = new FilterWhereSqlite(startingParamIndex);
-            return filterWhere.build(whereData, options);
+            return filterWhere.build(whereData, options, accessUserIds);
         } catch (error) {
             console.warn('FilterWhereSqlite validation failed', {
                 error: error instanceof Error ? error.message : String(error)
@@ -111,5 +111,32 @@ export class FilterWhereSqlite extends FilterWhere {
             default:
                 return super.buildSQLCondition(whereInfo);
         }
+    }
+
+    /**
+     * Build ACL access clause for SQLite
+     * SQLite stores arrays as JSON, so we use json_each() to check membership
+     * User has access if their ID appears in access_read, access_edit, or access_full arrays
+     * AND none of their IDs appear in access_deny
+     */
+    protected buildAccessClause(userIds: string[]): string {
+        // SQLite: Check if any userIds exist in the JSON arrays
+        // Uses EXISTS with json_each() to check array membership
+        const allowConditions = userIds.map(id => {
+            const param = this.PARAM(id);
+            return `(
+                EXISTS (SELECT 1 FROM json_each("access_read") WHERE value = ${param}) OR
+                EXISTS (SELECT 1 FROM json_each("access_edit") WHERE value = ${param}) OR
+                EXISTS (SELECT 1 FROM json_each("access_full") WHERE value = ${param})
+            )`;
+        });
+
+        // Check that none of the userIds are in the deny list
+        const denyConditions = userIds.map(id => {
+            const param = this.PARAM(id);
+            return `NOT EXISTS (SELECT 1 FROM json_each("access_deny") WHERE value = ${param})`;
+        });
+
+        return `((${allowConditions.join(' OR ')}) AND (${denyConditions.join(' AND ')}))`;
     }
 }

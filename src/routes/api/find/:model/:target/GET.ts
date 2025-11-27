@@ -1,5 +1,4 @@
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -18,8 +17,8 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  *
  * @see docs/routes/FIND_API.md
  */
-export default withTransactionParams(async (context, { system, model, options }) => {
-    const target = context.req.param('target');
+export default withTransaction(async ({ system, params }) => {
+    const { model, target } = params;
 
     if (!target) {
         throw HttpErrors.badRequest('Target (ID or name) is required', 'MISSING_TARGET');
@@ -54,7 +53,8 @@ export default withTransactionParams(async (context, { system, model, options })
     if (savedFilter.offset !== null && savedFilter.offset !== undefined) body.offset = savedFilter.offset;
 
     // Execute the query against the target model
+    const options = { context: 'api' as const };
     const result = await system.database.selectAny(model!, body, options);
 
-    setRouteResult(context, result);
+    return result;
 });

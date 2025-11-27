@@ -135,18 +135,37 @@ export class BulkProcessor {
      * Validate operation-specific field requirements
      */
     private validateOperationRequirements(op: BulkOperation, index: number): void {
-        // Operations requiring ID
+        // Operations requiring ID (single-record operations)
         const requiresId = [
-            BulkOperationType.SelectOne, BulkOperationType.Select404,
-            BulkOperationType.UpdateOne, BulkOperationType.Update404,
-            BulkOperationType.DeleteOne, BulkOperationType.Delete404,
-            BulkOperationType.AccessOne, BulkOperationType.Access404
+            BulkOperationType.SelectOne,
+            BulkOperationType.UpdateOne,
+            BulkOperationType.DeleteOne,
+            BulkOperationType.AccessOne
         ];
 
         if (requiresId.includes(op.operation)) {
             if (typeof op.id !== 'string' || op.id.trim().length === 0) {
                 throw HttpErrors.badRequest(
                     `Operation at index ${index} (${op.operation}) requires id field`,
+                    'OPERATION_MISSING_ID'
+                );
+            }
+        }
+
+        // Operations requiring ID or filter (*-404 operations use filter internally)
+        const requiresIdOrFilter = [
+            BulkOperationType.Select404,
+            BulkOperationType.Update404,
+            BulkOperationType.Delete404,
+            BulkOperationType.Access404
+        ];
+
+        if (requiresIdOrFilter.includes(op.operation)) {
+            const hasId = typeof op.id === 'string' && op.id.trim().length > 0;
+            const hasFilter = typeof op.filter === 'object' && op.filter !== null;
+            if (!hasId && !hasFilter) {
+                throw HttpErrors.badRequest(
+                    `Operation at index ${index} (${op.operation}) requires id or filter field`,
                     'OPERATION_MISSING_ID'
                 );
             }
@@ -162,6 +181,9 @@ export class BulkProcessor {
             BulkOperationType.UpdateAll,
             BulkOperationType.UpdateAny,
             BulkOperationType.Update404,
+            BulkOperationType.Upsert,
+            BulkOperationType.UpsertOne,
+            BulkOperationType.UpsertAll,
             BulkOperationType.DeleteAll,
             BulkOperationType.Access,
             BulkOperationType.AccessOne,
@@ -181,7 +203,8 @@ export class BulkProcessor {
             BulkOperationType.CreateAll,
             BulkOperationType.UpdateAll,
             BulkOperationType.DeleteAll,
-            BulkOperationType.AccessAll
+            BulkOperationType.AccessAll,
+            BulkOperationType.UpsertAll
         ];
 
         if (arrayDataOperations.includes(op.operation)) {
@@ -224,6 +247,8 @@ export class BulkProcessor {
             BulkOperationType.UpdateOne,
             BulkOperationType.UpdateAny,
             BulkOperationType.Update404,
+            BulkOperationType.Upsert,
+            BulkOperationType.UpsertOne,
             BulkOperationType.Access,
             BulkOperationType.AccessOne,
             BulkOperationType.AccessAny,

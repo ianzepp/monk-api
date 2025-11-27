@@ -1,17 +1,28 @@
 /**
- * Database Adapter Factory
+ * Database Module
  *
- * Creates the appropriate database adapter based on tenant configuration.
- * This is the single entry point for creating database adapters.
+ * Exports:
+ * - Database service class for high-level operations
+ * - Database adapter factory for low-level connections
+ * - Types for both service and adapters
+ *
+ * Uses bun:sqlite for SQLite (no native dependencies).
  */
 
+// Database Service (high-level operations)
+export { Database } from './service.js';
+export type { CachedRelationship, SelectOptions } from './types.js';
+export type { ExportOptions, ExportResult } from './export.js';
+export type { ImportOptions, ImportResult, ImportStrategy } from './import.js';
+
+// Database Adapters (low-level connections)
 export type { DatabaseAdapter, QueryResult, DatabaseType, AdapterConfig } from './adapter.js';
 export { PostgresAdapter } from './postgres-adapter.js';
-export { SqliteAdapter } from './sqlite-adapter.js';
+export { BunSqliteAdapter } from './bun-sqlite-adapter.js';
 
-import type { DatabaseAdapter, DatabaseType, AdapterConfig } from './adapter.js';
+import type { DatabaseAdapter, AdapterConfig, DatabaseType } from './adapter.js';
 import { PostgresAdapter } from './postgres-adapter.js';
-import { SqliteAdapter } from './sqlite-adapter.js';
+import { BunSqliteAdapter } from './bun-sqlite-adapter.js';
 
 /**
  * Create a database adapter based on configuration
@@ -36,7 +47,7 @@ export function createAdapter(config: AdapterConfig): DatabaseAdapter {
 
     switch (dbType) {
         case 'sqlite':
-            return new SqliteAdapter(db, ns);
+            return new BunSqliteAdapter(db, ns);
 
         case 'postgresql':
         default:

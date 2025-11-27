@@ -300,9 +300,9 @@ Decrypts API responses encrypted with `?encrypt=pgp` parameter.
 
 **Usage:**
 ```bash
-tsx scripts/decrypt.ts <jwt-token> < encrypted.txt
-tsx scripts/decrypt.ts <jwt-token> encrypted.txt
-curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | tsx scripts/decrypt.ts "$JWT"
+bun scripts/decrypt.ts <jwt-token> < encrypted.txt
+bun scripts/decrypt.ts <jwt-token> encrypted.txt
+curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | bun scripts/decrypt.ts "$JWT"
 ```
 
 **What it does:**
@@ -384,7 +384,7 @@ npm run test:sh                  # Run integration tests
 ```bash
 curl "http://localhost:9001/api/users?encrypt=pgp" \
   -H "Authorization: Bearer $JWT" \
-  | tsx scripts/decrypt.ts "$JWT"
+  | bun scripts/decrypt.ts "$JWT"
 ```
 
 ## Environment Variables
@@ -411,7 +411,7 @@ ls -la scripts/*.sh scripts/*.ts
 ## Adding New Scripts
 
 1. **Shell scripts:** Place in `scripts/` with `.sh` extension
-2. **TypeScript scripts:** Place in `scripts/` with `.ts` extension, add shebang `#!/usr/bin/env tsx`
+2. **TypeScript scripts:** Place in `scripts/` with `.ts` extension, add shebang `#!/usr/bin/env bun`
 3. **Update package.json:** Add npm script entry
 4. **Make executable:** `chmod +x scripts/your-script.{sh,ts}`
 5. **Update this README:** Document purpose and usage
@@ -424,10 +424,6 @@ ls -la scripts/*.sh scripts/*.ts
 
 ### "Permission denied"
 - Make script executable: `chmod +x scripts/script-name.sh`
-
-### "tsx: command not found"
-- Install dependencies: `npm install`
-- Use npx: `npx tsx scripts/script-name.ts`
 
 ### "Tenant already exists"
 - Delete existing tenant: `npm run tenant:delete -- tenant-name --force`

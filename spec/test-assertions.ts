@@ -6,7 +6,7 @@
  * rather than just showing "expected false to be true".
  */
 
-import { expect } from 'vitest';
+import { expect } from 'bun:test';
 
 /**
  * API Response Structure

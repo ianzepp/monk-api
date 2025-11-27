@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { mock, spyOn } from 'bun:test';
 import type { SystemContext } from '@src/lib/system-context-types.js';
 import type { Model } from '@src/lib/model.js';
 import type { System } from '@src/lib/system.js';
@@ -16,7 +16,7 @@ export function createMockSystemContext(
         options: {},
         database: {} as any,
         describe: {} as any,
-        getUser: vi.fn().mockReturnValue({
+        getUser: mock().mockReturnValue({
             id: 'test-user-id',
             tenant: 'test-tenant',
             role: 'user',
@@ -24,7 +24,8 @@ export function createMockSystemContext(
             accessEdit: [],
             accessFull: [],
         }),
-        isRoot: vi.fn().mockReturnValue(false),
+        isRoot: mock().mockReturnValue(false),
+        isSudo: mock().mockReturnValue(false),
     };
 
     return {
@@ -48,7 +49,7 @@ export function createMockSystem(
         options: {},
         database,
         describe: {} as any,
-        getUser: vi.fn().mockReturnValue({
+        getUser: mock().mockReturnValue({
             id: 'test-user-id',
             tenant: 'test-tenant',
             role: 'user',
@@ -56,7 +57,8 @@ export function createMockSystem(
             accessEdit: [],
             accessFull: [],
         }),
-        isRoot: vi.fn().mockReturnValue(false),
+        isRoot: mock().mockReturnValue(false),
+        isSudo: mock().mockReturnValue(false),
     };
 
     return {
@@ -106,11 +108,11 @@ export function createMockNamespace(overrides?: {
     const defaultModel = createMockModel({ modelName: 'orders' });
 
     return {
-        getModel: overrides?.getModel ?? vi.fn().mockReturnValue(defaultModel),
-        isLoaded: vi.fn().mockReturnValue(true),
-        invalidateModel: vi.fn(),
-        loadOne: vi.fn().mockResolvedValue(undefined),
-        loadAll: vi.fn().mockResolvedValue(undefined),
+        getModel: overrides?.getModel ?? mock().mockReturnValue(defaultModel),
+        isLoaded: mock().mockReturnValue(true),
+        invalidateModel: mock(),
+        loadOne: mock().mockResolvedValue(undefined),
+        loadAll: mock().mockResolvedValue(undefined),
     };
 }
 
@@ -136,30 +138,40 @@ export function createMockDatabase(overrides?: {
 
     const database = new Database(mockSystem);
 
-    // Set up default spies
+    // Set up execute spy
+    // Store the spy so tests can re-configure it
+    const executeSpy = spyOn(database as any, 'execute');
     if (overrides?.execute !== undefined) {
-        vi.spyOn(database as any, 'execute').mockImplementation(overrides.execute);
+        // Handle both mock functions and regular values
+        if (typeof overrides.execute === 'function') {
+            executeSpy.mockImplementation(overrides.execute);
+        } else {
+            // If it's a value, wrap it in a resolved promise
+            executeSpy.mockResolvedValue(overrides.execute);
+        }
     } else {
-        vi.spyOn(database as any, 'execute').mockResolvedValue({ rows: [] });
+        executeSpy.mockResolvedValue({ rows: [] });
     }
+    // Attach the spy to database for test access
+    (database as any)._executeSpy = executeSpy;
 
     if (overrides?.getDefaultSoftDeleteOptions !== undefined) {
-        vi.spyOn(database as any, 'getDefaultSoftDeleteOptions')
+        spyOn(database as any, 'getDefaultSoftDeleteOptions')
             .mockImplementation(overrides.getDefaultSoftDeleteOptions);
     } else {
-        vi.spyOn(database as any, 'getDefaultSoftDeleteOptions').mockReturnValue({});
+        spyOn(database as any, 'getDefaultSoftDeleteOptions').mockReturnValue({});
     }
 
     if (overrides?.convertPostgreSQLTypes !== undefined) {
-        vi.spyOn(database as any, 'convertPostgreSQLTypes')
+        spyOn(database as any, 'convertPostgreSQLTypes')
             .mockImplementation(overrides.convertPostgreSQLTypes);
     } else {
-        vi.spyOn(database as any, 'convertPostgreSQLTypes')
+        spyOn(database as any, 'convertPostgreSQLTypes')
             .mockImplementation((row: any) => row);
     }
 
     if (overrides?.aggregate !== undefined) {
-        vi.spyOn(database, 'aggregate').mockImplementation(overrides.aggregate);
+        spyOn(database, 'aggregate').mockImplementation(overrides.aggregate);
     }
 
     return database;

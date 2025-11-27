@@ -52,7 +52,8 @@ export class Filter {
     private _offset?: number;
     private _lookups: any[] = [];
     private _related: any[] = [];
-    private _softDeleteOptions: FilterWhereOptions = {};
+    private _trashedOption: FilterWhereOptions = {};
+    private _accessUserIds: string[] = [];
 
     constructor(tableName: string) {
         this._tableName = tableName;
@@ -355,9 +356,25 @@ export class Filter {
         return this;
     }
 
-    // Soft delete options
-    withSoftDeleteOptions(options: FilterWhereOptions): Filter {
-        this._softDeleteOptions = options;
+    /**
+     * Configure trashed record visibility
+     * @param options - trashed: 'exclude' | 'include' | 'only', adapterType: 'postgresql' | 'sqlite'
+     */
+    withTrashed(options: FilterWhereOptions): Filter {
+        this._trashedOption = options;
+        return this;
+    }
+
+    /**
+     * Configure ACL filtering based on user IDs
+     * Records are visible if any of the provided user IDs appear in
+     * access_read, access_edit, or access_full arrays (and none in access_deny).
+     * @param userIds - Array of user/group IDs from SystemContext.getUser()
+     * @param isSudo - If true, ACL filtering is skipped entirely (sudo users see all records)
+     */
+    withAccess(userIds: string[], isSudo: boolean = false): Filter {
+        // Sudo users bypass ACL filtering entirely
+        this._accessUserIds = isSudo ? [] : userIds;
         return this;
     }
 
@@ -372,7 +389,8 @@ export class Filter {
             order: this._order,
             limit: this._limit,
             offset: this._offset,
-            softDeleteOptions: this._softDeleteOptions
+            trashedOption: this._trashedOption,
+            accessUserIds: this._accessUserIds
         };
     }
 

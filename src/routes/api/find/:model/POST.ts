@@ -1,18 +1,20 @@
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
-export default withTransactionParams(async (context, { system, model, body, options }) => {
+export default withTransaction(async ({ system, params, body }) => {
+    const { model } = params;
+
     console.debug('routes/find-model: model=%j', model);
 
+    // Support trashed option in body (not URL query param)
+    const trashed = body?.trashed;
+    const options = { context: 'api' as const, ...(trashed && { trashed }) };
     const result = await system.database.selectAny(model!, body, options);
 
     // If count=true or includeTotal=true, include total filtered count for pagination
     if (body?.count === true || body?.includeTotal === true) {
         const total = await system.database.count(model!, body);
-        // Store result with total metadata
-        context.set('routeResult', result);
-        context.set('routeTotal', total);
-    } else {
-        setRouteResult(context, result);
+        return { data: result, total };
     }
+
+    return result;
 });

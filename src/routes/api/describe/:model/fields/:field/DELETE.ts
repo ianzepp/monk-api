@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 /**
@@ -10,12 +8,13 @@ import { stripSystemFields } from '@src/lib/describe.js';
  *
  * @returns Deletion confirmation
  */
-export default withTransactionParams(async (context, { system, model, field }) => {
+export default withTransaction(async ({ system, params }) => {
+    const { model, field } = params;
     const result = await system.describe.fields.delete404(
         { where: { model_name: model, field_name: field } },
         `Field '${field}' not found in model '${model}'`
     );
 
     // Strip system fields before returning
-    setRouteResult(context, stripSystemFields(result));
+    return stripSystemFields(result);
 });

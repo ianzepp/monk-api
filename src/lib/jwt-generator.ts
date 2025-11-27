@@ -69,13 +69,13 @@ export interface SudoTokenOptions {
 export interface FakeTokenOptions {
     faked_by_user_id: string;
     faked_by_username: string;
-    duration?: number; // Duration in seconds (default: 3600 = 1 hour)
+    duration?: number; // Duration in seconds (default: 900 = 15 minutes)
 }
 
 export class JWTGenerator {
     private static readonly DEFAULT_EXPIRY = 24 * 60 * 60; // 24 hours
     private static readonly SUDO_EXPIRY = 15 * 60; // 15 minutes
-    private static readonly FAKE_EXPIRY = 60 * 60; // 1 hour
+    private static readonly FAKE_EXPIRY = 15 * 60; // 15 minutes (same as sudo for security)
 
     /**
      * Get JWT secret from environment

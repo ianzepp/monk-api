@@ -657,7 +657,7 @@ const mergedOptions = { ...defaultOptions, ...options };
 
 const filter = new Filter(model.model_name)
     .assign(filterData)
-    .withSoftDeleteOptions(mergedOptions);
+    .withTrashed(mergedOptions);
 
 const { query, params } = filter.toSQL();
 const result = await this.system.database.execute(query, params);

@@ -1,12 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { AuthClient } from '../auth-client.js';
 import { expectSuccess } from '../test-assertions.js';
 
 /**
  * POST /auth/register - Register New Tenant
  *
- * Tests tenant registration endpoint. Each test registers a new tenant
- * from different templates and validates the response.
+ * Tests tenant registration endpoint.
  */
 
 describe('POST /auth/register - Register New Tenant', () => {
@@ -36,45 +35,6 @@ describe('POST /auth/register - Register New Tenant', () => {
         expect(response.data!.tenant).toBeDefined();
         expect(response.data!.username).toBe('admin');
         expect(response.data!.token).toBeDefined();
-    });
-
-    it('should register with tenant name and template "system"', async () => {
-        const authClient = new AuthClient();
-
-        const response = await authClient.register({
-            tenant: `test-register-c-${Date.now()}`,
-            template: 'system',
-        });
-
-        expectSuccess(response);
-        expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.token).toBeDefined();
-    });
-
-    it('should register with tenant name and template "demo"', async () => {
-        const authClient = new AuthClient();
-
-        const response = await authClient.register({
-            tenant: `test-register-d-${Date.now()}`,
-            template: 'demo',
-        });
-
-        expectSuccess(response);
-        expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.token).toBeDefined();
-    });
-
-    it('should reject invalid template name', async () => {
-        const authClient = new AuthClient();
-
-        const response = await authClient.register({
-            tenant: `test-register-invalid-${Date.now()}`,
-            template: 'nonexistent-template',
-        });
-
-        expect(response.success).toBe(false);
-        expect(response.error).toContain('Failed to read fixture metadata');
-        expect(response.error_code).toBe('DATABASE_TEMPLATE_NOT_FOUND');
     });
 
     it('should reject duplicate tenant name', async () => {
@@ -119,18 +79,5 @@ describe('POST /auth/register - Register New Tenant', () => {
         // 3. Register second tenant with different name that also maps to "tenant_foo_bar"
         // 4. Verify error_code is DATABASE_EXISTS
         // Status: Blocked by server mode - would require separate personal mode test server
-    });
-
-    it.skip('DATABASE_TEMPLATE_CLONE_FAILED - template cloning operation failed', async () => {
-        // UNIMPLEMENTED: Requires simulating a PostgreSQL createdb failure
-        // This error occurs when the template clone command fails (e.g., disk full,
-        // permission denied, corrupted template database)
-        // To test this error, would need to:
-        // 1. Mock or intercept the execAsync command that runs createdb
-        // 2. Configure it to return an error
-        // 3. Attempt registration with a valid template
-        // 4. Verify error_code is DATABASE_TEMPLATE_CLONE_FAILED
-        // Status: Blocked by inability to mock system commands in integration tests
-        // Would require unit tests with mocked dependencies instead
     });
 });

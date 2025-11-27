@@ -4,7 +4,9 @@ package-lock.json
 
 # Build outputs
 dist/
+dist-standalone/
 build/
+*.bun-build
 
 # Worktree branches
 branches/

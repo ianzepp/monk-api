@@ -315,18 +315,27 @@ WHERE "trashed_at" IS NULL AND "deleted_at" IS NULL
 **Permanently deleted records (`deleted_at IS NOT NULL`) are ALWAYS excluded from API queries.**
 These records are kept in the database for compliance and audit purposes but are never visible through the API.
 
-To control visibility of trashed records, use the `trashed` query parameter:
+To control visibility of trashed records, use the `trashed` option in the request body:
 ```bash
 # Default: exclude trashed records (show only active)
 POST /api/find/users
-POST /api/find/users?trashed=exclude
+{"where": {"status": "active"}}
 
 # Include both active and trashed records
-POST /api/find/users?trashed=include
+POST /api/find/users
+{"trashed": "include", "where": {"status": "active"}}
 
 # Show only trashed records
-POST /api/find/users?trashed=only
+POST /api/find/users
+{"trashed": "only"}
 ```
+
+Valid `trashed` values:
+- `"exclude"` (default) - Only show active records
+- `"include"` - Show both active and trashed records
+- `"only"` - Show only trashed records
+
+> **Note**: For dedicated trash management (restore, permanent delete), use the [Trashed API](../trashed/PUBLIC.md).
 
 ### Empty Array Operators
 - **`$in: []`** - Returns no results (always false: `1=0`)

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { DatabaseNaming, TenantNamingMode } from '@src/lib/database-naming.js';
 
 describe('DatabaseNaming', () => {

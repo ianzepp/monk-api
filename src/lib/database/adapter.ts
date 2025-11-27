@@ -99,7 +99,7 @@ export interface DatabaseAdapter {
     /**
      * Get the underlying connection for advanced operations
      *
-     * Returns the raw connection object (pg.PoolClient or better-sqlite3.Database).
+     * Returns the raw connection object (pg.PoolClient or bun:sqlite Database).
      * Use sparingly - prefer query() for normal operations.
      */
     getRawConnection(): unknown;

@@ -4,10 +4,10 @@
  * Centralized registry for all data serialization formatters.
  *
  * Core Formatters (always available):
- * - json, toon, yaml
+ * - json, yaml
  *
  * Optional Formatters (loaded from @monk/formatter-* packages if installed):
- * - toml, csv, msgpack, qr, brainfuck, morse, markdown, grid-compact
+ * - toon, toml, csv, msgpack, qr, brainfuck, morse, markdown, grid-compact
  *
  * Usage:
  *   import { getFormatter } from '@src/lib/formatters/index.js';
@@ -33,21 +33,20 @@ export const formatters = new Map<string, Formatter>();
 
 // Core formatters (always available, no external deps)
 import { JsonFormatter } from './json.js';
-import { ToonFormatter } from './toon.js';
 import { YamlFormatter } from './yaml.js';
 
 formatters.set('json', JsonFormatter);
-formatters.set('toon', ToonFormatter);
 formatters.set('yaml', YamlFormatter);
 
 // Re-export core formatters for direct access
-export { JsonFormatter, ToonFormatter, YamlFormatter };
+export { JsonFormatter, YamlFormatter };
 
 /**
  * Optional formatters - loaded dynamically from @monk/formatter-* packages
  * Convention: @monk/formatter-<format> exports <PascalCaseFormat>Formatter
  */
 const optionalFormats = [
+    'toon',
     'toml',
     'csv',
     'msgpack',

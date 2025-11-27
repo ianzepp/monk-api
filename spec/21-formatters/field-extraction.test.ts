@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'bun:test';
 import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess } from '../test-assertions.js';
 
@@ -27,7 +27,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
     describe('Unwrap (Remove Envelope)', () => {
         it('should unwrap and return full data object without envelope', async () => {
             // Use request() to get full HTTP response with status
-            const response = await tenant.httpClient.request('/api/user/whoami?unwrap', { method: 'GET' });
+            const response = await tenant.httpClient.request('/api/user/me?unwrap', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
@@ -42,7 +42,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
         });
 
         it('should work with format parameter', async () => {
-            const response = await tenant.httpClient.request('/api/user/whoami?unwrap&format=yaml', {
+            const response = await tenant.httpClient.request('/api/user/me?unwrap&format=yaml', {
                 method: 'GET',
                 accept: 'application/yaml',
             });
@@ -58,7 +58,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
     describe('Single Field Extraction', () => {
         it('should extract single field', async () => {
             // Use request() to get full HTTP response with status
-            const response = await tenant.httpClient.request('/api/user/whoami?select=id', { method: 'GET' });
+            const response = await tenant.httpClient.request('/api/user/me?select=id', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
@@ -68,7 +68,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
         it('should return null for missing field', async () => {
             // Use request() to get full HTTP response with status
-            const response = await tenant.httpClient.request('/api/user/whoami?select=nonexistent', { method: 'GET' });
+            const response = await tenant.httpClient.request('/api/user/me?select=nonexistent', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
@@ -80,7 +80,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
     describe('Multiple Field Extraction', () => {
         it('should extract multiple fields as JSON object', async () => {
             // Use request() to get full HTTP response with status
-            const response = await tenant.httpClient.request('/api/user/whoami?select=id,name', { method: 'GET' });
+            const response = await tenant.httpClient.request('/api/user/me?select=id,name', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
@@ -95,7 +95,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
         it('should handle mix of existing and missing fields', async () => {
             // Use request() to get full HTTP response with status
-            const response = await tenant.httpClient.request('/api/user/whoami?select=id,nonexistent', { method: 'GET' });
+            const response = await tenant.httpClient.request('/api/user/me?select=id,nonexistent', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
@@ -108,7 +108,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
     describe('Nested Path Extraction', () => {
         it('should handle invalid nested paths gracefully', async () => {
             // Use request() to get full HTTP response with status
-            const response = await tenant.httpClient.request('/api/user/whoami?select=invalid.nested.path', { method: 'GET' });
+            const response = await tenant.httpClient.request('/api/user/me?select=invalid.nested.path', { method: 'GET' });
 
             expect(response.status).toBe(200);
             // Invalid nested path returns null
@@ -118,7 +118,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
     describe('Field Extraction with Format Override', () => {
         it('should extract field then format as YAML', async () => {
-            const response = await tenant.httpClient.request('/api/user/whoami?select=id,name&format=yaml', {
+            const response = await tenant.httpClient.request('/api/user/me?select=id,name&format=yaml', {
                 method: 'GET',
                 accept: 'application/yaml',
             });
@@ -134,7 +134,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
     describe('Empty and Invalid Select Parameters', () => {
         it('should return full response when select parameter is empty', async () => {
             // Empty select still removes envelope, so use request()
-            const response = await tenant.httpClient.request('/api/user/whoami?select=', { method: 'GET' });
+            const response = await tenant.httpClient.request('/api/user/me?select=', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
@@ -145,7 +145,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
 
         it('should return full response when select parameter is missing', async () => {
             // No select returns standard envelope, so use get()
-            const response = await tenant.httpClient.get('/api/user/whoami');
+            const response = await tenant.httpClient.get('/api/user/me');
 
             // No select should return full response with envelope
             expectSuccess(response);
@@ -156,7 +156,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
     describe('User ID Extraction Use Case', () => {
         it('should extract user ID for subsequent requests', async () => {
             // Use request() to get full HTTP response with status
-            const response = await tenant.httpClient.request('/api/user/whoami?select=id', { method: 'GET' });
+            const response = await tenant.httpClient.request('/api/user/me?select=id', { method: 'GET' });
 
             expect(response.status).toBe(200);
 
@@ -175,7 +175,7 @@ describe('Field Extraction (?unwrap and ?select= parameters)', () => {
             // 2. Field extraction picks specific fields
             // 3. Format middleware converts to requested format
 
-            const response = await tenant.httpClient.request('/api/user/whoami?select=id,name&format=yaml', {
+            const response = await tenant.httpClient.request('/api/user/me?select=id,name&format=yaml', {
                 method: 'GET',
             });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'bun:test';
 import { TestHelpers } from '../test-helpers.js';
 import { HttpClient } from '../http-client.js';
 import { TEST_CONFIG } from '../test-config.js';
