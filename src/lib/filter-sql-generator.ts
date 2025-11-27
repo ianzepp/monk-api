@@ -14,7 +14,8 @@ export interface FilterState {
     order: FilterOrderInfo[];
     limit?: number;
     offset?: number;
-    softDeleteOptions: FilterWhereOptions;
+    trashedOption: FilterWhereOptions;
+    accessUserIds: string[];
 }
 
 /**
@@ -44,7 +45,8 @@ export class FilterSqlGenerator {
             const { whereClause, params: whereParams } = this.generateWhere(
                 state.whereData,
                 0,
-                state.softDeleteOptions
+                state.trashedOption,
+                state.accessUserIds
             );
 
             // Use FilterOrder for ORDER BY clause
@@ -89,7 +91,8 @@ export class FilterSqlGenerator {
             const result = this.generateWhere(
                 state.whereData,
                 0,
-                state.softDeleteOptions
+                state.trashedOption,
+                state.accessUserIds
             );
 
             console.debug('WHERE clause generated successfully', {
@@ -202,7 +205,8 @@ export class FilterSqlGenerator {
             const { whereClause } = this.generateWhere(
                 state.whereData,
                 0,
-                state.softDeleteOptions
+                state.trashedOption,
+                state.accessUserIds
             );
             return whereClause || '1=1';
         } catch (error) {
@@ -362,11 +366,12 @@ export class FilterSqlGenerator {
     private static generateWhere(
         whereData: any,
         startingParamIndex: number,
-        options: FilterWhereOptions
+        options: FilterWhereOptions,
+        accessUserIds: string[]
     ): { whereClause: string; params: any[] } {
         if (options.adapterType === 'sqlite') {
-            return FilterWhereSqlite.generate(whereData, startingParamIndex, options);
+            return FilterWhereSqlite.generate(whereData, startingParamIndex, options, accessUserIds);
         }
-        return FilterWhere.generate(whereData, startingParamIndex, options);
+        return FilterWhere.generate(whereData, startingParamIndex, options, accessUserIds);
     }
 }

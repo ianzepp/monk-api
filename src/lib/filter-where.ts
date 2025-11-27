@@ -49,13 +49,13 @@ export class FilterWhere {
      * Static method for quick WHERE clause generation with validation
      * This is the PostgreSQL implementation - use FilterWhereSqlite for SQLite dialect
      */
-    static generate(whereData: any, startingParamIndex: number = 0, options: FilterWhereOptions = {}): { whereClause: string; params: any[] } {
+    static generate(whereData: any, startingParamIndex: number = 0, options: FilterWhereOptions = {}, accessUserIds: string[] = []): { whereClause: string; params: any[] } {
         try {
             // Validate the WHERE data before processing
             FilterWhere.validateWhereData(whereData);
 
             const filterWhere = new FilterWhere(startingParamIndex);
-            return filterWhere.build(whereData, options);
+            return filterWhere.build(whereData, options, accessUserIds);
         } catch (error) {
             console.warn('FilterWhere validation failed', {
                 error: error instanceof Error ? error.message : String(error)
@@ -198,7 +198,7 @@ export class FilterWhere {
     /**
      * Build WHERE clause from filter data object
      */
-    build(whereData: any, options: FilterWhereOptions = {}): { whereClause: string; params: any[] } {
+    build(whereData: any, options: FilterWhereOptions = {}, accessUserIds: string[] = []): { whereClause: string; params: any[] } {
         // Reset parameter collection
         this._paramValues = [];
         this._paramIndex = this.startingParamIndex;
@@ -208,7 +208,7 @@ export class FilterWhere {
         this.parseWhereData(whereData);
 
         // Build WHERE clause
-        const whereClause = this.buildWhereClause(options);
+        const whereClause = this.buildWhereClause(options, accessUserIds);
 
         return { whereClause, params: this._paramValues };
     }
@@ -295,7 +295,7 @@ export class FilterWhere {
     /**
      * Build complete WHERE clause string
      */
-    private buildWhereClause(options: FilterWhereOptions): string {
+    private buildWhereClause(options: FilterWhereOptions, accessUserIds: string[] = []): string {
         const conditions = [];
 
         // ALWAYS exclude permanently deleted records (deleted_at IS NOT NULL)
@@ -313,6 +313,11 @@ export class FilterWhere {
         }
         // If trashed === 'include', don't add any trashed_at filter (show both)
 
+        // Handle ACL filtering if user IDs are provided
+        if (accessUserIds.length > 0) {
+            conditions.push(this.buildAccessClause(accessUserIds));
+        }
+
         // Add parsed conditions
         const parsedConditions = this._conditions.map(condition => this.buildSQLCondition(condition)).filter(Boolean);
 
@@ -321,6 +326,20 @@ export class FilterWhere {
         }
 
         return conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+    }
+
+    /**
+     * Build ACL access clause for PostgreSQL
+     * User has access if their ID appears in access_read, access_edit, or access_full arrays
+     * AND none of their IDs appear in access_deny
+     */
+    protected buildAccessClause(userIds: string[]): string {
+        // PostgreSQL array overlap operator: array && ARRAY[values]
+        // User has read access if ANY of their IDs overlap with ANY of the access arrays
+        // AND none of their IDs are in the deny list
+        const allowParams = userIds.map(id => this.PARAM(id)).join(', ');
+        const denyParams = userIds.map(id => this.PARAM(id)).join(', ');
+        return `(("access_read" && ARRAY[${allowParams}] OR "access_edit" && ARRAY[${allowParams}] OR "access_full" && ARRAY[${allowParams}]) AND NOT ("access_deny" && ARRAY[${denyParams}]))`;
     }
 
     /**

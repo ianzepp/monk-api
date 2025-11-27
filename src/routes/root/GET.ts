@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import packageJson from '@pkg';
+import { VERSION } from '@src/lib/version.js';
 
 /**
  * GET / - API root endpoint
@@ -12,7 +12,7 @@ export default function (context: Context) {
         success: true,
         data: {
             name: 'Monk API',
-            version: packageJson.version,
+            version: VERSION,
             description: 'Lightweight PaaS backend API',
             endpoints: {
                 health: ['/health'],

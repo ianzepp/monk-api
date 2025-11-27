@@ -57,9 +57,6 @@ if (!process.env.NODE_ENV) {
     throw Error('Fatal: environment is missing "NODE_ENV"');
 }
 
-// Package info (inlined at build time)
-import packageJson from '@pkg';
-
 // Imports
 import { Hono } from 'hono';
 

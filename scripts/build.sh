@@ -66,6 +66,13 @@ main() {
         exit 1
     fi
 
+    # Step 2b: Generate version.ts from package.json before compilation
+    # This avoids JSON import issues with Bun
+    local pkg_version=$(node -p "require('./package.json').version")
+    log_info "Injecting version $pkg_version into dist/lib/version.js..."
+    sed -i.bak "s|'0.0.0'|'$pkg_version'|g" dist/lib/version.js
+    rm -f dist/lib/version.js.bak
+
     # Step 3: Copy non-TypeScript assets
     # Note: src/describedata was removed - test fixture models are in spec/fixtures/model/
     log_info "Checking for additional assets to copy..."
@@ -86,12 +93,12 @@ main() {
         log_info "No documentation files to copy"
     fi
 
-    # Step 4: Copy SQL files if they exist
-    if [[ -d "sql" ]]; then
+    # Step 4: Copy SQL files if they exist (in src/lib/sql/)
+    if [[ -d "src/lib/sql" ]]; then
         log_info "Copying SQL files..."
-        mkdir -p "dist/sql"
-        cp -r sql/* dist/sql/
-        log_info "Copied $(find sql -name '*.sql' | wc -l | tr -d ' ') SQL files"
+        mkdir -p "dist/lib/sql"
+        cp -r src/lib/sql/* dist/lib/sql/
+        log_info "Copied $(find src/lib/sql -name '*.sql' | wc -l | tr -d ' ') SQL files"
     fi
 
     # Step 5: Copy compiled fixtures (deploy.sql and template.json)
@@ -136,7 +143,7 @@ main() {
     log_info "  JavaScript files: $js_files"
     log_info "  Metadata files: $(find dist/describedata -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  Documentation files: $(find dist -name 'PUBLIC.md' 2>/dev/null | wc -l | tr -d ' ')"
-    log_info "  SQL files: $(find dist/sql -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')"
+    log_info "  SQL files: $(find dist/lib/sql -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')"
     log_info "  Fixture files: $(find dist/fixtures -name 'deploy.sql' 2>/dev/null | wc -l | tr -d ' ')"
 
     log_info "Compilation completed successfully!"

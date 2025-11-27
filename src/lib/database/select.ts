@@ -124,7 +124,8 @@ export async function count(
 
     const filter = new Filter(model.model_name)
         .assign(filterData)
-        .withSoftDeleteOptions(mergedOptions);
+        .withAccess([system.userId], system.isSudo())
+        .withTrashed(mergedOptions);
 
     const { query, params } = filter.toCountSQL();
     const result = await execute(system, query, params);
@@ -159,7 +160,8 @@ export async function aggregate(
 
     const filter = new Filter(model.model_name)
         .assign(filterData)
-        .withSoftDeleteOptions(mergedOptions);
+        .withAccess([system.userId], system.isSudo())
+        .withTrashed(mergedOptions);
 
     const { query, params } = filter.toAggregateSQL(aggregations, groupBy);
     const result = await execute(system, query, params);
@@ -182,7 +184,8 @@ export async function selectAny<T extends Record<string, any> = Record<string, a
 
     const filter = new Filter(model.model_name)
         .assign(filterData)
-        .withSoftDeleteOptions(mergedOptions);
+        .withAccess([system.userId], system.isSudo())
+        .withTrashed(mergedOptions);
 
     const { query, params } = filter.toSQL();
     const result = await execute(system, query, params);
