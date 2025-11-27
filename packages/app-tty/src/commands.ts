@@ -2,11 +2,25 @@
  * Shell Commands
  *
  * Unix-style commands mapped to Monk API operations.
+ *
+ * Path structure:
+ *   /                      Root (shows api/, system/)
+ *   /api/                  API endpoints (shows data/, describe/)
+ *   /api/data/             Models list
+ *   /api/data/{model}/     Records in model
+ *   /api/data/{model}/{id} Record file
+ *   /api/describe/         Schema list
+ *   /api/describe/{model}  Model schema
+ *   /system/               System info pseudo-files
+ *   /system/{file}         System pseudo-file
  */
 
 import type { Session } from './transport.js';
 import { ApiClient } from './api-client.js';
 import { resolvePath } from './parser.js';
+
+// Track server start time for uptime
+const SERVER_START = Date.now();
 
 /**
  * Command handler function signature
@@ -18,20 +32,123 @@ export type CommandHandler = (
 ) => Promise<void>;
 
 /**
- * Parse current path into model and record ID
+ * Path types in the virtual filesystem
  */
-function parsePath(path: string): { model: string | null; recordId: string | null } {
+type PathType =
+    | 'root'           // /
+    | 'api'            // /api
+    | 'api-data'       // /api/data
+    | 'api-data-model' // /api/data/{model}
+    | 'api-data-record'// /api/data/{model}/{id}
+    | 'api-describe'   // /api/describe
+    | 'api-describe-model' // /api/describe/{model}
+    | 'system'         // /system
+    | 'system-file'    // /system/{file}
+    | 'unknown';
+
+interface ParsedPath {
+    type: PathType;
+    model?: string;
+    recordId?: string;
+    systemFile?: string;
+}
+
+/**
+ * Parse path into structured components
+ */
+function parsePath(path: string): ParsedPath {
     const parts = path.split('/').filter(Boolean);
+
     if (parts.length === 0) {
-        return { model: null, recordId: null };
+        return { type: 'root' };
     }
+
+    // /system/...
+    if (parts[0] === 'system') {
+        if (parts.length === 1) {
+            return { type: 'system' };
+        }
+        return { type: 'system-file', systemFile: parts[1] };
+    }
+
+    // /api/...
+    if (parts[0] === 'api') {
+        if (parts.length === 1) {
+            return { type: 'api' };
+        }
+
+        // /api/data/...
+        if (parts[1] === 'data') {
+            if (parts.length === 2) {
+                return { type: 'api-data' };
+            }
+            if (parts.length === 3) {
+                return { type: 'api-data-model', model: parts[2] };
+            }
+            // /api/data/{model}/{id}.json
+            const recordId = parts[3].replace(/\.json$/, '');
+            return { type: 'api-data-record', model: parts[2], recordId };
+        }
+
+        // /api/describe/...
+        if (parts[1] === 'describe') {
+            if (parts.length === 2) {
+                return { type: 'api-describe' };
+            }
+            const model = parts[2].replace(/\.(yaml|json)$/, '');
+            return { type: 'api-describe-model', model };
+        }
+
+        return { type: 'unknown' };
+    }
+
+    // Legacy paths: /users -> redirect to /api/data/users
+    // For backwards compatibility, treat top-level as /api/data/
     if (parts.length === 1) {
-        return { model: parts[0], recordId: null };
+        return { type: 'api-data-model', model: parts[0] };
     }
-    // /users/123.json -> model=users, recordId=123
-    const recordPart = parts[parts.length - 1];
-    const recordId = recordPart.replace(/\.json$/, '');
-    return { model: parts[0], recordId };
+    if (parts.length === 2) {
+        const recordId = parts[1].replace(/\.json$/, '');
+        return { type: 'api-data-record', model: parts[0], recordId };
+    }
+
+    return { type: 'unknown' };
+}
+
+/**
+ * System pseudo-files
+ */
+const SYSTEM_FILES = ['version', 'uptime', 'whoami', 'tenant', 'env'];
+
+/**
+ * Get system file content
+ */
+function getSystemFile(file: string, session: Session): string | null {
+    switch (file) {
+        case 'version':
+            return '5.1.0\n';
+        case 'uptime': {
+            const ms = Date.now() - SERVER_START;
+            const secs = Math.floor(ms / 1000);
+            const mins = Math.floor(secs / 60);
+            const hours = Math.floor(mins / 60);
+            const days = Math.floor(hours / 24);
+            if (days > 0) return `${days}d ${hours % 24}h ${mins % 60}m\n`;
+            if (hours > 0) return `${hours}h ${mins % 60}m ${secs % 60}s\n`;
+            if (mins > 0) return `${mins}m ${secs % 60}s\n`;
+            return `${secs}s\n`;
+        }
+        case 'whoami':
+            return `${session.username}@${session.tenant}\n`;
+        case 'tenant':
+            return `${session.tenant}\n`;
+        case 'env':
+            return Object.entries(session.env)
+                .map(([k, v]) => `${k}=${v}`)
+                .join('\n') + '\n';
+        default:
+            return null;
+    }
 }
 
 /**
@@ -52,28 +169,39 @@ commands['pwd'] = async (session, _args, write) => {
 commands['cd'] = async (session, args, write) => {
     const target = args[0] || '/';
     const newPath = resolvePath(session.cwd, target);
+    const parsed = parsePath(newPath);
 
-    // Validate path exists
-    const { model } = parsePath(newPath);
+    switch (parsed.type) {
+        case 'root':
+        case 'api':
+        case 'api-data':
+        case 'api-describe':
+        case 'system':
+            session.cwd = newPath;
+            return;
 
-    if (newPath === '/') {
-        session.cwd = '/';
-        return;
-    }
-
-    if (model) {
-        // Check if model exists
-        const api = new ApiClient(session.env['API_URL'] || 'http://localhost:9001', session);
-        const result = await api.listModels();
-        if (result.success && result.data?.includes(model)) {
-            session.cwd = '/' + model;
+        case 'api-data-model': {
+            // Check if model exists
+            const api = new ApiClient(session.env['API_URL'] || 'http://localhost:9001', session);
+            const result = await api.listModels();
+            if (result.success && result.data?.includes(parsed.model!)) {
+                // Normalize to /api/data/{model}
+                session.cwd = `/api/data/${parsed.model}`;
+                return;
+            }
+            write(`cd: ${target}: No such directory\n`);
             return;
         }
-        write(`cd: ${target}: No such directory\n`);
-        return;
-    }
 
-    session.cwd = newPath;
+        case 'api-data-record':
+        case 'api-describe-model':
+        case 'system-file':
+            write(`cd: ${target}: Not a directory\n`);
+            return;
+
+        default:
+            write(`cd: ${target}: No such directory\n`);
+    }
 };
 
 /**
@@ -83,65 +211,157 @@ commands['ls'] = async (session, args, write) => {
     const api = new ApiClient(session.env['API_URL'] || 'http://localhost:9001', session);
 
     const longFormat = args.includes('-l');
-    const showAll = args.includes('-a');
 
     // Filter out flags to get path arguments
     const pathArgs = args.filter(a => !a.startsWith('-'));
     const target = pathArgs[0] ? resolvePath(session.cwd, pathArgs[0]) : session.cwd;
-    const { model, recordId } = parsePath(target);
+    const parsed = parsePath(target);
 
-    // Root directory - list models
-    if (!model) {
-        const result = await api.listModels();
-        if (!result.success) {
-            write(`ls: ${result.error}\n`);
+    switch (parsed.type) {
+        case 'root':
+            // Show api/ and system/
+            if (longFormat) {
+                write('total 2\n');
+                write('drwxr-xr-x  -  api/\n');
+                write('drwxr-xr-x  -  system/\n');
+            } else {
+                write('api/  system/\n');
+            }
+            return;
+
+        case 'api':
+            // Show data/ and describe/
+            if (longFormat) {
+                write('total 2\n');
+                write('drwxr-xr-x  -  data/\n');
+                write('drwxr-xr-x  -  describe/\n');
+            } else {
+                write('data/  describe/\n');
+            }
+            return;
+
+        case 'api-data': {
+            // List models as directories
+            const result = await api.listModels();
+            if (!result.success) {
+                write(`ls: ${result.error}\n`);
+                return;
+            }
+            const models = result.data || [];
+            if (longFormat) {
+                write('total ' + models.length + '\n');
+                for (const m of models) {
+                    write(`drwxr-xr-x  -  ${m}/\n`);
+                }
+            } else {
+                write(models.map(m => m + '/').join('  ') + '\n');
+            }
             return;
         }
-        const models = result.data || [];
-        if (longFormat) {
-            write('total ' + models.length + '\n');
-            for (const m of models) {
-                write(`drwxr-xr-x  -  ${m}/\n`);
-            }
-        } else {
-            write(models.map(m => m + '/').join('  ') + '\n');
-        }
-        return;
-    }
 
-    // Model directory - list records
-    if (!recordId) {
-        const result = await api.listRecords(model);
-        if (!result.success) {
-            write(`ls: ${result.error}\n`);
+        case 'api-describe': {
+            // List models as schema files
+            const result = await api.listModels();
+            if (!result.success) {
+                write(`ls: ${result.error}\n`);
+                return;
+            }
+            const models = result.data || [];
+            if (longFormat) {
+                write('total ' + models.length + '\n');
+                for (const m of models) {
+                    write(`-r--r--r--  -  ${m}.yaml\n`);
+                }
+            } else {
+                write(models.map(m => m + '.yaml').join('  ') + '\n');
+            }
             return;
         }
-        const records = result.data || [];
-        if (longFormat) {
-            write('total ' + records.length + '\n');
-            for (const r of records) {
-                const id = r.id || r._id || 'unknown';
-                const size = JSON.stringify(r).length;
-                write(`-rw-r--r--  ${String(size).padStart(6)}  ${id}.json\n`);
-            }
-        } else {
-            const ids = records.map(r => (r.id || r._id) + '.json');
-            write(ids.join('  ') + '\n');
-        }
-        return;
-    }
 
-    // Specific record - show file info
-    const result = await api.getRecord(model, recordId);
-    if (!result.success) {
-        write(`ls: ${target}: No such file\n`);
-        return;
-    }
-    const size = JSON.stringify(result.data).length;
-    if (longFormat) {
-        write(`-rw-r--r--  ${size}  ${recordId}.json\n`);
-    } else {
-        write(`${recordId}.json\n`);
+        case 'api-data-model': {
+            // List records in model
+            const result = await api.listRecords(parsed.model!);
+            if (!result.success) {
+                write(`ls: ${result.error}\n`);
+                return;
+            }
+            const records = result.data || [];
+            if (longFormat) {
+                write('total ' + records.length + '\n');
+                for (const r of records) {
+                    const id = r.id || r._id || 'unknown';
+                    const size = JSON.stringify(r).length;
+                    write(`-rw-r--r--  ${String(size).padStart(6)}  ${id}.json\n`);
+                }
+            } else {
+                const ids = records.map(r => (r.id || r._id) + '.json');
+                if (ids.length > 0) {
+                    write(ids.join('  ') + '\n');
+                }
+            }
+            return;
+        }
+
+        case 'api-data-record': {
+            // Specific record - show file info
+            const result = await api.getRecord(parsed.model!, parsed.recordId!);
+            if (!result.success) {
+                write(`ls: ${target}: No such file\n`);
+                return;
+            }
+            const size = JSON.stringify(result.data).length;
+            if (longFormat) {
+                write(`-rw-r--r--  ${size}  ${parsed.recordId}.json\n`);
+            } else {
+                write(`${parsed.recordId}.json\n`);
+            }
+            return;
+        }
+
+        case 'api-describe-model': {
+            // Show schema file info
+            const result = await api.describeModel(parsed.model!);
+            if (!result.success) {
+                write(`ls: ${target}: No such file\n`);
+                return;
+            }
+            const size = JSON.stringify(result.data).length;
+            if (longFormat) {
+                write(`-r--r--r--  ${size}  ${parsed.model}.yaml\n`);
+            } else {
+                write(`${parsed.model}.yaml\n`);
+            }
+            return;
+        }
+
+        case 'system':
+            // List system pseudo-files
+            if (longFormat) {
+                write('total ' + SYSTEM_FILES.length + '\n');
+                for (const f of SYSTEM_FILES) {
+                    write(`-r--r--r--  -  ${f}\n`);
+                }
+            } else {
+                write(SYSTEM_FILES.join('  ') + '\n');
+            }
+            return;
+
+        case 'system-file': {
+            const content = getSystemFile(parsed.systemFile!, session);
+            if (!content) {
+                write(`ls: ${target}: No such file\n`);
+                return;
+            }
+            if (longFormat) {
+                write(`-r--r--r--  ${content.length}  ${parsed.systemFile}\n`);
+            } else {
+                write(`${parsed.systemFile}\n`);
+            }
+            return;
+        }
+
+        default:
+            write(`ls: ${target}: No such file or directory\n`);
     }
 };
 
@@ -158,22 +378,85 @@ commands['cat'] = async (session, args, write) => {
 
     for (const arg of args.filter(a => !a.startsWith('-'))) {
         const target = resolvePath(session.cwd, arg);
-        const { model, recordId } = parsePath(target);
+        const parsed = parsePath(target);
 
-        if (!model || !recordId) {
-            write(`cat: ${arg}: Is a directory\n`);
-            continue;
+        switch (parsed.type) {
+            case 'root':
+            case 'api':
+            case 'api-data':
+            case 'api-describe':
+            case 'api-data-model':
+            case 'system':
+                write(`cat: ${arg}: Is a directory\n`);
+                continue;
+
+            case 'system-file': {
+                const content = getSystemFile(parsed.systemFile!, session);
+                if (!content) {
+                    write(`cat: ${arg}: No such file\n`);
+                    continue;
+                }
+                write(content);
+                continue;
+            }
+
+            case 'api-describe-model': {
+                const result = await api.describeModel(parsed.model!);
+                if (!result.success) {
+                    write(`cat: ${arg}: ${result.error}\n`);
+                    continue;
+                }
+                // Output as YAML-like format
+                write(`# Schema: ${parsed.model}\n`);
+                write(formatAsYaml(result.data));
+                continue;
+            }
+
+            case 'api-data-record': {
+                const result = await api.getRecord(parsed.model!, parsed.recordId!);
+                if (!result.success) {
+                    write(`cat: ${arg}: ${result.error}\n`);
+                    continue;
+                }
+                write(JSON.stringify(result.data, null, 2) + '\n');
+                continue;
+            }
+
+            default:
+                write(`cat: ${arg}: No such file\n`);
         }
-
-        const result = await api.getRecord(model, recordId);
-        if (!result.success) {
-            write(`cat: ${arg}: ${result.error}\n`);
-            continue;
-        }
-
-        write(JSON.stringify(result.data, null, 2) + '\n');
     }
 };
+
+/**
+ * Format object as simple YAML
+ */
+function formatAsYaml(obj: any, indent = 0): string {
+    const prefix = '  '.repeat(indent);
+    let result = '';
+
+    if (Array.isArray(obj)) {
+        for (const item of obj) {
+            if (typeof item === 'object' && item !== null) {
+                result += `${prefix}-\n${formatAsYaml(item, indent + 1)}`;
+            } else {
+                result += `${prefix}- ${item}\n`;
+            }
+        }
+    } else if (typeof obj === 'object' && obj !== null) {
+        for (const [key, value] of Object.entries(obj)) {
+            if (typeof value === 'object' && value !== null) {
+                result += `${prefix}${key}:\n${formatAsYaml(value, indent + 1)}`;
+            } else {
+                result += `${prefix}${key}: ${value}\n`;
+            }
+        }
+    } else {
+        result += `${prefix}${obj}\n`;
+    }
+
+    return result;
+}
 
 /**
  * rm - Remove records
@@ -190,21 +473,23 @@ commands['rm'] = async (session, args, write) => {
 
     for (const arg of targets) {
         const target = resolvePath(session.cwd, arg);
-        const { model, recordId } = parsePath(target);
+        const parsed = parsePath(target);
 
-        if (!model || !recordId) {
-            write(`rm: ${arg}: Is a directory (use rmdir)\n`);
+        if (parsed.type !== 'api-data-record') {
+            if (!force) {
+                write(`rm: ${arg}: Cannot remove (not a data record)\n`);
+            }
             continue;
         }
 
-        const result = await api.deleteRecord(model, recordId);
+        const result = await api.deleteRecord(parsed.model!, parsed.recordId!);
         if (!result.success) {
             if (!force) {
                 write(`rm: ${arg}: ${result.error}\n`);
             }
             continue;
         }
-        write(`Deleted: ${target}\n`);
+        write(`Deleted: /api/data/${parsed.model}/${parsed.recordId}.json\n`);
     }
 };
 
@@ -219,12 +504,15 @@ commands['touch'] = async (session, args, write) => {
 
     const api = new ApiClient(session.env['API_URL'] || 'http://localhost:9001', session);
     const target = resolvePath(session.cwd, args[0]);
-    const { model } = parsePath(target);
+    const parsed = parsePath(target);
 
-    if (!model) {
-        write(`touch: ${args[0]}: Cannot create in root\n`);
+    // Can only touch in model directories
+    if (parsed.type !== 'api-data-model' && parsed.type !== 'api-data-record') {
+        write(`touch: ${args[0]}: Cannot create here\n`);
         return;
     }
+
+    const model = parsed.model!;
 
     // Create empty record
     const result = await api.createRecord(model, {});
@@ -233,7 +521,7 @@ commands['touch'] = async (session, args, write) => {
         return;
     }
     const id = result.data?.id || result.data?._id;
-    write(`Created: /${model}/${id}.json\n`);
+    write(`Created: /api/data/${model}/${id}.json\n`);
 };
 
 /**
@@ -456,7 +744,7 @@ Navigation:
   ls [-l] [path]        List contents
 
 File operations:
-  cat <file>            Display record
+  cat <file>            Display record/schema/system info
   rm [-f] <file>        Delete record
   touch <file>          Create empty record
 
@@ -474,12 +762,20 @@ Session:
   exit, logout          End session
   help                  Show this help
 
-Paths:
-  /                     Root (list all models)
-  /users                Model directory
-  /users/123.json       Record file
-  .                     Current directory
-  ..                    Parent directory
+Filesystem:
+  /                          Root
+  /api/                      API endpoints
+  /api/data/                 Models list
+  /api/data/{model}/         Records in model
+  /api/data/{model}/{id}     Record (JSON)
+  /api/describe/             Schema list
+  /api/describe/{model}      Model schema (YAML)
+  /system/                   System info
+  /system/version            API version
+  /system/uptime             Server uptime
+  /system/whoami             Current user
+  /system/tenant             Current tenant
+  /system/env                Environment vars
 
 `);
 };
