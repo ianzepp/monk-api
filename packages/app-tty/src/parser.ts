@@ -4,7 +4,7 @@
  * Parses shell-style commands with arguments, quotes, and redirects.
  */
 
-import type { ParsedCommand } from './types.js';
+import type { ParsedCommand } from './transport.js';
 
 /**
  * Tokenize input respecting quotes

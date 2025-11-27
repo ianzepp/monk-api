@@ -11,7 +11,11 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@monk/common": "workspace:*"
+    "@monk/common": "workspace:*",
+    "ssh2": "^1.16.0"
+  },
+  "devDependencies": {
+    "@types/ssh2": "^1.15.0"
   },
   "peerDependencies": {
     "hono": "^4.0.0",

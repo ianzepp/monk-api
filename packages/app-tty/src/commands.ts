@@ -4,9 +4,18 @@
  * Unix-style commands mapped to Monk API operations.
  */
 
-import type { Session, CommandHandler } from './types.js';
+import type { Session } from './transport.js';
 import { ApiClient } from './api-client.js';
 import { resolvePath } from './parser.js';
+
+/**
+ * Command handler function signature
+ */
+export type CommandHandler = (
+    session: Session,
+    args: string[],
+    write: (text: string) => void
+) => Promise<void>;
 
 /**
  * Parse current path into model and record ID

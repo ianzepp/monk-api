@@ -5,7 +5,7 @@
  */
 
 import type { Hono } from 'hono';
-import type { Session } from './types.js';
+import type { Session } from './transport.js';
 
 export interface ApiResponse<T = any> {
     success: boolean;
