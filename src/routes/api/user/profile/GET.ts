@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * GET /api/user/profile - Get authenticated user's profile
@@ -24,8 +22,8 @@ import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
  *   }
  * }
  */
-export default withTransactionParams(async (context: Context, { system }) => {
-    const user = context.get('user');
+export default withTransaction(async ({ system }) => {
+    const user = system.getUser();
 
     // Fetch full user profile from database
     const profile = await system.database.select404(
@@ -34,5 +32,5 @@ export default withTransactionParams(async (context: Context, { system }) => {
         'User profile not found'
     );
 
-    setRouteResult(context, profile);
+    return profile;
 });

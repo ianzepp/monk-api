@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -8,7 +6,10 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Creates a child record with the parent relationship automatically set
  * @see docs/routes/DATA_API.md
  */
-export default withTransactionParams(async (context, { system, model, record, relationship, body, options }) => {
+export default withTransaction(async ({ system, params, query, body }) => {
+    const { model, record, relationship } = params;
+    const options = { context: 'api' as const, trashed: query.trashed as any };
+
     // Verify parent record exists and is readable
     const parentRecord = await system.database.select404(model!, { where: { id: record! } }, undefined, options);
 
@@ -28,5 +29,5 @@ export default withTransactionParams(async (context, { system, model, record, re
 
     const result = await system.database.createOne(rel.childModel, recordData);
 
-    setRouteResult(context, result);
+    return result;
 });

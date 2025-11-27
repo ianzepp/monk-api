@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams, withSelfServiceSudo } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction, withSelfServiceSudo } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -21,8 +19,8 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * - name: 2-100 characters
  * - auth: 2-255 characters, must be unique across tenant
  */
-export default withTransactionParams(async (context: Context, { system, body }) => {
-    const user = context.get('user');
+export default withTransaction(async ({ system, body }) => {
+    const user = system.getUser();
 
     // Validate that body only contains allowed fields
     const allowedFields = ['name', 'auth'];
@@ -85,8 +83,7 @@ export default withTransactionParams(async (context: Context, { system, body }) 
             'users',
             { where: { id: user.id } }
         );
-        setRouteResult(context, profile);
-        return;
+        return profile;
     }
 
     // Update user profile with self-service sudo
@@ -95,5 +92,5 @@ export default withTransactionParams(async (context: Context, { system, body }) 
         return await system.database.updateOne('users', user.id, updates);
     });
 
-    setRouteResult(context, updated);
+    return updated;
 });

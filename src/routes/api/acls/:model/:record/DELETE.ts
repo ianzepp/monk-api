@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * DELETE /api/acls/:model/:record - Clear all ACL lists
@@ -14,7 +12,10 @@ import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
  *
  * After this operation, the record will use default role-based permissions.
  */
-export default withTransactionParams(async (context, { system, model, record, options }) => {
+export default withTransaction(async ({ system, params, query }) => {
+    const { model, record } = params;
+    const options = { context: 'api' as const, trashed: query.trashed as any };
+
     // Verify record exists before updating (select404 automatically throws 404 if not found)
     await system.database.select404(model!, {
         where: { id: record! },
@@ -32,7 +33,7 @@ export default withTransactionParams(async (context, { system, model, record, op
     const result = await system.database.updateOne(model!, record!, updates);
 
     // Return ACL data (middleware will wrap in success response)
-    setRouteResult(context, {
+    return {
         record_id: record,
         model: model,
         status: 'default_permissions',
@@ -42,5 +43,5 @@ export default withTransactionParams(async (context, { system, model, record, op
             access_full: [],
             access_deny: []
         }
-    });
+    };
 });

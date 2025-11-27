@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * GET /api/history/:model/:record - List all history changes for a record
@@ -8,7 +6,9 @@ import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
  * Returns all history entries for the specified record, ordered by change_id DESC.
  * Supports pagination via ?limit and ?offset query parameters.
  */
-export default withTransactionParams(async (context, { system, model, record, options }) => {
+export default withTransaction(async ({ system, params, query, body }) => {
+    const { model, record } = params;
+
     // Query history table for this model+record combination
     const result = await system.database.selectAny(
         'history',
@@ -18,9 +18,8 @@ export default withTransactionParams(async (context, { system, model, record, op
                 record_id: record
             },
             order: { change_id: 'desc' }
-        },
-        options
+        }
     );
 
-    setRouteResult(context, result);
+    return result;
 });

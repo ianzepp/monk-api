@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -8,8 +6,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Updates a single child record, verifying both parent accessibility and child ownership
  * @see docs/routes/DATA_API.md
  */
-export default withTransactionParams(async (context, { system, model, record, relationship, body, options }) => {
-    const childId = context.req.param('child');
+export default withTransaction(async ({ system, params, query, body }) => {
+    const { model, record, relationship, child } = params;
+    const options = { context: 'api' as const, trashed: query.trashed as any };
 
     // Verify parent record data is readable
     const parentRecord = await system.database.select404(model!, { where: { id: record! } }, undefined, options);
@@ -31,10 +30,10 @@ export default withTransactionParams(async (context, { system, model, record, re
     // Update the child record, verifying it exists and belongs to this parent
     const result = await system.database.update404(rel.childModel, {
         where: {
-            id: childId!,
+            id: child!,
             [rel.fieldName]: record // Ensure child belongs to this parent
         }
     }, updateData);
 
-    setRouteResult(context, result);
+    return result;
 });

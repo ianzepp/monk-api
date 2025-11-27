@@ -1,5 +1,4 @@
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -18,13 +17,15 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * @see docs/routes/AGGREGATE_API.md
  */
-export default withTransactionParams(async (context, { system, model, options }) => {
+export default withTransaction(async ({ system, params, query }) => {
+    const { model } = params;
+
     // Parse shorthand aggregation params
-    const countParam = context.req.query('count');
-    const sumParam = context.req.query('sum');
-    const avgParam = context.req.query('avg');
-    const minParam = context.req.query('min');
-    const maxParam = context.req.query('max');
+    const countParam = query.count;
+    const sumParam = query.sum;
+    const avgParam = query.avg;
+    const minParam = query.min;
+    const maxParam = query.max;
 
     // Build aggregate spec from query params
     const aggregate: Record<string, any> = {};
@@ -63,7 +64,7 @@ export default withTransactionParams(async (context, { system, model, options })
     }
 
     // Parse optional where filter
-    const whereParam = context.req.query('where');
+    const whereParam = query.where;
     const where = whereParam ? JSON.parse(whereParam) : undefined;
 
     // Build body for database.aggregate()
@@ -72,7 +73,8 @@ export default withTransactionParams(async (context, { system, model, options })
         ...(where && { where })
     };
 
+    const options = { context: 'api' as const, trashed: query.trashed as any };
     const result = await system.database.aggregate(model!, body, options);
 
-    setRouteResult(context, result);
+    return result;
 });

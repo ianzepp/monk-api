@@ -1,5 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * DELETE /api/sudo/users/:id - Delete user
@@ -10,9 +9,9 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  * Query parameters:
  * - force=true: Perform hard delete instead of soft delete
  */
-export default withTransactionParams(async (context, { system }) => {
-    const userId = context.req.param('id');
+export default withTransaction(async ({ system, params }) => {
+    const { id } = params;
 
     // Soft delete user (sets trashed_at timestamp)
-    await system.database.deleteOne('users', userId);
+    await system.database.deleteOne('users', id);
 });

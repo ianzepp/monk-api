@@ -1,9 +1,9 @@
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
-export default withTransactionParams(async (context, { system, model, body }) => {
+export default withTransaction(async ({ system, params, query, body }) => {
+    const { model } = params;
     // Model name comes from URL parameter
     // Body contains model metadata only (status, sudo, frozen)
     // Use field endpoints for field management
@@ -11,7 +11,7 @@ export default withTransactionParams(async (context, { system, model, body }) =>
 
     // Validate model name mismatch (URL vs body)
     if (body.model_name && body.model_name.toLowerCase() !== modelName) {
-        const force = context.req.query('force') === 'true';
+        const force = query.force === 'true';
         if (!force) {
             throw HttpErrors.badRequest(
                 `Model name mismatch: URL has '${modelName}' but body has '${body.model_name}'. Use ?force=true to override.`
@@ -60,5 +60,5 @@ export default withTransactionParams(async (context, { system, model, body }) =>
         response.fields = createdFields.map(stripSystemFields);
     }
 
-    setRouteResult(context, response);
+    return response;
 });

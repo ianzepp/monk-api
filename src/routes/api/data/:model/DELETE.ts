@@ -1,14 +1,13 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
  * DELETE /api/data/:model - Bulk delete records in model
  * @see docs/routes/DATA_API.md
  */
-export default withTransactionParams(async (context, { system, model, body }) => {
-    const isPermanent = context.req.query('permanent') === 'true';
+export default withTransaction(async ({ system, params, query, body }) => {
+    const { model } = params;
+    const isPermanent = query.permanent === 'true';
 
     // Always expect array input for DELETE /api/data/:model
     if (!Array.isArray(body)) {
@@ -29,13 +28,13 @@ export default withTransactionParams(async (context, { system, model, body }) =>
             deleted_at: new Date().toISOString()
         }));
 
-        result = await system.database.updateAll(model!, permanentUpdates);
+        result = await system.database.updateAll(model, permanentUpdates);
     }
 
     // Normal soft delete: set trashed_at = NOW()
     else {
-        result = await system.database.deleteAll(model!, body);
+        result = await system.database.deleteAll(model, body);
     }
 
-    setRouteResult(context, result);
+    return result;
 });

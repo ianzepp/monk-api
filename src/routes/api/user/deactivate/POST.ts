@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams, withSelfServiceSudo } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction, withSelfServiceSudo } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -20,8 +18,8 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * - User can no longer authenticate
  * - Admin can reactivate using POST /api/user/:id/activate
  */
-export default withTransactionParams(async (context: Context, { system, body }) => {
-    const user = context.get('user');
+export default withTransaction(async ({ system, body }) => {
+    const user = system.getUser();
 
     // Require explicit confirmation
     if (body.confirm !== true) {
@@ -42,9 +40,9 @@ export default withTransactionParams(async (context: Context, { system, body }) 
     });
 
     // Return confirmation
-    setRouteResult(context, {
+    return {
         message: 'Account deactivated successfully',
         deactivated_at: deactivatedAt,
         reason: body.reason || null
-    });
+    };
 });

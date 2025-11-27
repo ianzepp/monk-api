@@ -1,5 +1,4 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@src/lib/middleware/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
@@ -119,20 +118,23 @@ export default async function (context: Context) {
         expires_in: 3600
     });
 
-    setRouteResult(context, {
-        fake_token: fakeToken,
-        expires_in: 3600,
-        token_type: 'Bearer',
-        target_user: {
-            id: targetUser.id,
-            name: targetUser.name,
-            auth: targetUser.auth,
-            access: targetUser.access
-        },
-        warning: 'Fake token expires in 1 hour',
-        faked_by: {
-            id: currentUser.id,
-            name: currentUser.name
+    return context.json({
+        success: true,
+        data: {
+            fake_token: fakeToken,
+            expires_in: 3600,
+            token_type: 'Bearer',
+            target_user: {
+                id: targetUser.id,
+                name: targetUser.name,
+                auth: targetUser.auth,
+                access: targetUser.access
+            },
+            warning: 'Fake token expires in 1 hour',
+            faked_by: {
+                id: currentUser.id,
+                name: currentUser.name
+            }
         }
     });
 }

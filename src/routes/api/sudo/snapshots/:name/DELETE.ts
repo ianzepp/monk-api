@@ -1,5 +1,4 @@
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { InfrastructureService } from '@src/lib/services/infrastructure-service.js';
 
@@ -8,12 +7,12 @@ import { InfrastructureService } from '@src/lib/services/infrastructure-service.
  *
  * Deletes a snapshot record and drops its database.
  * Users can only delete snapshots they created (ownership check via ACLs).
- * 
+ *
  * Requires sudo access.
  */
-export default withTransactionParams(async (context, { system }) => {
-    const { name } = context.req.param();
-    const userId = context.get('userId');
+export default withTransaction(async ({ system, params }) => {
+    const { name } = params;
+    const userId = system.userId;
 
     // Get snapshot (throws 404 if not found)
     const snapshot = await system.database.select404('snapshots', {
@@ -34,9 +33,9 @@ export default withTransactionParams(async (context, { system }) => {
     // Delete the snapshot record
     await system.database.deleteOne('snapshots', snapshot.id);
 
-    setRouteResult(context, {
+    return {
         success: true,
         deleted: name,
         database: snapshot.database
-    });
+    };
 });

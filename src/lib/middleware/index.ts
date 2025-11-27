@@ -7,7 +7,7 @@
  * - Request parsing and authentication
  */
 
-export { contextInitializerMiddleware, setRouteResult } from './context-initializer.js';
+export { contextInitializerMiddleware } from './context-initializer.js';
 export { formatDetectorMiddleware } from './format-detector.js';
 export { bodyParserMiddleware } from './body-parser.js';
 export { responseTransformerMiddleware } from './response-transformer.js';

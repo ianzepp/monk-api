@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * GET /api/stat/:model/:record - Get record metadata (timestamps, etag, size)
@@ -18,10 +16,12 @@ import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
  *
  * @see docs/39-stat-api.md
  */
-export default withTransactionParams(async (context, { system, model, record, options }) => {
+export default withTransaction(async ({ system, params, query, body }) => {
+    const { model, record } = params;
+
     // Fetch the record (select404 automatically throws 404 if not found)
     // Stat should work on trashed records too (to check trashed_at timestamp)
-    const result = await system.database.select404(model!, { where: { id: record! } }, undefined, { ...options, trashed: 'include' });
+    const result = await system.database.select404(model!, { where: { id: record! } }, undefined, { trashed: 'include' });
 
     // Return only stat fields (exclude user data)
     const statData = {
@@ -33,5 +33,5 @@ export default withTransactionParams(async (context, { system, model, record, op
         size: 0, // TODO: Implement size calculation (user data only, exclude system fields)
     };
 
-    setRouteResult(context, statData);
+    return statData;
 });

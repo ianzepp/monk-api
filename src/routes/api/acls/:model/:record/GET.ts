@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * GET /api/acls/:model/:record - Get record ACL lists
@@ -11,7 +9,10 @@ import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
  * - access_full: User IDs with full access
  * - access_deny: User IDs with denied access
  */
-export default withTransactionParams(async (context, { system, model, record, options }) => {
+export default withTransaction(async ({ system, params, query }) => {
+    const { model, record } = params;
+    const options = { context: 'api' as const, trashed: query.trashed as any };
+
     // Get the record with only ACL fields (select404 automatically throws 404 if not found)
     const result = await system.database.select404(model!, {
         where: { id: record! },
@@ -19,7 +20,7 @@ export default withTransactionParams(async (context, { system, model, record, op
     }, undefined, options);
 
     // Return structured ACL data (middleware will wrap in success response)
-    const aclData = {
+    return {
         record_id: result.id,
         model: model,
         access_lists: {
@@ -29,6 +30,4 @@ export default withTransactionParams(async (context, { system, model, record, op
             access_deny: result.access_deny || []
         }
     };
-
-    setRouteResult(context, aclData);
 });

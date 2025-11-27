@@ -1,6 +1,5 @@
 import { randomBytes } from 'crypto';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -22,9 +21,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * Requires sudo access.
  */
-export default withTransactionParams(async (context, { system, body }) => {
-    const userId = context.get('userId');
-    const tenant = context.get('tenant');
+export default withTransaction(async ({ system, body }) => {
+    const userId = system.userId;
+    const tenant = system.tenant;
 
     // Snapshots require PostgreSQL (uses pg_dump)
     if (system.adapter?.getType() !== 'postgresql') {
@@ -64,9 +63,9 @@ export default withTransactionParams(async (context, { system, body }) => {
         expires_at: body.expires_at ? new Date(body.expires_at) : null,
     });
 
-    setRouteResult(context, {
+    return {
         ...snapshot,
         message: 'Snapshot creation started in background. Poll GET /api/sudo/snapshots/:name for status updates.',
         source_database: databaseName,
-    });
+    };
 });

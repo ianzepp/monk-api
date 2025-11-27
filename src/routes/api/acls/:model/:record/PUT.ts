@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
@@ -17,8 +15,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * Note: Any access list not provided will be set to empty array
  */
-export default withTransactionParams(async (context, { system, model, record, options }) => {
-    const body = await context.req.json().catch(() => ({}));
+export default withTransaction(async ({ system, params, query, body }) => {
+    const { model, record } = params;
+    const options = { context: 'api' as const, trashed: query.trashed as any };
 
     // Validate and prepare updates for all ACL fields
     const validFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
@@ -53,7 +52,7 @@ export default withTransactionParams(async (context, { system, model, record, op
     const updatedRecord = await system.database.updateOne(model!, record!, updates);
 
     // Return ACL data (middleware will wrap in success response)
-    setRouteResult(context, {
+    return {
         record_id: record,
         access_lists: {
             access_read: updatedRecord.access_read || [],
@@ -61,5 +60,5 @@ export default withTransactionParams(async (context, { system, model, record, op
             access_full: updatedRecord.access_full || [],
             access_deny: updatedRecord.access_deny || []
         }
-    });
+    };
 });

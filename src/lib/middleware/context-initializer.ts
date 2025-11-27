@@ -50,10 +50,10 @@ export async function contextInitializerMiddleware(context: Context, next: Next)
             return result;
         }
 
-        // Check if route set a result via setRouteResult() without creating a response
+        // Check if route set a result via withTransaction() return value
         const routeResult = context.get('routeResult');
         if (routeResult !== undefined) {
-            // Route used setRouteResult() pattern - create response
+            // Route returned a result - create response
             const routeTotal = context.get('routeTotal');
             const responseData = {
                 success: true,
@@ -86,24 +86,3 @@ export async function contextInitializerMiddleware(context: Context, next: Next)
     }
 }
 
-/**
- * Helper for route handlers to set their result for automatic response creation
- *
- * Routes using this pattern don't call context.json() directly - instead they store
- * the result data and let contextInitializerMiddleware create the response. This response
- * will be transparently formatted by responseFormatterMiddleware if a non-JSON format
- * is requested via ?format query parameter.
- *
- * Example usage:
- *   export default withTransactionParams(async (context, { system, model, record, options }) => {
- *       const result = await system.database.select404(model, { where: { id: record } });
- *       setRouteResult(context, result);  // Don't return - middleware handles response
- *   });
- *
- * The response will be:
- *   - JSON by default (99% of requests)
- *   - TOON/YAML/etc when ?format=toon is specified (transparent to route logic)
- */
-export function setRouteResult(context: Context, result: any) {
-    context.set('routeResult', result);
-}

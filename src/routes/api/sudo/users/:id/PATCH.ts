@@ -1,5 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * PATCH /api/sudo/users/:id - Update specific user
@@ -16,7 +15,7 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  *   "access_full": ["uuid"]     // Optional: Update full ACLs
  * }
  */
-export default withTransactionParams(async (context, { system, body }) => {
-    const userId = context.req.param('id');
-    await system.database.updateOne('users', userId, body);
+export default withTransaction(async ({ system, body, params }) => {
+    const { id } = params;
+    await system.database.updateOne('users', id, body);
 });

@@ -1,6 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { isSystemField, stripSystemFields } from '@src/lib/describe.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
@@ -11,7 +9,8 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * @returns Field record from fields table
  */
-export default withTransactionParams(async (context, { system, model, field }) => {
+export default withTransaction(async ({ system, params }) => {
+    const { model, field } = params;
     // Reject requests for system fields - Describe API is for portable definitions only
     if (isSystemField(field!)) {
         throw HttpErrors.notFound(
@@ -25,5 +24,5 @@ export default withTransactionParams(async (context, { system, model, field }) =
         `Field '${field}' not found in model '${model}'`
     );
     // Strip system fields before returning
-    setRouteResult(context, stripSystemFields(fieldDef));
+    return stripSystemFields(fieldDef);
 });

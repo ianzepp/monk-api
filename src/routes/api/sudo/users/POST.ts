@@ -1,5 +1,4 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
  * POST /api/sudo/users - Create new user in current tenant
@@ -20,7 +19,7 @@ import { withTransactionParams } from '@src/lib/api-helpers.js';
  *   "access_full": ["uuid"]     // Optional: Record-level full ACLs
  * }
  */
-export default withTransactionParams(async (context, { system, body }) => {
+export default withTransaction(async ({ system, body }) => {
     // Create user in current tenant's database
     // The 'users' model is marked as system, so this will trigger
     // user/1/root-access-validator which checks for is_sudo flag

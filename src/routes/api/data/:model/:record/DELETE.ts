@@ -1,14 +1,13 @@
-import type { Context } from 'hono';
-import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
+import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
  * DELETE /api/data/:model/:record - Delete single record by ID
  * @see docs/routes/DATA_API.md
  */
-export default withTransactionParams(async (context, { system, model, record }) => {
-    const isPermanent = context.req.query('permanent') === 'true';
+export default withTransaction(async ({ system, params, query }) => {
+    const { model, record } = params;
+    const isPermanent = query.permanent === 'true';
 
     let result;
 
@@ -27,5 +26,5 @@ export default withTransactionParams(async (context, { system, model, record }) 
         result = await system.database.delete404(model!, { where: { id: record! } });
     }
 
-    setRouteResult(context, result);
+    return result;
 });
