@@ -16,7 +16,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "allowJs": true,
-    "types": ["node", "bun", "vitest"],
+    "types": ["node", "bun"],
     "paths": {
       "@src/*": ["src/*"],
       "@lib/*": ["src/lib/*"],
