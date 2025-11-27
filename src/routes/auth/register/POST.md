@@ -193,15 +193,6 @@ curl -X POST http://localhost:9001/auth/register \
 - All specified templates deployed with automatic dependency resolution
 - `system` deployed first (as dependency), then `audit`, `exports`, `imports`
 
-## Template System
-
-The register endpoint clones a template database to provision new tenants. This allows pre-populating tenants with:
-- Model definitions
-- Initial configuration data
-- Sample records
-- User roles and permissions
-
-Available templates can be listed via [`GET /auth/templates`](../templates/GET.md) (personal mode only).
 
 ## Implementation Notes
 
@@ -215,4 +206,3 @@ Available templates can be listed via [`GET /auth/templates`](../templates/GET.m
 
 - [`POST /auth/login`](../login/POST.md) - Authenticate with existing tenant
 - [`GET /auth/tenants`](../tenants/GET.md) - List available tenants (personal mode)
-- [`GET /auth/templates`](../templates/GET.md) - List available templates (personal mode)

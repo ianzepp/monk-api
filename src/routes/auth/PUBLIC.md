@@ -36,9 +36,8 @@ Set persistent format preference by including `format` field in login request. T
 |--------|------|-------------|
 | POST | [`/auth/login`](login/POST.md) | Authenticate against an existing tenant and issue a JWT token. |
 | POST | [`/auth/refresh`](refresh/POST.md) | Exchange an existing token for a fresh one with the same scope. |
-| POST | [`/auth/register`](register/POST.md) | Provision a new tenant from a template and return an initial token. |
+| POST | [`/auth/register`](register/POST.md) | Provision a new tenant and return an initial token. |
 | GET | [`/auth/tenants`](tenants/GET.md) | List available tenants (personal mode only). |
-| GET | [`/auth/templates`](templates/GET.md) | List available templates (personal mode only). |
 
 ## Token Lifecycle
 
