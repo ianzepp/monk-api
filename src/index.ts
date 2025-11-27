@@ -83,6 +83,7 @@ import HealthGet from '@src/routes/health/GET.js';
 
 // Special protected endpoints
 import BulkPost from '@src/routes/api/bulk/POST.js'; // POST /api/bulk
+import BulkExportPost from '@src/routes/api/bulk/export/POST.js'; // POST /api/bulk/export
 import FindModelPost from '@src/routes/api/find/:model/POST.js'; // POST /api/find/:model
 import FindTargetGet from '@src/routes/api/find/:model/:target/GET.js'; // GET /api/find/:model/:target
 import AggregateModelGet from '@src/routes/api/aggregate/:model/GET.js'; // GET /api/aggregate/:model
@@ -315,6 +316,7 @@ app.post('/api/aggregate/:model', AggregateModelPost);
 
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);
+app.post('/api/bulk/export', BulkExportPost);
 
 // 36-user-api: User API routes (user management)
 app.get('/api/user', userRoutes.UserList); // GET /api/user - List users (sudo)
