@@ -44,7 +44,11 @@
         "@monk/formatter-msgpack": "file:./packages/formatter-msgpack",
         "@monk/formatter-qr": "file:./packages/formatter-qr",
         "@monk/formatter-toml": "file:./packages/formatter-toml",
-        "@monk/mcp": "file:./packages/mcp"
+        "@monk/bindings": "file:./packages/bindings",
+        "@monk-app/grids": "file:./packages/grids",
+        "@monk-app/mcp": "file:./packages/mcp",
+        "@monk-app/openapi": "file:./packages/openapi",
+        "@monk-app/todos": "file:./packages/todos"
     },
     "devDependencies": {
         "@faker-js/faker": "^10.0.0",

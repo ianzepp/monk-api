@@ -9,6 +9,9 @@
 
 set -e
 
+# Clean up stale bun-build artifacts
+rm -f .*.bun-build
+
 # Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
