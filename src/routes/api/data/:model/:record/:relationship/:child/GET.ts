@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
 
 /**
  * GET /api/data/:model/:record/:relationship/:child - Get specific related record

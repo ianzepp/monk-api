@@ -24,7 +24,7 @@ import { parseInfraConfig } from '@src/lib/infrastructure.js';
  * Note: Request tracking is disabled in SQLite mode and when the
  * requests table doesn't exist (simplified infrastructure schema).
  */
-export async function requestTrackingMiddleware(context: Context, next: Next) {
+export async function requestTrackerMiddleware(context: Context, next: Next) {
     // Skip request tracking in SQLite mode (no requests table)
     const config = parseInfraConfig();
     if (config.dbType === 'sqlite') {

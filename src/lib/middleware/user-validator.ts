@@ -2,7 +2,7 @@
  * User Context Validation Middleware
  *
  * Uses JWT context values to validate user exists in tenant database.
- * Requires jwtValidationMiddleware to run first to populate context.
+ * Requires jwtValidatorMiddleware to run first to populate context.
  * Enriches systemInit with validated user data from database.
  */
 
@@ -16,11 +16,11 @@ import type { SystemInit } from '@src/lib/system.js';
 /**
  * User validation middleware - validates user exists in tenant database
  * 
- * Reads tenant/database/user_id from context (set by jwtValidationMiddleware).
+ * Reads tenant/database/user_id from context (set by jwtValidatorMiddleware).
  * Validates user exists and is active, then enriches context with user data.
  */
-export async function userValidationMiddleware(context: Context, next: Next) {
-    // Get JWT context values (set by jwtValidationMiddleware)
+export async function userValidatorMiddleware(context: Context, next: Next) {
+    // Get JWT context values (set by jwtValidatorMiddleware)
     const tenant = context.get('tenant');
     const dbType = context.get('dbType') || 'postgresql';
     const dbName = context.get('dbName');

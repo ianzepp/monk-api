@@ -22,7 +22,7 @@ function getJwtSecret(): string {
  * Only validates token integrity, does not check user/tenant existence.
  * Sets JWT context values for subsequent middleware to use.
  */
-export async function jwtValidationMiddleware(context: Context, next: Next) {
+export async function jwtValidatorMiddleware(context: Context, next: Next) {
     try {
         const authHeader = context.req.header('Authorization');
         if (!authHeader?.startsWith('Bearer ')) {

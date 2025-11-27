@@ -4,7 +4,7 @@
  * Hono middleware that initializes System context and attaches it to the request context.
  * Provides global error handling and automatic response formatting.
  *
- * Requires jwtValidationMiddleware and userValidationMiddleware to run first
+ * Requires jwtValidatorMiddleware and userValidatorMiddleware to run first
  * to populate context.systemInit with authentication data.
  */
 
@@ -19,9 +19,9 @@ import { ValidationError, BusinessLogicError, SystemError } from '@src/lib/obser
  * Attaches system to context.set('system', system) for use in route handlers.
  * Provides global error handling with proper error categorization.
  *
- * Uses systemInit from context (set by jwtValidationMiddleware, enriched by userValidationMiddleware).
+ * Uses systemInit from context (set by jwtValidatorMiddleware, enriched by userValidatorMiddleware).
  */
-export async function systemContextMiddleware(context: Context, next: Next) {
+export async function contextInitializerMiddleware(context: Context, next: Next) {
     try {
         // Extract system options from query parameters
         const options = {
@@ -90,7 +90,7 @@ export async function systemContextMiddleware(context: Context, next: Next) {
  * Helper for route handlers to set their result for automatic response creation
  *
  * Routes using this pattern don't call context.json() directly - instead they store
- * the result data and let systemContextMiddleware create the response. This response
+ * the result data and let contextInitializerMiddleware create the response. This response
  * will be transparently formatted by responseFormatterMiddleware if a non-JSON format
  * is requested via ?format query parameter.
  *

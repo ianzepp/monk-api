@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
 
 /**
  * GET /api/user/whoami - Get current authenticated user information

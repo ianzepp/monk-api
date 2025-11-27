@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
 
 /**
  * DELETE /api/data/:model/:record/:relationship - Delete all related records

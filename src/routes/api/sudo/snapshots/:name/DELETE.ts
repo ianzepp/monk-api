@@ -1,5 +1,5 @@
 import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { InfrastructureService } from '@src/lib/services/infrastructure-service.js';
 

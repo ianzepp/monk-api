@@ -1,5 +1,5 @@
 import { withTransactionParams } from '@src/lib/api-helpers.js';
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
 
 /**
  * GET /api/sudo/snapshots/:name - Get snapshot details

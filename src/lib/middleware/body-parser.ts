@@ -76,7 +76,7 @@ function formatUnavailableResponse(context: Context, format: string) {
 /**
  * Parses request body based on Content-Type header
  */
-export async function requestBodyParserMiddleware(context: Context, next: Next) {
+export async function bodyParserMiddleware(context: Context, next: Next) {
     // Skip parsing if no body (GET, DELETE, etc.)
     if (context.req.method === 'GET' || context.req.method === 'DELETE' || context.req.method === 'HEAD') {
         return await next();

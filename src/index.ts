@@ -118,7 +118,7 @@ console.info('Infrastructure ready', {
 const app = new Hono();
 
 // Request tracking middleware (first - database health check + analytics)
-app.use('*', middleware.requestTrackingMiddleware);
+app.use('*', middleware.requestTrackerMiddleware);
 
 // Request logging middleware
 app.use('*', async (c, next) => {
@@ -137,10 +137,10 @@ app.use('*', async (c, next) => {
 });
 
 // Apply response pipeline to root and health endpoints
-app.use('/', middleware.formatDetectionMiddleware);
-app.use('/', middleware.responsePipelineMiddleware);
-app.use('/health', middleware.formatDetectionMiddleware);
-app.use('/health', middleware.responsePipelineMiddleware);
+app.use('/', middleware.formatDetectorMiddleware);
+app.use('/', middleware.responseTransformerMiddleware);
+app.use('/health', middleware.formatDetectorMiddleware);
+app.use('/health', middleware.responseTransformerMiddleware);
 
 // Root endpoint
 app.get('/', RootGet);
@@ -148,26 +148,26 @@ app.get('/', RootGet);
 // Health check endpoint (public, no authentication required)
 app.get('/health', HealthGet);
 
-// Note: systemContextMiddleware only applied to protected routes that need it
+// Note: contextInitializerMiddleware only applied to protected routes that need it
 
 // Public routes (no authentication required)
-app.use('/auth/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
-app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for responses
-app.use('/auth/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
+app.use('/auth/*', middleware.bodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
+app.use('/auth/*', middleware.formatDetectorMiddleware); // Detect format for responses
+app.use('/auth/*', middleware.responseTransformerMiddleware); // Response pipeline: extract → format → encrypt
 
-app.use('/test/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
-app.use('/test/*', middleware.formatDetectionMiddleware); // Detect format for responses
-app.use('/test/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
+app.use('/test/*', middleware.bodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
+app.use('/test/*', middleware.formatDetectorMiddleware); // Detect format for responses
+app.use('/test/*', middleware.responseTransformerMiddleware); // Response pipeline: extract → format → encrypt
 
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
 // Protected API routes - require JWT authentication from /auth
-app.use('/api/*', middleware.requestBodyParserMiddleware);
-app.use('/api/*', middleware.jwtValidationMiddleware);
-app.use('/api/*', middleware.userValidationMiddleware);
-app.use('/api/*', middleware.formatDetectionMiddleware);
-app.use('/api/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
-app.use('/api/*', middleware.systemContextMiddleware);
+app.use('/api/*', middleware.bodyParserMiddleware);
+app.use('/api/*', middleware.jwtValidatorMiddleware);
+app.use('/api/*', middleware.userValidatorMiddleware);
+app.use('/api/*', middleware.formatDetectorMiddleware);
+app.use('/api/*', middleware.responseTransformerMiddleware); // Response pipeline: extract → format → encrypt
+app.use('/api/*', middleware.contextInitializerMiddleware);
 
 // 40-docs-api: Public docs routes (no authentication required)
 app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
@@ -201,7 +201,7 @@ app.all('/app/:appName/*', async (c) => {
         const jwtPayload = c.get('jwtPayload');
         if (!jwtPayload) {
             try {
-                await middleware.jwtValidationMiddleware(c, async () => {});
+                await middleware.jwtValidatorMiddleware(c, async () => {});
             } catch (error) {
                 return c.json({
                     success: false,
@@ -231,7 +231,7 @@ app.all('/app/:appName/*', async (c) => {
         const jwtPayload = c.get('jwtPayload');
         if (!jwtPayload) {
             try {
-                await middleware.jwtValidationMiddleware(c, async () => {});
+                await middleware.jwtValidatorMiddleware(c, async () => {});
                 // Re-load to install tenant models now that we have auth
                 appInstance = await loadHybridApp(appName, app, c);
             } catch (error) {
@@ -347,7 +347,7 @@ app.delete('/api/acls/:model/:record', aclsRoutes.RecordAclDelete); // Delete ac
 app.get('/api/stat/:model/:record', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
 
 // 41-sudo-api: Sudo API routes (require sudo token from /api/user/sudo)
-app.use('/api/sudo/*', middleware.sudoAccessMiddleware);
+app.use('/api/sudo/*', middleware.sudoValidatorMiddleware);
 app.route('/api/sudo', sudoRouter);
 
 // 42-history-api: History API routes (change tracking and audit trails)

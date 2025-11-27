@@ -25,7 +25,7 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
  *
  * Applied to /api/sudo/* routes that require privileged access.
  */
-export async function sudoAccessMiddleware(context: Context, next: Next) {
+export async function sudoValidatorMiddleware(context: Context, next: Next) {
     const jwtPayload = context.get('jwtPayload') as JWTPayload;
     const user = context.get('user');
 

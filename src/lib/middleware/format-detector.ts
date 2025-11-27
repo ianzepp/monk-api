@@ -63,7 +63,7 @@ function resolveFormat(context: Context): ResponseFormat {
  * Format detection middleware
  * Sets context.get('responseFormat') for downstream middleware
  */
-export async function formatDetectionMiddleware(context: Context, next: Next) {
+export async function formatDetectorMiddleware(context: Context, next: Next) {
     const format = resolveFormat(context);
     context.set('responseFormat', format);
     return await next();

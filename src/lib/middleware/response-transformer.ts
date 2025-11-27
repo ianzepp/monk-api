@@ -176,7 +176,7 @@ function applyEncryption(text: string, context: Context): string {
 
         const jwt = parts[1];
 
-        // Get JWT payload from context (set by jwtValidationMiddleware)
+        // Get JWT payload from context (set by jwtValidatorMiddleware)
         const jwtPayload = context.get('jwtPayload') as JWTPayload | undefined;
         if (!jwtPayload) {
             throw new Error('Encryption requires valid JWT payload - token not decoded');
@@ -209,7 +209,7 @@ function applyEncryption(text: string, context: Context): string {
  *
  * Routes call context.json(data) as normal, pipeline handles the rest.
  */
-export async function responsePipelineMiddleware(context: Context, next: Next) {
+export async function responseTransformerMiddleware(context: Context, next: Next) {
     // Store original methods
     const originalJson = context.json.bind(context);
     const originalText = context.text.bind(context);

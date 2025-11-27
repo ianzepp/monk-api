@@ -1,4 +1,4 @@
-import { setRouteResult } from '@src/lib/middleware/system-context.js';
+import { setRouteResult } from '@src/lib/middleware/context-initializer.js';
 import { withTransactionParams } from '@src/lib/api-helpers.js';
 
 export default withTransactionParams(async (context, { system, model, body, options }) => {
