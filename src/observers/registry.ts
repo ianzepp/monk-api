@@ -101,7 +101,6 @@ import TrackedObserver from '@src/observers/all/7/60-tracked.js';
 // =============================================================================
 import FieldCacheInvalidator from '@src/observers/fields/8/50-field-cache-invalidator.js';
 import ModelCacheInvalidator from '@src/observers/models/8/50-model-cache-invalidator.js';
-import SnapshotProcessor from '@src/observers/snapshots/8/50-snapshot-processor.js';
 
 // =============================================================================
 // Observer Registry
@@ -181,5 +180,4 @@ export const observers: Observer[] = [
     // Ring 8: Integration
     new FieldCacheInvalidator(),
     new ModelCacheInvalidator(),
-    new SnapshotProcessor(),
 ];

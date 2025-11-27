@@ -11,7 +11,7 @@
  *
  * Example:
  *   # From stdin
- *   curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | bun scripts/decrypt.ts "$JWT"
+ *   curl /api/user/me?encrypt=pgp -H "Authorization: Bearer $JWT" | bun scripts/decrypt.ts "$JWT"
  *
  *   # From file
  *   bun scripts/decrypt.ts "$JWT" encrypted-response.txt
@@ -148,7 +148,7 @@ function main(): void {
         console.error('Examples:');
         console.error('  bun scripts/decrypt.ts "$JWT" < encrypted.txt');
         console.error('  bun scripts/decrypt.ts "$JWT" encrypted.txt');
-        console.error('  curl /api/user/whoami?encrypt=pgp | bun scripts/decrypt.ts "$JWT"');
+        console.error('  curl /api/user/me?encrypt=pgp | bun scripts/decrypt.ts "$JWT"');
         process.exit(1);
     }
 

@@ -28,8 +28,7 @@ export default function (context: Context) {
                     '/docs/acls',
                     '/docs/stat',
                     '/docs/tracked',
-                    '/docs/trashed',
-                    '/docs/sudo',
+                    '/docs/trashed'
                 ],
                 auth: [
                     '/auth/login',
@@ -59,11 +58,10 @@ export default function (context: Context) {
                     '/api/bulk'
                 ],
                 user: [
-                    '/api/user/whoami',
+                    '/api/user',
+                    '/api/user/:id',
                     '/api/user/sudo',
-                    '/api/user/fake',
-                    '/api/user/profile',
-                    '/api/user/deactivate'
+                    '/api/user/fake'
                 ],
                 acls: [
                     '/api/acls/:model/:id'
@@ -79,17 +77,6 @@ export default function (context: Context) {
                     '/api/trashed',
                     '/api/trashed/:model',
                     '/api/trashed/:model/:id'
-                ],
-                sudo: [
-                    '/api/sudo/sandboxes/',
-                    '/api/sudo/sandboxes/:name',
-                    '/api/sudo/sandboxes/:name/extend',
-                    '/api/sudo/snapshots/',
-                    '/api/sudo/snapshots/:name',
-                    '/api/sudo/templates/',
-                    '/api/sudo/templates/:name',
-                    '/api/sudo/users/',
-                    '/api/sudo/users/:id',
                 ],
                 grids: [
                     '/api/grids/:id/:range',

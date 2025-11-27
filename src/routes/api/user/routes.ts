@@ -1,19 +1,28 @@
 /**
- * User API Routes - Self-Service User Management
+ * User API Routes - User Management
  *
- * Provides authenticated user endpoints for profile management and identity:
- * - User info: Get current authenticated user details
- * - Privilege elevation: Sudo access for protected operations
- * - Profile management: Self-service profile updates
- * - Account deactivation: Self-service account closure
+ * Provides endpoints for user management within a tenant:
+ * - List users: GET /api/user (requires sudo)
+ * - Create user: POST /api/user (requires sudo)
+ * - Get user: GET /api/user/:id (self or sudo)
+ * - Update user: PUT /api/user/:id (self-limited or sudo)
+ * - Delete user: DELETE /api/user/:id (self-deactivate or sudo)
+ * - Sudo token: POST /api/user/sudo (root/full users)
+ * - Impersonate: POST /api/user/fake (root users)
  *
- * Self-service endpoints bypass the users table sudo requirement using the
- * withSelfServiceSudo() helper which sets the 'as_sudo' flag.
+ * The :id parameter can be a UUID or "me" for the current user.
+ * Self-service operations use withSelfServiceSudo() for the users table.
  */
 
-export { default as WhoamiGet } from './whoami/GET.js';
+// Collection endpoints
+export { default as UserList } from './GET.js';
+export { default as UserCreate } from './POST.js';
+
+// Individual user endpoints
+export { default as UserGet } from './:id/GET.js';
+export { default as UserUpdate } from './:id/PUT.js';
+export { default as UserDelete } from './:id/DELETE.js';
+
+// Special endpoints
 export { default as SudoPost } from './sudo/POST.js';
 export { default as FakePost } from './fake/POST.js';
-export { default as ProfileGet } from './profile/GET.js';
-export { default as ProfilePut } from './profile/PUT.js';
-export { default as DeactivatePost } from './deactivate/POST.js';

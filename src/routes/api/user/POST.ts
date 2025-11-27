@@ -1,13 +1,11 @@
 import { withTransaction } from '@src/lib/api-helpers.js';
+import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /api/sudo/users - Create new user in current tenant
+ * POST /api/user - Create new user in tenant
  *
  * Creates a new user within the authenticated user's tenant.
- * Requires sudo token (obtained via POST /api/user/sudo).
- *
- * This is a tenant-scoped operation - creates users only in the caller's tenant,
- * maintaining proper multi-tenant isolation.
+ * Requires sudo access.
  *
  * Request body:
  * {
@@ -20,9 +18,13 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  * }
  */
 export default withTransaction(async ({ system, body }) => {
-    // Create user in current tenant's database
-    // The 'users' model is marked as system, so this will trigger
-    // user/1/root-access-validator which checks for is_sudo flag
+    if (!system.isSudo()) {
+        throw HttpErrors.forbidden(
+            'Creating users requires sudo access',
+            'SUDO_REQUIRED'
+        );
+    }
+
     const result = await system.database.createOne('users', body);
     return result;
 });

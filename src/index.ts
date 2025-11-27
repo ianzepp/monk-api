@@ -81,7 +81,6 @@ import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as trackedRoutes from '@src/routes/api/tracked/routes.js';
 import * as trashedRoutes from '@src/routes/api/trashed/routes.js';
-import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Public endpoints
 import RootGet from '@src/routes/root/GET.js';
@@ -330,13 +329,15 @@ app.post('/api/aggregate/:model', AggregateModelPost);
 // 35-bulk-api: Bulk API routes
 app.post('/api/bulk', BulkPost);
 
-// 36-user-api: User API routes (user identity and self-service management)
-app.get('/api/user/whoami', userRoutes.WhoamiGet); // GET /api/user/whoami
-app.post('/api/user/sudo', userRoutes.SudoPost); // POST /api/user/sudo
-app.post('/api/user/fake', userRoutes.FakePost); // POST /api/user/fake
-app.get('/api/user/profile', userRoutes.ProfileGet); // GET /api/user/profile
-app.put('/api/user/profile', userRoutes.ProfilePut); // PUT /api/user/profile
-app.post('/api/user/deactivate', userRoutes.DeactivatePost); // POST /api/user/deactivate
+// 36-user-api: User API routes (user management)
+app.get('/api/user', userRoutes.UserList); // GET /api/user - List users (sudo)
+app.post('/api/user', userRoutes.UserCreate); // POST /api/user - Create user (sudo)
+app.post('/api/user/sudo', userRoutes.SudoPost); // POST /api/user/sudo - Get sudo token
+app.post('/api/user/fake', userRoutes.FakePost); // POST /api/user/fake - Impersonate user
+app.get('/api/user/whoami', (c) => c.redirect('/api/user/me', 301)); // Legacy redirect
+app.get('/api/user/:id', userRoutes.UserGet); // GET /api/user/:id - Get user (self or sudo)
+app.put('/api/user/:id', userRoutes.UserUpdate); // PUT /api/user/:id - Update user (self or sudo)
+app.delete('/api/user/:id', userRoutes.UserDelete); // DELETE /api/user/:id - Delete user (self or sudo)
 
 // 38-acls-api: Acls API routes
 app.get('/api/acls/:model/:id', aclsRoutes.RecordAclGet); // Get acls for a single record
@@ -346,10 +347,6 @@ app.delete('/api/acls/:model/:id', aclsRoutes.RecordAclDelete); // Delete acls f
 
 // 39-stat-api: Stat API routes (record metadata without user data)
 app.get('/api/stat/:model/:id', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
-
-// 41-sudo-api: Sudo API routes (require sudo token from /api/user/sudo)
-app.use('/api/sudo/*', middleware.sudoValidatorMiddleware);
-app.route('/api/sudo', sudoRouter);
 
 // 42-history-api: Tracked API routes (change tracking and audit trails)
 app.get('/api/tracked/:model/:id', trackedRoutes.RecordTrackedGet); // List all changes for a record

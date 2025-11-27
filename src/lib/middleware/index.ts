@@ -14,4 +14,3 @@ export { responseTransformerMiddleware } from './response-transformer.js';
 export { requestTrackerMiddleware } from './request-tracker.js';
 export { jwtValidatorMiddleware } from './jwt-validator.js';
 export { userValidatorMiddleware } from './user-validator.js';
-export { sudoValidatorMiddleware } from './sudo-validator.js';
