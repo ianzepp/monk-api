@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { FilterOrder } from '@src/lib/filter-order.js';
 
 describe('FilterOrder - String Format', () => {

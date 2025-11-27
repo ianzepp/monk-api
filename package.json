@@ -15,9 +15,8 @@
         "build": "bun run build:packages && scripts/build.sh",
         "build:packages": "bun run --filter '*' build",
         "build:spec": "scripts/build-spec.sh",
-        "test": "vitest run",
-        "test:unit": "vitest run --config vitest.unit.config.ts",
-        "test:bench": "vitest bench --config vitest.bench.config.ts",
+        "test": "bun test --concurrency 1 --timeout 30000 ./spec/**/*.test.ts",
+        "test:unit": "bun test --timeout 5000 ./spec/**/*.unit.ts",
         "build:standalone": "scripts/build-standalone.sh"
     },
     "keywords": [
@@ -57,8 +56,7 @@
         "@types/js-yaml": "^4.0.9",
         "@types/pg": "^8.15.5",
         "tsc-alias": "^1.8.16",
-        "typescript": "^5.6.3",
-        "vitest": "^3.2.4"
+        "typescript": "^5.6.3"
     },
     "engines": {
         "bun": ">=1.0.0"

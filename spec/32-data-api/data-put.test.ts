@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'bun:test';
 import { TestHelpers } from '../test-helpers.js';
 import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';

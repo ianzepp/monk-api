@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { FilterSqlGenerator, type FilterState } from '@src/lib/filter-sql-generator.js';
 import type { FilterOrderInfo, AggregateSpec } from '@src/lib/filter-types.js';
 

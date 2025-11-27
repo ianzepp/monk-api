@@ -6,7 +6,7 @@
  */
 
 import { randomBytes } from 'crypto';
-import { describe } from 'vitest';
+import { describe } from 'bun:test';
 import { HttpClient } from './http-client.js';
 import { AuthClient } from './auth-client.js';
 import { TEST_CONFIG } from './test-config.js';
