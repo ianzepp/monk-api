@@ -104,7 +104,7 @@ fields:
 ...
 ```
 
-**Future**: `vi /api/describe/users.yaml` to edit schemas (dangerous but powerful).
+**Future**: Edit schemas with your local editor via SFTP (see [SFTP Subsystem](#sftp-subsystem)).
 
 ### /api/find/ and /api/aggregate/
 Query endpoints. These are trickier since they're POST-based.
@@ -259,14 +259,101 @@ $ exit
 Returned to original_tenant
 ```
 
+## SFTP Subsystem
+
+### The Problem with Terminal Editors
+
+Building a `vi` clone for the TTY shell is complex:
+- Requires full ANSI terminal control (cursor positioning, escape sequences)
+- Modal editing (command/insert mode)
+- Significant implementation effort
+
+An `ed`-style line editor is simpler but awkward for editing JSON/YAML files.
+
+**External editor** (spawning `$EDITOR` on a temp file) doesn't work for telnet/SSH because there's no local filesystem - you're in a remote session.
+
+### The Solution: SFTP Subsystem
+
+SSH supports multiple "subsystems". When you connect via `ssh user@host`, you get a shell. But `sftp user@host` uses the same SSH connection to access the SFTP subsystem for file transfer.
+
+If Monk's SSH server implements both subsystems:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Monk SSH Server                                │
+├─────────────────────────────────────────────────┤
+│  Subsystem: shell  →  TTY virtual filesystem    │
+│  Subsystem: sftp   →  SFTP virtual filesystem   │
+└─────────────────────────────────────────────────┘
+```
+
+Then local editors can edit Monk "files" directly using their native remote-edit features:
+- **VSCode Remote - SSH**: Edit files, see directory structure
+- **Sublime SFTP**: Direct file editing
+- **Emacs TRAMP**: Transparent remote file access
+- **vim + netrw**: `vim sftp://monk-server/api/data/users/123.json`
+
+### How It Works
+
+```
+┌──────────────┐     SSH/SFTP      ┌──────────────┐     HTTP      ┌──────────────┐
+│  Local vim   │ ◄──────────────► │  Monk SSH    │ ◄───────────► │  Monk API    │
+│  or VSCode   │                   │  Server      │               │              │
+└──────────────┘                   └──────────────┘               └──────────────┘
+
+1. Editor connects via SFTP
+2. OPEN /api/data/users/123.json  →  GET /api/data/users/123
+3. User edits locally in their preferred editor
+4. WRITE /api/data/users/123.json →  PUT /api/data/users/123
+5. Editor shows save confirmation
+```
+
+### SFTP Operations Mapping
+
+| SFTP Operation | Virtual FS Action |
+|----------------|-------------------|
+| `OPENDIR` | List model records or fields |
+| `READDIR` | Return directory entries |
+| `OPEN` (read) | `GET /api/data/:model/:id` |
+| `OPEN` (write) | Prepare for `PUT` on close |
+| `WRITE` | Buffer content |
+| `CLOSE` | `PUT /api/data/:model/:id` with buffer |
+| `REMOVE` | `DELETE /api/data/:model/:id` |
+| `STAT` | `GET /api/stat/:model/:id` |
+| `MKDIR` | Not supported (use `mkrecord` in shell) |
+
+### Benefits
+
+1. **Use your editor** - vim, VSCode, Sublime, Emacs - whatever you prefer
+2. **Syntax highlighting** - Editors understand JSON/YAML
+3. **No implementation burden** - Don't need to build a terminal editor
+4. **IDE features** - Autocomplete, linting, formatting
+5. **Batch operations** - Copy files between local and remote
+
+### Authentication
+
+SFTP uses the same SSH authentication:
+- Password auth → Monk username/password → JWT issued internally
+- Key auth → Map SSH public keys to Monk users (future)
+
+The JWT context (tenant, permissions) applies to all SFTP operations.
+
+### Limitations
+
+1. **No real-time collaboration** - File locks are advisory at best
+2. **Write conflicts** - Last write wins (same as HTTP API)
+3. **Large files** - Need to consider memory limits for buffering
+4. **Create operations** - Can't `mkdir` to create records (use shell or POST new file)
+
 ## Migration Path
 
 1. **v1.1**: Add `/api/data/` prefix, keep flat model structure working ✅
 2. **v1.2**: Add `/api/describe/` with YAML schemas ✅
 3. **v1.3**: Add `/system/` pseudo-files ✅
 4. **v1.4**: Add `/app/` directory
-5. **v2.0**: Natural language integration (`!` and `@`)
-6. **v3.0**: Field-level filesystem (see below)
+5. **v1.5**: Add SFTP subsystem for remote editing
+6. **v2.0**: Natural language integration (`!` and `@`)
+7. **v3.0**: Field-level filesystem (see below)
 
 ---
 
@@ -433,4 +520,5 @@ But this may be over-engineering. Schemas are read-mostly, so keeping them as `.
 
 *Document created: 2025-11-27*
 *Updated: 2025-11-27 - Added v3 field-level design*
+*Updated: 2025-11-27 - Added SFTP subsystem section*
 *Status: v2 implemented, v3 in design*
