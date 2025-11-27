@@ -1,7 +1,7 @@
 import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
- * GET /api/acls/:model/:record - Get record ACL lists
+ * GET /api/acls/:model/:id - Get record ACL lists
  *
  * Returns the four access control arrays for a specific record:
  * - access_read: User IDs with read access
@@ -10,12 +10,12 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  * - access_deny: User IDs with denied access
  */
 export default withTransaction(async ({ system, params, query }) => {
-    const { model, record } = params;
+    const { model, id } = params;
     const options = { context: 'api' as const, trashed: query.trashed as any };
 
     // Get the record with only ACL fields (select404 automatically throws 404 if not found)
     const result = await system.database.select404(model!, {
-        where: { id: record! },
+        where: { id: id! },
         select: ['id', 'access_read', 'access_edit', 'access_full', 'access_deny']
     }, undefined, options);
 

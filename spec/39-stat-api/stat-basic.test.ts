@@ -5,7 +5,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 /**
  * Stat API Tests
  *
- * Tests the GET /api/stat/:model/:record endpoint that returns only
+ * Tests the GET /api/stat/:model/:id endpoint that returns only
  * system metadata fields without user data.
  *
  * These tests verify:
@@ -16,7 +16,7 @@ import { expectSuccess, expectError } from '../test-assertions.js';
  * 5. Metadata-only response structure
  */
 
-describe('GET /api/stat/:model/:record - Record Metadata', () => {
+describe('GET /api/stat/:model/:id - Record Metadata', () => {
     let tenant: TestTenant;
     let testRecordId: string;
 

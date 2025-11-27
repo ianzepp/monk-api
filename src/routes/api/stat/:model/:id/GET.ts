@@ -1,7 +1,7 @@
 import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
- * GET /api/stat/:model/:record - Get record metadata (timestamps, etag, size)
+ * GET /api/stat/:model/:id - Get record metadata (timestamps, etag, size)
  *
  * Returns only system metadata fields without user data.
  * Useful for cache invalidation, modification checks, and stat operations.
@@ -17,11 +17,11 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  * @see docs/39-stat-api.md
  */
 export default withTransaction(async ({ system, params, query, body }) => {
-    const { model, record } = params;
+    const { model, id } = params;
 
     // Fetch the record (select404 automatically throws 404 if not found)
     // Stat should work on trashed records too (to check trashed_at timestamp)
-    const result = await system.database.select404(model!, { where: { id: record! } }, undefined, { trashed: 'include' });
+    const result = await system.database.select404(model!, { where: { id: id! } }, undefined, { trashed: 'include' });
 
     // Return only stat fields (exclude user data)
     const statData = {

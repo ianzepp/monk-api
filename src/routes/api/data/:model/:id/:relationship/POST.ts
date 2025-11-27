@@ -2,16 +2,16 @@ import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /api/data/:model/:record/:relationship - Create a new related record
+ * POST /api/data/:model/:id/:relationship - Create a new related record
  * Creates a child record with the parent relationship automatically set
  * @see docs/routes/DATA_API.md
  */
 export default withTransaction(async ({ system, params, query, body }) => {
-    const { model, record, relationship } = params;
+    const { model, id, relationship } = params;
     const options = { context: 'api' as const, trashed: query.trashed as any };
 
     // Verify parent record exists and is readable
-    const parentRecord = await system.database.select404(model!, { where: { id: record! } }, undefined, options);
+    const parentRecord = await system.database.select404(model!, { where: { id: id! } }, undefined, options);
 
     // Get relationship metadata (cached)
     const rel = await system.database.getRelationship(model!, relationship!);
@@ -24,7 +24,7 @@ export default withTransaction(async ({ system, params, query, body }) => {
     // Create the child record with the parent relationship automatically set
     const recordData = {
         ...body,
-        [rel.fieldName]: record // Set the foreign key to the parent record ID
+        [rel.fieldName]: id // Set the foreign key to the parent record ID
     };
 
     const result = await system.database.createOne(rel.childModel, recordData);

@@ -2,7 +2,7 @@ import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * PUT /api/acls/:model/:record - Replace ACL lists entirely
+ * PUT /api/acls/:model/:id - Replace ACL lists entirely
  *
  * Completely replaces the access control lists with new values.
  * Request body should contain the complete new access lists:
@@ -16,7 +16,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Note: Any access list not provided will be set to empty array
  */
 export default withTransaction(async ({ system, params, query, body }) => {
-    const { model, record } = params;
+    const { model, id } = params;
     const options = { context: 'api' as const, trashed: query.trashed as any };
 
     // Validate and prepare updates for all ACL fields
@@ -30,7 +30,7 @@ export default withTransaction(async ({ system, params, query, body }) => {
             }
 
             // Validate all entries are strings (user IDs)
-            if (!body[field].every((id: any) => typeof id === 'string')) {
+            if (!body[field].every((userId: any) => typeof userId === 'string')) {
                 throw HttpErrors.badRequest(`${field} must contain only string user IDs`, 'INVALID_USER_ID_FORMAT');
             }
 
@@ -44,16 +44,16 @@ export default withTransaction(async ({ system, params, query, body }) => {
 
     // Verify record exists before updating (select404 automatically throws 404 if not found)
     await system.database.select404(model!, {
-        where: { id: record! },
+        where: { id: id! },
         select: ['id']
     }, undefined, options);
 
     // Replace all ACL lists (returns the updated record)
-    const updatedRecord = await system.database.updateOne(model!, record!, updates);
+    const updatedRecord = await system.database.updateOne(model!, id!, updates);
 
     // Return ACL data (middleware will wrap in success response)
     return {
-        record_id: record,
+        record_id: id,
         access_lists: {
             access_read: updatedRecord.access_read || [],
             access_edit: updatedRecord.access_edit || [],

@@ -4,12 +4,12 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * DELETE /api/data/:model/:record - Delete Single Record
+ * DELETE /api/data/:model/:id - Delete Single Record
  *
  * Tests soft delete functionality with trashed_at timestamps and error handling.
  */
 
-describe('DELETE /api/data/:model/:record - Delete Single Record', () => {
+describe('DELETE /api/data/:model/:id - Delete Single Record', () => {
     let tenant: TestTenant;
 
     beforeAll(async () => {

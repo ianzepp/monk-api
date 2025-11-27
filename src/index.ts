@@ -306,17 +306,17 @@ app.get('/api/data/:model', dataRoutes.ModelGet); // List records
 app.put('/api/data/:model', dataRoutes.ModelPut); // Bulk update records
 app.delete('/api/data/:model', dataRoutes.ModelDelete); // Bulk delete records
 
-app.get('/api/data/:model/:record', dataRoutes.RecordGet); // Get single record
-app.put('/api/data/:model/:record', dataRoutes.RecordPut); // Update single record
-app.delete('/api/data/:model/:record', dataRoutes.RecordDelete); // Delete single record
+app.get('/api/data/:model/:id', dataRoutes.RecordGet); // Get single record
+app.put('/api/data/:model/:id', dataRoutes.RecordPut); // Update single record
+app.delete('/api/data/:model/:id', dataRoutes.RecordDelete); // Delete single record
 
-app.get('/api/data/:model/:record/:relationship', dataRoutes.RelationshipGet); // Get array of related records
-app.post('/api/data/:model/:record/:relationship', dataRoutes.RelationshipPost); // Create new related record
-app.put('/api/data/:model/:record/:relationship', dataRoutes.RelationshipPut); // Bulk update related records (stub)
-app.delete('/api/data/:model/:record/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
-app.get('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
-app.put('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
-app.delete('/api/data/:model/:record/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
+app.get('/api/data/:model/:id/:relationship', dataRoutes.RelationshipGet); // Get array of related records
+app.post('/api/data/:model/:id/:relationship', dataRoutes.RelationshipPost); // Create new related record
+app.put('/api/data/:model/:id/:relationship', dataRoutes.RelationshipPut); // Bulk update related records (stub)
+app.delete('/api/data/:model/:id/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
+app.get('/api/data/:model/:id/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
+app.put('/api/data/:model/:id/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
+app.delete('/api/data/:model/:id/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
 
 // 33-find-api: Find API routes
 app.post('/api/find/:model', FindModelPost);
@@ -338,21 +338,21 @@ app.put('/api/user/profile', userRoutes.ProfilePut); // PUT /api/user/profile
 app.post('/api/user/deactivate', userRoutes.DeactivatePost); // POST /api/user/deactivate
 
 // 38-acls-api: Acls API routes
-app.get('/api/acls/:model/:record', aclsRoutes.RecordAclGet); // Get acls for a single record
-app.post('/api/acls/:model/:record', aclsRoutes.RecordAclPost); // Merge acls for a single record
-app.put('/api/acls/:model/:record', aclsRoutes.RecordAclPut); // Replace acls for a single record
-app.delete('/api/acls/:model/:record', aclsRoutes.RecordAclDelete); // Delete acls for a single record
+app.get('/api/acls/:model/:id', aclsRoutes.RecordAclGet); // Get acls for a single record
+app.post('/api/acls/:model/:id', aclsRoutes.RecordAclPost); // Merge acls for a single record
+app.put('/api/acls/:model/:id', aclsRoutes.RecordAclPut); // Replace acls for a single record
+app.delete('/api/acls/:model/:id', aclsRoutes.RecordAclDelete); // Delete acls for a single record
 
 // 39-stat-api: Stat API routes (record metadata without user data)
-app.get('/api/stat/:model/:record', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
+app.get('/api/stat/:model/:id', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
 
 // 41-sudo-api: Sudo API routes (require sudo token from /api/user/sudo)
 app.use('/api/sudo/*', middleware.sudoValidatorMiddleware);
 app.route('/api/sudo', sudoRouter);
 
 // 42-history-api: History API routes (change tracking and audit trails)
-app.get('/api/history/:model/:record', historyRoutes.RecordHistoryGet); // List all changes for a record
-app.get('/api/history/:model/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
+app.get('/api/history/:model/:id', historyRoutes.RecordHistoryGet); // List all changes for a record
+app.get('/api/history/:model/:id/:change', historyRoutes.ChangeGet); // Get specific change by change_id
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

@@ -2,7 +2,7 @@ import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
- * POST /api/acls/:model/:record - Merge ACL entries
+ * POST /api/acls/:model/:id - Merge ACL entries
  *
  * Merges new user IDs into existing access control lists.
  * Request body should contain arrays of user IDs to add:
@@ -14,7 +14,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * }
  */
 export default withTransaction(async ({ system, params, query, body }) => {
-    const { model, record } = params;
+    const { model, id } = params;
     const options = { context: 'api' as const, trashed: query.trashed as any };
 
     // Validate request body structure
@@ -29,7 +29,7 @@ export default withTransaction(async ({ system, params, query, body }) => {
             }
 
             // Validate all entries are strings (user IDs)
-            if (!body[field].every((id: any) => typeof id === 'string')) {
+            if (!body[field].every((userId: any) => typeof userId === 'string')) {
                 throw HttpErrors.badRequest(`${field} must contain only string user IDs`, 'INVALID_USER_ID_FORMAT');
             }
 
@@ -44,7 +44,7 @@ export default withTransaction(async ({ system, params, query, body }) => {
 
     // Get current record to merge with existing ACLs (select404 automatically throws 404 if not found)
     const currentRecord = await system.database.select404(model!, {
-        where: { id: record! },
+        where: { id: id! },
         select: ['id', 'access_read', 'access_edit', 'access_full', 'access_deny']
     }, undefined, options);
 
@@ -60,11 +60,11 @@ export default withTransaction(async ({ system, params, query, body }) => {
     }
 
     // Update the record (returns the updated record)
-    const updatedRecord = await system.database.updateOne(model!, record!, mergedUpdates);
+    const updatedRecord = await system.database.updateOne(model!, id!, mergedUpdates);
 
     // Return ACL data (middleware will wrap in success response)
     return {
-        record_id: record,
+        record_id: id,
         updated_lists: Object.keys(mergedUpdates),
         access_lists: {
             access_read: updatedRecord.access_read || [],

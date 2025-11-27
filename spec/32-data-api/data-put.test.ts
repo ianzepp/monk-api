@@ -4,12 +4,12 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * PUT /api/data/:model/:record - Update Single Record
+ * PUT /api/data/:model/:id - Update Single Record
  *
  * Tests record updates with field merging, timestamp updates, and error handling.
  */
 
-describe('PUT /api/data/:model/:record - Update Single Record', () => {
+describe('PUT /api/data/:model/:id - Update Single Record', () => {
     let tenant: TestTenant;
     let recordId: string;
 

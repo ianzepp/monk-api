@@ -10,8 +10,8 @@ import { expectSuccess, expectError } from '../test-assertions.js';
  * for fields with tracked=true.
  *
  * Endpoints:
- * - GET /api/history/:model/:record - Get all history for a record
- * - GET /api/history/:model/:record/:change - Get specific change
+ * - GET /api/history/:model/:id - Get all history for a record
+ * - GET /api/history/:model/:id/:change - Get specific change
  */
 
 describe('History API - Change Tracking', () => {
@@ -199,7 +199,7 @@ describe('History API - Change Tracking', () => {
         });
     });
 
-    describe('GET /api/history/:model/:record/:change - Specific Change', () => {
+    describe('GET /api/history/:model/:id/:change - Specific Change', () => {
         it('should retrieve specific change by change_id', async () => {
             // Get all history first
             const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);

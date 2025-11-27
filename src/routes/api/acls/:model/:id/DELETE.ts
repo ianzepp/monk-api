@@ -1,7 +1,7 @@
 import { withTransaction } from '@src/lib/api-helpers.js';
 
 /**
- * DELETE /api/acls/:model/:record - Clear all ACL lists
+ * DELETE /api/acls/:model/:id - Clear all ACL lists
  *
  * Removes all access control entries and returns the record to default status.
  * This sets all four access arrays to empty arrays:
@@ -13,12 +13,12 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  * After this operation, the record will use default role-based permissions.
  */
 export default withTransaction(async ({ system, params, query }) => {
-    const { model, record } = params;
+    const { model, id } = params;
     const options = { context: 'api' as const, trashed: query.trashed as any };
 
     // Verify record exists before updating (select404 automatically throws 404 if not found)
     await system.database.select404(model!, {
-        where: { id: record! },
+        where: { id: id! },
         select: ['id']
     }, undefined, options);
 
@@ -30,11 +30,11 @@ export default withTransaction(async ({ system, params, query }) => {
         access_deny: []
     };
 
-    const result = await system.database.updateOne(model!, record!, updates);
+    const result = await system.database.updateOne(model!, id!, updates);
 
     // Return ACL data (middleware will wrap in success response)
     return {
-        record_id: record,
+        record_id: id,
         model: model,
         status: 'default_permissions',
         access_lists: {

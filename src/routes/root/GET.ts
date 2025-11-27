@@ -44,9 +44,9 @@ export default function (context: Context) {
                 ],
                 data: [
                     '/api/data/:model',
-                    '/api/data/:model/:record',
-                    '/api/data/:model/:record/:relationship',
-                    '/api/data/:model/:record/:relationship/:child'
+                    '/api/data/:model/:id',
+                    '/api/data/:model/:id/:relationship',
+                    '/api/data/:model/:id/:relationship/:child'
                 ],
                 find: [
                     '/api/find/:model'
@@ -65,14 +65,14 @@ export default function (context: Context) {
                     '/api/user/deactivate'
                 ],
                 acls: [
-                    '/api/acls/:model/:record'
+                    '/api/acls/:model/:id'
                 ],
                 stat: [
-                    '/api/stat/:model/:record'
+                    '/api/stat/:model/:id'
                 ],
                 history: [
-                    '/api/history/:model/:record',
-                    '/api/history/:model/:record/:change'
+                    '/api/history/:model/:id',
+                    '/api/history/:model/:id/:change'
                 ],
                 sudo: [
                     '/api/sudo/sandboxes/',

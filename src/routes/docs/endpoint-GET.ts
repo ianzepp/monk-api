@@ -51,7 +51,7 @@ export default async function (context: Context) {
         const placeholderMap: Record<string, string> = {
             'model': ':model',
             'field': ':field',
-            'record': ':record',
+            'id': ':id',
             'relationship': ':relationship',
             'child': ':child',
         };
@@ -149,7 +149,7 @@ function findMethodDocumentation(
         pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', `${method}.md`));
     }
 
-    // Pattern: model/record → :model/:record
+    // Pattern: model/id → :model/:id
     // Pattern: model/field → :model/fields/:field
     if (pathSegments.length === 4 && pathSegments[2] === 'model') {
         const base = pathSegments.slice(0, 2);
@@ -160,16 +160,16 @@ function findMethodDocumentation(
         }
     }
 
-    // Pattern: model/record/relationship → :model/:record/:relationship
+    // Pattern: model/id/relationship → :model/:id/:relationship
     if (pathSegments.length === 5) {
         const base = pathSegments.slice(0, 2);
-        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':record', ':relationship', `${method}.md`));
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':id', ':relationship', `${method}.md`));
     }
 
-    // Pattern: model/record/relationship/child → :model/:record/:relationship/:child
+    // Pattern: model/id/relationship/child → :model/:id/:relationship/:child
     if (pathSegments.length === 6) {
         const base = pathSegments.slice(0, 2);
-        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':record', ':relationship', ':child', `${method}.md`));
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':id', ':relationship', ':child', `${method}.md`));
     }
 
     // Try each path until we find one that exists
