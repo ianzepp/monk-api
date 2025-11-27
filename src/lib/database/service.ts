@@ -28,6 +28,8 @@ import type { ModelName } from '@src/lib/model.js';
 import * as selectOps from './select.js';
 import * as mutateOps from './mutate.js';
 import * as accessOps from './access.js';
+import * as exportOps from './export.js';
+import type { ExportOptions, ExportResult } from './export.js';
 
 /**
  * Database service wrapper providing high-level operations
@@ -305,6 +307,33 @@ export class Database {
         message?: string
     ): Promise<DbRecord<T>> {
         return accessOps.access404<T>(this.system, modelName, filter, accessChanges, message);
+    }
+
+    // ========================================================================
+    // Export Operations
+    // ========================================================================
+
+    /**
+     * Export tenant data to SQLite format
+     *
+     * Creates an in-memory SQLite database containing model definitions and data.
+     * Useful for bulk export, snapshots, backups, and data migration.
+     *
+     * @param options - Export options (models to include, what to export)
+     * @returns Export result with SQLite buffer and metadata
+     *
+     * @example
+     * // Export all non-system models
+     * const result = await db.exportAll();
+     *
+     * // Export specific models, schema only
+     * const result = await db.exportAll({
+     *   models: ['orders', 'products'],
+     *   include: ['describe']
+     * });
+     */
+    async exportAll(options: ExportOptions = {}): Promise<ExportResult> {
+        return exportOps.exportAll(this.system, options);
     }
 
     // ========================================================================

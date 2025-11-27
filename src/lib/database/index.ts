@@ -12,6 +12,7 @@
 // Database Service (high-level operations)
 export { Database } from './service.js';
 export type { CachedRelationship, SelectOptions } from './types.js';
+export type { ExportOptions, ExportResult } from './export.js';
 
 // Database Adapters (low-level connections)
 export type { DatabaseAdapter, QueryResult, DatabaseType, AdapterConfig } from './adapter.js';
