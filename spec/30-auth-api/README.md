@@ -7,8 +7,8 @@
 ## Critical / Smoke Tests
 
 ### Tested (4) - COMPLETE ✅
-- POST /auth/register - User registration with tenant creation ✅ (6 tests | 3 skipped)
-  - Tests: Tenant creation, custom username, invalid template, duplicate tenant
+- POST /auth/register - User registration with tenant creation ✅ (3 tests | 2 skipped)
+  - Tests: Tenant creation, custom username, duplicate tenant
   - Skipped: Enterprise mode database restrictions, personal mode collisions
 - POST /auth/login - Authenticate with valid credentials and comprehensive error handling ✅ (6 tests | 1 skipped)
   - Tests: Valid login, format preference, missing tenant, missing username, nonexistent tenant, invalid username
