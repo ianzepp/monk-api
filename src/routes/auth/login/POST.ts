@@ -6,19 +6,21 @@ import { createAdapterFrom } from '@src/lib/database/index.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import { getClientIp, isIpAllowed } from '@src/lib/ip-utils.js';
 import { Infrastructure } from '@src/lib/infrastructure.js';
+import { verifyPassword } from '@src/lib/credentials/index.js';
 
 /**
- * POST /auth/login - Authenticate user with tenant and username
+ * POST /auth/login - Authenticate user with tenant, username, and password
  *
  * Error codes:
  * - AUTH_TENANT_MISSING: Missing tenant field (400)
  * - AUTH_USERNAME_MISSING: Missing username field (400)
+ * - AUTH_PASSWORD_REQUIRED: User has password but none provided (400)
  * - AUTH_LOGIN_FAILED: Invalid credentials or tenant not found (401)
  *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username, format } = await context.req.json();
+    const { tenant, username, password, format } = await context.req.json();
 
     console.info('/auth/login', { tenant, username, format });
 
@@ -90,6 +92,65 @@ export default async function (context: Context) {
     }
 
     const user = userResult.rows[0];
+
+    // Check for password credential
+    let credentialResult: { rows: any[] };
+
+    if (dbType === 'sqlite') {
+        const adapter = createAdapterFrom('sqlite', dbName, nsName);
+        await adapter.connect();
+        try {
+            credentialResult = await adapter.query(
+                `SELECT secret FROM credentials
+                 WHERE user_id = $1 AND type = 'password' AND deleted_at IS NULL
+                 ORDER BY created_at DESC LIMIT 1`,
+                [user.id]
+            );
+        } finally {
+            await adapter.disconnect();
+        }
+    } else {
+        credentialResult = await DatabaseConnection.queryInNamespace(
+            dbName,
+            nsName,
+            `SELECT secret FROM credentials
+             WHERE user_id = $1 AND type = 'password' AND deleted_at IS NULL
+             ORDER BY created_at DESC LIMIT 1`,
+            [user.id]
+        );
+    }
+
+    // If user has a password credential, verify it
+    if (credentialResult.rows && credentialResult.rows.length > 0) {
+        const storedHash = credentialResult.rows[0].secret;
+
+        // Password is required if user has one set
+        if (!password) {
+            throw HttpErrors.badRequest(
+                'Password is required',
+                'AUTH_PASSWORD_REQUIRED'
+            );
+        }
+
+        // Verify password
+        const isValid = await verifyPassword(password, storedHash);
+        if (!isValid) {
+            return context.json(
+                {
+                    success: false,
+                    error: 'Authentication failed',
+                    error_code: 'AUTH_LOGIN_FAILED',
+                },
+                401
+            );
+        }
+
+        console.info('Password verified for user:', { userId: user.id });
+    } else {
+        // No password set - allow login (backwards compatible)
+        // TODO: Consider making password required for new tenants
+        console.info('No password credential found for user:', { userId: user.id });
+    }
 
     // Generate JWT token directly
     const payload: JWTPayload = {

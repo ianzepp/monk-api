@@ -36,11 +36,13 @@ export const ROOT_USER_ID = '00000000-0000-0000-0000-000000000000';
 // Root user customization happens via parameterized UPDATE after seed
 const TENANT_SEED_SQLITE = `
 -- Register core models
-INSERT OR IGNORE INTO "models" (id, model_name, status, sudo) VALUES
-    ('${randomUUID()}', 'models', 'system', 1),
-    ('${randomUUID()}', 'fields', 'system', 1),
-    ('${randomUUID()}', 'users', 'system', 1),
-    ('${randomUUID()}', 'filters', 'system', 0);
+INSERT OR IGNORE INTO "models" (id, model_name, status, sudo, description) VALUES
+    ('${randomUUID()}', 'models', 'system', 1, NULL),
+    ('${randomUUID()}', 'fields', 'system', 1, NULL),
+    ('${randomUUID()}', 'users', 'system', 1, NULL),
+    ('${randomUUID()}', 'filters', 'system', 0, NULL),
+    ('${randomUUID()}', 'credentials', 'system', 1, 'User authentication credentials'),
+    ('${randomUUID()}', 'tracked', 'system', 1, 'Change tracking and audit trail');
 
 -- Fields for models
 INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, default_value, description) VALUES
@@ -95,6 +97,29 @@ INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, desc
     ('${randomUUID()}', 'filters', 'order', 'jsonb', 0, 'Sort order'),
     ('${randomUUID()}', 'filters', 'limit', 'integer', 0, 'Max records'),
     ('${randomUUID()}', 'filters', 'offset', 'integer', 0, 'Records to skip');
+
+-- Fields for credentials
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, description) VALUES
+    ('${randomUUID()}', 'credentials', 'user_id', 'uuid', 1, 'Reference to the user'),
+    ('${randomUUID()}', 'credentials', 'type', 'text', 1, 'Credential type: password, api_key'),
+    ('${randomUUID()}', 'credentials', 'identifier', 'text', 0, 'Public identifier (API key prefix)'),
+    ('${randomUUID()}', 'credentials', 'secret', 'text', 1, 'Hashed secret value'),
+    ('${randomUUID()}', 'credentials', 'algorithm', 'text', 0, 'Hashing algorithm used'),
+    ('${randomUUID()}', 'credentials', 'permissions', 'text', 0, 'JSON permissions for API keys'),
+    ('${randomUUID()}', 'credentials', 'name', 'text', 0, 'Friendly name for the credential'),
+    ('${randomUUID()}', 'credentials', 'expires_at', 'timestamp', 0, 'Expiration timestamp'),
+    ('${randomUUID()}', 'credentials', 'last_used_at', 'timestamp', 0, 'Last usage timestamp');
+
+-- Fields for tracked
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, description) VALUES
+    ('${randomUUID()}', 'tracked', 'change_id', 'bigserial', 1, 'Auto-incrementing change identifier'),
+    ('${randomUUID()}', 'tracked', 'model_name', 'text', 1, 'Model where the change occurred'),
+    ('${randomUUID()}', 'tracked', 'record_id', 'uuid', 1, 'ID of the changed record'),
+    ('${randomUUID()}', 'tracked', 'operation', 'text', 1, 'Operation type: create, update, delete'),
+    ('${randomUUID()}', 'tracked', 'changes', 'jsonb', 1, 'Field-level changes with old/new values'),
+    ('${randomUUID()}', 'tracked', 'created_by', 'uuid', 0, 'ID of the user who made the change'),
+    ('${randomUUID()}', 'tracked', 'request_id', 'text', 0, 'Request correlation ID'),
+    ('${randomUUID()}', 'tracked', 'metadata', 'jsonb', 0, 'Additional context');
 
 -- Root user with well-known ID (customized via parameterized UPDATE if needed)
 INSERT OR IGNORE INTO "users" (id, name, auth, access) VALUES

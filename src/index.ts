@@ -325,6 +325,10 @@ app.get('/api/user/whoami', (c) => c.redirect('/api/user/me', 301)); // Legacy r
 app.get('/api/user/:id', userRoutes.UserGet); // GET /api/user/:id - Get user (self or sudo)
 app.put('/api/user/:id', userRoutes.UserUpdate); // PUT /api/user/:id - Update user (self or sudo)
 app.delete('/api/user/:id', userRoutes.UserDelete); // DELETE /api/user/:id - Delete user (self or sudo)
+app.post('/api/user/:id/password', userRoutes.PasswordPost); // POST /api/user/:id/password - Set/change password
+app.get('/api/user/:id/keys', userRoutes.KeysList); // GET /api/user/:id/keys - List API keys
+app.post('/api/user/:id/keys', userRoutes.KeysCreate); // POST /api/user/:id/keys - Create API key
+app.delete('/api/user/:id/keys/:keyId', userRoutes.KeysDelete); // DELETE /api/user/:id/keys/:keyId - Delete API key
 
 // 38-acls-api: Acls API routes
 app.get('/api/acls/:model/:id', aclsRoutes.RecordAclGet); // Get acls for a single record

@@ -127,6 +127,35 @@ ALTER TABLE "filters" ADD CONSTRAINT "filters_models_model_name_fk"
     FOREIGN KEY ("model_name") REFERENCES "models"("model_name")
     ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- Credentials table (passwords, API keys, OAuth tokens)
+CREATE TABLE IF NOT EXISTS "credentials" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    "user_id" uuid NOT NULL,
+    "type" text NOT NULL CHECK ("type" IN ('password', 'api_key')),
+    "identifier" text,
+    "secret" text NOT NULL,
+    "algorithm" text,
+    "permissions" text,
+    "name" text,
+    "expires_at" timestamp,
+    "last_used_at" timestamp,
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "idx_credentials_user_type"
+    ON "credentials" ("user_id", "type", "created_at" DESC);
+
+CREATE INDEX IF NOT EXISTS "idx_credentials_identifier"
+    ON "credentials" ("type", "identifier") WHERE "identifier" IS NOT NULL;
+
 -- Tracked table (change tracking and audit trails)
 CREATE TABLE IF NOT EXISTS "tracked" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -161,6 +190,7 @@ INSERT INTO "models" (model_name, status, sudo, description) VALUES
     ('fields', 'system', true, NULL),
     ('users', 'system', true, NULL),
     ('filters', 'system', false, NULL),
+    ('credentials', 'system', true, 'User authentication credentials'),
     ('tracked', 'system', true, 'Change tracking and audit trail')
 ON CONFLICT (model_name) DO NOTHING;
 
@@ -220,6 +250,19 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
     ('filters', 'order', 'jsonb', false, 'Sort order'),
     ('filters', 'limit', 'integer', false, 'Maximum records'),
     ('filters', 'offset', 'integer', false, 'Records to skip')
+ON CONFLICT (model_name, field_name) DO NOTHING;
+
+-- Fields for credentials
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
+    ('credentials', 'user_id', 'uuid', true, 'Reference to the user who owns this credential'),
+    ('credentials', 'type', 'text', true, 'Credential type: password, api_key'),
+    ('credentials', 'identifier', 'text', false, 'Public identifier (API key prefix)'),
+    ('credentials', 'secret', 'text', true, 'Hashed secret value'),
+    ('credentials', 'algorithm', 'text', false, 'Hashing algorithm used'),
+    ('credentials', 'permissions', 'text', false, 'JSON permissions for API keys'),
+    ('credentials', 'name', 'text', false, 'Friendly name for the credential'),
+    ('credentials', 'expires_at', 'timestamp', false, 'Expiration timestamp'),
+    ('credentials', 'last_used_at', 'timestamp', false, 'Last usage timestamp')
 ON CONFLICT (model_name, field_name) DO NOTHING;
 
 -- Fields for tracked

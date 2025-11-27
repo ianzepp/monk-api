@@ -26,3 +26,11 @@ export { default as UserDelete } from './:id/DELETE.js';
 // Special endpoints
 export { default as SudoPost } from './sudo/POST.js';
 export { default as FakePost } from './fake/POST.js';
+
+// Password management
+export { default as PasswordPost } from './:id/password/POST.js';
+
+// API key management
+export { default as KeysList } from './:id/keys/GET.js';
+export { default as KeysCreate } from './:id/keys/POST.js';
+export { default as KeysDelete } from './:id/keys/:keyId/DELETE.js';

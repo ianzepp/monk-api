@@ -107,6 +107,35 @@ CREATE TABLE IF NOT EXISTS "filters" (
 
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_filters_model_name" ON "filters" ("model_name", "name");
 
+-- Credentials table (passwords, API keys, OAuth tokens)
+CREATE TABLE IF NOT EXISTS "credentials" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    "user_id" TEXT NOT NULL,
+    "type" TEXT NOT NULL CHECK ("type" IN ('password', 'api_key')),
+    "identifier" TEXT,
+    "secret" TEXT NOT NULL,
+    "algorithm" TEXT,
+    "permissions" TEXT,
+    "name" TEXT,
+    "expires_at" TEXT,
+    "last_used_at" TEXT,
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "idx_credentials_user_type"
+    ON "credentials" ("user_id", "type", "created_at" DESC);
+
+CREATE INDEX IF NOT EXISTS "idx_credentials_identifier"
+    ON "credentials" ("type", "identifier");
+
 -- Tracked table (change tracking and audit trails)
 -- Note: change_id uses INTEGER PRIMARY KEY for auto-increment in SQLite
 -- The "id" field is kept for API compatibility but change_id is the actual PK
@@ -131,3 +160,9 @@ CREATE TABLE IF NOT EXISTS "tracked" (
 );
 
 CREATE INDEX IF NOT EXISTS "idx_tracked_model_record" ON "tracked" (model_name, record_id, change_id DESC);
+
+-- =============================================================================
+-- NOTE: Seed data for SQLite is managed in src/lib/infrastructure.ts
+-- (TENANT_SEED_SQLITE constant) to allow dynamic UUID generation at runtime.
+-- PostgreSQL seed data is in tenant.pg.sql using gen_random_uuid().
+-- =============================================================================
