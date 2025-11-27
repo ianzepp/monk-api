@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
+import { HttpClient } from '../http-client.js';
 
 /**
  * User API Tests
@@ -14,9 +15,24 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 
 describe('User API', () => {
     let tenant: TestTenant;
+    let nonRootClient: HttpClient;
 
     beforeAll(async () => {
+        // Create tenant with root user
         tenant = await TestHelpers.createTestTenant('user-api');
+
+        // Create a non-root user for self-service tests
+        const createUserResponse = await tenant.httpClient.post('/api/user', {
+            name: 'Test User',
+            auth: 'testuser',
+            access: 'edit',
+        });
+        expectSuccess(createUserResponse);
+
+        // Login as the non-root user
+        const loginToken = await TestHelpers.loginToTenant(tenant.tenantName, 'testuser');
+        nonRootClient = new HttpClient('http://localhost:9001');
+        nonRootClient.setAuthToken(loginToken);
     });
 
     describe('GET /api/user/me - User Profile', () => {
@@ -60,7 +76,7 @@ describe('User API', () => {
         it('should allow updating user name', async () => {
             const newName = `Updated Name ${Date.now()}`;
 
-            const response = await tenant.httpClient.put('/api/user/me', {
+            const response = await nonRootClient.put('/api/user/me', {
                 name: newName,
             });
 
@@ -69,23 +85,18 @@ describe('User API', () => {
         });
 
         it('should reject access level changes for self-service', async () => {
-            const response = await tenant.httpClient.put('/api/user/me', {
+            // Use non-root user to test self-service restrictions
+            const response = await nonRootClient.put('/api/user/me', {
                 access: 'root',
             });
 
-            // Should either reject with error or ignore the field
-            if (response.success) {
-                // If it succeeds, verify access wasn't actually changed
-                const profile = await tenant.httpClient.get('/api/user/me');
-                expect(profile.data.access).not.toBe('root');
-            } else {
-                // Error response - just verify it failed
-                expectError(response);
-            }
+            // Should reject with error since non-root users can't change access
+            expectError(response);
         });
 
         it('should validate name minimum length', async () => {
-            const response = await tenant.httpClient.put('/api/user/me', {
+            // Use non-root user to test validation (root users bypass validation)
+            const response = await nonRootClient.put('/api/user/me', {
                 name: 'a', // Too short
             });
 
@@ -128,7 +139,21 @@ describe('User API', () => {
 
     describe('DELETE /api/user/me - Account Deactivation', () => {
         it('should require confirmation for deactivation', async () => {
-            const response = await tenant.httpClient.delete('/api/user/me', {});
+            // Create a disposable user for this test
+            const createResponse = await tenant.httpClient.post('/api/user', {
+                name: 'Disposable User',
+                auth: 'disposable',
+                access: 'edit',
+            });
+            expectSuccess(createResponse);
+
+            // Login as disposable user
+            const disposableToken = await TestHelpers.loginToTenant(tenant.tenantName, 'disposable');
+            const disposableClient = new HttpClient('http://localhost:9001');
+            disposableClient.setAuthToken(disposableToken);
+
+            // Try to delete without confirmation - should fail
+            const response = await disposableClient.delete('/api/user/me', {});
 
             // Should require explicit confirmation
             expectError(response);

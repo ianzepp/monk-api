@@ -44,12 +44,24 @@ export default async function (context: Context) {
     }
 
     // Create tenant with full provisioning
-    const result = await Infrastructure.createTenant({
-        name: tenant,
-        db_type: dbType,
-        owner_username: username || 'root',
-        description: description,
-    });
+    let result;
+    try {
+        result = await Infrastructure.createTenant({
+            name: tenant,
+            db_type: dbType,
+            owner_username: username || 'root',
+            description: description,
+        });
+    } catch (error: any) {
+        // Check for duplicate tenant error
+        if (error.message?.includes('already exists')) {
+            throw HttpErrors.conflict(
+                `Tenant '${tenant}' already exists`,
+                'DATABASE_TENANT_EXISTS'
+            );
+        }
+        throw error;
+    }
 
     // Generate JWT token for the new user
     const token = await JWTGenerator.generateToken({

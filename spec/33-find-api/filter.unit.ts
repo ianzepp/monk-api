@@ -613,7 +613,7 @@ describe('Filter - Edge Cases', () => {
     it('should handle soft delete options', () => {
         const filter = new Filter('users')
             .assign({ where: { status: 'active' } })
-            .withSoftDeleteOptions({ trashed: 'exclude' });
+            .withTrashed({ trashed: 'exclude' });
 
         const { query } = filter.toSQL();
         expect(query).toContain('WHERE');

@@ -381,7 +381,7 @@ describe('Database.aggregate() - Soft Delete Integration', () => {
         database = createMockDatabase();
 
         defaultOptionsSpy = vi.spyOn(database as any, 'getDefaultSoftDeleteOptions');
-        softDeleteSpy = vi.spyOn(Filter.prototype, 'withSoftDeleteOptions');
+        softDeleteSpy = vi.spyOn(Filter.prototype, 'withTrashed');
     });
 
     afterEach(() => {

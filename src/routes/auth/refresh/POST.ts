@@ -82,7 +82,7 @@ export default async function (context: Context) {
     const userResult = await DatabaseConnection.queryInNamespace(
         dbName,
         nsName,
-        'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+        'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
         [payload.sub]
     );
 
@@ -128,7 +128,7 @@ export default async function (context: Context) {
             expires_in: 24 * 60 * 60, // seconds
             user: {
                 id: user.id,
-                username: user.name,
+                username: user.auth,
                 tenant: tenantName,
                 access: user.access,
                 ...(newPayload.format && { format: newPayload.format }),

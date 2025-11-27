@@ -21,7 +21,9 @@ export default defineConfig({
     resolve: {
         alias: {
             '@src': resolve(__dirname, './src'),
-            '@spec': resolve(__dirname, './spec')
+            '@spec': resolve(__dirname, './spec'),
+            // Mock bun:sqlite for unit tests (Bun-specific module not available in Vitest/Node)
+            'bun:sqlite': resolve(__dirname, './spec/mocks/bun-sqlite.mock.ts'),
         }
     },
     test: {

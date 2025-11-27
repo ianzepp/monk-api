@@ -62,7 +62,7 @@ export default async function (context: Context) {
         await adapter.connect();
         try {
             userResult = await adapter.query(
-                'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+                'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
                 [username]
             );
         } finally {
@@ -73,7 +73,7 @@ export default async function (context: Context) {
         userResult = await DatabaseConnection.queryInNamespace(
             dbName,
             nsName,
-            'SELECT id, name, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+            'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
             [username]
         );
     }
@@ -184,7 +184,7 @@ export default async function (context: Context) {
             token,
             user: {
                 id: user.id,
-                username: user.name,
+                username: user.auth,
                 tenant: name,
                 access: user.access,
                 ...(format && ['json', 'toon', 'yaml'].includes(format) && { format }),
