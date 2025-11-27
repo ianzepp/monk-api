@@ -2,8 +2,8 @@
 # Build standalone Monk API distribution
 #
 # Creates a single executable using Bun's compile feature.
-# The resulting binary includes all dependencies and can run with just:
-#   DATABASE_URL=sqlite:root ./monk-api
+# The resulting binary runs in SQLite mode with zero configuration:
+#   ./monk-api
 #
 # Output: dist-standalone/monk-api (or monk-api.exe on Windows)
 
@@ -19,13 +19,14 @@ echo ""
 
 # 1. Ensure TypeScript is compiled
 echo -e "${BLUE}[1/4] Compiling TypeScript...${NC}"
-npm run build
+bun run build
 
 # 2. Create output directory
 echo -e "${BLUE}[2/4] Preparing output directory...${NC}"
+rm -rf dist-standalone
 mkdir -p dist-standalone
 
-# 3. Copy fixtures (needed at runtime for initialization)
+# 3. Copy fixtures (needed at runtime for tenant initialization)
 echo -e "${BLUE}[3/4] Copying fixtures...${NC}"
 cp -r fixtures dist-standalone/
 
@@ -36,7 +37,6 @@ bun build \
     --minify \
     --sourcemap \
     --external @aws-sdk/client-s3 \
-    --external better-sqlite3 \
     ./dist/index.js \
     --outfile dist-standalone/monk-api
 
@@ -53,16 +53,16 @@ echo "  cd dist-standalone"
 echo "  ./monk-api"
 echo ""
 echo "The server will:"
-echo "  - Default to DATABASE_URL=sqlite:root (no config needed)"
-echo "  - Auto-create SQLite database in .data/db_main/root.db"
-echo "  - Create root user (login: root)"
+echo "  - Start in SQLite mode (no external database needed)"
+echo "  - Create .data/ directory for databases"
 echo "  - Listen on port 9001"
+echo "  - Start with 0 tenants (register to create one)"
 echo ""
-echo "Override defaults with environment variables:"
-echo "  DATABASE_URL=sqlite:myapp ./monk-api      # Different tenant name"
-echo "  PORT=8080 ./monk-api                       # Different port"
-echo ""
-echo "Test with:"
-echo "  curl -X POST http://localhost:9001/auth/login \\"
+echo "Register your first tenant:"
+echo "  curl -X POST http://localhost:9001/auth/register \\"
 echo "    -H 'Content-Type: application/json' \\"
-echo "    -d '{\"tenant\":\"root\",\"username\":\"root\"}'"
+echo "    -d '{\"tenant\":\"demo\",\"username\":\"admin\",\"password\":\"secret\"}'"
+echo ""
+echo "Environment overrides:"
+echo "  PORT=8080 ./monk-api                  # Different port"
+echo "  JWT_SECRET=mysecret ./monk-api        # Production secret"

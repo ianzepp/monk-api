@@ -97,8 +97,6 @@ import * as aclsRoutes from '@src/routes/api/acls/routes.js';
 import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as historyRoutes from '@src/routes/api/history/routes.js';
-import * as extractRoutes from '@src/routes/api/extracts/routes.js';
-import * as restoreRoutes from '@src/routes/api/restores/routes.js';
 import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Special protected endpoints
@@ -235,17 +233,6 @@ app.get('/', context => {
                 '/api/sudo/templates/:name',
                 '/api/sudo/users/',
                 '/api/sudo/users/:id',
-            ],
-            extracts: [
-                '/api/extracts/:record/run',
-                '/api/extracts/:record/cancel',
-                '/api/extracts/runs/:runId/download',
-                '/api/extracts/artifacts/:artifactId/download'
-            ],
-            restores: [
-                '/api/restores/:record/run',
-                '/api/restores/:record/cancel',
-                '/api/restores/import'
             ],
             grids: [
                 '/api/grids/:id/:range',
@@ -473,19 +460,6 @@ app.route('/api/sudo', sudoRouter);
 // 42-history-api: History API routes (change tracking and audit trails)
 app.get('/api/history/:model/:record', historyRoutes.RecordHistoryGet); // List all changes for a record
 app.get('/api/history/:model/:record/:change', historyRoutes.ChangeGet); // Get specific change by change_id
-
-// 50-extracts-app: Extract application (data export jobs)
-app.post('/api/extracts/:record/run', extractRoutes.ExtractRun); // Queue extract job
-app.post('/api/extracts/:record/execute', extractRoutes.ExtractExecute); // Execute extract (internal, long-running)
-app.post('/api/extracts/:record/cancel', extractRoutes.ExtractCancel); // Cancel running extract
-app.get('/api/extracts/runs/:runId/download', extractRoutes.RunDownload); // Download all artifacts as ZIP
-app.get('/api/extracts/artifacts/:artifactId/download', extractRoutes.ArtifactDownload); // Download single artifact
-
-// 51-restores-app: Restore application (data import jobs)
-app.post('/api/restores/:record/run', restoreRoutes.RestoreRun); // Queue restore job
-app.post('/api/restores/:record/execute', restoreRoutes.RestoreExecute); // Execute restore (internal, long-running)
-app.post('/api/restores/:record/cancel', restoreRoutes.RestoreCancel); // Cancel running restore
-app.post('/api/restores/import', restoreRoutes.RestoreImport); // Upload and run in one call
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

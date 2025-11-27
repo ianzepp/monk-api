@@ -51,18 +51,14 @@
         "@monk/formatter-msgpack": "file:./packages/formatter-msgpack",
         "@monk/formatter-qr": "file:./packages/formatter-qr",
         "@monk/formatter-toml": "file:./packages/formatter-toml",
-        "@monk/mcp": "file:./packages/mcp",
-        "archiver": "^7.0.1",
-        "unzipper": "^0.12.3"
+        "@monk/mcp": "file:./packages/mcp"
     },
     "devDependencies": {
         "@faker-js/faker": "^10.0.0",
         "@modelcontextprotocol/sdk": "^1.22.0",
-        "@types/archiver": "^7.0.0",
         "@types/bun": "^1.3.3",
         "@types/js-yaml": "^4.0.9",
         "@types/pg": "^8.15.5",
-        "@types/unzipper": "^0.10.11",
         "tsc-alias": "^1.8.16",
         "typescript": "^5.6.3",
         "vitest": "^3.2.4"
