@@ -226,9 +226,28 @@ monk data select account            # Lists from staging database
 
 ### Multi-tenant Architecture
 
-Monk API implements a sophisticated multi-database architecture with four entity types:
+Monk API supports two database backends with different isolation models:
 
-#### Infrastructure Entities
+#### PostgreSQL (Schema-per-Tenant)
+
+Tenants share a regional database (e.g., `us_east`, `eu_west`) with isolation via PostgreSQL schemas:
+
+- **Regional Database**: Single database per region, multiple tenant schemas
+- **Schema Naming**: `tenant_*` (e.g., `tenant_acme_abc123`) within regional DB
+- **Isolation**: Each tenant operates in its own schema/namespace
+- **JWT Routing**: Tokens contain tenant, database, and schema for automatic routing
+- **Scaling**: Add regional databases as needed, distribute tenants across regions
+
+#### SQLite (File-per-Tenant)
+
+Each tenant gets a dedicated SQLite file:
+
+- **File Location**: Configurable directory with one `.db` file per tenant
+- **Portability**: Self-contained, easily moved/backed up
+- **Distribution**: Entire API + SQLite compiles to standalone executable
+- **Use Case**: Edge deployments, embedded scenarios, development
+
+#### Infrastructure Entities (PostgreSQL)
 
 **Templates** (Immutable Prototypes)
 - **Database**: `monk_template_*` (e.g., `monk_template_system`)
@@ -237,16 +256,15 @@ Monk API implements a sophisticated multi-database architecture with four entity
 - **Lifecycle**: Immutable, created via fixtures build process
 - **Performance**: Instant cloning via PostgreSQL's `CREATE DATABASE WITH TEMPLATE`
 
-**Tenants** (Production Databases)
-- **Database**: `tenant_*` (e.g., `tenant_acme_abc123`)
+**Tenants** (Production)
+- **Schema**: `tenant_*` within regional database
 - **Registry**: `tenants` table in central `monk` database
-- **Purpose**: Production customer databases
+- **Purpose**: Production customer data
 - **Lifecycle**: Long-lived, created from templates
-- **JWT Routing**: Tokens contain tenant and database information for automatic routing
-- **Isolation**: Each tenant gets separate database and user management
+- **JWT Routing**: Tokens contain tenant and schema information for automatic routing
 
 **Sandboxes** (Temporary Testing)
-- **Database**: `sandbox_*` (e.g., `sandbox_acme_xyz789`)
+- **Schema**: `sandbox_*` within regional database
 - **Registry**: `sandboxes` table in central `monk` database
 - **Purpose**: Temporary experimental environments for safe testing
 - **Lifecycle**: Short-lived with expiration dates (typically 7-14 days)
@@ -255,13 +273,13 @@ Monk API implements a sophisticated multi-database architecture with four entity
 - **API**: Managed via `/api/sudo/sandboxes/*` endpoints
 
 **Snapshots** (Point-in-Time Backups)
-- **Database**: `snapshot_*` (e.g., `snapshot_acme_backup123`)
-- **Registry**: `snapshots` table in **tenant databases** (not central `monk`)
+- **Storage**: `snapshot_*` schema or exported file
+- **Registry**: `snapshots` table in **tenant schemas** (not central `monk`)
 - **Purpose**: Backup before migrations, disaster recovery
 - **Processing**: Async via observer pipeline using `pg_dump`/`pg_restore`
 - **Status**: `pending` → `processing` → `active` or `failed`
-- **Immutability**: Read-only after creation (`default_transaction_read_only = on`)
-- **Restriction**: Only from tenant databases (not sandboxes)
+- **Immutability**: Read-only after creation
+- **Restriction**: Only from tenant schemas (not sandboxes)
 - **API**: Managed via `/api/sudo/snapshots/*` endpoints
 
 #### Infrastructure Management

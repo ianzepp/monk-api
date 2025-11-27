@@ -32,7 +32,7 @@
 ## Key Features
 
 - **Model-First Development**: Define data models with in-house validation and automatic PostgreSQL table generation
-- **Multi-Tenant Architecture**: Isolated tenant databases with JWT-based routing and security
+- **Multi-Tenant Architecture**: Schema-isolated tenants with JWT-based routing and security
 - **Advanced Filtering**: 25+ filter operators with complex logical operations and ACL integration
 - **Change Tracking**: Comprehensive audit trails with field-level tracking for all record modifications
 - **Privilege Escalation**: Enterprise-grade sudo model with time-limited root access for administrative operations
@@ -777,7 +777,7 @@ try {
 
 - **Ultra-Fast Performance**: Hono framework with ~50KB footprint and multi-runtime support
 - **Model-Driven**: Field-based validation with automatic database DDL generation
-- **Multi-Tenant**: Automatic tenant isolation with dedicated PostgreSQL databases
+- **Multi-Tenant**: Automatic tenant isolation via PostgreSQL schemas or SQLite files
 - **Self-Documenting**: Complete API reference served via HTTP endpoints
 - **Enterprise Security**: Sophisticated authentication with privilege escalation and ACL management
 - **Audit Ready**: Comprehensive change tracking and history for compliance requirements
