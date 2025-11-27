@@ -30,7 +30,6 @@
     "author": "Ian Zepp",
     "license": "MIT",
     "dependencies": {
-        "@toon-format/toon": "^1.0.0",
         "hono": "^4.6.5",
         "js-yaml": "^4.1.1",
         "pg": "^8.16.3"
@@ -44,6 +43,7 @@
         "@monk/formatter-msgpack": "file:./packages/formatter-msgpack",
         "@monk/formatter-qr": "file:./packages/formatter-qr",
         "@monk/formatter-toml": "file:./packages/formatter-toml",
+        "@monk/formatter-toon": "file:./packages/formatter-toon",
         "@monk/bindings": "file:./packages/bindings",
         "@monk-app/grids": "file:./packages/grids",
         "@monk-app/mcp": "file:./packages/mcp",
