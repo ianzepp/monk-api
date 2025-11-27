@@ -35,6 +35,16 @@
         "@monk/formatter-toon": "workspace:*",
       },
     },
+    "packages/app-tty": {
+      "name": "@monk/app-tty",
+      "version": "5.1.0",
+      "dependencies": {
+        "@monk/common": "workspace:*",
+      },
+      "peerDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
     "packages/bindings": {
       "name": "@monk/bindings",
       "version": "1.0.0",
@@ -236,6 +246,8 @@
     "@monk-app/openapi": ["@monk-app/openapi@workspace:packages/openapi"],
 
     "@monk-app/todos": ["@monk-app/todos@workspace:packages/todos"],
+
+    "@monk/app-tty": ["@monk/app-tty@workspace:packages/app-tty"],
 
     "@monk/bindings": ["@monk/bindings@workspace:packages/bindings"],
 
