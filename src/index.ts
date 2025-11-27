@@ -77,8 +77,6 @@ try {
 // Imports
 import { Hono } from 'hono';
 
-// Runtime detection
-const isBun = typeof Bun !== 'undefined';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
 import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
@@ -164,9 +162,9 @@ app.get('/', context => {
     return context.json({
         success: true,
         data: {
-            name: 'Monk API (Hono)',
+            name: 'Monk API',
             version: packageJson.version,
-            description: 'Lightweight PaaS backend API built with Hono',
+            description: 'Lightweight PaaS backend API',
             endpoints: {
                 health: ['/health'],
             docs: [
@@ -276,9 +274,11 @@ app.get('/health', context => {
 app.use('/auth/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
 app.use('/auth/*', middleware.formatDetectionMiddleware); // Detect format for responses
 app.use('/auth/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
+
 app.use('/test/*', middleware.requestBodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
 app.use('/test/*', middleware.formatDetectionMiddleware); // Detect format for responses
 app.use('/test/*', middleware.responsePipelineMiddleware); // Response pipeline: extract → format → encrypt
+
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
 // Protected API routes - require JWT authentication from /auth
@@ -524,7 +524,7 @@ if (process.argv.includes('--no-startup')) {
 }
 
 // Start HTTP server
-console.info('Starting Monk HTTP API Server (Hono)');
+console.info('Starting Monk HTTP API Server');
 console.info('Related ecosystem projects:')
 console.info('- monk-cli: Terminal commands for the API (https://github.com/ianzepp/monk-cli)');
 console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
@@ -546,33 +546,18 @@ try {
     console.info('No app packages installed');
 }
 
-// Start server using runtime-appropriate method
-let server: { close?: () => void; stop?: () => void };
-
-if (isBun) {
-    // Use Bun's native server
-    server = Bun.serve({
-        fetch: app.fetch,
-        port,
-    });
-    console.info('HTTP API server running (Bun)', { port, url: `http://localhost:${port}` });
-} else {
-    // Use Node.js adapter
-    const { serve } = await import('@hono/node-server');
-    server = serve({ fetch: app.fetch, port });
-    console.info('HTTP API server running (Node)', { port, url: `http://localhost:${port}` });
-}
+// Start Bun HTTP server
+const server = Bun.serve({
+    fetch: app.fetch,
+    port,
+});
+console.info('HTTP API server running', { port, url: `http://localhost:${port}` });
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
     console.info('Shutting down HTTP API server gracefully');
 
-    // Stop HTTP server (Bun uses stop(), Node uses close())
-    if (server.stop) {
-        server.stop();
-    } else if (server.close) {
-        server.close();
-    }
+    server.stop();
     console.info('HTTP server stopped');
 
     // Close database connections

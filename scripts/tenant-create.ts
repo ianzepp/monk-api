@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * Tenant Creation Script
  *
@@ -6,12 +6,12 @@
  *
  * Usage:
  *   npm run tenant:create <tenant-name> <fixture-name>
- *   tsx scripts/tenant-create.ts <tenant-name> <fixture-name>
+ *   bun scripts/tenant-create.ts <tenant-name> <fixture-name>
  *
  * Examples:
  *   npm run tenant:create mycompany system
  *   npm run tenant:create demo_sales demo
- *   tsx scripts/tenant-create.ts test_env testing
+ *   bun scripts/tenant-create.ts test_env testing
  *
  * What it does:
  * 1. Creates tenant record in monk.tenants
@@ -69,7 +69,7 @@ Tenant Creation Script
 
 Usage:
   npm run tenant:create <tenant-name> <fixture-name>
-  tsx scripts/tenant-create.ts <tenant-name> <fixture-name>
+  bun scripts/tenant-create.ts <tenant-name> <fixture-name>
 
 Arguments:
   tenant-name   - Name for the new tenant (e.g., 'mycompany', 'demo_sales')
@@ -78,7 +78,7 @@ Arguments:
 Examples:
   npm run tenant:create mycompany system
   npm run tenant:create demo_sales demo
-  tsx scripts/tenant-create.ts test_env testing
+  bun scripts/tenant-create.ts test_env testing
 
 What it does:
   1. Creates tenant record in monk.tenants database

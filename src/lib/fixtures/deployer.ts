@@ -138,7 +138,7 @@ export class FixtureDeployer {
 
             // Execute the SQL directly - SQLite's exec() handles multiple statements
             // The SQL already contains BEGIN/COMMIT
-            // Access raw connection (works for both better-sqlite3 and bun:sqlite)
+            // Access raw bun:sqlite connection
             const db = adapter.getRawConnection() as { exec: (sql: string) => void };
             if (!db) {
                 throw new Error('SQLite adapter not connected');

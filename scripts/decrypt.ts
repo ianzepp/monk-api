@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * Decrypt Monk API Encrypted Responses
  *
@@ -6,15 +6,15 @@
  * Requires the same JWT token that was used for encryption.
  *
  * Usage:
- *   tsx scripts/decrypt.ts <jwt-token> < encrypted-message.txt
- *   tsx scripts/decrypt.ts <jwt-token> encrypted-message.txt
+ *   bun scripts/decrypt.ts <jwt-token> < encrypted-message.txt
+ *   bun scripts/decrypt.ts <jwt-token> encrypted-message.txt
  *
  * Example:
  *   # From stdin
- *   curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | tsx scripts/decrypt.ts "$JWT"
+ *   curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" | bun scripts/decrypt.ts "$JWT"
  *
  *   # From file
- *   tsx scripts/decrypt.ts "$JWT" encrypted-response.txt
+ *   bun scripts/decrypt.ts "$JWT" encrypted-response.txt
  *
  * Security Model:
  * - JWT token is the decryption key
@@ -143,12 +143,12 @@ function main(): void {
     const args = process.argv.slice(2);
 
     if (args.length === 0) {
-        console.error('Usage: tsx decrypt.ts <jwt-token> [encrypted-file]');
+        console.error('Usage: bun scripts/decrypt.ts <jwt-token> [encrypted-file]');
         console.error('');
         console.error('Examples:');
-        console.error('  tsx decrypt.ts "$JWT" < encrypted.txt');
-        console.error('  tsx decrypt.ts "$JWT" encrypted.txt');
-        console.error('  curl /api/user/whoami?encrypt=pgp | tsx decrypt.ts "$JWT"');
+        console.error('  bun scripts/decrypt.ts "$JWT" < encrypted.txt');
+        console.error('  bun scripts/decrypt.ts "$JWT" encrypted.txt');
+        console.error('  curl /api/user/whoami?encrypt=pgp | bun scripts/decrypt.ts "$JWT"');
         process.exit(1);
     }
 

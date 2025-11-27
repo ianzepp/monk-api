@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * Tenant Deletion Script
  *
@@ -6,12 +6,12 @@
  *
  * Usage:
  *   npm run tenant:delete <tenant-name>
- *   tsx scripts/tenant-delete.ts <tenant-name>
+ *   bun scripts/tenant-delete.ts <tenant-name>
  *
  * Examples:
  *   npm run tenant:delete mycompany
  *   npm run tenant:delete demo_sales
- *   tsx scripts/tenant-delete.ts test_env
+ *   bun scripts/tenant-delete.ts test_env
  *
  * What it does:
  * 1. Looks up tenant in monk.tenants
@@ -83,7 +83,7 @@ Tenant Deletion Script
 
 Usage:
   npm run tenant:delete <tenant-name>
-  tsx scripts/tenant-delete.ts <tenant-name>
+  bun scripts/tenant-delete.ts <tenant-name>
 
 Arguments:
   tenant-name - Name of the tenant to delete
@@ -91,7 +91,7 @@ Arguments:
 Examples:
   npm run tenant:delete mycompany
   npm run tenant:delete demo_sales
-  tsx scripts/tenant-delete.ts test_env
+  bun scripts/tenant-delete.ts test_env
 
 WARNING: This is a destructive operation that cannot be undone!
          All tenant data will be permanently deleted:

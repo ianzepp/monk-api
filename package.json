@@ -9,21 +9,20 @@
         "packages/*"
     ],
     "scripts": {
-        "start": "node dist/index.js",
-        "start:dev": "npm run build && concurrently \"npm run build:watch\" \"node --watch dist/index.js\"",
-        "stop": "pkill -f 'node.*dist/index.js' || pkill -f 'nodemon.*build' || true",
-        "build": "npm run build:packages && scripts/build.sh",
-        "build:packages": "npm run build --workspaces --if-present",
-        "build:watch": "nodemon --watch src --ext ts --exec 'npm run build'",
+        "start": "bun dist/index.js",
+        "start:dev": "bun --watch src/index.ts",
+        "stop": "pkill -f 'bun.*index' || true",
+        "build": "bun run build:packages && scripts/build.sh",
+        "build:packages": "bun run --filter '*' build",
         "build:spec": "scripts/build-spec.sh",
         "autoinstall": "scripts/autoinstall.sh",
         "install:db": "scripts/install-db.sh",
-        "fixtures:build": "tsx scripts/fixtures-build.ts",
-        "fixtures:deploy": "tsx scripts/fixtures-deploy.ts",
-        "fixtures:generate": "tsx scripts/fixtures-generate.ts",
+        "fixtures:build": "bun scripts/fixtures-build.ts",
+        "fixtures:deploy": "bun scripts/fixtures-deploy.ts",
+        "fixtures:generate": "bun scripts/fixtures-generate.ts",
         "fixtures:lock": "scripts/fixtures-lock.sh",
-        "tenant:create": "tsx scripts/tenant-create.ts",
-        "tenant:delete": "tsx scripts/tenant-delete.ts",
+        "tenant:create": "bun scripts/tenant-create.ts",
+        "tenant:delete": "bun scripts/tenant-delete.ts",
         "test": "scripts/test-ts.sh \"$@\"",
         "test:unit": "vitest --config vitest.unit.config.ts",
         "test:bench": "vitest bench --config vitest.bench.config.ts"
@@ -38,9 +37,7 @@
     "author": "Ian Zepp",
     "license": "MIT",
     "dependencies": {
-        "@hono/node-server": "^1.13.7",
         "@toon-format/toon": "^1.0.0",
-        "better-sqlite3": "^12.4.6",
         "hono": "^4.6.5",
         "js-yaml": "^4.1.1",
         "pg": "^8.16.3"
@@ -62,20 +59,15 @@
         "@faker-js/faker": "^10.0.0",
         "@modelcontextprotocol/sdk": "^1.22.0",
         "@types/archiver": "^7.0.0",
-        "@types/better-sqlite3": "^7.6.13",
         "@types/bun": "^1.3.3",
         "@types/js-yaml": "^4.0.9",
-        "@types/node": "^22",
         "@types/pg": "^8.15.5",
         "@types/unzipper": "^0.10.11",
-        "concurrently": "^9.2.1",
-        "nodemon": "^3.1.10",
         "tsc-alias": "^1.8.16",
-        "tsx": "^4.19.2",
         "typescript": "^5.6.3",
         "vitest": "^3.2.4"
     },
     "engines": {
-        "node": ">=18.0.0"
+        "bun": ">=1.0.0"
     }
 }

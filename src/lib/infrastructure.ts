@@ -589,13 +589,10 @@ export class Infrastructure {
         }
 
         const config = parseInfraConfig();
-        const { createAdapterFrom, preloadSqliteAdapter } = await import('./database/index.js');
+        const { createAdapterFrom } = await import('./database/index.js');
 
-        // Ensure SQLite adapter is loaded for correct runtime
+        // Ensure data directory exists for SQLite
         if (config.dbType === 'sqlite') {
-            await preloadSqliteAdapter();
-
-            // Ensure data directory exists
             const dataDir = process.env.SQLITE_DATA_DIR || '.data';
             const dbDir = join(dataDir, config.database);
             if (!existsSync(dbDir)) {

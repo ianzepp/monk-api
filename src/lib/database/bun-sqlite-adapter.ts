@@ -32,9 +32,8 @@ function getSqliteDataDir(): string {
  * Note: bun:sqlite is synchronous, but we use async interface
  * for consistency with PostgreSQL adapter.
  *
- * Differences from better-sqlite3 adapter:
+ * Limitations:
  * - No custom regexp function (Bun doesn't support db.function())
- * - Uses db.query().all() instead of db.prepare().all()
  */
 export class BunSqliteAdapter implements DatabaseAdapter {
     private readonly dbPath: string;
