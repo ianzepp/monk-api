@@ -26,6 +26,7 @@ const CONTENT_TYPE_MAP: Array<{ match: string | RegExp; format: string }> = [
     { match: 'text/toml', format: 'toml' },
     { match: 'application/msgpack', format: 'msgpack' },
     { match: 'application/x-msgpack', format: 'msgpack' },
+    { match: 'application/cbor', format: 'cbor' },
     { match: 'application/morse', format: 'morse' },
     { match: 'text/csv', format: 'csv' },
     { match: 'application/csv', format: 'csv' },

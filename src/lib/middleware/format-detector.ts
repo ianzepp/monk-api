@@ -11,9 +11,9 @@
 import type { Context, Next } from 'hono';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
-export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'toml' | 'csv' | 'sqlite' | 'brainfuck' | 'morse' | 'qr' | 'markdown' | 'msgpack' | 'grid-compact';
+export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'toml' | 'csv' | 'sqlite' | 'msgpack' | 'cbor' | 'brainfuck' | 'morse' | 'qr' | 'markdown' | 'grid-compact';
 
-const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'toml', 'csv', 'sqlite', 'brainfuck', 'morse', 'qr', 'markdown', 'msgpack', 'grid-compact'];
+const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'toml', 'csv', 'sqlite', 'msgpack', 'cbor', 'brainfuck', 'morse', 'qr', 'markdown', 'grid-compact'];
 
 /**
  * Resolves the response format for the current request
@@ -41,6 +41,9 @@ function resolveFormat(context: Context): ResponseFormat {
     }
     if (acceptHeader?.includes('application/msgpack') || acceptHeader?.includes('application/x-msgpack')) {
         return 'msgpack';
+    }
+    if (acceptHeader?.includes('application/cbor')) {
+        return 'cbor';
     }
     if (acceptHeader?.includes('application/toml') || acceptHeader?.includes('application/x-toml')) {
         return 'toml';
