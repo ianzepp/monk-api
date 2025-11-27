@@ -57,22 +57,8 @@ if (!process.env.NODE_ENV) {
     throw Error('Fatal: environment is missing "NODE_ENV"');
 }
 
-// Import package.json for version info (with fallback for compiled binary)
-import { readFileSync, existsSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-let packageJson = { name: 'monk-api', version: '4.0.1', description: 'Lightweight PaaS backend API' };
-try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const pkgPath = join(__dirname, '../package.json');
-    if (existsSync(pkgPath)) {
-        packageJson = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    }
-} catch {
-    // Use default values in compiled binary
-}
+// Package info (inlined at build time)
+import packageJson from '@pkg';
 
 // Imports
 import { Hono } from 'hono';
@@ -98,6 +84,10 @@ import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as historyRoutes from '@src/routes/api/history/routes.js';
 import { sudoRouter } from '@src/routes/api/sudo/index.js';
+
+// Public endpoints
+import RootGet from '@src/routes/root/GET.js';
+import HealthGet from '@src/routes/health/GET.js';
 
 // Special protected endpoints
 import BulkPost from '@src/routes/api/bulk/POST.js'; // POST /api/bulk
@@ -156,104 +146,10 @@ app.use('/health', middleware.formatDetectionMiddleware);
 app.use('/health', middleware.responsePipelineMiddleware);
 
 // Root endpoint
-app.get('/', context => {
-    return context.json({
-        success: true,
-        data: {
-            name: 'Monk API',
-            version: packageJson.version,
-            description: 'Lightweight PaaS backend API',
-            endpoints: {
-                health: ['/health'],
-            docs: [
-                '/docs',
-                '/docs/auth',
-                '/docs/describe',
-                '/docs/data',
-                '/docs/find',
-                '/docs/aggregate',
-                '/docs/bulk',
-                '/docs/user',
-                '/docs/acls',
-                '/docs/stat',
-                '/docs/history',
-                '/docs/sudo',
-            ],
-            auth: [
-                '/auth/login',
-                '/auth/register',
-                '/auth/refresh',
-                '/auth/tenants'
-            ],
-            describe: [
-                '/api/describe',
-                '/api/describe/:model',
-                '/api/describe/:model/fields',
-                '/api/describe/:model/fields/:field'
-            ],
-            data: [
-                '/api/data/:model',
-                '/api/data/:model/:record',
-                '/api/data/:model/:record/:relationship',
-                '/api/data/:model/:record/:relationship/:child'
-            ],
-            find: [
-                '/api/find/:model'
-            ],
-            aggregate: [
-                '/api/aggregate/:model'
-            ],
-            bulk: [
-                '/api/bulk'
-            ],
-            user: [
-                '/api/user/whoami',
-                '/api/user/sudo',
-                '/api/user/fake',
-                '/api/user/profile',
-                '/api/user/deactivate'
-            ],
-            acls: [
-                '/api/acls/:model/:record'
-            ],
-            stat: [
-                '/api/stat/:model/:record'
-            ],
-            history: [
-                '/api/history/:model/:record',
-                '/api/history/:model/:record/:change'
-            ],
-            sudo: [
-                '/api/sudo/sandboxes/',
-                '/api/sudo/sandboxes/:name',
-                '/api/sudo/sandboxes/:name/extend',
-                '/api/sudo/snapshots/',
-                '/api/sudo/snapshots/:name',
-                '/api/sudo/templates/',
-                '/api/sudo/templates/:name',
-                '/api/sudo/users/',
-                '/api/sudo/users/:id',
-            ],
-            grids: [
-                '/api/grids/:id/:range',
-                '/api/grids/:id/cells'
-            ]
-        }
-        }
-    });
-});
+app.get('/', RootGet);
 
 // Health check endpoint (public, no authentication required)
-app.get('/health', context => {
-    return context.json({
-        success: true,
-        data: {
-            status: 'healthy',
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime()
-        }
-    });
-});
+app.get('/health', HealthGet);
 
 // Note: systemContextMiddleware only applied to protected routes that need it
 

@@ -24,7 +24,8 @@
     "paths": {
       "@src/*": ["src/*"],
       "@spec/*": ["spec/*"],
-      "@sql/*": ["sql/*"]
+      "@sql/*": ["sql/*"],
+      "@pkg": ["package.json"]
     }
   },
   "include": [

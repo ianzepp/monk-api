@@ -1,6 +1,6 @@
 {
     "name": "monk-api",
-    "version": "4.0.1",
+    "version": "4.7.0",
     "description": "Lightweight PaaS backend API built with Hono",
     "agents": "IMPORTANT: Before starting ANY task, READ ./AGENTS.md for project-specific instructions and patterns",
     "main": "dist/index.js",
@@ -15,12 +15,8 @@
         "build": "bun run build:packages && scripts/build.sh",
         "build:packages": "bun run --filter '*' build",
         "build:spec": "scripts/build-spec.sh",
-        "autoinstall": "scripts/autoinstall.sh",
-        "install:db": "scripts/install-db.sh",
-        "tenant:create": "bun scripts/tenant-create.ts",
-        "tenant:delete": "bun scripts/tenant-delete.ts",
-        "test": "scripts/test-ts.sh \"$@\"",
-        "test:unit": "vitest --config vitest.unit.config.ts",
+        "test": "vitest run",
+        "test:unit": "vitest run --config vitest.unit.config.ts",
         "test:bench": "vitest bench --config vitest.bench.config.ts",
         "build:standalone": "scripts/build-standalone.sh"
     },
