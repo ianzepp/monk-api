@@ -116,14 +116,15 @@ Submit an ordered list of operations—spanning CRUD actions, ACL updates, read 
 ### Unsupported
 | Operation | Status |
 |-----------|--------|
-| `select-max` | Not implemented (returns empty array) |
+| `select-max` | Not implemented (returns empty array with warning) |
 
 ## Validation Rules
-- `create-all`, `update-all`, `delete-all`, `access-all` require `data` to be an array. `update-all`, `delete-all`, `access-all` require each element to include an `id`.
+- `create-all`, `update-all`, `delete-all`, `access-all`, `upsert-all` require `data` to be an array. `update-all`, `delete-all`, `access-all` require each element to include an `id`. `upsert-all` does not require `id` (records without `id` are created, records with `id` are updated).
 - `update-all`, `delete-all`, `access-all` reject `filter`. Use the `*-any` variants for filter-based updates.
 - `update-any`, `delete-any`, `access-any` require a `filter` object.
 - `aggregate` requires a non-empty `aggregate` object and does not accept `data`.
-- `*-one` and `*-404` operations require an `id` unless a `filter` is provided (where supported).
+- `*-one` operations require an `id`.
+- `*-404` operations require either an `id` or a `filter` object.
 
 ## Transaction Behavior
 
@@ -138,14 +139,14 @@ All bulk requests execute inside a transaction created by the route (`withTransa
 | 400 | `BODY_NOT_OBJECT` | "Request body must be an object" | Body is not an object when object expected |
 | 400 | `BODY_MISSING_FIELD` | "Request body must contain an operations array" | Missing operations field |
 | 400 | `OPERATION_MISSING_FIELDS` | "Operation missing required fields" | Missing `operation` or `model` |
-| 400 | `OPERATION_MISSING_ID` | "ID required for operation" | `*-one` without `id` or array entries without `id` |
+| 400 | `OPERATION_MISSING_ID` | "ID required for operation" | `*-one` without `id`, `*-404` without `id` or `filter`, or array entries without `id` |
 | 400 | `OPERATION_MISSING_DATA` | "Operation requires data field" | Mutation without payload |
 | 400 | `OPERATION_INVALID_DATA` | "Operation requires data to be [object|array]" | Wrong payload shape or extraneous data |
 | 400 | `OPERATION_MISSING_FILTER` | "Operation requires filter to be an object" | `*-any` without filter |
 | 400 | `OPERATION_INVALID_FILTER` | "Operation does not support filter" | `*-all` with filter |
 | 400 | `OPERATION_MISSING_AGGREGATE` | "Operation requires aggregate" | `aggregate` without spec |
 | 400 | `OPERATION_INVALID_GROUP_BY` | "groupBy must be string or array" | Invalid aggregate grouping |
-| 422 | `OPERATION_UNSUPPORTED` | "Unsupported operation" | Upsert / select-max |
+| 422 | `OPERATION_UNSUPPORTED` | "Unsupported operation" | Unrecognized operation type |
 
 ### Authentication Errors
 
