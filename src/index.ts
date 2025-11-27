@@ -209,6 +209,7 @@ app.get('/', context => {
             user: [
                 '/api/user/whoami',
                 '/api/user/sudo',
+                '/api/user/fake',
                 '/api/user/profile',
                 '/api/user/deactivate'
             ],
@@ -438,6 +439,7 @@ app.post('/api/bulk', BulkPost);
 // 36-user-api: User API routes (user identity and self-service management)
 app.get('/api/user/whoami', userRoutes.WhoamiGet); // GET /api/user/whoami
 app.post('/api/user/sudo', userRoutes.SudoPost); // POST /api/user/sudo
+app.post('/api/user/fake', userRoutes.FakePost); // POST /api/user/fake
 app.get('/api/user/profile', userRoutes.ProfileGet); // GET /api/user/profile
 app.put('/api/user/profile', userRoutes.ProfilePut); // PUT /api/user/profile
 app.post('/api/user/deactivate', userRoutes.DeactivatePost); // POST /api/user/deactivate

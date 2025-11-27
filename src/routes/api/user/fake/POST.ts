@@ -4,7 +4,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
 /**
- * POST /api/auth/fake - Impersonate another user (root only)
+ * POST /api/user/fake - Impersonate another user (root only)
  *
  * Allows root users to generate a JWT as another user for debugging and support.
  * The fake JWT includes metadata about the impersonation for audit trail.

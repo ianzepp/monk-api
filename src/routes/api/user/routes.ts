@@ -13,6 +13,7 @@
 
 export { default as WhoamiGet } from './whoami/GET.js';
 export { default as SudoPost } from './sudo/POST.js';
+export { default as FakePost } from './fake/POST.js';
 export { default as ProfileGet } from './profile/GET.js';
 export { default as ProfilePut } from './profile/PUT.js';
 export { default as DeactivatePost } from './deactivate/POST.js';
