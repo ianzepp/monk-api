@@ -1,8 +1,8 @@
-# 42-History API Documentation
+# 42-Tracked API Documentation
 
 > **Change Tracking and Audit Trails for Field-Level Modifications**
 >
-> The History API provides access to tracked changes for database records. When fields are marked with `tracked=true`, all create, update, and delete operations are captured with field-level deltas, timestamps, and user attribution.
+> The Tracked API provides access to tracked changes for database records. When fields are marked with `tracked=true`, all create, update, and delete operations are captured with field-level deltas, timestamps, and user attribution.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@
 
 ## Overview
 
-The History API enables audit trails and change tracking for sensitive data fields. Rather than tracking all changes to all records, tracking is opt-in per field using the `tracked` flag on field definitions.
+The Tracked API enables audit trails and change tracking for sensitive data fields. Rather than tracking all changes to all records, tracking is opt-in per field using the `tracked` flag on field definitions.
 
 ### Key Capabilities
 - **Field-level tracking**: Only track changes to specific fields marked with `tracked=true`
@@ -27,36 +27,36 @@ The History API enables audit trails and change tracking for sensitive data fiel
 - **Operation tracking**: Captures create, update, and delete operations
 - **User attribution**: Records which user made each change
 - **Chronological ordering**: Auto-incrementing `change_id` for simple time-series queries
-- **Minimal overhead**: Only tracked fields consume history storage
+- **Minimal overhead**: Only tracked fields consume tracked storage
 
 ### Base URLs
 ```
-GET /api/history/:model/:record           # List all changes for a record
-GET /api/history/:model/:record/:change   # Get specific change by ID
+GET /api/tracked/:model/:record           # List all changes for a record
+GET /api/tracked/:model/:record/:change   # Get specific change by ID
 ```
 
 ## Authentication
 
-All History API endpoints require valid JWT authentication. The API respects tenant isolation and record-level permissions.
+All Tracked API endpoints require valid JWT authentication. The API respects tenant isolation and record-level permissions.
 
 ```bash
 Authorization: Bearer <jwt>
 ```
 
 ### Required Permissions
-- **History Access**: Same `read_data` permission as Data API GET operations
+- **Tracked Access**: Same `read_data` permission as Data API GET operations
 - **ACL Enforcement**: Record ACL permissions are checked before returning history
 - **Tracked Fields Only**: Only changes to tracked fields are returned
 
 ## Core Endpoints
 
-### GET /api/history/:model/:record
+### GET /api/tracked/:model/:record
 
-Retrieves all history entries for a specific record, ordered by `change_id` descending (newest first).
+Retrieves all tracked entries for a specific record, ordered by `change_id` descending (newest first).
 
 **Request:**
 ```bash
-GET /api/history/account/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+GET /api/tracked/account/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 Authorization: Bearer <jwt>
 ```
 
@@ -114,13 +114,13 @@ Authorization: Bearer <jwt>
 }
 ```
 
-### GET /api/history/:model/:record/:change
+### GET /api/tracked/:model/:record/:change
 
-Retrieves a specific history entry by its `change_id`.
+Retrieves a specific tracked entry by its `change_id`.
 
 **Request:**
 ```bash
-GET /api/history/account/a1b2c3d4-e5f6-7890-abcd-ef1234567890/42
+GET /api/tracked/account/a1b2c3d4-e5f6-7890-abcd-ef1234567890/42
 Authorization: Bearer <jwt>
 ```
 
@@ -155,7 +155,7 @@ Authorization: Bearer <jwt>
 
 ### Marking Fields as Tracked
 
-To enable history tracking for a field, set `tracked=true` on the field definition:
+To enable change tracking for a field, set `tracked=true` on the field definition:
 
 **Using Describe API:**
 ```bash
@@ -202,7 +202,7 @@ After updating field tracking settings, the model cache automatically invalidate
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Unique identifier for the history record (UUID) |
+| `id` | string | Unique identifier for the tracked record (UUID) |
 | `change_id` | number | Auto-incrementing sequence number for chronological ordering |
 | `model_name` | string | Name of the model containing the changed record |
 | `record_id` | string | ID of the record that was modified |
@@ -217,10 +217,10 @@ After updating field tracking settings, the model cache automatically invalidate
 
 **`change_id`**
 - Auto-incrementing integer sequence
-- Globally unique across all history records
+- Globally unique across all tracked records
 - Provides simple chronological ordering
 - Higher numbers = more recent changes
-- Never reused, even if history records are deleted
+- Never reused, even if tracked records are deleted
 
 **`operation`**
 - `"create"`: Record was initially created
@@ -289,7 +289,7 @@ The `changes` field is a JSONB object where each key is a tracked field name, an
 
 ### Empty Changes
 
-If an update operation doesn't modify any tracked fields, no history record is created. Only changes to tracked fields trigger history recording.
+If an update operation doesn't modify any tracked fields, no tracked record is created. Only changes to tracked fields trigger tracked recording.
 
 ## Use Cases
 
@@ -303,7 +303,7 @@ PUT /api/describe/medical_records/fields/ssn {"tracked": true}
 PUT /api/describe/medical_records/fields/diagnosis {"tracked": true}
 
 # Query audit trail for specific record
-GET /api/history/medical_records/patient-123
+GET /api/tracked/medical_records/patient-123
 → Shows all changes to SSN and diagnosis fields with user attribution
 ```
 
@@ -313,7 +313,7 @@ Retrieve previous values after accidental changes:
 
 ```bash
 # Get history for accidentally modified record
-GET /api/history/account/account-456
+GET /api/tracked/account/account-456
 
 # Find the change that modified email
 → {
@@ -337,7 +337,7 @@ Identify who made specific changes and when:
 
 ```bash
 # Get history for disputed record
-GET /api/history/contracts/contract-789
+GET /api/tracked/contracts/contract-789
 
 # Find who changed payment_amount
 → {
@@ -364,7 +364,7 @@ Generate audit reports for regulatory requirements:
 
 ```bash
 # Get all changes to financial records in date range
-GET /api/history/transactions/txn-123
+GET /api/tracked/transactions/txn-123
 
 # Filter to specific time period (client-side)
 history_entries
@@ -387,7 +387,7 @@ Track how often specific fields change:
 
 ```bash
 # Get all history for record
-GET /api/history/products/product-555
+GET /api/tracked/products/product-555
 
 # Analyze change frequency (client-side)
 const emailChanges = history.filter(h =>
@@ -423,7 +423,7 @@ if (priceChanges > 10) {
 **Causes:**
 - Record ID doesn't exist
 - Record belongs to different tenant
-- No history exists for record (if no tracked fields or never modified)
+- No tracked data exists for record (if no tracked fields or never modified)
 
 #### Model Not Found
 
@@ -456,7 +456,7 @@ if (priceChanges > 10) {
 **Causes:**
 - change_id doesn't exist for this record
 - change_id belongs to different record
-- History entry was deleted
+- Tracked entry was deleted
 
 #### Permission Denied
 
@@ -496,21 +496,21 @@ if (priceChanges > 10) {
 
 ### Database Impact
 
-**History Recording:**
+**Tracked Recording:**
 - Single INSERT per tracked change (Ring 7 observer)
 - No transaction overhead (uses raw SQL to avoid observer recursion)
-- Minimal impact: <1ms per history record insertion
+- Minimal impact: <1ms per tracked record insertion
 - Asynchronous to main operation (won't slow down user-facing operations)
 
-**History Querying:**
+**Tracked Querying:**
 - Composite index on `(model_name, record_id, change_id DESC)`
 - Primary key index on `change_id` for direct lookups
-- Timestamp index on `created_at` for all history records
+- Timestamp index on `created_at` for all tracked records
 - Typical query time: <5ms for single record history (dozens of entries)
 
 ### Storage Impact
 
-**Per History Record:**
+**Per Tracked Record:**
 ```
 Base overhead: ~200 bytes (UUID, change_id, timestamps, user_id)
 Changes JSONB: ~50-200 bytes per tracked field change
@@ -525,8 +525,8 @@ Total: ~300-500 bytes per change event
 
 **Retention Strategy:**
 Not currently implemented. Future considerations:
-- Archive old history to separate table
-- Delete history older than N days
+- Archive old tracked data to separate table
+- Delete tracked data older than N days
 - Compress JSONB changes
 - Partition by date range
 
@@ -553,10 +553,10 @@ Not currently implemented. Future considerations:
 - Review tracked fields periodically
 - Don't track computed or derived fields
 
-**Batch History Queries:**
-- Use pagination (`?limit=100&offset=0`) for large history sets
+**Batch Tracked Queries:**
+- Use pagination (`?limit=100&offset=0`) for large tracked sets
 - Fetch in chronological order (change_id DESC) for recent changes
-- Cache frequently accessed history on client side
+- Cache frequently accessed tracked data on client side
 
 **Index Considerations:**
 - Composite index on `(model_name, record_id, change_id)` is crucial
@@ -569,12 +569,12 @@ Not currently implemented. Future considerations:
 
 **PUT /api/data/:model/:record**
 
-Updates that modify tracked fields automatically create history records:
+Updates that modify tracked fields automatically create tracked records:
 
 ```bash
 PUT /api/data/account/user-123
 {"email": "new@email.com"}
-→ Updates record AND creates history entry for email change
+→ Updates record AND creates tracked entry for email change
 ```
 
 See: [32-Data API Documentation](32-data-api.md)
@@ -588,7 +588,7 @@ Configure field tracking:
 ```bash
 PUT /api/describe/account/fields/email
 {"tracked": true}
-→ Enables history tracking for email field
+→ Enables change tracking for email field
 ```
 
 See: [31-Describe API Documentation](31-describe-api.md)
@@ -597,10 +597,10 @@ See: [31-Describe API Documentation](31-describe-api.md)
 
 **GET /api/acls/:model/:record**
 
-History access respects record-level ACLs. If a user can't read a record, they can't read its history:
+Tracked access respects record-level ACLs. If a user can't read a record, they can't read its history:
 
 ```bash
-GET /api/history/users/user-456
+GET /api/tracked/users/user-456
 → 403 Forbidden (if user lacks access_read for record)
 ```
 

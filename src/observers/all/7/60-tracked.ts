@@ -1,8 +1,8 @@
 /**
- * History Tracker Observer
+ * Tracked Observer
  *
  * Tracks changes to records with tracked fields, storing field-level deltas
- * in the history table for audit trail and change tracking purposes.
+ * in the tracked table for audit trail and change tracking purposes.
  *
  * Ring: 7 (Audit) - Model: all - Operations: create, update, delete
  */
@@ -11,21 +11,21 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 
-export default class HistoryTracker extends BaseObserver {
+export default class TrackedObserver extends BaseObserver {
     readonly ring = ObserverRing.Audit;
     readonly operations = ['create', 'update', 'delete'] as const;
     readonly priority = 60;
 
     // System models to skip (to avoid infinite loops and reduce noise)
-    private readonly SYSTEM_MODELS = ['models', 'fields', 'users', 'history'];
+    private readonly SYSTEM_MODELS = ['models', 'fields', 'users', 'tracked'];
 
     async execute(context: ObserverContext): Promise<void> {
         const { system, operation, model, record } = context;
         const modelName = model.model_name;
 
-        // Skip if history model doesn't exist in this namespace
-        // (history table is part of the 'audit' fixture, not always present)
-        if (!system.namespace?.hasModel('history')) {
+        // Skip if tracked model doesn't exist in this namespace
+        // (tracked table is part of the 'audit' fixture, not always present)
+        if (!system.namespace?.hasModel('tracked')) {
             return;
         }
 
@@ -41,7 +41,7 @@ export default class HistoryTracker extends BaseObserver {
 
         const trackedFields = Array.from(model.trackedFields);
 
-        await this.createHistoryRecord(
+        await this.createTrackedRecord(
             system,
             operation,
             modelName,
@@ -51,10 +51,10 @@ export default class HistoryTracker extends BaseObserver {
     }
 
     /**
-     * Create a history record for a single data change
+     * Create a tracked record for a single data change
      * @param record ModelRecord with _original (before) and _current (after) state
      */
-    private async createHistoryRecord(
+    private async createTrackedRecord(
         system: any,
         operation: string,
         modelName: string,
@@ -64,7 +64,7 @@ export default class HistoryTracker extends BaseObserver {
         // Determine record ID from current state
         const recordId = record.get('id');
         if (!recordId) {
-            console.warn('History tracker: Cannot track change without record ID', { modelName, operation });
+            console.warn('Tracked observer: Cannot track change without record ID', { modelName, operation });
             return;
         }
 
@@ -91,10 +91,10 @@ export default class HistoryTracker extends BaseObserver {
             user_tenant: system.tenant
         };
 
-        // Create history record using raw SQL to avoid observer recursion
+        // Create tracked record using raw SQL to avoid observer recursion
         // Uses adapter.query() for PostgreSQL/SQLite compatibility
         try {
-            console.info('Creating history record', {
+            console.info('Creating tracked record', {
                 modelName,
                 recordId,
                 operation,
@@ -105,7 +105,7 @@ export default class HistoryTracker extends BaseObserver {
 
             await system.adapter.query(
                 `
-                INSERT INTO history (
+                INSERT INTO tracked (
                     model_name,
                     record_id,
                     operation,
@@ -127,21 +127,21 @@ export default class HistoryTracker extends BaseObserver {
                 ]
             );
 
-            console.info('History record created successfully', {
+            console.info('Tracked record created successfully', {
                 modelName,
                 recordId,
                 operation,
                 trackedFieldCount: Object.keys(changes).length
             });
         } catch (error) {
-            console.error('Failed to create history record', {
+            console.error('Failed to create tracked record', {
                 modelName,
                 recordId,
                 operation,
                 error: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined
             });
-            // Don't throw - history tracking should not break the main operation
+            // Don't throw - tracking should not break the main operation
         }
     }
 

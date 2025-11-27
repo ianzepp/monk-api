@@ -22,7 +22,7 @@
 | **Bulk API** | `/api/bulk` | Batch operations across multiple models |
 | **ACLs API** | `/api/acls/:model/:record` | Access control list management for records |
 | **Stat API** | `/api/stat/:model/:record` | Record metadata (timestamps, etag, size) |
-| **History API** | `/api/history/:model/:record[/:change]` | Change tracking and audit trails |
+| **Tracked API** | `/api/tracked/:model/:record[/:change]` | Change tracking and audit trails |
 
 ### Administrative Routes (Sudo Token Required)
 | API | Endpoints | Purpose |
@@ -34,7 +34,7 @@
 - **Model-First Development**: Define data models with in-house validation and automatic PostgreSQL table generation
 - **Multi-Tenant Architecture**: Isolated tenant databases with JWT-based routing and security
 - **Advanced Filtering**: 25+ filter operators with complex logical operations and ACL integration
-- **Change Tracking**: Comprehensive audit trails with history tracking for all record modifications
+- **Change Tracking**: Comprehensive audit trails with field-level tracking for all record modifications
 - **Privilege Escalation**: Enterprise-grade sudo model with time-limited root access for administrative operations
 - **Observer System**: Ring-based business logic execution (0-9 rings) for extensible data processing
 - **Access Control**: Fine-grained ACL management at the record level for security and permissions
@@ -97,7 +97,7 @@ curl http://localhost:9001/
       "bulk": ["/api/bulk (protected)"],
       "acls": ["/api/acls/:model/:record (protected)"],
       "stat": ["/api/stat/:model/:record (protected)"],
-      "history": ["/api/history/:model/:record[/:change] (protected)"],
+      "tracked": ["/api/tracked/:model/:record[/:change] (protected)"],
       "sudo": ["/api/sudo/* (sudo token required)"]
     },
     "documentation": {
@@ -109,7 +109,7 @@ curl http://localhost:9001/
       "bulk": ["/docs/api/bulk"],
       "acls": ["/docs/api/acls"],
       "stat": ["/docs/api/stat"],
-      "history": ["/docs/api/history"],
+      "tracked": ["/docs/api/tracked"],
       "sudo": ["/docs/api/sudo"]
     }
   }
@@ -140,7 +140,7 @@ Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authenticat
 - `/docs/api/bulk` - Batch operations across models
 - `/docs/api/acls` - Access control management
 - `/docs/api/stat` - Record metadata access
-- `/docs/api/history` - Change tracking and audit trails
+- `/docs/api/tracked` - Change tracking and audit trails
 - `/docs/auth` - Authentication and token management
 - `/docs/api/user` - User account management
 - `/docs/api/sudo` - Administrative operations
@@ -212,7 +212,7 @@ POST   /auth/register                     → /docs/auth/register/POST
 - **Complex Search**: `/docs/api/find` - Advanced filtering with 25+ operators
 - **Data Aggregation**: `/docs/api/aggregate` - Analytics and aggregation operations
 - **Batch Processing**: `/docs/api/bulk` - Multi-model transaction operations
-- **Change Tracking**: `/docs/api/history` - Audit trails and change history
+- **Change Tracking**: `/docs/api/tracked` - Audit trails and change history
 - **Administration**: `/docs/api/sudo` - User management and administrative operations
 
 ## Common Operations Quick Reference
@@ -231,7 +231,7 @@ POST   /auth/register                     → /docs/auth/register/POST
 | **Delete by filter** | `/api/bulk` | POST | `operation: "delete-any"` with `filter` |
 | **Search with filters** | `/api/find/:model` | POST | 25+ filter operators |
 | **Aggregate/Analytics** | `/api/aggregate/:model` | POST | `$sum`, `$avg`, `$count`, `$min`, `$max` with `groupBy` |
-| **View change history** | `/api/history/:model/:id` | GET | Requires field tracking enabled |
+| **View change history** | `/api/tracked/:model/:id` | GET | Requires field tracking enabled |
 | **Cross-model transaction** | `/api/bulk` | POST | Multiple operations, single transaction |
 
 ## Quick Start Workflow
@@ -242,7 +242,7 @@ POST   /auth/register                     → /docs/auth/register/POST
 4. **Model Setup**: Use `/docs/api/describe` to define your data structures
 5. **Data Operations**: Use `/docs/api/data` for standard CRUD operations
 6. **Advanced Features**: Explore `/docs/api/find`, `/docs/api/aggregate`, `/docs/api/bulk` for sophisticated data access
-7. **Security & Auditing**: Use `/docs/api/acls` for permissions and `/docs/api/history` for audit trails
+7. **Security & Auditing**: Use `/docs/api/acls` for permissions and `/docs/api/tracked` for audit trails
 
 ## Response Format
 

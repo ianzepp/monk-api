@@ -79,7 +79,7 @@ import * as describeRoutes from '@src/routes/api/describe/routes.js';
 import * as aclsRoutes from '@src/routes/api/acls/routes.js';
 import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
-import * as historyRoutes from '@src/routes/api/history/routes.js';
+import * as trackedRoutes from '@src/routes/api/tracked/routes.js';
 import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Public endpoints
@@ -350,9 +350,9 @@ app.get('/api/stat/:model/:id', statRoutes.RecordGet); // Get record metadata (t
 app.use('/api/sudo/*', middleware.sudoValidatorMiddleware);
 app.route('/api/sudo', sudoRouter);
 
-// 42-history-api: History API routes (change tracking and audit trails)
-app.get('/api/history/:model/:id', historyRoutes.RecordHistoryGet); // List all changes for a record
-app.get('/api/history/:model/:id/:change', historyRoutes.ChangeGet); // Get specific change by change_id
+// 42-history-api: Tracked API routes (change tracking and audit trails)
+app.get('/api/tracked/:model/:id', trackedRoutes.RecordTrackedGet); // List all changes for a record
+app.get('/api/tracked/:model/:id/:change', trackedRoutes.ChangeGet); // Get specific change by change_id
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

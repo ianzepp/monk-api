@@ -1,13 +1,13 @@
-# History API
+# Tracked API
 
-The History API provides access to audit trails for tracked field changes. When fields are marked with `tracked=true`, all create, update, and delete operations are captured with field-level deltas, user attribution, and timestamps.
+The Tracked API provides access to audit trails for tracked field changes. When fields are marked with `tracked=true`, all create, update, and delete operations are captured with field-level deltas, user attribution, and timestamps.
 
 ## Overview
 
-History tracking is field-level and opt-in. Only changes to fields explicitly marked as tracked are recorded. This provides granular audit trails for sensitive data without the overhead of tracking all changes to all fields.
+Change tracking is field-level and opt-in. Only changes to fields explicitly marked as tracked are recorded. This provides granular audit trails for sensitive data without the overhead of tracking all changes to all fields.
 
 ### Key Features
-- **Field-level tracking**: Mark specific fields as `tracked=true` to enable history
+- **Field-level tracking**: Mark specific fields as `tracked=true` to enable tracking
 - **Field-level deltas**: Stores old and new values for each changed field
 - **Operation types**: Captures create, update, and delete operations
 - **User attribution**: Records which user made each change
@@ -15,7 +15,7 @@ History tracking is field-level and opt-in. Only changes to fields explicitly ma
 
 ## Authentication Requirements
 
-All History API operations require:
+All Tracked API operations require:
 - Valid JWT authentication
 - Read access to the underlying record (same permissions as Data API GET)
 - Target record must exist in the specified model
@@ -24,17 +24,17 @@ All History API operations require:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/history/:model/:record`](#get-apihistorymodelrecord) | List all history entries for a record (newest first). |
-| GET | [`/api/history/:model/:record/:change`](#get-apihistorymodelrecordchange) | Get a specific history entry by change_id. |
+| GET | [`/api/tracked/:model/:record`](#get-apitrackedmodelrecord) | List all tracked entries for a record (newest first). |
+| GET | [`/api/tracked/:model/:record/:change`](#get-apitrackedmodelrecordchange) | Get a specific tracked entry by change_id. |
 
-## GET /api/history/:model/:record
+## GET /api/tracked/:model/:record
 
-Retrieve all history entries for a specific record, ordered by `change_id` descending (newest first). Supports pagination via query parameters.
+Retrieve all tracked entries for a specific record, ordered by `change_id` descending (newest first). Supports pagination via query parameters.
 
 ### Example
 
 ```bash
-curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+curl -X GET http://localhost:9001/api/tracked/account/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
   -H "Authorization: Bearer $JWT_TOKEN"
 ```
 
@@ -91,14 +91,14 @@ curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef
 }
 ```
 
-## GET /api/history/:model/:record/:change
+## GET /api/tracked/:model/:record/:change
 
-Retrieve a specific history entry by its `change_id`. Use this to get details about a particular change event.
+Retrieve a specific tracked entry by its `change_id`. Use this to get details about a particular change event.
 
 ### Example
 
 ```bash
-curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef1234567890/42 \
+curl -X GET http://localhost:9001/api/tracked/account/a1b2c3d4-e5f6-7890-abcd-ef1234567890/42 \
   -H "Authorization: Bearer $JWT_TOKEN"
 ```
 
@@ -133,7 +133,7 @@ curl -X GET http://localhost:9001/api/history/account/a1b2c3d4-e5f6-7890-abcd-ef
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Unique identifier for the history record |
+| `id` | string | Unique identifier for the tracked record |
 | `change_id` | number | Auto-incrementing sequence number (higher = newer) |
 | `model_name` | string | Model containing the changed record |
 | `record_id` | string | ID of the record that was modified |
@@ -191,7 +191,7 @@ curl -X PUT http://localhost:9001/api/describe/account/fields/email \
   -d '{"tracked": true}'
 ```
 
-After marking fields as tracked, any create, update, or delete operations on those fields will automatically generate history records.
+After marking fields as tracked, any create, update, or delete operations on those fields will automatically generate tracked records.
 
 ## Common Use Cases
 
@@ -203,14 +203,14 @@ PUT /api/describe/medical_records/fields/ssn {"tracked": true}
 PUT /api/describe/medical_records/fields/diagnosis {"tracked": true}
 
 # Query audit trail
-GET /api/history/medical_records/patient-123
+GET /api/tracked/medical_records/patient-123
 ```
 
 ### Data Recovery
 Retrieve previous values after accidental changes:
 ```bash
 # Get history to find old value
-GET /api/history/account/account-456
+GET /api/tracked/account/account-456
 → Find change with correct old value
 
 # Restore old value
@@ -222,7 +222,7 @@ PUT /api/data/account/account-456
 Identify who made specific changes:
 ```bash
 # Get history
-GET /api/history/contracts/contract-789
+GET /api/tracked/contracts/contract-789
 
 # Find user who changed payment_amount
 → created_by: "user-uuid-456"
@@ -241,14 +241,14 @@ GET /api/data/users/user-uuid-456
 
 ## Performance Notes
 
-- History queries use indexed lookups (very fast)
+- Tracked queries use indexed lookups (very fast)
 - Only tracked fields consume history storage
-- Empty changes (no tracked fields modified) don't create history records
-- Pagination recommended for records with many history entries
+- Empty changes (no tracked fields modified) don't create tracked records
+- Pagination recommended for records with many tracked entries
 
 ## Security Notes
 
-- History access respects record-level ACLs
+- Tracked access respects record-level ACLs
 - Only users who can read a record can view its history
 - History records cannot be modified or deleted via API
 - User attribution based on JWT token at operation time

@@ -27,7 +27,7 @@ export default function (context: Context) {
                     '/docs/user',
                     '/docs/acls',
                     '/docs/stat',
-                    '/docs/history',
+                    '/docs/tracked',
                     '/docs/sudo',
                 ],
                 auth: [
@@ -70,9 +70,9 @@ export default function (context: Context) {
                 stat: [
                     '/api/stat/:model/:id'
                 ],
-                history: [
-                    '/api/history/:model/:id',
-                    '/api/history/:model/:id/:change'
+                tracked: [
+                    '/api/tracked/:model/:id',
+                    '/api/tracked/:model/:id/:change'
                 ],
                 sudo: [
                     '/api/sudo/sandboxes/',

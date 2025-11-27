@@ -94,7 +94,7 @@ import ModelDdlDeleteSqlite from '@src/observers/models/6/10-model-ddl-delete-sq
 // =============================================================================
 // Ring 7: Audit
 // =============================================================================
-import HistoryTracker from '@src/observers/all/7/60-history-tracker.js';
+import TrackedObserver from '@src/observers/all/7/60-tracked.js';
 
 // =============================================================================
 // Ring 8: Integration
@@ -176,7 +176,7 @@ export const observers: Observer[] = [
     new ModelDdlDeleteSqlite(),
 
     // Ring 7: Audit
-    new HistoryTracker(),
+    new TrackedObserver(),
 
     // Ring 8: Integration
     new FieldCacheInvalidator(),

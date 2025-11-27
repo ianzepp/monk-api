@@ -3,24 +3,24 @@ import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
 
 /**
- * History API Tests
+ * Tracked API Tests
  *
  * Tests change tracking for fields marked as tracked.
- * The history observer records create, update, and delete operations
+ * The tracked observer records create, update, and delete operations
  * for fields with tracked=true.
  *
  * Endpoints:
- * - GET /api/history/:model/:id - Get all history for a record
- * - GET /api/history/:model/:id/:change - Get specific change
+ * - GET /api/tracked/:model/:id - Get all tracked changes for a record
+ * - GET /api/tracked/:model/:id/:change - Get specific change
  */
 
-describe('History API - Change Tracking', () => {
+describe('Tracked API - Change Tracking', () => {
     let tenant: TestTenant;
     let testRecordId: string;
 
     beforeAll(async () => {
-        // History tracking requires 'audit' fixture which includes the history table
-        tenant = await TestHelpers.createTestTenant('history-api', 'system,audit');
+        // Tracking requires 'audit' fixture which includes the tracked table
+        tenant = await TestHelpers.createTestTenant('tracked-api', 'system,audit');
 
         // Create test model
         await tenant.httpClient.post('/api/describe/accounts', {});
@@ -62,7 +62,7 @@ describe('History API - Change Tracking', () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Get history for the record
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${testRecordId}`);
 
             expectSuccess(historyResponse);
             expect(historyResponse.data).toBeDefined();
@@ -71,7 +71,7 @@ describe('History API - Change Tracking', () => {
         });
 
         it('should record create operation type', async () => {
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${testRecordId}`);
 
             expectSuccess(historyResponse);
 
@@ -81,7 +81,7 @@ describe('History API - Change Tracking', () => {
         });
 
         it('should track only marked fields in create', async () => {
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${testRecordId}`);
 
             expectSuccess(historyResponse);
 
@@ -117,14 +117,14 @@ describe('History API - Change Tracking', () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Get history
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${testRecordId}`);
 
             expectSuccess(historyResponse);
             expect(historyResponse.data.length).toBeGreaterThanOrEqual(2);
         });
 
         it('should record update operation with old and new values', async () => {
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${testRecordId}`);
 
             expectSuccess(historyResponse);
 
@@ -159,7 +159,7 @@ describe('History API - Change Tracking', () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Get history (should still be available for deleted records)
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${deleteRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${deleteRecordId}`);
 
             expectSuccess(historyResponse);
 
@@ -183,7 +183,7 @@ describe('History API - Change Tracking', () => {
             // Small delay
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${deleteRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${deleteRecordId}`);
 
             const deleteEntry = historyResponse.data.find((entry: any) => entry.operation === 'delete');
 
@@ -199,10 +199,10 @@ describe('History API - Change Tracking', () => {
         });
     });
 
-    describe('GET /api/history/:model/:id/:change - Specific Change', () => {
+    describe('GET /api/tracked/:model/:id/:change - Get Specific Change', () => {
         it('should retrieve specific change by change_id', async () => {
             // Get all history first
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${testRecordId}`);
 
             expectSuccess(historyResponse);
 
@@ -213,7 +213,7 @@ describe('History API - Change Tracking', () => {
                 if (changeId) {
                     // Get specific change
                     const changeResponse = await tenant.httpClient.get(
-                        `/api/history/accounts/${testRecordId}/${changeId}`
+                        `/api/tracked/accounts/${testRecordId}/${changeId}`
                     );
 
                     expectSuccess(changeResponse);
@@ -227,7 +227,7 @@ describe('History API - Change Tracking', () => {
             const fakeChangeId = '550e8400-e29b-41d4-a716-446655440000';
 
             const response = await tenant.httpClient.get(
-                `/api/history/accounts/${testRecordId}/${fakeChangeId}`
+                `/api/tracked/accounts/${testRecordId}/${fakeChangeId}`
             );
 
             expectError(response);
@@ -236,7 +236,7 @@ describe('History API - Change Tracking', () => {
 
     describe('History Entry Structure', () => {
         it('should include required fields in history entry', async () => {
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${testRecordId}`);
 
             expectSuccess(historyResponse);
 
@@ -253,7 +253,7 @@ describe('History API - Change Tracking', () => {
         });
 
         it('should order history entries by timestamp (most recent first)', async () => {
-            const historyResponse = await tenant.httpClient.get(`/api/history/accounts/${testRecordId}`);
+            const historyResponse = await tenant.httpClient.get(`/api/tracked/accounts/${testRecordId}`);
 
             expectSuccess(historyResponse);
 

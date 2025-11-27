@@ -106,3 +106,28 @@ CREATE TABLE IF NOT EXISTS "filters" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_filters_model_name" ON "filters" ("model_name", "name");
+
+-- Tracked table (change tracking and audit trails)
+-- Note: change_id uses INTEGER PRIMARY KEY for auto-increment in SQLite
+-- The "id" field is kept for API compatibility but change_id is the actual PK
+CREATE TABLE IF NOT EXISTS "tracked" (
+    "change_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "id" TEXT NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    "model_name" TEXT NOT NULL,
+    "record_id" TEXT NOT NULL,
+    "operation" TEXT NOT NULL,
+    "changes" TEXT NOT NULL,
+    "created_by" TEXT,
+    "request_id" TEXT,
+    "metadata" TEXT
+);
+
+CREATE INDEX IF NOT EXISTS "idx_tracked_model_record" ON "tracked" (model_name, record_id, change_id DESC);

@@ -127,16 +127,41 @@ ALTER TABLE "filters" ADD CONSTRAINT "filters_models_model_name_fk"
     FOREIGN KEY ("model_name") REFERENCES "models"("model_name")
     ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- Tracked table (change tracking and audit trails)
+CREATE TABLE IF NOT EXISTS "tracked" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    "change_id" bigserial NOT NULL,
+    "model_name" text NOT NULL,
+    "record_id" uuid NOT NULL,
+    "operation" text NOT NULL,
+    "changes" jsonb NOT NULL,
+    "created_by" uuid,
+    "request_id" text,
+    "metadata" jsonb
+);
+
+CREATE INDEX IF NOT EXISTS "idx_tracked_model_record"
+    ON "tracked" (model_name, record_id, change_id DESC);
+
 -- =============================================================================
 -- SEED DATA
 -- =============================================================================
 
 -- Register core models
-INSERT INTO "models" (model_name, status, sudo) VALUES
-    ('models', 'system', true),
-    ('fields', 'system', true),
-    ('users', 'system', true),
-    ('filters', 'system', false)
+INSERT INTO "models" (model_name, status, sudo, description) VALUES
+    ('models', 'system', true, NULL),
+    ('fields', 'system', true, NULL),
+    ('users', 'system', true, NULL),
+    ('filters', 'system', false, NULL),
+    ('tracked', 'system', true, 'Change tracking and audit trail')
 ON CONFLICT (model_name) DO NOTHING;
 
 -- Fields for models
@@ -195,4 +220,16 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
     ('filters', 'order', 'jsonb', false, 'Sort order'),
     ('filters', 'limit', 'integer', false, 'Maximum records'),
     ('filters', 'offset', 'integer', false, 'Records to skip')
+ON CONFLICT (model_name, field_name) DO NOTHING;
+
+-- Fields for tracked
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
+    ('tracked', 'change_id', 'bigserial', true, 'Auto-incrementing change identifier for ordering'),
+    ('tracked', 'model_name', 'text', true, 'Name of the model where the change occurred'),
+    ('tracked', 'record_id', 'uuid', true, 'ID of the record that was changed'),
+    ('tracked', 'operation', 'text', true, 'Operation type: create, update, or delete'),
+    ('tracked', 'changes', 'jsonb', true, 'Field-level changes with old and new values'),
+    ('tracked', 'created_by', 'uuid', false, 'ID of the user who made the change'),
+    ('tracked', 'request_id', 'text', false, 'Request correlation ID for tracing'),
+    ('tracked', 'metadata', 'jsonb', false, 'Additional context (IP address, user agent, etc.)')
 ON CONFLICT (model_name, field_name) DO NOTHING;
