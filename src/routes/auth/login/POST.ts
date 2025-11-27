@@ -20,7 +20,14 @@ import { verifyPassword } from '@src/lib/credentials/index.js';
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username, password, format } = await context.req.json();
+    const body = await context.req.json();
+
+    // Body type validation
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
+    }
+
+    const { tenant, username, password, format } = body;
 
     console.info('/auth/login', { tenant, username, format });
 

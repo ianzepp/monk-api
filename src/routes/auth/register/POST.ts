@@ -24,7 +24,14 @@ import type { DatabaseType } from '@src/lib/database/adapter.js';
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username, description, adapter } = await context.req.json();
+    const body = await context.req.json();
+
+    // Body type validation
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
+    }
+
+    const { tenant, username, password, description, adapter } = body;
 
     // Input validation
     if (!tenant) {
