@@ -21,6 +21,8 @@ export interface ExportOptions {
     models?: string[];
     /** What to include in export */
     include?: ('describe' | 'data')[];
+    /** Strip access_* fields (set to empty arrays) - useful for test fixtures */
+    stripAccess?: boolean;
 }
 
 /**
@@ -56,7 +58,7 @@ export async function exportAll(
     system: SystemContext,
     options: ExportOptions = {}
 ): Promise<ExportResult> {
-    const { models: requestedModels, include = ['describe', 'data'] } = options;
+    const { models: requestedModels, include = ['describe', 'data'], stripAccess = false } = options;
 
     const includeDescribe = include.includes('describe');
     const includeData = include.includes('data');
@@ -95,11 +97,11 @@ export async function exportAll(
         `);
 
         if (includeDescribe) {
-            createDescribeTables(exportDb, models, fields);
+            createDescribeTables(exportDb, models, fields, stripAccess);
         }
 
         if (includeData) {
-            await exportDataTables(system, exportDb, models, fields, recordCounts);
+            await exportDataTables(system, exportDb, models, fields, recordCounts, stripAccess);
         }
 
         // Build metadata
@@ -133,8 +135,10 @@ export async function exportAll(
 function createDescribeTables(
     exportDb: SqliteDatabase,
     models: ModelRecord[],
-    fields: FieldRecord[]
+    fields: FieldRecord[],
+    stripAccess: boolean
 ): void {
+    const emptyAccess = '[]';
     // Create models table
     exportDb.exec(`
         CREATE TABLE models (
@@ -159,10 +163,10 @@ function createDescribeTables(
     for (const model of models) {
         modelStmt.run(
             model.id,
-            JSON.stringify(model.access_read || []),
-            JSON.stringify(model.access_edit || []),
-            JSON.stringify(model.access_full || []),
-            JSON.stringify(model.access_deny || []),
+            stripAccess ? emptyAccess : JSON.stringify(model.access_read || []),
+            stripAccess ? emptyAccess : JSON.stringify(model.access_edit || []),
+            stripAccess ? emptyAccess : JSON.stringify(model.access_full || []),
+            stripAccess ? emptyAccess : JSON.stringify(model.access_deny || []),
             model.created_at,
             model.updated_at,
             model.trashed_at ?? null,
@@ -215,10 +219,10 @@ function createDescribeTables(
     for (const field of fields) {
         fieldStmt.run(
             field.id,
-            JSON.stringify(field.access_read || []),
-            JSON.stringify(field.access_edit || []),
-            JSON.stringify(field.access_full || []),
-            JSON.stringify(field.access_deny || []),
+            stripAccess ? emptyAccess : JSON.stringify(field.access_read || []),
+            stripAccess ? emptyAccess : JSON.stringify(field.access_edit || []),
+            stripAccess ? emptyAccess : JSON.stringify(field.access_full || []),
+            stripAccess ? emptyAccess : JSON.stringify(field.access_deny || []),
             field.created_at,
             field.updated_at,
             field.trashed_at ?? null,
@@ -253,8 +257,10 @@ async function exportDataTables(
     exportDb: SqliteDatabase,
     models: ModelRecord[],
     fields: FieldRecord[],
-    recordCounts: Record<string, number>
+    recordCounts: Record<string, number>,
+    stripAccess: boolean
 ): Promise<void> {
+    const emptyAccess = '[]';
     // Group fields by model for table creation
     const fieldsByModel = new Map<string, FieldRecord[]>();
     for (const field of fields) {
@@ -295,10 +301,10 @@ async function exportDataTables(
             for (const record of records) {
                 const values = [
                     record.id,
-                    JSON.stringify(record.access_read || []),
-                    JSON.stringify(record.access_edit || []),
-                    JSON.stringify(record.access_full || []),
-                    JSON.stringify(record.access_deny || []),
+                    stripAccess ? emptyAccess : JSON.stringify(record.access_read || []),
+                    stripAccess ? emptyAccess : JSON.stringify(record.access_edit || []),
+                    stripAccess ? emptyAccess : JSON.stringify(record.access_full || []),
+                    stripAccess ? emptyAccess : JSON.stringify(record.access_deny || []),
                     record.created_at,
                     record.updated_at,
                     record.trashed_at ?? null,
