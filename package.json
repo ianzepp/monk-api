@@ -21,7 +21,8 @@
         "tenant:delete": "bun scripts/tenant-delete.ts",
         "test": "scripts/test-ts.sh \"$@\"",
         "test:unit": "vitest --config vitest.unit.config.ts",
-        "test:bench": "vitest bench --config vitest.bench.config.ts"
+        "test:bench": "vitest bench --config vitest.bench.config.ts",
+        "build:standalone": "scripts/build-standalone.sh"
     },
     "keywords": [
         "hono",

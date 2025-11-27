@@ -31,7 +31,6 @@ echo -e "${BLUE}[3/3] Compiling to standalone binary...${NC}"
 bun build \
     --compile \
     --minify \
-    --sourcemap \
     ./dist/index.js \
     --outfile dist-standalone/monk-api
 
