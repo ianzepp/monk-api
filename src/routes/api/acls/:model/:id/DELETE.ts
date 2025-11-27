@@ -12,9 +12,9 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  *
  * After this operation, the record will use default role-based permissions.
  */
-export default withTransaction(async ({ system, params, query }) => {
+export default withTransaction(async ({ system, params }) => {
     const { model, id } = params;
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
 
     // Verify record exists before updating (select404 automatically throws 404 if not found)
     await system.database.select404(model!, {

@@ -13,9 +13,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *   "access_deny": ["blocked1"]
  * }
  */
-export default withTransaction(async ({ system, params, query, body }) => {
+export default withTransaction(async ({ system, params, body }) => {
     const { model, id } = params;
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
 
     // Validate request body structure
     const validFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];

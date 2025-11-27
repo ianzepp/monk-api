@@ -28,6 +28,7 @@ export default function (context: Context) {
                     '/docs/acls',
                     '/docs/stat',
                     '/docs/tracked',
+                    '/docs/trashed',
                     '/docs/sudo',
                 ],
                 auth: [
@@ -73,6 +74,11 @@ export default function (context: Context) {
                 tracked: [
                     '/api/tracked/:model/:id',
                     '/api/tracked/:model/:id/:change'
+                ],
+                trashed: [
+                    '/api/trashed',
+                    '/api/trashed/:model',
+                    '/api/trashed/:model/:id'
                 ],
                 sudo: [
                     '/api/sudo/sandboxes/',

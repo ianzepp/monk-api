@@ -80,6 +80,7 @@ import * as aclsRoutes from '@src/routes/api/acls/routes.js';
 import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as trackedRoutes from '@src/routes/api/tracked/routes.js';
+import * as trashedRoutes from '@src/routes/api/trashed/routes.js';
 import { sudoRouter } from '@src/routes/api/sudo/index.js';
 
 // Public endpoints
@@ -353,6 +354,15 @@ app.route('/api/sudo', sudoRouter);
 // 42-history-api: Tracked API routes (change tracking and audit trails)
 app.get('/api/tracked/:model/:id', trackedRoutes.RecordTrackedGet); // List all changes for a record
 app.get('/api/tracked/:model/:id/:change', trackedRoutes.ChangeGet); // Get specific change by change_id
+
+// 43-trashed-api: Trashed API routes (soft-deleted record management)
+app.get('/api/trashed', trashedRoutes.TrashedGet); // List all trashed records across models
+app.get('/api/trashed/:model', trashedRoutes.ModelTrashedGet); // List trashed records for a model
+app.post('/api/trashed/:model', trashedRoutes.ModelTrashedPost); // Restore multiple trashed records
+app.delete('/api/trashed/:model', trashedRoutes.ModelTrashedDelete); // Permanently delete multiple trashed records
+app.get('/api/trashed/:model/:id', trashedRoutes.RecordTrashedGet); // Get specific trashed record
+app.post('/api/trashed/:model/:id', trashedRoutes.RecordTrashedPost); // Restore specific trashed record
+app.delete('/api/trashed/:model/:id', trashedRoutes.RecordTrashedDelete); // Permanently delete specific trashed record
 
 // Error handling
 app.onError((err, c) => createInternalError(c, err));

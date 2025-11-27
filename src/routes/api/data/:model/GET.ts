@@ -20,6 +20,5 @@ export default withTransaction(async ({ system, params, query }) => {
 
     return await system.database.selectAny(model, filterData, {
         context: 'api' as const,
-        trashed: query.trashed as any,
     });
 });

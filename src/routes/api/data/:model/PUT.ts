@@ -3,11 +3,10 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 
 /**
  * PUT /api/data/:model - Bulk update records in model
- * PATCH /api/data/:model - Filter-based update or revert operation
+ * PATCH /api/data/:model - Filter-based update operation
  *
  * PUT: Expects array of records with IDs [{id, ...changes}]
  * PATCH + ?where={json}: Filter-based update, body is the changes object
- * PATCH + ?include_trashed=true: Revert trashed records, body is array of {id}
  *
  * @see docs/routes/DATA_API.md
  */
@@ -25,14 +24,6 @@ export default withTransaction(async ({ system, params, query, body, method }) =
 
         const filterData = { where: JSON.parse(whereParam) };
         result = await system.database.updateAny(model, filterData, body);
-    }
-
-    // PATCH + include_trashed=true = revert operation
-    else if (method === 'PATCH' && system.options.trashed === true) {
-        if (!Array.isArray(body)) {
-            throw HttpErrors.badRequest('Request body must be an array of records', 'BODY_NOT_ARRAY');
-        }
-        result = await system.database.revertAll(model, body);
     }
 
     // Normal PUT: bulk update by ID

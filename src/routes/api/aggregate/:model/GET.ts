@@ -73,7 +73,7 @@ export default withTransaction(async ({ system, params, query }) => {
         ...(where && { where })
     };
 
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
     const result = await system.database.aggregate(model!, body, options);
 
     return result;

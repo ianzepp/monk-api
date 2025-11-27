@@ -20,9 +20,9 @@ All Data API routes require authentication via JWT token in the Authorization he
 
 ### Global Parameters
 
-- `include_trashed=true` - Include soft-deleted records in results (where `trashed_at IS NOT NULL`)
-- `include_deleted=true` - Include permanently deleted records (where `deleted_at IS NOT NULL`) - requires root access
 - `permanent=true` - Perform permanent delete operations (sets `deleted_at`) - requires root access
+
+> **Note**: For querying and managing trashed records, use the dedicated [Trashed API](../trashed/PUBLIC.md).
 
 ### GET Parameters
 
@@ -55,7 +55,7 @@ See individual endpoint documentation for detailed examples.
 | GET | [`/api/data/:model`](:model/GET.md) | Query records with optional `?where` filter. |
 | POST | [`/api/data/:model`](:model/POST.md) | Create records. Use `?upsert=true` to insert or update based on ID presence. |
 | PUT | [`/api/data/:model`](:model/PUT.md) | Update multiple records by ID (body is array of `{id, ...changes}`). |
-| PATCH | [`/api/data/:model`](:model/PUT.md) | Filter-based update via `?where` (body is changes object), or revert with `?include_trashed=true`. |
+| PATCH | [`/api/data/:model`](:model/PUT.md) | Filter-based update via `?where` (body is changes object). |
 | DELETE | [`/api/data/:model`](:model/DELETE.md) | Soft delete or permanently remove multiple records (permanent=true requires root). |
 
 ### Single Record Operations
@@ -84,28 +84,16 @@ See individual endpoint documentation for detailed examples.
 
 - Sets `trashed_at` to current timestamp
 - Record remains in database and can be recovered
-- Excluded from normal queries unless `include_trashed=true`
+- Excluded from normal queries
 - Available to all authenticated users
+- To view/restore trashed records, use the [Trashed API](../trashed/PUBLIC.md)
 
 ### Permanent Delete (permanent=true)
 
 - Sets `deleted_at` to current timestamp
 - Record remains in database but marked as permanently deleted
 - **Requires root access level**
-- Only visible with `include_deleted=true` query parameter
-
-### Revert Operations
-
-Restore soft-deleted records using PATCH method with `include_trashed=true`:
-
-```bash
-# Revert multiple records
-PATCH /api/data/users?include_trashed=true
-[{"id": "user-1"}, {"id": "user-2"}]
-
-# Revert single record
-PATCH /api/data/users/user-1?include_trashed=true
-```
+- Records are kept for audit/compliance but never visible through API
 
 ## Model Protection
 
@@ -190,22 +178,20 @@ curl -X GET "http://localhost:9001/api/data/users?stat=false" \
 
 ### Trash Management
 
+For managing trashed records, use the dedicated [Trashed API](../trashed/PUBLIC.md):
+
 ```bash
-# Query including trashed records
-curl -X GET "http://localhost:9001/api/data/users?include_trashed=true" \
+# List trashed records
+curl -X GET "http://localhost:9001/api/trashed/users" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# Restore trashed records
-curl -X PATCH "http://localhost:9001/api/data/users?include_trashed=true" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '[{"id": "user-1"}]'
+# Restore a trashed record
+curl -X POST "http://localhost:9001/api/trashed/users/user-1" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# Permanent delete (root only)
-curl -X DELETE "http://localhost:9001/api/data/users?permanent=true" \
-  -H "Authorization: Bearer ROOT_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '[{"id": "user-1"}]'
+# Permanently delete a trashed record
+curl -X DELETE "http://localhost:9001/api/trashed/users/user-1" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ## Related Documentation
@@ -213,4 +199,5 @@ curl -X DELETE "http://localhost:9001/api/data/users?permanent=true" \
 - **Describe API**: [`../describe/PUBLIC.md`](../describe/PUBLIC.md) - Model management and metadata
 - **Find API**: [`../find/PUBLIC.md`](../find/PUBLIC.md) - Advanced queries with filtering, sorting, and pagination
 - **Bulk API**: [`../bulk/PUBLIC.md`](../bulk/PUBLIC.md) - Multi-model batch operations
+- **Trashed API**: [`../trashed/PUBLIC.md`](../trashed/PUBLIC.md) - Manage soft-deleted records
 - **User API**: `/docs/user` - User identity and sudo token management

@@ -17,7 +17,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  *
  * @see docs/routes/FIND_API.md
  */
-export default withTransaction(async ({ system, params, query }) => {
+export default withTransaction(async ({ system, params }) => {
     const { model, target } = params;
 
     if (!target) {
@@ -53,7 +53,7 @@ export default withTransaction(async ({ system, params, query }) => {
     if (savedFilter.offset !== null && savedFilter.offset !== undefined) body.offset = savedFilter.offset;
 
     // Execute the query against the target model
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
     const result = await system.database.selectAny(model!, body, options);
 
     return result;

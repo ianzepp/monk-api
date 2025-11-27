@@ -6,9 +6,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Updates a single child record, verifying both parent accessibility and child ownership
  * @see docs/routes/DATA_API.md
  */
-export default withTransaction(async ({ system, params, query, body }) => {
+export default withTransaction(async ({ system, params, body }) => {
     const { model, id, relationship, child } = params;
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
 
     // Verify parent record data is readable
     const parentRecord = await system.database.select404(model!, { where: { id: id! } }, undefined, options);

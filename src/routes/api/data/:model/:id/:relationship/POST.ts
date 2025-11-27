@@ -6,9 +6,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Creates a child record with the parent relationship automatically set
  * @see docs/routes/DATA_API.md
  */
-export default withTransaction(async ({ system, params, query, body }) => {
+export default withTransaction(async ({ system, params, body }) => {
     const { model, id, relationship } = params;
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
 
     // Verify parent record exists and is readable
     const parentRecord = await system.database.select404(model!, { where: { id: id! } }, undefined, options);

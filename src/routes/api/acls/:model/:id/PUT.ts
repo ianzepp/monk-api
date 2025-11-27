@@ -15,9 +15,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  *
  * Note: Any access list not provided will be set to empty array
  */
-export default withTransaction(async ({ system, params, query, body }) => {
+export default withTransaction(async ({ system, params, body }) => {
     const { model, id } = params;
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
 
     // Validate and prepare updates for all ACL fields
     const validFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];

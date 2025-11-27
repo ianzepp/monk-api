@@ -5,9 +5,9 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  * Returns array of child records that have an owned relationship to the parent record
  * @see docs/routes/DATA_API.md
  */
-export default withTransaction(async ({ system, params, query }) => {
+export default withTransaction(async ({ system, params }) => {
     const { model, id, relationship } = params;
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
 
     // Verify parent record data is readable
     const recordData = await system.database.select404(model!, { where: { id: id! } }, undefined, options);

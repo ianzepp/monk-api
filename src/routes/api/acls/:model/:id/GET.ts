@@ -9,9 +9,9 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  * - access_full: User IDs with full access
  * - access_deny: User IDs with denied access
  */
-export default withTransaction(async ({ system, params, query }) => {
+export default withTransaction(async ({ system, params }) => {
     const { model, id } = params;
-    const options = { context: 'api' as const, trashed: query.trashed as any };
+    const options = { context: 'api' as const };
 
     // Get the record with only ACL fields (select404 automatically throws 404 if not found)
     const result = await system.database.select404(model!, {

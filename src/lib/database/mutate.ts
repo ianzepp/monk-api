@@ -310,16 +310,14 @@ export async function revertOne<T extends Record<string, any> = Record<string, a
 
 /**
  * Revert multiple records using filter criteria
+ *
+ * Automatically queries with trashed: 'include' to find trashed records.
  */
 export async function revertAny<T extends Record<string, any> = Record<string, any>>(
     system: SystemContext,
     modelName: string,
     filterData: FilterData = {}
 ): Promise<DbRecord<T>[]> {
-    if (!system.options.trashed) {
-        throw HttpErrors.badRequest('revertAny() requires include_trashed=true option to find trashed records', 'REQUEST_INVALID_OPTIONS');
-    }
-
     const trashedRecords = await selectAny<T>(system, modelName, filterData, { trashed: 'include', context: 'system' });
     const recordsToRevert = trashedRecords
         .filter(record => record.trashed_at !== null)

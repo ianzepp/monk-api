@@ -24,8 +24,9 @@ import { ValidationError, BusinessLogicError, SystemError } from '@src/lib/obser
 export async function contextInitializerMiddleware(context: Context, next: Next) {
     try {
         // Extract system options from query parameters
+        // Note: trashed option removed from URL - use /api/trashed endpoint instead
+        // Note: deleted option is admin-only for permanent delete operations
         const options = {
-            trashed: context.req.query('include_trashed') === 'true',
             deleted: context.req.query('include_deleted') === 'true',
         };
 
