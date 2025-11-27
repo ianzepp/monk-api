@@ -45,6 +45,19 @@ export default async function (context: Context) {
         );
     }
 
+    // Reject fake (impersonation) tokens - they have a hard expiry and cannot be refreshed
+    // This prevents indefinite extension of impersonation sessions
+    if (payload.is_fake) {
+        return context.json(
+            {
+                success: false,
+                error: 'Impersonation tokens cannot be refreshed - request a new fake token instead',
+                error_code: 'AUTH_FAKE_TOKEN_REFRESH_DENIED',
+            },
+            403
+        );
+    }
+
     // Verify tenant still exists and is active
     const authDb = DatabaseConnection.getMainPool();
     const tenantResult = await authDb.query(
@@ -101,11 +114,9 @@ export default async function (context: Context) {
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
         is_sudo: user.access === 'root',
-        // Preserve optional fields from original token
+        // Preserve format preference from original token
         ...(payload.format && { format: payload.format }),
-        ...(payload.is_fake && { is_fake: payload.is_fake }),
-        ...(payload.faked_by_user_id && { faked_by_user_id: payload.faked_by_user_id }),
-        ...(payload.faked_by_username && { faked_by_username: payload.faked_by_username }),
+        // Note: fake tokens are rejected above, so no need to preserve is_fake metadata
     };
 
     const newToken = await sign(newPayload, process.env.JWT_SECRET!);

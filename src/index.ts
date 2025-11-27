@@ -30,10 +30,6 @@ if (isSqliteMode) {
     if (!process.env.PORT) {
         process.env.PORT = '9001';
     }
-    // Set default JWT_SECRET if not specified (for standalone convenience)
-    if (!process.env.JWT_SECRET) {
-        process.env.JWT_SECRET = 'standalone-dev-secret-change-in-production';
-    }
     // Set default NODE_ENV if not specified
     if (!process.env.NODE_ENV) {
         process.env.NODE_ENV = 'development';
@@ -72,7 +68,6 @@ import * as middleware from '@src/lib/middleware/index.js';
 
 // Route handlers
 import * as authRoutes from '@src/routes/auth/routes.js';
-import * as testRoutes from '@src/routes/test/routes.js';
 import * as userRoutes from '@src/routes/api/user/routes.js';
 import * as dataRoutes from '@src/routes/api/data/routes.js';
 import * as describeRoutes from '@src/routes/api/describe/routes.js';
@@ -154,10 +149,6 @@ app.get('/health', HealthGet);
 app.use('/auth/*', middleware.bodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
 app.use('/auth/*', middleware.formatDetectorMiddleware); // Detect format for responses
 app.use('/auth/*', middleware.responseTransformerMiddleware); // Response pipeline: extract → format → encrypt
-
-app.use('/test/*', middleware.bodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
-app.use('/test/*', middleware.formatDetectorMiddleware); // Detect format for responses
-app.use('/test/*', middleware.responseTransformerMiddleware); // Response pipeline: extract → format → encrypt
 
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
@@ -279,10 +270,6 @@ app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
 app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
 app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
-
-// Test utilities (dev/test environments only)
-app.get('/test/pools', testRoutes.PoolsGet); // GET /test/pools
-app.delete('/test/pools', testRoutes.PoolsDelete); // DELETE /test/pools
 
 // 31-describe-api: Describe API routes
 app.get('/api/describe', describeRoutes.ModelList); // Lists all models

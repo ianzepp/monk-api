@@ -25,10 +25,16 @@ import INFRA_SCHEMA_SQLITE from './sql/monk.sqlite.sql' with { type: 'text' };
 import TENANT_SCHEMA_POSTGRESQL from './sql/tenant.pg.sql' with { type: 'text' };
 import TENANT_SCHEMA_SQLITE from './sql/tenant.sqlite.sql' with { type: 'text' };
 
-// SQLite seed uses explicit IDs since no RETURNING support
-function getTenantSeedSqlite(rootUserId: string, rootUsername: string): string {
-    const displayName = rootUsername === 'root' ? 'Root User' : `User (${rootUsername})`;
-    return `
+/**
+ * Well-known UUID for root user in every tenant.
+ * Using zero UUID is safe because each tenant has isolated database/schema.
+ * Exported for use in tests and other modules that need to reference root user.
+ */
+export const ROOT_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+// SQLite seed with static values only - no user input interpolation
+// Root user customization happens via parameterized UPDATE after seed
+const TENANT_SEED_SQLITE = `
 -- Register core models
 INSERT OR IGNORE INTO "models" (id, model_name, status, sudo) VALUES
     ('${randomUUID()}', 'models', 'system', 1),
@@ -90,11 +96,10 @@ INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, desc
     ('${randomUUID()}', 'filters', 'limit', 'integer', 0, 'Max records'),
     ('${randomUUID()}', 'filters', 'offset', 'integer', 0, 'Records to skip');
 
--- Root user
+-- Root user with well-known ID (customized via parameterized UPDATE if needed)
 INSERT OR IGNORE INTO "users" (id, name, auth, access) VALUES
-    ('${rootUserId}', '${displayName}', '${rootUsername}', 'root');
+    ('${ROOT_USER_ID}', 'Root User', 'root', 'root');
 `;
-}
 
 // =============================================================================
 // CONFIGURATION
@@ -322,9 +327,8 @@ export class Infrastructure {
             throw new Error('Tenant name must be at least 2 characters');
         }
 
-        // Generate IDs
+        // Generate tenant ID (root user uses well-known ROOT_USER_ID)
         const tenantId = randomUUID();
-        const rootUserId = randomUUID();
         const schemaName = `ns_tenant_${tenantName}`;
         const database = config.database;  // Always 'monk'
 
@@ -339,8 +343,8 @@ export class Infrastructure {
         // Step 1: Create tenant database/schema
         await this.provisionTenantDatabase(dbType, database, schemaName);
 
-        // Step 2: Deploy tenant schema and seed data
-        await this.deployTenantSchema(dbType, database, schemaName, rootUserId, ownerUsername);
+        // Step 2: Deploy tenant schema and seed data (returns owner user ID)
+        const ownerUserId = await this.deployTenantSchema(dbType, database, schemaName, ownerUsername);
 
         // Step 3: Register tenant in infrastructure
         const infraAdapter = await this.getAdapter();
@@ -358,7 +362,7 @@ export class Infrastructure {
                     dbType,
                     database,
                     schemaName,
-                    rootUserId,
+                    ownerUserId,
                     options.description || null,
                     timestamp,
                     timestamp,
@@ -370,6 +374,9 @@ export class Infrastructure {
 
         console.info('Tenant created', { name: tenantName, id: tenantId });
 
+        // Return owner user info (root user if ownerUsername='root', separate user otherwise)
+        const ownerDisplayName = ownerUsername === 'root' ? 'Root User' : ownerUsername;
+
         return {
             tenant: {
                 id: tenantId,
@@ -377,14 +384,14 @@ export class Infrastructure {
                 db_type: dbType,
                 database,
                 schema: schemaName,
-                owner_id: rootUserId,
+                owner_id: ownerUserId,
                 is_active: true,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             },
             user: {
-                id: rootUserId,
-                name: ownerUsername === 'root' ? 'Root User' : `User (${ownerUsername})`,
+                id: ownerUserId,
+                name: ownerDisplayName,
                 auth: ownerUsername,
                 access: 'root',
             },
@@ -505,17 +512,25 @@ export class Infrastructure {
      * Deploy tenant schema (tables) and seed data
      *
      * Creates models, fields, users, filters tables and seeds with root user.
+     * If ownerUsername differs from 'root', creates an additional owner user.
      * Used internally by createTenant() and by apps/loader for app namespaces.
+     *
+     * Unix model: root always exists (auth='root', id=ROOT_USER_ID).
+     * Owner user is separate if username != 'root'.
+     *
+     * @returns Owner user ID (ROOT_USER_ID if owner is root, random UUID otherwise)
      */
     static async deployTenantSchema(
         dbType: DatabaseType,
         database: string,
         schemaName: string,
-        rootUserId: string,
-        rootUsername: string
-    ): Promise<void> {
+        ownerUsername: string
+    ): Promise<string> {
         const { createAdapterFrom } = await import('./database/index.js');
         const adapter = createAdapterFrom(dbType, database, schemaName);
+
+        // Determine owner user ID - root uses well-known ID, others get random UUID
+        const ownerUserId = ownerUsername === 'root' ? ROOT_USER_ID : randomUUID();
 
         await adapter.connect();
 
@@ -527,7 +542,16 @@ export class Infrastructure {
                 db.exec('BEGIN');
                 try {
                     db.exec(TENANT_SCHEMA_SQLITE);
-                    db.exec(getTenantSeedSqlite(rootUserId, rootUsername));
+                    db.exec(TENANT_SEED_SQLITE);
+
+                    // If owner is not root, create separate owner user
+                    if (ownerUsername !== 'root') {
+                        await adapter.query(
+                            `INSERT INTO users (id, name, auth, access) VALUES ($1, $2, $3, 'root')`,
+                            [ownerUserId, ownerUsername, ownerUsername]
+                        );
+                    }
+
                     db.exec('COMMIT');
                 } catch (error) {
                     db.exec('ROLLBACK');
@@ -541,13 +565,23 @@ export class Infrastructure {
                     // Schema includes seed data (models, fields metadata)
                     await adapter.query(TENANT_SCHEMA_POSTGRESQL);
 
-                    // Create root user
+                    // Always create root user (auth='root', id=ROOT_USER_ID)
                     await adapter.query(
                         `INSERT INTO users (id, name, auth, access)
-                         VALUES ($1, $2, $3, 'root')
+                         VALUES ($1, 'Root User', 'root', 'root')
                          ON CONFLICT (auth) DO NOTHING`,
-                        [rootUserId, rootUsername === 'root' ? 'Root User' : `User (${rootUsername})`, rootUsername]
+                        [ROOT_USER_ID]
                     );
+
+                    // If owner is not root, create separate owner user
+                    if (ownerUsername !== 'root') {
+                        await adapter.query(
+                            `INSERT INTO users (id, name, auth, access)
+                             VALUES ($1, $2, $3, 'root')
+                             ON CONFLICT (auth) DO NOTHING`,
+                            [ownerUserId, ownerUsername, ownerUsername]
+                        );
+                    }
 
                     await adapter.commit();
                 } catch (error) {
@@ -558,5 +592,7 @@ export class Infrastructure {
         } finally {
             await adapter.disconnect();
         }
+
+        return ownerUserId;
     }
 }

@@ -115,14 +115,14 @@ export default async function (context: Context) {
         fake_user_auth: targetUser.auth,
         fake_user_access: targetUser.access,
         tenant: currentJwt.tenant,
-        expires_in: 3600
+        expires_in: 900
     });
 
     return context.json({
         success: true,
         data: {
             fake_token: fakeToken,
-            expires_in: 3600,
+            expires_in: 900,
             token_type: 'Bearer',
             target_user: {
                 id: targetUser.id,
@@ -130,7 +130,7 @@ export default async function (context: Context) {
                 auth: targetUser.auth,
                 access: targetUser.access
             },
-            warning: 'Fake token expires in 1 hour',
+            warning: 'Fake token expires in 15 minutes',
             faked_by: {
                 id: currentUser.id,
                 name: currentUser.name
