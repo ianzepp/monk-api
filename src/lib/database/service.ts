@@ -30,6 +30,8 @@ import * as mutateOps from './mutate.js';
 import * as accessOps from './access.js';
 import * as exportOps from './export.js';
 import type { ExportOptions, ExportResult } from './export.js';
+import * as importOps from './import.js';
+import type { ImportOptions, ImportResult } from './import.js';
 
 /**
  * Database service wrapper providing high-level operations
@@ -334,6 +336,30 @@ export class Database {
      */
     async exportAll(options: ExportOptions = {}): Promise<ExportResult> {
         return exportOps.exportAll(this.system, options);
+    }
+
+    /**
+     * Import tenant data from SQLite format
+     *
+     * Imports model definitions and data from an SQLite database buffer.
+     * Useful for bulk import, restoring from snapshots, and data migration.
+     *
+     * @param buffer - SQLite database as binary buffer
+     * @param options - Import options (strategy, models, include)
+     * @returns Import result with statistics
+     *
+     * @example
+     * // Import with default upsert strategy
+     * const result = await db.importAll(buffer);
+     *
+     * // Import specific models with replace strategy
+     * const result = await db.importAll(buffer, {
+     *   models: ['orders', 'products'],
+     *   strategy: 'replace'
+     * });
+     */
+    async importAll(buffer: Uint8Array, options: ImportOptions = {}): Promise<ImportResult> {
+        return importOps.importAll(this.system, buffer, options);
     }
 
     // ========================================================================
