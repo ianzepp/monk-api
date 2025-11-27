@@ -18,25 +18,20 @@ echo -e "${BLUE}=== Building Standalone Monk API ===${NC}"
 echo ""
 
 # 1. Ensure TypeScript is compiled
-echo -e "${BLUE}[1/4] Compiling TypeScript...${NC}"
+echo -e "${BLUE}[1/3] Compiling TypeScript...${NC}"
 bun run build
 
 # 2. Create output directory
-echo -e "${BLUE}[2/4] Preparing output directory...${NC}"
+echo -e "${BLUE}[2/3] Preparing output directory...${NC}"
 rm -rf dist-standalone
 mkdir -p dist-standalone
 
-# 3. Copy fixtures (needed at runtime for tenant initialization)
-echo -e "${BLUE}[3/4] Copying fixtures...${NC}"
-cp -r fixtures dist-standalone/
-
-# 4. Compile to single executable
-echo -e "${BLUE}[4/4] Compiling to standalone binary...${NC}"
+# 3. Compile to single executable
+echo -e "${BLUE}[3/3] Compiling to standalone binary...${NC}"
 bun build \
     --compile \
     --minify \
     --sourcemap \
-    --external @aws-sdk/client-s3 \
     ./dist/index.js \
     --outfile dist-standalone/monk-api
 
@@ -49,8 +44,7 @@ echo ""
 echo "Output: dist-standalone/monk-api ($SIZE)"
 echo ""
 echo "Usage (zero-config):"
-echo "  cd dist-standalone"
-echo "  ./monk-api"
+echo "  ./dist-standalone/monk-api"
 echo ""
 echo "The server will:"
 echo "  - Start in SQLite mode (no external database needed)"

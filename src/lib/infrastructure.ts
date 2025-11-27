@@ -894,8 +894,11 @@ export class Infrastructure {
 
     /**
      * Deploy tenant schema (tables) and seed data
+     *
+     * Creates models, fields, users, filters tables and seeds with root user.
+     * Used internally by createTenant() and by apps/loader for app namespaces.
      */
-    private static async deployTenantSchema(
+    static async deployTenantSchema(
         dbType: DatabaseType,
         database: string,
         schemaName: string,

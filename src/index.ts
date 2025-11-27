@@ -183,8 +183,7 @@ app.get('/', context => {
                 '/auth/login',
                 '/auth/register',
                 '/auth/refresh',
-                '/auth/tenants',
-                '/auth/templates'
+                '/auth/tenants'
             ],
             describe: [
                 '/api/describe',
@@ -386,7 +385,6 @@ app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
 app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
 app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
 app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
-app.get('/auth/templates', authRoutes.TemplatesGet); // GET /auth/templates
 
 // Test utilities (dev/test environments only)
 app.get('/test/pools', testRoutes.PoolsGet); // GET /test/pools
