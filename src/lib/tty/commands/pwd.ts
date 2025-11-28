@@ -4,6 +4,7 @@
 
 import type { CommandHandler } from './shared.js';
 
-export const pwd: CommandHandler = async (session, _fs, _args, write) => {
-    write(session.cwd + '\n');
+export const pwd: CommandHandler = async (session, _fs, _args, io) => {
+    io.stdout.write(session.cwd + '\n');
+    return 0;
 };

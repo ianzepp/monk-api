@@ -4,12 +4,12 @@
 
 import type { CommandHandler } from './shared.js';
 
-export const mount: CommandHandler = async (session, fs, args, write) => {
-    const mounts = fs.getMounts();
+export const mount: CommandHandler = async (_session, fs, _args, io) => {
+    const mounts = fs!.getMounts();
 
     if (mounts.size === 0) {
-        write('No mounts\n');
-        return;
+        io.stdout.write('No mounts\n');
+        return 0;
     }
 
     // Sort by mount path
@@ -17,6 +17,7 @@ export const mount: CommandHandler = async (session, fs, args, write) => {
 
     for (const [path, handler] of sorted) {
         const type = handler.constructor.name;
-        write(`${type} on ${path}\n`);
+        io.stdout.write(`${type} on ${path}\n`);
     }
+    return 0;
 };

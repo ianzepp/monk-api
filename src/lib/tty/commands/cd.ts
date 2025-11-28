@@ -6,22 +6,23 @@ import { FSError } from '@src/lib/fs/index.js';
 import { resolvePath } from '../parser.js';
 import type { CommandHandler } from './shared.js';
 
-export const cd: CommandHandler = async (session, fs, args, write) => {
+export const cd: CommandHandler = async (session, fs, args, io) => {
     const target = args[0] || '/';
     const resolved = resolvePath(session.cwd, target);
 
     try {
-        const stat = await fs.stat(resolved);
+        const stat = await fs!.stat(resolved);
         if (stat.type !== 'directory') {
-            write(`cd: ${target}: Not a directory\n`);
-            return;
+            io.stderr.write(`cd: ${target}: Not a directory\n`);
+            return 1;
         }
         session.cwd = resolved;
+        return 0;
     } catch (err) {
         if (err instanceof FSError) {
-            write(`cd: ${target}: ${err.message}\n`);
-        } else {
-            throw err;
+            io.stderr.write(`cd: ${target}: ${err.message}\n`);
+            return 1;
         }
+        throw err;
     }
 };

@@ -5,11 +5,11 @@
 import { saveHistory } from '../session-handler.js';
 import type { CommandHandler } from './shared.js';
 
-export const exit: CommandHandler = async (session, _fs, _args, write) => {
+export const exit: CommandHandler = async (session, _fs, _args, io) => {
     // Save command history
     await saveHistory(session);
 
-    write('Goodbye!\n');
+    io.stdout.write('Goodbye!\n');
 
     // Run cleanup handlers
     for (const cleanup of session.cleanupHandlers) {
@@ -23,6 +23,7 @@ export const exit: CommandHandler = async (session, _fs, _args, write) => {
 
     // Signal to close the connection
     session.shouldClose = true;
+    return 0;
 };
 
 // Aliases

@@ -7,12 +7,14 @@
  * - FS transaction management
  */
 
-import type { Session, TTYStream, TTYConfig } from './types.js';
+import type { Session, TTYStream, TTYConfig, ParsedCommand, CommandIO } from './types.js';
 import { DEFAULT_MOTD } from './types.js';
-import { parseCommand } from './parser.js';
+import { parseCommand, expandVariables } from './parser.js';
 import { commands } from './commands.js';
 import { login, register } from '@src/lib/auth.js';
 import { runTransaction } from '@src/lib/transaction.js';
+import { PassThrough } from 'node:stream';
+import type { FS } from '@src/lib/fs/index.js';
 
 /**
  * Write text to stream with CRLF line endings (telnet convention)
@@ -474,6 +476,148 @@ async function completeRegistration(
 }
 
 /**
+ * Create a CommandIO with fresh PassThrough streams
+ */
+function createIO(): CommandIO {
+    return {
+        stdin: new PassThrough(),
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+    };
+}
+
+/**
+ * Collect all data from a stream into a string
+ */
+async function collectStream(stream: PassThrough): Promise<string> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks).toString();
+}
+
+/**
+ * Build the pipeline chain from parsed commands
+ */
+function buildPipeline(parsed: ParsedCommand, env: Record<string, string>): ParsedCommand[] {
+    const pipeline: ParsedCommand[] = [];
+    let current: ParsedCommand | undefined = parsed;
+
+    while (current) {
+        // Expand variables in args
+        current.args = current.args.map(arg => expandVariables(arg, env));
+        pipeline.push(current);
+        current = current.pipe;
+    }
+
+    return pipeline;
+}
+
+/**
+ * Check if any command in the pipeline needs a transaction
+ */
+function pipelineNeedsTransaction(pipeline: ParsedCommand[]): boolean {
+    const noTransactionCommands = ['echo', 'env', 'export', 'clear', 'help', 'pwd', 'whoami', 'exit', 'logout', 'quit'];
+    return pipeline.some(cmd => !noTransactionCommands.includes(cmd.command));
+}
+
+/**
+ * Execute a pipeline of commands with proper stream handling
+ */
+async function executePipeline(
+    stream: TTYStream,
+    session: Session,
+    pipeline: ParsedCommand[],
+    fs: FS | null
+): Promise<number> {
+    if (pipeline.length === 0) return 0;
+
+    // Single command - simple case
+    if (pipeline.length === 1) {
+        const cmd = pipeline[0];
+        const handler = commands[cmd.command];
+        if (!handler) {
+            writeToStream(stream, `${cmd.command}: command not found\n`);
+            return 127;
+        }
+
+        const io = createIO();
+
+        // Pipe stdout/stderr to the TTY stream
+        io.stdout.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+        io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+
+        // Close stdin immediately (no input for first command without redirect)
+        io.stdin.end();
+
+        try {
+            return await handler(session, fs, cmd.args, io);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            writeToStream(stream, `Error: ${message}\n`);
+            return 1;
+        }
+    }
+
+    // Multiple commands - pipe them together
+    let lastExitCode = 0;
+    let previousOutput = '';
+
+    for (let i = 0; i < pipeline.length; i++) {
+        const cmd = pipeline[i];
+        const handler = commands[cmd.command];
+
+        if (!handler) {
+            writeToStream(stream, `${cmd.command}: command not found\n`);
+            return 127;
+        }
+
+        const io = createIO();
+        const isLast = i === pipeline.length - 1;
+
+        // Feed previous command's output as stdin
+        if (previousOutput) {
+            io.stdin.end(previousOutput);
+        } else {
+            io.stdin.end();
+        }
+
+        // For last command, pipe to TTY; otherwise collect output
+        if (isLast) {
+            io.stdout.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+            io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+
+            try {
+                lastExitCode = await handler(session, fs, cmd.args, io);
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                writeToStream(stream, `Error: ${message}\n`);
+                lastExitCode = 1;
+            }
+        } else {
+            // Collect stderr to TTY, stdout to buffer
+            io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+
+            try {
+                const [exitCode, output] = await Promise.all([
+                    handler(session, fs, cmd.args, io),
+                    collectStream(io.stdout),
+                ]);
+                lastExitCode = exitCode;
+                previousOutput = output;
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                writeToStream(stream, `Error: ${message}\n`);
+                return 1;
+            }
+        }
+    }
+
+    return lastExitCode;
+}
+
+/**
  * Execute a command within a transaction
  */
 async function executeCommand(
@@ -484,6 +628,9 @@ async function executeCommand(
     const parsed = parseCommand(input);
     if (!parsed) return;
 
+    // Build pipeline and expand variables
+    const pipeline = buildPipeline(parsed, session.env);
+
     // Add to history (avoid duplicates of last command)
     if (session.history[session.history.length - 1] !== input) {
         session.history.push(input);
@@ -493,23 +640,10 @@ async function executeCommand(
     session.historyIndex = -1;
     session.historyBuffer = '';
 
-    const handler = commands[parsed.command];
-    if (!handler) {
-        writeToStream(stream, `${parsed.command}: command not found\n`);
-        return;
-    }
-
-    // Commands that don't need a transaction
-    const noTransactionCommands = ['echo', 'env', 'export', 'clear', 'help', 'pwd', 'whoami', 'exit', 'logout', 'quit'];
-
-    if (noTransactionCommands.includes(parsed.command)) {
-        // Run without FS (these commands don't use it)
-        try {
-            await handler(session, null as any, parsed.args, (text) => writeToStream(stream, text));
-        } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            writeToStream(stream, `Error: ${message}\n`);
-        }
+    // Check if pipeline needs a transaction
+    if (!pipelineNeedsTransaction(pipeline)) {
+        // Run without FS
+        await executePipeline(stream, session, pipeline, null);
         return;
     }
 
@@ -521,7 +655,7 @@ async function executeCommand(
 
     try {
         await runTransaction(session.systemInit, async (system) => {
-            await handler(session, system.fs, parsed.args, (text) => writeToStream(stream, text));
+            await executePipeline(stream, session, pipeline, system.fs);
         });
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

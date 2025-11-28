@@ -142,6 +142,27 @@ export interface TTYConfig {
 export type WriteFunction = (text: string) => void;
 
 /**
+ * Command I/O streams for pipe support
+ *
+ * Uses PassThrough streams to enable:
+ * - Piping between commands (cmd1 | cmd2)
+ * - Input/output redirection (< file, > file)
+ * - Proper backpressure handling
+ */
+import type { PassThrough } from 'node:stream';
+
+export interface CommandIO {
+    /** Standard input stream */
+    stdin: PassThrough;
+
+    /** Standard output stream */
+    stdout: PassThrough;
+
+    /** Standard error stream */
+    stderr: PassThrough;
+}
+
+/**
  * Create a new session with default values
  */
 export function createSession(id: string): Session {

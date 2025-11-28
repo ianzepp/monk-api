@@ -3,17 +3,25 @@
  */
 
 import type { FS, FSEntry } from '@src/lib/fs/index.js';
-import type { Session, WriteFunction } from '../types.js';
+import type { Session, CommandIO } from '../types.js';
 
 /**
  * Command handler signature
+ *
+ * Commands receive:
+ * - session: User session context
+ * - fs: Virtual filesystem (null for commands that don't need it)
+ * - args: Command arguments (already variable-expanded)
+ * - io: Standard I/O streams (stdin, stdout, stderr)
+ *
+ * Returns exit code (0 = success, non-zero = error)
  */
 export type CommandHandler = (
     session: Session,
-    fs: FS,
+    fs: FS | null,
     args: string[],
-    write: WriteFunction
-) => Promise<void>;
+    io: CommandIO
+) => Promise<number>;
 
 /**
  * Format mode as permission string

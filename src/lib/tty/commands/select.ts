@@ -11,10 +11,12 @@
  */
 
 import { FSError } from '@src/lib/fs/index.js';
+import type { FS } from '@src/lib/fs/index.js';
 import { resolvePath } from '../parser.js';
 import type { CommandHandler } from './shared.js';
+import type { CommandIO } from '../types.js';
 
-export const select: CommandHandler = async (session, fs, args, write) => {
+export const select: CommandHandler = async (session, fs, args, io) => {
     // Parse: select <fields> [from <path>]
     // If no 'from', default to current directory
     const fromIndex = args.indexOf('from');
@@ -35,28 +37,29 @@ export const select: CommandHandler = async (session, fs, args, write) => {
     const fields = fieldsPart.split(',').map(f => f.trim()).filter(Boolean);
 
     if (fields.length === 0) {
-        write('Usage: select <fields> [from <path>]\n');
-        write('  select id, name\n');
-        write('  select id, name from /api/data/users\n');
-        return;
+        io.stdout.write('Usage: select <fields> [from <path>]\n');
+        io.stdout.write('  select id, name\n');
+        io.stdout.write('  select id, name from /api/data/users\n');
+        return 0;
     }
 
     const resolved = resolvePath(session.cwd, pathPart);
 
     try {
-        const stat = await fs.stat(resolved);
+        const stat = await fs!.stat(resolved);
 
         if (stat.type === 'directory') {
-            await selectFromDirectory(fs, resolved, fields, write);
+            await selectFromDirectory(fs!, resolved, fields, io);
         } else {
-            await selectFromFile(fs, resolved, fields, write);
+            await selectFromFile(fs!, resolved, fields, io);
         }
+        return 0;
     } catch (err) {
         if (err instanceof FSError) {
-            write(`select: ${pathPart}: ${err.message}\n`);
-        } else {
-            throw err;
+            io.stderr.write(`select: ${pathPart}: ${err.message}\n`);
+            return 1;
         }
+        throw err;
     }
 };
 
@@ -64,10 +67,10 @@ export const select: CommandHandler = async (session, fs, args, write) => {
  * Select from a directory (multiple records)
  */
 async function selectFromDirectory(
-    fs: any,
+    fs: FS,
     path: string,
     fields: string[],
-    write: (text: string) => void
+    io: CommandIO
 ): Promise<void> {
     const entries = await fs.readdir(path);
 
@@ -75,7 +78,7 @@ async function selectFromDirectory(
     const files = entries.filter((e: any) => e.type === 'file');
 
     if (files.length === 0) {
-        write('(0 rows)\n');
+        io.stdout.write('(0 rows)\n');
         return;
     }
 
@@ -92,21 +95,21 @@ async function selectFromDirectory(
     }
 
     if (records.length === 0) {
-        write('(0 rows)\n');
+        io.stdout.write('(0 rows)\n');
         return;
     }
 
-    formatTable(records, fields, write);
+    formatTable(records, fields, io);
 }
 
 /**
  * Select from a file (single record)
  */
 async function selectFromFile(
-    fs: any,
+    fs: FS,
     path: string,
     fields: string[],
-    write: (text: string) => void
+    io: CommandIO
 ): Promise<void> {
     const content = await fs.read(path);
     let record: Record<string, any>;
@@ -115,16 +118,16 @@ async function selectFromFile(
         const parsed = JSON.parse(content.toString());
         // Handle both single record and array of records
         if (Array.isArray(parsed)) {
-            formatTable(parsed, fields, write);
+            formatTable(parsed, fields, io);
             return;
         }
         record = parsed;
     } catch {
-        write('select: Cannot parse as JSON\n');
+        io.stderr.write('select: Cannot parse as JSON\n');
         return;
     }
 
-    formatTable([record], fields, write);
+    formatTable([record], fields, io);
 }
 
 /**
@@ -133,10 +136,10 @@ async function selectFromFile(
 function formatTable(
     records: Record<string, any>[],
     fields: string[],
-    write: (text: string) => void
+    io: CommandIO
 ): void {
     if (records.length === 0) {
-        write('(0 rows)\n');
+        io.stdout.write('(0 rows)\n');
         return;
     }
 
@@ -162,11 +165,11 @@ function formatTable(
 
     // Print header
     const header = columns.map(col => col.padEnd(widths[col])).join('  ');
-    write(header + '\n');
+    io.stdout.write(header + '\n');
 
     // Print separator
     const separator = columns.map(col => '-'.repeat(widths[col])).join('  ');
-    write(separator + '\n');
+    io.stdout.write(separator + '\n');
 
     // Print rows
     for (const record of records) {
@@ -174,10 +177,10 @@ function formatTable(
             const value = formatValue(record[col]);
             return truncate(value, widths[col]).padEnd(widths[col]);
         }).join('  ');
-        write(row + '\n');
+        io.stdout.write(row + '\n');
     }
 
-    write(`(${records.length} row${records.length === 1 ? '' : 's'})\n`);
+    io.stdout.write(`(${records.length} row${records.length === 1 ? '' : 's'})\n`);
 }
 
 /**

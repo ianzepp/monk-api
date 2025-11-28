@@ -4,8 +4,9 @@
 
 import type { CommandHandler } from './shared.js';
 
-export const env: CommandHandler = async (session, _fs, _args, write) => {
+export const env: CommandHandler = async (session, _fs, _args, io) => {
     for (const [key, value] of Object.entries(session.env)) {
-        write(`${key}=${value}\n`);
+        io.stdout.write(`${key}=${value}\n`);
     }
+    return 0;
 };

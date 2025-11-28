@@ -2,9 +2,40 @@
  * Shell Command Parser
  *
  * Parses shell-style commands with arguments, quotes, and redirects.
+ * Supports variable expansion ($VAR, ${VAR}, ${VAR:-default}).
  */
 
 import type { ParsedCommand } from './types.js';
+
+/**
+ * Expand shell variables in a string
+ *
+ * Supports:
+ * - $VAR - simple variable
+ * - ${VAR} - braced variable
+ * - ${VAR:-default} - variable with default value
+ */
+export function expandVariables(
+    input: string,
+    env: Record<string, string>
+): string {
+    // ${VAR:-default} - variable with default
+    let result = input.replace(/\$\{(\w+):-([^}]*)\}/g, (_, name, def) => {
+        return env[name] ?? def;
+    });
+
+    // ${VAR} - braced variable
+    result = result.replace(/\$\{(\w+)\}/g, (_, name) => {
+        return env[name] ?? '';
+    });
+
+    // $VAR - simple variable (word characters only)
+    result = result.replace(/\$(\w+)/g, (_, name) => {
+        return env[name] ?? '';
+    });
+
+    return result;
+}
 
 /**
  * Tokenize input respecting quotes

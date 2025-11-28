@@ -14,35 +14,36 @@
 import { FSError } from '@src/lib/fs/index.js';
 import type { CommandHandler } from './shared.js';
 
-export const describe: CommandHandler = async (session, fs, args, write) => {
+export const describe: CommandHandler = async (session, fs, args, io) => {
     // If no model specified, try to infer from CWD
     const modelName = args[0] || inferModelFromCwd(session.cwd);
 
     if (!modelName) {
-        write('Usage: describe <model>\n');
-        write('  describe products\n');
-        write('  describe users\n');
-        return;
+        io.stdout.write('Usage: describe <model>\n');
+        io.stdout.write('  describe products\n');
+        io.stdout.write('  describe users\n');
+        return 0;
     }
 
     const schemaPath = `/api/describe/${modelName}/.yaml`;
 
     try {
-        const content = await fs.read(schemaPath);
-        write(content.toString());
+        const content = await fs!.read(schemaPath);
+        io.stdout.write(content.toString());
         if (!content.toString().endsWith('\n')) {
-            write('\n');
+            io.stdout.write('\n');
         }
+        return 0;
     } catch (err) {
         if (err instanceof FSError) {
             if (err.code === 'ENOENT') {
-                write(`describe: ${modelName}: model not found\n`);
+                io.stderr.write(`describe: ${modelName}: model not found\n`);
             } else {
-                write(`describe: ${modelName}: ${err.message}\n`);
+                io.stderr.write(`describe: ${modelName}: ${err.message}\n`);
             }
-        } else {
-            throw err;
+            return 1;
         }
+        throw err;
     }
 };
 

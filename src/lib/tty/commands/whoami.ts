@@ -4,6 +4,7 @@
 
 import type { CommandHandler } from './shared.js';
 
-export const whoami: CommandHandler = async (session, _fs, _args, write) => {
-    write(session.username + '\n');
+export const whoami: CommandHandler = async (session, _fs, _args, io) => {
+    io.stdout.write(session.username + '\n');
+    return 0;
 };
