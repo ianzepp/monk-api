@@ -62,6 +62,9 @@ export interface Session {
     /** Tenant name */
     tenant: string;
 
+    /** Abort controller for current foreground command (null if idle) */
+    foregroundAbort: AbortController | null;
+
     /** Current working directory in the virtual filesystem */
     cwd: string;
 
@@ -181,6 +184,7 @@ export function createSession(id: string): Session {
         state: 'AWAITING_USERNAME',
         username: '',
         tenant: '',
+        foregroundAbort: null,
         cwd: '/',
         inputBuffer: '',
         env: {

@@ -27,6 +27,36 @@ export function writeToStream(stream: TTYStream, text: string): void {
 }
 
 /**
+ * Handle CTRL+C (interrupt signal)
+ *
+ * If a foreground command is running, abort it.
+ * Otherwise, clear the input buffer and print a new prompt.
+ *
+ * @returns true if handled (don't disconnect), false if should disconnect
+ */
+export function handleInterrupt(stream: TTYStream, session: Session): boolean {
+    // If a foreground command is running, abort it
+    if (session.foregroundAbort) {
+        session.foregroundAbort.abort();
+        writeToStream(stream, '^C\n');
+        return true;
+    }
+
+    // No command running - clear input and show new prompt
+    if (session.state === 'AUTHENTICATED') {
+        writeToStream(stream, '^C\n');
+        session.inputBuffer = '';
+        session.historyIndex = -1;
+        session.historyBuffer = '';
+        printPrompt(stream, session);
+        return true;
+    }
+
+    // Not authenticated - disconnect
+    return false;
+}
+
+/**
  * Print command prompt
  */
 export function printPrompt(stream: TTYStream, session: Session): void {
@@ -566,11 +596,12 @@ async function completeRegistration(
 /**
  * Create a CommandIO with fresh PassThrough streams
  */
-function createIO(): CommandIO {
+function createIO(signal?: AbortSignal): CommandIO {
     return {
         stdin: new PassThrough(),
         stdout: new PassThrough(),
         stderr: new PassThrough(),
+        signal,
     };
 }
 
@@ -662,7 +693,8 @@ async function executePipeline(
     stream: TTYStream,
     session: Session,
     pipeline: ParsedCommand[],
-    fs: FS | null
+    fs: FS | null,
+    signal?: AbortSignal
 ): Promise<number> {
     if (pipeline.length === 0) return 0;
 
@@ -680,7 +712,7 @@ async function executePipeline(
             return 127;
         }
 
-        const io = createIO();
+        const io = createIO(signal);
 
         // Handle input redirect
         if (hasInputRedirect && fs) {
@@ -742,7 +774,7 @@ async function executePipeline(
             return 127;
         }
 
-        const io = createIO();
+        const io = createIO(signal);
         const isFirst = i === 0;
         const isLast = i === pipeline.length - 1;
 
@@ -850,26 +882,35 @@ async function executeCommand(
         return;
     }
 
-    // Check if pipeline needs a transaction
-    if (!pipelineNeedsTransaction(pipeline)) {
-        // Run without FS
-        await executePipeline(stream, session, pipeline, null);
-        return;
-    }
-
-    // Commands that need a transaction and FS
-    if (!session.systemInit) {
-        writeToStream(stream, 'Error: Not authenticated\n');
-        return;
-    }
+    // Set up abort controller for foreground command
+    const abortController = new AbortController();
+    session.foregroundAbort = abortController;
 
     try {
+        // Check if pipeline needs a transaction
+        if (!pipelineNeedsTransaction(pipeline)) {
+            // Run without FS
+            await executePipeline(stream, session, pipeline, null, abortController.signal);
+            return;
+        }
+
+        // Commands that need a transaction and FS
+        if (!session.systemInit) {
+            writeToStream(stream, 'Error: Not authenticated\n');
+            return;
+        }
+
         await runTransaction(session.systemInit, async (system) => {
-            await executePipeline(stream, session, pipeline, system.fs);
+            await executePipeline(stream, session, pipeline, system.fs, abortController.signal);
         });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        writeToStream(stream, `Error: ${message}\n`);
+        // Don't print error if aborted (CTRL+C)
+        if (!abortController.signal.aborted) {
+            const message = err instanceof Error ? err.message : String(err);
+            writeToStream(stream, `Error: ${message}\n`);
+        }
+    } finally {
+        session.foregroundAbort = null;
     }
 }
 

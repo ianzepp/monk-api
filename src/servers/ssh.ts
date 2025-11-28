@@ -10,7 +10,7 @@ import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { generateKeyPairSync } from 'crypto';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
 import { createSession, generateSessionId } from '@src/lib/tty/types.js';
-import { handleInput, printPrompt, writeToStream, saveHistory } from '@src/lib/tty/session-handler.js';
+import { handleInput, printPrompt, writeToStream, saveHistory, handleInterrupt } from '@src/lib/tty/session-handler.js';
 import { login } from '@src/lib/auth.js';
 import { terminateDaemon } from '@src/lib/process.js';
 
@@ -187,9 +187,19 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
                     channel.on('data', async (data: Buffer) => {
                         const text = data.toString();
 
-                        // Handle Ctrl+C / Ctrl+D
-                        if (text.includes('\x03') || text.includes('\x04')) {
-                            writeToStream(stream, '\n^C\nConnection closed.\n');
+                        // Handle Ctrl+C
+                        if (text.includes('\x03')) {
+                            const handled = handleInterrupt(stream, session!);
+                            if (!handled) {
+                                writeToStream(stream, '\nConnection closed.\n');
+                                stream.end();
+                            }
+                            return;
+                        }
+
+                        // Handle Ctrl+D - always disconnect
+                        if (text.includes('\x04')) {
+                            writeToStream(stream, '\nConnection closed.\n');
                             stream.end();
                             return;
                         }

@@ -8,7 +8,7 @@
 import type { Socket } from 'bun';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
 import { createSession, generateSessionId } from '@src/lib/tty/types.js';
-import { handleInput, sendWelcome, saveHistory } from '@src/lib/tty/session-handler.js';
+import { handleInput, sendWelcome, saveHistory, handleInterrupt } from '@src/lib/tty/session-handler.js';
 import { terminateDaemon } from '@src/lib/process.js';
 
 /**
@@ -122,10 +122,18 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
 
                 // Check for Ctrl+C or Ctrl+D
                 for (const byte of filtered) {
-                    if (byte === 0x03 || byte === 0x04) {
-                        console.info(
-                            `Telnet: Session ${session.id} disconnect via Ctrl+${byte === 0x03 ? 'C' : 'D'}`
-                        );
+                    if (byte === 0x03) {
+                        // CTRL+C - try to interrupt foreground command
+                        const handled = handleInterrupt(stream, session);
+                        if (!handled) {
+                            console.info(`Telnet: Session ${session.id} disconnect via Ctrl+C`);
+                            socket.end();
+                        }
+                        return;
+                    }
+                    if (byte === 0x04) {
+                        // CTRL+D - always disconnect
+                        console.info(`Telnet: Session ${session.id} disconnect via Ctrl+D`);
                         socket.end();
                         return;
                     }
