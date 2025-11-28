@@ -1,5 +1,5 @@
 /**
- * Model-Backed Storage - Persistent FS storage using fs_nodes table
+ * Model-Backed Storage - Persistent FS storage using fs table
  *
  * Provides a real filesystem backed by the database for paths not handled
  * by API mounts. Supports /home, /tmp, /etc, and any custom paths.
@@ -45,7 +45,7 @@ export class ModelBackedStorage implements Mount {
             throw new FSError('ENOTDIR', path);
         }
 
-        const children = await this.system.database.selectAny('fs_nodes', {
+        const children = await this.system.database.selectAny('fs', {
             where: { parent_id: parent.id },
             order: [{ field: 'name', sort: 'asc' }],
         }) as unknown as FSNode[];
@@ -82,7 +82,7 @@ export class ModelBackedStorage implements Mount {
             if (existing.node_type === 'directory') {
                 throw new FSError('EISDIR', path);
             }
-            await this.system.database.updateOne('fs_nodes', existing.id, {
+            await this.system.database.updateOne('fs', existing.id, {
                 content: buffer,
                 size: buffer.length,
             });
@@ -97,7 +97,7 @@ export class ModelBackedStorage implements Mount {
                 throw new FSError('ENOTDIR', parentPath);
             }
 
-            await this.system.database.createOne('fs_nodes', {
+            await this.system.database.createOne('fs', {
                 parent_id: parent.id,
                 name: this.basename(path),
                 path,
@@ -125,7 +125,7 @@ export class ModelBackedStorage implements Mount {
             throw new FSError('ENOTDIR', parentPath);
         }
 
-        await this.system.database.createOne('fs_nodes', {
+        await this.system.database.createOne('fs', {
             parent_id: parent.id,
             name: this.basename(path),
             path,
@@ -143,7 +143,7 @@ export class ModelBackedStorage implements Mount {
         if (node.node_type === 'directory') {
             throw new FSError('EISDIR', path);
         }
-        await this.system.database.deleteOne('fs_nodes', node.id);
+        await this.system.database.deleteOne('fs', node.id);
     }
 
     async rmdir(path: string): Promise<void> {
@@ -156,7 +156,7 @@ export class ModelBackedStorage implements Mount {
         }
 
         // Check if empty
-        const children = await this.system.database.selectAny('fs_nodes', {
+        const children = await this.system.database.selectAny('fs', {
             where: { parent_id: node.id },
             limit: 1,
         });
@@ -164,7 +164,7 @@ export class ModelBackedStorage implements Mount {
             throw new FSError('ENOTEMPTY', path);
         }
 
-        await this.system.database.deleteOne('fs_nodes', node.id);
+        await this.system.database.deleteOne('fs', node.id);
     }
 
     async rename(oldPath: string, newPath: string): Promise<void> {
@@ -188,7 +188,7 @@ export class ModelBackedStorage implements Mount {
             throw new FSError('EEXIST', newPath);
         }
 
-        await this.system.database.updateOne('fs_nodes', node.id, {
+        await this.system.database.updateOne('fs', node.id, {
             parent_id: newParent.id,
             name: this.basename(newPath),
             path: newPath,
@@ -212,7 +212,7 @@ export class ModelBackedStorage implements Mount {
             throw new FSError('ENOENT', parentPath);
         }
 
-        await this.system.database.createOne('fs_nodes', {
+        await this.system.database.createOne('fs', {
             parent_id: parent.id,
             name: this.basename(path),
             path,
@@ -239,7 +239,7 @@ export class ModelBackedStorage implements Mount {
         if (!node) {
             throw new FSError('ENOENT', path);
         }
-        await this.system.database.updateOne('fs_nodes', node.id, { mode });
+        await this.system.database.updateOne('fs', node.id, { mode });
     }
 
     async chown(path: string, uid: string): Promise<void> {
@@ -247,7 +247,7 @@ export class ModelBackedStorage implements Mount {
         if (!node) {
             throw new FSError('ENOENT', path);
         }
-        await this.system.database.updateOne('fs_nodes', node.id, { owner_id: uid });
+        await this.system.database.updateOne('fs', node.id, { owner_id: uid });
     }
 
     // =========================================================================
@@ -256,7 +256,7 @@ export class ModelBackedStorage implements Mount {
 
     private async getNode(path: string): Promise<FSNode | null> {
         const normalizedPath = this.normalizePath(path);
-        const result = await this.system.database.selectOne('fs_nodes', {
+        const result = await this.system.database.selectOne('fs', {
             where: { path: normalizedPath },
         });
         return result as FSNode | null;
@@ -297,7 +297,7 @@ export class ModelBackedStorage implements Mount {
 
     private async updateDescendantPaths(oldPrefix: string, newPrefix: string): Promise<void> {
         // Get all descendants
-        const descendants = await this.system.database.selectAny('fs_nodes', {
+        const descendants = await this.system.database.selectAny('fs', {
             where: {
                 path: { $like: oldPrefix + '/%' },
             },
@@ -306,7 +306,7 @@ export class ModelBackedStorage implements Mount {
         // Update each descendant's path
         for (const node of descendants) {
             const newPath = newPrefix + node.path.slice(oldPrefix.length);
-            await this.system.database.updateOne('fs_nodes', node.id, {
+            await this.system.database.updateOne('fs', node.id, {
                 path: newPath,
             });
         }
@@ -346,7 +346,7 @@ export async function initializeFS(
     ): Promise<string> => {
         const id = randomUUID();
         await adapter.query(
-            `INSERT INTO fs_nodes (id, parent_id, name, path, node_type, mode, owner_id, created_at, updated_at)
+            `INSERT INTO fs (id, parent_id, name, path, node_type, mode, owner_id, created_at, updated_at)
              VALUES ($1, $2, $3, $4, 'directory', $5, $6, $7, $8)`,
             [id, parentId, name, path, mode, rootUserId, now, now]
         );
@@ -364,7 +364,7 @@ export async function initializeFS(
         const id = randomUUID();
         const buffer = Buffer.from(content);
         await adapter.query(
-            `INSERT INTO fs_nodes (id, parent_id, name, path, node_type, content, size, mode, owner_id, created_at, updated_at)
+            `INSERT INTO fs (id, parent_id, name, path, node_type, content, size, mode, owner_id, created_at, updated_at)
              VALUES ($1, $2, $3, $4, 'file', $5, $6, $7, $8, $9, $10)`,
             [id, parentId, name, path, buffer, buffer.length, mode, rootUserId, now, now]
         );

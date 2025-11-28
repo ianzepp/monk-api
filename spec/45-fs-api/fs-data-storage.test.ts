@@ -13,7 +13,7 @@ import type { SystemInit } from '@src/lib/system.js';
 /**
  * ModelBackedStorage Tests
  *
- * Tests the fs_nodes-backed storage in isolation using a temporary SQLite database.
+ * Tests the fs-backed storage in isolation using a temporary SQLite database.
  * FS initialization creates /, /home, /home/root, /tmp, /etc, /etc/motd.
  */
 

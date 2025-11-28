@@ -143,7 +143,7 @@ interface Session {
 ### Design Goals
 
 1. **Generic Core, Specific Mounts** - FS knows paths and entries, not Monk APIs
-2. **Real Storage by Default** - `fs_nodes` table for `/home`, `/tmp`, `/etc`
+2. **Real Storage by Default** - `fs` table for `/home`, `/tmp`, `/etc`
 3. **Direct Database Access** - Mounts use `System.database`, not HTTP
 4. **Session-Scoped** - Each FS instance bound to authenticated session
 5. **Transport-Agnostic** - Same FS serves TTY, SFTP, and potential HTTP explorer
@@ -199,7 +199,7 @@ interface Session {
 src/lib/fs/
 ├── index.ts              # FS class, mount table, path resolution
 ├── types.ts              # FSEntry, Mount interface, FSError
-├── storage.ts            # ModelBackedStorage (fs_nodes table)
+├── storage.ts            # ModelBackedStorage (fs table)
 └── mounts/
     ├── data-mount.ts         # /api/data/:model/:id.json
     ├── describe-mount.ts     # /api/describe/:model.yaml
@@ -723,10 +723,10 @@ class SystemMount implements Mount {
 
 ## Storage Backend
 
-### Database Model: `fs_nodes`
+### Database Model: `fs`
 
 > **IMPORTANT**: System tables are defined via SQL, not YAML.
-> The `fs_nodes` table must be added to three files:
+> The `fs` table must be added to three files:
 > 1. `src/lib/sql/tenant.pg.sql` - PostgreSQL DDL + seed data
 > 2. `src/lib/sql/tenant.sqlite.sql` - SQLite DDL
 > 3. `src/lib/infrastructure.ts` - `TENANT_SEED_SQLITE` constant
@@ -735,7 +735,7 @@ class SystemMount implements Mount {
 
 ```sql
 -- FS Nodes table (filesystem storage)
-CREATE TABLE IF NOT EXISTS "fs_nodes" (
+CREATE TABLE IF NOT EXISTS "fs" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "access_read" uuid[] DEFAULT '{}'::uuid[],
     "access_edit" uuid[] DEFAULT '{}'::uuid[],
@@ -754,27 +754,27 @@ CREATE TABLE IF NOT EXISTS "fs_nodes" (
     "mode" integer DEFAULT 420 NOT NULL,
     "size" integer DEFAULT 0 NOT NULL,
     "owner_id" uuid,
-    CONSTRAINT "fs_nodes_path_unique" UNIQUE("path")
+    CONSTRAINT "fs_path_unique" UNIQUE("path")
 );
 
-CREATE INDEX IF NOT EXISTS "idx_fs_nodes_parent" ON "fs_nodes" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_fs_parent" ON "fs" ("parent_id");
 
 -- Seed: Register model
 INSERT INTO "models" (model_name, status, sudo, description) VALUES
-    ('fs_nodes', 'system', true, 'Filesystem nodes for persistent storage')
+    ('fs', 'system', true, 'Filesystem nodes for persistent storage')
 ON CONFLICT (model_name) DO NOTHING;
 
 -- Seed: Register fields
 INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
-    ('fs_nodes', 'parent_id', 'uuid', false, 'Parent directory (null for root)'),
-    ('fs_nodes', 'name', 'text', true, 'File or directory name'),
-    ('fs_nodes', 'path', 'text', true, 'Full absolute path'),
-    ('fs_nodes', 'node_type', 'text', true, 'Node type: file, directory, symlink'),
-    ('fs_nodes', 'content', 'bytea', false, 'File content (null for directories)'),
-    ('fs_nodes', 'target', 'text', false, 'Symlink target path'),
-    ('fs_nodes', 'mode', 'integer', false, 'Unix permission bits'),
-    ('fs_nodes', 'size', 'integer', false, 'Content size in bytes'),
-    ('fs_nodes', 'owner_id', 'uuid', false, 'Owner user ID')
+    ('fs', 'parent_id', 'uuid', false, 'Parent directory (null for root)'),
+    ('fs', 'name', 'text', true, 'File or directory name'),
+    ('fs', 'path', 'text', true, 'Full absolute path'),
+    ('fs', 'node_type', 'text', true, 'Node type: file, directory, symlink'),
+    ('fs', 'content', 'bytea', false, 'File content (null for directories)'),
+    ('fs', 'target', 'text', false, 'Symlink target path'),
+    ('fs', 'mode', 'integer', false, 'Unix permission bits'),
+    ('fs', 'size', 'integer', false, 'Content size in bytes'),
+    ('fs', 'owner_id', 'uuid', false, 'Owner user ID')
 ON CONFLICT (model_name, field_name) DO NOTHING;
 ```
 
@@ -782,7 +782,7 @@ ON CONFLICT (model_name, field_name) DO NOTHING;
 
 ```sql
 -- FS Nodes table (filesystem storage)
-CREATE TABLE IF NOT EXISTS "fs_nodes" (
+CREATE TABLE IF NOT EXISTS "fs" (
     "id" TEXT PRIMARY KEY NOT NULL,
     "access_read" TEXT DEFAULT '[]',
     "access_edit" TEXT DEFAULT '[]',
@@ -801,10 +801,10 @@ CREATE TABLE IF NOT EXISTS "fs_nodes" (
     "mode" INTEGER DEFAULT 420 NOT NULL,
     "size" INTEGER DEFAULT 0 NOT NULL,
     "owner_id" TEXT,
-    CONSTRAINT "fs_nodes_path_unique" UNIQUE("path")
+    CONSTRAINT "fs_path_unique" UNIQUE("path")
 );
 
-CREATE INDEX IF NOT EXISTS "idx_fs_nodes_parent" ON "fs_nodes" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_fs_parent" ON "fs" ("parent_id");
 ```
 
 #### SQLite Seed (`infrastructure.ts` - TENANT_SEED_SQLITE)
@@ -812,27 +812,27 @@ CREATE INDEX IF NOT EXISTS "idx_fs_nodes_parent" ON "fs_nodes" ("parent_id");
 ```typescript
 // Add to TENANT_SEED_SQLITE constant:
 
--- Register fs_nodes model
+-- Register fs model
 INSERT OR IGNORE INTO "models" (id, model_name, status, sudo, description) VALUES
-    ('${randomUUID()}', 'fs_nodes', 'system', 1, 'Filesystem nodes');
+    ('${randomUUID()}', 'fs', 'system', 1, 'Filesystem nodes');
 
--- Fields for fs_nodes
+-- Fields for fs
 INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, description) VALUES
-    ('${randomUUID()}', 'fs_nodes', 'parent_id', 'uuid', 0, 'Parent directory'),
-    ('${randomUUID()}', 'fs_nodes', 'name', 'text', 1, 'File or directory name'),
-    ('${randomUUID()}', 'fs_nodes', 'path', 'text', 1, 'Full absolute path'),
-    ('${randomUUID()}', 'fs_nodes', 'node_type', 'text', 1, 'Node type'),
-    ('${randomUUID()}', 'fs_nodes', 'content', 'bytea', 0, 'File content'),
-    ('${randomUUID()}', 'fs_nodes', 'target', 'text', 0, 'Symlink target'),
-    ('${randomUUID()}', 'fs_nodes', 'mode', 'integer', 0, 'Unix permissions'),
-    ('${randomUUID()}', 'fs_nodes', 'size', 'integer', 0, 'Content size'),
-    ('${randomUUID()}', 'fs_nodes', 'owner_id', 'uuid', 0, 'Owner user ID');
+    ('${randomUUID()}', 'fs', 'parent_id', 'uuid', 0, 'Parent directory'),
+    ('${randomUUID()}', 'fs', 'name', 'text', 1, 'File or directory name'),
+    ('${randomUUID()}', 'fs', 'path', 'text', 1, 'Full absolute path'),
+    ('${randomUUID()}', 'fs', 'node_type', 'text', 1, 'Node type'),
+    ('${randomUUID()}', 'fs', 'content', 'bytea', 0, 'File content'),
+    ('${randomUUID()}', 'fs', 'target', 'text', 0, 'Symlink target'),
+    ('${randomUUID()}', 'fs', 'mode', 'integer', 0, 'Unix permissions'),
+    ('${randomUUID()}', 'fs', 'size', 'integer', 0, 'Content size'),
+    ('${randomUUID()}', 'fs', 'owner_id', 'uuid', 0, 'Owner user ID');
 ```
 
 #### Binary Type Support (PREREQUISITE)
 
 > **NOTE**: The `bytea` type is NOT currently supported in the field type system.
-> Before implementing fs_nodes, add `bytea` support:
+> Before implementing fs, add `bytea` support:
 >
 > 1. **`src/lib/sql/tenant.pg.sql`** - Add `'bytea'` to `field_type` enum
 > 2. **`src/lib/sql/tenant.sqlite.sql`** - Add `'bytea'` to CHECK constraint
@@ -860,7 +860,7 @@ class ModelBackedStorage implements Mount {
 
   async stat(path: string): Promise<FSEntry> {
     // selectOne takes (model, filterData) with { where: { ... } }
-    const node = await this.system.database.selectOne('fs_nodes', {
+    const node = await this.system.database.selectOne('fs', {
       where: { path }
     });
     if (!node) throw new FSError('ENOENT', path);
@@ -868,13 +868,13 @@ class ModelBackedStorage implements Mount {
   }
 
   async readdir(path: string): Promise<FSEntry[]> {
-    const parent = await this.system.database.selectOne('fs_nodes', {
+    const parent = await this.system.database.selectOne('fs', {
       where: { path }
     });
     if (!parent) throw new FSError('ENOENT', path);
     if (parent.node_type !== 'directory') throw new FSError('ENOTDIR', path);
 
-    const children = await this.system.database.selectAny('fs_nodes', {
+    const children = await this.system.database.selectAny('fs', {
       where: { parent_id: parent.id },
       order: [{ field: 'name', direction: 'asc' }],
     });
@@ -883,7 +883,7 @@ class ModelBackedStorage implements Mount {
   }
 
   async read(path: string): Promise<Buffer> {
-    const node = await this.system.database.selectOne('fs_nodes', {
+    const node = await this.system.database.selectOne('fs', {
       where: { path }
     });
     if (!node) throw new FSError('ENOENT', path);
@@ -893,26 +893,26 @@ class ModelBackedStorage implements Mount {
 
   async write(path: string, content: Buffer | string): Promise<void> {
     const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
-    const existing = await this.system.database.selectOne('fs_nodes', {
+    const existing = await this.system.database.selectOne('fs', {
       where: { path }
     });
 
     if (existing) {
       if (existing.node_type === 'directory') throw new FSError('EISDIR', path);
       // updateOne takes (model, recordId, changes)
-      await this.system.database.updateOne('fs_nodes', existing.id, {
+      await this.system.database.updateOne('fs', existing.id, {
         content: buffer,
         size: buffer.length,
       });
     } else {
       // Create new file
       const parentPath = this.dirname(path);
-      const parent = await this.system.database.selectOne('fs_nodes', {
+      const parent = await this.system.database.selectOne('fs', {
         where: { path: parentPath }
       });
       if (!parent) throw new FSError('ENOENT', parentPath);
 
-      await this.system.database.createOne('fs_nodes', {
+      await this.system.database.createOne('fs', {
         parent_id: parent.id,
         name: this.basename(path),
         path,
@@ -926,18 +926,18 @@ class ModelBackedStorage implements Mount {
   }
 
   async mkdir(path: string, mode = 0o755): Promise<void> {
-    const existing = await this.system.database.selectOne('fs_nodes', {
+    const existing = await this.system.database.selectOne('fs', {
       where: { path }
     });
     if (existing) throw new FSError('EEXIST', path);
 
     const parentPath = this.dirname(path);
-    const parent = await this.system.database.selectOne('fs_nodes', {
+    const parent = await this.system.database.selectOne('fs', {
       where: { path: parentPath }
     });
     if (!parent) throw new FSError('ENOENT', parentPath);
 
-    await this.system.database.createOne('fs_nodes', {
+    await this.system.database.createOne('fs', {
       parent_id: parent.id,
       name: this.basename(path),
       path,
@@ -948,45 +948,45 @@ class ModelBackedStorage implements Mount {
   }
 
   async unlink(path: string): Promise<void> {
-    const node = await this.system.database.selectOne('fs_nodes', {
+    const node = await this.system.database.selectOne('fs', {
       where: { path }
     });
     if (!node) throw new FSError('ENOENT', path);
     if (node.node_type === 'directory') throw new FSError('EISDIR', path);
     // deleteOne takes (model, recordId)
-    await this.system.database.deleteOne('fs_nodes', node.id);
+    await this.system.database.deleteOne('fs', node.id);
   }
 
   async rmdir(path: string): Promise<void> {
-    const node = await this.system.database.selectOne('fs_nodes', {
+    const node = await this.system.database.selectOne('fs', {
       where: { path }
     });
     if (!node) throw new FSError('ENOENT', path);
     if (node.node_type !== 'directory') throw new FSError('ENOTDIR', path);
 
     // Check if empty
-    const children = await this.system.database.selectAny('fs_nodes', {
+    const children = await this.system.database.selectAny('fs', {
       where: { parent_id: node.id },
       limit: 1,
     });
     if (children.length > 0) throw new FSError('ENOTEMPTY', path);
 
-    await this.system.database.deleteOne('fs_nodes', node.id);
+    await this.system.database.deleteOne('fs', node.id);
   }
 
   async rename(oldPath: string, newPath: string): Promise<void> {
-    const node = await this.system.database.selectOne('fs_nodes', {
+    const node = await this.system.database.selectOne('fs', {
       where: { path: oldPath }
     });
     if (!node) throw new FSError('ENOENT', oldPath);
 
     const newParentPath = this.dirname(newPath);
-    const newParent = await this.system.database.selectOne('fs_nodes', {
+    const newParent = await this.system.database.selectOne('fs', {
       where: { path: newParentPath }
     });
     if (!newParent) throw new FSError('ENOENT', newParentPath);
 
-    await this.system.database.updateOne('fs_nodes', node.id, {
+    await this.system.database.updateOne('fs', node.id, {
       parent_id: newParent.id,
       name: this.basename(newPath),
       path: newPath,
@@ -1025,8 +1025,8 @@ class ModelBackedStorage implements Mount {
     // Use database.execute() for raw SQL
     // Note: Syntax differs between PostgreSQL and SQLite
     const sql = this.system.dbType === 'sqlite'
-      ? `UPDATE fs_nodes SET path = ? || SUBSTR(path, ?) WHERE path LIKE ?`
-      : `UPDATE fs_nodes SET path = $1 || SUBSTRING(path FROM $2) WHERE path LIKE $3`;
+      ? `UPDATE fs SET path = ? || SUBSTR(path, ?) WHERE path LIKE ?`
+      : `UPDATE fs SET path = $1 || SUBSTRING(path FROM $2) WHERE path LIKE $3`;
 
     await this.system.database.execute(sql, [newPrefix, oldPrefix.length + 1, oldPrefix + '%']);
   }
@@ -1351,7 +1351,7 @@ async function initializeTenantFS(system: System): Promise<void> {
 - [ ] Verify backwards compatibility
 
 ### Phase 4: Real Storage
-- [ ] Add `fs_nodes` table to SQL schemas:
+- [ ] Add `fs` table to SQL schemas:
   - [ ] `src/lib/sql/tenant.pg.sql` - DDL + seed data
   - [ ] `src/lib/sql/tenant.sqlite.sql` - DDL
   - [ ] `src/lib/infrastructure.ts` - TENANT_SEED_SQLITE
@@ -1367,7 +1367,7 @@ async function initializeTenantFS(system: System): Promise<void> {
 
 ### Phase 6: Event Notifications
 - [ ] Create `src/lib/fs/event-bus.ts` with FSEventBus
-- [ ] Create `src/observers/fs_nodes/7/50-fs-event-emitter.ts`
+- [ ] Create `src/observers/fs/7/50-fs-event-emitter.ts`
 - [ ] Add `watch` command to TTY
 - [ ] Add `tail -f` support to TTY
 - [ ] Add SSE endpoint `/api/fs/watch/*`
@@ -1431,7 +1431,7 @@ interface FSEvent {
 ### Observer Implementation
 
 ```typescript
-// src/observers/fs_nodes/7/50-fs-event-emitter.ts
+// src/observers/fs/7/50-fs-event-emitter.ts
 import { BaseAsyncObserver } from '@src/lib/observers/base-async-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import type { ObserverContext } from '@src/lib/observers/interfaces.js';
@@ -1439,7 +1439,7 @@ import { FSEventBus } from '@src/lib/fs/event-bus.js';
 
 export default class FSEventEmitter extends BaseAsyncObserver {
   readonly ring = ObserverRing.Async;  // Ring 7
-  readonly models = ['fs_nodes'] as const;
+  readonly models = ['fs'] as const;
   readonly operations = ['create', 'update', 'delete'] as const;
   readonly priority = 50;
 
@@ -1713,15 +1713,15 @@ class QueryMount implements Mount {
 
 ### Extended Attributes (BeOS)
 
-BeOS files had arbitrary key-value attributes beyond standard metadata. Could add to fs_nodes:
+BeOS files had arbitrary key-value attributes beyond standard metadata. Could add to fs:
 
 ```sql
 -- Option A: JSONB column
-ALTER TABLE fs_nodes ADD COLUMN xattrs JSONB DEFAULT '{}';
+ALTER TABLE fs ADD COLUMN xattrs JSONB DEFAULT '{}';
 
 -- Option B: Separate table
 CREATE TABLE fs_xattrs (
-  node_id UUID REFERENCES fs_nodes(id),
+  node_id UUID REFERENCES fs(id),
   name TEXT NOT NULL,
   value BYTEA,
   PRIMARY KEY (node_id, name)
@@ -1840,7 +1840,7 @@ session.fs.bind(`/home/${session.username}`, '/home/me');
 - Fixed `getUser()`: synchronous, returns `UserInfo`
 - Fixed describe service calls: `describe.models.selectOne()` not `describe.getModel()`
 - Fixed database method signatures: `selectOne(model, { where })`, `updateOne(model, id, changes)`, `deleteOne(model, id)`
-- Replaced YAML model definition with SQL DDL for `fs_nodes`
+- Replaced YAML model definition with SQL DDL for `fs`
 - Added `bytea` type prerequisite (not currently in field type system)
 - Fixed `createSystemFromToken` → `systemInitFromJWT` + `new System()`
 - Fixed `adapter.raw()` → `database.execute()`

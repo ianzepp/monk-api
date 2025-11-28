@@ -2,7 +2,7 @@
  * Filesystem (FS)
  *
  * Provides a unified filesystem abstraction over:
- * - Database-backed storage (fs_nodes table)
+ * - Database-backed storage (fs table)
  * - API endpoints as virtual directories (/api/data, /api/describe, etc.)
  * - System introspection (/system)
  *

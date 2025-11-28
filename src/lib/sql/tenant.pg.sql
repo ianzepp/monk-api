@@ -181,7 +181,7 @@ CREATE INDEX IF NOT EXISTS "idx_tracked_model_record"
     ON "tracked" (model_name, record_id, change_id DESC);
 
 -- FS Nodes table (filesystem storage)
-CREATE TABLE IF NOT EXISTS "fs_nodes" (
+CREATE TABLE IF NOT EXISTS "fs" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "access_read" uuid[] DEFAULT '{}'::uuid[],
     "access_edit" uuid[] DEFAULT '{}'::uuid[],
@@ -200,13 +200,13 @@ CREATE TABLE IF NOT EXISTS "fs_nodes" (
     "mode" integer DEFAULT 420 NOT NULL,
     "size" integer DEFAULT 0 NOT NULL,
     "owner_id" uuid,
-    CONSTRAINT "fs_nodes_path_unique" UNIQUE("path"),
-    FOREIGN KEY ("parent_id") REFERENCES "fs_nodes"("id") ON DELETE CASCADE,
+    CONSTRAINT "fs_path_unique" UNIQUE("path"),
+    FOREIGN KEY ("parent_id") REFERENCES "fs"("id") ON DELETE CASCADE,
     FOREIGN KEY ("owner_id") REFERENCES "users"("id") ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS "idx_fs_nodes_parent" ON "fs_nodes" ("parent_id");
-CREATE INDEX IF NOT EXISTS "idx_fs_nodes_path" ON "fs_nodes" ("path");
+CREATE INDEX IF NOT EXISTS "idx_fs_parent" ON "fs" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_fs_path" ON "fs" ("path");
 
 -- =============================================================================
 -- SEED DATA
@@ -220,7 +220,7 @@ INSERT INTO "models" (model_name, status, sudo, description) VALUES
     ('filters', 'system', false, NULL),
     ('credentials', 'system', true, 'User authentication credentials'),
     ('tracked', 'system', true, 'Change tracking and audit trail'),
-    ('fs_nodes', 'system', true, 'Filesystem nodes')
+    ('fs', 'system', true, 'Filesystem nodes')
 ON CONFLICT (model_name) DO NOTHING;
 
 -- Fields for models
@@ -306,15 +306,15 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
     ('tracked', 'metadata', 'jsonb', false, 'Additional context (IP address, user agent, etc.)')
 ON CONFLICT (model_name, field_name) DO NOTHING;
 
--- Fields for fs_nodes
+-- Fields for fs
 INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
-    ('fs_nodes', 'parent_id', 'uuid', false, 'Parent directory (null for root)'),
-    ('fs_nodes', 'name', 'text', true, 'File or directory name'),
-    ('fs_nodes', 'path', 'text', true, 'Full absolute path'),
-    ('fs_nodes', 'node_type', 'text', true, 'Node type: file, directory, symlink'),
-    ('fs_nodes', 'content', 'binary', false, 'File content (null for directories)'),
-    ('fs_nodes', 'target', 'text', false, 'Symlink target path'),
-    ('fs_nodes', 'mode', 'integer', false, 'Unix permission bits'),
-    ('fs_nodes', 'size', 'integer', false, 'Content size in bytes'),
-    ('fs_nodes', 'owner_id', 'uuid', false, 'Owner user ID')
+    ('fs', 'parent_id', 'uuid', false, 'Parent directory (null for root)'),
+    ('fs', 'name', 'text', true, 'File or directory name'),
+    ('fs', 'path', 'text', true, 'Full absolute path'),
+    ('fs', 'node_type', 'text', true, 'Node type: file, directory, symlink'),
+    ('fs', 'content', 'binary', false, 'File content (null for directories)'),
+    ('fs', 'target', 'text', false, 'Symlink target path'),
+    ('fs', 'mode', 'integer', false, 'Unix permission bits'),
+    ('fs', 'size', 'integer', false, 'Content size in bytes'),
+    ('fs', 'owner_id', 'uuid', false, 'Owner user ID')
 ON CONFLICT (model_name, field_name) DO NOTHING;

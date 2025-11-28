@@ -51,7 +51,7 @@ All Monk-specific behavior lives in mount handlers.
 
 ### 2. Real Storage by Default
 
-Unlike a purely filesystem, the FS has a real storage backend. Paths not covered by a mount are stored in a database model (`fs_nodes`). This enables:
+Unlike a purely filesystem, the FS has a real storage backend. Paths not covered by a mount are stored in a database model (`fs`). This enables:
 - User home directories with real files
 - Scripts stored in the filesystem
 - Config files (`.profile`, `.aliases`)
@@ -192,10 +192,10 @@ class FS {
 
 The storage backend handles "real" files not covered by mounts.
 
-### Database Model: `fs_nodes`
+### Database Model: `fs`
 
 ```yaml
-model_name: fs_nodes
+model_name: fs
 status: system
 description: Filesystem nodes for persistent storage
 fields:
@@ -253,7 +253,7 @@ class ModelBackedStorage implements FSStorage {
   ) {}
 
   async stat(path: string): Promise<FSEntry> {
-    const node = await this.db('fs_nodes')
+    const node = await this.db('fs')
       .where({ tenant_id: this.tenantId, path })
       .first();
 
@@ -267,7 +267,7 @@ class ModelBackedStorage implements FSStorage {
       throw new FSError('ENOTDIR', path);
     }
 
-    const children = await this.db('fs_nodes')
+    const children = await this.db('fs')
       .where({ tenant_id: this.tenantId, parent_id: parent.id })
       .orderBy('name');
 
@@ -283,7 +283,7 @@ class ModelBackedStorage implements FSStorage {
   }
 
   async write(path: string, content: Buffer): Promise<void> {
-    const existing = await this.db('fs_nodes')
+    const existing = await this.db('fs')
       .where({ tenant_id: this.tenantId, path })
       .first();
 
@@ -291,7 +291,7 @@ class ModelBackedStorage implements FSStorage {
       if (existing.type === 'directory') {
         throw new FSError('EISDIR', path);
       }
-      await this.db('fs_nodes')
+      await this.db('fs')
         .where({ id: existing.id })
         .update({
           content,
@@ -303,7 +303,7 @@ class ModelBackedStorage implements FSStorage {
       const parentPath = dirname(path);
       const parent = await this.getNode(parentPath);
 
-      await this.db('fs_nodes').insert({
+      await this.db('fs').insert({
         id: uuid(),
         tenant_id: this.tenantId,
         parent_id: parent.id,
@@ -318,7 +318,7 @@ class ModelBackedStorage implements FSStorage {
   }
 
   async mkdir(path: string): Promise<void> {
-    const existing = await this.db('fs_nodes')
+    const existing = await this.db('fs')
       .where({ tenant_id: this.tenantId, path })
       .first();
 
@@ -327,7 +327,7 @@ class ModelBackedStorage implements FSStorage {
     const parentPath = dirname(path);
     const parent = await this.getNode(parentPath);
 
-    await this.db('fs_nodes').insert({
+    await this.db('fs').insert({
       id: uuid(),
       tenant_id: this.tenantId,
       parent_id: parent.id,
@@ -343,7 +343,7 @@ class ModelBackedStorage implements FSStorage {
     if (node.type === 'directory') {
       throw new FSError('EISDIR', path);
     }
-    await this.db('fs_nodes').where({ id: node.id }).delete();
+    await this.db('fs').where({ id: node.id }).delete();
   }
 
   async rmdir(path: string): Promise<void> {
@@ -352,7 +352,7 @@ class ModelBackedStorage implements FSStorage {
       throw new FSError('ENOTDIR', path);
     }
 
-    const children = await this.db('fs_nodes')
+    const children = await this.db('fs')
       .where({ tenant_id: this.tenantId, parent_id: node.id })
       .count('* as count')
       .first();
@@ -361,7 +361,7 @@ class ModelBackedStorage implements FSStorage {
       throw new FSError('ENOTEMPTY', path);
     }
 
-    await this.db('fs_nodes').where({ id: node.id }).delete();
+    await this.db('fs').where({ id: node.id }).delete();
   }
 
   private toEntry(node: FSNode): FSEntry {

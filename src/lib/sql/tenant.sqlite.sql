@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS "tracked" (
 CREATE INDEX IF NOT EXISTS "idx_tracked_model_record" ON "tracked" (model_name, record_id, change_id DESC);
 
 -- FS Nodes table (filesystem storage)
-CREATE TABLE IF NOT EXISTS "fs_nodes" (
+CREATE TABLE IF NOT EXISTS "fs" (
     "id" TEXT PRIMARY KEY NOT NULL,
     "access_read" TEXT DEFAULT '[]',
     "access_edit" TEXT DEFAULT '[]',
@@ -181,13 +181,13 @@ CREATE TABLE IF NOT EXISTS "fs_nodes" (
     "mode" INTEGER DEFAULT 420 NOT NULL,
     "size" INTEGER DEFAULT 0 NOT NULL,
     "owner_id" TEXT,
-    CONSTRAINT "fs_nodes_path_unique" UNIQUE("path"),
-    FOREIGN KEY ("parent_id") REFERENCES "fs_nodes"("id") ON DELETE CASCADE,
+    CONSTRAINT "fs_path_unique" UNIQUE("path"),
+    FOREIGN KEY ("parent_id") REFERENCES "fs"("id") ON DELETE CASCADE,
     FOREIGN KEY ("owner_id") REFERENCES "users"("id") ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS "idx_fs_nodes_parent" ON "fs_nodes" ("parent_id");
-CREATE INDEX IF NOT EXISTS "idx_fs_nodes_path" ON "fs_nodes" ("path");
+CREATE INDEX IF NOT EXISTS "idx_fs_parent" ON "fs" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_fs_path" ON "fs" ("path");
 
 -- =============================================================================
 -- NOTE: Seed data for SQLite is managed in src/lib/infrastructure.ts
