@@ -220,10 +220,18 @@ export function generateSessionId(): string {
 
 /**
  * Default message of the day
+ * Loaded from motd.txt at module initialization
  */
-export const DEFAULT_MOTD = `
-╔══════════════════════════════════════════════════╗
-║           Welcome to Monk TTY v5.1.0             ║
-║        Navigate your data like a filesystem      ║
-╚══════════════════════════════════════════════════╝
-`;
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+export const DEFAULT_MOTD = (() => {
+    try {
+        return readFileSync(join(__dirname, 'motd.txt'), 'utf-8');
+    } catch {
+        return '\nWelcome to Monk TTY\n';
+    }
+})();

@@ -109,6 +109,13 @@ main() {
         log_info "Copied $(ls src/lib/tty/man | wc -l | tr -d ' ') man pages"
     fi
 
+    # Step 4c: Copy TTY MOTD file if it exists
+    if [[ -f "src/lib/tty/motd.txt" ]]; then
+        log_info "Copying TTY MOTD..."
+        mkdir -p "dist/lib/tty"
+        cp src/lib/tty/motd.txt dist/lib/tty/
+    fi
+
     # Step 5: Copy compiled fixtures (deploy.sql and template.json)
     if [[ -d "fixtures" ]]; then
         log_info "Copying compiled fixtures..."
