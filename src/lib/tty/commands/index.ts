@@ -80,6 +80,8 @@ import { exit, logout, quit } from './exit.js';
 // Process commands
 import { sleep } from './sleep.js';
 import { timeout, setCommandRegistry } from './timeout.js';
+import { time, setTimeCommandRegistry } from './time.js';
+import { watch, setWatchCommandRegistry } from './watch.js';
 import { ps } from './ps.js';
 import { kill } from './kill.js';
 import { ping } from './ping.js';
@@ -170,6 +172,8 @@ export { man } from './man.js';
 export { exit, logout, quit } from './exit.js';
 export { sleep } from './sleep.js';
 export { timeout } from './timeout.js';
+export { time } from './time.js';
+export { watch } from './watch.js';
 export { ps } from './ps.js';
 export { kill } from './kill.js';
 export { ping } from './ping.js';
@@ -270,6 +274,8 @@ export const commands: Record<string, CommandHandler> = {
     // Process commands
     sleep,
     timeout,
+    time,
+    watch,
     ps,
     kill,
     ping,
@@ -307,3 +313,5 @@ export const commands: Record<string, CommandHandler> = {
 
 // Initialize commands that need the registry
 setCommandRegistry(commands);
+setTimeCommandRegistry(commands);
+setWatchCommandRegistry(commands);

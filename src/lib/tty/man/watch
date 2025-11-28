@@ -1,0 +1,61 @@
+NAME
+    watch - execute a command periodically
+
+SYNOPSIS
+    watch [options] <command> [args...]
+
+DESCRIPTION
+    Runs a command repeatedly, clearing the screen and displaying
+    the output. Useful for monitoring changing data.
+
+OPTIONS
+    -n <seconds>    Interval between executions (default: 2)
+    -d              Highlight differences from previous output
+    -t              Turn off the header (no title)
+    -e              Exit if command returns non-zero
+    -g              Exit when output changes
+    -c              Interpret ANSI color sequences
+
+HEADER
+    By default, watch displays a header showing:
+    - The interval and command being run
+    - The current date and time
+
+EXAMPLES
+    watch ps
+        Monitor processes every 2 seconds
+
+    watch -n 5 ls -l
+        List directory every 5 seconds
+
+    watch -d cat /proc/1/status
+        Monitor process, highlight changes
+
+    watch -n 1 date
+        Show updating clock every second
+
+    watch -e ping /health
+        Monitor health, stop on failure
+
+    watch -g cat /api/data/config
+        Exit when config file changes
+
+    watch -t -n 0.5 cat /proc/loadavg
+        Fast refresh, no header
+
+SIGNALS
+    Ctrl+C          Stop watching and exit
+
+EXIT STATUS
+    0               Exited due to -g (output changed)
+    Non-zero        Command exit code (with -e)
+    130             Interrupted (Ctrl+C)
+
+NOTES
+    The command is passed to the shell, so pipelines and
+    redirections work as expected.
+
+    Minimum practical interval is about 0.1 seconds.
+
+SEE ALSO
+    sleep, timeout, time
