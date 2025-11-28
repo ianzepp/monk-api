@@ -4,6 +4,7 @@
 
 import type { CommandHandler } from './shared.js';
 import { killProcess, getProcess } from '@src/lib/process.js';
+import { getSessionByPid } from '../types.js';
 
 export const kill: CommandHandler = async (session, _fs, args, io) => {
     if (args.length === 0) {
@@ -32,6 +33,12 @@ export const kill: CommandHandler = async (session, _fs, args, io) => {
             return 1;
         }
 
+        // Check tenant - can only kill processes in same tenant
+        if (proc.tenant !== session.tenant) {
+            io.stderr.write(`kill: (${pid}) - No such process\n`);
+            return 1;
+        }
+
         // Check if it's running or sleeping
         if (proc.state !== 'R' && proc.state !== 'S') {
             const stateNames: Record<string, string> = {
@@ -43,16 +50,20 @@ export const kill: CommandHandler = async (session, _fs, args, io) => {
             return 1;
         }
 
-        // Kill it
+        // Kill it in the database
         const killed = await killProcess(session.tenant, pid);
         if (!killed) {
             io.stderr.write(`kill: (${pid}) - Operation not permitted\n`);
             return 1;
         }
 
-        // If killing our own shell process, trigger disconnect
-        if (session.pid === pid) {
-            session.shouldClose = true;
+        // Signal the live session if it exists (cross-session kill)
+        const targetSession = getSessionByPid(pid);
+        if (targetSession) {
+            targetSession.shouldClose = true;
+            if (targetSession.foregroundAbort) {
+                targetSession.foregroundAbort.abort();
+            }
         }
 
         return 0;

@@ -213,6 +213,33 @@ export interface CommandIO {
 }
 
 /**
+ * Global session registry for cross-session signaling (e.g., kill)
+ * Maps PID to Session object. PIDs are globally unique (serial column).
+ */
+const sessionRegistry = new Map<number, Session>();
+
+/**
+ * Register a session in the global registry
+ */
+export function registerSession(pid: number, session: Session): void {
+    sessionRegistry.set(pid, session);
+}
+
+/**
+ * Unregister a session from the global registry
+ */
+export function unregisterSession(pid: number): void {
+    sessionRegistry.delete(pid);
+}
+
+/**
+ * Look up a session by PID
+ */
+export function getSessionByPid(pid: number): Session | undefined {
+    return sessionRegistry.get(pid);
+}
+
+/**
  * Create a new session with default values
  */
 export function createSession(id: string): Session {

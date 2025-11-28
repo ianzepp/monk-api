@@ -8,6 +8,7 @@
  */
 
 import type { Session, TTYStream, TTYConfig } from './types.js';
+import { registerSession } from './types.js';
 import { login, register } from '@src/lib/auth.js';
 import { registerDaemon } from '@src/lib/process.js';
 import { initializeSession } from './profile.js';
@@ -256,6 +257,8 @@ async function completeLogin(
             cwd: home,
             environ: session.env,
         });
+        // Register in global session registry for cross-session signaling
+        registerSession(session.pid, session);
     } catch {
         session.pid = null;
     }

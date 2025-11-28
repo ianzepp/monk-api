@@ -9,7 +9,7 @@
 
 import type { Socket } from 'bun';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
-import { createSession, generateSessionId } from '@src/lib/tty/types.js';
+import { createSession, generateSessionId, unregisterSession } from '@src/lib/tty/types.js';
 import { handleInput, sendWelcome, saveHistory, handleInterrupt } from '@src/lib/tty/session-handler.js';
 import { terminateDaemon } from '@src/lib/process.js';
 import { PassThrough } from 'node:stream';
@@ -246,8 +246,9 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
                 // End the input stream
                 stream.input.end();
 
-                // Terminate shell process
+                // Unregister from global session registry and terminate shell process
                 if (session.pid) {
+                    unregisterSession(session.pid);
                     try {
                         await terminateDaemon(session.pid, 0);
                     } catch {
