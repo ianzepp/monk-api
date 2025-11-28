@@ -6,11 +6,13 @@ import type { CommandHandler } from './shared.js';
 
 export const help: CommandHandler = async (_session, _fs, _args, io) => {
     io.stdout.write('Available commands:\n');
-    io.stdout.write('  Navigation:  cd, pwd, ls\n');
-    io.stdout.write('  Files:       cat, touch, rm, mv\n');
+    io.stdout.write('  Navigation:  cd, pwd, ls, find\n');
+    io.stdout.write('  Files:       cat, touch, rm, mv, jq\n');
     io.stdout.write('  Directories: mkdir, rmdir\n');
+    io.stdout.write('  Search:      grep, xargs\n');
     io.stdout.write('  Info:        echo, whoami, env, export\n');
-    io.stdout.write('  Session:     clear, help, exit\n');
+    io.stdout.write('  Session:     clear, help, man, exit\n');
+    io.stdout.write('  Process:     sleep, timeout, ps, kill\n');
     io.stdout.write('\nPaths:\n');
     io.stdout.write('  /api/data      - Model records (CRUD)\n');
     io.stdout.write('  /api/describe  - Model schemas\n');

@@ -1,0 +1,36 @@
+NAME
+    timeout - run a command with a time limit
+
+SYNOPSIS
+    timeout DURATION COMMAND [ARGS...]
+
+DESCRIPTION
+    Runs the specified command and terminates it if it is still
+    running after the specified duration.
+
+    Duration can be specified as:
+    - 5 or 5s   - 5 seconds
+    - 500ms     - 500 milliseconds
+    - 1m        - 1 minute
+    - 1h        - 1 hour
+
+EXIT STATUS
+    If the command times out, exit status is 124.
+    Otherwise, the exit status is that of the command.
+
+EXAMPLES
+    timeout 5s sleep 10
+        Run sleep for max 5 seconds (will timeout)
+
+    timeout 1m find /api/data
+        Allow find up to 1 minute
+
+    timeout 30s cat /api/data/users/123
+        Read with 30 second timeout
+
+NOTES
+    The command is not forcibly killed - the timeout races
+    against command completion.
+
+SEE ALSO
+    sleep, jobs

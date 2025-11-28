@@ -44,6 +44,12 @@ import { help } from './help.js';
 import { man } from './man.js';
 import { exit, logout, quit } from './exit.js';
 
+// Process commands
+import { sleep } from './sleep.js';
+import { timeout, setCommandRegistry } from './timeout.js';
+import { ps } from './ps.js';
+import { kill } from './kill.js';
+
 // Re-export types
 export type { CommandHandler } from './shared.js';
 export { formatMode, formatEntry } from './shared.js';
@@ -73,6 +79,10 @@ export { clear } from './clear.js';
 export { help } from './help.js';
 export { man } from './man.js';
 export { exit, logout, quit } from './exit.js';
+export { sleep } from './sleep.js';
+export { timeout } from './timeout.js';
+export { ps } from './ps.js';
+export { kill } from './kill.js';
 
 /**
  * Command registry
@@ -117,4 +127,13 @@ export const commands: Record<string, CommandHandler> = {
     exit,
     logout,
     quit,
+
+    // Process commands
+    sleep,
+    timeout,
+    ps,
+    kill,
 };
+
+// Initialize timeout command with registry
+setCommandRegistry(commands);
