@@ -16,6 +16,7 @@ import { runTransaction } from '@src/lib/transaction.js';
 import { registerDaemon, terminateDaemon, spawnProcess } from '@src/lib/process.js';
 import { PassThrough } from 'node:stream';
 import type { FS } from '@src/lib/fs/index.js';
+import { LocalMount } from '@src/lib/fs/index.js';
 
 /**
  * Write text to stream with CRLF line endings (telnet convention)
@@ -901,6 +902,8 @@ async function executeCommand(
         }
 
         await runTransaction(session.systemInit, async (system) => {
+            // Apply session-local mounts to this transaction's FS
+            applySessionMounts(session, system.fs);
             await executePipeline(stream, session, pipeline, system.fs, abortController.signal);
         });
     } catch (err) {
@@ -992,5 +995,22 @@ async function executePipelineForProcess(
         const message = err instanceof Error ? err.message : String(err);
         processIO.stderr.write(`Error: ${message}\n`);
         return 1;
+    }
+}
+
+/**
+ * Apply session-local mounts to a FS instance
+ *
+ * Session mounts are stored on the session and re-applied to each
+ * transaction's FS instance to provide mount persistence.
+ */
+function applySessionMounts(session: Session, fs: FS): void {
+    for (const [virtualPath, mountInfo] of session.mounts) {
+        if (mountInfo.type === 'local') {
+            const mount = new LocalMount(mountInfo.path, {
+                writable: !mountInfo.readonly,
+            });
+            fs.mount(virtualPath, mount);
+        }
     }
 }

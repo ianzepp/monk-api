@@ -36,6 +36,10 @@ export const umount: CommandHandler = async (session, fs, args, io) => {
 
     try {
         fs.unmount(virtualPath);
+
+        // Remove from session mounts
+        session.mounts.delete(virtualPath);
+
         io.stdout.write(`Unmounted ${virtualPath}\n`);
         return 0;
     } catch (err) {

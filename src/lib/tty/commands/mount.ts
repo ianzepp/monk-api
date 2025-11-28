@@ -74,11 +74,14 @@ export const mount: CommandHandler = async (session, fs, args, io) => {
     // Handle mount types
     switch (type) {
         case 'local': {
-            // Source is a real filesystem path (expand ~ to HOME)
+            // Source is a real filesystem path on the HOST
+            // Note: ~ expands to the SERVER's home, not the virtual session home
             let realPath = source;
-            if (realPath.startsWith('~')) {
-                const home = process.env.HOME || '/';
-                realPath = home + realPath.slice(1);
+            if (realPath.startsWith('~/')) {
+                const serverHome = process.env.HOME || '/root';
+                realPath = serverHome + realPath.slice(1);
+            } else if (realPath === '~') {
+                realPath = process.env.HOME || '/root';
             }
 
             // Target is a virtual filesystem path
@@ -89,7 +92,16 @@ export const mount: CommandHandler = async (session, fs, args, io) => {
                     writable: !readonly,
                 });
 
+                // Mount on current FS
                 fs.mount(virtualPath, localMount);
+
+                // Store in session for persistence across transactions
+                session.mounts.set(virtualPath, {
+                    type: 'local',
+                    path: realPath,
+                    readonly,
+                });
+
                 io.stdout.write(`Mounted ${realPath} on ${virtualPath}${readonly ? ' (read-only)' : ''}\n`);
                 return 0;
             } catch (err) {

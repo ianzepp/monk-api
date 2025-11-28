@@ -94,6 +94,9 @@ export interface Session {
 
     /** Saved input buffer when browsing history */
     historyBuffer: string;
+
+    /** Session-local mounts (re-applied to each transaction's FS) */
+    mounts: Map<string, { type: 'local'; path: string; readonly: boolean }>;
 }
 
 /**
@@ -198,6 +201,7 @@ export function createSession(id: string): Session {
         history: [],
         historyIndex: -1,
         historyBuffer: '',
+        mounts: new Map(),
     };
 }
 
