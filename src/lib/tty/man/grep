@@ -2,32 +2,65 @@ NAME
     grep - search for patterns in input
 
 SYNOPSIS
-    grep [-i] [-v] <pattern>
+    grep [options] <pattern> [file...]
+    <input> | grep [options] <pattern>
 
 DESCRIPTION
-    Filters input lines matching a regular expression pattern.
-    Reads from stdin and writes matching lines to stdout.
+    Searches for lines matching a regular expression pattern.
+    Reads from files or stdin if no files specified.
 
 OPTIONS
-    -i      Case-insensitive matching
-    -v      Invert match (show non-matching lines)
+    -i              Case-insensitive matching
+    -v              Invert match (show non-matching lines)
+    -c              Print only count of matching lines
+    -n              Prefix each line with line number
+    -l              Print only filenames containing matches
+    -h              Suppress filename prefix in output
+    -o              Print only the matching part of lines
+    -E              Extended regex (default)
+    -F              Fixed strings (literal match, no regex)
+    -w              Match whole words only
+    -x              Match whole lines only
+    -q              Quiet mode (no output, exit status only)
+    -m <num>        Stop after num matches
+    -A <num>        Print num lines after each match
+    -B <num>        Print num lines before each match
+    -C <num>        Print num lines before and after (context)
 
 EXAMPLES
     find . | grep users
         Find paths containing "users"
 
-    ls -l | grep -i json
-        Case-insensitive search for "json"
+    grep -i error /var/log/app.log
+        Case-insensitive search in file
 
-    cat file | grep -v test
-        Show lines not containing "test"
+    grep -n TODO *.ts
+        Show line numbers for TODO comments
 
-    find . | grep "^/api"
-        Regex: paths starting with /api
+    grep -c error log1.txt log2.txt
+        Count matches in each file
+
+    grep -l password /etc/*
+        List files containing "password"
+
+    grep -v "^#" config.txt
+        Show non-comment lines
+
+    grep -w main *.c
+        Match whole word "main"
+
+    grep -C3 error app.log
+        Show 3 lines of context around matches
+
+    grep -o '[0-9]\+' data.txt
+        Extract only numbers
+
+    grep -F '*.txt' readme
+        Literal match (no regex)
 
 EXIT STATUS
     0       One or more matches found
     1       No matches found
 
 SEE ALSO
-    find, cat
+    find, cat, sort

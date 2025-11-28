@@ -2,29 +2,60 @@ NAME
     sort - sort lines of text
 
 SYNOPSIS
-    sort [-rnu] [file]
+    sort [options] [file...]
+    <input> | sort [options]
 
 DESCRIPTION
-    Sorts lines of text alphabetically or numerically.
-    Reads from file or stdin if no file specified.
+    Sorts lines of text. Reads from files or stdin if no files specified.
+    By default, sorts alphabetically by entire line.
 
 OPTIONS
-    -r      Reverse the sort order
-    -n      Sort numerically instead of alphabetically
-    -u      Output only unique lines (remove duplicates)
+    -r              Reverse the sort order
+    -n              Sort numerically
+    -u              Output only unique lines (remove duplicates)
+    -f              Fold case (case-insensitive sort)
+    -b              Ignore leading blanks
+    -d              Dictionary order (only alphanumeric and space)
+    -h              Human numeric sort (2K, 1M, 3G)
+    -k <key>        Sort by field (e.g., -k2 or -k2,3)
+    -t <sep>        Field separator (default: whitespace)
+    -o <file>       Write output to file instead of stdout
+    -c              Check if input is sorted (exit 1 if not)
+    -s              Stable sort (preserve order of equal elements)
 
 EXAMPLES
-    sort /tmp/list.txt
+    sort file.txt
         Sort alphabetically
 
-    sort -r /tmp/list.txt
+    sort -r file.txt
         Sort in reverse order
 
-    sort -n /tmp/numbers.txt
-        Sort numerically
+    sort -n numbers.txt
+        Sort numerically (1, 2, 10 not 1, 10, 2)
 
-    find . | sort -u
+    sort -u file.txt
         Sort and remove duplicates
 
+    sort -t: -k3 /etc/passwd
+        Sort by field 3, colon-separated
+
+    ls -l | sort -k5 -n
+        Sort ls output by size (field 5)
+
+    ls -lh | sort -k5 -h
+        Sort by human-readable size
+
+    sort -f names.txt
+        Case-insensitive sort
+
+    sort -rn scores.txt
+        Reverse numeric (highest first)
+
+    sort -c sorted.txt
+        Check if already sorted
+
+    sort -o output.txt input.txt
+        Write to file
+
 SEE ALSO
-    uniq, head, tail
+    uniq, head, tail, cut

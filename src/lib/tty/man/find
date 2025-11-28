@@ -1,32 +1,62 @@
 NAME
-    find - recursively list directory contents
+    find - search for files in a directory hierarchy
 
 SYNOPSIS
-    find [path] [-type f|d]
+    find [path...] [expression]
 
 DESCRIPTION
-    Recursively walks directories and prints all file and directory
-    paths, one per line. Defaults to current directory if no path given.
+    Recursively descends directory trees, evaluating an expression
+    for each file. By default, prints paths of all files found.
 
-OPTIONS
-    -type f     List only files
-    -type d     List only directories
+PRIMARIES
+    -name <pattern>     Match filename (supports *, ?)
+    -iname <pattern>    Case-insensitive -name
+    -path <pattern>     Match full path
+    -ipath <pattern>    Case-insensitive -path
+    -type <c>           File type: f (file), d (directory), l (symlink)
+    -maxdepth <n>       Descend at most n directory levels
+    -mindepth <n>       Ignore first n directory levels
+    -empty              Match empty files or directories
+
+ACTIONS
+    -print              Print path with newline (default)
+    -print0             Print path with NUL terminator
+    -exec <cmd> {} \;   Execute command for each match
+    -delete             Delete matched files
+
+OPERATORS
+    ! <expr>            Negate expression
+    -not <expr>         Same as !
+    -a, -and            AND (implicit between primaries)
+    -o, -or             OR
 
 EXAMPLES
     find .
-        List everything from current directory
+        List all files recursively
 
-    find /api/data
-        List all models and records
+    find /api/data -type f
+        Find only files
 
-    find /api/data/users -type f
-        List only files (for use with xargs)
+    find . -name "*.json"
+        Find by filename pattern
 
-    find . | grep users
-        Find paths containing "users"
+    find . -iname "readme*"
+        Case-insensitive name match
 
-    find /api/data/users -type f | xargs cat | jq .name
-        Extract name from each user record
+    find . -name "*.log" -delete
+        Find and delete log files
+
+    find . -type f -exec cat {} \;
+        Cat each file found
+
+    find . -print0 | xargs -0 rm
+        Safe handling of special characters
+
+    find . -maxdepth 2 -type d
+        Directories within 2 levels
+
+    find . ! -name "*.txt"
+        Files NOT ending in .txt
 
 SEE ALSO
     ls, grep, xargs

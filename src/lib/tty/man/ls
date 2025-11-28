@@ -2,7 +2,7 @@ NAME
     ls - list directory contents
 
 SYNOPSIS
-    ls [-l] [-a] [path]
+    ls [-1adhRrSt] [path...]
 
 DESCRIPTION
     Lists files and directories. Defaults to current directory.
@@ -11,16 +11,35 @@ DESCRIPTION
 OPTIONS
     -l      Long format (permissions, size, date)
     -a      Show hidden files (starting with .)
+    -1      One entry per line
+    -h      Human-readable sizes (1K, 2M, 3G)
+    -R      Recursive listing
+    -S      Sort by size (largest first)
+    -t      Sort by modification time (newest first)
+    -r      Reverse sort order
+    -d      List directories themselves, not contents
 
 EXAMPLES
     ls
         List current directory
 
-    ls -l /api/data/users
-        Long listing of users model
-
     ls -la
-        Show all files in long format
+        Long format with hidden files
+
+    ls -lhS /api/data
+        Long format, human sizes, sorted by size
+
+    ls -R /api/data
+        Recursive listing of all models
+
+    ls -1 *.json
+        One per line with glob pattern
+
+    ls -lt /tmp
+        Sort by time, newest first
+
+    ls -d */
+        List only directories
 
 SEE ALSO
-    find, cd, pwd
+    find, cd, pwd, tree
