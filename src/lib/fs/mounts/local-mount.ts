@@ -338,6 +338,69 @@ export class LocalMount implements Mount {
     }
 
     /**
+     * Get disk usage for a path
+     *
+     * Recursively calculates total size of files in the path.
+     * For files: returns the file size.
+     * For directories: returns the sum of all descendant file sizes.
+     *
+     * This method is designed for efficient `du` (disk usage) operations.
+     *
+     * @param path - Path to calculate usage for
+     * @returns Total size in bytes
+     */
+    async getUsage(path: string): Promise<number> {
+        const realPath = this.resolvePath(path);
+
+        try {
+            const stats = await stat(realPath);
+
+            if (!stats.isDirectory()) {
+                return stats.size;
+            }
+
+            // Recursively sum directory contents
+            return await this.calculateDirectorySize(realPath);
+        } catch (err: any) {
+            if (err.code === 'ENOENT') {
+                throw new FSError('ENOENT', path);
+            }
+            throw new FSError('EIO', path, err.message);
+        }
+    }
+
+    /**
+     * Recursively calculate directory size
+     */
+    private async calculateDirectorySize(dirPath: string): Promise<number> {
+        let total = 0;
+        const entries = await readdir(dirPath, { withFileTypes: true });
+
+        for (const entry of entries) {
+            const entryPath = join(dirPath, entry.name);
+
+            // Security check: ensure we stay within basePath
+            if (!entryPath.startsWith(this.basePath)) {
+                continue;
+            }
+
+            try {
+                if (entry.isDirectory()) {
+                    total += await this.calculateDirectorySize(entryPath);
+                } else if (entry.isFile()) {
+                    const stats = await stat(entryPath);
+                    total += stats.size;
+                }
+                // Symlinks are not counted (to avoid double-counting or loops)
+            } catch {
+                // Skip entries we can't access
+            }
+        }
+
+        return total;
+    }
+
+    /**
      * Get the real filesystem path for a virtual path.
      * Useful for operations that need direct access.
      */

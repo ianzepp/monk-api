@@ -250,6 +250,38 @@ export class ModelBackedStorage implements Mount {
         await this.system.database.updateOne('fs', node.id, { owner_id: uid });
     }
 
+    /**
+     * Get disk usage for a path
+     *
+     * Optimized implementation that fetches all file sizes in one query
+     * and sums them in memory. More efficient than recursive stat() calls.
+     *
+     * @param path - Path to calculate usage for
+     * @returns Total size in bytes
+     */
+    async getUsage(path: string): Promise<number> {
+        const normalizedPath = this.normalizePath(path);
+        const node = await this.getNode(normalizedPath);
+        if (!node) {
+            throw new FSError('ENOENT', path);
+        }
+
+        if (node.node_type === 'file') {
+            return node.size || 0;
+        }
+
+        // For directories, get all descendant files in one query and sum sizes
+        const likePattern = normalizedPath === '/' ? '/%' : normalizedPath + '/%';
+        const files = await this.system.database.selectAny('fs', {
+            where: {
+                path: { $like: likePattern },
+                node_type: 'file',
+            },
+        }) as unknown as FSNode[];
+
+        return files.reduce((total, file) => total + (file.size || 0), 0);
+    }
+
     // =========================================================================
     // PRIVATE HELPERS
     // =========================================================================

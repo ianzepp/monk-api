@@ -126,6 +126,25 @@ export interface Mount {
      * Read symbolic link target (optional)
      */
     readlink?(path: string): Promise<string>;
+
+    /**
+     * Get disk usage for a path (optional)
+     *
+     * Returns total size in bytes of the file or directory tree.
+     * For files: returns the file size.
+     * For directories: returns the sum of all descendant file sizes.
+     *
+     * This method is designed for efficient `du` (disk usage) operations.
+     * Mounts can implement this with optimized queries (e.g., single SQL SUM)
+     * rather than requiring recursive stat() calls.
+     *
+     * If not implemented, callers should fall back to recursive traversal
+     * using readdir() + stat().
+     *
+     * @param path - Path to calculate usage for
+     * @returns Total size in bytes
+     */
+    getUsage?(path: string): Promise<number>;
 }
 
 /**

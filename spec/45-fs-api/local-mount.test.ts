@@ -337,4 +337,37 @@ describe('LocalMount', () => {
             expect(realPath).toBe(join(tempDir, 'subdir', 'nested.txt'));
         });
     });
+
+    describe('getUsage', () => {
+        it('should return file size for a file', async () => {
+            const usage = await mount.getUsage('/test.txt');
+            expect(usage).toBe(11); // "Hello World"
+        });
+
+        it('should return 0 for empty directory', async () => {
+            const usage = await mount.getUsage('/empty-dir');
+            expect(usage).toBe(0);
+        });
+
+        it('should return sum of file sizes for directory', async () => {
+            const usage = await mount.getUsage('/subdir');
+            expect(usage).toBe(14); // "Nested content"
+        });
+
+        it('should return sum of all files for root', async () => {
+            // test.txt (11) + data.json (16) + subdir/nested.txt (14) = 41
+            // Plus any files created by other tests
+            const usage = await mount.getUsage('/');
+            expect(usage).toBeGreaterThanOrEqual(41);
+        });
+
+        it('should throw ENOENT for non-existent path', async () => {
+            try {
+                await mount.getUsage('/nonexistent');
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('ENOENT');
+            }
+        });
+    });
 });

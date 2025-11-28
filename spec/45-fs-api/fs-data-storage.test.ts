@@ -417,4 +417,48 @@ describe('ModelBackedStorage', () => {
             expect(entry.uid).toBe(newOwnerId);
         });
     });
+
+    describe('getUsage', () => {
+        it('should return file size for a file', async () => {
+            await withStorage(s => s.write('/tmp/size-test.txt', 'Hello World')); // 11 bytes
+
+            const usage = await withStorage(s => s.getUsage('/tmp/size-test.txt'));
+            expect(usage).toBe(11);
+        });
+
+        it('should return 0 for empty directory', async () => {
+            await withStorage(s => s.mkdir('/tmp/empty-usage'));
+
+            const usage = await withStorage(s => s.getUsage('/tmp/empty-usage'));
+            expect(usage).toBe(0);
+        });
+
+        it('should return sum of file sizes for directory', async () => {
+            await withStorage(s => s.mkdir('/tmp/usage-dir'));
+            await withStorage(s => s.write('/tmp/usage-dir/a.txt', '12345')); // 5 bytes
+            await withStorage(s => s.write('/tmp/usage-dir/b.txt', '1234567890')); // 10 bytes
+
+            const usage = await withStorage(s => s.getUsage('/tmp/usage-dir'));
+            expect(usage).toBe(15);
+        });
+
+        it('should include nested directory sizes', async () => {
+            await withStorage(s => s.mkdir('/tmp/nested-usage'));
+            await withStorage(s => s.write('/tmp/nested-usage/file.txt', '12345')); // 5 bytes
+            await withStorage(s => s.mkdir('/tmp/nested-usage/subdir'));
+            await withStorage(s => s.write('/tmp/nested-usage/subdir/deep.txt', '1234567890')); // 10 bytes
+
+            const usage = await withStorage(s => s.getUsage('/tmp/nested-usage'));
+            expect(usage).toBe(15);
+        });
+
+        it('should throw ENOENT for non-existent path', async () => {
+            try {
+                await withStorage(s => s.getUsage('/nonexistent'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('ENOENT');
+            }
+        });
+    });
 });
