@@ -6,9 +6,9 @@
  */
 
 import type { Socket } from 'bun';
-import type { Session, TTYStream, TTYConfig } from './types.js';
-import { createSession, generateSessionId } from './types.js';
-import { handleInput, sendWelcome } from './session-handler.js';
+import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
+import { createSession, generateSessionId } from '@src/lib/tty/types.js';
+import { handleInput, sendWelcome } from '@src/lib/tty/session-handler.js';
 
 /**
  * Socket data associated with each connection
@@ -58,14 +58,18 @@ class TelnetStream implements TTYStream {
  * Telnet protocol constants
  */
 const TELNET = {
-    IAC: 255,   // Interpret As Command
+    IAC: 255, // Interpret As Command
     WILL: 251,
     WONT: 252,
     DO: 253,
     DONT: 254,
     ECHO: 1,
-    SGA: 3,     // Suppress Go Ahead
+    SGA: 3, // Suppress Go Ahead
 };
+
+export interface TelnetServerHandle {
+    stop: () => void;
+}
 
 /**
  * Create and start a Telnet server
@@ -73,7 +77,7 @@ const TELNET = {
  * @param config - Server configuration
  * @returns Server instance with stop() method
  */
-export function createTelnetServer(config?: TTYConfig): { stop: () => void } {
+export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
     const port = config?.telnetPort ?? 2323;
     const hostname = config?.telnetHost ?? '0.0.0.0';
 
@@ -89,15 +93,23 @@ export function createTelnetServer(config?: TTYConfig): { stop: () => void } {
                 socket.data = { session, stream };
 
                 // Send telnet negotiation: WILL ECHO, WILL SGA
-                socket.write(new Uint8Array([
-                    TELNET.IAC, TELNET.WILL, TELNET.ECHO,
-                    TELNET.IAC, TELNET.WILL, TELNET.SGA,
-                ]));
+                socket.write(
+                    new Uint8Array([
+                        TELNET.IAC,
+                        TELNET.WILL,
+                        TELNET.ECHO,
+                        TELNET.IAC,
+                        TELNET.WILL,
+                        TELNET.SGA,
+                    ])
+                );
 
                 // Send welcome message
                 sendWelcome(stream, config);
 
-                console.info(`Telnet: New connection from ${socket.remoteAddress} (session ${session.id})`);
+                console.info(
+                    `Telnet: New connection from ${socket.remoteAddress} (session ${session.id})`
+                );
             },
 
             async data(socket, data) {
@@ -110,7 +122,9 @@ export function createTelnetServer(config?: TTYConfig): { stop: () => void } {
                 // Check for Ctrl+C or Ctrl+D
                 for (const byte of filtered) {
                     if (byte === 0x03 || byte === 0x04) {
-                        console.info(`Telnet: Session ${session.id} disconnect via Ctrl+${byte === 0x03 ? 'C' : 'D'}`);
+                        console.info(
+                            `Telnet: Session ${session.id} disconnect via Ctrl+${byte === 0x03 ? 'C' : 'D'}`
+                        );
                         socket.end();
                         return;
                     }
@@ -146,7 +160,10 @@ export function createTelnetServer(config?: TTYConfig): { stop: () => void } {
             },
 
             error(socket, error) {
-                console.error(`Telnet: Socket error for session ${socket.data?.session?.id}:`, error);
+                console.error(
+                    `Telnet: Socket error for session ${socket.data?.session?.id}:`,
+                    error
+                );
             },
         },
     });

@@ -1,10 +1,19 @@
+/**
+ * Monk API - Main Entry Point
+ *
+ * Orchestrates server startup:
+ * - Environment loading and validation
+ * - Infrastructure initialization
+ * - Observer preloading
+ * - Server startup (HTTP, Telnet, SSH)
+ * - Graceful shutdown coordination
+ */
+
 // Import process environment as early as possible
 import { loadEnv } from '@src/lib/env/load-env.js';
 
 // Load environment-specific .env file
-const envFile = process.env.NODE_ENV
-    ? `.env.${process.env.NODE_ENV}`
-    : '.env';
+const envFile = process.env.NODE_ENV ? `.env.${process.env.NODE_ENV}` : '.env';
 loadEnv({ path: envFile, debug: true });
 
 // Default to standalone mode if DATABASE_URL not set
@@ -53,43 +62,16 @@ if (!process.env.NODE_ENV) {
     throw Error('Fatal: environment is missing "NODE_ENV"');
 }
 
-// Imports
-import { Hono } from 'hono';
-
+// Database connection for cleanup
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { createSuccessResponse, createInternalError } from '@src/lib/api-helpers.js';
-import { setHonoApp as setInternalApiHonoApp } from '@src/lib/internal-api.js';
 
 // Observer preload
 import { ObserverLoader } from '@src/lib/observers/loader.js';
 
-// Middleware
-import * as middleware from '@src/lib/middleware/index.js';
-
-// Route handlers
-import * as authRoutes from '@src/routes/auth/routes.js';
-import * as userRoutes from '@src/routes/api/user/routes.js';
-import * as dataRoutes from '@src/routes/api/data/routes.js';
-import * as describeRoutes from '@src/routes/api/describe/routes.js';
-import * as aclsRoutes from '@src/routes/api/acls/routes.js';
-import * as statRoutes from '@src/routes/api/stat/routes.js';
-import * as docsRoutes from '@src/routes/docs/routes.js';
-import * as trackedRoutes from '@src/routes/api/tracked/routes.js';
-import * as trashedRoutes from '@src/routes/api/trashed/routes.js';
-import * as fsRoutes from '@src/routes/fs/routes.js';
-
-// Public endpoints
-import RootGet from '@src/routes/root/GET.js';
-import HealthGet from '@src/routes/health/GET.js';
-
-// Special protected endpoints
-import BulkPost from '@src/routes/api/bulk/POST.js'; // POST /api/bulk
-import BulkExportPost from '@src/routes/api/bulk/export/POST.js'; // POST /api/bulk/export
-import BulkImportPost from '@src/routes/api/bulk/import/POST.js'; // POST /api/bulk/import
-import FindModelPost from '@src/routes/api/find/:model/POST.js'; // POST /api/find/:model
-import FindTargetGet from '@src/routes/api/find/:model/:target/GET.js'; // GET /api/find/:model/:target
-import AggregateModelGet from '@src/routes/api/aggregate/:model/GET.js'; // GET /api/aggregate/:model
-import AggregateModelPost from '@src/routes/api/aggregate/:model/POST.js'; // POST /api/aggregate/:model
+// Servers
+import { startHttpServer, createHttpApp, type HttpServerHandle } from '@src/servers/http.js';
+import { startTelnetServer, type TelnetServerHandle } from '@src/servers/telnet.js';
+import { startSSHServer, type SSHServerHandle } from '@src/servers/ssh.js';
 
 // Check database connection before doing anything else
 console.info('Checking database connection:');
@@ -112,282 +94,12 @@ console.info('Infrastructure ready', {
     database: infraConfig.database,
 });
 
-// Create Hono app
-const app = new Hono();
-
-// Request tracking middleware (first - database health check + analytics)
-app.use('*', middleware.requestTrackerMiddleware);
-
-// Request logging middleware
-app.use('*', async (c, next) => {
-    const start = Date.now();
-    const method = c.req.method;
-    const path = c.req.path;
-
-    const result = await next();
-
-    const duration = Date.now() - start;
-    const status = c.res.status;
-
-    console.info('Request completed', { method, path, status, duration });
-
-    return result;
-});
-
-// Apply response pipeline to root and health endpoints
-app.use('/', middleware.formatDetectorMiddleware);
-app.use('/', middleware.responseTransformerMiddleware);
-app.use('/health', middleware.formatDetectorMiddleware);
-app.use('/health', middleware.responseTransformerMiddleware);
-
-// Root endpoint
-app.get('/', RootGet);
-
-// Health check endpoint (public, no authentication required)
-app.get('/health', HealthGet);
-
-// Note: contextInitializerMiddleware only applied to protected routes that need it
-
-// Public routes (no authentication required)
-app.use('/auth/*', middleware.bodyParserMiddleware); // Parse request bodies (TOON, YAML, JSON)
-app.use('/auth/*', middleware.formatDetectorMiddleware); // Detect format for responses
-app.use('/auth/*', middleware.responseTransformerMiddleware); // Response pipeline: extract → format → encrypt
-
-app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
-
-// Protected API routes - require authentication
-app.use('/api/*', middleware.bodyParserMiddleware);
-app.use('/api/*', middleware.authValidatorMiddleware);
-app.use('/api/*', middleware.formatDetectorMiddleware);
-app.use('/api/*', middleware.responseTransformerMiddleware);
-app.use('/api/*', middleware.contextInitializerMiddleware);
-
-// FS routes - auth only, uses runTransaction() internally
-app.use('/fs/*', middleware.authValidatorMiddleware);
-
-// 50-fs-api: Filesystem routes
-app.get('/fs/*', fsRoutes.FsGet); // GET /fs/* - read/readdir (add ?stat=true for metadata)
-app.put('/fs/*', fsRoutes.FsPut); // PUT /fs/* - write
-app.delete('/fs/*', fsRoutes.FsDelete); // DELETE /fs/* - unlink
-
-// 40-docs-api: Public docs routes (no authentication required)
-app.get('/docs', docsRoutes.ReadmeGet); // GET /docs
-app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet); // GET /docs/* (endpoint-specific docs)
-
-// App packages - dynamically loaded from @monk-app/* packages on first request
-// Apps mount under /app/* and use API-based data access
-// Lazy loading ensures observers are ready before model creation
-//
-// Model namespace is per-model via the `external` field:
-// - external: true  - Model installed in app's namespace (shared infrastructure)
-// - external: false - Model installed in user's tenant (requires JWT auth)
-
-// Track pending app load promises to prevent duplicate loads
-const appLoadPromises = new Map<string, Promise<Hono | null>>();
-
-// Lazy app loader - initializes app on first request
-app.all('/app/:appName/*', async (c) => {
-    const appName = c.req.param('appName');
-
-    // Import loader functions
-    const { loadHybridApp, appHasTenantModels } = await import('@src/lib/apps/loader.js');
-
-    // Check if app has tenant models (requires JWT auth)
-    // Note: This check may return false on first load before models are cached,
-    // so we also check after loading if auth is needed for tenant model installation
-    const needsAuth = appHasTenantModels(appName);
-
-    // If app has tenant models, ensure user is authenticated
-    if (needsAuth) {
-        const jwtPayload = c.get('jwtPayload');
-        if (!jwtPayload) {
-            try {
-                await middleware.authValidatorMiddleware(c, async () => {});
-            } catch (error) {
-                return c.json({
-                    success: false,
-                    error: 'Authentication required for this app',
-                    error_code: 'AUTH_REQUIRED'
-                }, 401);
-            }
-        }
-    }
-
-    // Load app (handles both external and tenant models)
-    let loadPromise = appLoadPromises.get(appName);
-    if (!loadPromise) {
-        loadPromise = loadHybridApp(appName, app, c);
-        appLoadPromises.set(appName, loadPromise);
-    }
-
-    let appInstance: Hono | null = null;
-    try {
-        appInstance = await loadPromise;
-    } finally {
-        appLoadPromises.delete(appName);
-    }
-
-    // After first load, check again if auth is needed (models now cached)
-    if (!needsAuth && appHasTenantModels(appName)) {
-        const jwtPayload = c.get('jwtPayload');
-        if (!jwtPayload) {
-            try {
-                await middleware.authValidatorMiddleware(c, async () => {});
-                // Re-load to install tenant models now that we have auth
-                appInstance = await loadHybridApp(appName, app, c);
-            } catch (error) {
-                return c.json({
-                    success: false,
-                    error: 'Authentication required for this app',
-                    error_code: 'AUTH_REQUIRED'
-                }, 401);
-            }
-        }
-    }
-
-    if (!appInstance) {
-        return c.json({ success: false, error: `App not found: ${appName}`, error_code: 'APP_NOT_FOUND' }, 404);
-    }
-
-    // Rewrite URL to remove /app/{appName} prefix for the sub-app
-    const originalPath = c.req.path;
-    const appPrefix = `/app/${appName}`;
-    const subPath = originalPath.slice(appPrefix.length) || '/';
-
-    // Create new request with rewritten path
-    const url = new URL(c.req.url);
-    url.pathname = subPath;
-
-    // Forward the original Authorization header
-    const headers = new Headers(c.req.raw.headers);
-
-    const newRequest = new Request(url.toString(), {
-        method: c.req.method,
-        headers,
-        body: c.req.raw.body,
-        // @ts-ignore - duplex is needed for streaming bodies
-        duplex: 'half',
-    });
-
-    return appInstance.fetch(newRequest);
-});
-
-// Internal API (for fire-and-forget background jobs)
-setInternalApiHonoApp(app);
-
-// 30-auth-api: Public auth routes (token acquisition)
-app.post('/auth/login', authRoutes.LoginPost); // POST /auth/login
-app.post('/auth/register', authRoutes.RegisterPost); // POST /auth/register
-app.post('/auth/refresh', authRoutes.RefreshPost); // POST /auth/refresh
-app.get('/auth/tenants', authRoutes.TenantsGet); // GET /auth/tenants
-
-// 31-describe-api: Describe API routes
-app.get('/api/describe', describeRoutes.ModelList); // Lists all models
-app.post('/api/describe/:model', describeRoutes.ModelPost); // Create model (with URL name)
-app.get('/api/describe/:model', describeRoutes.ModelGet); // Get model
-app.put('/api/describe/:model', describeRoutes.ModelPut); // Update model
-app.delete('/api/describe/:model', describeRoutes.ModelDelete); // Delete model
-
-// 31-describe-api: Field-level Describe API routes
-app.get('/api/describe/:model/fields', describeRoutes.FieldsList); // List all fields in model
-app.post('/api/describe/:model/fields', describeRoutes.FieldsPost); // Create fields in bulk
-app.put('/api/describe/:model/fields', describeRoutes.FieldsPut); // Update fields in bulk
-app.post('/api/describe/:model/fields/:field', describeRoutes.FieldPost); // Create field
-app.get('/api/describe/:model/fields/:field', describeRoutes.FieldGet); // Get field
-app.put('/api/describe/:model/fields/:field', describeRoutes.FieldPut); // Update field
-app.delete('/api/describe/:model/fields/:field', describeRoutes.FieldDelete); // Delete field
-
-// 32-data-api: Data API routes
-app.post('/api/data/:model', dataRoutes.ModelPost); // Create records
-app.get('/api/data/:model', dataRoutes.ModelGet); // List records
-app.put('/api/data/:model', dataRoutes.ModelPut); // Bulk update records
-app.delete('/api/data/:model', dataRoutes.ModelDelete); // Bulk delete records
-
-app.get('/api/data/:model/:id', dataRoutes.RecordGet); // Get single record
-app.put('/api/data/:model/:id', dataRoutes.RecordPut); // Update single record
-app.delete('/api/data/:model/:id', dataRoutes.RecordDelete); // Delete single record
-
-app.get('/api/data/:model/:id/:relationship', dataRoutes.RelationshipGet); // Get array of related records
-app.post('/api/data/:model/:id/:relationship', dataRoutes.RelationshipPost); // Create new related record
-app.put('/api/data/:model/:id/:relationship', dataRoutes.RelationshipPut); // Bulk update related records (stub)
-app.delete('/api/data/:model/:id/:relationship', dataRoutes.RelationshipDelete); // Delete all related records
-app.get('/api/data/:model/:id/:relationship/:child', dataRoutes.NestedRecordGet); // Get specific related record
-app.put('/api/data/:model/:id/:relationship/:child', dataRoutes.NestedRecordPut); // Update specific related record
-app.delete('/api/data/:model/:id/:relationship/:child', dataRoutes.NestedRecordDelete); // Delete specific related record
-
-// 33-find-api: Find API routes
-app.post('/api/find/:model', FindModelPost);
-app.get('/api/find/:model/:target', FindTargetGet);
-
-// 34-aggregate-api: Aggregate API routes
-app.get('/api/aggregate/:model', AggregateModelGet);
-app.post('/api/aggregate/:model', AggregateModelPost);
-
-// 35-bulk-api: Bulk API routes
-app.post('/api/bulk', BulkPost);
-app.post('/api/bulk/export', BulkExportPost);
-app.post('/api/bulk/import', BulkImportPost);
-
-// 36-user-api: User API routes (user management)
-app.get('/api/user', userRoutes.UserList); // GET /api/user - List users (sudo)
-app.post('/api/user', userRoutes.UserCreate); // POST /api/user - Create user (sudo)
-app.post('/api/user/sudo', userRoutes.SudoPost); // POST /api/user/sudo - Get sudo token
-app.post('/api/user/fake', userRoutes.FakePost); // POST /api/user/fake - Impersonate user
-app.get('/api/user/whoami', (c) => c.redirect('/api/user/me', 301)); // Legacy redirect
-app.get('/api/user/:id', userRoutes.UserGet); // GET /api/user/:id - Get user (self or sudo)
-app.put('/api/user/:id', userRoutes.UserUpdate); // PUT /api/user/:id - Update user (self or sudo)
-app.delete('/api/user/:id', userRoutes.UserDelete); // DELETE /api/user/:id - Delete user (self or sudo)
-app.post('/api/user/:id/password', userRoutes.PasswordPost); // POST /api/user/:id/password - Set/change password
-app.get('/api/user/:id/keys', userRoutes.KeysList); // GET /api/user/:id/keys - List API keys
-app.post('/api/user/:id/keys', userRoutes.KeysCreate); // POST /api/user/:id/keys - Create API key
-app.delete('/api/user/:id/keys/:keyId', userRoutes.KeysDelete); // DELETE /api/user/:id/keys/:keyId - Delete API key
-
-// 38-acls-api: Acls API routes
-app.get('/api/acls/:model/:id', aclsRoutes.RecordAclGet); // Get acls for a single record
-app.post('/api/acls/:model/:id', aclsRoutes.RecordAclPost); // Merge acls for a single record
-app.put('/api/acls/:model/:id', aclsRoutes.RecordAclPut); // Replace acls for a single record
-app.delete('/api/acls/:model/:id', aclsRoutes.RecordAclDelete); // Delete acls for a single record
-
-// 39-stat-api: Stat API routes (record metadata without user data)
-app.get('/api/stat/:model/:id', statRoutes.RecordGet); // Get record metadata (timestamps, etag, size)
-
-// 42-history-api: Tracked API routes (change tracking and audit trails)
-app.get('/api/tracked/:model/:id', trackedRoutes.RecordTrackedGet); // List all changes for a record
-app.get('/api/tracked/:model/:id/:change', trackedRoutes.ChangeGet); // Get specific change by change_id
-
-// 43-trashed-api: Trashed API routes (soft-deleted record management)
-app.get('/api/trashed', trashedRoutes.TrashedGet); // List all trashed records across models
-app.get('/api/trashed/:model', trashedRoutes.ModelTrashedGet); // List trashed records for a model
-app.post('/api/trashed/:model', trashedRoutes.ModelTrashedPost); // Restore multiple trashed records
-app.delete('/api/trashed/:model', trashedRoutes.ModelTrashedDelete); // Permanently delete multiple trashed records
-app.get('/api/trashed/:model/:id', trashedRoutes.RecordTrashedGet); // Get specific trashed record
-app.post('/api/trashed/:model/:id', trashedRoutes.RecordTrashedPost); // Restore specific trashed record
-app.delete('/api/trashed/:model/:id', trashedRoutes.RecordTrashedDelete); // Permanently delete specific trashed record
-
-// Error handling
-app.onError((err, c) => createInternalError(c, err));
-
-// 404 handler
-app.notFound(c => {
-    return c.json(
-        {
-            success: false,
-            error: 'Not found',
-            error_code: 'NOT_FOUND',
-        },
-        404
-    );
-});
-
-// Server configuration
-const port = Number(process.env.PORT || 9001);
-
 // Initialize observer system
 console.info('Preloading observer system');
 try {
     ObserverLoader.preloadObservers();
     console.info('Observer system ready', {
-        observerCount: ObserverLoader.getObserverCount()
+        observerCount: ObserverLoader.getObserverCount(),
     });
 } catch (error) {
     console.error(`Observer system initialization failed:`, error);
@@ -396,16 +108,23 @@ try {
 
 // Check for --no-startup flag
 if (process.argv.includes('--no-startup')) {
-    console.info('✅ Startup test successful - all modules loaded without errors');
+    console.info('Startup test successful - all modules loaded without errors');
     process.exit(0);
 }
 
+// Server handles for graceful shutdown
+let httpServer: HttpServerHandle | null = null;
+let telnetServer: TelnetServerHandle | null = null;
+let sshServer: SSHServerHandle | null = null;
+
 // Start HTTP server
-console.info('Starting Monk HTTP API Server');
-console.info('Related ecosystem projects:')
+console.info('Starting Monk API servers');
+console.info('Related ecosystem projects:');
 console.info('- monk-cli: Terminal commands for the API (https://github.com/ianzepp/monk-cli)');
 console.info('- monk-uix: Web browser admin interface (https://github.com/ianzepp/monk-uix)');
-console.info('- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)');
+console.info(
+    '- monk-api-bindings-ts: Typescript API bindings (https://github.com/ianzepp/monk-api-bindings-ts)'
+);
 
 // Log available app packages (lazy-loaded on first request)
 try {
@@ -414,7 +133,7 @@ try {
     if (availableApps.length > 0) {
         console.info('Available app packages (lazy-loaded on first request):');
         for (const appName of availableApps) {
-            console.info(`- @monk-app/${appName} → /app/${appName}`);
+            console.info(`- @monk-app/${appName} -> /app/${appName}`);
         }
     } else {
         console.info('No app packages installed');
@@ -423,19 +142,30 @@ try {
     console.info('No app packages installed');
 }
 
-// Start Bun HTTP server
-const server = Bun.serve({
-    fetch: app.fetch,
-    port,
-});
-console.info('HTTP API server running', { port, url: `http://localhost:${port}` });
+// Start all servers
+const httpPort = Number(process.env.PORT || 9001);
+httpServer = startHttpServer(httpPort);
+
+// Start TTY servers
+const ttyConfig = {
+    telnetPort: Number(process.env.TELNET_PORT || 2323),
+    telnetHost: process.env.TELNET_HOST || '0.0.0.0',
+    sshPort: Number(process.env.SSH_PORT || 2222),
+    sshHost: process.env.SSH_HOST || '0.0.0.0',
+    sshHostKey: process.env.SSH_HOST_KEY,
+};
+
+telnetServer = startTelnetServer(ttyConfig);
+sshServer = startSSHServer(ttyConfig);
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-    console.info('Shutting down HTTP API server gracefully');
+    console.info('Shutting down servers gracefully');
 
-    server.stop();
-    console.info('HTTP server stopped');
+    // Stop all servers
+    httpServer?.stop();
+    telnetServer?.stop();
+    sshServer?.stop();
 
     // Close database connections
     await DatabaseConnection.closeConnections();
@@ -448,4 +178,5 @@ process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
 
 // Named export for testing (avoid default export - Bun auto-serves default exports with fetch())
+const app = httpServer.app;
 export { app };

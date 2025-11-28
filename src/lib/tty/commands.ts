@@ -366,15 +366,10 @@ commands['help'] = async (_session, _fs, _args, write) => {
 };
 
 /**
- * exit/logout/quit - End session
+ * exit/logout/quit - End session and close connection
  */
-commands['exit'] = async (session, _fs, _args, _write) => {
-    // Reset session state (handled by session-handler)
-    session.state = 'AWAITING_USERNAME';
-    session.username = '';
-    session.tenant = '';
-    session.systemInit = null;
-    session.cwd = '/';
+commands['exit'] = async (session, _fs, _args, write) => {
+    write('Goodbye!\n');
 
     // Run cleanup handlers
     for (const cleanup of session.cleanupHandlers) {
@@ -385,6 +380,9 @@ commands['exit'] = async (session, _fs, _args, _write) => {
         }
     }
     session.cleanupHandlers = [];
+
+    // Signal to close the connection
+    session.shouldClose = true;
 };
 
 commands['logout'] = commands['exit'];

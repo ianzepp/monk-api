@@ -1344,12 +1344,16 @@ async function initializeTenantFS(system: System): Promise<void> {
 - [x] Consolidate auth middleware (`authValidatorMiddleware`)
 - [x] Add integration tests (24 passing)
 
-### Phase 3: TTY Refactor
-- [ ] Add `fs` property to Session interface
-- [ ] Create FS instance on login (using `systemInitFromJWT` + `new System()`)
-- [ ] Refactor `commands.ts` to use FS
-- [ ] Remove `parsePath()` and switch statements
-- [ ] Verify backwards compatibility
+### Phase 3: TTY Refactor (In Progress)
+- [x] Move TTY from `packages/app-tty` to `src/lib/tty` (core library)
+- [x] Create `src/lib/auth.ts` with extracted login logic
+- [x] Redesign Session to store `SystemInit` instead of JWT token
+- [x] Implement FS-based commands (~350 LOC vs 794 LOC original)
+- [x] Create `fs-factory.ts` for consistent mount configuration
+- [x] Transaction-per-command pattern (each command is atomic)
+- [ ] Integrate TTY server startup with main API server
+- [ ] Test with telnet connection
+- [ ] Test with SSH connection
 
 ### Phase 4: Real Storage ✅
 - [x] Add `fs` table to SQL schemas:
@@ -2019,3 +2023,55 @@ Renamed from VFS (Virtual Filesystem) to FS (Filesystem):
 - Table renamed: `fs_nodes` → `fs`
 - Routes: `/vfs/*` → `/fs/*`
 - Test directory: `spec/50-vfs-api` → `spec/45-fs-api`
+
+### Implementation Notes (2025-11-28) - Phase 3: TTY Redesign
+
+**Architecture Decision: Clean Rewrite**
+- Original TTY in `packages/app-tty` (~2000 LOC) backed up to `packages/app-tty.backup/`
+- New TTY in `src/lib/tty/` (~960 LOC) - core library, not app package
+- App packages are for `/app/*` HTTP routes; TTY is separate server/port
+
+**Key Design Changes:**
+
+1. **Direct Auth via auth.ts**
+   - Created `src/lib/auth.ts` with `login()` function
+   - Both HTTP `/auth/login` route and TTY use same auth logic
+   - No more ApiClient HTTP calls for authentication
+
+2. **Session stores SystemInit, not JWT token**
+   ```typescript
+   interface Session {
+     systemInit: SystemInit | null;  // Set after login
+     // ... other fields
+   }
+   ```
+
+3. **Transaction per Command**
+   - Each command runs in `runTransaction(session.systemInit, ...)`
+   - FS created fresh per command via `createFS(system)`
+   - Atomic operations: `rm` commits even if connection drops
+
+4. **FS-based Commands** (~350 LOC vs 794 LOC)
+   - Commands receive `(session, fs, args, write)`
+   - Path resolution via `fs.resolve(session.cwd, path)`
+   - Error handling via FSError catch blocks
+   - No more `parsePath()` with hardcoded path types
+
+**Files created:**
+- `src/lib/auth.ts` - Core authentication logic
+- `src/lib/tty/types.ts` - Session, TTYStream, Config interfaces
+- `src/lib/tty/parser.ts` - Command parsing (adapted from original)
+- `src/lib/tty/fs-factory.ts` - `createFS(system)` with all mounts
+- `src/lib/tty/commands.ts` - Core commands: ls, cd, cat, rm, mkdir, etc.
+- `src/lib/tty/session-handler.ts` - Auth flow, command dispatch
+- `src/lib/tty/telnet-server.ts` - Telnet transport
+- `src/lib/tty/ssh-server.ts` - SSH transport
+- `src/lib/tty/index.ts` - Public exports
+
+**Files modified:**
+- `src/routes/auth/login/POST.ts` - Refactored to use auth.ts (200 LOC → 70 LOC)
+
+**Remaining work:**
+- Integrate TTY server startup with main API (`src/index.ts`)
+- Test telnet and SSH connections
+- Verify SFTP design compatibility

@@ -5,7 +5,7 @@
  * Can be used by HTTP routes, TTY servers, and other internal services.
  */
 
-import { Infrastructure } from '@src/lib/infrastructure.js';
+import { Infrastructure, parseInfraConfig } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
 import { verifyPassword } from '@src/lib/credentials/index.js';
@@ -63,8 +63,11 @@ export interface LoginFailure {
 export async function login(request: LoginRequest): Promise<LoginResult | LoginFailure> {
     const { tenant, username, password } = request;
 
+    // Normalize tenant name to match how createTenant stores it
+    const normalizedTenant = tenant.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+
     // Look up tenant record from infrastructure database
-    const tenantRecord = await Infrastructure.getTenant(tenant);
+    const tenantRecord = await Infrastructure.getTenant(normalizedTenant);
 
     if (!tenantRecord) {
         return {
@@ -207,5 +210,143 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
         token,
         payload,
         systemInit,
+    };
+}
+
+/**
+ * Registration request parameters
+ */
+export interface RegisterRequest {
+    tenant: string;
+    username?: string;
+    password?: string;
+}
+
+/**
+ * Registration result on success
+ */
+export interface RegisterResult {
+    success: true;
+    tenant: string;
+    username: string;
+    token: string;
+}
+
+/**
+ * Registration failure result
+ */
+export interface RegisterFailure {
+    success: false;
+    error: string;
+    errorCode: string;
+}
+
+/**
+ * Register a new tenant with an initial user.
+ *
+ * @param request - Registration parameters
+ * @returns Registration result or failure
+ */
+export async function register(
+    request: RegisterRequest
+): Promise<RegisterResult | RegisterFailure> {
+    const { tenant, username = 'root', password } = request;
+
+    // Validate tenant name
+    if (!tenant || tenant.trim().length === 0) {
+        return {
+            success: false,
+            error: 'Tenant name is required',
+            errorCode: 'AUTH_TENANT_MISSING',
+        };
+    }
+
+    // Validate tenant name format (lowercase alphanumeric and underscores only)
+    // This matches what Infrastructure.createTenant will store
+    if (!/^[a-z][a-z0-9_]*$/.test(tenant)) {
+        return {
+            success: false,
+            error: 'Tenant name must be lowercase, start with a letter, and contain only letters, numbers, and underscores',
+            errorCode: 'AUTH_TENANT_INVALID',
+        };
+    }
+
+    // Create tenant with full provisioning
+    let result;
+    try {
+        result = await Infrastructure.createTenant({
+            name: tenant,
+            owner_username: username,
+        });
+    } catch (error: any) {
+        // Check for duplicate tenant error
+        if (error.message?.includes('already exists')) {
+            return {
+                success: false,
+                error: `Tenant '${tenant}' already exists`,
+                errorCode: 'DATABASE_TENANT_EXISTS',
+            };
+        }
+        return {
+            success: false,
+            error: error.message || 'Registration failed',
+            errorCode: 'REGISTRATION_FAILED',
+        };
+    }
+
+    // If password provided, set it for the user
+    if (password) {
+        try {
+            const { hashPassword } = await import('@src/lib/credentials/index.js');
+            const hashedPassword = await hashPassword(password);
+
+            const { db_type: dbType, database: dbName, schema: nsName } = result.tenant;
+
+            if (dbType === 'sqlite') {
+                const adapter = createAdapterFrom('sqlite', dbName, nsName);
+                await adapter.connect();
+                try {
+                    await adapter.query(
+                        `INSERT INTO credentials (id, user_id, type, secret, created_at, updated_at)
+                         VALUES ($1, $2, 'password', $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                        [crypto.randomUUID(), result.user.id, hashedPassword]
+                    );
+                } finally {
+                    await adapter.disconnect();
+                }
+            } else {
+                await DatabaseConnection.queryInNamespace(
+                    dbName,
+                    nsName,
+                    `INSERT INTO credentials (id, user_id, type, secret, created_at, updated_at)
+                     VALUES ($1, $2, 'password', $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                    [crypto.randomUUID(), result.user.id, hashedPassword]
+                );
+            }
+        } catch (error: any) {
+            // Password setting failed, but tenant was created - log warning
+            console.warn('Failed to set password during registration:', error.message);
+        }
+    }
+
+    // Generate JWT token for the new user
+    const token = await JWTGenerator.generateToken({
+        id: result.user.id,
+        user_id: result.user.id,
+        tenant: result.tenant.name,
+        dbType: result.tenant.db_type,
+        dbName: result.tenant.database,
+        nsName: result.tenant.schema,
+        access: result.user.access,
+        access_read: [],
+        access_edit: [],
+        access_full: [],
+    });
+
+    return {
+        success: true,
+        tenant: result.tenant.name,
+        username: result.user.auth,
+        token,
     };
 }

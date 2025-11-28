@@ -12,7 +12,7 @@ import { DEFAULT_MOTD } from './types.js';
 import { parseCommand } from './parser.js';
 import { commands } from './commands.js';
 import { createFS } from './fs-factory.js';
-import { login } from '@src/lib/auth.js';
+import { login, register } from '@src/lib/auth.js';
 import { runTransaction } from '@src/lib/transaction.js';
 
 /**
@@ -87,7 +87,8 @@ export async function handleInput(
         session.inputBuffer += char;
         if (echo) {
             // Mask password input
-            if (session.state === 'AWAITING_PASSWORD') {
+            const passwordStates = ['AWAITING_PASSWORD', 'REGISTER_PASSWORD', 'REGISTER_CONFIRM'];
+            if (passwordStates.includes(session.state)) {
                 writeToStream(stream, '*');
             } else {
                 writeToStream(stream, char);
@@ -114,10 +115,19 @@ async function processLine(
                 return;
             }
 
+            // Check for 'register' command
+            if (trimmed.toLowerCase() === 'register') {
+                writeToStream(stream, '\n=== New Tenant Registration ===\n');
+                writeToStream(stream, 'Tenant name: ');
+                session.state = 'REGISTER_TENANT';
+                session.registrationData = { tenant: '', username: '', password: '' };
+                return;
+            }
+
             // Parse user@tenant format
             const atIndex = trimmed.indexOf('@');
             if (atIndex === -1) {
-                writeToStream(stream, 'Invalid format. Use: username@tenant\n');
+                writeToStream(stream, 'Invalid format. Use: username@tenant (or type "register" to create a new tenant)\n');
                 writeToStream(stream, 'monk login: ');
                 return;
             }
@@ -131,17 +141,48 @@ async function processLine(
                 return;
             }
 
-            session.state = 'AWAITING_PASSWORD';
-            writeToStream(stream, 'Password: ');
+            // Try passwordless login first
+            const passwordlessResult = await login({
+                tenant: session.tenant,
+                username: session.username,
+            });
+
+            if (passwordlessResult.success) {
+                // Passwordless login succeeded
+                session.systemInit = passwordlessResult.systemInit;
+                session.state = 'AUTHENTICATED';
+                session.env['USER'] = passwordlessResult.user.username;
+                session.env['TENANT'] = passwordlessResult.user.tenant;
+                session.env['ACCESS'] = passwordlessResult.user.access;
+
+                writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
+                writeToStream(stream, `Access level: ${passwordlessResult.user.access}\n\n`);
+                printPrompt(stream, session);
+                return;
+            }
+
+            // If password is required, prompt for it
+            if (passwordlessResult.errorCode === 'AUTH_PASSWORD_REQUIRED') {
+                session.state = 'AWAITING_PASSWORD';
+                writeToStream(stream, 'Password: ');
+                return;
+            }
+
+            // Other error (user not found, tenant not found, etc.)
+            writeToStream(stream, `\nLogin failed: ${passwordlessResult.error}\n`);
+            session.state = 'AWAITING_USERNAME';
+            session.username = '';
+            session.tenant = '';
+            writeToStream(stream, 'monk login: ');
             break;
         }
 
         case 'AWAITING_PASSWORD': {
-            // Attempt login
+            // Attempt login with password
             const result = await login({
                 tenant: session.tenant,
                 username: session.username,
-                password: trimmed || undefined,
+                password: trimmed,
             });
 
             if (!result.success) {
@@ -176,17 +217,138 @@ async function processLine(
 
             await executeCommand(stream, session, trimmed);
 
-            // Check if session was reset by exit command
-            // Cast needed because TypeScript doesn't track state changes through async calls
-            if ((session.state as string) === 'AWAITING_USERNAME') {
-                writeToStream(stream, 'Logged out.\n');
-                sendWelcome(stream, config);
+            // Check if exit command requested connection close
+            if (session.shouldClose) {
+                stream.end();
+                return;
+            }
+
+            printPrompt(stream, session);
+            break;
+        }
+
+        case 'REGISTER_TENANT': {
+            if (!trimmed) {
+                writeToStream(stream, 'Tenant name: ');
+                return;
+            }
+
+            // Validate tenant name (lowercase alphanumeric and underscores only)
+            if (!/^[a-z][a-z0-9_]*$/.test(trimmed)) {
+                writeToStream(stream, 'Invalid tenant name. Must be lowercase, start with a letter, and contain only letters, numbers, and underscores.\n');
+                writeToStream(stream, 'Tenant name: ');
+                return;
+            }
+
+            session.registrationData!.tenant = trimmed;
+            session.state = 'REGISTER_USERNAME';
+            writeToStream(stream, 'Username (default: root): ');
+            break;
+        }
+
+        case 'REGISTER_USERNAME': {
+            // Default to 'root' if empty
+            const username = trimmed || 'root';
+
+            // Validate username
+            if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(username)) {
+                writeToStream(stream, 'Invalid username. Must start with a letter and contain only letters, numbers, underscores, and hyphens.\n');
+                writeToStream(stream, 'Username (default: root): ');
+                return;
+            }
+
+            session.registrationData!.username = username;
+            session.state = 'REGISTER_PASSWORD';
+            writeToStream(stream, 'Password (optional): ');
+            break;
+        }
+
+        case 'REGISTER_PASSWORD': {
+            session.registrationData!.password = trimmed;
+
+            if (trimmed) {
+                session.state = 'REGISTER_CONFIRM';
+                writeToStream(stream, 'Confirm password: ');
             } else {
-                printPrompt(stream, session);
+                // No password - proceed to registration
+                await completeRegistration(stream, session, config);
             }
             break;
         }
+
+        case 'REGISTER_CONFIRM': {
+            if (trimmed !== session.registrationData!.password) {
+                writeToStream(stream, 'Passwords do not match. Try again.\n');
+                session.registrationData!.password = '';
+                session.state = 'REGISTER_PASSWORD';
+                writeToStream(stream, 'Password (optional): ');
+                return;
+            }
+
+            await completeRegistration(stream, session, config);
+            break;
+        }
     }
+}
+
+/**
+ * Complete the registration process and auto-login
+ */
+async function completeRegistration(
+    stream: TTYStream,
+    session: Session,
+    config?: TTYConfig
+): Promise<void> {
+    const { tenant, username, password } = session.registrationData!;
+
+    writeToStream(stream, '\nCreating tenant...\n');
+
+    const result = await register({
+        tenant,
+        username,
+        password: password || undefined,
+    });
+
+    if (!result.success) {
+        writeToStream(stream, `\nRegistration failed: ${result.error}\n\n`);
+        session.state = 'AWAITING_USERNAME';
+        session.registrationData = null;
+        writeToStream(stream, 'monk login: ');
+        return;
+    }
+
+    writeToStream(stream, `\nTenant '${result.tenant}' created successfully!\n`);
+
+    // Auto-login after registration
+    const loginResult = await login({
+        tenant: result.tenant,
+        username: result.username,
+        password: password || undefined,
+    });
+
+    if (!loginResult.success) {
+        // Shouldn't happen, but handle gracefully
+        writeToStream(stream, `You can now login as ${result.username}@${result.tenant}\n\n`);
+        session.state = 'AWAITING_USERNAME';
+        session.registrationData = null;
+        writeToStream(stream, 'monk login: ');
+        return;
+    }
+
+    // Set up authenticated session
+    session.username = result.username;
+    session.tenant = result.tenant;
+    session.systemInit = loginResult.systemInit;
+    session.state = 'AUTHENTICATED';
+    session.registrationData = null;
+
+    session.env['USER'] = loginResult.user.username;
+    session.env['TENANT'] = loginResult.user.tenant;
+    session.env['ACCESS'] = loginResult.user.access;
+
+    writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
+    writeToStream(stream, `Access level: ${loginResult.user.access}\n\n`);
+    printPrompt(stream, session);
 }
 
 /**
@@ -207,7 +369,7 @@ async function executeCommand(
     }
 
     // Commands that don't need a transaction
-    const noTransactionCommands = ['echo', 'env', 'export', 'clear', 'help', 'pwd', 'whoami'];
+    const noTransactionCommands = ['echo', 'env', 'export', 'clear', 'help', 'pwd', 'whoami', 'exit', 'logout', 'quit'];
 
     if (noTransactionCommands.includes(parsed.command)) {
         // Run without FS (these commands don't use it)

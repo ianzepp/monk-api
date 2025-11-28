@@ -25,7 +25,23 @@ export interface TTYStream {
 /**
  * Session state machine states
  */
-export type SessionState = 'AWAITING_USERNAME' | 'AWAITING_PASSWORD' | 'AUTHENTICATED';
+export type SessionState =
+    | 'AWAITING_USERNAME'
+    | 'AWAITING_PASSWORD'
+    | 'AUTHENTICATED'
+    | 'REGISTER_TENANT'
+    | 'REGISTER_USERNAME'
+    | 'REGISTER_PASSWORD'
+    | 'REGISTER_CONFIRM';
+
+/**
+ * Registration data collected during registration flow
+ */
+export interface RegistrationData {
+    tenant: string;
+    username: string;
+    password: string;
+}
 
 /**
  * User session context (transport-agnostic)
@@ -57,6 +73,12 @@ export interface Session {
 
     /** Cleanup handlers for subscriptions (future: watch, tail -f) */
     cleanupHandlers: (() => void)[];
+
+    /** Flag to signal connection should close (set by exit command) */
+    shouldClose: boolean;
+
+    /** Registration data (populated during registration flow) */
+    registrationData: RegistrationData | null;
 }
 
 /**
@@ -127,6 +149,8 @@ export function createSession(id: string): Session {
         },
         systemInit: null,
         cleanupHandlers: [],
+        shouldClose: false,
+        registrationData: null,
     };
 }
 
