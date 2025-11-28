@@ -52,21 +52,27 @@ export class DataMount implements Mount {
         }
 
         if (parsed.type === 'record') {
-            const record = await this.system.database.selectOne(parsed.modelName, {
-                where: { id: parsed.recordId },
-            });
-            if (!record) {
+            try {
+                const record = await this.system.database.selectOne(parsed.modelName, {
+                    where: { id: parsed.recordId },
+                });
+                if (!record) {
+                    throw new FSError('ENOENT', path);
+                }
+                const content = JSON.stringify(record, null, 2);
+                return {
+                    name: parsed.recordId,
+                    type: 'file',
+                    size: Buffer.byteLength(content, 'utf8'),
+                    mode: 0o644,
+                    mtime: record.updated_at ? new Date(record.updated_at) : undefined,
+                    ctime: record.created_at ? new Date(record.created_at) : undefined,
+                };
+            } catch (err) {
+                // Convert model-not-found errors to ENOENT
+                if (err instanceof FSError) throw err;
                 throw new FSError('ENOENT', path);
             }
-            const content = JSON.stringify(record, null, 2);
-            return {
-                name: parsed.recordId,
-                type: 'file',
-                size: Buffer.byteLength(content, 'utf8'),
-                mode: 0o644,
-                mtime: record.updated_at ? new Date(record.updated_at) : undefined,
-                ctime: record.created_at ? new Date(record.created_at) : undefined,
-            };
         }
 
         throw new FSError('ENOENT', path);
@@ -119,13 +125,18 @@ export class DataMount implements Mount {
         }
 
         if (parsed.type === 'record') {
-            const record = await this.system.database.selectOne(parsed.modelName, {
-                where: { id: parsed.recordId },
-            });
-            if (!record) {
+            try {
+                const record = await this.system.database.selectOne(parsed.modelName, {
+                    where: { id: parsed.recordId },
+                });
+                if (!record) {
+                    throw new FSError('ENOENT', path);
+                }
+                return JSON.stringify(record, null, 2);
+            } catch (err) {
+                if (err instanceof FSError) throw err;
                 throw new FSError('ENOENT', path);
             }
-            return JSON.stringify(record, null, 2);
         }
 
         throw new FSError('ENOENT', path);
@@ -139,21 +150,26 @@ export class DataMount implements Mount {
         }
 
         if (parsed.type === 'record') {
-            const data = JSON.parse(content.toString());
+            try {
+                const data = JSON.parse(content.toString());
 
-            const existing = await this.system.database.selectOne(parsed.modelName, {
-                where: { id: parsed.recordId },
-            });
-
-            if (existing) {
-                await this.system.database.updateOne(parsed.modelName, parsed.recordId, data);
-            } else {
-                await this.system.database.createOne(parsed.modelName, {
-                    ...data,
-                    id: parsed.recordId,
+                const existing = await this.system.database.selectOne(parsed.modelName, {
+                    where: { id: parsed.recordId },
                 });
+
+                if (existing) {
+                    await this.system.database.updateOne(parsed.modelName, parsed.recordId, data);
+                } else {
+                    await this.system.database.createOne(parsed.modelName, {
+                        ...data,
+                        id: parsed.recordId,
+                    });
+                }
+                return;
+            } catch (err) {
+                if (err instanceof FSError) throw err;
+                throw new FSError('ENOENT', path);
             }
-            return;
         }
 
         throw new FSError('ENOENT', path);
@@ -167,14 +183,19 @@ export class DataMount implements Mount {
         }
 
         if (parsed.type === 'record') {
-            const existing = await this.system.database.selectOne(parsed.modelName, {
-                where: { id: parsed.recordId },
-            });
-            if (!existing) {
+            try {
+                const existing = await this.system.database.selectOne(parsed.modelName, {
+                    where: { id: parsed.recordId },
+                });
+                if (!existing) {
+                    throw new FSError('ENOENT', path);
+                }
+                await this.system.database.deleteOne(parsed.modelName, parsed.recordId);
+                return;
+            } catch (err) {
+                if (err instanceof FSError) throw err;
                 throw new FSError('ENOENT', path);
             }
-            await this.system.database.deleteOne(parsed.modelName, parsed.recordId);
-            return;
         }
 
         throw new FSError('ENOENT', path);
