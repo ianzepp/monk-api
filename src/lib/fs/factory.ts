@@ -14,6 +14,7 @@ import { FindMount } from './mounts/find-mount.js';
 import { TrashedMount } from './mounts/trashed-mount.js';
 import { ProcMount } from './mounts/proc-mount.js';
 import { BinMount } from './mounts/bin-mount.js';
+import { TmpMountRegistry } from './mounts/memory-mount.js';
 
 /**
  * Options for creating a FS instance
@@ -36,7 +37,8 @@ export interface CreateFSOptions {
  * - /bin - Built-in commands (read-only)
  * - /proc - Process table (read-only)
  * - /system - System introspection (read-only)
- * - /* (fallback) - ModelBackedStorage for /home, /tmp, /etc
+ * - /tmp - In-memory storage (per-tenant, ephemeral)
+ * - /* (fallback) - ModelBackedStorage for /home, /etc
  *
  * @param system - Authenticated system context
  * @param options - Optional configuration
@@ -62,7 +64,10 @@ export function createFS(system: System, options?: CreateFSOptions): FS {
     // System introspection (read-only)
     fs.mount('/system', new SystemMount(system));
 
-    // Fallback to database-backed storage for /home, /tmp, /etc
+    // Temporary files (in-memory, per-tenant, ephemeral)
+    fs.mount('/tmp', TmpMountRegistry.get(system.tenant));
+
+    // Fallback to database-backed storage for /home, /etc
     fs.setFallback(new ModelBackedStorage(system));
 
     return fs;

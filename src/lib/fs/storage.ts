@@ -356,9 +356,10 @@ export class ModelBackedStorage implements Mount {
  *   /          - root directory
  *   /home      - user home directories
  *   /home/root - root user's home
- *   /tmp       - temporary files (sticky bit)
  *   /etc       - configuration files
  *   /etc/motd  - message of the day
+ *
+ * Note: /tmp is handled by MemoryMount (in-memory, not persisted)
  *
  * Called during tenant creation, uses raw adapter queries.
  */
@@ -404,9 +405,9 @@ export async function initializeFS(
     };
 
     // Create directory structure
+    // Note: /tmp is handled by MemoryMount, not database
     const rootId = await createDir(null, '/', '/', 0o755);
     const homeId = await createDir(rootId, 'home', '/home', 0o755);
-    const tmpId = await createDir(rootId, 'tmp', '/tmp', 0o1777); // sticky bit
     const etcId = await createDir(rootId, 'etc', '/etc', 0o755);
     const apiId = await createDir(rootId, 'api', '/api', 0o755);
 
@@ -416,5 +417,5 @@ export async function initializeFS(
     // Create default files
     await createFile(etcId, 'motd', '/etc/motd', 'Welcome to Monk API\n', 0o644);
 
-    console.info('FS initialized', { directories: 6, files: 1 });
+    console.info('FS initialized', { directories: 5, files: 1 });
 }

@@ -33,6 +33,7 @@ export type FSErrorCode =
     | 'ENOTEMPTY' // Directory not empty
     | 'EROFS'     // Read-only filesystem
     | 'EINVAL'    // Invalid argument
+    | 'ENOSPC'    // No space left on device
     | 'EIO';      // I/O error
 
 /**
