@@ -1,4 +1,6 @@
 import type { Context } from 'hono';
+import type { FS } from '@src/lib/fs/index.js';
+import { createFS } from '@src/lib/fs/factory.js';
 import { Database } from '@src/lib/database.js';
 import { Describe } from '@src/lib/describe.js';
 import { NamespaceCacheManager, NamespaceCache } from '@src/lib/namespace-cache.js';
@@ -98,6 +100,9 @@ export class System implements SystemContext {
     // Namespace cache bound to this request's db:ns
     public readonly namespace: NamespaceCache;
 
+    // Filesystem
+    public readonly fs: FS;
+
     /**
      * @deprecated Use context-free constructor with SystemInit instead.
      * This property is kept for backward compatibility during migration.
@@ -151,6 +156,7 @@ export class System implements SystemContext {
         // Note: system.adapter is set by runTransaction() before any database operations
         this.database = new Database(this);
         this.describe = new Describe(this);
+        this.fs = createFS(this);
 
         // Bind namespace cache
         if (this.dbName && this.nsName) {

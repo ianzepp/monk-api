@@ -7,10 +7,9 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  */
 export default withTransaction(async ({ system, params }) => {
     const { model, id, relationship } = params;
-    const options = { context: 'api' as const };
 
     // Verify parent record data is readable
-    const parentRecord = await system.database.select404(model!, { where: { id: id! } }, undefined, options);
+    await system.database.select404(model!, { where: { id: id! } });
 
     // Get relationship metadata (cached)
     const rel = await system.database.getRelationship(model!, relationship!);

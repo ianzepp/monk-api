@@ -14,13 +14,12 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  */
 export default withTransaction(async ({ system, params }) => {
     const { model, id } = params;
-    const options = { context: 'api' as const };
 
     // Verify record exists before updating (select404 automatically throws 404 if not found)
     await system.database.select404(model!, {
         where: { id: id! },
         select: ['id']
-    }, undefined, options);
+    });
 
     // Clear all ACL lists by setting them to empty arrays
     const updates = {

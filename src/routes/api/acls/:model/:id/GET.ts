@@ -11,13 +11,12 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  */
 export default withTransaction(async ({ system, params }) => {
     const { model, id } = params;
-    const options = { context: 'api' as const };
 
     // Get the record with only ACL fields (select404 automatically throws 404 if not found)
     const result = await system.database.select404(model!, {
         where: { id: id! },
         select: ['id', 'access_read', 'access_edit', 'access_full', 'access_deny']
-    }, undefined, options);
+    });
 
     // Return structured ACL data (middleware will wrap in success response)
     return {

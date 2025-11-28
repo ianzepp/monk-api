@@ -8,10 +8,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  */
 export default withTransaction(async ({ system, params, body }) => {
     const { model, id, relationship, child } = params;
-    const options = { context: 'api' as const };
 
     // Verify parent record data is readable
-    const parentRecord = await system.database.select404(model!, { where: { id: id! } }, undefined, options);
+    await system.database.select404(model!, { where: { id: id! } });
 
     // Get relationship metadata (cached)
     const rel = await system.database.getRelationship(model!, relationship!);

@@ -9,7 +9,6 @@ export default withTransaction(async ({ system, params }) => {
     const { model } = params;
 
     const trashedRecords = await system.database.selectAny(model, {}, {
-        context: 'api' as const,
         trashed: 'only',
     });
 

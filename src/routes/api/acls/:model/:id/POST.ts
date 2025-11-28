@@ -15,7 +15,6 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  */
 export default withTransaction(async ({ system, params, body }) => {
     const { model, id } = params;
-    const options = { context: 'api' as const };
 
     // Validate request body structure
     const validFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
@@ -46,7 +45,7 @@ export default withTransaction(async ({ system, params, body }) => {
     const currentRecord = await system.database.select404(model!, {
         where: { id: id! },
         select: ['id', 'access_read', 'access_edit', 'access_full', 'access_deny']
-    }, undefined, options);
+    });
 
     // Merge new IDs with existing lists (avoid duplicates)
     const mergedUpdates: any = {};
