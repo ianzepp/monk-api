@@ -33,6 +33,134 @@ export function printPrompt(stream: TTYStream, session: Session): void {
 }
 
 /**
+ * Complete login and transition to AUTHENTICATED state
+ */
+async function completeLogin(
+    stream: TTYStream,
+    session: Session,
+    systemInit: import('@src/lib/system.js').SystemInit,
+    user: { username: string; tenant: string; access: string }
+): Promise<void> {
+    session.systemInit = systemInit;
+    session.state = 'AUTHENTICATED';
+    session.username = user.username;
+    session.tenant = user.tenant;
+
+    session.env['USER'] = user.username;
+    session.env['TENANT'] = user.tenant;
+    session.env['ACCESS'] = user.access;
+
+    await loadHistory(session);
+
+    writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
+    writeToStream(stream, `Access level: ${user.access}\n\n`);
+    printPrompt(stream, session);
+}
+
+/**
+ * Load command history from ~/.history
+ */
+async function loadHistory(session: Session): Promise<void> {
+    if (!session.systemInit) return;
+
+    try {
+        const { runTransaction } = await import('@src/lib/transaction.js');
+        await runTransaction(session.systemInit, async (system) => {
+            const fs = createFS(system);
+            const historyPath = `/home/${session.username}/.history`;
+
+            try {
+                const content = await fs.read(historyPath);
+                session.history = content.toString().split('\n').filter(Boolean);
+            } catch {
+                // No history file yet, that's fine
+                session.history = [];
+            }
+        });
+    } catch {
+        session.history = [];
+    }
+}
+
+/**
+ * Save command history to ~/.history
+ */
+export async function saveHistory(session: Session): Promise<void> {
+    if (!session.systemInit || session.history.length === 0) return;
+
+    try {
+        const { runTransaction } = await import('@src/lib/transaction.js');
+        await runTransaction(session.systemInit, async (system) => {
+            const fs = createFS(system);
+            const historyPath = `/home/${session.username}/.history`;
+
+            // Ensure home directory exists
+            const homePath = `/home/${session.username}`;
+            if (!await fs.exists(homePath)) {
+                await fs.mkdir(homePath);
+            }
+
+            // Keep last 1000 commands
+            const trimmed = session.history.slice(-1000);
+            await fs.write(historyPath, trimmed.join('\n') + '\n');
+        });
+    } catch {
+        // Ignore save errors
+    }
+}
+
+/**
+ * Clear current line and write new content
+ */
+function replaceLine(stream: TTYStream, session: Session, newContent: string): void {
+    // Move cursor to start of input, clear to end of line
+    const clearLen = session.inputBuffer.length;
+    if (clearLen > 0) {
+        writeToStream(stream, '\x1b[' + clearLen + 'D'); // Move left
+        writeToStream(stream, '\x1b[K'); // Clear to end of line
+    }
+    session.inputBuffer = newContent;
+    writeToStream(stream, newContent);
+}
+
+/**
+ * Handle up arrow - navigate to previous command in history
+ */
+function handleHistoryUp(stream: TTYStream, session: Session): void {
+    if (session.history.length === 0) return;
+
+    // Save current input if just starting to navigate
+    if (session.historyIndex === -1) {
+        session.historyBuffer = session.inputBuffer;
+        session.historyIndex = session.history.length;
+    }
+
+    // Move up in history
+    if (session.historyIndex > 0) {
+        session.historyIndex--;
+        replaceLine(stream, session, session.history[session.historyIndex]);
+    }
+}
+
+/**
+ * Handle down arrow - navigate to next command in history
+ */
+function handleHistoryDown(stream: TTYStream, session: Session): void {
+    if (session.historyIndex === -1) return;
+
+    session.historyIndex++;
+
+    if (session.historyIndex >= session.history.length) {
+        // Back to current input
+        session.historyIndex = -1;
+        replaceLine(stream, session, session.historyBuffer);
+        session.historyBuffer = '';
+    } else {
+        replaceLine(stream, session, session.history[session.historyIndex]);
+    }
+}
+
+/**
  * Send welcome message and login prompt
  */
 export function sendWelcome(stream: TTYStream, config?: TTYConfig): void {
@@ -60,7 +188,35 @@ export async function handleInput(
 ): Promise<void> {
     const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
 
+    let inEscape = false;
+    let escapeBuffer = '';
+
     for (const char of text) {
+        // Handle ANSI escape sequences (e.g., arrow keys: ESC [ A)
+        if (char === '\x1b') {
+            inEscape = true;
+            escapeBuffer = '';
+            continue;
+        }
+
+        if (inEscape) {
+            escapeBuffer += char;
+            // CSI sequences end with a letter (A-Z, a-z)
+            if (escapeBuffer.length >= 2 && /[A-Za-z~]/.test(char)) {
+                inEscape = false;
+
+                // Handle arrow keys for history (only in AUTHENTICATED state)
+                if (session.state === 'AUTHENTICATED' && escapeBuffer === '[A') {
+                    // Up arrow - previous command
+                    handleHistoryUp(stream, session);
+                } else if (session.state === 'AUTHENTICATED' && escapeBuffer === '[B') {
+                    // Down arrow - next command
+                    handleHistoryDown(stream, session);
+                }
+            }
+            continue;
+        }
+
         // Handle backspace
         if (char === '\x7f' || char === '\x08') {
             if (session.inputBuffer.length > 0) {
@@ -148,16 +304,7 @@ async function processLine(
             });
 
             if (passwordlessResult.success) {
-                // Passwordless login succeeded
-                session.systemInit = passwordlessResult.systemInit;
-                session.state = 'AUTHENTICATED';
-                session.env['USER'] = passwordlessResult.user.username;
-                session.env['TENANT'] = passwordlessResult.user.tenant;
-                session.env['ACCESS'] = passwordlessResult.user.access;
-
-                writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
-                writeToStream(stream, `Access level: ${passwordlessResult.user.access}\n\n`);
-                printPrompt(stream, session);
+                await completeLogin(stream, session, passwordlessResult.systemInit, passwordlessResult.user);
                 return;
             }
 
@@ -194,18 +341,7 @@ async function processLine(
                 return;
             }
 
-            // Store systemInit for transactions
-            session.systemInit = result.systemInit;
-            session.state = 'AUTHENTICATED';
-
-            // Set environment variables
-            session.env['USER'] = result.user.username;
-            session.env['TENANT'] = result.user.tenant;
-            session.env['ACCESS'] = result.user.access;
-
-            writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
-            writeToStream(stream, `Access level: ${result.user.access}\n\n`);
-            printPrompt(stream, session);
+            await completeLogin(stream, session, result.systemInit, result.user);
             break;
         }
 
@@ -336,19 +472,8 @@ async function completeRegistration(
     }
 
     // Set up authenticated session
-    session.username = result.username;
-    session.tenant = result.tenant;
-    session.systemInit = loginResult.systemInit;
-    session.state = 'AUTHENTICATED';
     session.registrationData = null;
-
-    session.env['USER'] = loginResult.user.username;
-    session.env['TENANT'] = loginResult.user.tenant;
-    session.env['ACCESS'] = loginResult.user.access;
-
-    writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
-    writeToStream(stream, `Access level: ${loginResult.user.access}\n\n`);
-    printPrompt(stream, session);
+    await completeLogin(stream, session, loginResult.systemInit, loginResult.user);
 }
 
 /**
@@ -361,6 +486,15 @@ async function executeCommand(
 ): Promise<void> {
     const parsed = parseCommand(input);
     if (!parsed) return;
+
+    // Add to history (avoid duplicates of last command)
+    if (session.history[session.history.length - 1] !== input) {
+        session.history.push(input);
+    }
+
+    // Reset history navigation
+    session.historyIndex = -1;
+    session.historyBuffer = '';
 
     const handler = commands[parsed.command];
     if (!handler) {

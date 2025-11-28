@@ -79,6 +79,15 @@ export interface Session {
 
     /** Registration data (populated during registration flow) */
     registrationData: RegistrationData | null;
+
+    /** Command history */
+    history: string[];
+
+    /** Current position in history when navigating (-1 = not navigating) */
+    historyIndex: number;
+
+    /** Saved input buffer when browsing history */
+    historyBuffer: string;
 }
 
 /**
@@ -151,6 +160,9 @@ export function createSession(id: string): Session {
         cleanupHandlers: [],
         shouldClose: false,
         registrationData: null,
+        history: [],
+        historyIndex: -1,
+        historyBuffer: '',
     };
 }
 

@@ -35,6 +35,9 @@ export class FS {
     /**
      * Mount a handler at a path
      *
+     * The parent directory of the mount point must exist in the filesystem.
+     * For example, to mount at "/api/data", the "/api" directory must exist.
+     *
      * @param path - Mount point (e.g., "/api/data")
      * @param handler - Mount implementation
      */

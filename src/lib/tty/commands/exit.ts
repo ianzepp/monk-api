@@ -2,9 +2,13 @@
  * exit/logout/quit - End session and close connection
  */
 
+import { saveHistory } from '../session-handler.js';
 import type { CommandHandler } from './shared.js';
 
 export const exit: CommandHandler = async (session, _fs, _args, write) => {
+    // Save command history
+    await saveHistory(session);
+
     write('Goodbye!\n');
 
     // Run cleanup handlers

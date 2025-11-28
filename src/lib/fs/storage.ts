@@ -408,6 +408,7 @@ export async function initializeFS(
     const homeId = await createDir(rootId, 'home', '/home', 0o755);
     const tmpId = await createDir(rootId, 'tmp', '/tmp', 0o1777); // sticky bit
     const etcId = await createDir(rootId, 'etc', '/etc', 0o755);
+    const apiId = await createDir(rootId, 'api', '/api', 0o755);
 
     // Create root user's home directory
     await createDir(homeId, 'root', '/home/root', 0o700);
@@ -415,5 +416,5 @@ export async function initializeFS(
     // Create default files
     await createFile(etcId, 'motd', '/etc/motd', 'Welcome to Monk API\n', 0o644);
 
-    console.info('FS initialized', { directories: 5, files: 1 });
+    console.info('FS initialized', { directories: 6, files: 1 });
 }
