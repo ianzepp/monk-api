@@ -162,9 +162,8 @@ app.use('/api/*', middleware.formatDetectorMiddleware);
 app.use('/api/*', middleware.responseTransformerMiddleware);
 app.use('/api/*', middleware.contextInitializerMiddleware);
 
-// VFS routes - minimal middleware (auth + context only, no body parsing/format detection)
+// VFS routes - auth only, uses runTransaction() internally
 app.use('/vfs/*', middleware.authValidatorMiddleware);
-app.use('/vfs/*', middleware.contextInitializerMiddleware);
 
 // 50-vfs-api: Virtual Filesystem routes
 app.get('/vfs/*', vfsRoutes.VfsGet); // GET /vfs/* - read/readdir (add ?stat=true for metadata)

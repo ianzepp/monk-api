@@ -2,7 +2,7 @@
  * VFS HTTP Routes
  *
  * Minimal HTTP interface to the Virtual Filesystem.
- * Uses only JWT + context middleware (no body parsing, format detection, or response transformation).
+ * Uses only auth + context middleware (no body parsing, format detection, or response transformation).
  *
  * Routes:
  * - GET /vfs/*    → read (file) or readdir (directory), with ?stat for metadata only
@@ -11,7 +11,8 @@
  */
 
 import type { Context } from 'hono';
-import type { System } from '@src/lib/system.js';
+import type { System, SystemInit } from '@src/lib/system.js';
+import { runTransaction } from '@src/lib/transaction.js';
 import { VFS, VFSError } from '@src/lib/vfs/index.js';
 import { SystemMount } from '@src/lib/vfs/mounts/system-mount.js';
 import { DescribeMount } from '@src/lib/vfs/mounts/describe-mount.js';
@@ -70,6 +71,15 @@ function errorToStatus(err: VFSError): number {
     }
 }
 
+/** Result types for VFS operations */
+type VfsResult =
+    | { type: 'stat'; data: object }
+    | { type: 'directory'; data: object }
+    | { type: 'file'; content: string; contentType: string }
+    | { type: 'binary'; content: Uint8Array }
+    | { type: 'success'; path: string }
+    | { type: 'error'; error: VFSError };
+
 /**
  * GET /vfs/* - Read file or list directory
  *
@@ -77,62 +87,96 @@ function errorToStatus(err: VFSError): number {
  * - ?stat=true - Return metadata only (like HEAD but as JSON)
  */
 export async function VfsGet(c: Context) {
-    const system = c.get('system') as System;
-    const vfs = createVFS(system);
+    const systemInit = c.get('systemInit') as SystemInit;
     const path = extractPath(c);
     const statOnly = c.req.query('stat') === 'true';
 
     try {
-        const entry = await vfs.stat(path);
+        const result = await runTransaction(systemInit, async (system): Promise<VfsResult> => {
+            const vfs = createVFS(system);
 
-        // If stat-only mode, return metadata as JSON
-        if (statOnly) {
-            return c.json({
-                name: entry.name,
-                type: entry.type,
-                size: entry.size,
-                mode: entry.mode.toString(8),
-                mtime: entry.mtime?.toISOString(),
-                ctime: entry.ctime?.toISOString(),
-            });
-        }
+            try {
+                const entry = await vfs.stat(path);
 
-        if (entry.type === 'directory') {
-            // List directory
-            const entries = await vfs.readdir(path);
-            return c.json({
-                type: 'directory',
-                path,
-                entries: entries.map(e => ({
-                    name: e.name,
-                    type: e.type,
-                    size: e.size,
-                    mode: e.mode.toString(8),
-                    mtime: e.mtime?.toISOString(),
-                    ctime: e.ctime?.toISOString(),
-                })),
-            });
-        }
+                // If stat-only mode, return metadata
+                if (statOnly) {
+                    return {
+                        type: 'stat',
+                        data: {
+                            name: entry.name,
+                            type: entry.type,
+                            size: entry.size,
+                            mode: entry.mode.toString(8),
+                            mtime: entry.mtime?.toISOString(),
+                            ctime: entry.ctime?.toISOString(),
+                        },
+                    };
+                }
 
-        // Read file
-        const content = await vfs.read(path);
+                if (entry.type === 'directory') {
+                    // List directory
+                    const entries = await vfs.readdir(path);
+                    return {
+                        type: 'directory',
+                        data: {
+                            type: 'directory',
+                            path,
+                            entries: entries.map(e => ({
+                                name: e.name,
+                                type: e.type,
+                                size: e.size,
+                                mode: e.mode.toString(8),
+                                mtime: e.mtime?.toISOString(),
+                                ctime: e.ctime?.toISOString(),
+                            })),
+                        },
+                    };
+                }
 
-        // Detect content type and return
-        if (typeof content === 'string') {
-            // Check if it's JSON
-            if (content.startsWith('{') || content.startsWith('[')) {
-                c.header('Content-Type', 'application/json');
-            } else if (content.includes(': ') || content.startsWith('---')) {
-                c.header('Content-Type', 'text/yaml');
-            } else {
-                c.header('Content-Type', 'text/plain');
+                // Read file
+                const content = await vfs.read(path);
+
+                if (typeof content === 'string') {
+                    // Detect content type
+                    let contentType = 'text/plain';
+                    if (content.startsWith('{') || content.startsWith('[')) {
+                        contentType = 'application/json';
+                    } else if (content.includes(': ') || content.startsWith('---')) {
+                        contentType = 'text/yaml';
+                    }
+                    return { type: 'file', content, contentType };
+                }
+
+                // Binary content
+                return { type: 'binary', content: new Uint8Array(content) };
+
+            } catch (err) {
+                if (err instanceof VFSError) {
+                    return { type: 'error', error: err };
+                }
+                throw err;
             }
-            return c.body(content);
-        }
+        });
 
-        // Binary content - convert Buffer to ArrayBuffer for Hono
-        c.header('Content-Type', 'application/octet-stream');
-        return c.body(new Uint8Array(content));
+        // Build response based on result type
+        switch (result.type) {
+            case 'stat':
+            case 'directory':
+                return c.json(result.data);
+            case 'file':
+                c.header('Content-Type', result.contentType);
+                return c.body(result.content);
+            case 'binary':
+                c.header('Content-Type', 'application/octet-stream');
+                return new Response(result.content, {
+                    headers: { 'Content-Type': 'application/octet-stream' },
+                });
+            case 'error':
+                return c.json(
+                    { error: result.error.code, path: result.error.path, message: result.error.message },
+                    errorToStatus(result.error) as any
+                );
+        }
     } catch (err) {
         if (err instanceof VFSError) {
             return c.json({ error: err.code, path: err.path, message: err.message }, errorToStatus(err) as any);
@@ -145,13 +189,32 @@ export async function VfsGet(c: Context) {
  * PUT /vfs/* - Write file
  */
 export async function VfsPut(c: Context) {
-    const system = c.get('system') as System;
-    const vfs = createVFS(system);
+    const systemInit = c.get('systemInit') as SystemInit;
     const path = extractPath(c);
+    const content = await c.req.text();
 
     try {
-        const content = await c.req.text();
-        await vfs.write(path, content);
+        const result = await runTransaction(systemInit, async (system): Promise<VfsResult> => {
+            const vfs = createVFS(system);
+
+            try {
+                await vfs.write(path, content);
+                return { type: 'success', path };
+            } catch (err) {
+                if (err instanceof VFSError) {
+                    return { type: 'error', error: err };
+                }
+                throw err;
+            }
+        });
+
+        if (result.type === 'error') {
+            return c.json(
+                { error: result.error.code, path: result.error.path, message: result.error.message },
+                errorToStatus(result.error) as any
+            );
+        }
+
         return c.json({ success: true, path });
     } catch (err) {
         if (err instanceof VFSError) {
@@ -165,12 +228,31 @@ export async function VfsPut(c: Context) {
  * DELETE /vfs/* - Delete file
  */
 export async function VfsDelete(c: Context) {
-    const system = c.get('system') as System;
-    const vfs = createVFS(system);
+    const systemInit = c.get('systemInit') as SystemInit;
     const path = extractPath(c);
 
     try {
-        await vfs.unlink(path);
+        const result = await runTransaction(systemInit, async (system): Promise<VfsResult> => {
+            const vfs = createVFS(system);
+
+            try {
+                await vfs.unlink(path);
+                return { type: 'success', path };
+            } catch (err) {
+                if (err instanceof VFSError) {
+                    return { type: 'error', error: err };
+                }
+                throw err;
+            }
+        });
+
+        if (result.type === 'error') {
+            return c.json(
+                { error: result.error.code, path: result.error.path, message: result.error.message },
+                errorToStatus(result.error) as any
+            );
+        }
+
         return c.json({ success: true, path });
     } catch (err) {
         if (err instanceof VFSError) {
