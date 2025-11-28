@@ -9,7 +9,7 @@
  * Examples:
  *   mount
  *   mount -t local /real/path/to/dist /dist
- *   mount -t local -r ~/projects /projects
+ *   mount -t local -r /home/user/projects /projects
  */
 
 import { LocalMount } from '@src/lib/fs/index.js';
@@ -75,14 +75,9 @@ export const mount: CommandHandler = async (session, fs, args, io) => {
     switch (type) {
         case 'local': {
             // Source is a real filesystem path on the HOST
-            // Note: ~ expands to the SERVER's home, not the virtual session home
-            let realPath = source;
-            if (realPath.startsWith('~/')) {
-                const serverHome = process.env.HOME || '/root';
-                realPath = serverHome + realPath.slice(1);
-            } else if (realPath === '~') {
-                realPath = process.env.HOME || '/root';
-            }
+            // Note: ~ is expanded by the parser to the virtual $HOME before we see it
+            // Users must use absolute paths for host filesystem mounts
+            const realPath = source;
 
             // Target is a virtual filesystem path
             const virtualPath = resolvePath(session.cwd, target);

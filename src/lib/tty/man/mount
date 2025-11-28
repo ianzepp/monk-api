@@ -15,7 +15,7 @@ OPTIONS
 
 MOUNT TYPES
     local       Mount a host filesystem directory
-                Source: real path on host (~/path supported)
+                Source: absolute path on host system
                 Target: virtual filesystem path
 
 EXAMPLES
@@ -25,11 +25,12 @@ EXAMPLES
     mount -t local /path/to/dist /dist
         Mount host directory at /dist
 
-    mount -t local -r ~/projects /projects
+    mount -t local -r /home/user/projects /projects
         Mount read-only
 
-    mount -t local . /workspace
-        Mount current host directory
+NOTES
+    Use absolute paths for the source. The ~ character expands to
+    the virtual home directory, not the host home directory.
 
 SECURITY
     Local mounts have path traversal protection.
