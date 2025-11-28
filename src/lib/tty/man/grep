@@ -1,0 +1,33 @@
+NAME
+    grep - search for patterns in input
+
+SYNOPSIS
+    grep [-i] [-v] <pattern>
+
+DESCRIPTION
+    Filters input lines matching a regular expression pattern.
+    Reads from stdin and writes matching lines to stdout.
+
+OPTIONS
+    -i      Case-insensitive matching
+    -v      Invert match (show non-matching lines)
+
+EXAMPLES
+    find . | grep users
+        Find paths containing "users"
+
+    ls -l | grep -i json
+        Case-insensitive search for "json"
+
+    cat file | grep -v test
+        Show lines not containing "test"
+
+    find . | grep "^/api"
+        Regex: paths starting with /api
+
+EXIT STATUS
+    0       One or more matches found
+    1       No matches found
+
+SEE ALSO
+    find, cat

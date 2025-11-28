@@ -101,6 +101,14 @@ main() {
         log_info "Copied $(find src/lib/sql -name '*.sql' | wc -l | tr -d ' ') SQL files"
     fi
 
+    # Step 4b: Copy TTY man pages if they exist
+    if [[ -d "src/lib/tty/man" ]]; then
+        log_info "Copying TTY man pages..."
+        mkdir -p "dist/lib/tty/man"
+        cp -r src/lib/tty/man/* dist/lib/tty/man/
+        log_info "Copied $(ls src/lib/tty/man | wc -l | tr -d ' ') man pages"
+    fi
+
     # Step 5: Copy compiled fixtures (deploy.sql and template.json)
     if [[ -d "fixtures" ]]; then
         log_info "Copying compiled fixtures..."

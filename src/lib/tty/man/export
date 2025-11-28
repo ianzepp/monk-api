@@ -1,0 +1,22 @@
+NAME
+    export - set environment variable
+
+SYNOPSIS
+    export KEY=value [KEY=value...]
+
+DESCRIPTION
+    Sets one or more environment variables for the session.
+    Variables can be used with $VAR syntax in commands.
+
+EXAMPLES
+    export FOO=bar
+        Set FOO to "bar"
+
+    export A=1 B=2
+        Set multiple variables
+
+    export PATH=/api/data
+        Set PATH variable
+
+SEE ALSO
+    env, echo

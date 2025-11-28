@@ -1,0 +1,26 @@
+NAME
+    ls - list directory contents
+
+SYNOPSIS
+    ls [-l] [-a] [path]
+
+DESCRIPTION
+    Lists files and directories. Defaults to current directory.
+    Directories are shown with a trailing slash.
+
+OPTIONS
+    -l      Long format (permissions, size, date)
+    -a      Show hidden files (starting with .)
+
+EXAMPLES
+    ls
+        List current directory
+
+    ls -l /api/data/users
+        Long listing of users model
+
+    ls -la
+        Show all files in long format
+
+SEE ALSO
+    find, cd, pwd

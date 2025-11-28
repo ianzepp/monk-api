@@ -1,0 +1,22 @@
+NAME
+    cat - display file contents
+
+SYNOPSIS
+    cat [file...]
+
+DESCRIPTION
+    Reads files and writes their contents to stdout.
+    If no files given, reads from stdin (for piping).
+
+EXAMPLES
+    cat /api/data/users/123
+        Display a record
+
+    cat file1 file2
+        Concatenate multiple files
+
+    echo hello | cat
+        Pass through stdin
+
+SEE ALSO
+    ls, grep

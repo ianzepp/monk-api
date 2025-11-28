@@ -12,6 +12,8 @@ import { cd } from './cd.js';
 
 // Listing
 import { ls } from './ls.js';
+import { find } from './find.js';
+import { grep } from './grep.js';
 import { mount } from './mount.js';
 
 // File operations
@@ -37,6 +39,7 @@ import { export as exportCmd } from './export.js';
 // Session commands
 import { clear } from './clear.js';
 import { help } from './help.js';
+import { man } from './man.js';
 import { exit, logout, quit } from './exit.js';
 
 // Re-export types
@@ -47,6 +50,8 @@ export { formatMode, formatEntry } from './shared.js';
 export { pwd } from './pwd.js';
 export { cd } from './cd.js';
 export { ls } from './ls.js';
+export { find } from './find.js';
+export { grep } from './grep.js';
 export { mount } from './mount.js';
 export { cat } from './cat.js';
 export { touch } from './touch.js';
@@ -62,6 +67,7 @@ export { env } from './env.js';
 export { export as exportCmd } from './export.js';
 export { clear } from './clear.js';
 export { help } from './help.js';
+export { man } from './man.js';
 export { exit, logout, quit } from './exit.js';
 
 /**
@@ -74,6 +80,8 @@ export const commands: Record<string, CommandHandler> = {
 
     // Listing
     ls,
+    find,
+    grep,
     mount,
 
     // File operations
@@ -99,6 +107,7 @@ export const commands: Record<string, CommandHandler> = {
     // Session commands
     clear,
     help,
+    man,
     exit,
     logout,
     quit,

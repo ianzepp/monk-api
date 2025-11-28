@@ -1,0 +1,28 @@
+NAME
+    select - query records with field selection
+
+SYNOPSIS
+    select <fields> [from <path>]
+
+DESCRIPTION
+    Queries records and displays selected fields in table format.
+    Fields are comma-separated. Path defaults to current directory.
+
+EXAMPLES
+    select id, name
+        Select from current directory
+
+    select id, name from users
+        Select from relative path
+
+    select id, email from /api/data/users
+        Select from absolute path
+
+    select *
+        Select all fields (not yet supported)
+
+OUTPUT
+    Results displayed in formatted table with headers.
+
+SEE ALSO
+    describe, cat, ls
