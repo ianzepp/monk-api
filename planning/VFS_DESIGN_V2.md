@@ -1861,3 +1861,37 @@ session.vfs.bind(`/home/${session.username}`, '/home/me');
 - `src/lib/vfs/types.ts` - VFSEntry, VFSError, Mount interface, ResolvedPath
 - `src/lib/vfs/index.ts` - VFS class with mount resolution and path utilities
 - `src/lib/vfs/mounts/system-mount.ts` - Read-only /system mount
+
+### Implementation Notes (2025-11-27) - Phase 2
+
+**DescribeMount** (`/api/describe`)
+- Structure matches HTTP API: `/api/describe/:model/fields/:field`
+- Model directories contain `.yaml`, `.json` (hidden, full schema) and `fields/` subdirectory
+- Field files have no extension, output YAML
+
+**DataMount** (`/api/data`)
+- Full CRUD: read, write (create/update), unlink (delete)
+- Record files use UUID as filename (no extension)
+- Write detects existing record for update vs create
+
+**FindMount** (`/api/find`)
+- Uses saved filters from `filters` table (not ad-hoc queries)
+- Only models with saved filters appear in listing
+- Reading a filter file executes the query, returns JSON results
+
+**TrashedMount** (`/api/trashed`)
+- Like DataMount but queries with `trashed: 'only'`
+- Read-only (mode 0o444)
+- Only models with trashed records appear in listing
+- Uses `trashed_at` as mtime
+
+**Skipped:**
+- AggregateMount - requires parameterized queries, poor filesystem fit
+- TrackedMount - audit logs, deferred
+- UserMount - overlaps with /system/whoami, sensitive data
+
+**Files created:**
+- `src/lib/vfs/mounts/describe-mount.ts`
+- `src/lib/vfs/mounts/data-mount.ts`
+- `src/lib/vfs/mounts/find-mount.ts`
+- `src/lib/vfs/mounts/trashed-mount.ts`
