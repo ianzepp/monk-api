@@ -57,6 +57,7 @@ import { tr } from './tr.js';
 // Info commands
 import { echo } from './echo.js';
 import { whoami } from './whoami.js';
+import { passwd } from './passwd.js';
 import { env } from './env.js';
 import { date } from './date.js';
 import { history } from './history.js';
@@ -125,6 +126,7 @@ export { restore } from './restore.js';
 export { curl } from './curl.js';
 export { echo } from './echo.js';
 export { whoami } from './whoami.js';
+export { passwd } from './passwd.js';
 export { env } from './env.js';
 export { date } from './date.js';
 export { history } from './history.js';
@@ -199,6 +201,7 @@ export const commands: Record<string, CommandHandler> = {
     // Info commands
     echo,
     whoami,
+    passwd,
     env,
     date,
     history,

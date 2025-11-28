@@ -112,6 +112,7 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `env` - Show environment variables
 - `export VAR=value` - Set environment variable
 - `whoami` - Show current user
+- `passwd [user]` - Change password
 - `date [-uI] [+format]` - Show date/time
 - `history [-c] [N]` - Show command history
 
