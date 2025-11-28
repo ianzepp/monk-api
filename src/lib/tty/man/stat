@@ -1,0 +1,74 @@
+NAME
+    stat - display file status
+
+SYNOPSIS
+    stat [options] <file...>
+
+DESCRIPTION
+    Displays detailed information about files including size,
+    permissions, timestamps, and type.
+
+OPTIONS
+    -L              Follow symbolic links
+    -f              Display filesystem information
+    -c <format>     Use custom format string
+    -t              Terse output (single line)
+
+FORMAT SEQUENCES
+    %n              File name
+    %N              Quoted name with symlink target
+    %s              Size in bytes
+    %b              Blocks allocated
+    %f              Raw mode in hexadecimal
+    %a              Access rights in octal
+    %A              Access rights human readable
+    %u              User ID of owner
+    %U              User name of owner
+    %g              Group ID of owner
+    %G              Group name of owner
+    %h              Number of hard links
+    %i              Inode number
+    %F              File type description
+    %X              Access time (seconds since epoch)
+    %x              Access time (human readable)
+    %Y              Modification time (seconds since epoch)
+    %y              Modification time (human readable)
+    %Z              Change time (seconds since epoch)
+    %z              Change time (human readable)
+
+DEFAULT OUTPUT
+    File: filename
+    Size: bytes     Blocks: n       file type
+    Access: (mode/perms)  Uid: (n/name)  Gid: (n/name)
+    Access: timestamp
+    Modify: timestamp
+    Change: timestamp
+
+EXAMPLES
+    stat file.txt
+        Display full status information
+
+    stat -L symlink
+        Follow symlink and show target's status
+
+    stat -c "%n: %s bytes" *
+        Custom format: name and size
+
+    stat -c "%A %n" /api/data/*
+        Show permissions and names
+
+    stat -t *.json
+        Terse output for all JSON files
+
+    stat -c "%y" file
+        Just show modification time
+
+    stat -c "%a %n" /tmp/*
+        Show octal permissions
+
+EXIT STATUS
+    0       Success
+    1       Error (file not found, etc.)
+
+SEE ALSO
+    ls, file, find

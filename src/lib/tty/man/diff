@@ -1,0 +1,66 @@
+NAME
+    diff - compare files line by line
+
+SYNOPSIS
+    diff [options] <file1> <file2>
+
+DESCRIPTION
+    Compares two files line by line and outputs the differences.
+    Returns 0 if identical, 1 if different, 2 on error.
+
+OPTIONS
+    -u              Unified format (default)
+    -c              Context format
+    -y              Side-by-side format
+    -q              Report only whether files differ
+    -s              Report when files are identical
+    -i              Ignore case differences
+    -w              Ignore all whitespace
+    -b              Ignore changes in whitespace amount
+    -B              Ignore blank lines
+    -U <n>          Lines of context (default 3)
+    --no-color      Disable colored output
+
+OUTPUT FORMAT
+    Unified format shows changes with context:
+        --- file1
+        +++ file2
+        @@ -start,count +start,count @@
+        (space)  unchanged line
+        -        removed line
+        +        added line
+
+    Side-by-side shows files in columns:
+        left line         right line
+        left line    <    (removed)
+                     >    right line
+
+EXAMPLES
+    diff file1.txt file2.txt
+        Compare two files
+
+    diff -u old.txt new.txt
+        Unified diff format
+
+    diff -q config1 config2
+        Just report if different
+
+    diff -i file1 file2
+        Ignore case differences
+
+    diff -w a.txt b.txt
+        Ignore whitespace
+
+    diff -y file1 file2
+        Side-by-side comparison
+
+    diff -U5 old new
+        Show 5 lines of context
+
+EXIT STATUS
+    0       Files are identical
+    1       Files are different
+    2       Error occurred
+
+SEE ALSO
+    cat, cmp

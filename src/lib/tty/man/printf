@@ -1,0 +1,69 @@
+NAME
+    printf - format and print data
+
+SYNOPSIS
+    printf <format> [arguments...]
+
+DESCRIPTION
+    Formats and prints arguments according to a format string.
+    Unlike echo, printf does not append a newline automatically.
+
+FORMAT SPECIFIERS
+    %s              String
+    %d, %i          Signed decimal integer
+    %u              Unsigned decimal integer
+    %o              Octal
+    %x, %X          Hexadecimal (lower/upper case)
+    %f              Floating point decimal
+    %e, %E          Scientific notation
+    %g, %G          Shorter of %f or %e
+    %c              Single character
+    %%              Literal percent sign
+
+WIDTH AND PRECISION
+    %10s            Right-align in 10 characters
+    %-10s           Left-align in 10 characters
+    %010d           Zero-pad to 10 digits
+    %.2f            2 decimal places
+    %10.2f          Width 10, 2 decimal places
+    %*s             Width from argument
+
+FLAGS
+    -               Left-align
+    +               Show sign for positive numbers
+    (space)         Space before positive numbers
+    #               Alternate form (0x for hex, etc.)
+    0               Zero-pad
+
+ESCAPE SEQUENCES
+    \\              Backslash
+    \n              Newline
+    \t              Tab
+    \r              Carriage return
+    \xHH            Hex byte
+    \0NNN           Octal byte
+
+EXAMPLES
+    printf "Hello %s\n" world
+        Output: Hello world
+
+    printf "%d + %d = %d\n" 1 2 3
+        Output: 1 + 2 = 3
+
+    printf "%-10s %5d\n" "Name" 42
+        Output: Name           42
+
+    printf "%08x\n" 255
+        Output: 000000ff
+
+    printf "%.2f\n" 3.14159
+        Output: 3.14
+
+    printf "%s\t%s\n" "col1" "col2"
+        Tab-separated columns
+
+    printf "%'d\n" 1000000
+        Output: 1,000,000
+
+SEE ALSO
+    echo

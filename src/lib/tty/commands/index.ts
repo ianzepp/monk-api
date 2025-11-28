@@ -55,6 +55,13 @@ import { cut } from './cut.js';
 import { tr } from './tr.js';
 import { sed } from './sed.js';
 
+// Output formatting
+import { printf } from './printf.js';
+
+// File comparison
+import { diff } from './diff.js';
+import { stat } from './stat.js';
+
 // Info commands
 import { echo } from './echo.js';
 import { whoami } from './whoami.js';
@@ -136,6 +143,9 @@ export { wc } from './wc.js';
 export { cut } from './cut.js';
 export { tr } from './tr.js';
 export { sed } from './sed.js';
+export { printf } from './printf.js';
+export { diff } from './diff.js';
+export { stat } from './stat.js';
 export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
@@ -232,6 +242,13 @@ export const commands: Record<string, CommandHandler> = {
     cut,
     tr,
     sed,
+
+    // Output formatting
+    printf,
+
+    // File comparison
+    diff,
+    stat,
 
     // Info commands
     echo,
