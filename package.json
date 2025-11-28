@@ -11,7 +11,7 @@
     "scripts": {
         "start": "bun dist/index.js",
         "start:dev": "bun --watch src/index.ts",
-        "stop": "pkill -f 'bun.*index' || true",
+        "stop": "pkill -9 -f 'bun.*dist/index' || true",
         "build": "bun run build:packages && scripts/build.sh",
         "build:packages": "bun run --filter '*' build",
         "build:spec": "scripts/build-spec.sh",

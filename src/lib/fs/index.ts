@@ -16,6 +16,8 @@ import { FSError } from './types.js';
 export { FSError } from './types.js';
 export type { FSEntry, FSErrorCode, Mount, ResolvedPath } from './types.js';
 export { ModelBackedStorage, initializeFS } from './storage.js';
+export { LocalMount } from './mounts/local-mount.js';
+export type { LocalMountOptions } from './mounts/local-mount.js';
 
 /**
  * Filesystem class

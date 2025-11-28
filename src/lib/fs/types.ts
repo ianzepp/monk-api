@@ -32,7 +32,8 @@ export type FSErrorCode =
     | 'EACCES'    // Permission denied
     | 'ENOTEMPTY' // Directory not empty
     | 'EROFS'     // Read-only filesystem
-    | 'EINVAL';   // Invalid argument
+    | 'EINVAL'    // Invalid argument
+    | 'EIO';      // I/O error
 
 /**
  * FS-specific error class
