@@ -204,9 +204,9 @@ src/lib/fs/
     ├── data-mount.ts         # /api/data/:model/:id.json
     ├── describe-mount.ts     # /api/describe/:model.yaml
     ├── find-mount.ts         # /api/find/:model (query execution)
-    ├── aggregate-mount.ts    # /api/aggregate/:model
+    ├── trashed-mount.ts      # /api/trashed/:model (soft-deleted records)
     ├── system-mount.ts       # /system/* pseudo-files
-    └── app-mount.ts          # /app/* installed packages
+    └── local-mount.ts        # Host filesystem mount (plugins, user homes)
 ```
 
 **Rationale**: FS lives in core `src/lib/` because it's reusable across:
@@ -247,7 +247,8 @@ type FSErrorCode =
   | 'EACCES'    // Permission denied
   | 'ENOTEMPTY' // Directory not empty
   | 'EROFS'     // Read-only filesystem
-  | 'EINVAL';   // Invalid argument
+  | 'EINVAL'    // Invalid argument
+  | 'EIO';      // I/O error
 
 class FSError extends Error {
   constructor(
@@ -1350,14 +1351,20 @@ async function initializeTenantFS(system: System): Promise<void> {
 - [ ] Remove `parsePath()` and switch statements
 - [ ] Verify backwards compatibility
 
-### Phase 4: Real Storage
-- [ ] Add `fs` table to SQL schemas:
-  - [ ] `src/lib/sql/tenant.pg.sql` - DDL + seed data
-  - [ ] `src/lib/sql/tenant.sqlite.sql` - DDL
-  - [ ] `src/lib/infrastructure.ts` - TENANT_SEED_SQLITE
-- [ ] Implement `ModelBackedStorage`
-- [ ] Add tenant initialization for `/home`, `/tmp`, `/etc`
-- [ ] Support user home directories
+### Phase 4: Real Storage ✅
+- [x] Add `fs` table to SQL schemas:
+  - [x] `src/lib/sql/tenant.pg.sql` - DDL + seed data
+  - [x] `src/lib/sql/tenant.sqlite.sql` - DDL
+  - [x] `src/lib/infrastructure.ts` - TENANT_SEED_SQLITE
+- [x] Implement `ModelBackedStorage`
+- [x] Add tenant initialization for `/home`, `/tmp`, `/etc` via `initializeFS()`
+- [x] Support user home directories
+
+### Phase 4.5: LocalMount ✅
+- [x] Implement `LocalMount` for host filesystem access
+- [x] Path traversal protection (blocks `../` attacks)
+- [x] Read-only mode support via `LocalMountOptions`
+- [x] 33 tests for LocalMount
 
 ### Phase 5: SFTP
 - [ ] Add SFTP subsystem to SSH server
@@ -1832,8 +1839,8 @@ session.fs.bind(`/home/${session.username}`, '/home/me');
 ---
 
 *Document created: 2025-11-27*
-*Last updated: 2025-11-27*
-*Status: Corrected to match actual codebase APIs*
+*Last updated: 2025-11-28*
+*Status: Phase 4.5 complete - LocalMount implemented*
 
 ### Corrections Made (2025-11-27)
 - Fixed `System` interface: `tenant` not `tenantId`, `Database` not `DatabaseService`
@@ -1934,3 +1941,81 @@ session.fs.bind(`/home/${session.username}`, '/home/me');
 - `src/index.ts` - Route registration, middleware chain
 - `spec/test-infrastructure.ts` - Auto-start server
 - `spec/http-client.ts` - Raw response methods
+
+### Implementation Notes (2025-11-28) - Phase 4: ModelBackedStorage
+
+**ModelBackedStorage** (`src/lib/fs/storage.ts`)
+- Database-backed persistent file storage in `fs` table
+- Supports full Mount interface: stat, readdir, read, write, mkdir, unlink, rmdir, rename, chmod, chown, symlink, readlink
+- Binary content stored as BLOB (PostgreSQL `bytea`, SQLite `BLOB`)
+- Fixed SQLite BLOB handling: `Uint8Array` converted to `Buffer` on read
+- Automatic parent directory validation on file/directory creation
+
+**initializeFS()** function creates default directory structure:
+- `/` - root directory
+- `/home` - user home directories
+- `/tmp` - temporary files (sticky bit)
+- `/etc` - configuration files
+- `/home/{username}` - per-user home directory
+
+**Database Schema:**
+- Table renamed from `fs_nodes` → `fs` for consistency
+- UUID validation pattern relaxed to accept nil UUIDs and test UUIDs
+- Foreign key constraint on `owner_id` references `users(id)`
+
+**Files created:**
+- `src/lib/fs/storage.ts` - ModelBackedStorage implementation
+
+**Files modified:**
+- `src/lib/sql/tenant.pg.sql` - PostgreSQL DDL for `fs` table
+- `src/lib/sql/tenant.sqlite.sql` - SQLite DDL for `fs` table
+- `src/lib/infrastructure.ts` - TENANT_SEED_SQLITE with fs model/fields
+- `src/lib/validators/types.ts` - UUID validation pattern fix
+- `src/observers/all/5/50-sql-create-sqlite.ts` - Uint8Array handling
+- `src/observers/all/5/50-sql-update-sqlite.ts` - Uint8Array handling
+
+### Implementation Notes (2025-11-28) - Phase 4.5: LocalMount
+
+**LocalMount** (`src/lib/fs/mounts/local-mount.ts`)
+- Mounts a host filesystem directory into the virtual filesystem
+- Use cases:
+  - Mount plugin/observer directories for dynamic loading
+  - Mount user's local home directory to their virtual /home/{user}
+  - Expose workspace directories for import/export
+  - Bridge real files with virtual filesystem operations
+
+**Security:**
+- All paths resolved relative to `basePath`
+- Path traversal attacks (`../`) blocked via `resolvePath()` validation
+- Symlinks pointing outside basePath are rejected
+- Read-only mode available via `{ writable: false }` option
+
+**API:**
+```typescript
+// Read-write mount
+const mount = new LocalMount('/path/to/host/dir');
+
+// Read-only mount
+const readOnlyMount = new LocalMount('/path/to/dir', { writable: false });
+
+// Mount into FS
+fs.mount('/plugins', new LocalMount('/host/plugins', { writable: false }));
+fs.mount('/workspace', new LocalMount('/host/user/workspace'));
+```
+
+**Files created:**
+- `src/lib/fs/mounts/local-mount.ts` - LocalMount implementation
+- `spec/45-fs-api/local-mount.test.ts` - 33 tests
+
+**Files modified:**
+- `src/lib/fs/index.ts` - Added LocalMount export
+- `src/lib/fs/types.ts` - Added EIO error code
+
+### Naming Change (2025-11-28)
+
+Renamed from VFS (Virtual Filesystem) to FS (Filesystem):
+- More concise and follows Unix convention
+- All references changed: `vfs` → `fs`, `VFS` → `FS`
+- Table renamed: `fs_nodes` → `fs`
+- Routes: `/vfs/*` → `/fs/*`
+- Test directory: `spec/50-vfs-api` → `spec/45-fs-api`
