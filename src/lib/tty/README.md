@@ -90,6 +90,7 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `dump <path> [models...]` - Export to SQLite file
 - `restore <path> [models...]` - Import from SQLite file
 - `curl [options] <url>` - HTTP requests (internal/external)
+- `nc [-zv] <host> <port>` - TCP connections (netcat)
 
 ### Process Management
 - `ps [-a]` - List processes (`-a` includes dead/zombie)
@@ -299,6 +300,22 @@ echo ${HOME}            # Braced variable
 echo ${FOO:-default}    # Variable with default
 cd ~                    # Home directory
 ```
+
+## Glob Expansion
+
+Filename patterns are expanded before command execution:
+
+```bash
+ls *.txt                # All .txt files
+cat /api/data/user*     # Files starting with "user"
+rm /tmp/*.log           # All .log files in /tmp
+echo config.?           # Single character wildcard
+```
+
+Supported patterns:
+- `*` - matches any characters
+- `?` - matches single character
+- If no files match, the pattern is passed literally (bash behavior)
 
 ## Adding New Commands
 

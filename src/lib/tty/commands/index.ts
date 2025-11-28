@@ -90,6 +90,9 @@ import { read } from './read.js';
 import { basename } from './basename.js';
 import { dirname } from './dirname.js';
 
+// Networking
+import { nc } from './nc.js';
+
 // Re-export types
 export type { CommandHandler } from './shared.js';
 export { formatMode, formatEntry } from './shared.js';
@@ -157,6 +160,7 @@ export { test, bracket } from './test.js';
 export { read } from './read.js';
 export { basename } from './basename.js';
 export { dirname } from './dirname.js';
+export { nc } from './nc.js';
 
 /**
  * Command registry
@@ -249,6 +253,9 @@ export const commands: Record<string, CommandHandler> = {
     read,
     basename,
     dirname,
+
+    // Networking
+    nc,
 };
 
 // Initialize commands that need the registry

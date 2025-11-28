@@ -634,6 +634,105 @@ function buildPipeline(parsed: ParsedCommand, env: Record<string, string>): Pars
 }
 
 /**
+ * Check if a string contains glob characters
+ */
+function hasGlobChars(s: string): boolean {
+    return /[*?[\]]/.test(s);
+}
+
+/**
+ * Convert glob pattern to regex
+ */
+function globToRegex(pattern: string): RegExp {
+    const escaped = pattern
+        .replace(/[.+^${}()|\\]/g, '\\$&')  // Escape regex special chars (except * ? [ ])
+        .replace(/\*/g, '.*')                // * matches anything
+        .replace(/\?/g, '.');                // ? matches single char
+    return new RegExp(`^${escaped}$`);
+}
+
+/**
+ * Expand glob patterns in arguments using the filesystem
+ */
+async function expandGlobs(
+    args: string[],
+    cwd: string,
+    fs: FS
+): Promise<string[]> {
+    const result: string[] = [];
+
+    for (const arg of args) {
+        // Skip if no glob characters
+        if (!hasGlobChars(arg)) {
+            result.push(arg);
+            continue;
+        }
+
+        // Split into directory and pattern
+        const lastSlash = arg.lastIndexOf('/');
+        let dir: string;
+        let pattern: string;
+
+        if (lastSlash === -1) {
+            // No slash - pattern in current directory
+            dir = cwd;
+            pattern = arg;
+        } else if (lastSlash === 0) {
+            // Starts with / - absolute path
+            dir = '/';
+            pattern = arg.slice(1);
+        } else {
+            // Has directory component
+            dir = resolvePath(cwd, arg.slice(0, lastSlash));
+            pattern = arg.slice(lastSlash + 1);
+        }
+
+        // If pattern itself has no globs, skip expansion
+        if (!hasGlobChars(pattern)) {
+            result.push(arg);
+            continue;
+        }
+
+        try {
+            const entries = await fs.readdir(dir);
+            const regex = globToRegex(pattern);
+            const matches = entries
+                .filter(e => regex.test(e.name))
+                .map(e => {
+                    const path = dir === cwd ? e.name : `${dir}/${e.name}`;
+                    return e.type === 'directory' ? path + '/' : path;
+                })
+                .sort();
+
+            if (matches.length > 0) {
+                result.push(...matches);
+            } else {
+                // No matches - keep original (bash behavior)
+                result.push(arg);
+            }
+        } catch {
+            // Directory doesn't exist - keep original
+            result.push(arg);
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Expand globs in a pipeline (modifies in place)
+ */
+async function expandPipelineGlobs(
+    pipeline: ParsedCommand[],
+    cwd: string,
+    fs: FS
+): Promise<void> {
+    for (const cmd of pipeline) {
+        cmd.args = await expandGlobs(cmd.args, cwd, fs);
+    }
+}
+
+/**
  * Check if a parsed command tree needs a transaction
  */
 function commandTreeNeedsTransaction(parsed: ParsedCommand): boolean {
@@ -895,6 +994,12 @@ async function executeCommandChain(
 ): Promise<number> {
     // Build and execute the pipeline for this command
     const pipeline = buildPipeline(parsed, session.env);
+
+    // Expand globs if we have filesystem access
+    if (fs) {
+        await expandPipelineGlobs(pipeline, session.cwd, fs);
+    }
+
     const exitCode = await executePipeline(stream, session, pipeline, fs, signal);
 
     // Update $? with exit code
