@@ -1,0 +1,387 @@
+/**
+ * Model-Backed Storage - Persistent VFS storage using vfs_nodes table
+ *
+ * Provides a real filesystem backed by the database for paths not handled
+ * by API mounts. Supports /home, /tmp, /etc, and any custom paths.
+ */
+
+import type { Mount, VFSEntry } from './types.js';
+import { VFSError } from './types.js';
+import type { System } from '../system.js';
+import type { DatabaseAdapter } from '../database/adapter.js';
+
+interface VFSNode {
+    id: string;
+    parent_id: string | null;
+    name: string;
+    path: string;
+    node_type: 'file' | 'directory' | 'symlink';
+    content: Buffer | null;
+    target: string | null;
+    mode: number;
+    size: number;
+    owner_id: string | null;
+    created_at: Date;
+    updated_at: Date;
+}
+
+export class ModelBackedStorage implements Mount {
+    constructor(private system: System) {}
+
+    async stat(path: string): Promise<VFSEntry> {
+        const node = await this.getNode(path);
+        if (!node) {
+            throw new VFSError('ENOENT', path);
+        }
+        return this.toEntry(node);
+    }
+
+    async readdir(path: string): Promise<VFSEntry[]> {
+        const parent = await this.getNode(path);
+        if (!parent) {
+            throw new VFSError('ENOENT', path);
+        }
+        if (parent.node_type !== 'directory') {
+            throw new VFSError('ENOTDIR', path);
+        }
+
+        const children = await this.system.database.selectAny('vfs_nodes', {
+            where: { parent_id: parent.id },
+            order: [{ field: 'name', sort: 'asc' }],
+        }) as unknown as VFSNode[];
+
+        return children.map((node) => this.toEntry(node));
+    }
+
+    async read(path: string): Promise<string | Buffer> {
+        const node = await this.getNode(path);
+        if (!node) {
+            throw new VFSError('ENOENT', path);
+        }
+        if (node.node_type === 'directory') {
+            throw new VFSError('EISDIR', path);
+        }
+        if (node.node_type === 'symlink') {
+            // Follow symlink
+            if (!node.target) {
+                throw new VFSError('EINVAL', path, 'Symlink has no target');
+            }
+            return this.read(node.target);
+        }
+        // SQLite returns BLOB as Uint8Array, ensure we return Buffer
+        const content = node.content;
+        if (!content) return Buffer.alloc(0);
+        return Buffer.isBuffer(content) ? content : Buffer.from(content);
+    }
+
+    async write(path: string, content: string | Buffer): Promise<void> {
+        const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
+        const existing = await this.getNode(path);
+
+        if (existing) {
+            if (existing.node_type === 'directory') {
+                throw new VFSError('EISDIR', path);
+            }
+            await this.system.database.updateOne('vfs_nodes', existing.id, {
+                content: buffer,
+                size: buffer.length,
+            });
+        } else {
+            // Create new file
+            const parentPath = this.dirname(path);
+            const parent = await this.getNode(parentPath);
+            if (!parent) {
+                throw new VFSError('ENOENT', parentPath);
+            }
+            if (parent.node_type !== 'directory') {
+                throw new VFSError('ENOTDIR', parentPath);
+            }
+
+            await this.system.database.createOne('vfs_nodes', {
+                parent_id: parent.id,
+                name: this.basename(path),
+                path,
+                node_type: 'file',
+                content: buffer,
+                size: buffer.length,
+                mode: 0o644,
+                owner_id: this.system.userId,
+            });
+        }
+    }
+
+    async mkdir(path: string, mode = 0o755): Promise<void> {
+        const existing = await this.getNode(path);
+        if (existing) {
+            throw new VFSError('EEXIST', path);
+        }
+
+        const parentPath = this.dirname(path);
+        const parent = await this.getNode(parentPath);
+        if (!parent) {
+            throw new VFSError('ENOENT', parentPath);
+        }
+        if (parent.node_type !== 'directory') {
+            throw new VFSError('ENOTDIR', parentPath);
+        }
+
+        await this.system.database.createOne('vfs_nodes', {
+            parent_id: parent.id,
+            name: this.basename(path),
+            path,
+            node_type: 'directory',
+            mode,
+            owner_id: this.system.userId,
+        });
+    }
+
+    async unlink(path: string): Promise<void> {
+        const node = await this.getNode(path);
+        if (!node) {
+            throw new VFSError('ENOENT', path);
+        }
+        if (node.node_type === 'directory') {
+            throw new VFSError('EISDIR', path);
+        }
+        await this.system.database.deleteOne('vfs_nodes', node.id);
+    }
+
+    async rmdir(path: string): Promise<void> {
+        const node = await this.getNode(path);
+        if (!node) {
+            throw new VFSError('ENOENT', path);
+        }
+        if (node.node_type !== 'directory') {
+            throw new VFSError('ENOTDIR', path);
+        }
+
+        // Check if empty
+        const children = await this.system.database.selectAny('vfs_nodes', {
+            where: { parent_id: node.id },
+            limit: 1,
+        });
+        if (children.length > 0) {
+            throw new VFSError('ENOTEMPTY', path);
+        }
+
+        await this.system.database.deleteOne('vfs_nodes', node.id);
+    }
+
+    async rename(oldPath: string, newPath: string): Promise<void> {
+        const node = await this.getNode(oldPath);
+        if (!node) {
+            throw new VFSError('ENOENT', oldPath);
+        }
+
+        const newParentPath = this.dirname(newPath);
+        const newParent = await this.getNode(newParentPath);
+        if (!newParent) {
+            throw new VFSError('ENOENT', newParentPath);
+        }
+        if (newParent.node_type !== 'directory') {
+            throw new VFSError('ENOTDIR', newParentPath);
+        }
+
+        // Check if target exists
+        const existing = await this.getNode(newPath);
+        if (existing) {
+            throw new VFSError('EEXIST', newPath);
+        }
+
+        await this.system.database.updateOne('vfs_nodes', node.id, {
+            parent_id: newParent.id,
+            name: this.basename(newPath),
+            path: newPath,
+        });
+
+        // If directory, update all descendant paths
+        if (node.node_type === 'directory') {
+            await this.updateDescendantPaths(oldPath, newPath);
+        }
+    }
+
+    async symlink(target: string, path: string): Promise<void> {
+        const existing = await this.getNode(path);
+        if (existing) {
+            throw new VFSError('EEXIST', path);
+        }
+
+        const parentPath = this.dirname(path);
+        const parent = await this.getNode(parentPath);
+        if (!parent) {
+            throw new VFSError('ENOENT', parentPath);
+        }
+
+        await this.system.database.createOne('vfs_nodes', {
+            parent_id: parent.id,
+            name: this.basename(path),
+            path,
+            node_type: 'symlink',
+            target,
+            mode: 0o777, // Symlinks are typically 777
+            owner_id: this.system.userId,
+        });
+    }
+
+    async readlink(path: string): Promise<string> {
+        const node = await this.getNode(path);
+        if (!node) {
+            throw new VFSError('ENOENT', path);
+        }
+        if (node.node_type !== 'symlink') {
+            throw new VFSError('EINVAL', path, 'Not a symlink');
+        }
+        return node.target || '';
+    }
+
+    async chmod(path: string, mode: number): Promise<void> {
+        const node = await this.getNode(path);
+        if (!node) {
+            throw new VFSError('ENOENT', path);
+        }
+        await this.system.database.updateOne('vfs_nodes', node.id, { mode });
+    }
+
+    async chown(path: string, uid: string): Promise<void> {
+        const node = await this.getNode(path);
+        if (!node) {
+            throw new VFSError('ENOENT', path);
+        }
+        await this.system.database.updateOne('vfs_nodes', node.id, { owner_id: uid });
+    }
+
+    // =========================================================================
+    // PRIVATE HELPERS
+    // =========================================================================
+
+    private async getNode(path: string): Promise<VFSNode | null> {
+        const normalizedPath = this.normalizePath(path);
+        const result = await this.system.database.selectOne('vfs_nodes', {
+            where: { path: normalizedPath },
+        });
+        return result as VFSNode | null;
+    }
+
+    private toEntry(node: VFSNode): VFSEntry {
+        return {
+            name: node.name,
+            type: node.node_type,
+            size: node.size || 0,
+            mode: node.mode,
+            uid: node.owner_id || undefined,
+            mtime: node.updated_at,
+            ctime: node.created_at,
+            target: node.target || undefined,
+        };
+    }
+
+    private normalizePath(path: string): string {
+        // Remove trailing slashes except for root
+        let normalized = path.replace(/\/+$/, '') || '/';
+        // Collapse multiple slashes
+        normalized = normalized.replace(/\/+/g, '/');
+        return normalized;
+    }
+
+    private dirname(path: string): string {
+        const normalized = this.normalizePath(path);
+        const lastSlash = normalized.lastIndexOf('/');
+        if (lastSlash <= 0) return '/';
+        return normalized.slice(0, lastSlash);
+    }
+
+    private basename(path: string): string {
+        const normalized = this.normalizePath(path);
+        return normalized.split('/').pop() || '';
+    }
+
+    private async updateDescendantPaths(oldPrefix: string, newPrefix: string): Promise<void> {
+        // Get all descendants
+        const descendants = await this.system.database.selectAny('vfs_nodes', {
+            where: {
+                path: { $like: oldPrefix + '/%' },
+            },
+        }) as unknown as VFSNode[];
+
+        // Update each descendant's path
+        for (const node of descendants) {
+            const newPath = newPrefix + node.path.slice(oldPrefix.length);
+            await this.system.database.updateOne('vfs_nodes', node.id, {
+                path: newPath,
+            });
+        }
+    }
+}
+
+// =============================================================================
+// VFS INITIALIZATION
+// =============================================================================
+
+/**
+ * Initialize VFS directory structure for a new tenant
+ *
+ * Creates:
+ *   /          - root directory
+ *   /home      - user home directories
+ *   /home/root - root user's home
+ *   /tmp       - temporary files (sticky bit)
+ *   /etc       - configuration files
+ *   /etc/motd  - message of the day
+ *
+ * Called during tenant creation, uses raw adapter queries.
+ */
+export async function initializeVFS(
+    adapter: DatabaseAdapter,
+    rootUserId: string
+): Promise<void> {
+    const { randomUUID } = await import('crypto');
+    const now = new Date().toISOString();
+
+    // Helper to create a directory node
+    const createDir = async (
+        parentId: string | null,
+        name: string,
+        path: string,
+        mode: number
+    ): Promise<string> => {
+        const id = randomUUID();
+        await adapter.query(
+            `INSERT INTO vfs_nodes (id, parent_id, name, path, node_type, mode, owner_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, 'directory', $5, $6, $7, $8)`,
+            [id, parentId, name, path, mode, rootUserId, now, now]
+        );
+        return id;
+    };
+
+    // Helper to create a file node
+    const createFile = async (
+        parentId: string,
+        name: string,
+        path: string,
+        content: string,
+        mode: number
+    ): Promise<string> => {
+        const id = randomUUID();
+        const buffer = Buffer.from(content);
+        await adapter.query(
+            `INSERT INTO vfs_nodes (id, parent_id, name, path, node_type, content, size, mode, owner_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, 'file', $5, $6, $7, $8, $9, $10)`,
+            [id, parentId, name, path, buffer, buffer.length, mode, rootUserId, now, now]
+        );
+        return id;
+    };
+
+    // Create directory structure
+    const rootId = await createDir(null, '/', '/', 0o755);
+    const homeId = await createDir(rootId, 'home', '/home', 0o755);
+    const tmpId = await createDir(rootId, 'tmp', '/tmp', 0o1777); // sticky bit
+    const etcId = await createDir(rootId, 'etc', '/etc', 0o755);
+
+    // Create root user's home directory
+    await createDir(homeId, 'root', '/home/root', 0o700);
+
+    // Create default files
+    await createFile(etcId, 'motd', '/etc/motd', 'Welcome to Monk API\n', 0o644);
+
+    console.info('VFS initialized', { directories: 5, files: 1 });
+}

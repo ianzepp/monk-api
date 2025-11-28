@@ -180,6 +180,34 @@ CREATE TABLE IF NOT EXISTS "tracked" (
 CREATE INDEX IF NOT EXISTS "idx_tracked_model_record"
     ON "tracked" (model_name, record_id, change_id DESC);
 
+-- VFS Nodes table (virtual filesystem storage)
+CREATE TABLE IF NOT EXISTS "vfs_nodes" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    "parent_id" uuid,
+    "name" text NOT NULL,
+    "path" text NOT NULL,
+    "node_type" text NOT NULL CHECK ("node_type" IN ('file', 'directory', 'symlink')),
+    "content" bytea,
+    "target" text,
+    "mode" integer DEFAULT 420 NOT NULL,
+    "size" integer DEFAULT 0 NOT NULL,
+    "owner_id" uuid,
+    CONSTRAINT "vfs_nodes_path_unique" UNIQUE("path"),
+    FOREIGN KEY ("parent_id") REFERENCES "vfs_nodes"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("owner_id") REFERENCES "users"("id") ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS "idx_vfs_nodes_parent" ON "vfs_nodes" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_vfs_nodes_path" ON "vfs_nodes" ("path");
+
 -- =============================================================================
 -- SEED DATA
 -- =============================================================================
@@ -191,7 +219,8 @@ INSERT INTO "models" (model_name, status, sudo, description) VALUES
     ('users', 'system', true, NULL),
     ('filters', 'system', false, NULL),
     ('credentials', 'system', true, 'User authentication credentials'),
-    ('tracked', 'system', true, 'Change tracking and audit trail')
+    ('tracked', 'system', true, 'Change tracking and audit trail'),
+    ('vfs_nodes', 'system', true, 'Virtual filesystem nodes')
 ON CONFLICT (model_name) DO NOTHING;
 
 -- Fields for models
@@ -275,4 +304,17 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
     ('tracked', 'created_by', 'uuid', false, 'ID of the user who made the change'),
     ('tracked', 'request_id', 'text', false, 'Request correlation ID for tracing'),
     ('tracked', 'metadata', 'jsonb', false, 'Additional context (IP address, user agent, etc.)')
+ON CONFLICT (model_name, field_name) DO NOTHING;
+
+-- Fields for vfs_nodes
+INSERT INTO "fields" (model_name, field_name, type, required, description) VALUES
+    ('vfs_nodes', 'parent_id', 'uuid', false, 'Parent directory (null for root)'),
+    ('vfs_nodes', 'name', 'text', true, 'File or directory name'),
+    ('vfs_nodes', 'path', 'text', true, 'Full absolute path'),
+    ('vfs_nodes', 'node_type', 'text', true, 'Node type: file, directory, symlink'),
+    ('vfs_nodes', 'content', 'binary', false, 'File content (null for directories)'),
+    ('vfs_nodes', 'target', 'text', false, 'Symlink target path'),
+    ('vfs_nodes', 'mode', 'integer', false, 'Unix permission bits'),
+    ('vfs_nodes', 'size', 'integer', false, 'Content size in bytes'),
+    ('vfs_nodes', 'owner_id', 'uuid', false, 'Owner user ID')
 ON CONFLICT (model_name, field_name) DO NOTHING;

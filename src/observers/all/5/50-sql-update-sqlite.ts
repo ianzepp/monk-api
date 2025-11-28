@@ -66,6 +66,9 @@ export default class SqlUpdateSqliteObserver extends BaseObserver {
                 processed[key] = JSON.stringify(value);
             } else if (typeof value === 'boolean') {
                 processed[key] = value ? 1 : 0;
+            } else if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
+                // Keep Buffer/Uint8Array as-is for BLOB columns
+                processed[key] = value;
             } else if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
                 processed[key] = JSON.stringify(value);
             }

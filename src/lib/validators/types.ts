@@ -8,8 +8,9 @@
 
 import type { ValidationError } from './required.js';
 
-// UUID regex pattern (RFC 4122)
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// UUID regex pattern - validates format only (8-4-4-4-12 hex format)
+// Accepts any valid UUID format including nil UUID, test UUIDs, and all variants
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ISO 8601 date pattern (YYYY-MM-DD)
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;

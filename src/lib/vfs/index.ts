@@ -15,6 +15,7 @@ import { VFSError } from './types.js';
 
 export { VFSError } from './types.js';
 export type { VFSEntry, VFSErrorCode, Mount, ResolvedPath } from './types.js';
+export { ModelBackedStorage, initializeVFS } from './storage.js';
 
 /**
  * Virtual Filesystem class
