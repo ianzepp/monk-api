@@ -204,7 +204,11 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
                         return;
                     }
                     if (byte === 0x04) {
-                        // CTRL+D - always disconnect
+                        // CTRL+D - abort any running command, then disconnect
+                        if (session.foregroundAbort) {
+                            session.foregroundAbort.abort();
+                            session.foregroundAbort = null;
+                        }
                         console.info(`Telnet: Session ${session.id} disconnect via Ctrl+D`);
                         socket.end();
                         return;
@@ -230,8 +234,17 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
             },
 
             async close(socket) {
-                const { session } = socket.data;
+                const { session, stream } = socket.data;
                 console.info(`Telnet: Session ${session.id} closed`);
+
+                // Abort any running foreground command
+                if (session.foregroundAbort) {
+                    session.foregroundAbort.abort();
+                    session.foregroundAbort = null;
+                }
+
+                // End the input stream
+                stream.input.end();
 
                 // Terminate shell process
                 if (session.pid) {

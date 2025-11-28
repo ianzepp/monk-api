@@ -274,8 +274,12 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
                             return;
                         }
 
-                        // Handle Ctrl+D - always disconnect
+                        // Handle Ctrl+D - abort any running command, then disconnect
                         if (text.includes('\x04')) {
+                            if (session!.foregroundAbort) {
+                                session!.foregroundAbort.abort();
+                                session!.foregroundAbort = null;
+                            }
                             writeToStream(stream, '\nConnection closed.\n');
                             stream.end();
                             return;
@@ -338,6 +342,12 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
         client.on('close', async () => {
             if (session) {
                 console.info(`SSH: Session ${session.id} closed`);
+
+                // Abort any running foreground command
+                if (session.foregroundAbort) {
+                    session.foregroundAbort.abort();
+                    session.foregroundAbort = null;
+                }
 
                 // Terminate shell process
                 if (session.pid) {
