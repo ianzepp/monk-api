@@ -207,6 +207,39 @@ export class FS {
     }
 
     /**
+     * Create a symbolic link
+     */
+    async symlink(target: string, path: string): Promise<void> {
+        const { handler, relativePath } = this.resolvePath(path);
+        if (!handler.symlink) {
+            throw new FSError('EROFS', path, 'Symbolic links not supported');
+        }
+        return handler.symlink(target, relativePath);
+    }
+
+    /**
+     * Read symbolic link target
+     */
+    async readlink(path: string): Promise<string> {
+        const { handler, relativePath } = this.resolvePath(path);
+        if (!handler.readlink) {
+            throw new FSError('EINVAL', path, 'Not a symbolic link');
+        }
+        return handler.readlink(relativePath);
+    }
+
+    /**
+     * Change file permissions
+     */
+    async chmod(path: string, mode: number): Promise<void> {
+        const { handler, relativePath } = this.resolvePath(path);
+        if (!handler.chmod) {
+            throw new FSError('EROFS', path, 'Read-only file system');
+        }
+        return handler.chmod(relativePath, mode);
+    }
+
+    /**
      * Check if a path exists
      */
     async exists(path: string): Promise<boolean> {

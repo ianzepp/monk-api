@@ -13,6 +13,7 @@ import { DescribeMount } from './mounts/describe-mount.js';
 import { FindMount } from './mounts/find-mount.js';
 import { TrashedMount } from './mounts/trashed-mount.js';
 import { ProcMount } from './mounts/proc-mount.js';
+import { BinMount } from './mounts/bin-mount.js';
 
 /**
  * Options for creating a FS instance
@@ -20,6 +21,8 @@ import { ProcMount } from './mounts/proc-mount.js';
 export interface CreateFSOptions {
     /** Current session's PID for /proc/self symlink */
     sessionPid?: number | null;
+    /** Command names for /bin mount */
+    commandNames?: string[];
 }
 
 /**
@@ -30,6 +33,7 @@ export interface CreateFSOptions {
  * - /api/describe - Model schemas
  * - /api/find - Saved queries/filters
  * - /api/trashed - Soft-deleted records
+ * - /bin - Built-in commands (read-only)
  * - /proc - Process table (read-only)
  * - /system - System introspection (read-only)
  * - /* (fallback) - ModelBackedStorage for /home, /tmp, /etc
@@ -46,6 +50,11 @@ export function createFS(system: System, options?: CreateFSOptions): FS {
     fs.mount('/api/describe', new DescribeMount(system));
     fs.mount('/api/find', new FindMount(system));
     fs.mount('/api/trashed', new TrashedMount(system));
+
+    // Command binaries (read-only)
+    if (options?.commandNames?.length) {
+        fs.mount('/bin', new BinMount(options.commandNames));
+    }
 
     // Process table (read-only)
     fs.mount('/proc', new ProcMount(system.tenant, options?.sessionPid ?? null));

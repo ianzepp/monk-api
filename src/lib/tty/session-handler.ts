@@ -17,6 +17,8 @@ import { registerDaemon, terminateDaemon, spawnProcess } from '@src/lib/process.
 import { PassThrough } from 'node:stream';
 import type { FS } from '@src/lib/fs/index.js';
 import { LocalMount } from '@src/lib/fs/index.js';
+import { BinMount } from '@src/lib/fs/mounts/bin-mount.js';
+import { ProcMount } from '@src/lib/fs/mounts/proc-mount.js';
 
 /**
  * Write text to stream with CRLF line endings (telnet convention)
@@ -999,12 +1001,24 @@ async function executePipelineForProcess(
 }
 
 /**
- * Apply session-local mounts to a FS instance
+ * Apply session-specific mounts to a FS instance
  *
- * Session mounts are stored on the session and re-applied to each
- * transaction's FS instance to provide mount persistence.
+ * Mounts TTY-specific filesystems that require session context:
+ * - /bin: Built-in commands (requires command registry)
+ * - /proc: Re-mount with session PID for /proc/self
+ * - User mounts: Local filesystem mounts from mount command
  */
 function applySessionMounts(session: Session, fs: FS): void {
+    // Mount /bin with command names
+    const commandNames = Object.keys(commands);
+    fs.mount('/bin', new BinMount(commandNames));
+
+    // Re-mount /proc with session PID for /proc/self
+    if (session.pid !== null) {
+        fs.mount('/proc', new ProcMount(session.tenant, session.pid));
+    }
+
+    // Apply user-created local mounts
     for (const [virtualPath, mountInfo] of session.mounts) {
         if (mountInfo.type === 'local') {
             const mount = new LocalMount(mountInfo.path, {

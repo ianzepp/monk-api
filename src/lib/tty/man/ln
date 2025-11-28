@@ -1,0 +1,36 @@
+NAME
+    ln - create links
+
+SYNOPSIS
+    ln -s <target> <link>
+    ln -sf <target> <link>
+
+DESCRIPTION
+    Creates symbolic links. The link points to target, which can be
+    a relative or absolute path. Hard links are not supported.
+
+OPTIONS
+    -s, --symbolic
+            Create a symbolic link (required)
+
+    -f, --force
+            Remove existing destination file before creating link
+
+EXAMPLES
+    ln -s /api/data/users ~/users
+        Create symlink to users data in home directory
+
+    ln -s ../shared/config.json /tmp/config
+        Create symlink with relative target
+
+    ln -sf /new/target /tmp/link
+        Overwrite existing symlink
+
+NOTES
+    The target path is stored as-is. Relative targets are resolved
+    from the link's directory, not the current directory.
+
+    To view symlink targets, use: ls -l
+
+SEE ALSO
+    ls, cp, mv, rm

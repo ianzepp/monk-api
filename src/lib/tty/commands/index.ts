@@ -28,6 +28,8 @@ import { touch } from './touch.js';
 import { rm } from './rm.js';
 import { mv } from './mv.js';
 import { cp } from './cp.js';
+import { ln } from './ln.js';
+import { chmod } from './chmod.js';
 import { tee } from './tee.js';
 
 // Directory operations
@@ -37,6 +39,12 @@ import { rmdir } from './rmdir.js';
 // Query commands
 import { select } from './select.js';
 import { describe } from './describe.js';
+import { insert } from './insert.js';
+import { update } from './update.js';
+import { delete_ } from './delete.js';
+import { count } from './count.js';
+import { dump } from './dump.js';
+import { restore } from './restore.js';
 
 // Text processing
 import { sort } from './sort.js';
@@ -66,6 +74,13 @@ import { ps } from './ps.js';
 import { kill } from './kill.js';
 import { ping } from './ping.js';
 
+// Utilities
+import { true_ } from './true.js';
+import { false_ } from './false.js';
+import { seq } from './seq.js';
+import { yes } from './yes.js';
+import { which } from './which.js';
+
 // Re-export types
 export type { CommandHandler } from './shared.js';
 export { formatMode, formatEntry } from './shared.js';
@@ -88,6 +103,8 @@ export { touch } from './touch.js';
 export { rm } from './rm.js';
 export { mv } from './mv.js';
 export { cp } from './cp.js';
+export { ln } from './ln.js';
+export { chmod } from './chmod.js';
 export { tee } from './tee.js';
 export { sort } from './sort.js';
 export { uniq } from './uniq.js';
@@ -98,6 +115,12 @@ export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
 export { describe } from './describe.js';
+export { insert } from './insert.js';
+export { update } from './update.js';
+export { delete_ } from './delete.js';
+export { count } from './count.js';
+export { dump } from './dump.js';
+export { restore } from './restore.js';
 export { echo } from './echo.js';
 export { whoami } from './whoami.js';
 export { env } from './env.js';
@@ -113,6 +136,11 @@ export { timeout } from './timeout.js';
 export { ps } from './ps.js';
 export { kill } from './kill.js';
 export { ping } from './ping.js';
+export { true_ } from './true.js';
+export { false_ } from './false.js';
+export { seq } from './seq.js';
+export { yes } from './yes.js';
+export { which } from './which.js';
 
 /**
  * Command registry
@@ -140,6 +168,8 @@ export const commands: Record<string, CommandHandler> = {
     rm,
     mv,
     cp,
+    ln,
+    chmod,
     tee,
 
     // Directory operations
@@ -149,6 +179,12 @@ export const commands: Record<string, CommandHandler> = {
     // Query commands
     select,
     describe,
+    insert,
+    update,
+    delete: delete_,
+    count,
+    dump,
+    restore,
 
     // Text processing
     sort,
@@ -179,6 +215,13 @@ export const commands: Record<string, CommandHandler> = {
     ps,
     kill,
     ping,
+
+    // Utilities
+    true: true_,
+    false: false_,
+    seq,
+    yes,
+    which,
 };
 
 // Initialize timeout command with registry

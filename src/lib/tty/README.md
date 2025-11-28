@@ -71,6 +71,8 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `rmdir <dir>` - Remove directory
 - `mv <src> <dst>` - Move/rename
 - `cp [-r] <src> <dst>` - Copy files/directories
+- `ln -s <target> <link>` - Create symbolic link
+- `chmod <mode> <file>` - Change file permissions
 - `find [path]` - Recursively list files
 
 ### Mounts
@@ -81,6 +83,12 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 ### Data Operations
 - `select <fields> [from <path>]` - Query records with field selection
 - `describe <model>` - Show model schema
+- `insert <collection> [json]` - Create record(s)
+- `update <record> [json]` - Update a record
+- `delete <record>...` - Delete record(s)
+- `count [path]` - Count records in collection
+- `dump <path> [models...]` - Export to SQLite file
+- `restore <path> [models...]` - Import from SQLite file
 
 ### Process Management
 - `ps [-a]` - List processes (`-a` includes dead/zombie)
@@ -109,6 +117,11 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 ### Utilities
 - `xargs <cmd>` - Build commands from stdin
 - `tee [-a] <file>` - Write to stdout and file
+- `true` - Exit with success (0)
+- `false` - Exit with failure (1)
+- `seq [first] [incr] <last>` - Print number sequence
+- `yes [string]` - Output string repeatedly until killed
+- `which <cmd>` - Locate a command
 
 ### Session
 - `help` - Show available commands
@@ -281,3 +294,74 @@ Set automatically on login:
 
 - `~/.profile` - Executed on login (export commands, etc.)
 - `~/.history` - Command history (persisted)
+
+## Fixture Deployment
+
+The TTY provides a powerful interface for deploying test data and fixtures via SSH.
+
+### Setup
+
+Mount a shared fixtures directory on the server:
+
+```bash
+# Mount fixtures from host filesystem
+mount -t local /var/monk/fixtures /fixtures
+```
+
+### Deployment Scenarios
+
+**Reset test environment:**
+```bash
+ssh monk@staging -p 2222
+restore --replace /fixtures/e2e-test-data.db
+```
+
+**Deploy feature branch fixtures:**
+```bash
+restore /fixtures/feature-xyz.db users products
+```
+
+**Seed production with initial data:**
+```bash
+restore --skip /fixtures/seed.db  # only insert missing records
+```
+
+**Schema-only migration:**
+```bash
+restore -s /fixtures/schema-v3.db  # update schema, preserve data
+```
+
+### CI/CD Integration
+
+```yaml
+# GitLab CI example
+deploy-fixtures:
+  stage: deploy
+  script:
+    - ssh monk@$HOST -p 2222 "restore --replace /fixtures/${CI_COMMIT_REF_SLUG}.db"
+
+create-fixture:
+  stage: build
+  script:
+    - ssh monk@$HOST -p 2222 "dump /fixtures/${CI_COMMIT_REF_SLUG}.db"
+```
+
+### Dump/Restore Options
+
+**dump:**
+```bash
+dump <path> [models...]     # Export to SQLite
+dump -s <path>              # Schema only
+dump -d <path>              # Data only
+dump --strip-access <path>  # Remove ACL fields (for fixtures)
+```
+
+**restore:**
+```bash
+restore <path> [models...]  # Import (upsert by default)
+restore --replace <path>    # Delete existing, then import
+restore --skip <path>       # Skip existing records
+restore --merge <path>      # Only import new models
+restore -s <path>           # Schema only
+restore -d <path>           # Data only
+```
