@@ -194,19 +194,7 @@ async function callInternal(
     }
 
     // Generate JWT from session's systemInit
-    const token = await JWTGenerator.generateToken({
-        id: systemInit.userId || 'system',
-        user_id: systemInit.userId,
-        username: systemInit.username || 'system',
-        tenant: systemInit.tenant!,
-        dbType: systemInit.dbType,
-        dbName: systemInit.dbName!,
-        nsName: systemInit.nsName!,
-        access: systemInit.access || 'read',
-        access_read: systemInit.accessRead || [],
-        access_edit: systemInit.accessEdit || [],
-        access_full: systemInit.accessFull || [],
-    });
+    const token = await JWTGenerator.fromSystemInit(systemInit);
 
     const requestHeaders: Record<string, string> = {
         'Authorization': `Bearer ${token}`,

@@ -182,17 +182,11 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
     };
 
     // Generate token
-    const token = await JWTGenerator.generateToken({
-        id: user.id,
-        username: user.auth,
-        tenant: name,
-        dbType: dbType || 'postgresql',
-        dbName,
-        nsName,
-        access: user.access,
-        access_read: user.access_read || [],
-        access_edit: user.access_edit || [],
-        access_full: user.access_full || [],
+    const token = await JWTGenerator.fromUserAndTenant(user, {
+        name,
+        db_type: dbType || 'postgresql',
+        database: dbName,
+        schema: nsName,
     });
 
     // Create SystemInit for transaction usage
@@ -332,19 +326,7 @@ export async function register(
     }
 
     // Generate JWT token for the new user
-    const token = await JWTGenerator.generateToken({
-        id: result.user.id,
-        user_id: result.user.id,
-        username: result.user.auth,
-        tenant: result.tenant.name,
-        dbType: result.tenant.db_type,
-        dbName: result.tenant.database,
-        nsName: result.tenant.schema,
-        access: result.user.access,
-        access_read: [],
-        access_edit: [],
-        access_full: [],
-    });
+    const token = await JWTGenerator.fromUserAndTenant(result.user, result.tenant);
 
     return {
         success: true,

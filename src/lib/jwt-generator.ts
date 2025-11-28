@@ -6,6 +6,7 @@
  */
 
 import { sign, verify } from 'hono/jwt';
+import type { SystemInit } from './system.js';
 
 /**
  * JWT Payload structure for all Monk API tokens
@@ -204,6 +205,110 @@ export class JWTGenerator {
         };
 
         return await sign(payload, this.getJwtSecret());
+    }
+
+    /**
+     * Generate token from user and tenant records (registration/login flows)
+     *
+     * @param user - User record with id, auth (username), access, and ACL fields
+     * @param tenant - Tenant record with name, db_type, database, schema
+     * @param expirySeconds - Optional custom expiry (default: 24 hours)
+     * @returns JWT token string
+     */
+    static async fromUserAndTenant(
+        user: {
+            id: string;
+            auth: string;
+            access: string;
+            access_read?: string[];
+            access_edit?: string[];
+            access_full?: string[];
+        },
+        tenant: {
+            name: string;
+            db_type: 'postgresql' | 'sqlite';
+            database: string;
+            schema: string;
+        },
+        expirySeconds?: number
+    ): Promise<string> {
+        return this.generateToken(
+            {
+                id: user.id,
+                user_id: user.id,
+                username: user.auth,
+                tenant: tenant.name,
+                dbType: tenant.db_type,
+                dbName: tenant.database,
+                nsName: tenant.schema,
+                access: user.access,
+                access_read: user.access_read || [],
+                access_edit: user.access_edit || [],
+                access_full: user.access_full || [],
+            },
+            expirySeconds
+        );
+    }
+
+    /**
+     * Generate token from SystemInit (internal API calls)
+     *
+     * @param init - SystemInit object from authenticated session
+     * @param expirySeconds - Optional custom expiry (default: 24 hours)
+     * @returns JWT token string
+     */
+    static async fromSystemInit(init: SystemInit, expirySeconds?: number): Promise<string> {
+        return this.generateToken(
+            {
+                id: init.userId || 'system',
+                user_id: init.userId,
+                username: init.username || 'system',
+                tenant: init.tenant,
+                dbType: init.dbType,
+                dbName: init.dbName,
+                nsName: init.nsName,
+                access: init.access || 'read',
+                access_read: init.accessRead || [],
+                access_edit: init.accessEdit || [],
+                access_full: init.accessFull || [],
+            },
+            expirySeconds
+        );
+    }
+
+    /**
+     * Generate token for root user with explicit tenant context
+     *
+     * @param userId - Root user ID
+     * @param tenant - Tenant name
+     * @param dbName - Database name
+     * @param nsName - Namespace/schema name
+     * @param expirySeconds - Optional custom expiry (default: 24 hours)
+     * @returns JWT token string
+     */
+    static async forRootUser(
+        userId: string,
+        tenant: string,
+        dbName: string,
+        nsName: string,
+        expirySeconds?: number
+    ): Promise<string> {
+        return this.generateToken(
+            {
+                id: userId,
+                user_id: userId,
+                username: 'root',
+                tenant,
+                dbType: 'postgresql',
+                dbName,
+                nsName,
+                access: 'root',
+                access_read: [],
+                access_edit: [],
+                access_full: [],
+            },
+            expirySeconds
+        );
     }
 
     /**

@@ -71,19 +71,7 @@ export default async function (context: Context) {
     }
 
     // Generate JWT token for the new user
-    const token = await JWTGenerator.generateToken({
-        id: result.user.id,
-        user_id: result.user.id,
-        username: result.user.auth,
-        tenant: result.tenant.name,
-        dbType: result.tenant.db_type,
-        dbName: result.tenant.database,
-        nsName: result.tenant.schema,
-        access: result.user.access,
-        access_read: [],
-        access_edit: [],
-        access_full: [],
-    });
+    const token = await JWTGenerator.fromUserAndTenant(result.user, result.tenant);
 
     return context.json({
         success: true,

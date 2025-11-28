@@ -139,7 +139,7 @@ export async function registerAppTenant(appName: string): Promise<{
         const userResult = await DatabaseConnection.queryInNamespace(
             dbName,
             nsName,
-            'SELECT id, access, access_read, access_edit, access_full FROM users WHERE auth = $1 AND deleted_at IS NULL',
+            'SELECT id, auth, access, access_read, access_edit, access_full FROM users WHERE auth = $1 AND deleted_at IS NULL',
             ['root']
         );
 
@@ -150,19 +150,11 @@ export async function registerAppTenant(appName: string): Promise<{
         const user = userResult.rows[0];
 
         // Generate long-lived token
-        const token = await JWTGenerator.generateToken({
-            id: user.id,
-            user_id: user.id,
-            username: 'root',
-            tenant: tenantName,
-            dbType: 'postgresql',
-            dbName,
-            nsName,
-            access: user.access,
-            access_read: user.access_read || [],
-            access_edit: user.access_edit || [],
-            access_full: user.access_full || [],
-        }, APP_TOKEN_EXPIRY);
+        const token = await JWTGenerator.fromUserAndTenant(
+            user,
+            { name: tenantName, db_type: 'postgresql', database: dbName, schema: nsName },
+            APP_TOKEN_EXPIRY
+        );
 
         console.info(`App tenant exists: ${tenantName}`);
 
@@ -212,19 +204,13 @@ export async function registerAppTenant(appName: string): Promise<{
         await mainPool.query('COMMIT');
 
         // Generate long-lived token for owner (ROOT_USER_ID for app tenants)
-        const token = await JWTGenerator.generateToken({
-            id: ownerUserId,
-            user_id: ownerUserId,
-            username: 'root',
-            tenant: tenantName,
-            dbType: 'postgresql',
+        const token = await JWTGenerator.forRootUser(
+            ownerUserId,
+            tenantName,
             dbName,
             nsName,
-            access: 'root',
-            access_read: [],
-            access_edit: [],
-            access_full: [],
-        }, APP_TOKEN_EXPIRY);
+            APP_TOKEN_EXPIRY
+        );
 
         console.info(`Created app tenant: ${tenantName}`);
 
