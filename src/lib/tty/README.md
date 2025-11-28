@@ -61,13 +61,22 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 
 ### Filesystem
 - `ls [-la] [path]` - List directory contents
+- `tree [-dL] [path]` - Display directory tree
 - `cat <file>` - Display file contents
+- `head [-n N] [file]` - Show first N lines
+- `tail [-n N] [file]` - Show last N lines
 - `touch <file>` - Create empty file
 - `mkdir <dir>` - Create directory
 - `rm <file>` - Remove file
 - `rmdir <dir>` - Remove directory
 - `mv <src> <dst>` - Move/rename
-- `find <path>` - Recursively list files
+- `cp [-r] <src> <dst>` - Copy files/directories
+- `find [path]` - Recursively list files
+
+### Mounts
+- `mount` - List mounted filesystems
+- `mount -t local <src> <dst>` - Mount host directory
+- `umount <path>` - Unmount filesystem
 
 ### Data Operations
 - `select <fields> [from <path>]` - Query records with field selection
@@ -78,18 +87,28 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `kill <pid>` - Terminate a process
 - `ping [-c N] [-i S] <target>` - HTTP ping (local API or external URL)
 - `sleep <duration>` - Pause execution
+- `timeout <duration> <cmd>` - Run command with timeout
+
+### Text Processing
+- `grep [-iv] <pattern>` - Filter lines by regex
+- `sort [-rnu]` - Sort lines
+- `uniq [-cd]` - Filter adjacent duplicate lines
+- `wc [-lwc]` - Word, line, character count
+- `cut -d<delim> -f<fields>` - Extract fields
+- `tr <set1> <set2>` - Translate characters
+- `jq <filter>` - JSON processing
 
 ### Environment
 - `echo <text>` - Print text (supports $VAR expansion)
 - `env` - Show environment variables
 - `export VAR=value` - Set environment variable
 - `whoami` - Show current user
+- `date [-uI] [+format]` - Show date/time
+- `history [-c] [N]` - Show command history
 
 ### Utilities
-- `grep <pattern>` - Filter lines by regex
-- `jq <filter>` - JSON processing
 - `xargs <cmd>` - Build commands from stdin
-- `timeout <duration> <cmd>` - Run command with timeout
+- `tee [-a] <file>` - Write to stdout and file
 
 ### Session
 - `help` - Show available commands
@@ -113,6 +132,9 @@ echo "log entry" >> /var/log/app.log
 
 # Input redirect
 cat < /tmp/input.txt
+
+# Tee (write to file and pass through)
+find . | tee /tmp/files.txt | wc -l
 ```
 
 ## Background Processes
@@ -131,6 +153,26 @@ kill 42
 ```
 
 Background process output is captured to `/tmp/.proc/{pid}/stdout` and `/tmp/.proc/{pid}/stderr`.
+
+## Host Filesystem Mounts
+
+Mount directories from the host system into the virtual filesystem:
+
+```bash
+# Mount a host directory (use absolute paths)
+mount -t local /Users/me/projects /projects
+
+# Mount read-only
+mount -t local -r /var/log /logs
+
+# List mounts
+mount
+
+# Unmount
+umount /projects
+```
+
+Note: The `~` character expands to the virtual home directory, not the host home. Use absolute paths for host mounts.
 
 ## Process Table
 
