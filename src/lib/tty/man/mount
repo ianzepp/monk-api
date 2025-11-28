@@ -3,20 +3,45 @@ NAME
 
 SYNOPSIS
     mount
-    mount -t TYPE [-r] <source> <target>
+    mount -t TYPE [-r] <args...> <target>
 
 DESCRIPTION
-    Without arguments, displays all mounted filesystems.
+    Without arguments, displays all mounted filesystems in Linux-style format.
     With arguments, mounts a filesystem at the specified target.
 
+    Mounts are automatically saved to ~/.config/mounts.json and restored
+    on next login. Use umount to remove a saved mount.
+
 OPTIONS
-    -t TYPE     Mount type (currently: local)
-    -r          Mount read-only (--readonly)
+    -t TYPE     Mount type (local, find)
+    -r          Mount read-only (--readonly) [local only]
 
 MOUNT TYPES
     local       Mount a host filesystem directory
+                Usage: mount -t local <source> <target>
                 Source: absolute path on host system
                 Target: virtual filesystem path
+
+    find        Mount a database query as a virtual directory
+                Usage: mount -t find <model> <query-json> <target>
+                Model: name of the model to query
+                Query: JSON object with where, order, limit, select
+
+OUTPUT FORMAT
+    /dev/TYPE on /path (details)
+
+    Device types:
+        /dev/data       CRUD operations (/api/data)
+        /dev/describe   Model schemas (/api/describe)
+        /dev/filter     Saved filters (/api/find)
+        /dev/trashed    Soft-deleted records (/api/trashed)
+        /dev/proc       Process table (/proc)
+        /dev/bin        Built-in commands (/bin)
+        /dev/system     System info (/system)
+        /dev/mem        In-memory storage (/tmp)
+        /dev/fs         Database storage (fallback)
+        /dev/local      Host filesystem mount
+        /dev/find       Query mount
 
 EXAMPLES
     mount
@@ -25,16 +50,28 @@ EXAMPLES
     mount -t local /path/to/dist /dist
         Mount host directory at /dist
 
-    mount -t local -r /home/user/projects /projects
+    mount -t local -r /var/log /logs
         Mount read-only
 
+    mount -t find accounts '{"where":{"active":true}}' ~/active
+        Mount active accounts query
+
+    mount -t find orders '{"where":{"total":{"$gt":1000}},"limit":100}' ~/big-orders
+        Mount filtered orders with limit
+
+FILES
+    ~/.config/mounts.json
+        Saved mount configurations, restored on login
+
 NOTES
-    Use absolute paths for the source. The ~ character expands to
-    the virtual home directory, not the host home directory.
+    Use absolute paths for local mount sources. The ~ character expands
+    to the virtual home directory, not the host home directory.
+
+    Find mounts are read-only. To modify records, use /api/data directly.
 
 SECURITY
     Local mounts have path traversal protection.
     Symlinks pointing outside the source directory are blocked.
 
 SEE ALSO
-    umount, ls, cd
+    umount, ls, cat, select
