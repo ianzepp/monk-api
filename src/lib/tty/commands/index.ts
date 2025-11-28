@@ -84,7 +84,7 @@ import { yes } from './yes.js';
 import { which } from './which.js';
 
 // Scripting
-import { source, dot, setSourceCommandRegistry } from './source.js';
+import { source, dot } from './source.js';
 import { test, bracket } from './test.js';
 import { read } from './read.js';
 import { basename } from './basename.js';
@@ -260,4 +260,3 @@ export const commands: Record<string, CommandHandler> = {
 
 // Initialize commands that need the registry
 setCommandRegistry(commands);
-setSourceCommandRegistry(commands);
