@@ -1,23 +1,107 @@
 /**
- * mount - Display mounted filesystems
+ * mount - Mount filesystems or display mounted filesystems
+ *
+ * Usage:
+ *   mount                              List all mounts
+ *   mount -t local <source> <target>   Mount local directory
+ *   mount -t local -r <source> <target> Mount read-only
+ *
+ * Examples:
+ *   mount
+ *   mount -t local /real/path/to/dist /dist
+ *   mount -t local -r ~/projects /projects
  */
 
+import { LocalMount } from '@src/lib/fs/index.js';
+import { resolvePath } from '../parser.js';
 import type { CommandHandler } from './shared.js';
 
-export const mount: CommandHandler = async (_session, fs, _args, io) => {
-    const mounts = fs!.getMounts();
+export const mount: CommandHandler = async (session, fs, args, io) => {
+    if (!fs) {
+        io.stderr.write('mount: filesystem not available\n');
+        return 1;
+    }
 
-    if (mounts.size === 0) {
-        io.stdout.write('No mounts\n');
+    // No args: list mounts
+    if (args.length === 0) {
+        const mounts = fs.getMounts();
+
+        if (mounts.size === 0) {
+            io.stdout.write('No mounts\n');
+            return 0;
+        }
+
+        // Sort by mount path
+        const sorted = [...mounts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+        for (const [path, handler] of sorted) {
+            const type = handler.constructor.name;
+            io.stdout.write(`${type} on ${path}\n`);
+        }
         return 0;
     }
 
-    // Sort by mount path
-    const sorted = [...mounts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    // Parse mount arguments
+    let type: string | undefined;
+    let readonly = false;
+    const positional: string[] = [];
 
-    for (const [path, handler] of sorted) {
-        const type = handler.constructor.name;
-        io.stdout.write(`${type} on ${path}\n`);
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === '-t' && args[i + 1]) {
+            type = args[++i];
+        } else if (arg === '-r' || arg === '--readonly') {
+            readonly = true;
+        } else if (!arg.startsWith('-')) {
+            positional.push(arg);
+        }
     }
-    return 0;
+
+    if (!type) {
+        io.stderr.write('mount: missing type (-t)\n');
+        io.stderr.write('Usage: mount -t local <source> <target>\n');
+        return 1;
+    }
+
+    if (positional.length !== 2) {
+        io.stderr.write('mount: requires source and target paths\n');
+        io.stderr.write('Usage: mount -t local <source> <target>\n');
+        return 1;
+    }
+
+    const [source, target] = positional;
+
+    // Handle mount types
+    switch (type) {
+        case 'local': {
+            // Source is a real filesystem path (expand ~ to HOME)
+            let realPath = source;
+            if (realPath.startsWith('~')) {
+                const home = process.env.HOME || '/';
+                realPath = home + realPath.slice(1);
+            }
+
+            // Target is a virtual filesystem path
+            const virtualPath = resolvePath(session.cwd, target);
+
+            try {
+                const localMount = new LocalMount(realPath, {
+                    writable: !readonly,
+                });
+
+                fs.mount(virtualPath, localMount);
+                io.stdout.write(`Mounted ${realPath} on ${virtualPath}${readonly ? ' (read-only)' : ''}\n`);
+                return 0;
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                io.stderr.write(`mount: ${message}\n`);
+                return 1;
+            }
+        }
+
+        default:
+            io.stderr.write(`mount: unknown type '${type}'\n`);
+            io.stderr.write('Supported types: local\n');
+            return 1;
+    }
 };

@@ -1,0 +1,19 @@
+NAME
+    umount - unmount a filesystem
+
+SYNOPSIS
+    umount <mountpoint>
+
+DESCRIPTION
+    Unmounts a previously mounted filesystem.
+    The mountpoint must be an exact match of the original mount path.
+
+EXAMPLES
+    umount /dist
+        Unmount the /dist mount
+
+    umount /projects
+        Unmount the /projects mount
+
+SEE ALSO
+    mount

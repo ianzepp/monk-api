@@ -1,0 +1,39 @@
+NAME
+    mount - mount filesystems or display mounts
+
+SYNOPSIS
+    mount
+    mount -t TYPE [-r] <source> <target>
+
+DESCRIPTION
+    Without arguments, displays all mounted filesystems.
+    With arguments, mounts a filesystem at the specified target.
+
+OPTIONS
+    -t TYPE     Mount type (currently: local)
+    -r          Mount read-only (--readonly)
+
+MOUNT TYPES
+    local       Mount a host filesystem directory
+                Source: real path on host (~/path supported)
+                Target: virtual filesystem path
+
+EXAMPLES
+    mount
+        List all mounts
+
+    mount -t local /path/to/dist /dist
+        Mount host directory at /dist
+
+    mount -t local -r ~/projects /projects
+        Mount read-only
+
+    mount -t local . /workspace
+        Mount current host directory
+
+SECURITY
+    Local mounts have path traversal protection.
+    Symlinks pointing outside the source directory are blocked.
+
+SEE ALSO
+    umount, ls, cd

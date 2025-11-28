@@ -16,6 +16,7 @@ import { find } from './find.js';
 import { grep } from './grep.js';
 import { xargs } from './xargs.js';
 import { mount } from './mount.js';
+import { umount } from './umount.js';
 
 // File operations
 import { cat } from './cat.js';
@@ -72,6 +73,7 @@ export { find } from './find.js';
 export { grep } from './grep.js';
 export { xargs } from './xargs.js';
 export { mount } from './mount.js';
+export { umount } from './umount.js';
 export { cat } from './cat.js';
 export { head } from './head.js';
 export { tail } from './tail.js';
@@ -116,6 +118,7 @@ export const commands: Record<string, CommandHandler> = {
     grep,
     xargs,
     mount,
+    umount,
 
     // File operations
     cat,
