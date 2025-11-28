@@ -127,8 +127,15 @@ export interface Session {
     historyBuffer: string;
 
     /** Session-local mounts (re-applied to each transaction's FS) */
-    mounts: Map<string, { type: 'local'; path: string; readonly: boolean }>;
+    mounts: Map<string, SessionMount>;
 }
+
+/**
+ * Session mount configuration
+ */
+export type SessionMount =
+    | { type: 'local'; path: string; readonly: boolean }
+    | { type: 'find'; model: string; query: Record<string, any> };
 
 /**
  * Parsed command with arguments and redirects

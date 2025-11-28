@@ -10,7 +10,7 @@ import { ModelBackedStorage } from './storage.js';
 import { SystemMount } from './mounts/system-mount.js';
 import { DataMount } from './mounts/data-mount.js';
 import { DescribeMount } from './mounts/describe-mount.js';
-import { FindMount } from './mounts/find-mount.js';
+import { FilterMount } from './mounts/filter-mount.js';
 import { TrashedMount } from './mounts/trashed-mount.js';
 import { ProcMount } from './mounts/proc-mount.js';
 import { BinMount } from './mounts/bin-mount.js';
@@ -50,7 +50,7 @@ export function createFS(system: System, options?: CreateFSOptions): FS {
     // API mounts
     fs.mount('/api/data', new DataMount(system));
     fs.mount('/api/describe', new DescribeMount(system));
-    fs.mount('/api/find', new FindMount(system));
+    fs.mount('/api/find', new FilterMount(system));
     fs.mount('/api/trashed', new TrashedMount(system));
 
     // Command binaries (read-only)

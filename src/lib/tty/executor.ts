@@ -101,7 +101,7 @@ export async function executeLine(
 
     let exitCode = 0;
     await runTransaction(session.systemInit, async (system) => {
-        applySessionMounts(session, system.fs);
+        applySessionMounts(session, system.fs, system);
         exitCode = await executeChain(session, parsed, system.fs, io, signal);
     });
 
@@ -373,7 +373,7 @@ async function executeBackground(
                 const bgSession = { ...session };
 
                 // Full execution through the same path
-                applySessionMounts(bgSession, system.fs);
+                applySessionMounts(bgSession, system.fs, system);
                 return executeChain(bgSession, parsed, system.fs, {
                     stdin: processIO.stdin,
                     stdout: processIO.stdout,

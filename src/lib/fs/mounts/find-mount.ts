@@ -1,169 +1,146 @@
 /**
- * FindMount - Saved filters as executable query files
+ * FindMount - Ad-hoc query as a virtual directory
  *
- * Matches HTTP API structure:
- * - /api/find/                        → List models with saved filters
- * - /api/find/orders/                 → List saved filters for model
- * - /api/find/orders/high-value       → GET /api/find/:model/:filter (execute query)
+ * Creates a dynamic view of records matching query criteria.
+ * Useful for creating shortcuts to filtered data:
  *
- * Reading a filter file executes the saved query and returns results as JSON.
- * Read-only mount - filter management goes through /api/data/filters.
+ *   mount -t find accounts '{"where":{"balance":{"$gt":1000000}}}' /home/root/rich
+ *   ls /home/root/rich  → lists matching account IDs
+ *   cat /home/root/rich/abc123  → reads that account record
+ *
+ * Query options:
+ * - where: Filter criteria
+ * - order: Sort order
+ * - limit: Max records (default 1000)
+ * - select: Fields to include
+ *
+ * Read-only mount - writes go through /api/data.
+ *
+ * See also: FilterMount for saved filters from the filters table.
  */
 
 import type { System } from '@src/lib/system.js';
 import type { Mount, FSEntry } from '../types.js';
 import { FSError } from '../types.js';
 
-type ParsedPath =
-    | { type: 'root' }
-    | { type: 'model'; modelName: string }
-    | { type: 'filter'; modelName: string; filterName: string };
+export interface FindMountQuery {
+    where?: Record<string, any>;
+    order?: Array<{ field: string; sort?: 'asc' | 'desc' }>;
+    limit?: number;
+    select?: string[];
+}
 
 export class FindMount implements Mount {
-    constructor(private readonly system: System) {}
+    private readonly limit: number;
+
+    constructor(
+        private readonly system: System,
+        private readonly modelName: string,
+        private readonly query: FindMountQuery = {}
+    ) {
+        // Default limit to prevent unbounded queries
+        this.limit = query.limit ?? 1000;
+    }
 
     async stat(path: string): Promise<FSEntry> {
-        const parsed = this.parsePath(path);
+        const recordId = this.parseRecordId(path);
 
-        if (parsed.type === 'root') {
+        if (!recordId) {
+            // Root of mount - the query directory
             return {
-                name: 'find',
+                name: this.modelName,
                 type: 'directory',
                 size: 0,
-                mode: 0o755,
+                mode: 0o555, // read-only
             };
         }
 
-        if (parsed.type === 'model') {
-            // Check if any filters exist for this model
-            const filters = await this.system.database.selectAny('filters', {
-                where: { model_name: parsed.modelName },
-                limit: 1,
-            }, { context: 'system' });
-
-            if (filters.length === 0) {
-                throw new FSError('ENOENT', path);
-            }
-
-            return {
-                name: parsed.modelName,
-                type: 'directory',
-                size: 0,
-                mode: 0o755,
-            };
+        // Specific record
+        const record = await this.fetchRecord(recordId);
+        if (!record) {
+            throw new FSError('ENOENT', path);
         }
 
-        if (parsed.type === 'filter') {
-            const filter = await this.system.database.selectOne('filters', {
-                where: { model_name: parsed.modelName, name: parsed.filterName },
-            }, { context: 'system' });
-
-            if (!filter) {
-                throw new FSError('ENOENT', path);
-            }
-
-            return {
-                name: parsed.filterName,
-                type: 'file',
-                size: 0,
-                mode: 0o444,
-                mtime: filter.updated_at ? new Date(filter.updated_at) : undefined,
-                ctime: filter.created_at ? new Date(filter.created_at) : undefined,
-            };
-        }
-
-        throw new FSError('ENOENT', path);
+        const content = JSON.stringify(record, null, 2);
+        return {
+            name: recordId,
+            type: 'file',
+            size: Buffer.byteLength(content, 'utf8'),
+            mode: 0o444, // read-only
+            mtime: record.updated_at ? new Date(record.updated_at) : undefined,
+            ctime: record.created_at ? new Date(record.created_at) : undefined,
+        };
     }
 
     async readdir(path: string): Promise<FSEntry[]> {
-        const parsed = this.parsePath(path);
+        const recordId = this.parseRecordId(path);
 
-        if (parsed.type === 'root') {
-            // Get distinct model names that have filters
-            const filters = await this.system.database.selectAny('filters', {}, { context: 'system' });
-            const modelNames = [...new Set(filters.map(f => f.model_name))];
-
-            return modelNames.map(name => ({
-                name,
-                type: 'directory' as const,
-                size: 0,
-                mode: 0o755,
-            }));
+        if (recordId) {
+            throw new FSError('ENOTDIR', path);
         }
 
-        if (parsed.type === 'model') {
-            const filters = await this.system.database.selectAny('filters', {
-                where: { model_name: parsed.modelName },
-            }, { context: 'system' });
+        // Execute query to get matching records
+        const records = await this.system.database.selectAny(this.modelName, {
+            where: this.query.where,
+            order: this.query.order,
+            limit: this.limit,
+            select: ['id', 'updated_at', 'created_at'],
+        });
 
-            if (filters.length === 0) {
-                throw new FSError('ENOENT', path);
-            }
-
-            return filters.map(f => ({
-                name: f.name,
-                type: 'file' as const,
-                size: 0,
-                mode: 0o444,
-                mtime: f.updated_at ? new Date(f.updated_at) : undefined,
-                ctime: f.created_at ? new Date(f.created_at) : undefined,
-            }));
-        }
-
-        throw new FSError('ENOTDIR', path);
+        return records.map(r => ({
+            name: r.id,
+            type: 'file' as const,
+            size: 0,
+            mode: 0o444,
+            mtime: r.updated_at ? new Date(r.updated_at) : undefined,
+            ctime: r.created_at ? new Date(r.created_at) : undefined,
+        }));
     }
 
     async read(path: string): Promise<string> {
-        const parsed = this.parsePath(path);
+        const recordId = this.parseRecordId(path);
 
-        if (parsed.type === 'root' || parsed.type === 'model') {
+        if (!recordId) {
             throw new FSError('EISDIR', path);
         }
 
-        if (parsed.type === 'filter') {
-            // Load the saved filter
-            const filter = await this.system.database.selectOne('filters', {
-                where: { model_name: parsed.modelName, name: parsed.filterName },
-            }, { context: 'system' });
-
-            if (!filter) {
-                throw new FSError('ENOENT', path);
-            }
-
-            // Build query from saved filter
-            const query: Record<string, any> = {};
-            if (filter.select) query.select = filter.select;
-            if (filter.where) query.where = filter.where;
-            if (filter.order) query.order = filter.order;
-            if (filter.limit != null) query.limit = filter.limit;
-            if (filter.offset != null) query.offset = filter.offset;
-
-            // Execute query against the model
-            const results = await this.system.database.selectAny(
-                parsed.modelName,
-                query,
-                { context: 'api' }
-            );
-
-            return JSON.stringify(results, null, 2);
+        const record = await this.fetchRecord(recordId);
+        if (!record) {
+            throw new FSError('ENOENT', path);
         }
 
-        throw new FSError('ENOENT', path);
+        return JSON.stringify(record, null, 2);
     }
 
-    private parsePath(path: string): ParsedPath {
+    /**
+     * Fetch a single record, verifying it matches the query criteria
+     */
+    private async fetchRecord(recordId: string): Promise<Record<string, any> | null> {
+        // Build where clause that includes both the ID and the query filter
+        const where = this.query.where
+            ? { $and: [{ id: recordId }, this.query.where] }
+            : { id: recordId };
+
+        const record = await this.system.database.selectOne(this.modelName, {
+            where,
+            select: this.query.select,
+        });
+
+        return record;
+    }
+
+    /**
+     * Parse path to extract record ID (if any)
+     */
+    private parseRecordId(path: string): string | null {
         const segments = path.split('/').filter(Boolean);
 
         if (segments.length === 0) {
-            return { type: 'root' };
+            return null;
         }
 
         if (segments.length === 1) {
-            return { type: 'model', modelName: segments[0] };
-        }
-
-        if (segments.length === 2) {
-            return { type: 'filter', modelName: segments[0], filterName: segments[1] };
+            return segments[0];
         }
 
         throw new FSError('ENOENT', path);

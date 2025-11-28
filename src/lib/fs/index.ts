@@ -73,6 +73,13 @@ export class FS {
     }
 
     /**
+     * Get the fallback mount handler
+     */
+    getFallback(): Mount | null {
+        return this.fallback;
+    }
+
+    /**
      * Resolve a path to its mount handler
      */
     private resolvePath(path: string): ResolvedPath {
