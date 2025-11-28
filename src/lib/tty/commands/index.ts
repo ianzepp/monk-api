@@ -93,6 +93,17 @@ import { dirname } from './dirname.js';
 // Networking
 import { nc } from './nc.js';
 
+// Hashing
+import { md5sum } from './md5sum.js';
+import { shasum } from './shasum.js';
+
+// Subcommand groups
+import { git } from './git/index.js';
+import { keys } from './keys/index.js';
+
+// Deprecated stubs
+import { sshKey } from './ssh-key.js';
+
 // Re-export types
 export type { CommandHandler } from './shared.js';
 export { formatMode, formatEntry } from './shared.js';
@@ -161,6 +172,11 @@ export { read } from './read.js';
 export { basename } from './basename.js';
 export { dirname } from './dirname.js';
 export { nc } from './nc.js';
+export { md5sum } from './md5sum.js';
+export { shasum } from './shasum.js';
+export { git } from './git/index.js';
+export { keys } from './keys/index.js';
+export { sshKey } from './ssh-key.js';
 
 /**
  * Command registry
@@ -256,6 +272,17 @@ export const commands: Record<string, CommandHandler> = {
 
     // Networking
     nc,
+
+    // Hashing
+    md5sum,
+    shasum,
+
+    // Subcommand groups
+    git,
+    keys,
+
+    // Deprecated stubs
+    'ssh-key': sshKey,
 };
 
 // Initialize commands that need the registry

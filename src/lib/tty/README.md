@@ -67,8 +67,8 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `tail [-n N] [file]` - Show last N lines
 - `touch <file>` - Create empty file
 - `mkdir <dir>` - Create directory
-- `rm <file>` - Remove file
-- `rmdir <dir>` - Remove directory
+- `rm [-rf] <file>` - Remove file or directory
+- `rmdir <dir>` - Remove empty directory
 - `mv <src> <dst>` - Move/rename
 - `cp [-r] <src> <dst>` - Copy files/directories
 - `ln -s <target> <link>` - Create symbolic link
@@ -132,6 +132,20 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `read [-rp] <var>...` - Read line from stdin into variables
 - `basename <path> [suffix]` - Strip directory from filename
 - `dirname <path>` - Strip filename from path
+
+### Hashing
+- `md5sum [file...]` - Compute MD5 hash
+- `shasum [-a algo] [file...]` - Compute SHA hash (1, 256, 384, 512)
+
+### Keys & Credentials
+- `keys list [--type ssh|api]` - List registered keys
+- `keys add ssh <pubkey>` - Add SSH public key
+- `keys add api [--name <n>]` - Generate API key
+- `keys remove <id>` - Remove a key
+- `keys fingerprint <pubkey>` - Show SSH key fingerprint
+
+### Version Control
+- `git clone <url> [dest]` - Clone repository to /tmp
 
 ### Session
 - `help` - Show available commands
