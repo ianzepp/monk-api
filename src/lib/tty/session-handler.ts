@@ -138,41 +138,38 @@ async function ensureHomeDirectory(session: Session, home: string): Promise<void
 
 /**
  * Load and execute ~/.profile on login
+ *
+ * Uses the source command internally for full scripting support
+ * (comments, &&, ||, $?, etc.)
  */
 async function loadProfile(stream: TTYStream, session: Session): Promise<void> {
     if (!session.systemInit) return;
 
+    const profilePath = `/home/${session.username}/.profile`;
+
     try {
         await runTransaction(session.systemInit, async (system) => {
-            const profilePath = `/home/${session.username}/.profile`;
-
+            // Check if .profile exists
             try {
-                const content = await system.fs.read(profilePath);
-
-                for (const line of content.toString().split('\n')) {
-                    const trimmed = line.trim();
-                    // Skip empty lines and comments
-                    if (!trimmed || trimmed.startsWith('#')) continue;
-
-                    // Execute the command silently (don't show output)
-                    const parsed = parseCommand(trimmed);
-                    if (!parsed) continue;
-
-                    // Expand variables
-                    parsed.args = parsed.args.map(arg => expandVariables(arg, session.env));
-
-                    const handler = commands[parsed.command];
-                    if (handler) {
-                        const io = createIO();
-                        io.stdin.end();
-                        // Discard stdout, show stderr
-                        io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
-                        await handler(session, system.fs, parsed.args, io);
-                    }
-                }
+                await system.fs.stat(profilePath);
             } catch {
                 // No .profile file, that's fine
+                return;
             }
+
+            // Apply session mounts before running profile
+            applySessionMounts(session, system.fs);
+
+            // Use the source command for full scripting support
+            const sourceHandler = commands['source'];
+            if (!sourceHandler) return;
+
+            const io = createIO();
+            io.stdin.end();
+            // Discard stdout, show stderr
+            io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+
+            await sourceHandler(session, system.fs, [profilePath], io);
         });
     } catch {
         // Ignore profile load errors
@@ -620,7 +617,7 @@ async function collectStream(stream: PassThrough): Promise<string> {
 }
 
 /**
- * Build the pipeline chain from parsed commands
+ * Build the pipeline chain from parsed commands (handles | only, not && or ||)
  */
 function buildPipeline(parsed: ParsedCommand, env: Record<string, string>): ParsedCommand[] {
     const pipeline: ParsedCommand[] = [];
@@ -634,6 +631,34 @@ function buildPipeline(parsed: ParsedCommand, env: Record<string, string>): Pars
     }
 
     return pipeline;
+}
+
+/**
+ * Check if a parsed command tree needs a transaction
+ */
+function commandTreeNeedsTransaction(parsed: ParsedCommand): boolean {
+    const noTransactionCommands = ['echo', 'env', 'export', 'clear', 'help', 'pwd', 'whoami', 'exit', 'logout', 'quit'];
+
+    // Check this command and its pipeline
+    let current: ParsedCommand | undefined = parsed;
+    while (current) {
+        if (!noTransactionCommands.includes(current.command)) {
+            return true;
+        }
+        current = current.pipe;
+    }
+
+    // Check && chain
+    if (parsed.andThen && commandTreeNeedsTransaction(parsed.andThen)) {
+        return true;
+    }
+
+    // Check || chain
+    if (parsed.orElse && commandTreeNeedsTransaction(parsed.orElse)) {
+        return true;
+    }
+
+    return false;
 }
 
 /**
@@ -857,6 +882,38 @@ async function executePipeline(
 }
 
 /**
+ * Execute a command chain (handles &&, ||, and pipelines)
+ *
+ * Returns the exit code of the last executed command.
+ */
+async function executeCommandChain(
+    stream: TTYStream,
+    session: Session,
+    parsed: ParsedCommand,
+    fs: FS | null,
+    signal?: AbortSignal
+): Promise<number> {
+    // Build and execute the pipeline for this command
+    const pipeline = buildPipeline(parsed, session.env);
+    const exitCode = await executePipeline(stream, session, pipeline, fs, signal);
+
+    // Update $? with exit code
+    session.env['?'] = String(exitCode);
+
+    // Handle && chain (run next if this succeeded)
+    if (parsed.andThen && exitCode === 0) {
+        return executeCommandChain(stream, session, parsed.andThen, fs, signal);
+    }
+
+    // Handle || chain (run next if this failed)
+    if (parsed.orElse && exitCode !== 0) {
+        return executeCommandChain(stream, session, parsed.orElse, fs, signal);
+    }
+
+    return exitCode;
+}
+
+/**
  * Execute a command within a transaction
  */
 async function executeCommand(
@@ -866,9 +923,6 @@ async function executeCommand(
 ): Promise<void> {
     const parsed = parseCommand(input);
     if (!parsed) return;
-
-    // Build pipeline and expand variables
-    const pipeline = buildPipeline(parsed, session.env);
 
     // Add to history (avoid duplicates of last command)
     if (session.history[session.history.length - 1] !== input) {
@@ -881,6 +935,7 @@ async function executeCommand(
 
     // Handle background execution
     if (parsed.background) {
+        const pipeline = buildPipeline(parsed, session.env);
         await executeBackground(stream, session, parsed, pipeline);
         return;
     }
@@ -890,10 +945,10 @@ async function executeCommand(
     session.foregroundAbort = abortController;
 
     try {
-        // Check if pipeline needs a transaction
-        if (!pipelineNeedsTransaction(pipeline)) {
+        // Check if the whole command tree needs a transaction
+        if (!commandTreeNeedsTransaction(parsed)) {
             // Run without FS
-            await executePipeline(stream, session, pipeline, null, abortController.signal);
+            await executeCommandChain(stream, session, parsed, null, abortController.signal);
             return;
         }
 
@@ -906,7 +961,7 @@ async function executeCommand(
         await runTransaction(session.systemInit, async (system) => {
             // Apply session-local mounts to this transaction's FS
             applySessionMounts(session, system.fs);
-            await executePipeline(stream, session, pipeline, system.fs, abortController.signal);
+            await executeCommandChain(stream, session, parsed, system.fs, abortController.signal);
         });
     } catch (err) {
         // Don't print error if aborted (CTRL+C)

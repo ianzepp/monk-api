@@ -125,13 +125,16 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `yes [string]` - Output string repeatedly until killed
 - `which <cmd>` - Locate a command
 
+### Scripting
+- `source <file>` / `. <file>` - Execute commands from file
+
 ### Session
 - `help` - Show available commands
 - `man <cmd>` - Show manual page
 - `clear` - Clear screen
 - `exit` / `logout` / `quit` - End session
 
-## Pipes and Redirects
+## Pipes, Redirects, and Chaining
 
 Standard shell syntax is supported:
 
@@ -150,6 +153,48 @@ cat < /tmp/input.txt
 
 # Tee (write to file and pass through)
 find . | tee /tmp/files.txt | wc -l
+
+# Command chaining with && (run next if previous succeeds)
+mkdir /tmp/work && cd /tmp/work && echo "Ready"
+
+# Command chaining with || (run next if previous fails)
+cat /missing/file || echo "File not found"
+
+# Combined chaining
+test -f config.json && cat config.json || echo "No config"
+```
+
+## Scripting
+
+Shell scripts can be executed with `source` or `.`:
+
+```bash
+# Create a script
+cat > ~/setup.sh << 'EOF'
+#!/bin/monksh
+# Setup script
+export API_URL=http://localhost:3000
+export DEBUG=true
+echo "Environment configured"
+EOF
+
+# Execute the script
+source ~/setup.sh
+# or
+. ~/setup.sh
+
+# Variables set in the script affect the current session
+echo $API_URL
+```
+
+The `$?` variable contains the exit code of the last command:
+
+```bash
+cat /missing/file
+echo $?    # prints 1
+
+echo "hello"
+echo $?    # prints 0
 ```
 
 ## Background Processes

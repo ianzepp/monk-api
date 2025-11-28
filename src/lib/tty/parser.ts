@@ -132,18 +132,85 @@ function findUnquotedChar(str: string, char: string): number {
 }
 
 /**
+ * Find operator (&&, ||) not inside quotes
+ * Returns { index, operator } or null
+ */
+function findUnquotedOperator(str: string): { index: number; operator: '&&' | '||' } | null {
+    let inQuote: string | null = null;
+    let escape = false;
+
+    for (let i = 0; i < str.length - 1; i++) {
+        const c = str[i];
+        const next = str[i + 1];
+
+        if (escape) {
+            escape = false;
+            continue;
+        }
+
+        if (c === '\\') {
+            escape = true;
+            continue;
+        }
+
+        if ((c === '"' || c === "'") && !inQuote) {
+            inQuote = c;
+            continue;
+        }
+
+        if (c === inQuote) {
+            inQuote = null;
+            continue;
+        }
+
+        if (!inQuote) {
+            if (c === '&' && next === '&') {
+                return { index: i, operator: '&&' };
+            }
+            if (c === '|' && next === '|') {
+                return { index: i, operator: '||' };
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
  * Parse a command string into structured command object
  */
 export function parseCommand(input: string): ParsedCommand | null {
     let trimmed = input.trim();
     if (!trimmed) return null;
 
+    // Skip comments
+    if (trimmed.startsWith('#')) return null;
+
     // Check for background operator at end
     let background = false;
-    if (trimmed.endsWith('&')) {
+    if (trimmed.endsWith('&') && !trimmed.endsWith('&&')) {
         background = true;
         trimmed = trimmed.slice(0, -1).trim();
         if (!trimmed) return null;
+    }
+
+    // Handle && and || operators first (lowest precedence)
+    const opResult = findUnquotedOperator(trimmed);
+    if (opResult) {
+        const left = trimmed.slice(0, opResult.index).trim();
+        const right = trimmed.slice(opResult.index + 2).trim();
+        const leftCmd = parseCommand(left);
+        const rightCmd = parseCommand(right);
+        if (leftCmd && rightCmd) {
+            if (opResult.operator === '&&') {
+                leftCmd.andThen = rightCmd;
+            } else {
+                leftCmd.orElse = rightCmd;
+            }
+            // Background applies to the whole chain
+            leftCmd.background = background;
+        }
+        return leftCmd;
     }
 
     // Handle pipes by splitting and recursing

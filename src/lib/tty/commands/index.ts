@@ -83,6 +83,9 @@ import { seq } from './seq.js';
 import { yes } from './yes.js';
 import { which } from './which.js';
 
+// Scripting
+import { source, dot, setSourceCommandRegistry } from './source.js';
+
 // Re-export types
 export type { CommandHandler } from './shared.js';
 export { formatMode, formatEntry } from './shared.js';
@@ -145,6 +148,7 @@ export { false_ } from './false.js';
 export { seq } from './seq.js';
 export { yes } from './yes.js';
 export { which } from './which.js';
+export { source, dot } from './source.js';
 
 /**
  * Command registry
@@ -228,7 +232,12 @@ export const commands: Record<string, CommandHandler> = {
     seq,
     yes,
     which,
+
+    // Scripting
+    source,
+    '.': dot,
 };
 
-// Initialize timeout command with registry
+// Initialize commands that need the registry
 setCommandRegistry(commands);
+setSourceCommandRegistry(commands);

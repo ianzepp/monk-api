@@ -123,6 +123,12 @@ export interface ParsedCommand {
 
     /** Run in background (&) */
     background?: boolean;
+
+    /** Next command in && chain (run if this succeeds) */
+    andThen?: ParsedCommand;
+
+    /** Next command in || chain (run if this fails) */
+    orElse?: ParsedCommand;
 }
 
 /**
