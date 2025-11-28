@@ -50,6 +50,11 @@ export const kill: CommandHandler = async (session, _fs, args, io) => {
             return 1;
         }
 
+        // If killing our own shell process, trigger disconnect
+        if (session.pid === pid) {
+            session.shouldClose = true;
+        }
+
         return 0;
 
     } catch (err) {
