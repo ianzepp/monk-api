@@ -163,8 +163,8 @@ export async function saveHistory(session: Session): Promise<void> {
  * - User mounts: Local filesystem mounts from mount command
  */
 export function applySessionMounts(session: Session, fs: FS): void {
-    // Mount /bin with command names
-    const commandNames = Object.keys(commands);
+    // Mount /bin with command names (filter out special chars like '.' and '[')
+    const commandNames = Object.keys(commands).filter(name => /^[a-zA-Z]/.test(name));
     fs.mount('/bin', new BinMount(commandNames));
 
     // Re-mount /proc with session PID for /proc/self
