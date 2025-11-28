@@ -11,30 +11,10 @@
  */
 
 import type { Context } from 'hono';
-import type { System, SystemInit } from '@src/lib/system.js';
+import type { SystemInit } from '@src/lib/system.js';
 import { runTransaction } from '@src/lib/transaction.js';
-import { FS, FSError } from '@src/lib/fs/index.js';
-import { SystemMount } from '@src/lib/fs/mounts/system-mount.js';
-import { DescribeMount } from '@src/lib/fs/mounts/describe-mount.js';
-import { DataMount } from '@src/lib/fs/mounts/data-mount.js';
-import { FindMount } from '@src/lib/fs/mounts/find-mount.js';
-import { TrashedMount } from '@src/lib/fs/mounts/trashed-mount.js';
-
-/**
- * Create FS instance with all mounts configured
- */
-function createFS(system: System): FS {
-    const fs = new FS(system);
-
-    // Mount API endpoints
-    fs.mount('/system', new SystemMount(system));
-    fs.mount('/api/describe', new DescribeMount(system));
-    fs.mount('/api/data', new DataMount(system));
-    fs.mount('/api/find', new FindMount(system));
-    fs.mount('/api/trashed', new TrashedMount(system));
-
-    return fs;
-}
+import { FSError } from '@src/lib/fs/index.js';
+import { fsErrorToHttp } from '@src/lib/errors/http-error.js';
 
 /**
  * Extract FS path from request URL
@@ -48,27 +28,14 @@ function extractPath(c: Context): string {
 }
 
 /**
- * Map FSError to HTTP status code
+ * Convert FSError to HTTP response
  */
-function errorToStatus(err: FSError): number {
-    switch (err.code) {
-        case 'ENOENT':
-            return 404;
-        case 'EEXIST':
-            return 409;
-        case 'EISDIR':
-        case 'ENOTDIR':
-        case 'EINVAL':
-            return 400;
-        case 'EACCES':
-            return 403;
-        case 'EROFS':
-            return 405;
-        case 'ENOTEMPTY':
-            return 409;
-        default:
-            return 500;
-    }
+function errorResponse(c: Context, err: FSError) {
+    const httpError = fsErrorToHttp(err);
+    return c.json(
+        { error: err.code, path: err.path, message: err.message },
+        httpError.statusCode as any
+    );
 }
 
 /** Result types for FS operations */
@@ -93,10 +60,8 @@ export async function FsGet(c: Context) {
 
     try {
         const result = await runTransaction(systemInit, async (system): Promise<FsResult> => {
-            const fs = createFS(system);
-
             try {
-                const entry = await fs.stat(path);
+                const entry = await system.fs.stat(path);
 
                 // If stat-only mode, return metadata
                 if (statOnly) {
@@ -115,7 +80,7 @@ export async function FsGet(c: Context) {
 
                 if (entry.type === 'directory') {
                     // List directory
-                    const entries = await fs.readdir(path);
+                    const entries = await system.fs.readdir(path);
                     return {
                         type: 'directory',
                         data: {
@@ -134,7 +99,7 @@ export async function FsGet(c: Context) {
                 }
 
                 // Read file
-                const content = await fs.read(path);
+                const content = await system.fs.read(path);
 
                 if (typeof content === 'string') {
                     // Detect content type
@@ -172,14 +137,11 @@ export async function FsGet(c: Context) {
                     headers: { 'Content-Type': 'application/octet-stream' },
                 });
             case 'error':
-                return c.json(
-                    { error: result.error.code, path: result.error.path, message: result.error.message },
-                    errorToStatus(result.error) as any
-                );
+                return errorResponse(c, result.error);
         }
     } catch (err) {
         if (err instanceof FSError) {
-            return c.json({ error: err.code, path: err.path, message: err.message }, errorToStatus(err) as any);
+            return errorResponse(c, err);
         }
         throw err;
     }
@@ -195,10 +157,8 @@ export async function FsPut(c: Context) {
 
     try {
         const result = await runTransaction(systemInit, async (system): Promise<FsResult> => {
-            const fs = createFS(system);
-
             try {
-                await fs.write(path, content);
+                await system.fs.write(path, content);
                 return { type: 'success', path };
             } catch (err) {
                 if (err instanceof FSError) {
@@ -209,16 +169,13 @@ export async function FsPut(c: Context) {
         });
 
         if (result.type === 'error') {
-            return c.json(
-                { error: result.error.code, path: result.error.path, message: result.error.message },
-                errorToStatus(result.error) as any
-            );
+            return errorResponse(c, result.error);
         }
 
         return c.json({ success: true, path });
     } catch (err) {
         if (err instanceof FSError) {
-            return c.json({ error: err.code, path: err.path, message: err.message }, errorToStatus(err) as any);
+            return errorResponse(c, err);
         }
         throw err;
     }
@@ -233,10 +190,8 @@ export async function FsDelete(c: Context) {
 
     try {
         const result = await runTransaction(systemInit, async (system): Promise<FsResult> => {
-            const fs = createFS(system);
-
             try {
-                await fs.unlink(path);
+                await system.fs.unlink(path);
                 return { type: 'success', path };
             } catch (err) {
                 if (err instanceof FSError) {
@@ -247,16 +202,13 @@ export async function FsDelete(c: Context) {
         });
 
         if (result.type === 'error') {
-            return c.json(
-                { error: result.error.code, path: result.error.path, message: result.error.message },
-                errorToStatus(result.error) as any
-            );
+            return errorResponse(c, result.error);
         }
 
         return c.json({ success: true, path });
     } catch (err) {
         if (err instanceof FSError) {
-            return c.json({ error: err.code, path: err.path, message: err.message }, errorToStatus(err) as any);
+            return errorResponse(c, err);
         }
         throw err;
     }

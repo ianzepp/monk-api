@@ -11,7 +11,6 @@ import type { Session, TTYStream, TTYConfig } from './types.js';
 import { DEFAULT_MOTD } from './types.js';
 import { parseCommand } from './parser.js';
 import { commands } from './commands.js';
-import { createFS } from './fs-factory.js';
 import { login, register } from '@src/lib/auth.js';
 import { runTransaction } from '@src/lib/transaction.js';
 
@@ -66,11 +65,10 @@ async function loadHistory(session: Session): Promise<void> {
     try {
         const { runTransaction } = await import('@src/lib/transaction.js');
         await runTransaction(session.systemInit, async (system) => {
-            const fs = createFS(system);
             const historyPath = `/home/${session.username}/.history`;
 
             try {
-                const content = await fs.read(historyPath);
+                const content = await system.fs.read(historyPath);
                 session.history = content.toString().split('\n').filter(Boolean);
             } catch {
                 // No history file yet, that's fine
@@ -91,18 +89,17 @@ export async function saveHistory(session: Session): Promise<void> {
     try {
         const { runTransaction } = await import('@src/lib/transaction.js');
         await runTransaction(session.systemInit, async (system) => {
-            const fs = createFS(system);
             const historyPath = `/home/${session.username}/.history`;
 
             // Ensure home directory exists
             const homePath = `/home/${session.username}`;
-            if (!await fs.exists(homePath)) {
-                await fs.mkdir(homePath);
+            if (!await system.fs.exists(homePath)) {
+                await system.fs.mkdir(homePath);
             }
 
             // Keep last 1000 commands
             const trimmed = session.history.slice(-1000);
-            await fs.write(historyPath, trimmed.join('\n') + '\n');
+            await system.fs.write(historyPath, trimmed.join('\n') + '\n');
         });
     } catch {
         // Ignore save errors
@@ -524,8 +521,7 @@ async function executeCommand(
 
     try {
         await runTransaction(session.systemInit, async (system) => {
-            const fs = createFS(system);
-            await handler(session, fs, parsed.args, (text) => writeToStream(stream, text));
+            await handler(session, system.fs, parsed.args, (text) => writeToStream(stream, text));
         });
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
