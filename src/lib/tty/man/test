@@ -1,0 +1,65 @@
+TEST(1)                     User Commands                     TEST(1)
+
+NAME
+       test - evaluate conditional expressions
+       [ - alias for test (requires closing ])
+
+SYNOPSIS
+       test EXPRESSION
+       [ EXPRESSION ]
+
+DESCRIPTION
+       Evaluate EXPRESSION and exit with status 0 (true) or 1 (false).
+       Exit status 2 indicates an error.
+
+FILE TESTS
+       -e FILE    FILE exists
+       -f FILE    FILE exists and is a regular file
+       -d FILE    FILE exists and is a directory
+       -s FILE    FILE exists and has size > 0
+       -r FILE    FILE exists and is readable
+       -w FILE    FILE exists and is writable
+       -x FILE    FILE exists and is executable
+       -L FILE    FILE exists and is a symbolic link
+
+STRING TESTS
+       -z STRING  STRING has zero length
+       -n STRING  STRING has non-zero length
+       STRING     STRING is not empty (same as -n)
+       S1 = S2    strings are equal
+       S1 != S2   strings are not equal
+
+NUMERIC TESTS
+       N1 -eq N2  N1 equals N2
+       N1 -ne N2  N1 not equal to N2
+       N1 -lt N2  N1 less than N2
+       N1 -le N2  N1 less than or equal to N2
+       N1 -gt N2  N1 greater than N2
+       N1 -ge N2  N1 greater than or equal to N2
+
+LOGICAL OPERATORS
+       ! EXPR     EXPR is false (negation)
+
+EXIT STATUS
+       0    Expression is true
+       1    Expression is false
+       2    Error occurred
+
+EXAMPLES
+       test -f ~/.profile && source ~/.profile
+              Source profile if it exists.
+
+       [ -d /projects ] || mkdir /projects
+              Create directory if it doesn't exist.
+
+       test -z "$VAR" && export VAR=default
+              Set default if variable is empty.
+
+       [ "$USER" = "root" ] && echo "Running as root"
+              Check if user is root.
+
+       test $count -gt 10 && echo "Too many"
+              Numeric comparison.
+
+SEE ALSO
+       source(1), true(1), false(1)

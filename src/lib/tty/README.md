@@ -127,6 +127,10 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 
 ### Scripting
 - `source <file>` / `. <file>` - Execute commands from file
+- `test <expr>` / `[ <expr> ]` - Evaluate conditional expression
+- `read [-rp] <var>...` - Read line from stdin into variables
+- `basename <path> [suffix]` - Strip directory from filename
+- `dirname <path>` - Strip filename from path
 
 ### Session
 - `help` - Show available commands

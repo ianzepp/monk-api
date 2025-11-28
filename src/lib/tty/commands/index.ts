@@ -85,6 +85,10 @@ import { which } from './which.js';
 
 // Scripting
 import { source, dot, setSourceCommandRegistry } from './source.js';
+import { test, bracket } from './test.js';
+import { read } from './read.js';
+import { basename } from './basename.js';
+import { dirname } from './dirname.js';
 
 // Re-export types
 export type { CommandHandler } from './shared.js';
@@ -149,6 +153,10 @@ export { seq } from './seq.js';
 export { yes } from './yes.js';
 export { which } from './which.js';
 export { source, dot } from './source.js';
+export { test, bracket } from './test.js';
+export { read } from './read.js';
+export { basename } from './basename.js';
+export { dirname } from './dirname.js';
 
 /**
  * Command registry
@@ -236,6 +244,11 @@ export const commands: Record<string, CommandHandler> = {
     // Scripting
     source,
     '.': dot,
+    test,
+    '[': bracket,
+    read,
+    basename,
+    dirname,
 };
 
 // Initialize commands that need the registry

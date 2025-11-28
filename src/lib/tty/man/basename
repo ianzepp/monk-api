@@ -1,0 +1,32 @@
+BASENAME(1)                 User Commands                 BASENAME(1)
+
+NAME
+       basename - strip directory and suffix from filenames
+
+SYNOPSIS
+       basename PATH [SUFFIX]
+       basename -s SUFFIX PATH...
+       basename -a PATH...
+
+DESCRIPTION
+       Print the filename portion of PATH, with any leading directory
+       components removed. If SUFFIX is specified, it is also removed
+       from the end of the filename.
+
+OPTIONS
+       -a         Support multiple arguments
+       -s SUFFIX  Remove SUFFIX from each name
+
+EXAMPLES
+       basename /usr/bin/cat
+              Prints: cat
+
+       basename /home/user/file.txt .txt
+              Prints: file
+
+       basename -s .json config.json data.json
+              Prints: config
+                      data
+
+SEE ALSO
+       dirname(1)
