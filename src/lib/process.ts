@@ -92,6 +92,8 @@ export interface ProcessIO {
     stdin: PassThrough;
     stdout: PassThrough;
     stderr: PassThrough;
+    /** Abort signal for cancellation */
+    signal: AbortSignal;
 }
 
 /**
@@ -307,6 +309,7 @@ async function executeProcess(
                 stdin: new PassThrough(),
                 stdout: new PassThrough(),
                 stderr: new PassThrough(),
+                signal: abortController.signal,
             };
 
             // Close stdin immediately (no interactive input)

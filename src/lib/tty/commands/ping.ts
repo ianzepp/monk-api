@@ -98,6 +98,11 @@ export const ping: CommandHandler = async (session, _fs, args, io) => {
     const maxPings = count || Infinity;
 
     while (seq <= maxPings) {
+        // Check for abort signal (background process killed)
+        if (io.signal?.aborted) {
+            break;
+        }
+
         transmitted++;
         const start = performance.now();
 
@@ -163,7 +168,7 @@ export const ping: CommandHandler = async (session, _fs, args, io) => {
         seq++;
 
         // Wait before next ping (unless we're done)
-        if (seq <= maxPings) {
+        if (seq <= maxPings && !io.signal?.aborted) {
             await sleep(interval * 1000);
         }
     }

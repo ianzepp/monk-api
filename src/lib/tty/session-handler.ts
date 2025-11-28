@@ -924,7 +924,7 @@ async function executePipelineForProcess(
     session: Session,
     pipeline: ParsedCommand[],
     fs: FS,
-    processIO: { stdin: PassThrough; stdout: PassThrough; stderr: PassThrough }
+    processIO: { stdin: PassThrough; stdout: PassThrough; stderr: PassThrough; signal: AbortSignal }
 ): Promise<number> {
     if (pipeline.length === 0) return 0;
 
@@ -942,6 +942,7 @@ async function executePipelineForProcess(
         stdin: processIO.stdin,
         stdout: processIO.stdout,
         stderr: processIO.stderr,
+        signal: processIO.signal,
     };
 
     try {

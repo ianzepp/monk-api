@@ -166,6 +166,9 @@ export interface CommandIO {
 
     /** Standard error stream */
     stderr: PassThrough;
+
+    /** Abort signal for cancellation (background processes) */
+    signal?: AbortSignal;
 }
 
 /**
