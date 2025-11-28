@@ -8,6 +8,7 @@
 import { Server, type ServerChannel, type Connection } from 'ssh2';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { generateKeyPairSync } from 'crypto';
+import { PassThrough } from 'node:stream';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
 import { createSession, generateSessionId } from '@src/lib/tty/types.js';
 import { handleInput, printPrompt, writeToStream, saveHistory, handleInterrupt } from '@src/lib/tty/session-handler.js';
@@ -15,14 +16,35 @@ import { login } from '@src/lib/auth.js';
 import { terminateDaemon } from '@src/lib/process.js';
 
 /**
+ * Resize callback type
+ */
+type ResizeCallback = (cols: number, rows: number) => void;
+
+/**
  * TTYStream implementation for SSH channels
+ *
+ * Implements Node.js TTY-compatible interface for TUI library support.
  */
 class SSHStream implements TTYStream {
     private _isOpen = true;
+    private _resizeCallbacks: ResizeCallback[] = [];
+
+    /** Node TTY compatibility */
+    readonly isTTY = true as const;
+
+    /** Terminal dimensions (updated via PTY resize) */
+    columns = 80;
+    rows = 24;
+
+    /** Input stream for TUI libraries */
+    readonly input: PassThrough;
 
     constructor(private channel: ServerChannel) {
+        this.input = new PassThrough();
+
         channel.on('close', () => {
             this._isOpen = false;
+            this.input.end();
         });
     }
 
@@ -33,11 +55,48 @@ class SSHStream implements TTYStream {
 
     end(): void {
         this._isOpen = false;
+        this.input.end();
         this.channel.end();
     }
 
     get isOpen(): boolean {
         return this._isOpen;
+    }
+
+    /**
+     * Update terminal size (called on PTY resize)
+     */
+    setSize(cols: number, rows: number): void {
+        if (cols > 0) this.columns = cols;
+        if (rows > 0) this.rows = rows;
+
+        // Notify listeners
+        for (const callback of this._resizeCallbacks) {
+            try {
+                callback(this.columns, this.rows);
+            } catch {
+                // Ignore callback errors
+            }
+        }
+    }
+
+    onResize(callback: ResizeCallback): void {
+        this._resizeCallbacks.push(callback);
+    }
+
+    offResize(callback: ResizeCallback): void {
+        const index = this._resizeCallbacks.indexOf(callback);
+        if (index !== -1) {
+            this._resizeCallbacks.splice(index, 1);
+        }
+    }
+
+    /**
+     * Push data into the input stream (for TUI libraries to consume)
+     */
+    pushInput(data: Buffer): void {
+        if (!this._isOpen) return;
+        this.input.write(data);
     }
 }
 
@@ -167,8 +226,22 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
             client.on('session', (accept) => {
                 const sshSession = accept();
 
-                sshSession.on('pty', (accept) => {
+                // Track stream for resize events
+                let activeStream: SSHStream | null = null;
+
+                sshSession.on('pty', (accept, _reject, info) => {
                     accept?.();
+                    // Set initial size if stream exists
+                    if (activeStream && info.cols && info.rows) {
+                        activeStream.setSize(info.cols, info.rows);
+                    }
+                });
+
+                sshSession.on('window-change', (_accept, _reject, info) => {
+                    // Handle terminal resize
+                    if (activeStream && info.cols && info.rows) {
+                        activeStream.setSize(info.cols, info.rows);
+                    }
                 });
 
                 sshSession.on('shell', (accept) => {
@@ -176,6 +249,7 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
                     if (!session) return;
 
                     const stream = new SSHStream(channel);
+                    activeStream = stream;
 
                     // Already authenticated via SSH - show welcome and prompt
                     writeToStream(stream, '\n');
@@ -185,6 +259,9 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
                     printPrompt(stream, session);
 
                     channel.on('data', async (data: Buffer) => {
+                        // Push to input stream for TUI libraries
+                        stream.pushInput(data);
+
                         const text = data.toString();
 
                         // Handle Ctrl+C
@@ -214,6 +291,7 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
 
                     channel.on('close', () => {
                         console.info(`SSH: Session ${session?.id} channel closed`);
+                        activeStream = null;
                         // Run cleanup handlers
                         for (const cleanup of session!.cleanupHandlers) {
                             try {

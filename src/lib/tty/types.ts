@@ -6,9 +6,12 @@
  */
 
 import type { SystemInit } from '@src/lib/system.js';
+import type { PassThrough } from 'node:stream';
 
 /**
  * Stream interface for reading/writing to a TTY connection.
+ * Designed to be compatible with Node.js TTY interfaces for TUI library support.
+ *
  * Implemented by Telnet and SSH transports.
  */
 export interface TTYStream {
@@ -20,6 +23,34 @@ export interface TTYStream {
 
     /** Check if stream is still open */
     readonly isOpen: boolean;
+
+    // Node.js TTY WriteStream compatibility
+
+    /** Always true - identifies this as a TTY stream */
+    readonly isTTY: true;
+
+    /** Terminal width in columns (default: 80) */
+    columns: number;
+
+    /** Terminal height in rows (default: 24) */
+    rows: number;
+
+    // Input stream for TUI libraries
+
+    /**
+     * Readable stream for input data.
+     * TUI libraries (blessed, ink) listen to 'data' and 'keypress' events on this.
+     * Transport implementations push received data into this stream.
+     */
+    readonly input: PassThrough;
+
+    // Event handling for resize
+
+    /** Register a resize callback */
+    onResize(callback: (cols: number, rows: number) => void): void;
+
+    /** Remove a resize callback */
+    offResize(callback: (cols: number, rows: number) => void): void;
 }
 
 /**
@@ -167,8 +198,6 @@ export type WriteFunction = (text: string) => void;
  * - Input/output redirection (< file, > file)
  * - Proper backpressure handling
  */
-import type { PassThrough } from 'node:stream';
-
 export interface CommandIO {
     /** Standard input stream */
     stdin: PassThrough;
