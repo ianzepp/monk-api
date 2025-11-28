@@ -55,7 +55,8 @@ export const jq: CommandHandler = async (_session, _fs, args, io) => {
                 io.stderr.write(`jq: parse error: ${err instanceof Error ? err.message : String(err)}\n`);
                 return 1;
             }
-            // Skip unparseable lines in multi-line mode
+            // Warn about unparseable lines in multi-line mode
+            io.stderr.write(`jq: skipping invalid JSON line\n`);
         }
     }
 

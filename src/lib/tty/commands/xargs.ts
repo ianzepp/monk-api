@@ -62,6 +62,11 @@ export const xargs: CommandHandler = async (session, fs, args, io) => {
     let lastExitCode = 0;
 
     for (const line of lines) {
+        // Check for abort signal
+        if (io.signal?.aborted) {
+            return 130;
+        }
+
         const fullArgs = [...commandArgs, line];
 
         // Create IO for the child command
@@ -69,6 +74,7 @@ export const xargs: CommandHandler = async (session, fs, args, io) => {
             stdin: new PassThrough(),
             stdout: io.stdout,  // Share stdout with parent
             stderr: io.stderr,  // Share stderr with parent
+            signal: io.signal,  // Pass through abort signal
         };
         childIO.stdin.end();  // No stdin for child commands
 

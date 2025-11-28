@@ -21,27 +21,18 @@ function formatState(state: ProcessState): string {
 
 export const ps: CommandHandler = async (session, _fs, args, io) => {
     // Parse options
-    let showAll = false;
-
-    for (const arg of args) {
-        if (arg === '-a' || arg === '--all') {
-            showAll = true;
-        }
-    }
+    const showAll = args.includes('-a') || args.includes('--all');
 
     try {
-        // Default to showing running/sleeping processes
-        const filter = showAll ? undefined : { state: 'R' as ProcessState };
-        const processes = await listProcesses(session.tenant, filter);
+        // Fetch all processes, filter client-side
+        const allProcesses = await listProcesses(session.tenant);
 
-        // Also get sleeping processes if not showing all
-        let allProcesses = processes;
-        if (!showAll) {
-            const sleeping = await listProcesses(session.tenant, { state: 'S' });
-            allProcesses = [...processes, ...sleeping];
-        }
+        // Filter to running/sleeping unless -a flag
+        const filtered = showAll
+            ? allProcesses
+            : allProcesses.filter(p => p.state === 'R' || p.state === 'S');
 
-        if (allProcesses.length === 0) {
+        if (filtered.length === 0) {
             // No output for empty list (like Unix ps)
             return 0;
         }
@@ -49,7 +40,7 @@ export const ps: CommandHandler = async (session, _fs, args, io) => {
         // Header
         io.stdout.write('  PID  PPID  STATE     TYPE      UID       COMMAND\n');
 
-        for (const proc of allProcesses) {
+        for (const proc of filtered) {
             const pid = String(proc.pid).padStart(5);
             const ppid = proc.ppid ? String(proc.ppid).padStart(5) : '    -';
             const state = formatState(proc.state).padEnd(9);

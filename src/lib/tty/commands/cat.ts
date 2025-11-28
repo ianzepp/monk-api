@@ -15,13 +15,18 @@ export const cat: CommandHandler = async (session, fs, args, io) => {
         return 0;
     }
 
+    if (!fs) {
+        io.stderr.write('cat: filesystem not available\n');
+        return 1;
+    }
+
     let exitCode = 0;
     for (const arg of args) {
         if (arg.startsWith('-')) continue;
         const resolved = resolvePath(session.cwd, arg);
 
         try {
-            const content = await fs!.read(resolved);
+            const content = await fs.read(resolved);
             io.stdout.write(content.toString());
             if (!content.toString().endsWith('\n')) {
                 io.stdout.write('\n');

@@ -39,8 +39,8 @@ export const find: CommandHandler = async (session, fs, args, io) => {
     const resolved = resolvePath(session.cwd, target);
 
     try {
-        await walkDirectory(fs!, resolved, io, options);
-        return 0;
+        const aborted = await walkDirectory(fs!, resolved, io, options);
+        return aborted ? 130 : 0;
     } catch (err) {
         if (err instanceof FSError) {
             io.stderr.write(`find: ${target}: ${err.message}\n`);
@@ -52,13 +52,19 @@ export const find: CommandHandler = async (session, fs, args, io) => {
 
 /**
  * Recursively walk a directory and print all paths
+ * Returns true if aborted, false otherwise
  */
 async function walkDirectory(
     fs: FS,
     path: string,
     io: CommandIO,
     options: FindOptions
-): Promise<void> {
+): Promise<boolean> {
+    // Check for abort signal
+    if (io.signal?.aborted) {
+        return true;
+    }
+
     try {
         const stat = await fs.stat(path);
         const isDir = stat.type === 'directory';
@@ -74,7 +80,7 @@ async function walkDirectory(
         }
 
         if (!isDir) {
-            return;
+            return false;
         }
 
         const entries = await fs.readdir(path);
@@ -84,9 +90,13 @@ async function walkDirectory(
 
         for (const entry of entries) {
             const childPath = path === '/' ? `/${entry.name}` : `${path}/${entry.name}`;
-            await walkDirectory(fs, childPath, io, options);
+            const aborted = await walkDirectory(fs, childPath, io, options);
+            if (aborted) {
+                return true;
+            }
         }
     } catch {
         // If we can't read a directory, just skip it
     }
+    return false;
 }

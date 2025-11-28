@@ -37,10 +37,10 @@ export const select: CommandHandler = async (session, fs, args, io) => {
     const fields = fieldsPart.split(',').map(f => f.trim()).filter(Boolean);
 
     if (fields.length === 0) {
-        io.stdout.write('Usage: select <fields> [from <path>]\n');
-        io.stdout.write('  select id, name\n');
-        io.stdout.write('  select id, name from /api/data/users\n');
-        return 0;
+        io.stderr.write('Usage: select <fields> [from <path>]\n');
+        io.stderr.write('  select id, name\n');
+        io.stderr.write('  select id, name from /api/data/users\n');
+        return 1;
     }
 
     const resolved = resolvePath(session.cwd, pathPart);

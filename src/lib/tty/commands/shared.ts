@@ -45,6 +45,31 @@ export function formatMode(type: string, mode: number): string {
 }
 
 /**
+ * Parse duration string into milliseconds
+ * Supports: 5 (seconds), 5s, 500ms, 1m, 1h
+ */
+export function parseDuration(str: string): number | null {
+    const match = str.match(/^(\d+(?:\.\d+)?)(ms|s|m|h)?$/);
+    if (!match) return null;
+
+    const value = parseFloat(match[1]);
+    const unit = match[2] || 's';
+
+    switch (unit) {
+        case 'ms':
+            return value;
+        case 's':
+            return value * 1000;
+        case 'm':
+            return value * 60 * 1000;
+        case 'h':
+            return value * 60 * 60 * 1000;
+        default:
+            return null;
+    }
+}
+
+/**
  * Format entry for ls output
  */
 export function formatEntry(entry: FSEntry, long: boolean): string {
