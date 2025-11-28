@@ -47,9 +47,16 @@ async function completeLogin(
     session.username = user.username;
     session.tenant = user.tenant;
 
+    // Set environment variables
+    const home = `/home/${user.username}`;
     session.env['USER'] = user.username;
     session.env['TENANT'] = user.tenant;
     session.env['ACCESS'] = user.access;
+    session.env['HOME'] = home;
+
+    // Ensure home directory exists and start there
+    await ensureHomeDirectory(session, home);
+    session.cwd = home;
 
     await loadHistory(session);
     await loadProfile(stream, session);
@@ -57,6 +64,29 @@ async function completeLogin(
     writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
     writeToStream(stream, `Access level: ${user.access}\n\n`);
     printPrompt(stream, session);
+}
+
+/**
+ * Ensure home directory exists, create if needed
+ */
+async function ensureHomeDirectory(session: Session, home: string): Promise<void> {
+    if (!session.systemInit) return;
+
+    try {
+        await runTransaction(session.systemInit, async (system) => {
+            // Check if /home exists, create if not
+            if (!await system.fs.exists('/home')) {
+                await system.fs.mkdir('/home');
+            }
+
+            // Check if user's home exists, create if not
+            if (!await system.fs.exists(home)) {
+                await system.fs.mkdir(home);
+            }
+        });
+    } catch {
+        // Ignore errors - we'll just start in a non-existent dir
+    }
 }
 
 /**

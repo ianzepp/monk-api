@@ -11,6 +11,7 @@ import type { ParsedCommand } from './types.js';
  * Expand shell variables in a string
  *
  * Supports:
+ * - ~ or ~/ - home directory
  * - $VAR - simple variable
  * - ${VAR} - braced variable
  * - ${VAR:-default} - variable with default value
@@ -19,8 +20,14 @@ export function expandVariables(
     input: string,
     env: Record<string, string>
 ): string {
+    // ~ at start of string -> $HOME
+    let result = input;
+    if (result === '~' || result.startsWith('~/')) {
+        result = (env['HOME'] || '/') + result.slice(1);
+    }
+
     // ${VAR:-default} - variable with default
-    let result = input.replace(/\$\{(\w+):-([^}]*)\}/g, (_, name, def) => {
+    result = result.replace(/\$\{(\w+):-([^}]*)\}/g, (_, name, def) => {
         return env[name] ?? def;
     });
 
