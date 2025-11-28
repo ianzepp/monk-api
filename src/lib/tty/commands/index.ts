@@ -53,6 +53,7 @@ import { uniq } from './uniq.js';
 import { wc } from './wc.js';
 import { cut } from './cut.js';
 import { tr } from './tr.js';
+import { sed } from './sed.js';
 
 // Info commands
 import { echo } from './echo.js';
@@ -134,6 +135,7 @@ export { uniq } from './uniq.js';
 export { wc } from './wc.js';
 export { cut } from './cut.js';
 export { tr } from './tr.js';
+export { sed } from './sed.js';
 export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
@@ -229,6 +231,7 @@ export const commands: Record<string, CommandHandler> = {
     wc,
     cut,
     tr,
+    sed,
 
     // Info commands
     echo,
