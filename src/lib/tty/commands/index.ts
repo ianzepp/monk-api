@@ -14,10 +14,12 @@ import { cd } from './cd.js';
 import { ls } from './ls.js';
 import { find } from './find.js';
 import { grep } from './grep.js';
+import { xargs } from './xargs.js';
 import { mount } from './mount.js';
 
 // File operations
 import { cat } from './cat.js';
+import { jq } from './jq.js';
 import { touch } from './touch.js';
 import { rm } from './rm.js';
 import { mv } from './mv.js';
@@ -52,8 +54,10 @@ export { cd } from './cd.js';
 export { ls } from './ls.js';
 export { find } from './find.js';
 export { grep } from './grep.js';
+export { xargs } from './xargs.js';
 export { mount } from './mount.js';
 export { cat } from './cat.js';
+export { jq } from './jq.js';
 export { touch } from './touch.js';
 export { rm } from './rm.js';
 export { mv } from './mv.js';
@@ -82,10 +86,12 @@ export const commands: Record<string, CommandHandler> = {
     ls,
     find,
     grep,
+    xargs,
     mount,
 
     // File operations
     cat,
+    jq,
     touch,
     rm,
     mv,

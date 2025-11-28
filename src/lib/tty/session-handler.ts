@@ -9,7 +9,7 @@
 
 import type { Session, TTYStream, TTYConfig, ParsedCommand, CommandIO } from './types.js';
 import { DEFAULT_MOTD } from './types.js';
-import { parseCommand, expandVariables } from './parser.js';
+import { parseCommand, expandVariables, resolvePath } from './parser.js';
 import { commands } from './commands.js';
 import { login, register } from '@src/lib/auth.js';
 import { runTransaction } from '@src/lib/transaction.js';
@@ -52,10 +52,54 @@ async function completeLogin(
     session.env['ACCESS'] = user.access;
 
     await loadHistory(session);
+    await loadProfile(stream, session);
 
     writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
     writeToStream(stream, `Access level: ${user.access}\n\n`);
     printPrompt(stream, session);
+}
+
+/**
+ * Load and execute ~/.profile on login
+ */
+async function loadProfile(stream: TTYStream, session: Session): Promise<void> {
+    if (!session.systemInit) return;
+
+    try {
+        await runTransaction(session.systemInit, async (system) => {
+            const profilePath = `/home/${session.username}/.profile`;
+
+            try {
+                const content = await system.fs.read(profilePath);
+
+                for (const line of content.toString().split('\n')) {
+                    const trimmed = line.trim();
+                    // Skip empty lines and comments
+                    if (!trimmed || trimmed.startsWith('#')) continue;
+
+                    // Execute the command silently (don't show output)
+                    const parsed = parseCommand(trimmed);
+                    if (!parsed) continue;
+
+                    // Expand variables
+                    parsed.args = parsed.args.map(arg => expandVariables(arg, session.env));
+
+                    const handler = commands[parsed.command];
+                    if (handler) {
+                        const io = createIO();
+                        io.stdin.end();
+                        // Discard stdout, show stderr
+                        io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+                        await handler(session, system.fs, parsed.args, io);
+                    }
+                }
+            } catch {
+                // No .profile file, that's fine
+            }
+        });
+    } catch {
+        // Ignore profile load errors
+    }
 }
 
 /**
@@ -523,6 +567,51 @@ function pipelineNeedsTransaction(pipeline: ParsedCommand[]): boolean {
 }
 
 /**
+ * Handle input redirect - read file into stdin
+ */
+async function handleInputRedirect(
+    fs: FS,
+    path: string,
+    cwd: string,
+    io: CommandIO
+): Promise<boolean> {
+    try {
+        const resolved = resolvePath(cwd, path);
+        const content = await fs.read(resolved);
+        io.stdin.end(content.toString());
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Handle output redirect - collect stdout and write to file
+ */
+async function handleOutputRedirect(
+    fs: FS,
+    path: string,
+    cwd: string,
+    io: CommandIO,
+    append: boolean
+): Promise<void> {
+    const resolved = resolvePath(cwd, path);
+    const output = await collectStream(io.stdout);
+
+    if (append) {
+        try {
+            const existing = await fs.read(resolved);
+            await fs.write(resolved, existing.toString() + output);
+        } catch {
+            // File doesn't exist, just write
+            await fs.write(resolved, output);
+        }
+    } else {
+        await fs.write(resolved, output);
+    }
+}
+
+/**
  * Execute a pipeline of commands with proper stream handling
  */
 async function executePipeline(
@@ -532,6 +621,11 @@ async function executePipeline(
     fs: FS | null
 ): Promise<number> {
     if (pipeline.length === 0) return 0;
+
+    // Get the last command for redirect handling
+    const lastCmd = pipeline[pipeline.length - 1];
+    const hasOutputRedirect = lastCmd.outputRedirect || lastCmd.appendRedirect;
+    const hasInputRedirect = pipeline[0].inputRedirect;
 
     // Single command - simple case
     if (pipeline.length === 1) {
@@ -544,19 +638,50 @@ async function executePipeline(
 
         const io = createIO();
 
-        // Pipe stdout/stderr to the TTY stream
-        io.stdout.on('data', (chunk) => writeToStream(stream, chunk.toString()));
-        io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+        // Handle input redirect
+        if (hasInputRedirect && fs) {
+            const success = await handleInputRedirect(fs, cmd.inputRedirect!, session.cwd, io);
+            if (!success) {
+                writeToStream(stream, `${cmd.command}: ${cmd.inputRedirect}: No such file\n`);
+                return 1;
+            }
+        } else {
+            io.stdin.end();
+        }
 
-        // Close stdin immediately (no input for first command without redirect)
-        io.stdin.end();
+        // Handle output redirect or pipe to TTY
+        if (hasOutputRedirect && fs) {
+            io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
 
-        try {
-            return await handler(session, fs, cmd.args, io);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            writeToStream(stream, `Error: ${message}\n`);
-            return 1;
+            try {
+                const handlerPromise = handler(session, fs, cmd.args, io).then((code) => {
+                    io.stdout.end();
+                    return code;
+                });
+
+                const redirectPath = cmd.outputRedirect || cmd.appendRedirect!;
+                const [exitCode] = await Promise.all([
+                    handlerPromise,
+                    handleOutputRedirect(fs, redirectPath, session.cwd, io, !!cmd.appendRedirect),
+                ]);
+                return exitCode;
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                writeToStream(stream, `Error: ${message}\n`);
+                return 1;
+            }
+        } else {
+            // No redirect - pipe to TTY
+            io.stdout.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+            io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+
+            try {
+                return await handler(session, fs, cmd.args, io);
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                writeToStream(stream, `Error: ${message}\n`);
+                return 1;
+            }
         }
     }
 
@@ -574,34 +699,69 @@ async function executePipeline(
         }
 
         const io = createIO();
+        const isFirst = i === 0;
         const isLast = i === pipeline.length - 1;
 
-        // Feed previous command's output as stdin
-        if (previousOutput) {
+        // Handle stdin: input redirect for first command, or previous output
+        if (isFirst && hasInputRedirect && fs) {
+            const success = await handleInputRedirect(fs, cmd.inputRedirect!, session.cwd, io);
+            if (!success) {
+                writeToStream(stream, `${cmd.command}: ${cmd.inputRedirect}: No such file\n`);
+                return 1;
+            }
+        } else if (previousOutput) {
             io.stdin.end(previousOutput);
         } else {
             io.stdin.end();
         }
 
-        // For last command, pipe to TTY; otherwise collect output
+        // For last command, handle output redirect or pipe to TTY
         if (isLast) {
-            io.stdout.on('data', (chunk) => writeToStream(stream, chunk.toString()));
-            io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+            if (hasOutputRedirect && fs) {
+                io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
 
-            try {
-                lastExitCode = await handler(session, fs, cmd.args, io);
-            } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                writeToStream(stream, `Error: ${message}\n`);
-                lastExitCode = 1;
+                try {
+                    const handlerPromise = handler(session, fs, cmd.args, io).then((code) => {
+                        io.stdout.end();
+                        return code;
+                    });
+
+                    const redirectPath = cmd.outputRedirect || cmd.appendRedirect!;
+                    const [exitCode] = await Promise.all([
+                        handlerPromise,
+                        handleOutputRedirect(fs, redirectPath, session.cwd, io, !!cmd.appendRedirect),
+                    ]);
+                    lastExitCode = exitCode;
+                } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    writeToStream(stream, `Error: ${message}\n`);
+                    lastExitCode = 1;
+                }
+            } else {
+                io.stdout.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+                io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
+
+                try {
+                    lastExitCode = await handler(session, fs, cmd.args, io);
+                } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    writeToStream(stream, `Error: ${message}\n`);
+                    lastExitCode = 1;
+                }
             }
         } else {
             // Collect stderr to TTY, stdout to buffer
             io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
 
             try {
+                // Run handler, then end stdout so collectStream can finish
+                const handlerPromise = handler(session, fs, cmd.args, io).then((code) => {
+                    io.stdout.end();
+                    return code;
+                });
+
                 const [exitCode, output] = await Promise.all([
-                    handler(session, fs, cmd.args, io),
+                    handlerPromise,
                     collectStream(io.stdout),
                 ]);
                 lastExitCode = exitCode;

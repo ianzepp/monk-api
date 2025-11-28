@@ -2,14 +2,15 @@ NAME
     find - recursively list directory contents
 
 SYNOPSIS
-    find [path]
+    find [path] [-type f|d]
 
 DESCRIPTION
     Recursively walks directories and prints all file and directory
     paths, one per line. Defaults to current directory if no path given.
 
 OPTIONS
-    None
+    -type f     List only files
+    -type d     List only directories
 
 EXAMPLES
     find .
@@ -18,8 +19,14 @@ EXAMPLES
     find /api/data
         List all models and records
 
+    find /api/data/users -type f
+        List only files (for use with xargs)
+
     find . | grep users
         Find paths containing "users"
 
+    find /api/data/users -type f | xargs cat | jq .name
+        Extract name from each user record
+
 SEE ALSO
-    ls, grep
+    ls, grep, xargs

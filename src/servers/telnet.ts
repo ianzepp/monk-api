@@ -8,7 +8,7 @@
 import type { Socket } from 'bun';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
 import { createSession, generateSessionId } from '@src/lib/tty/types.js';
-import { handleInput, sendWelcome } from '@src/lib/tty/session-handler.js';
+import { handleInput, sendWelcome, saveHistory } from '@src/lib/tty/session-handler.js';
 
 /**
  * Socket data associated with each connection
@@ -145,9 +145,12 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
                 }
             },
 
-            close(socket) {
+            async close(socket) {
                 const { session } = socket.data;
                 console.info(`Telnet: Session ${session.id} closed`);
+
+                // Save command history
+                await saveHistory(session);
 
                 // Run cleanup handlers
                 for (const cleanup of session.cleanupHandlers) {

@@ -1,0 +1,41 @@
+NAME
+    jq - JSON query and transform
+
+SYNOPSIS
+    <input> | jq <expression>
+    jq <expression> < file
+
+DESCRIPTION
+    Parses JSON input and extracts values using path expressions.
+    Handles both single JSON objects and newline-delimited JSON.
+
+EXPRESSIONS
+    .               Identity (return whole object)
+    .foo            Access property "foo"
+    .foo.bar        Nested property access
+    .foo[0]         Array index
+    .[]             Iterate array elements
+
+EXAMPLES
+    cat /api/data/users/123 | jq .
+        Pretty-print entire record
+
+    cat /api/data/users/123 | jq .name
+        Extract name field
+
+    cat /api/data/users/123 | jq .address.city
+        Extract nested field
+
+    cat /api/data/users/123 | jq .tags[0]
+        Extract first tag
+
+    find /api/data/users | xargs cat | jq .email
+        Extract email from each user
+
+OUTPUT
+    Strings are printed without quotes.
+    Objects and arrays are pretty-printed as JSON.
+    Missing values print as "null".
+
+SEE ALSO
+    cat, xargs, grep

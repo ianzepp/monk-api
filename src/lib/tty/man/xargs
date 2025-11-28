@@ -1,0 +1,29 @@
+NAME
+    xargs - execute command for each stdin line
+
+SYNOPSIS
+    <input> | xargs <command> [args...]
+
+DESCRIPTION
+    Reads lines from stdin and executes the specified command
+    once for each line, appending the line as the last argument.
+
+OPTIONS
+    None
+
+EXAMPLES
+    find /api/data/users | xargs cat
+        Display contents of each user record
+
+    find . | grep users | xargs ls -l
+        Long listing of each path containing "users"
+
+    echo "/api/data/users" | xargs ls
+        List the users directory
+
+EXIT STATUS
+    Returns the exit code of the last command executed,
+    or 1 if any command failed.
+
+SEE ALSO
+    find, grep, cat
