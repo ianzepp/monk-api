@@ -155,17 +155,15 @@ app.use('/auth/*', middleware.responseTransformerMiddleware); // Response pipeli
 
 app.use('/docs/*' /* no auth middleware */); // Docs: plain text responses
 
-// Protected API routes - require JWT authentication from /auth
+// Protected API routes - require authentication
 app.use('/api/*', middleware.bodyParserMiddleware);
-app.use('/api/*', middleware.jwtValidatorMiddleware);
-app.use('/api/*', middleware.userValidatorMiddleware);
+app.use('/api/*', middleware.authValidatorMiddleware);
 app.use('/api/*', middleware.formatDetectorMiddleware);
-app.use('/api/*', middleware.responseTransformerMiddleware); // Response pipeline: extract → format → encrypt
+app.use('/api/*', middleware.responseTransformerMiddleware);
 app.use('/api/*', middleware.contextInitializerMiddleware);
 
-// VFS routes - minimal middleware (JWT + context only, no body parsing/format detection)
-app.use('/vfs/*', middleware.jwtValidatorMiddleware);
-app.use('/vfs/*', middleware.userValidatorMiddleware);
+// VFS routes - minimal middleware (auth + context only, no body parsing/format detection)
+app.use('/vfs/*', middleware.authValidatorMiddleware);
 app.use('/vfs/*', middleware.contextInitializerMiddleware);
 
 // 50-vfs-api: Virtual Filesystem routes
@@ -205,7 +203,7 @@ app.all('/app/:appName/*', async (c) => {
         const jwtPayload = c.get('jwtPayload');
         if (!jwtPayload) {
             try {
-                await middleware.jwtValidatorMiddleware(c, async () => {});
+                await middleware.authValidatorMiddleware(c, async () => {});
             } catch (error) {
                 return c.json({
                     success: false,
@@ -235,7 +233,7 @@ app.all('/app/:appName/*', async (c) => {
         const jwtPayload = c.get('jwtPayload');
         if (!jwtPayload) {
             try {
-                await middleware.jwtValidatorMiddleware(c, async () => {});
+                await middleware.authValidatorMiddleware(c, async () => {});
                 // Re-load to install tenant models now that we have auth
                 appInstance = await loadHybridApp(appName, app, c);
             } catch (error) {

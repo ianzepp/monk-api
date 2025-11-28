@@ -12,5 +12,8 @@ export { formatDetectorMiddleware } from './format-detector.js';
 export { bodyParserMiddleware } from './body-parser.js';
 export { responseTransformerMiddleware } from './response-transformer.js';
 export { requestTrackerMiddleware } from './request-tracker.js';
+export { authValidatorMiddleware } from './auth-validator.js';
+
+// Deprecated: use authValidatorMiddleware instead
 export { jwtValidatorMiddleware } from './jwt-validator.js';
 export { userValidatorMiddleware } from './user-validator.js';

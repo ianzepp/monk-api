@@ -177,7 +177,7 @@ function applyEncryption(data: Uint8Array, context: Context): { data: Uint8Array
 
         const jwt = parts[1];
 
-        // Get JWT payload from context (set by jwtValidatorMiddleware)
+        // Get JWT payload from context (set by authValidatorMiddleware)
         const jwtPayload = context.get('jwtPayload') as JWTPayload | undefined;
         if (!jwtPayload) {
             throw new Error('Encryption requires valid JWT payload - token not decoded');
