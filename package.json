@@ -45,7 +45,6 @@
         "@monk/formatter-toon": "workspace:*",
         "@monk/bindings": "workspace:*",
         "@monk-app/grids": "workspace:*",
-        "@monk-app/mcp": "workspace:*",
         "@monk-app/openapi": "workspace:*",
         "@monk-app/todos": "workspace:*"
     },

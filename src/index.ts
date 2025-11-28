@@ -72,6 +72,7 @@ import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { startHttpServer, createHttpApp, type HttpServerHandle } from '@src/servers/http.js';
 import { startTelnetServer, type TelnetServerHandle } from '@src/servers/telnet.js';
 import { startSSHServer, type SSHServerHandle } from '@src/servers/ssh.js';
+import { startMcpServer, type McpServerHandle } from '@src/servers/mcp.js';
 
 // Check database connection before doing anything else
 console.info('Checking database connection:');
@@ -116,6 +117,7 @@ if (process.argv.includes('--no-startup')) {
 let httpServer: HttpServerHandle | null = null;
 let telnetServer: TelnetServerHandle | null = null;
 let sshServer: SSHServerHandle | null = null;
+let mcpServer: McpServerHandle | null = null;
 
 // Start HTTP server
 console.info('Starting Monk API servers');
@@ -158,6 +160,13 @@ const ttyConfig = {
 telnetServer = startTelnetServer(ttyConfig);
 sshServer = startSSHServer(ttyConfig);
 
+// Start MCP server (shares the HTTP app for API calls)
+const mcpConfig = {
+    port: Number(process.env.MCP_PORT || 3001),
+    host: process.env.MCP_HOST || '0.0.0.0',
+};
+mcpServer = startMcpServer(httpServer.app, mcpConfig);
+
 // Graceful shutdown
 const gracefulShutdown = async () => {
     console.info('Shutting down servers gracefully');
@@ -166,6 +175,7 @@ const gracefulShutdown = async () => {
     httpServer?.stop();
     telnetServer?.stop();
     sshServer?.stop();
+    mcpServer?.stop();
 
     // Close database connections
     await DatabaseConnection.closeConnections();
