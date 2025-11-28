@@ -50,6 +50,9 @@ export interface Session {
     /** Unique session identifier */
     id: string;
 
+    /** Process ID for this shell session */
+    pid: number | null;
+
     /** Current authentication state */
     state: SessionState;
 
@@ -111,6 +114,9 @@ export interface ParsedCommand {
 
     /** Piped command (cmd1 | cmd2) */
     pipe?: ParsedCommand;
+
+    /** Run in background (&) */
+    background?: boolean;
 }
 
 /**
@@ -168,6 +174,7 @@ export interface CommandIO {
 export function createSession(id: string): Session {
     return {
         id,
+        pid: null,
         state: 'AWAITING_USERNAME',
         username: '',
         tenant: '',

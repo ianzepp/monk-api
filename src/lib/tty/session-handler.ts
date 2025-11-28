@@ -13,6 +13,7 @@ import { parseCommand, expandVariables, resolvePath } from './parser.js';
 import { commands } from './commands.js';
 import { login, register } from '@src/lib/auth.js';
 import { runTransaction } from '@src/lib/transaction.js';
+import { registerDaemon, terminateDaemon, spawnProcess } from '@src/lib/process.js';
 import { PassThrough } from 'node:stream';
 import type { FS } from '@src/lib/fs/index.js';
 
@@ -53,6 +54,19 @@ async function completeLogin(
     session.env['TENANT'] = user.tenant;
     session.env['ACCESS'] = user.access;
     session.env['HOME'] = home;
+
+    // Register shell process
+    try {
+        session.pid = await registerDaemon(systemInit, {
+            comm: 'monksh',
+            cmdline: ['-login'],
+            cwd: home,
+            environ: session.env,
+        });
+    } catch {
+        // Non-fatal - continue without process tracking
+        session.pid = null;
+    }
 
     // Ensure home directory exists and start there
     await ensureHomeDirectory(session, home);
@@ -830,6 +844,12 @@ async function executeCommand(
     session.historyIndex = -1;
     session.historyBuffer = '';
 
+    // Handle background execution
+    if (parsed.background) {
+        await executeBackground(stream, session, parsed, pipeline);
+        return;
+    }
+
     // Check if pipeline needs a transaction
     if (!pipelineNeedsTransaction(pipeline)) {
         // Run without FS
@@ -850,5 +870,85 @@ async function executeCommand(
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         writeToStream(stream, `Error: ${message}\n`);
+    }
+}
+
+/**
+ * Execute a command in the background as a child process
+ */
+async function executeBackground(
+    stream: TTYStream,
+    session: Session,
+    parsed: ParsedCommand,
+    pipeline: ParsedCommand[]
+): Promise<void> {
+    if (!session.systemInit) {
+        writeToStream(stream, 'Error: Not authenticated\n');
+        return;
+    }
+
+    // Build the full command line for the process record
+    const cmdline = [parsed.command, ...parsed.args];
+
+    try {
+        const pid = await spawnProcess(
+            session.systemInit,
+            {
+                type: 'command',
+                comm: parsed.command,
+                cmdline,
+                cwd: session.cwd,
+                environ: session.env,
+                ppid: session.pid || undefined,
+            },
+            async (system, _cmdline, io) => {
+                // Create a mock session for the command handler
+                const bgSession = { ...session };
+
+                // Execute the pipeline within the process
+                return await executePipelineForProcess(bgSession, pipeline, system.fs, io);
+            }
+        );
+
+        writeToStream(stream, `[1] ${pid}\n`);
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        writeToStream(stream, `Error spawning background process: ${message}\n`);
+    }
+}
+
+/**
+ * Execute a pipeline for a background process (writes to process IO, not TTY)
+ */
+async function executePipelineForProcess(
+    session: Session,
+    pipeline: ParsedCommand[],
+    fs: FS,
+    processIO: { stdin: PassThrough; stdout: PassThrough; stderr: PassThrough }
+): Promise<number> {
+    if (pipeline.length === 0) return 0;
+
+    // For simplicity, execute single command for now
+    // Full pipeline support in background can be added later
+    const cmd = pipeline[0];
+    const handler = commands[cmd.command];
+
+    if (!handler) {
+        processIO.stderr.write(`${cmd.command}: command not found\n`);
+        return 127;
+    }
+
+    const io: CommandIO = {
+        stdin: processIO.stdin,
+        stdout: processIO.stdout,
+        stderr: processIO.stderr,
+    };
+
+    try {
+        return await handler(session, fs, cmd.args, io);
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        processIO.stderr.write(`Error: ${message}\n`);
+        return 1;
     }
 }

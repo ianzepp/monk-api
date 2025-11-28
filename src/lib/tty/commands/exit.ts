@@ -3,6 +3,7 @@
  */
 
 import { saveHistory } from '../session-handler.js';
+import { terminateDaemon } from '@src/lib/process.js';
 import type { CommandHandler } from './shared.js';
 
 export const exit: CommandHandler = async (session, _fs, _args, io) => {
@@ -10,6 +11,15 @@ export const exit: CommandHandler = async (session, _fs, _args, io) => {
     await saveHistory(session);
 
     io.stdout.write('Goodbye!\n');
+
+    // Terminate shell process
+    if (session.pid) {
+        try {
+            await terminateDaemon(session.pid, 0);
+        } catch {
+            // Ignore termination errors
+        }
+    }
 
     // Run cleanup handlers
     for (const cleanup of session.cleanupHandlers) {

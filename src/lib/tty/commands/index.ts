@@ -49,6 +49,7 @@ import { sleep } from './sleep.js';
 import { timeout, setCommandRegistry } from './timeout.js';
 import { ps } from './ps.js';
 import { kill } from './kill.js';
+import { ping } from './ping.js';
 
 // Re-export types
 export type { CommandHandler } from './shared.js';
@@ -83,6 +84,7 @@ export { sleep } from './sleep.js';
 export { timeout } from './timeout.js';
 export { ps } from './ps.js';
 export { kill } from './kill.js';
+export { ping } from './ping.js';
 
 /**
  * Command registry
@@ -133,6 +135,7 @@ export const commands: Record<string, CommandHandler> = {
     timeout,
     ps,
     kill,
+    ping,
 };
 
 // Initialize timeout command with registry

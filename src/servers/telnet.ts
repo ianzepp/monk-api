@@ -9,6 +9,7 @@ import type { Socket } from 'bun';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
 import { createSession, generateSessionId } from '@src/lib/tty/types.js';
 import { handleInput, sendWelcome, saveHistory } from '@src/lib/tty/session-handler.js';
+import { terminateDaemon } from '@src/lib/process.js';
 
 /**
  * Socket data associated with each connection
@@ -148,6 +149,15 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
             async close(socket) {
                 const { session } = socket.data;
                 console.info(`Telnet: Session ${session.id} closed`);
+
+                // Terminate shell process
+                if (session.pid) {
+                    try {
+                        await terminateDaemon(session.pid, 0);
+                    } catch {
+                        // Ignore termination errors
+                    }
+                }
 
                 // Save command history
                 await saveHistory(session);

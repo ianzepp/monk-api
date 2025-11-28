@@ -128,6 +128,88 @@ async function getPublicAdapter(): Promise<DatabaseAdapter> {
 }
 
 /**
+ * Register a daemon process (like a shell session)
+ *
+ * Creates a process record without a handler. The caller is responsible
+ * for managing the process lifecycle and calling terminateProcess when done.
+ */
+export async function registerDaemon(
+    init: SystemInit,
+    options: Omit<SpawnOptions, 'type'>
+): Promise<number> {
+    const adapter = await getPublicAdapter();
+
+    try {
+        await adapter.beginTransaction();
+
+        const result = await adapter.query<{ pid: number }>(
+            `INSERT INTO processes (
+                tenant, db_type, db_name, ns_name,
+                uid, access,
+                state,
+                comm, cmdline, cwd, environ,
+                type,
+                started_at,
+                ppid
+            ) VALUES (
+                $1, $2, $3, $4,
+                $5, $6,
+                'R',
+                $7, $8, $9, $10,
+                'daemon',
+                now(),
+                $11
+            ) RETURNING pid`,
+            [
+                init.tenant,
+                init.dbType,
+                init.dbName,
+                init.nsName,
+                init.userId,
+                init.access,
+                options.comm,
+                options.cmdline,
+                options.cwd || '/',
+                options.environ ? JSON.stringify(options.environ) : null,
+                options.ppid || null,
+            ]
+        );
+
+        await adapter.commit();
+        return result.rows[0].pid;
+
+    } catch (error) {
+        await adapter.rollback();
+        throw error;
+    } finally {
+        await adapter.disconnect();
+    }
+}
+
+/**
+ * Terminate a daemon process
+ *
+ * Marks the process as dead with the given exit code.
+ */
+export async function terminateDaemon(
+    pid: number,
+    exitCode: number = 0
+): Promise<void> {
+    const adapter = await getPublicAdapter();
+
+    try {
+        await adapter.query(
+            `UPDATE processes
+             SET state = 'X', exit_code = $1, ended_at = now()
+             WHERE pid = $2 AND type = 'daemon'`,
+            [exitCode, pid]
+        );
+    } finally {
+        await adapter.disconnect();
+    }
+}
+
+/**
  * Spawn a new process
  *
  * Creates a process record and starts execution in the background.

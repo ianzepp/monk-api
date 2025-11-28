@@ -135,8 +135,16 @@ function findUnquotedChar(str: string, char: string): number {
  * Parse a command string into structured command object
  */
 export function parseCommand(input: string): ParsedCommand | null {
-    const trimmed = input.trim();
+    let trimmed = input.trim();
     if (!trimmed) return null;
+
+    // Check for background operator at end
+    let background = false;
+    if (trimmed.endsWith('&')) {
+        background = true;
+        trimmed = trimmed.slice(0, -1).trim();
+        if (!trimmed) return null;
+    }
 
     // Handle pipes by splitting and recursing
     const pipeIndex = findUnquotedChar(trimmed, '|');
@@ -147,6 +155,8 @@ export function parseCommand(input: string): ParsedCommand | null {
         const rightCmd = parseCommand(right);
         if (leftCmd && rightCmd) {
             leftCmd.pipe = rightCmd;
+            // Background applies to the whole pipeline
+            leftCmd.background = background;
         }
         return leftCmd;
     }
@@ -157,6 +167,7 @@ export function parseCommand(input: string): ParsedCommand | null {
     const result: ParsedCommand = {
         command: tokens[0],
         args: [],
+        background,
     };
 
     let i = 1;

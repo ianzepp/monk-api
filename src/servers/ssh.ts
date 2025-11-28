@@ -10,8 +10,9 @@ import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { generateKeyPairSync } from 'crypto';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
 import { createSession, generateSessionId } from '@src/lib/tty/types.js';
-import { handleInput, printPrompt, writeToStream } from '@src/lib/tty/session-handler.js';
+import { handleInput, printPrompt, writeToStream, saveHistory } from '@src/lib/tty/session-handler.js';
 import { login } from '@src/lib/auth.js';
+import { terminateDaemon } from '@src/lib/process.js';
 
 /**
  * TTYStream implementation for SSH channels
@@ -246,9 +247,22 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
             }
         });
 
-        client.on('close', () => {
+        client.on('close', async () => {
             if (session) {
                 console.info(`SSH: Session ${session.id} closed`);
+
+                // Terminate shell process
+                if (session.pid) {
+                    try {
+                        await terminateDaemon(session.pid, 0);
+                    } catch {
+                        // Ignore termination errors
+                    }
+                }
+
+                // Save command history
+                await saveHistory(session);
+
                 // Run cleanup handlers
                 for (const cleanup of session.cleanupHandlers) {
                     try {
