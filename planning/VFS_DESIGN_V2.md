@@ -1316,26 +1316,32 @@ async function initializeTenantVFS(system: System): Promise<void> {
 
 ## Implementation Phases
 
-### Phase 0: Prerequisites
-- [ ] Add `bytea` type support to field type system
-  - [ ] `src/lib/sql/tenant.pg.sql` - Add to `field_type` enum
-  - [ ] `src/lib/sql/tenant.sqlite.sql` - Add to CHECK constraint
-  - [ ] `src/lib/field-types.ts` - Add USER_TO_PG and PG_TO_USER mappings
-  - [ ] `src/lib/database/type-mappings.ts` - Add USER_TO_SQLITE mapping (BLOB)
+### Phase 0: Prerequisites ✅
+- [x] Add `binary` type support to field type system
+  - [x] `src/lib/sql/tenant.pg.sql` - Add to `field_type` enum
+  - [x] `src/lib/sql/tenant.sqlite.sql` - Add to CHECK constraint
+  - [x] `src/lib/field-types.ts` - Add USER_TO_PG and PG_TO_USER mappings
+  - [x] `src/lib/database/type-mappings.ts` - Add USER_TO_SQLITE mapping (BLOB)
 
-### Phase 1: Core VFS (Foundation)
-- [ ] Create `src/lib/vfs/types.ts` with interfaces
-- [ ] Create `src/lib/vfs/index.ts` with VFS class
-- [ ] Implement mount resolution (longest-prefix matching)
-- [ ] Implement `SystemMount` (read-only, no DB needed)
-- [ ] Add unit tests
+### Phase 1: Core VFS (Foundation) ✅
+- [x] Create `src/lib/vfs/types.ts` with interfaces
+- [x] Create `src/lib/vfs/index.ts` with VFS class
+- [x] Implement mount resolution (longest-prefix matching)
+- [x] Implement `SystemMount` (read-only, no DB needed)
+- [x] Add unit tests
 
-### Phase 2: API Mounts
-- [ ] Implement `DataMount` for `/api/data`
-- [ ] Implement `DescribeMount` for `/api/describe`
-- [ ] Implement `FindMount` for `/api/find` (query files)
-- [ ] Implement `AggregateMount` for `/api/aggregate`
-- [ ] Add integration tests
+### Phase 2: API Mounts ✅
+- [x] Implement `DataMount` for `/api/data`
+- [x] Implement `DescribeMount` for `/api/describe`
+- [x] Implement `FindMount` for `/api/find` (saved filters)
+- [x] Implement `TrashedMount` for `/api/trashed`
+- [ ] ~~Implement `AggregateMount` for `/api/aggregate`~~ (skipped - poor filesystem fit)
+- [x] Add integration tests
+
+### Phase 2.5: HTTP Routes ✅
+- [x] Create `/vfs/*` HTTP routes with minimal middleware
+- [x] Consolidate auth middleware (`authValidatorMiddleware`)
+- [x] Add integration tests (24 passing)
 
 ### Phase 3: TTY Refactor
 - [ ] Add `vfs` property to Session interface
@@ -1895,3 +1901,36 @@ session.vfs.bind(`/home/${session.username}`, '/home/me');
 - `src/lib/vfs/mounts/data-mount.ts`
 - `src/lib/vfs/mounts/find-mount.ts`
 - `src/lib/vfs/mounts/trashed-mount.ts`
+
+### Implementation Notes (2025-11-27) - Phase 3: HTTP Routes
+
+**VFS HTTP Routes** (`/vfs/*`)
+- Minimal middleware: `authValidatorMiddleware` only (no body parsing, format detection, or response transformation)
+- Uses `runTransaction()` internally for proper database access
+- Routes:
+  - `GET /vfs/*` - Read file or list directory (`?stat=true` for metadata only)
+  - `PUT /vfs/*` - Write file content
+  - `DELETE /vfs/*` - Delete file
+- Error responses use POSIX codes: ENOENT→404, EROFS→405, EISDIR→400, etc.
+
+**Auth Middleware Consolidation**
+- Merged `jwtValidatorMiddleware` + `userValidatorMiddleware` → `authValidatorMiddleware`
+- Single middleware validates token/API key AND user in one pass
+- API key auth: eliminates redundant user query (was 3 queries → now 2)
+- JWT auth: validates signature then queries user for fresh permissions
+- Fresh DB permissions override stale JWT claims
+
+**Integration Tests**
+- Test infrastructure auto-starts server if not running (uses `bun`)
+- HttpClient gained `getRaw/putRaw/deleteRaw` methods for raw Response access
+- 24 tests covering all mounts: system, describe, data, trashed
+
+**Files created:**
+- `src/routes/vfs/routes.ts` - VFS HTTP route handlers
+- `src/lib/middleware/auth-validator.ts` - Consolidated auth middleware
+- `spec/50-vfs-api/vfs-basic.test.ts` - Integration tests
+
+**Files modified:**
+- `src/index.ts` - Route registration, middleware chain
+- `spec/test-infrastructure.ts` - Auto-start server
+- `spec/http-client.ts` - Raw response methods
