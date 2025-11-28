@@ -1,29 +1,29 @@
 /**
- * Virtual Filesystem (VFS)
+ * Filesystem (FS)
  *
  * Provides a unified filesystem abstraction over:
- * - Database-backed storage (vfs_nodes table)
+ * - Database-backed storage (fs_nodes table)
  * - API endpoints as virtual directories (/api/data, /api/describe, etc.)
  * - System introspection (/system)
  *
- * Each VFS instance is bound to an authenticated session (System context).
+ * Each FS instance is bound to an authenticated session (System context).
  */
 
 import type { System } from '@src/lib/system.js';
-import type { Mount, VFSEntry, ResolvedPath } from './types.js';
-import { VFSError } from './types.js';
+import type { Mount, FSEntry, ResolvedPath } from './types.js';
+import { FSError } from './types.js';
 
-export { VFSError } from './types.js';
-export type { VFSEntry, VFSErrorCode, Mount, ResolvedPath } from './types.js';
-export { ModelBackedStorage, initializeVFS } from './storage.js';
+export { FSError } from './types.js';
+export type { FSEntry, FSErrorCode, Mount, ResolvedPath } from './types.js';
+export { ModelBackedStorage, initializeFS } from './storage.js';
 
 /**
- * Virtual Filesystem class
+ * Filesystem class
  *
  * Routes filesystem operations to appropriate mount handlers based on path.
  * Mounts are matched by longest-prefix matching (most specific wins).
  */
-export class VFS {
+export class FS {
     private mounts: Map<string, Mount> = new Map();
     private sortedMounts: [string, Mount][] = [];
     private fallback: Mount | null = null;
@@ -91,13 +91,13 @@ export class VFS {
             };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
     /**
      * Get file/directory metadata
      */
-    async stat(path: string): Promise<VFSEntry> {
+    async stat(path: string): Promise<FSEntry> {
         const { handler, relativePath } = this.resolvePath(path);
         return handler.stat(relativePath);
     }
@@ -107,7 +107,7 @@ export class VFS {
      *
      * Includes mount points that appear at the listed directory level.
      */
-    async readdir(path: string): Promise<VFSEntry[]> {
+    async readdir(path: string): Promise<FSEntry[]> {
         const normalized = this.normalize(path);
         const { handler, relativePath } = this.resolvePath(path);
         const entries = await handler.readdir(relativePath);
@@ -145,7 +145,7 @@ export class VFS {
     async write(path: string, content: string | Buffer): Promise<void> {
         const { handler, relativePath } = this.resolvePath(path);
         if (!handler.write) {
-            throw new VFSError('EROFS', path, 'Read-only filesystem');
+            throw new FSError('EROFS', path, 'Read-only filesystem');
         }
         return handler.write(relativePath, content);
     }
@@ -156,7 +156,7 @@ export class VFS {
     async unlink(path: string): Promise<void> {
         const { handler, relativePath } = this.resolvePath(path);
         if (!handler.unlink) {
-            throw new VFSError('EROFS', path, 'Read-only filesystem');
+            throw new FSError('EROFS', path, 'Read-only filesystem');
         }
         return handler.unlink(relativePath);
     }
@@ -167,7 +167,7 @@ export class VFS {
     async mkdir(path: string, mode = 0o755): Promise<void> {
         const { handler, relativePath } = this.resolvePath(path);
         if (!handler.mkdir) {
-            throw new VFSError('EROFS', path, 'Read-only filesystem');
+            throw new FSError('EROFS', path, 'Read-only filesystem');
         }
         return handler.mkdir(relativePath, mode);
     }
@@ -178,7 +178,7 @@ export class VFS {
     async rmdir(path: string): Promise<void> {
         const { handler, relativePath } = this.resolvePath(path);
         if (!handler.rmdir) {
-            throw new VFSError('EROFS', path, 'Read-only filesystem');
+            throw new FSError('EROFS', path, 'Read-only filesystem');
         }
         return handler.rmdir(relativePath);
     }
@@ -192,11 +192,11 @@ export class VFS {
 
         // Cross-mount rename not supported
         if (oldResolved.mountPath !== newResolved.mountPath) {
-            throw new VFSError('EINVAL', oldPath, 'Cannot rename across mount points');
+            throw new FSError('EINVAL', oldPath, 'Cannot rename across mount points');
         }
 
         if (!oldResolved.handler.rename) {
-            throw new VFSError('EROFS', oldPath, 'Read-only filesystem');
+            throw new FSError('EROFS', oldPath, 'Read-only filesystem');
         }
         return oldResolved.handler.rename(oldResolved.relativePath, newResolved.relativePath);
     }
@@ -209,7 +209,7 @@ export class VFS {
             await this.stat(path);
             return true;
         } catch (err) {
-            if (err instanceof VFSError && err.code === 'ENOENT') {
+            if (err instanceof FSError && err.code === 'ENOENT') {
                 return false;
             }
             throw err;

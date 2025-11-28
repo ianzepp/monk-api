@@ -591,4 +591,4 @@ Authorization: Bearer <jwt>
 
 **Next: [39-Root API Documentation](39-root-api.md)** - System administration and tenant management
 
-**Previous: [37-File API Documentation](37-file-api.md)** - Virtual file system interface
+**Previous: [37-File API Documentation](37-file-api.md)** - Filesystem interface

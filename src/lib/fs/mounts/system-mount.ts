@@ -12,8 +12,8 @@
  */
 
 import type { System } from '@src/lib/system.js';
-import type { Mount, VFSEntry } from '../types.js';
-import { VFSError } from '../types.js';
+import type { Mount, FSEntry } from '../types.js';
+import { FSError } from '../types.js';
 
 export class SystemMount implements Mount {
     private readonly startTime = new Date();
@@ -34,7 +34,7 @@ export class SystemMount implements Mount {
         ]);
     }
 
-    async stat(path: string): Promise<VFSEntry> {
+    async stat(path: string): Promise<FSEntry> {
         if (path === '/') {
             return {
                 name: 'system',
@@ -46,7 +46,7 @@ export class SystemMount implements Mount {
 
         const name = this.extractName(path);
         if (!this.files.has(name)) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
 
         const content = await this.files.get(name)!();
@@ -58,9 +58,9 @@ export class SystemMount implements Mount {
         };
     }
 
-    async readdir(path: string): Promise<VFSEntry[]> {
+    async readdir(path: string): Promise<FSEntry[]> {
         if (path !== '/') {
-            throw new VFSError('ENOTDIR', path);
+            throw new FSError('ENOTDIR', path);
         }
 
         return [...this.files.keys()].map(name => ({
@@ -75,7 +75,7 @@ export class SystemMount implements Mount {
         const name = this.extractName(path);
         const getter = this.files.get(name);
         if (!getter) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
         return getter();
     }

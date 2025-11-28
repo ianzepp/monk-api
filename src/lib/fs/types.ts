@@ -1,14 +1,14 @@
 /**
- * VFS Type Definitions
+ * FS Type Definitions
  *
- * Core interfaces for the Virtual Filesystem abstraction layer.
+ * Core interfaces for the Filesystem abstraction layer.
  * Provides a unified filesystem interface over database-backed storage and API mounts.
  */
 
 /**
  * Filesystem entry metadata
  */
-export interface VFSEntry {
+export interface FSEntry {
     name: string;
     type: 'file' | 'directory' | 'symlink';
     size: number;
@@ -22,9 +22,9 @@ export interface VFSEntry {
 }
 
 /**
- * VFS error codes following POSIX conventions
+ * FS error codes following POSIX conventions
  */
-export type VFSErrorCode =
+export type FSErrorCode =
     | 'ENOENT'    // No such file or directory
     | 'EEXIST'    // File exists
     | 'EISDIR'    // Is a directory (can't read as file)
@@ -35,16 +35,16 @@ export type VFSErrorCode =
     | 'EINVAL';   // Invalid argument
 
 /**
- * VFS-specific error class
+ * FS-specific error class
  */
-export class VFSError extends Error {
+export class FSError extends Error {
     constructor(
-        public code: VFSErrorCode,
+        public code: FSErrorCode,
         public path: string,
         message?: string
     ) {
         super(message || `${code}: ${path}`);
-        this.name = 'VFSError';
+        this.name = 'FSError';
     }
 }
 
@@ -59,12 +59,12 @@ export interface Mount {
     /**
      * Get metadata for a file or directory
      */
-    stat(path: string): Promise<VFSEntry>;
+    stat(path: string): Promise<FSEntry>;
 
     /**
      * List directory contents
      */
-    readdir(path: string): Promise<VFSEntry[]>;
+    readdir(path: string): Promise<FSEntry[]>;
 
     /**
      * Read file contents

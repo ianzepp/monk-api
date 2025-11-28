@@ -1,5 +1,5 @@
 /**
- * TrashedMount - Soft-deleted records as virtual filesystem
+ * TrashedMount - Soft-deleted records as filesystem
  *
  * Like DataMount but only shows trashed records:
  * - /api/trashed/                 → List models with trashed records
@@ -10,8 +10,8 @@
  */
 
 import type { System } from '@src/lib/system.js';
-import type { Mount, VFSEntry } from '../types.js';
-import { VFSError } from '../types.js';
+import type { Mount, FSEntry } from '../types.js';
+import { FSError } from '../types.js';
 
 type ParsedPath =
     | { type: 'root' }
@@ -21,7 +21,7 @@ type ParsedPath =
 export class TrashedMount implements Mount {
     constructor(private readonly system: System) {}
 
-    async stat(path: string): Promise<VFSEntry> {
+    async stat(path: string): Promise<FSEntry> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root') {
@@ -39,7 +39,7 @@ export class TrashedMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             // Check if any trashed records exist
@@ -48,7 +48,7 @@ export class TrashedMount implements Mount {
             }, { context: 'api', trashed: 'only' });
 
             if (trashed.length === 0) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             return {
@@ -65,7 +65,7 @@ export class TrashedMount implements Mount {
             }, { context: 'api', trashed: 'only' });
 
             if (!record) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             const content = JSON.stringify(record, null, 2);
@@ -79,16 +79,16 @@ export class TrashedMount implements Mount {
             };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
-    async readdir(path: string): Promise<VFSEntry[]> {
+    async readdir(path: string): Promise<FSEntry[]> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root') {
             // Get all models and check which have trashed records
             const models = await this.system.describe.models.selectAny();
-            const entries: VFSEntry[] = [];
+            const entries: FSEntry[] = [];
 
             for (const model of models) {
                 const trashed = await this.system.database.selectAny(model.model_name, {
@@ -114,7 +114,7 @@ export class TrashedMount implements Mount {
             }, { context: 'api', trashed: 'only' });
 
             if (records.length === 0) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             return records.map(r => ({
@@ -127,14 +127,14 @@ export class TrashedMount implements Mount {
             }));
         }
 
-        throw new VFSError('ENOTDIR', path);
+        throw new FSError('ENOTDIR', path);
     }
 
     async read(path: string): Promise<string> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root' || parsed.type === 'model') {
-            throw new VFSError('EISDIR', path);
+            throw new FSError('EISDIR', path);
         }
 
         if (parsed.type === 'record') {
@@ -143,13 +143,13 @@ export class TrashedMount implements Mount {
             }, { context: 'api', trashed: 'only' });
 
             if (!record) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             return JSON.stringify(record, null, 2);
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
     private parsePath(path: string): ParsedPath {
@@ -167,6 +167,6 @@ export class TrashedMount implements Mount {
             return { type: 'record', modelName: segments[0], recordId: segments[1] };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 }

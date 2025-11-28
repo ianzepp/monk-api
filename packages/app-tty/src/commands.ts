@@ -32,7 +32,7 @@ export type CommandHandler = (
 ) => Promise<void>;
 
 /**
- * Path types in the virtual filesystem
+ * Path types in the filesystem
  */
 type PathType =
     | 'root'           // /

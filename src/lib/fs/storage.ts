@@ -1,16 +1,16 @@
 /**
- * Model-Backed Storage - Persistent VFS storage using vfs_nodes table
+ * Model-Backed Storage - Persistent FS storage using fs_nodes table
  *
  * Provides a real filesystem backed by the database for paths not handled
  * by API mounts. Supports /home, /tmp, /etc, and any custom paths.
  */
 
-import type { Mount, VFSEntry } from './types.js';
-import { VFSError } from './types.js';
+import type { Mount, FSEntry } from './types.js';
+import { FSError } from './types.js';
 import type { System } from '../system.js';
 import type { DatabaseAdapter } from '../database/adapter.js';
 
-interface VFSNode {
+interface FSNode {
     id: string;
     parent_id: string | null;
     name: string;
@@ -28,27 +28,27 @@ interface VFSNode {
 export class ModelBackedStorage implements Mount {
     constructor(private system: System) {}
 
-    async stat(path: string): Promise<VFSEntry> {
+    async stat(path: string): Promise<FSEntry> {
         const node = await this.getNode(path);
         if (!node) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
         return this.toEntry(node);
     }
 
-    async readdir(path: string): Promise<VFSEntry[]> {
+    async readdir(path: string): Promise<FSEntry[]> {
         const parent = await this.getNode(path);
         if (!parent) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
         if (parent.node_type !== 'directory') {
-            throw new VFSError('ENOTDIR', path);
+            throw new FSError('ENOTDIR', path);
         }
 
-        const children = await this.system.database.selectAny('vfs_nodes', {
+        const children = await this.system.database.selectAny('fs_nodes', {
             where: { parent_id: parent.id },
             order: [{ field: 'name', sort: 'asc' }],
-        }) as unknown as VFSNode[];
+        }) as unknown as FSNode[];
 
         return children.map((node) => this.toEntry(node));
     }
@@ -56,15 +56,15 @@ export class ModelBackedStorage implements Mount {
     async read(path: string): Promise<string | Buffer> {
         const node = await this.getNode(path);
         if (!node) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
         if (node.node_type === 'directory') {
-            throw new VFSError('EISDIR', path);
+            throw new FSError('EISDIR', path);
         }
         if (node.node_type === 'symlink') {
             // Follow symlink
             if (!node.target) {
-                throw new VFSError('EINVAL', path, 'Symlink has no target');
+                throw new FSError('EINVAL', path, 'Symlink has no target');
             }
             return this.read(node.target);
         }
@@ -80,9 +80,9 @@ export class ModelBackedStorage implements Mount {
 
         if (existing) {
             if (existing.node_type === 'directory') {
-                throw new VFSError('EISDIR', path);
+                throw new FSError('EISDIR', path);
             }
-            await this.system.database.updateOne('vfs_nodes', existing.id, {
+            await this.system.database.updateOne('fs_nodes', existing.id, {
                 content: buffer,
                 size: buffer.length,
             });
@@ -91,13 +91,13 @@ export class ModelBackedStorage implements Mount {
             const parentPath = this.dirname(path);
             const parent = await this.getNode(parentPath);
             if (!parent) {
-                throw new VFSError('ENOENT', parentPath);
+                throw new FSError('ENOENT', parentPath);
             }
             if (parent.node_type !== 'directory') {
-                throw new VFSError('ENOTDIR', parentPath);
+                throw new FSError('ENOTDIR', parentPath);
             }
 
-            await this.system.database.createOne('vfs_nodes', {
+            await this.system.database.createOne('fs_nodes', {
                 parent_id: parent.id,
                 name: this.basename(path),
                 path,
@@ -113,19 +113,19 @@ export class ModelBackedStorage implements Mount {
     async mkdir(path: string, mode = 0o755): Promise<void> {
         const existing = await this.getNode(path);
         if (existing) {
-            throw new VFSError('EEXIST', path);
+            throw new FSError('EEXIST', path);
         }
 
         const parentPath = this.dirname(path);
         const parent = await this.getNode(parentPath);
         if (!parent) {
-            throw new VFSError('ENOENT', parentPath);
+            throw new FSError('ENOENT', parentPath);
         }
         if (parent.node_type !== 'directory') {
-            throw new VFSError('ENOTDIR', parentPath);
+            throw new FSError('ENOTDIR', parentPath);
         }
 
-        await this.system.database.createOne('vfs_nodes', {
+        await this.system.database.createOne('fs_nodes', {
             parent_id: parent.id,
             name: this.basename(path),
             path,
@@ -138,57 +138,57 @@ export class ModelBackedStorage implements Mount {
     async unlink(path: string): Promise<void> {
         const node = await this.getNode(path);
         if (!node) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
         if (node.node_type === 'directory') {
-            throw new VFSError('EISDIR', path);
+            throw new FSError('EISDIR', path);
         }
-        await this.system.database.deleteOne('vfs_nodes', node.id);
+        await this.system.database.deleteOne('fs_nodes', node.id);
     }
 
     async rmdir(path: string): Promise<void> {
         const node = await this.getNode(path);
         if (!node) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
         if (node.node_type !== 'directory') {
-            throw new VFSError('ENOTDIR', path);
+            throw new FSError('ENOTDIR', path);
         }
 
         // Check if empty
-        const children = await this.system.database.selectAny('vfs_nodes', {
+        const children = await this.system.database.selectAny('fs_nodes', {
             where: { parent_id: node.id },
             limit: 1,
         });
         if (children.length > 0) {
-            throw new VFSError('ENOTEMPTY', path);
+            throw new FSError('ENOTEMPTY', path);
         }
 
-        await this.system.database.deleteOne('vfs_nodes', node.id);
+        await this.system.database.deleteOne('fs_nodes', node.id);
     }
 
     async rename(oldPath: string, newPath: string): Promise<void> {
         const node = await this.getNode(oldPath);
         if (!node) {
-            throw new VFSError('ENOENT', oldPath);
+            throw new FSError('ENOENT', oldPath);
         }
 
         const newParentPath = this.dirname(newPath);
         const newParent = await this.getNode(newParentPath);
         if (!newParent) {
-            throw new VFSError('ENOENT', newParentPath);
+            throw new FSError('ENOENT', newParentPath);
         }
         if (newParent.node_type !== 'directory') {
-            throw new VFSError('ENOTDIR', newParentPath);
+            throw new FSError('ENOTDIR', newParentPath);
         }
 
         // Check if target exists
         const existing = await this.getNode(newPath);
         if (existing) {
-            throw new VFSError('EEXIST', newPath);
+            throw new FSError('EEXIST', newPath);
         }
 
-        await this.system.database.updateOne('vfs_nodes', node.id, {
+        await this.system.database.updateOne('fs_nodes', node.id, {
             parent_id: newParent.id,
             name: this.basename(newPath),
             path: newPath,
@@ -203,16 +203,16 @@ export class ModelBackedStorage implements Mount {
     async symlink(target: string, path: string): Promise<void> {
         const existing = await this.getNode(path);
         if (existing) {
-            throw new VFSError('EEXIST', path);
+            throw new FSError('EEXIST', path);
         }
 
         const parentPath = this.dirname(path);
         const parent = await this.getNode(parentPath);
         if (!parent) {
-            throw new VFSError('ENOENT', parentPath);
+            throw new FSError('ENOENT', parentPath);
         }
 
-        await this.system.database.createOne('vfs_nodes', {
+        await this.system.database.createOne('fs_nodes', {
             parent_id: parent.id,
             name: this.basename(path),
             path,
@@ -226,10 +226,10 @@ export class ModelBackedStorage implements Mount {
     async readlink(path: string): Promise<string> {
         const node = await this.getNode(path);
         if (!node) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
         if (node.node_type !== 'symlink') {
-            throw new VFSError('EINVAL', path, 'Not a symlink');
+            throw new FSError('EINVAL', path, 'Not a symlink');
         }
         return node.target || '';
     }
@@ -237,32 +237,32 @@ export class ModelBackedStorage implements Mount {
     async chmod(path: string, mode: number): Promise<void> {
         const node = await this.getNode(path);
         if (!node) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
-        await this.system.database.updateOne('vfs_nodes', node.id, { mode });
+        await this.system.database.updateOne('fs_nodes', node.id, { mode });
     }
 
     async chown(path: string, uid: string): Promise<void> {
         const node = await this.getNode(path);
         if (!node) {
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         }
-        await this.system.database.updateOne('vfs_nodes', node.id, { owner_id: uid });
+        await this.system.database.updateOne('fs_nodes', node.id, { owner_id: uid });
     }
 
     // =========================================================================
     // PRIVATE HELPERS
     // =========================================================================
 
-    private async getNode(path: string): Promise<VFSNode | null> {
+    private async getNode(path: string): Promise<FSNode | null> {
         const normalizedPath = this.normalizePath(path);
-        const result = await this.system.database.selectOne('vfs_nodes', {
+        const result = await this.system.database.selectOne('fs_nodes', {
             where: { path: normalizedPath },
         });
-        return result as VFSNode | null;
+        return result as FSNode | null;
     }
 
-    private toEntry(node: VFSNode): VFSEntry {
+    private toEntry(node: FSNode): FSEntry {
         return {
             name: node.name,
             type: node.node_type,
@@ -297,16 +297,16 @@ export class ModelBackedStorage implements Mount {
 
     private async updateDescendantPaths(oldPrefix: string, newPrefix: string): Promise<void> {
         // Get all descendants
-        const descendants = await this.system.database.selectAny('vfs_nodes', {
+        const descendants = await this.system.database.selectAny('fs_nodes', {
             where: {
                 path: { $like: oldPrefix + '/%' },
             },
-        }) as unknown as VFSNode[];
+        }) as unknown as FSNode[];
 
         // Update each descendant's path
         for (const node of descendants) {
             const newPath = newPrefix + node.path.slice(oldPrefix.length);
-            await this.system.database.updateOne('vfs_nodes', node.id, {
+            await this.system.database.updateOne('fs_nodes', node.id, {
                 path: newPath,
             });
         }
@@ -314,11 +314,11 @@ export class ModelBackedStorage implements Mount {
 }
 
 // =============================================================================
-// VFS INITIALIZATION
+// FS INITIALIZATION
 // =============================================================================
 
 /**
- * Initialize VFS directory structure for a new tenant
+ * Initialize FS directory structure for a new tenant
  *
  * Creates:
  *   /          - root directory
@@ -330,7 +330,7 @@ export class ModelBackedStorage implements Mount {
  *
  * Called during tenant creation, uses raw adapter queries.
  */
-export async function initializeVFS(
+export async function initializeFS(
     adapter: DatabaseAdapter,
     rootUserId: string
 ): Promise<void> {
@@ -346,7 +346,7 @@ export async function initializeVFS(
     ): Promise<string> => {
         const id = randomUUID();
         await adapter.query(
-            `INSERT INTO vfs_nodes (id, parent_id, name, path, node_type, mode, owner_id, created_at, updated_at)
+            `INSERT INTO fs_nodes (id, parent_id, name, path, node_type, mode, owner_id, created_at, updated_at)
              VALUES ($1, $2, $3, $4, 'directory', $5, $6, $7, $8)`,
             [id, parentId, name, path, mode, rootUserId, now, now]
         );
@@ -364,7 +364,7 @@ export async function initializeVFS(
         const id = randomUUID();
         const buffer = Buffer.from(content);
         await adapter.query(
-            `INSERT INTO vfs_nodes (id, parent_id, name, path, node_type, content, size, mode, owner_id, created_at, updated_at)
+            `INSERT INTO fs_nodes (id, parent_id, name, path, node_type, content, size, mode, owner_id, created_at, updated_at)
              VALUES ($1, $2, $3, $4, 'file', $5, $6, $7, $8, $9, $10)`,
             [id, parentId, name, path, buffer, buffer.length, mode, rootUserId, now, now]
         );
@@ -383,5 +383,5 @@ export async function initializeVFS(
     // Create default files
     await createFile(etcId, 'motd', '/etc/motd', 'Welcome to Monk API\n', 0o644);
 
-    console.info('VFS initialized', { directories: 5, files: 1 });
+    console.info('FS initialized', { directories: 5, files: 1 });
 }

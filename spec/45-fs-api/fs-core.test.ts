@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { VFS, VFSError } from '@src/lib/vfs/index.js';
-import type { Mount, VFSEntry } from '@src/lib/vfs/types.js';
+import { FS, FSError } from '@src/lib/fs/index.js';
+import type { Mount, FSEntry } from '@src/lib/fs/types.js';
 
 /**
- * VFS Core Unit Tests
+ * FS Core Unit Tests
  *
- * Tests the VFS class in isolation using mock mounts.
+ * Tests the FS class in isolation using mock mounts.
  * No database or System context required.
  */
 
@@ -23,7 +23,7 @@ function createMockMount(options: {
     const writable = options.writable ?? false;
 
     const mount: Mount = {
-        async stat(path: string): Promise<VFSEntry> {
+        async stat(path: string): Promise<FSEntry> {
             if (dirs.has(path)) {
                 return {
                     name: path.split('/').filter(Boolean).pop() || options.name,
@@ -41,15 +41,15 @@ function createMockMount(options: {
                     mode: 0o644,
                 };
             }
-            throw new VFSError('ENOENT', path);
+            throw new FSError('ENOENT', path);
         },
 
-        async readdir(path: string): Promise<VFSEntry[]> {
+        async readdir(path: string): Promise<FSEntry[]> {
             if (!dirs.has(path)) {
-                throw new VFSError('ENOTDIR', path);
+                throw new FSError('ENOTDIR', path);
             }
 
-            const entries: VFSEntry[] = [];
+            const entries: FSEntry[] = [];
 
             // Find subdirectories
             for (const dir of dirs) {
@@ -85,10 +85,10 @@ function createMockMount(options: {
 
         async read(path: string): Promise<string> {
             if (dirs.has(path)) {
-                throw new VFSError('EISDIR', path);
+                throw new FSError('EISDIR', path);
             }
             if (!files.has(path)) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             return files.get(path)!;
         },
@@ -101,7 +101,7 @@ function createMockMount(options: {
 
         mount.unlink = async (path: string) => {
             if (!files.has(path)) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             files.delete(path);
         };
@@ -110,159 +110,159 @@ function createMockMount(options: {
     return mount;
 }
 
-describe('VFS Core', () => {
-    // Create a minimal System mock - VFS only uses it for storage reference
+describe('FS Core', () => {
+    // Create a minimal System mock - FS only uses it for storage reference
     const mockSystem = {} as any;
 
     describe('path utilities', () => {
-        let vfs: VFS;
+        let fs: FS;
 
         beforeEach(() => {
-            vfs = new VFS(mockSystem);
+            fs = new FS(mockSystem);
         });
 
         describe('normalize()', () => {
             it('should normalize root path', () => {
-                expect(vfs.normalize('/')).toBe('/');
+                expect(fs.normalize('/')).toBe('/');
             });
 
             it('should remove trailing slashes', () => {
-                expect(vfs.normalize('/foo/')).toBe('/foo');
-                expect(vfs.normalize('/foo/bar/')).toBe('/foo/bar');
+                expect(fs.normalize('/foo/')).toBe('/foo');
+                expect(fs.normalize('/foo/bar/')).toBe('/foo/bar');
             });
 
             it('should collapse multiple slashes', () => {
-                expect(vfs.normalize('//foo//bar')).toBe('/foo/bar');
-                expect(vfs.normalize('/foo///bar')).toBe('/foo/bar');
+                expect(fs.normalize('//foo//bar')).toBe('/foo/bar');
+                expect(fs.normalize('/foo///bar')).toBe('/foo/bar');
             });
 
             it('should resolve . segments', () => {
-                expect(vfs.normalize('/foo/./bar')).toBe('/foo/bar');
-                expect(vfs.normalize('/./foo/./bar/.')).toBe('/foo/bar');
+                expect(fs.normalize('/foo/./bar')).toBe('/foo/bar');
+                expect(fs.normalize('/./foo/./bar/.')).toBe('/foo/bar');
             });
 
             it('should resolve .. segments', () => {
-                expect(vfs.normalize('/foo/bar/..')).toBe('/foo');
-                expect(vfs.normalize('/foo/bar/../baz')).toBe('/foo/baz');
-                expect(vfs.normalize('/foo/bar/../../baz')).toBe('/baz');
+                expect(fs.normalize('/foo/bar/..')).toBe('/foo');
+                expect(fs.normalize('/foo/bar/../baz')).toBe('/foo/baz');
+                expect(fs.normalize('/foo/bar/../../baz')).toBe('/baz');
             });
 
             it('should not go above root', () => {
-                expect(vfs.normalize('/..')).toBe('/');
-                expect(vfs.normalize('/foo/../..')).toBe('/');
-                expect(vfs.normalize('/../../../foo')).toBe('/foo');
+                expect(fs.normalize('/..')).toBe('/');
+                expect(fs.normalize('/foo/../..')).toBe('/');
+                expect(fs.normalize('/../../../foo')).toBe('/foo');
             });
 
             it('should handle empty path', () => {
-                expect(vfs.normalize('')).toBe('/');
+                expect(fs.normalize('')).toBe('/');
             });
         });
 
         describe('resolve()', () => {
             it('should resolve absolute paths', () => {
-                expect(vfs.resolve('/home', '/etc')).toBe('/etc');
-                expect(vfs.resolve('/home/user', '/var/log')).toBe('/var/log');
+                expect(fs.resolve('/home', '/etc')).toBe('/etc');
+                expect(fs.resolve('/home/user', '/var/log')).toBe('/var/log');
             });
 
             it('should resolve relative paths', () => {
-                expect(vfs.resolve('/home', 'user')).toBe('/home/user');
-                expect(vfs.resolve('/home/user', 'docs')).toBe('/home/user/docs');
+                expect(fs.resolve('/home', 'user')).toBe('/home/user');
+                expect(fs.resolve('/home/user', 'docs')).toBe('/home/user/docs');
             });
 
             it('should resolve multiple segments', () => {
-                expect(vfs.resolve('/home', 'user', 'docs')).toBe('/home/user/docs');
-                expect(vfs.resolve('/home', 'user', '/etc', 'config')).toBe('/etc/config');
+                expect(fs.resolve('/home', 'user', 'docs')).toBe('/home/user/docs');
+                expect(fs.resolve('/home', 'user', '/etc', 'config')).toBe('/etc/config');
             });
 
             it('should resolve with . and ..', () => {
-                expect(vfs.resolve('/home/user', '../other')).toBe('/home/other');
-                expect(vfs.resolve('/home/user', './docs')).toBe('/home/user/docs');
+                expect(fs.resolve('/home/user', '../other')).toBe('/home/other');
+                expect(fs.resolve('/home/user', './docs')).toBe('/home/user/docs');
             });
         });
 
         describe('dirname()', () => {
             it('should return parent directory', () => {
-                expect(vfs.dirname('/foo/bar')).toBe('/foo');
-                expect(vfs.dirname('/foo/bar/baz')).toBe('/foo/bar');
+                expect(fs.dirname('/foo/bar')).toBe('/foo');
+                expect(fs.dirname('/foo/bar/baz')).toBe('/foo/bar');
             });
 
             it('should return root for top-level paths', () => {
-                expect(vfs.dirname('/foo')).toBe('/');
+                expect(fs.dirname('/foo')).toBe('/');
             });
 
             it('should handle root', () => {
-                expect(vfs.dirname('/')).toBe('/');
+                expect(fs.dirname('/')).toBe('/');
             });
         });
 
         describe('basename()', () => {
             it('should return filename', () => {
-                expect(vfs.basename('/foo/bar')).toBe('bar');
-                expect(vfs.basename('/foo/bar.txt')).toBe('bar.txt');
+                expect(fs.basename('/foo/bar')).toBe('bar');
+                expect(fs.basename('/foo/bar.txt')).toBe('bar.txt');
             });
 
             it('should return empty for root', () => {
-                expect(vfs.basename('/')).toBe('');
+                expect(fs.basename('/')).toBe('');
             });
         });
 
         describe('extname()', () => {
             it('should return file extension', () => {
-                expect(vfs.extname('/foo/bar.txt')).toBe('.txt');
-                expect(vfs.extname('/foo/bar.test.ts')).toBe('.ts');
+                expect(fs.extname('/foo/bar.txt')).toBe('.txt');
+                expect(fs.extname('/foo/bar.test.ts')).toBe('.ts');
             });
 
             it('should return empty for no extension', () => {
-                expect(vfs.extname('/foo/bar')).toBe('');
+                expect(fs.extname('/foo/bar')).toBe('');
             });
 
             it('should handle dotfiles', () => {
-                expect(vfs.extname('/foo/.hidden')).toBe('');
-                expect(vfs.extname('/foo/.hidden.txt')).toBe('.txt');
+                expect(fs.extname('/foo/.hidden')).toBe('');
+                expect(fs.extname('/foo/.hidden.txt')).toBe('.txt');
             });
         });
     });
 
     describe('mount management', () => {
-        let vfs: VFS;
+        let fs: FS;
 
         beforeEach(() => {
-            vfs = new VFS(mockSystem);
+            fs = new FS(mockSystem);
         });
 
         it('should mount handlers', () => {
             const mount = createMockMount({ name: 'test' });
-            vfs.mount('/test', mount);
+            fs.mount('/test', mount);
 
-            const mounts = vfs.getMounts();
+            const mounts = fs.getMounts();
             expect(mounts.size).toBe(1);
             expect(mounts.has('/test')).toBe(true);
         });
 
         it('should unmount handlers', () => {
             const mount = createMockMount({ name: 'test' });
-            vfs.mount('/test', mount);
-            vfs.unmount('/test');
+            fs.mount('/test', mount);
+            fs.unmount('/test');
 
-            expect(vfs.getMounts().size).toBe(0);
+            expect(fs.getMounts().size).toBe(0);
         });
 
         it('should normalize mount paths', () => {
             const mount = createMockMount({ name: 'test' });
-            vfs.mount('/test/', mount);
+            fs.mount('/test/', mount);
 
-            const mounts = vfs.getMounts();
+            const mounts = fs.getMounts();
             expect(mounts.has('/test')).toBe(true);
         });
     });
 
     describe('mount resolution', () => {
-        let vfs: VFS;
+        let fs: FS;
         let systemMount: Mount;
         let dataMount: Mount;
 
         beforeEach(() => {
-            vfs = new VFS(mockSystem);
+            fs = new FS(mockSystem);
 
             systemMount = createMockMount({
                 name: 'system',
@@ -275,33 +275,33 @@ describe('VFS Core', () => {
                 files: new Map([['/users/123', '{"id":"123"}']]),
             });
 
-            vfs.mount('/system', systemMount);
-            vfs.mount('/api/data', dataMount);
+            fs.mount('/system', systemMount);
+            fs.mount('/api/data', dataMount);
         });
 
         it('should resolve exact mount path', async () => {
-            const entry = await vfs.stat('/system');
+            const entry = await fs.stat('/system');
             expect(entry.type).toBe('directory');
         });
 
         it('should resolve paths under mount', async () => {
-            const content = await vfs.read('/system/version');
+            const content = await fs.read('/system/version');
             expect(content).toBe('5.1.0');
         });
 
         it('should resolve nested mounts by longest prefix', async () => {
             // /api/data should match before /api
-            const entry = await vfs.stat('/api/data/users');
+            const entry = await fs.stat('/api/data/users');
             expect(entry.type).toBe('directory');
         });
 
         it('should throw ENOENT for unmatched paths without fallback', async () => {
             try {
-                await vfs.stat('/unknown');
+                await fs.stat('/unknown');
                 expect(true).toBe(false); // Should not reach here
             } catch (err) {
-                expect(err).toBeInstanceOf(VFSError);
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect(err).toBeInstanceOf(FSError);
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -311,35 +311,35 @@ describe('VFS Core', () => {
                 files: new Map([['/home/user/file', 'content']]),
                 dirs: new Set(['/', '/home', '/home/user']),
             });
-            vfs.setFallback(fallback);
+            fs.setFallback(fallback);
 
-            const content = await vfs.read('/home/user/file');
+            const content = await fs.read('/home/user/file');
             expect(content).toBe('content');
         });
     });
 
     describe('directory listing with mount injection', () => {
-        let vfs: VFS;
+        let fs: FS;
         let rootMount: Mount;
 
         beforeEach(() => {
-            vfs = new VFS(mockSystem);
+            fs = new FS(mockSystem);
 
             // Root mount that lists nothing by default
             rootMount = createMockMount({
                 name: 'root',
                 dirs: new Set(['/', '/api']),
             });
-            vfs.setFallback(rootMount);
+            fs.setFallback(rootMount);
 
             // Add nested mounts
-            vfs.mount('/system', createMockMount({ name: 'system' }));
-            vfs.mount('/api/data', createMockMount({ name: 'data' }));
-            vfs.mount('/api/describe', createMockMount({ name: 'describe' }));
+            fs.mount('/system', createMockMount({ name: 'system' }));
+            fs.mount('/api/data', createMockMount({ name: 'data' }));
+            fs.mount('/api/describe', createMockMount({ name: 'describe' }));
         });
 
         it('should inject top-level mount points', async () => {
-            const entries = await vfs.readdir('/');
+            const entries = await fs.readdir('/');
             const names = entries.map(e => e.name);
 
             expect(names).toContain('system');
@@ -347,7 +347,7 @@ describe('VFS Core', () => {
         });
 
         it('should inject nested mount points', async () => {
-            const entries = await vfs.readdir('/api');
+            const entries = await fs.readdir('/api');
             const names = entries.map(e => e.name);
 
             expect(names).toContain('data');
@@ -375,20 +375,20 @@ describe('VFS Core', () => {
                 return entries;
             };
 
-            vfs.setFallback(customRoot);
+            fs.setFallback(customRoot);
 
-            const entries = await vfs.readdir('/');
+            const entries = await fs.readdir('/');
             const systemEntries = entries.filter(e => e.name === 'system');
             expect(systemEntries.length).toBe(1);
         });
     });
 
     describe('filesystem operations', () => {
-        let vfs: VFS;
+        let fs: FS;
 
         beforeEach(() => {
-            vfs = new VFS(mockSystem);
-            vfs.mount('/data', createMockMount({
+            fs = new FS(mockSystem);
+            fs.mount('/data', createMockMount({
                 name: 'data',
                 files: new Map([
                     ['/file.txt', 'hello world'],
@@ -398,7 +398,7 @@ describe('VFS Core', () => {
                 writable: true,
             }));
 
-            vfs.mount('/readonly', createMockMount({
+            fs.mount('/readonly', createMockMount({
                 name: 'readonly',
                 files: new Map([['/config', 'value']]),
                 writable: false,
@@ -407,67 +407,67 @@ describe('VFS Core', () => {
 
         describe('read operations', () => {
             it('should read files', async () => {
-                const content = await vfs.read('/data/file.txt');
+                const content = await fs.read('/data/file.txt');
                 expect(content).toBe('hello world');
             });
 
             it('should throw EISDIR for directories', async () => {
                 try {
-                    await vfs.read('/data/docs');
+                    await fs.read('/data/docs');
                     expect(true).toBe(false);
                 } catch (err) {
-                    expect(err).toBeInstanceOf(VFSError);
-                    expect((err as VFSError).code).toBe('EISDIR');
+                    expect(err).toBeInstanceOf(FSError);
+                    expect((err as FSError).code).toBe('EISDIR');
                 }
             });
 
             it('should throw ENOENT for missing files', async () => {
                 try {
-                    await vfs.read('/data/missing.txt');
+                    await fs.read('/data/missing.txt');
                     expect(true).toBe(false);
                 } catch (err) {
-                    expect(err).toBeInstanceOf(VFSError);
-                    expect((err as VFSError).code).toBe('ENOENT');
+                    expect(err).toBeInstanceOf(FSError);
+                    expect((err as FSError).code).toBe('ENOENT');
                 }
             });
         });
 
         describe('write operations', () => {
             it('should write files', async () => {
-                await vfs.write('/data/new.txt', 'new content');
-                const content = await vfs.read('/data/new.txt');
+                await fs.write('/data/new.txt', 'new content');
+                const content = await fs.read('/data/new.txt');
                 expect(content).toBe('new content');
             });
 
             it('should throw EROFS for read-only mounts', async () => {
                 try {
-                    await vfs.write('/readonly/config', 'new value');
+                    await fs.write('/readonly/config', 'new value');
                     expect(true).toBe(false);
                 } catch (err) {
-                    expect(err).toBeInstanceOf(VFSError);
-                    expect((err as VFSError).code).toBe('EROFS');
+                    expect(err).toBeInstanceOf(FSError);
+                    expect((err as FSError).code).toBe('EROFS');
                 }
             });
         });
 
         describe('unlink operations', () => {
             it('should delete files', async () => {
-                await vfs.unlink('/data/file.txt');
+                await fs.unlink('/data/file.txt');
 
                 try {
-                    await vfs.read('/data/file.txt');
+                    await fs.read('/data/file.txt');
                     expect(true).toBe(false);
                 } catch (err) {
-                    expect((err as VFSError).code).toBe('ENOENT');
+                    expect((err as FSError).code).toBe('ENOENT');
                 }
             });
 
             it('should throw EROFS for read-only mounts', async () => {
                 try {
-                    await vfs.unlink('/readonly/config');
+                    await fs.unlink('/readonly/config');
                     expect(true).toBe(false);
                 } catch (err) {
-                    expect((err as VFSError).code).toBe('EROFS');
+                    expect((err as FSError).code).toBe('EROFS');
                 }
             });
         });
@@ -475,27 +475,27 @@ describe('VFS Core', () => {
         describe('cross-mount rename', () => {
             it('should reject cross-mount rename', async () => {
                 // Add rename support to data mount
-                const dataMount = vfs.getMounts().get('/data')!;
+                const dataMount = fs.getMounts().get('/data')!;
                 dataMount.rename = async () => {};
 
                 try {
-                    await vfs.rename('/data/file.txt', '/readonly/moved.txt');
+                    await fs.rename('/data/file.txt', '/readonly/moved.txt');
                     expect(true).toBe(false);
                 } catch (err) {
-                    expect(err).toBeInstanceOf(VFSError);
-                    expect((err as VFSError).code).toBe('EINVAL');
-                    expect((err as VFSError).message).toContain('across mount points');
+                    expect(err).toBeInstanceOf(FSError);
+                    expect((err as FSError).code).toBe('EINVAL');
+                    expect((err as FSError).message).toContain('across mount points');
                 }
             });
         });
     });
 
     describe('convenience methods', () => {
-        let vfs: VFS;
+        let fs: FS;
 
         beforeEach(() => {
-            vfs = new VFS(mockSystem);
-            vfs.mount('/data', createMockMount({
+            fs = new FS(mockSystem);
+            fs.mount('/data', createMockMount({
                 name: 'data',
                 files: new Map([['/file.txt', 'content']]),
                 dirs: new Set(['/', '/subdir']),
@@ -504,43 +504,43 @@ describe('VFS Core', () => {
 
         describe('exists()', () => {
             it('should return true for existing files', async () => {
-                expect(await vfs.exists('/data/file.txt')).toBe(true);
+                expect(await fs.exists('/data/file.txt')).toBe(true);
             });
 
             it('should return true for existing directories', async () => {
-                expect(await vfs.exists('/data/subdir')).toBe(true);
+                expect(await fs.exists('/data/subdir')).toBe(true);
             });
 
             it('should return false for missing paths', async () => {
-                expect(await vfs.exists('/data/missing')).toBe(false);
+                expect(await fs.exists('/data/missing')).toBe(false);
             });
         });
 
         describe('isFile()', () => {
             it('should return true for files', async () => {
-                expect(await vfs.isFile('/data/file.txt')).toBe(true);
+                expect(await fs.isFile('/data/file.txt')).toBe(true);
             });
 
             it('should return false for directories', async () => {
-                expect(await vfs.isFile('/data/subdir')).toBe(false);
+                expect(await fs.isFile('/data/subdir')).toBe(false);
             });
 
             it('should return false for missing paths', async () => {
-                expect(await vfs.isFile('/data/missing')).toBe(false);
+                expect(await fs.isFile('/data/missing')).toBe(false);
             });
         });
 
         describe('isDirectory()', () => {
             it('should return true for directories', async () => {
-                expect(await vfs.isDirectory('/data/subdir')).toBe(true);
+                expect(await fs.isDirectory('/data/subdir')).toBe(true);
             });
 
             it('should return false for files', async () => {
-                expect(await vfs.isDirectory('/data/file.txt')).toBe(false);
+                expect(await fs.isDirectory('/data/file.txt')).toBe(false);
             });
 
             it('should return false for missing paths', async () => {
-                expect(await vfs.isDirectory('/data/missing')).toBe(false);
+                expect(await fs.isDirectory('/data/missing')).toBe(false);
             });
         });
     });

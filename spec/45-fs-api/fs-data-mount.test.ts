@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll } from 'bun:test';
 import { mkdtempSync, mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { DataMount } from '@src/lib/vfs/mounts/data-mount.js';
-import { VFSError } from '@src/lib/vfs/types.js';
+import { DataMount } from '@src/lib/fs/mounts/data-mount.js';
+import { FSError } from '@src/lib/fs/types.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { Infrastructure, ROOT_USER_ID } from '@src/lib/infrastructure.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
@@ -156,8 +156,8 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.stat('/nonexistent'));
                 expect(true).toBe(false); // Should not reach
             } catch (err) {
-                expect(err).toBeInstanceOf(VFSError);
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect(err).toBeInstanceOf(FSError);
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -166,7 +166,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.stat('/products/not-found'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -175,7 +175,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.stat('/products/prod-001/extra/path'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
     });
@@ -211,7 +211,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.readdir('/products/prod-001'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOTDIR');
+                expect((err as FSError).code).toBe('ENOTDIR');
             }
         });
 
@@ -220,7 +220,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.readdir('/nonexistent'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
     });
@@ -240,7 +240,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.read('/'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EISDIR');
+                expect((err as FSError).code).toBe('EISDIR');
             }
         });
 
@@ -249,7 +249,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.read('/products'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EISDIR');
+                expect((err as FSError).code).toBe('EISDIR');
             }
         });
 
@@ -258,7 +258,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.read('/products/not-found'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
     });
@@ -295,7 +295,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.write('/products', '{}'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EISDIR');
+                expect((err as FSError).code).toBe('EISDIR');
             }
         });
     });
@@ -316,7 +316,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.stat('/products/to-delete'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -325,7 +325,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.unlink('/'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EISDIR');
+                expect((err as FSError).code).toBe('EISDIR');
             }
         });
 
@@ -334,7 +334,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.unlink('/products'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EISDIR');
+                expect((err as FSError).code).toBe('EISDIR');
             }
         });
 
@@ -343,7 +343,7 @@ describe('DataMount - Unit', () => {
                 await withMount(m => m.unlink('/products/not-found'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
     });

@@ -4,18 +4,18 @@ import { expectSuccess } from '../test-assertions.js';
 import type { TestTenant } from '../test-helpers.js';
 
 /**
- * VFS FindMount Integration Tests
+ * FS FindMount Integration Tests
  *
- * Tests the /vfs/api/find mount which exposes saved filters as executable query files.
+ * Tests the /fs/api/find mount which exposes saved filters as executable query files.
  */
 
-describe('VFS API - FindMount', () => {
+describe('FS API - FindMount', () => {
     let tenant: TestTenant;
     let highValueFilterId: string;
     let recentFilterId: string;
 
     beforeAll(async () => {
-        tenant = await TestHelpers.createTestTenant('vfs-find');
+        tenant = await TestHelpers.createTestTenant('fs-find');
 
         // Create test model with fields
         await tenant.httpClient.post('/api/describe/orders', {});
@@ -63,7 +63,7 @@ describe('VFS API - FindMount', () => {
 
     describe('/api/find root', () => {
         it('should list models with saved filters', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find');
+            const response = await tenant.httpClient.get('/fs/api/find');
 
             expect(response.type).toBe('directory');
             expect(response.entries).toBeInstanceOf(Array);
@@ -73,15 +73,15 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should only show models that have filters', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find');
+            const response = await tenant.httpClient.get('/fs/api/find');
 
-            // products model exists (from vfs-basic tests) but has no filters
+            // products model exists (from fs-basic tests) but has no filters
             const names = response.entries.map((e: any) => e.name);
             expect(names).not.toContain('products');
         });
 
         it('should return stat metadata with ?stat=true', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find?stat=true');
+            const response = await tenant.httpClient.get('/fs/api/find?stat=true');
 
             expect(response.name).toBe('find');
             expect(response.type).toBe('directory');
@@ -90,7 +90,7 @@ describe('VFS API - FindMount', () => {
 
     describe('/api/find/:model', () => {
         it('should list saved filters for a model', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find/orders');
+            const response = await tenant.httpClient.get('/fs/api/find/orders');
 
             expect(response.type).toBe('directory');
             expect(response.entries).toBeInstanceOf(Array);
@@ -101,7 +101,7 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should return filters as file entries', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find/orders');
+            const response = await tenant.httpClient.get('/fs/api/find/orders');
 
             const highValueEntry = response.entries.find((e: any) => e.name === 'high-value');
             expect(highValueEntry.type).toBe('file');
@@ -112,19 +112,19 @@ describe('VFS API - FindMount', () => {
             // Create a model without any filters
             await tenant.httpClient.post('/api/describe/empty_model', {});
 
-            const response = await tenant.httpClient.get('/vfs/api/find/empty_model');
+            const response = await tenant.httpClient.get('/fs/api/find/empty_model');
             expect(response.error).toBe('ENOENT');
         });
 
         it('should return 404 for non-existent model', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find/nonexistent');
+            const response = await tenant.httpClient.get('/fs/api/find/nonexistent');
             expect(response.error).toBe('ENOENT');
         });
     });
 
     describe('/api/find/:model/:filter - execute filter', () => {
         it('should execute filter and return results', async () => {
-            const response = await tenant.httpClient.getRaw('/vfs/api/find/orders/high-value');
+            const response = await tenant.httpClient.getRaw('/fs/api/find/orders/high-value');
             expect(response.ok).toBe(true);
 
             const results = await response.json();
@@ -139,7 +139,7 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should execute filter with where clause', async () => {
-            const response = await tenant.httpClient.getRaw('/vfs/api/find/orders/pending-orders');
+            const response = await tenant.httpClient.getRaw('/fs/api/find/orders/pending-orders');
             expect(response.ok).toBe(true);
 
             const results = await response.json();
@@ -153,7 +153,7 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should return stat metadata with ?stat=true', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find/orders/high-value?stat=true');
+            const response = await tenant.httpClient.get('/fs/api/find/orders/high-value?stat=true');
 
             expect(response.name).toBe('high-value');
             expect(response.type).toBe('file');
@@ -161,13 +161,13 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should return 404 for non-existent filter', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find/orders/nonexistent');
+            const response = await tenant.httpClient.get('/fs/api/find/orders/nonexistent');
             expect(response.error).toBe('ENOENT');
         });
 
         it('should be read-only (no write)', async () => {
             const response = await tenant.httpClient.putRaw(
-                '/vfs/api/find/orders/high-value',
+                '/fs/api/find/orders/high-value',
                 JSON.stringify({ where: { amount: { $gte: 500 } } })
             );
             expect(response.ok).toBe(false);
@@ -187,7 +187,7 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should respect limit in filter', async () => {
-            const response = await tenant.httpClient.getRaw('/vfs/api/find/orders/top-3');
+            const response = await tenant.httpClient.getRaw('/fs/api/find/orders/top-3');
             expect(response.ok).toBe(true);
 
             const results = await response.json();
@@ -211,7 +211,7 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should respect select in filter', async () => {
-            const response = await tenant.httpClient.getRaw('/vfs/api/find/orders/customers-only');
+            const response = await tenant.httpClient.getRaw('/fs/api/find/orders/customers-only');
             expect(response.ok).toBe(true);
 
             const results = await response.json();
@@ -249,7 +249,7 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should list all models with filters', async () => {
-            const response = await tenant.httpClient.get('/vfs/api/find');
+            const response = await tenant.httpClient.get('/fs/api/find');
 
             const names = response.entries.map((e: any) => e.name);
             expect(names).toContain('orders');
@@ -257,8 +257,8 @@ describe('VFS API - FindMount', () => {
         });
 
         it('should list filters for each model separately', async () => {
-            const ordersResponse = await tenant.httpClient.get('/vfs/api/find/orders');
-            const customersResponse = await tenant.httpClient.get('/vfs/api/find/customers');
+            const ordersResponse = await tenant.httpClient.get('/fs/api/find/orders');
+            const customersResponse = await tenant.httpClient.get('/fs/api/find/customers');
 
             const orderFilters = ordersResponse.entries.map((e: any) => e.name);
             const customerFilters = customersResponse.entries.map((e: any) => e.name);

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll } from 'bun:test';
 import { mkdtempSync, mkdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { ModelBackedStorage } from '@src/lib/vfs/storage.js';
-import { VFSError } from '@src/lib/vfs/types.js';
+import { ModelBackedStorage } from '@src/lib/fs/storage.js';
+import { FSError } from '@src/lib/fs/types.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { Infrastructure, ROOT_USER_ID } from '@src/lib/infrastructure.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
@@ -13,8 +13,8 @@ import type { SystemInit } from '@src/lib/system.js';
 /**
  * ModelBackedStorage Tests
  *
- * Tests the vfs_nodes-backed storage in isolation using a temporary SQLite database.
- * VFS initialization creates /, /home, /home/root, /tmp, /etc, /etc/motd.
+ * Tests the fs_nodes-backed storage in isolation using a temporary SQLite database.
+ * FS initialization creates /, /home, /home/root, /tmp, /etc, /etc/motd.
  */
 
 describe('ModelBackedStorage', () => {
@@ -41,7 +41,7 @@ describe('ModelBackedStorage', () => {
             const dbDir = join(tempDir, 'monk');
             mkdirSync(dbDir, { recursive: true });
 
-            // Deploy schema with root user - this also initializes VFS
+            // Deploy schema with root user - this also initializes FS
             await Infrastructure.deployTenantSchema('sqlite', 'monk', schemaName, 'root');
 
             // Create SystemInit pointing to this database
@@ -150,7 +150,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.readdir('/nonexistent'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -159,7 +159,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.readdir('/etc/motd'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOTDIR');
+                expect((err as FSError).code).toBe('ENOTDIR');
             }
         });
     });
@@ -194,7 +194,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.write('/nonexistent/file.txt', 'content'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -203,7 +203,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.read('/tmp'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EISDIR');
+                expect((err as FSError).code).toBe('EISDIR');
             }
         });
     });
@@ -230,7 +230,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.mkdir('/tmp/existing'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EEXIST');
+                expect((err as FSError).code).toBe('EEXIST');
             }
         });
 
@@ -239,7 +239,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.mkdir('/nonexistent/dir'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
     });
@@ -253,7 +253,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.stat('/tmp/to-delete.txt'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -262,7 +262,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.unlink('/tmp/not-found'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -271,7 +271,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.unlink('/tmp'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EISDIR');
+                expect((err as FSError).code).toBe('EISDIR');
             }
         });
     });
@@ -285,7 +285,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.stat('/tmp/empty-dir'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -297,7 +297,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.rmdir('/tmp/full-dir'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOTEMPTY');
+                expect((err as FSError).code).toBe('ENOTEMPTY');
             }
         });
 
@@ -308,7 +308,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.rmdir('/tmp/a-file.txt'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOTDIR');
+                expect((err as FSError).code).toBe('ENOTDIR');
             }
         });
     });
@@ -325,7 +325,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.stat('/tmp/old-name.txt'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('ENOENT');
             }
         });
 
@@ -346,7 +346,7 @@ describe('ModelBackedStorage', () => {
                 await withStorage(s => s.rename('/tmp/src.txt', '/tmp/dst.txt'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as VFSError).code).toBe('EEXIST');
+                expect((err as FSError).code).toBe('EEXIST');
             }
         });
     });

@@ -1,8 +1,8 @@
-# VFS (Virtual Filesystem) Design
+# FS (Filesystem) Design
 
 ## Overview
 
-A generic virtual filesystem layer that lives in the API server, providing filesystem semantics over API data. The VFS is mount-based: a core "real" filesystem (backed by a database model) with virtual mounts overlaid at specific paths.
+A generic filesystem layer that lives in the API server, providing filesystem semantics over API data. The FS is mount-based: a core "real" filesystem (backed by a database model) with virtual mounts overlaid at specific paths.
 
 ## Architecture
 
@@ -22,7 +22,7 @@ A generic virtual filesystem layer that lives in the API server, providing files
 │         │                 │                    │            │
 │         │                 ▼                    ▼            │
 │         │          ┌─────────────────────────────┐          │
-│         │          │            VFS              │          │
+│         │          │            FS              │          │
 │         │          │  ┌───────────────────────┐  │          │
 │         │          │  │   Mount Table         │  │          │
 │         │          │  │  /api/data → DataMount│  │          │
@@ -42,7 +42,7 @@ A generic virtual filesystem layer that lives in the API server, providing files
 
 ### 1. Generic Core, Specific Mounts
 
-The VFS core knows nothing about Monk APIs, models, or business logic. It only understands:
+The FS core knows nothing about Monk APIs, models, or business logic. It only understands:
 - Paths (strings)
 - Entries (files and directories)
 - Mounts (path → handler mapping)
@@ -51,7 +51,7 @@ All Monk-specific behavior lives in mount handlers.
 
 ### 2. Real Storage by Default
 
-Unlike a purely virtual filesystem, the VFS has a real storage backend. Paths not covered by a mount are stored in a database model (`vfs_nodes`). This enables:
+Unlike a purely filesystem, the FS has a real storage backend. Paths not covered by a mount are stored in a database model (`fs_nodes`). This enables:
 - User home directories with real files
 - Scripts stored in the filesystem
 - Config files (`.profile`, `.aliases`)
@@ -63,7 +63,7 @@ Mounts have direct database access, not HTTP. This is critical for performance�
 
 ### 4. Session-Scoped Context
 
-Each VFS instance is bound to a session with:
+Each FS instance is bound to a session with:
 - Authenticated user (JWT)
 - Tenant context
 - Working directory state
@@ -72,10 +72,10 @@ Each VFS instance is bound to a session with:
 
 ## Core Interfaces
 
-### VFSEntry
+### FSEntry
 
 ```typescript
-interface VFSEntry {
+interface FSEntry {
   name: string;
   type: 'file' | 'directory' | 'symlink';
   size: number;
@@ -89,12 +89,12 @@ interface VFSEntry {
 }
 ```
 
-### VFSError
+### FSError
 
 ```typescript
-class VFSError extends Error {
+class FSError extends Error {
   constructor(
-    public code: VFSErrorCode,
+    public code: FSErrorCode,
     public path: string,
     message?: string
   ) {
@@ -102,7 +102,7 @@ class VFSError extends Error {
   }
 }
 
-type VFSErrorCode =
+type FSErrorCode =
   | 'ENOENT'    // No such file or directory
   | 'EEXIST'    // File exists
   | 'EISDIR'    // Is a directory (can't read as file)
@@ -118,8 +118,8 @@ type VFSErrorCode =
 ```typescript
 interface Mount {
   // Required: navigation
-  stat(path: string): Promise<VFSEntry>;
-  readdir(path: string): Promise<VFSEntry[]>;
+  stat(path: string): Promise<FSEntry>;
+  readdir(path: string): Promise<FSEntry[]>;
 
   // Required: reading
   read(path: string): Promise<string | Buffer>;
@@ -145,15 +145,15 @@ interface Mount {
 }
 ```
 
-### VFS Class
+### FS Class
 
 ```typescript
-class VFS {
+class FS {
   private mounts: Map<string, Mount> = new Map();
-  private storage: VFSStorage;
+  private storage: FSStorage;
 
   constructor(options: {
-    storage: VFSStorage;
+    storage: FSStorage;
     session: Session;
   }) {}
 
@@ -163,8 +163,8 @@ class VFS {
   getMounts(): Map<string, Mount>;
 
   // Core operations (delegate to mount or storage)
-  stat(path: string): Promise<VFSEntry>;
-  readdir(path: string): Promise<VFSEntry[]>;
+  stat(path: string): Promise<FSEntry>;
+  readdir(path: string): Promise<FSEntry[]>;
   read(path: string): Promise<string | Buffer>;
   write(path: string, content: string | Buffer): Promise<void>;
   unlink(path: string): Promise<void>;
@@ -192,12 +192,12 @@ class VFS {
 
 The storage backend handles "real" files not covered by mounts.
 
-### Database Model: `vfs_nodes`
+### Database Model: `fs_nodes`
 
 ```yaml
-model_name: vfs_nodes
+model_name: fs_nodes
 status: system
-description: Virtual filesystem nodes for persistent storage
+description: Filesystem nodes for persistent storage
 fields:
   - field_name: id
     type: uuid
@@ -246,28 +246,28 @@ indexes:
 ### StorageBackend Implementation
 
 ```typescript
-class ModelBackedStorage implements VFSStorage {
+class ModelBackedStorage implements FSStorage {
   constructor(
     private db: Database,
     private tenantId: string
   ) {}
 
-  async stat(path: string): Promise<VFSEntry> {
-    const node = await this.db('vfs_nodes')
+  async stat(path: string): Promise<FSEntry> {
+    const node = await this.db('fs_nodes')
       .where({ tenant_id: this.tenantId, path })
       .first();
 
-    if (!node) throw new VFSError('ENOENT', path);
+    if (!node) throw new FSError('ENOENT', path);
     return this.toEntry(node);
   }
 
-  async readdir(path: string): Promise<VFSEntry[]> {
+  async readdir(path: string): Promise<FSEntry[]> {
     const parent = await this.getNode(path);
     if (parent.type !== 'directory') {
-      throw new VFSError('ENOTDIR', path);
+      throw new FSError('ENOTDIR', path);
     }
 
-    const children = await this.db('vfs_nodes')
+    const children = await this.db('fs_nodes')
       .where({ tenant_id: this.tenantId, parent_id: parent.id })
       .orderBy('name');
 
@@ -277,21 +277,21 @@ class ModelBackedStorage implements VFSStorage {
   async read(path: string): Promise<Buffer> {
     const node = await this.getNode(path);
     if (node.type === 'directory') {
-      throw new VFSError('EISDIR', path);
+      throw new FSError('EISDIR', path);
     }
     return node.content || Buffer.alloc(0);
   }
 
   async write(path: string, content: Buffer): Promise<void> {
-    const existing = await this.db('vfs_nodes')
+    const existing = await this.db('fs_nodes')
       .where({ tenant_id: this.tenantId, path })
       .first();
 
     if (existing) {
       if (existing.type === 'directory') {
-        throw new VFSError('EISDIR', path);
+        throw new FSError('EISDIR', path);
       }
-      await this.db('vfs_nodes')
+      await this.db('fs_nodes')
         .where({ id: existing.id })
         .update({
           content,
@@ -303,7 +303,7 @@ class ModelBackedStorage implements VFSStorage {
       const parentPath = dirname(path);
       const parent = await this.getNode(parentPath);
 
-      await this.db('vfs_nodes').insert({
+      await this.db('fs_nodes').insert({
         id: uuid(),
         tenant_id: this.tenantId,
         parent_id: parent.id,
@@ -318,16 +318,16 @@ class ModelBackedStorage implements VFSStorage {
   }
 
   async mkdir(path: string): Promise<void> {
-    const existing = await this.db('vfs_nodes')
+    const existing = await this.db('fs_nodes')
       .where({ tenant_id: this.tenantId, path })
       .first();
 
-    if (existing) throw new VFSError('EEXIST', path);
+    if (existing) throw new FSError('EEXIST', path);
 
     const parentPath = dirname(path);
     const parent = await this.getNode(parentPath);
 
-    await this.db('vfs_nodes').insert({
+    await this.db('fs_nodes').insert({
       id: uuid(),
       tenant_id: this.tenantId,
       parent_id: parent.id,
@@ -341,30 +341,30 @@ class ModelBackedStorage implements VFSStorage {
   async unlink(path: string): Promise<void> {
     const node = await this.getNode(path);
     if (node.type === 'directory') {
-      throw new VFSError('EISDIR', path);
+      throw new FSError('EISDIR', path);
     }
-    await this.db('vfs_nodes').where({ id: node.id }).delete();
+    await this.db('fs_nodes').where({ id: node.id }).delete();
   }
 
   async rmdir(path: string): Promise<void> {
     const node = await this.getNode(path);
     if (node.type !== 'directory') {
-      throw new VFSError('ENOTDIR', path);
+      throw new FSError('ENOTDIR', path);
     }
 
-    const children = await this.db('vfs_nodes')
+    const children = await this.db('fs_nodes')
       .where({ tenant_id: this.tenantId, parent_id: node.id })
       .count('* as count')
       .first();
 
     if (children.count > 0) {
-      throw new VFSError('ENOTEMPTY', path);
+      throw new FSError('ENOTEMPTY', path);
     }
 
-    await this.db('vfs_nodes').where({ id: node.id }).delete();
+    await this.db('fs_nodes').where({ id: node.id }).delete();
   }
 
-  private toEntry(node: VFSNode): VFSEntry {
+  private toEntry(node: FSNode): FSEntry {
     return {
       name: node.name,
       type: node.type,
@@ -382,10 +382,10 @@ class ModelBackedStorage implements VFSStorage {
 
 ## Mount Resolution
 
-When a VFS operation is called, the path is checked against mounts in order of specificity (longest path first):
+When a FS operation is called, the path is checked against mounts in order of specificity (longest path first):
 
 ```typescript
-class VFS {
+class FS {
   private sortedMounts: [string, Mount][] = [];
 
   mount(path: string, handler: Mount): void {
@@ -395,7 +395,7 @@ class VFS {
       .sort((a, b) => b[0].length - a[0].length);
   }
 
-  private resolve(path: string): { handler: Mount | VFSStorage; relativePath: string } {
+  private resolve(path: string): { handler: Mount | FSStorage; relativePath: string } {
     const normalized = this.normalize(path);
 
     for (const [mountPath, handler] of this.sortedMounts) {
@@ -411,7 +411,7 @@ class VFS {
     return { handler: this.storage, relativePath: normalized };
   }
 
-  async readdir(path: string): Promise<VFSEntry[]> {
+  async readdir(path: string): Promise<FSEntry[]> {
     const { handler, relativePath } = this.resolve(path);
     const entries = await handler.readdir(relativePath);
 
@@ -454,7 +454,7 @@ class DataMount implements Mount {
     private namespace: string
   ) {}
 
-  async stat(path: string): Promise<VFSEntry> {
+  async stat(path: string): Promise<FSEntry> {
     const parts = this.parsePath(path);
 
     if (parts.type === 'root') {
@@ -480,10 +480,10 @@ class DataMount implements Mount {
       };
     }
 
-    throw new VFSError('ENOENT', path);
+    throw new FSError('ENOENT', path);
   }
 
-  async readdir(path: string): Promise<VFSEntry[]> {
+  async readdir(path: string): Promise<FSEntry[]> {
     const parts = this.parsePath(path);
 
     if (parts.type === 'root') {
@@ -518,14 +518,14 @@ class DataMount implements Mount {
       }));
     }
 
-    throw new VFSError('ENOTDIR', path);
+    throw new FSError('ENOTDIR', path);
   }
 
   async read(path: string): Promise<string> {
     const parts = this.parsePath(path);
 
     if (parts.type !== 'record') {
-      throw new VFSError('EISDIR', path);
+      throw new FSError('EISDIR', path);
     }
 
     const record = await this.getRecord(parts.model, parts.id);
@@ -536,7 +536,7 @@ class DataMount implements Mount {
     const parts = this.parsePath(path);
 
     if (parts.type !== 'record') {
-      throw new VFSError('EISDIR', path);
+      throw new FSError('EISDIR', path);
     }
 
     const data = JSON.parse(content);
@@ -551,7 +551,7 @@ class DataMount implements Mount {
     const parts = this.parsePath(path);
 
     if (parts.type !== 'record') {
-      throw new VFSError('EISDIR', path);
+      throw new FSError('EISDIR', path);
     }
 
     const table = `${this.namespace}.${parts.model}`;
@@ -587,7 +587,7 @@ class SystemMount implements Mount {
     private startTime: Date
   ) {}
 
-  async stat(path: string): Promise<VFSEntry> {
+  async stat(path: string): Promise<FSEntry> {
     const name = basename(path) || 'system';
 
     if (path === '/') {
@@ -599,11 +599,11 @@ class SystemMount implements Mount {
       return { name, type: 'file', size: content.length, mode: 0o444 };
     }
 
-    throw new VFSError('ENOENT', path);
+    throw new FSError('ENOENT', path);
   }
 
-  async readdir(path: string): Promise<VFSEntry[]> {
-    if (path !== '/') throw new VFSError('ENOTDIR', path);
+  async readdir(path: string): Promise<FSEntry[]> {
+    if (path !== '/') throw new FSError('ENOTDIR', path);
 
     return [...this.files.keys()].map(name => ({
       name,
@@ -615,7 +615,7 @@ class SystemMount implements Mount {
 
   async read(path: string): Promise<string> {
     const name = basename(path);
-    if (!this.files.has(name)) throw new VFSError('ENOENT', path);
+    if (!this.files.has(name)) throw new FSError('ENOENT', path);
     return this.getContent(name);
   }
 
@@ -646,7 +646,7 @@ class SystemMount implements Mount {
       case 'namespace':
         return this.session.namespace;
       default:
-        throw new VFSError('ENOENT', `/${name}`);
+        throw new FSError('ENOENT', `/${name}`);
     }
   }
 
@@ -676,8 +676,8 @@ class DescribeMount implements Mount {
     private tenantId: string
   ) {}
 
-  async readdir(path: string): Promise<VFSEntry[]> {
-    if (path !== '/') throw new VFSError('ENOTDIR', path);
+  async readdir(path: string): Promise<FSEntry[]> {
+    if (path !== '/') throw new FSError('ENOTDIR', path);
 
     const models = await this.db('models')
       .where({ tenant_id: this.tenantId })
@@ -700,7 +700,7 @@ class DescribeMount implements Mount {
       .where({ tenant_id: this.tenantId, model_name: modelName })
       .first();
 
-    if (!model) throw new VFSError('ENOENT', path);
+    if (!model) throw new FSError('ENOENT', path);
 
     const fields = await this.db('model_fields')
       .where({ model_id: model.id })
@@ -720,30 +720,30 @@ class DescribeMount implements Mount {
 
 ---
 
-## VFS Initialization
+## FS Initialization
 
 ```typescript
 // In API server startup
-function createVFS(session: Session, db: Database): VFS {
+function createFS(session: Session, db: Database): FS {
   const storage = new ModelBackedStorage(db, session.tenantId);
-  const vfs = new VFS({ storage, session });
+  const fs = new FS({ storage, session });
 
   // Mount API endpoints
-  vfs.mount('/api/data', new DataMount(db, session.tenantId, session.namespace));
-  vfs.mount('/api/describe', new DescribeMount(db, session.tenantId));
-  vfs.mount('/api/find', new FindMount(db, session.tenantId, session.namespace));
-  vfs.mount('/api/aggregate', new AggregateMount(db, session.tenantId, session.namespace));
+  fs.mount('/api/data', new DataMount(db, session.tenantId, session.namespace));
+  fs.mount('/api/describe', new DescribeMount(db, session.tenantId));
+  fs.mount('/api/find', new FindMount(db, session.tenantId, session.namespace));
+  fs.mount('/api/aggregate', new AggregateMount(db, session.tenantId, session.namespace));
 
   // Mount system info
-  vfs.mount('/system', new SystemMount(session, serverStartTime));
+  fs.mount('/system', new SystemMount(session, serverStartTime));
 
   // Mount apps
-  vfs.mount('/app', new AppMount(db, session.tenantId));
+  fs.mount('/app', new AppMount(db, session.tenantId));
 
   // Ensure home directory exists
   await storage.mkdir(`/home/${session.user.username}`).catch(() => {});
 
-  return vfs;
+  return fs;
 }
 ```
 
@@ -769,7 +769,7 @@ When a tenant is created, initialize:
 
 ## Open Questions
 
-1. **Permissions enforcement** - Should VFS enforce Unix-style permissions, or just reflect them for display?
+1. **Permissions enforcement** - Should FS enforce Unix-style permissions, or just reflect them for display?
 
 2. **Caching** - Should readdir results be cached? For how long? Per-session or global?
 

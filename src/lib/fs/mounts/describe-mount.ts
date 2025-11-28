@@ -1,5 +1,5 @@
 /**
- * DescribeMount - Model schemas as virtual filesystem
+ * DescribeMount - Model schemas as filesystem
  *
  * Matches HTTP API structure:
  * - /api/describe/                       → GET /api/describe (list models)
@@ -14,8 +14,8 @@
 
 import yaml from 'js-yaml';
 import type { System } from '@src/lib/system.js';
-import type { Mount, VFSEntry } from '../types.js';
-import { VFSError } from '../types.js';
+import type { Mount, FSEntry } from '../types.js';
+import { FSError } from '../types.js';
 import { stripSystemFields } from '@src/lib/describe.js';
 
 type ParsedPath =
@@ -28,7 +28,7 @@ type ParsedPath =
 export class DescribeMount implements Mount {
     constructor(private readonly system: System) {}
 
-    async stat(path: string): Promise<VFSEntry> {
+    async stat(path: string): Promise<FSEntry> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root') {
@@ -45,7 +45,7 @@ export class DescribeMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             return {
                 name: parsed.modelName,
@@ -61,7 +61,7 @@ export class DescribeMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             const content = await this.getModelSchema(parsed.modelName, parsed.format);
             return {
@@ -78,7 +78,7 @@ export class DescribeMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             return {
                 name: 'fields',
@@ -93,7 +93,7 @@ export class DescribeMount implements Mount {
                 where: { model_name: parsed.modelName, field_name: parsed.fieldName },
             });
             if (!field) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             const content = yaml.dump(stripSystemFields({ ...field }), { indent: 2 });
             return {
@@ -105,10 +105,10 @@ export class DescribeMount implements Mount {
             };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
-    async readdir(path: string): Promise<VFSEntry[]> {
+    async readdir(path: string): Promise<FSEntry[]> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root') {
@@ -127,7 +127,7 @@ export class DescribeMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             return [
@@ -142,7 +142,7 @@ export class DescribeMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             const fields = await this.system.describe.fields.selectAny({
@@ -158,14 +158,14 @@ export class DescribeMount implements Mount {
             }));
         }
 
-        throw new VFSError('ENOTDIR', path);
+        throw new FSError('ENOTDIR', path);
     }
 
     async read(path: string): Promise<string> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root' || parsed.type === 'model' || parsed.type === 'fields') {
-            throw new VFSError('EISDIR', path);
+            throw new FSError('EISDIR', path);
         }
 
         if (parsed.type === 'schema') {
@@ -173,7 +173,7 @@ export class DescribeMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             return this.getModelSchema(parsed.modelName, parsed.format);
         }
@@ -183,12 +183,12 @@ export class DescribeMount implements Mount {
                 where: { model_name: parsed.modelName, field_name: parsed.fieldName },
             });
             if (!field) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             return yaml.dump(stripSystemFields({ ...field }), { indent: 2, lineWidth: 120 });
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
     private async getModelSchema(modelName: string, format: 'yaml' | 'json'): Promise<string> {
@@ -196,7 +196,7 @@ export class DescribeMount implements Mount {
             where: { model_name: modelName },
         });
         if (!model) {
-            throw new VFSError('ENOENT', `/${modelName}/.${format}`);
+            throw new FSError('ENOENT', `/${modelName}/.${format}`);
         }
 
         const fields = await this.system.describe.fields.selectAny({
@@ -243,6 +243,6 @@ export class DescribeMount implements Mount {
             return { type: 'field', modelName: segments[0], fieldName: segments[2] };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 }

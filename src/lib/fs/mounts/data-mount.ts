@@ -1,5 +1,5 @@
 /**
- * DataMount - CRUD operations as virtual filesystem
+ * DataMount - CRUD operations as filesystem
  *
  * Matches HTTP API structure:
  * - /api/data/                    → GET /api/data (list models)
@@ -12,8 +12,8 @@
  */
 
 import type { System } from '@src/lib/system.js';
-import type { Mount, VFSEntry } from '../types.js';
-import { VFSError } from '../types.js';
+import type { Mount, FSEntry } from '../types.js';
+import { FSError } from '../types.js';
 
 type ParsedPath =
     | { type: 'root' }
@@ -23,7 +23,7 @@ type ParsedPath =
 export class DataMount implements Mount {
     constructor(private readonly system: System) {}
 
-    async stat(path: string): Promise<VFSEntry> {
+    async stat(path: string): Promise<FSEntry> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root') {
@@ -40,7 +40,7 @@ export class DataMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             return {
                 name: parsed.modelName,
@@ -56,7 +56,7 @@ export class DataMount implements Mount {
                 where: { id: parsed.recordId },
             });
             if (!record) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             const content = JSON.stringify(record, null, 2);
             return {
@@ -69,10 +69,10 @@ export class DataMount implements Mount {
             };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
-    async readdir(path: string): Promise<VFSEntry[]> {
+    async readdir(path: string): Promise<FSEntry[]> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root') {
@@ -91,7 +91,7 @@ export class DataMount implements Mount {
                 where: { model_name: parsed.modelName },
             });
             if (!model) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             const records = await this.system.database.selectAny(parsed.modelName, {
@@ -108,14 +108,14 @@ export class DataMount implements Mount {
             }));
         }
 
-        throw new VFSError('ENOTDIR', path);
+        throw new FSError('ENOTDIR', path);
     }
 
     async read(path: string): Promise<string> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root' || parsed.type === 'model') {
-            throw new VFSError('EISDIR', path);
+            throw new FSError('EISDIR', path);
         }
 
         if (parsed.type === 'record') {
@@ -123,19 +123,19 @@ export class DataMount implements Mount {
                 where: { id: parsed.recordId },
             });
             if (!record) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             return JSON.stringify(record, null, 2);
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
     async write(path: string, content: string | Buffer): Promise<void> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root' || parsed.type === 'model') {
-            throw new VFSError('EISDIR', path);
+            throw new FSError('EISDIR', path);
         }
 
         if (parsed.type === 'record') {
@@ -156,14 +156,14 @@ export class DataMount implements Mount {
             return;
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
     async unlink(path: string): Promise<void> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root' || parsed.type === 'model') {
-            throw new VFSError('EISDIR', path);
+            throw new FSError('EISDIR', path);
         }
 
         if (parsed.type === 'record') {
@@ -171,13 +171,13 @@ export class DataMount implements Mount {
                 where: { id: parsed.recordId },
             });
             if (!existing) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
             await this.system.database.deleteOne(parsed.modelName, parsed.recordId);
             return;
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
     private parsePath(path: string): ParsedPath {
@@ -195,6 +195,6 @@ export class DataMount implements Mount {
             return { type: 'record', modelName: segments[0], recordId: segments[1] };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 }

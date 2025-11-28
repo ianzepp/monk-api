@@ -76,7 +76,7 @@ import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as trackedRoutes from '@src/routes/api/tracked/routes.js';
 import * as trashedRoutes from '@src/routes/api/trashed/routes.js';
-import * as vfsRoutes from '@src/routes/vfs/routes.js';
+import * as fsRoutes from '@src/routes/fs/routes.js';
 
 // Public endpoints
 import RootGet from '@src/routes/root/GET.js';
@@ -162,13 +162,13 @@ app.use('/api/*', middleware.formatDetectorMiddleware);
 app.use('/api/*', middleware.responseTransformerMiddleware);
 app.use('/api/*', middleware.contextInitializerMiddleware);
 
-// VFS routes - auth only, uses runTransaction() internally
-app.use('/vfs/*', middleware.authValidatorMiddleware);
+// FS routes - auth only, uses runTransaction() internally
+app.use('/fs/*', middleware.authValidatorMiddleware);
 
-// 50-vfs-api: Virtual Filesystem routes
-app.get('/vfs/*', vfsRoutes.VfsGet); // GET /vfs/* - read/readdir (add ?stat=true for metadata)
-app.put('/vfs/*', vfsRoutes.VfsPut); // PUT /vfs/* - write
-app.delete('/vfs/*', vfsRoutes.VfsDelete); // DELETE /vfs/* - unlink
+// 50-fs-api: Filesystem routes
+app.get('/fs/*', fsRoutes.FsGet); // GET /fs/* - read/readdir (add ?stat=true for metadata)
+app.put('/fs/*', fsRoutes.FsPut); // PUT /fs/* - write
+app.delete('/fs/*', fsRoutes.FsDelete); // DELETE /fs/* - unlink
 
 // 40-docs-api: Public docs routes (no authentication required)
 app.get('/docs', docsRoutes.ReadmeGet); // GET /docs

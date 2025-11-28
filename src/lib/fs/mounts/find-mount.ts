@@ -11,8 +11,8 @@
  */
 
 import type { System } from '@src/lib/system.js';
-import type { Mount, VFSEntry } from '../types.js';
-import { VFSError } from '../types.js';
+import type { Mount, FSEntry } from '../types.js';
+import { FSError } from '../types.js';
 
 type ParsedPath =
     | { type: 'root' }
@@ -22,7 +22,7 @@ type ParsedPath =
 export class FindMount implements Mount {
     constructor(private readonly system: System) {}
 
-    async stat(path: string): Promise<VFSEntry> {
+    async stat(path: string): Promise<FSEntry> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root') {
@@ -42,7 +42,7 @@ export class FindMount implements Mount {
             }, { context: 'system' });
 
             if (filters.length === 0) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             return {
@@ -59,7 +59,7 @@ export class FindMount implements Mount {
             }, { context: 'system' });
 
             if (!filter) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             return {
@@ -72,10 +72,10 @@ export class FindMount implements Mount {
             };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
-    async readdir(path: string): Promise<VFSEntry[]> {
+    async readdir(path: string): Promise<FSEntry[]> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root') {
@@ -97,7 +97,7 @@ export class FindMount implements Mount {
             }, { context: 'system' });
 
             if (filters.length === 0) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             return filters.map(f => ({
@@ -110,14 +110,14 @@ export class FindMount implements Mount {
             }));
         }
 
-        throw new VFSError('ENOTDIR', path);
+        throw new FSError('ENOTDIR', path);
     }
 
     async read(path: string): Promise<string> {
         const parsed = this.parsePath(path);
 
         if (parsed.type === 'root' || parsed.type === 'model') {
-            throw new VFSError('EISDIR', path);
+            throw new FSError('EISDIR', path);
         }
 
         if (parsed.type === 'filter') {
@@ -127,7 +127,7 @@ export class FindMount implements Mount {
             }, { context: 'system' });
 
             if (!filter) {
-                throw new VFSError('ENOENT', path);
+                throw new FSError('ENOENT', path);
             }
 
             // Build query from saved filter
@@ -148,7 +148,7 @@ export class FindMount implements Mount {
             return JSON.stringify(results, null, 2);
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 
     private parsePath(path: string): ParsedPath {
@@ -166,6 +166,6 @@ export class FindMount implements Mount {
             return { type: 'filter', modelName: segments[0], filterName: segments[1] };
         }
 
-        throw new VFSError('ENOENT', path);
+        throw new FSError('ENOENT', path);
     }
 }

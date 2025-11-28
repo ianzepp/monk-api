@@ -282,8 +282,8 @@ If Monk's SSH server implements both subsystems:
 ┌─────────────────────────────────────────────────┐
 │  Monk SSH Server                                │
 ├─────────────────────────────────────────────────┤
-│  Subsystem: shell  →  TTY virtual filesystem    │
-│  Subsystem: sftp   →  SFTP virtual filesystem   │
+│  Subsystem: shell  →  TTY filesystem    │
+│  Subsystem: sftp   →  SFTP filesystem   │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -310,7 +310,7 @@ Then local editors can edit Monk "files" directly using their native remote-edit
 
 ### SFTP Operations Mapping
 
-| SFTP Operation | Virtual FS Action |
+| SFTP Operation | FS Action |
 |----------------|-------------------|
 | `OPENDIR` | List model records or fields |
 | `READDIR` | Return directory entries |
@@ -408,7 +408,7 @@ rm /api/data/users/123           # DELETE entire record
 rm /api/data/users/123/email     # Clear field (set to null)
 ```
 
-### Virtual Files
+### Files
 
 Each record directory contains special virtual files:
 

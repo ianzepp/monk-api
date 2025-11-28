@@ -1,56 +1,56 @@
 /**
- * VFS HTTP Routes
+ * FS HTTP Routes
  *
- * Minimal HTTP interface to the Virtual Filesystem.
+ * Minimal HTTP interface to the Filesystem.
  * Uses only auth + context middleware (no body parsing, format detection, or response transformation).
  *
  * Routes:
- * - GET /vfs/*    → read (file) or readdir (directory), with ?stat for metadata only
- * - PUT /vfs/*    → write
- * - DELETE /vfs/* → unlink
+ * - GET /fs/*    → read (file) or readdir (directory), with ?stat for metadata only
+ * - PUT /fs/*    → write
+ * - DELETE /fs/* → unlink
  */
 
 import type { Context } from 'hono';
 import type { System, SystemInit } from '@src/lib/system.js';
 import { runTransaction } from '@src/lib/transaction.js';
-import { VFS, VFSError } from '@src/lib/vfs/index.js';
-import { SystemMount } from '@src/lib/vfs/mounts/system-mount.js';
-import { DescribeMount } from '@src/lib/vfs/mounts/describe-mount.js';
-import { DataMount } from '@src/lib/vfs/mounts/data-mount.js';
-import { FindMount } from '@src/lib/vfs/mounts/find-mount.js';
-import { TrashedMount } from '@src/lib/vfs/mounts/trashed-mount.js';
+import { FS, FSError } from '@src/lib/fs/index.js';
+import { SystemMount } from '@src/lib/fs/mounts/system-mount.js';
+import { DescribeMount } from '@src/lib/fs/mounts/describe-mount.js';
+import { DataMount } from '@src/lib/fs/mounts/data-mount.js';
+import { FindMount } from '@src/lib/fs/mounts/find-mount.js';
+import { TrashedMount } from '@src/lib/fs/mounts/trashed-mount.js';
 
 /**
- * Create VFS instance with all mounts configured
+ * Create FS instance with all mounts configured
  */
-function createVFS(system: System): VFS {
-    const vfs = new VFS(system);
+function createFS(system: System): FS {
+    const fs = new FS(system);
 
     // Mount API endpoints
-    vfs.mount('/system', new SystemMount(system));
-    vfs.mount('/api/describe', new DescribeMount(system));
-    vfs.mount('/api/data', new DataMount(system));
-    vfs.mount('/api/find', new FindMount(system));
-    vfs.mount('/api/trashed', new TrashedMount(system));
+    fs.mount('/system', new SystemMount(system));
+    fs.mount('/api/describe', new DescribeMount(system));
+    fs.mount('/api/data', new DataMount(system));
+    fs.mount('/api/find', new FindMount(system));
+    fs.mount('/api/trashed', new TrashedMount(system));
 
-    return vfs;
+    return fs;
 }
 
 /**
- * Extract VFS path from request URL
- * /vfs/api/data/users → /api/data/users
+ * Extract FS path from request URL
+ * /fs/api/data/users → /api/data/users
  */
 function extractPath(c: Context): string {
     const url = new URL(c.req.url);
     const fullPath = url.pathname;
-    // Remove /vfs prefix
-    return fullPath.replace(/^\/vfs/, '') || '/';
+    // Remove /fs prefix
+    return fullPath.replace(/^\/fs/, '') || '/';
 }
 
 /**
- * Map VFSError to HTTP status code
+ * Map FSError to HTTP status code
  */
-function errorToStatus(err: VFSError): number {
+function errorToStatus(err: FSError): number {
     switch (err.code) {
         case 'ENOENT':
             return 404;
@@ -71,32 +71,32 @@ function errorToStatus(err: VFSError): number {
     }
 }
 
-/** Result types for VFS operations */
-type VfsResult =
+/** Result types for FS operations */
+type FsResult =
     | { type: 'stat'; data: object }
     | { type: 'directory'; data: object }
     | { type: 'file'; content: string; contentType: string }
     | { type: 'binary'; content: Uint8Array }
     | { type: 'success'; path: string }
-    | { type: 'error'; error: VFSError };
+    | { type: 'error'; error: FSError };
 
 /**
- * GET /vfs/* - Read file or list directory
+ * GET /fs/* - Read file or list directory
  *
  * Query params:
  * - ?stat=true - Return metadata only (like HEAD but as JSON)
  */
-export async function VfsGet(c: Context) {
+export async function FsGet(c: Context) {
     const systemInit = c.get('systemInit') as SystemInit;
     const path = extractPath(c);
     const statOnly = c.req.query('stat') === 'true';
 
     try {
-        const result = await runTransaction(systemInit, async (system): Promise<VfsResult> => {
-            const vfs = createVFS(system);
+        const result = await runTransaction(systemInit, async (system): Promise<FsResult> => {
+            const fs = createFS(system);
 
             try {
-                const entry = await vfs.stat(path);
+                const entry = await fs.stat(path);
 
                 // If stat-only mode, return metadata
                 if (statOnly) {
@@ -115,7 +115,7 @@ export async function VfsGet(c: Context) {
 
                 if (entry.type === 'directory') {
                     // List directory
-                    const entries = await vfs.readdir(path);
+                    const entries = await fs.readdir(path);
                     return {
                         type: 'directory',
                         data: {
@@ -134,7 +134,7 @@ export async function VfsGet(c: Context) {
                 }
 
                 // Read file
-                const content = await vfs.read(path);
+                const content = await fs.read(path);
 
                 if (typeof content === 'string') {
                     // Detect content type
@@ -151,7 +151,7 @@ export async function VfsGet(c: Context) {
                 return { type: 'binary', content: new Uint8Array(content) };
 
             } catch (err) {
-                if (err instanceof VFSError) {
+                if (err instanceof FSError) {
                     return { type: 'error', error: err };
                 }
                 throw err;
@@ -178,7 +178,7 @@ export async function VfsGet(c: Context) {
                 );
         }
     } catch (err) {
-        if (err instanceof VFSError) {
+        if (err instanceof FSError) {
             return c.json({ error: err.code, path: err.path, message: err.message }, errorToStatus(err) as any);
         }
         throw err;
@@ -186,22 +186,22 @@ export async function VfsGet(c: Context) {
 }
 
 /**
- * PUT /vfs/* - Write file
+ * PUT /fs/* - Write file
  */
-export async function VfsPut(c: Context) {
+export async function FsPut(c: Context) {
     const systemInit = c.get('systemInit') as SystemInit;
     const path = extractPath(c);
     const content = await c.req.text();
 
     try {
-        const result = await runTransaction(systemInit, async (system): Promise<VfsResult> => {
-            const vfs = createVFS(system);
+        const result = await runTransaction(systemInit, async (system): Promise<FsResult> => {
+            const fs = createFS(system);
 
             try {
-                await vfs.write(path, content);
+                await fs.write(path, content);
                 return { type: 'success', path };
             } catch (err) {
-                if (err instanceof VFSError) {
+                if (err instanceof FSError) {
                     return { type: 'error', error: err };
                 }
                 throw err;
@@ -217,7 +217,7 @@ export async function VfsPut(c: Context) {
 
         return c.json({ success: true, path });
     } catch (err) {
-        if (err instanceof VFSError) {
+        if (err instanceof FSError) {
             return c.json({ error: err.code, path: err.path, message: err.message }, errorToStatus(err) as any);
         }
         throw err;
@@ -225,21 +225,21 @@ export async function VfsPut(c: Context) {
 }
 
 /**
- * DELETE /vfs/* - Delete file
+ * DELETE /fs/* - Delete file
  */
-export async function VfsDelete(c: Context) {
+export async function FsDelete(c: Context) {
     const systemInit = c.get('systemInit') as SystemInit;
     const path = extractPath(c);
 
     try {
-        const result = await runTransaction(systemInit, async (system): Promise<VfsResult> => {
-            const vfs = createVFS(system);
+        const result = await runTransaction(systemInit, async (system): Promise<FsResult> => {
+            const fs = createFS(system);
 
             try {
-                await vfs.unlink(path);
+                await fs.unlink(path);
                 return { type: 'success', path };
             } catch (err) {
-                if (err instanceof VFSError) {
+                if (err instanceof FSError) {
                     return { type: 'error', error: err };
                 }
                 throw err;
@@ -255,7 +255,7 @@ export async function VfsDelete(c: Context) {
 
         return c.json({ success: true, path });
     } catch (err) {
-        if (err instanceof VFSError) {
+        if (err instanceof FSError) {
             return c.json({ error: err.code, path: err.path, message: err.message }, errorToStatus(err) as any);
         }
         throw err;

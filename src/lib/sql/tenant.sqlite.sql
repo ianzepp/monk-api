@@ -161,8 +161,8 @@ CREATE TABLE IF NOT EXISTS "tracked" (
 
 CREATE INDEX IF NOT EXISTS "idx_tracked_model_record" ON "tracked" (model_name, record_id, change_id DESC);
 
--- VFS Nodes table (virtual filesystem storage)
-CREATE TABLE IF NOT EXISTS "vfs_nodes" (
+-- FS Nodes table (filesystem storage)
+CREATE TABLE IF NOT EXISTS "fs_nodes" (
     "id" TEXT PRIMARY KEY NOT NULL,
     "access_read" TEXT DEFAULT '[]',
     "access_edit" TEXT DEFAULT '[]',
@@ -181,13 +181,13 @@ CREATE TABLE IF NOT EXISTS "vfs_nodes" (
     "mode" INTEGER DEFAULT 420 NOT NULL,
     "size" INTEGER DEFAULT 0 NOT NULL,
     "owner_id" TEXT,
-    CONSTRAINT "vfs_nodes_path_unique" UNIQUE("path"),
-    FOREIGN KEY ("parent_id") REFERENCES "vfs_nodes"("id") ON DELETE CASCADE,
+    CONSTRAINT "fs_nodes_path_unique" UNIQUE("path"),
+    FOREIGN KEY ("parent_id") REFERENCES "fs_nodes"("id") ON DELETE CASCADE,
     FOREIGN KEY ("owner_id") REFERENCES "users"("id") ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS "idx_vfs_nodes_parent" ON "vfs_nodes" ("parent_id");
-CREATE INDEX IF NOT EXISTS "idx_vfs_nodes_path" ON "vfs_nodes" ("path");
+CREATE INDEX IF NOT EXISTS "idx_fs_nodes_parent" ON "fs_nodes" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_fs_nodes_path" ON "fs_nodes" ("path");
 
 -- =============================================================================
 -- NOTE: Seed data for SQLite is managed in src/lib/infrastructure.ts
