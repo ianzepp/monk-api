@@ -13,6 +13,7 @@ import { cd } from './cd.js';
 // Listing
 import { ls } from './ls.js';
 import { find } from './find.js';
+import { tree } from './tree.js';
 import { grep } from './grep.js';
 import { xargs } from './xargs.js';
 import { mount } from './mount.js';
@@ -26,6 +27,8 @@ import { jq } from './jq.js';
 import { touch } from './touch.js';
 import { rm } from './rm.js';
 import { mv } from './mv.js';
+import { cp } from './cp.js';
+import { tee } from './tee.js';
 
 // Directory operations
 import { mkdir } from './mkdir.js';
@@ -39,6 +42,8 @@ import { describe } from './describe.js';
 import { sort } from './sort.js';
 import { uniq } from './uniq.js';
 import { wc } from './wc.js';
+import { cut } from './cut.js';
+import { tr } from './tr.js';
 
 // Info commands
 import { echo } from './echo.js';
@@ -70,6 +75,7 @@ export { pwd } from './pwd.js';
 export { cd } from './cd.js';
 export { ls } from './ls.js';
 export { find } from './find.js';
+export { tree } from './tree.js';
 export { grep } from './grep.js';
 export { xargs } from './xargs.js';
 export { mount } from './mount.js';
@@ -81,9 +87,13 @@ export { jq } from './jq.js';
 export { touch } from './touch.js';
 export { rm } from './rm.js';
 export { mv } from './mv.js';
+export { cp } from './cp.js';
+export { tee } from './tee.js';
 export { sort } from './sort.js';
 export { uniq } from './uniq.js';
 export { wc } from './wc.js';
+export { cut } from './cut.js';
+export { tr } from './tr.js';
 export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
@@ -115,6 +125,7 @@ export const commands: Record<string, CommandHandler> = {
     // Listing
     ls,
     find,
+    tree,
     grep,
     xargs,
     mount,
@@ -128,6 +139,8 @@ export const commands: Record<string, CommandHandler> = {
     touch,
     rm,
     mv,
+    cp,
+    tee,
 
     // Directory operations
     mkdir,
@@ -141,6 +154,8 @@ export const commands: Record<string, CommandHandler> = {
     sort,
     uniq,
     wc,
+    cut,
+    tr,
 
     // Info commands
     echo,

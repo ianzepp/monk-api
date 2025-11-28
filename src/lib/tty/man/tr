@@ -1,0 +1,37 @@
+NAME
+    tr - translate or delete characters
+
+SYNOPSIS
+    tr <set1> <set2>
+    tr -d <set1>
+    tr -s <set1>
+
+DESCRIPTION
+    Translates, deletes, or squeezes characters from stdin.
+
+OPTIONS
+    -d      Delete characters in set1
+    -s      Squeeze repeated characters in set1
+
+SET NOTATION
+    a-z     Lowercase letters
+    A-Z     Uppercase letters
+    0-9     Digits
+    \n      Newline
+    \t      Tab
+
+EXAMPLES
+    echo "hello" | tr a-z A-Z
+        Output: HELLO
+
+    echo "hello world" | tr -d ' '
+        Output: helloworld
+
+    echo "heeello" | tr -s e
+        Output: hello
+
+    echo "a,b,c" | tr , '\n'
+        Convert commas to newlines
+
+SEE ALSO
+    cut, grep, sed

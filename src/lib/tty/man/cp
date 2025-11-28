@@ -1,0 +1,26 @@
+NAME
+    cp - copy files and directories
+
+SYNOPSIS
+    cp [-r] <source> <dest>
+
+DESCRIPTION
+    Copies files or directories from source to destination.
+    If dest is a directory, copies into it with the same name.
+
+OPTIONS
+    -r, -R, --recursive
+            Copy directories recursively
+
+EXAMPLES
+    cp /tmp/file.txt /tmp/backup.txt
+        Copy a file
+
+    cp /tmp/file.txt /home/root/
+        Copy file into directory
+
+    cp -r /home/root/project /tmp/backup
+        Copy directory recursively
+
+SEE ALSO
+    mv, rm, cat

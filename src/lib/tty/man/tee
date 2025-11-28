@@ -1,0 +1,29 @@
+NAME
+    tee - read from stdin and write to stdout and files
+
+SYNOPSIS
+    tee [-a] <file>...
+
+DESCRIPTION
+    Copies stdin to stdout and also writes to the specified files.
+    Useful for capturing pipeline output while still passing it through.
+
+OPTIONS
+    -a, --append
+            Append to files instead of overwriting
+
+EXAMPLES
+    find . | tee /tmp/files.txt
+        Save file list while displaying it
+
+    find . | tee /tmp/files.txt | wc -l
+        Save and count files
+
+    cat data | tee -a /tmp/log.txt
+        Append to log file
+
+    cat file | tee /tmp/a.txt /tmp/b.txt
+        Write to multiple files
+
+SEE ALSO
+    cat, echo

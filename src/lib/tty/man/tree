@@ -1,0 +1,38 @@
+NAME
+    tree - list contents of directories in a tree-like format
+
+SYNOPSIS
+    tree [-d] [-L level] [path]
+
+DESCRIPTION
+    Displays the directory structure as a tree.
+    Shows files and directories with visual connectors.
+
+OPTIONS
+    -d          List directories only
+    -L level    Limit display to level depth
+
+EXAMPLES
+    tree
+        Show tree from current directory
+
+    tree /api
+        Show tree from /api
+
+    tree -L 2 /api/data
+        Show 2 levels deep
+
+    tree -d /
+        Show only directories
+
+OUTPUT
+    /api
+    ├── data/
+    │   ├── users/
+    │   └── orders/
+    └── describe/
+
+    2 directories, 0 files
+
+SEE ALSO
+    ls, find
