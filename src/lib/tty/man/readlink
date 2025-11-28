@@ -1,0 +1,37 @@
+NAME
+    readlink - print resolved symbolic links
+
+SYNOPSIS
+    readlink [options] <file...>
+
+DESCRIPTION
+    Prints the target of a symbolic link. With -f, prints the
+    canonical absolute pathname.
+
+OPTIONS
+    -f              Canonicalize path (resolve all symlinks)
+    -e              Like -f, but path must exist
+    -m              Like -f, but path need not exist
+    -n              No trailing newline
+    -q              Quiet (suppress error messages)
+    -v              Verbose
+
+EXAMPLES
+    readlink /link
+        /path/to/target
+
+    readlink -f /link
+        /absolute/path/to/target
+
+    readlink -e /link
+        Error if target doesn't exist
+
+    readlink -n link1 link2
+        Output without newlines
+
+EXIT STATUS
+    0       Success
+    1       Error or not a symbolic link
+
+SEE ALSO
+    realpath, ln, stat

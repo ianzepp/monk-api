@@ -1,0 +1,49 @@
+NAME
+    mktemp - create a temporary file or directory
+
+SYNOPSIS
+    mktemp [options] [template]
+
+DESCRIPTION
+    Creates a unique temporary file or directory and prints
+    its name. The template must contain at least 3 X's which
+    are replaced with random characters.
+
+OPTIONS
+    -d              Create directory instead of file
+    -u              Dry run (print name without creating)
+    -q              Quiet (suppress error messages)
+    -p <dir>        Create in directory (default: /tmp)
+    -t              Use template relative to prefix dir
+    --suffix=<suf>  Append suffix after X substitution
+
+TEMPLATE
+    Default template is tmp.XXXXXXXXXX
+    X's are replaced with random alphanumeric characters.
+    At least 3 consecutive X's required.
+
+EXAMPLES
+    mktemp
+        /tmp/tmp.A7xK3mPqR2
+
+    mktemp -d
+        /tmp/tmp.B9yL4nQsT1 (directory)
+
+    mktemp myapp.XXXX
+        /tmp/myapp.Z5wM
+
+    mktemp -p /home/user cache.XXX
+        /home/user/cache.K8n
+
+    mktemp --suffix=.json data.XXXX
+        /tmp/data.P3rQ.json
+
+    mktemp -u test.XXX
+        Print name only, don't create
+
+EXIT STATUS
+    0       Success
+    1       Error (couldn't create file/directory)
+
+SEE ALSO
+    touch, mkdir, rm

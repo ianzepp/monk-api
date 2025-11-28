@@ -1,0 +1,52 @@
+NAME
+    df - report filesystem disk space usage
+
+SYNOPSIS
+    df [options] [file...]
+
+DESCRIPTION
+    Displays information about mounted filesystems including
+    total space, used space, and mount points.
+
+    Note: Values are simulated for the virtual filesystem.
+
+OPTIONS
+    -h              Human-readable sizes (1024 base)
+    -H              Human-readable sizes (1000 base)
+    -T              Show filesystem type
+    -i              Show inode information
+    -a              Include pseudo-filesystems
+    -l              Local filesystems only
+    -t <type>       Show only filesystems of type
+    -x <type>       Exclude filesystems of type
+    --total         Produce a grand total
+
+FILESYSTEMS
+    Virtual filesystem mounts:
+    /           Root filesystem (vfs)
+    /tmp        Temporary storage (tmpfs)
+    /api        API data storage (api)
+    /home       User home directories (vfs)
+    /proc       Process information (proc)
+
+EXAMPLES
+    df
+        Show all mounted filesystems
+
+    df -h
+        Human-readable output
+
+    df -Th
+        Include filesystem type
+
+    df -h /api/data
+        Show filesystem for path
+
+    df --total
+        Include grand total
+
+OUTPUT
+    Filesystem  Size  Used  Avail  Use%  Mounted on
+
+SEE ALSO
+    du, mount

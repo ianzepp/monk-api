@@ -1,0 +1,43 @@
+NAME
+    file - determine file type
+
+SYNOPSIS
+    file [options] <file...>
+
+DESCRIPTION
+    Determines file type by examining file name extension and
+    content. Reports type description or MIME type.
+
+OPTIONS
+    -b              Brief mode (no filename in output)
+    -i              Output MIME type instead of description
+    -L              Follow symbolic links
+
+FILE TYPES
+    Detected types include:
+    - JSON, XML, YAML, TOML data
+    - HTML, CSS, Markdown documents
+    - JavaScript, TypeScript source
+    - Shell scripts
+    - Images (PNG, JPEG, GIF, SVG)
+    - Archives (ZIP, gzip, tar)
+    - SQLite databases
+    - Plain text and binary data
+
+EXAMPLES
+    file config.json
+        config.json: JSON data
+
+    file -i config.json
+        config.json: application/json
+
+    file -b *
+        JSON data
+        directory
+        ASCII text
+
+    file /api/data/users/123
+        /api/data/users/123: JSON data
+
+SEE ALSO
+    stat, ls

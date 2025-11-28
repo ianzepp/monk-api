@@ -1,0 +1,42 @@
+NAME
+    realpath - print resolved absolute pathname
+
+SYNOPSIS
+    realpath [options] <file...>
+
+DESCRIPTION
+    Expands all symbolic links and resolves references to
+    . and .. to produce a canonical absolute path.
+
+OPTIONS
+    -e              All path components must exist
+    -m              No path components need exist
+    -L              Resolve .. before symlinks (logical)
+    -P              Resolve symlinks first (physical, default)
+    -q              Quiet (suppress errors)
+    -s              Don't expand symlinks
+    --relative-to=<dir>     Print relative to directory
+    --relative-base=<dir>   Print relative if descendant
+
+EXAMPLES
+    realpath .
+        /current/working/directory
+
+    realpath ../foo/bar
+        /parent/foo/bar
+
+    realpath -e /api/data/users/123
+        Verify path exists
+
+    realpath --relative-to=/api /api/data/users
+        data/users
+
+    realpath -s ./link
+        Don't follow symlinks
+
+EXIT STATUS
+    0       Success
+    1       Error (path doesn't exist with -e)
+
+SEE ALSO
+    readlink, dirname, basename

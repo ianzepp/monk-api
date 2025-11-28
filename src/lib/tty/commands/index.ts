@@ -61,6 +61,12 @@ import { printf } from './printf.js';
 // File comparison
 import { diff } from './diff.js';
 import { stat } from './stat.js';
+import { file } from './file.js';
+import { readlink } from './readlink.js';
+import { realpath } from './realpath.js';
+import { mktemp } from './mktemp.js';
+import { du } from './du.js';
+import { df } from './df.js';
 
 // Info commands
 import { echo } from './echo.js';
@@ -148,6 +154,12 @@ export { sed } from './sed.js';
 export { printf } from './printf.js';
 export { diff } from './diff.js';
 export { stat } from './stat.js';
+export { file } from './file.js';
+export { readlink } from './readlink.js';
+export { realpath } from './realpath.js';
+export { mktemp } from './mktemp.js';
+export { du } from './du.js';
+export { df } from './df.js';
 export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
@@ -250,9 +262,15 @@ export const commands: Record<string, CommandHandler> = {
     // Output formatting
     printf,
 
-    // File comparison
+    // File comparison and info
     diff,
     stat,
+    file,
+    readlink,
+    realpath,
+    mktemp,
+    du,
+    df,
 
     // Info commands
     echo,
