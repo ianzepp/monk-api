@@ -52,7 +52,7 @@ describe('ModelBackedStorage', () => {
                 dbName: 'monk',
                 nsName: schemaName,
                 access: 'root',
-                isSudo: false,
+                isSudoToken: false,
             };
 
             // Clear namespace cache so subsequent transactions reload fresh

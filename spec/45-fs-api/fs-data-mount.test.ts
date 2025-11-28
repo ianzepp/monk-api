@@ -52,7 +52,7 @@ describe('DataMount - Unit', () => {
                 dbName: 'monk',
                 nsName: schemaName,
                 access: 'root',
-                isSudo: false,
+                isSudoToken: false,
             };
 
             // Seed test data using direct SQL (bypass observers for unit test)

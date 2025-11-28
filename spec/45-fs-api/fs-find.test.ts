@@ -127,7 +127,7 @@ describe('FS API - FindMount', () => {
             const response = await tenant.httpClient.getRaw('/fs/api/find/orders/high-value');
             expect(response.ok).toBe(true);
 
-            const results = await response.json();
+            const results = await response.json() as Record<string, any>[];
             expect(Array.isArray(results)).toBe(true);
             expect(results.length).toBe(3); // Alice (1500), Charlie (2000), Eve (3500)
 
@@ -142,7 +142,7 @@ describe('FS API - FindMount', () => {
             const response = await tenant.httpClient.getRaw('/fs/api/find/orders/pending-orders');
             expect(response.ok).toBe(true);
 
-            const results = await response.json();
+            const results = await response.json() as Record<string, any>[];
             expect(Array.isArray(results)).toBe(true);
             expect(results.length).toBe(2); // Bob and Eve are pending
 
@@ -190,7 +190,7 @@ describe('FS API - FindMount', () => {
             const response = await tenant.httpClient.getRaw('/fs/api/find/orders/top-3');
             expect(response.ok).toBe(true);
 
-            const results = await response.json();
+            const results = await response.json() as Record<string, any>[];
             expect(results.length).toBe(3);
 
             // Should be top 3 by amount
@@ -214,7 +214,7 @@ describe('FS API - FindMount', () => {
             const response = await tenant.httpClient.getRaw('/fs/api/find/orders/customers-only');
             expect(response.ok).toBe(true);
 
-            const results = await response.json();
+            const results = await response.json() as Record<string, any>[];
             expect(results.length).toBe(5);
 
             // Should only have id and customer fields

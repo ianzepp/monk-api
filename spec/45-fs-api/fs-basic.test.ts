@@ -61,7 +61,7 @@ describe('FS API - Basic Operations', () => {
             const response = await tenant.httpClient.getRaw('/fs/system/whoami');
             expect(response.ok).toBe(true);
 
-            const data = await response.json();
+            const data = await response.json() as Record<string, any>;
             expect(data.id).toBeDefined();
             expect(data.tenant).toBe(tenant.tenantName);
         });
@@ -118,7 +118,7 @@ describe('FS API - Basic Operations', () => {
             const response = await tenant.httpClient.getRaw('/fs/api/describe/products/.json');
             expect(response.ok).toBe(true);
 
-            const schema = await response.json();
+            const schema = await response.json() as Record<string, any>;
             expect(schema.model_name).toBe('products');
             expect(schema.fields).toBeInstanceOf(Array);
         });
@@ -167,7 +167,7 @@ describe('FS API - Basic Operations', () => {
             const response = await tenant.httpClient.getRaw(`/fs/api/data/products/${recordId}`);
             expect(response.ok).toBe(true);
 
-            const record = await response.json();
+            const record = await response.json() as Record<string, any>;
             expect(record.id).toBe(recordId);
             expect(record.name).toBeDefined();
         });
@@ -182,7 +182,7 @@ describe('FS API - Basic Operations', () => {
 
             // Verify update
             const readResponse = await tenant.httpClient.getRaw(`/fs/api/data/products/${recordId}`);
-            const record = await readResponse.json();
+            const record = await readResponse.json() as Record<string, any>;
             expect(record.name).toBe('Updated Widget');
             expect(record.price).toBe(12.99);
         });
@@ -197,7 +197,7 @@ describe('FS API - Basic Operations', () => {
 
             // Verify creation
             const readResponse = await tenant.httpClient.getRaw(`/fs/api/data/products/${newId}`);
-            const record = await readResponse.json();
+            const record = await readResponse.json() as Record<string, any>;
             expect(record.id).toBe(newId);
             expect(record.name).toBe('New Product');
         });
@@ -264,7 +264,7 @@ describe('FS API - Basic Operations', () => {
             const response = await tenant.httpClient.getRaw(`/fs/api/trashed/products/${trashedId}`);
             expect(response.ok).toBe(true);
 
-            const record = await response.json();
+            const record = await response.json() as Record<string, any>;
             expect(record.id).toBe(trashedId);
             expect(record.name).toBe('Trashed Item');
             expect(record.trashed_at).toBeDefined();
