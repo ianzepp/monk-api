@@ -45,6 +45,7 @@ import { delete_ } from './delete.js';
 import { count } from './count.js';
 import { dump } from './dump.js';
 import { restore } from './restore.js';
+import { curl } from './curl.js';
 
 // Text processing
 import { sort } from './sort.js';
@@ -121,6 +122,7 @@ export { delete_ } from './delete.js';
 export { count } from './count.js';
 export { dump } from './dump.js';
 export { restore } from './restore.js';
+export { curl } from './curl.js';
 export { echo } from './echo.js';
 export { whoami } from './whoami.js';
 export { env } from './env.js';
@@ -185,6 +187,7 @@ export const commands: Record<string, CommandHandler> = {
     count,
     dump,
     restore,
+    curl,
 
     // Text processing
     sort,

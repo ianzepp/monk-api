@@ -89,6 +89,7 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `count [path]` - Count records in collection
 - `dump <path> [models...]` - Export to SQLite file
 - `restore <path> [models...]` - Import from SQLite file
+- `curl [options] <url>` - HTTP requests (internal/external)
 
 ### Process Management
 - `ps [-a]` - List processes (`-a` includes dead/zombie)
