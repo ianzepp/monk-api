@@ -4,7 +4,7 @@
  * Single middleware that orchestrates all response transformations in a predetermined order.
  *
  * Pipeline Order:
- * 1. Field Extraction - Apply ?unwrap, ?select=, ?stat=false, ?access=false
+ * 1. Field Extraction - Apply ?unwrap, ?select=, ?stat=true, ?access=true
  * 2. Format Conversion - Convert to JSON/YAML/CSV/TOON/etc based on ?format=
  * 3. Encryption - Encrypt formatted text if ?encrypt=pgp
  *
@@ -20,7 +20,7 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 // Field extraction utilities
 import { extract } from '@src/lib/field-extractor.js';
-import { filterSystemFields } from '@src/lib/system-field-filter.js';
+import { transform, transformMany } from '@src/lib/transformers/index.js';
 
 // Formatter registry
 import { getFormatter, JsonFormatter } from '@src/lib/formatters/index.js';
@@ -53,8 +53,8 @@ function formatUnavailableError(format: string): { data: Uint8Array; contentType
  * Applies server-side field extraction and system field filtering:
  * - ?unwrap - Remove envelope, return data object
  * - ?select=id,name - Remove envelope, return specific fields
- * - ?stat=false - Exclude timestamp fields
- * - ?access=false - Exclude ACL fields
+ * - ?stat=true - Include timestamp fields (excluded by default)
+ * - ?access=true - Include ACL fields (excluded by default)
  *
  * Only processes successful responses (success: true)
  */
@@ -70,6 +70,15 @@ function applyFieldExtraction(data: any, context: Context): any {
     const statParam = context.req.query('stat');
     const accessParam = context.req.query('access');
 
+    // Parse boolean flags (default: exclude stat/access fields)
+    const includeStat = statParam === 'true' || statParam === '1';
+    const includeAccess = accessParam === 'true' || accessParam === '1';
+
+    // Parse select as comma-separated list
+    const selectFields = selectParam && selectParam.trim() !== ''
+        ? selectParam.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : undefined;
+
     // Define the result, while injecting the HTTP method, path, stat, and access
     let result = {
         success: true,
@@ -80,17 +89,17 @@ function applyFieldExtraction(data: any, context: Context): any {
         ...data
     };
 
-    // Step 1a: System field filtering (applied to data before unwrap/select)
-    if (statParam === 'false' || accessParam === 'false') {
-        const includeStat = statParam !== 'false';
-        const includeAccess = accessParam !== 'false';
-
-        if (result.data !== undefined) {
-            result.data = filterSystemFields(result.data, includeStat, includeAccess);
+    // Step 1a: Transform data fields (apply stat/access/select filtering)
+    if (result.data !== undefined) {
+        const options = { stat: includeStat, access: includeAccess, select: selectFields };
+        if (Array.isArray(result.data)) {
+            result.data = transformMany(result.data, options);
+        } else if (typeof result.data === 'object' && result.data !== null) {
+            result.data = transform(result.data, options);
         }
     }
 
-    // Step 1b: Unwrap or select fields
+    // Step 1b: Unwrap or select fields (envelope extraction)
     if (selectParam && selectParam.trim() !== '') {
         // select= implies unwrap + field filtering
         // Prepend "data." to each path since select operates within data scope
@@ -230,7 +239,7 @@ export async function responseTransformerMiddleware(context: Context, next: Next
 
         let result = data;
 
-        // Step 1: Field Extraction (?unwrap, ?select=, ?stat=false, ?access=false)
+        // Step 1: Field Extraction (?unwrap, ?select=, ?stat=true, ?access=true)
         result = applyFieldExtraction(result, context);
 
         // Step 2: Format Conversion (?format=yaml|csv|toon|etc)
