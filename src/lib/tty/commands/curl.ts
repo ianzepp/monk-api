@@ -197,6 +197,7 @@ async function callInternal(
     const token = await JWTGenerator.generateToken({
         id: systemInit.userId || 'system',
         user_id: systemInit.userId,
+        username: systemInit.username || 'system',
         tenant: systemInit.tenant!,
         dbType: systemInit.dbType,
         dbName: systemInit.dbName!,

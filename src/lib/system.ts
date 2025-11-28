@@ -21,6 +21,8 @@ export interface SystemInit {
     nsName: string;
     /** User ID */
     userId: string;
+    /** Username (for home directory mount) */
+    username?: string;
     /** Access level */
     access: string;
     /** Tenant name */
@@ -47,6 +49,7 @@ export function systemInitFromJWT(payload: JWTPayload, correlationId?: string): 
         dbName: payload.db,
         nsName: payload.ns,
         userId: payload.user_id || payload.sub,
+        username: payload.username,
         access: payload.access,
         tenant: payload.tenant,
         accessRead: payload.access_read || [],
@@ -81,6 +84,7 @@ export class System implements SystemContext {
     // Authentication context
     public readonly access: string;
     public readonly tenant: string;
+    public readonly username?: string;
     public readonly accessRead: string[];
     public readonly accessEdit: string[];
     public readonly accessFull: string[];
@@ -142,6 +146,7 @@ export class System implements SystemContext {
             this.dbName = init.dbName;
             this.nsName = init.nsName;
             this.userId = init.userId;
+            this.username = init.username;
             this.access = init.access;
             this.tenant = init.tenant;
             this.accessRead = init.accessRead || [];
@@ -156,7 +161,7 @@ export class System implements SystemContext {
         // Note: system.adapter is set by runTransaction() before any database operations
         this.database = new Database(this);
         this.describe = new Describe(this);
-        this.fs = createFS(this);
+        this.fs = createFS(this, { username: this.username });
 
         // Bind namespace cache
         if (this.dbName && this.nsName) {

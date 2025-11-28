@@ -1,20 +1,23 @@
 /**
- * MemoryMount - In-memory filesystem for /tmp
+ * MemoryMount - In-memory filesystem for root (/)
  *
  * Provides a fast, ephemeral filesystem that exists only in memory.
- * All data is lost on server restart - ideal for temporary files.
+ * All data is lost on server restart - ideal for system directories.
  *
  * Features:
  * - Full read/write support
  * - Directories, files, and symlinks
  * - No persistence (intentionally)
- * - Per-tenant isolation via TmpMountRegistry
+ * - Per-tenant isolation via MemoryMountRegistry
  * - Size limits: 500MB per tenant, 50MB per file
  *
  * Lifecycle:
  * - Created once per tenant, persists for server lifetime
  * - Shared across all users/sessions within a tenant
- * - Use TmpMountRegistry.get(tenant) to obtain the shared instance
+ * - Use MemoryMountRegistry.get(tenant) to obtain the shared instance
+ *
+ * Note: User home directories (/home/{user}) are mounted separately
+ * with ModelBackedStorage for persistence.
  */
 
 import type { Mount, FSEntry } from '../types.js';
@@ -39,16 +42,16 @@ interface MemoryNode {
 }
 
 /**
- * Registry of per-tenant /tmp mounts
+ * Registry of per-tenant root mounts
  *
  * Ensures each tenant gets a single shared MemoryMount instance
  * that persists for the lifetime of the server process.
  */
-export class TmpMountRegistry {
+export class MemoryMountRegistry {
     private static mounts = new Map<string, MemoryMount>();
 
     /**
-     * Get or create the /tmp mount for a tenant
+     * Get or create the root mount for a tenant
      */
     static get(tenant: string): MemoryMount {
         let mount = this.mounts.get(tenant);
@@ -73,6 +76,9 @@ export class TmpMountRegistry {
         this.mounts.delete(tenant);
     }
 }
+
+/** @deprecated Use MemoryMountRegistry instead */
+export const TmpMountRegistry = MemoryMountRegistry;
 
 export class MemoryMount implements Mount {
     private root: MemoryNode;

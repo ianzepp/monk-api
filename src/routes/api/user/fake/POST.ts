@@ -90,6 +90,7 @@ export default async function (context: Context) {
     const fakeToken = await JWTGenerator.generateFakeToken(
         {
             id: targetUser.id,
+            username: targetUser.auth,
             access: targetUser.access,
             access_read: targetUser.access_read || [],
             access_edit: targetUser.access_edit || [],

@@ -60,7 +60,7 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `cd <path>` - Change directory
 
 ### Filesystem
-- `ls [-la] [path]` - List directory contents
+- `ls [-1laRhStrd] [path]` - List directory contents
 - `tree [-dL] [path]` - Display directory tree
 - `cat <file>` - Display file contents
 - `head [-n N] [file]` - Show first N lines
@@ -73,7 +73,14 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `cp [-r] <src> <dst>` - Copy files/directories
 - `ln -s <target> <link>` - Create symbolic link
 - `chmod <mode> <file>` - Change file permissions
-- `find [path]` - Recursively list files
+- `find [path] [-name|-iname|-path] [-exec|-delete|-print0]` - Find files
+- `file [-i] <path>` - Determine file type
+- `stat [-ct] <file>` - Display file status
+- `readlink [-fem] <link>` - Print symlink target
+- `realpath [--relative-to] <path>` - Resolve absolute pathname
+- `mktemp [-dp] [template]` - Create temporary file/directory
+- `du [-shd] [path]` - Estimate file space usage
+- `df [-hTt] [path]` - Report filesystem disk space
 
 ### Mounts
 - `mount` - List mounted filesystems
@@ -100,13 +107,16 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `timeout <duration> <cmd>` - Run command with timeout
 
 ### Text Processing
-- `grep [-iv] <pattern>` - Filter lines by regex
-- `sort [-rnu]` - Sort lines
+- `grep [-ivFwxcnloqm] <pattern>` - Filter lines by regex
+- `sed [-nEri] <script>` - Stream editor
+- `sort [-rnufbdhk] [-t delim]` - Sort lines
 - `uniq [-cd]` - Filter adjacent duplicate lines
 - `wc [-lwc]` - Word, line, character count
 - `cut -d<delim> -f<fields>` - Extract fields
 - `tr <set1> <set2>` - Translate characters
 - `jq <filter>` - JSON processing
+- `printf <format> [args...]` - Format and print data
+- `diff [-uyiwB] <file1> <file2>` - Compare files line by line
 
 ### Environment
 - `echo <text>` - Print text (supports $VAR expansion)
@@ -118,13 +128,15 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `history [-c] [N]` - Show command history
 
 ### Utilities
-- `xargs <cmd>` - Build commands from stdin
+- `xargs [-0dIntrLP] <cmd>` - Build commands from stdin
 - `tee [-a] <file>` - Write to stdout and file
 - `true` - Exit with success (0)
 - `false` - Exit with failure (1)
 - `seq [first] [incr] <last>` - Print number sequence
 - `yes [string]` - Output string repeatedly until killed
 - `which <cmd>` - Locate a command
+- `time [-pv] <cmd>` - Measure command execution time
+- `watch [-nde] <cmd>` - Execute command periodically
 
 ### Scripting
 - `source <file>` / `. <file>` - Execute commands from file

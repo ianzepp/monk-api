@@ -61,7 +61,7 @@ async function authenticateApiKey(apiKey: string, tenantName: string): Promise<A
         try {
             credentialResult = await adapter.query(
                 `SELECT c.id, c.user_id, c.secret, c.permissions, c.expires_at,
-                        u.name as user_name, u.access, u.access_read, u.access_edit, u.access_full, u.access_deny
+                        u.name as user_name, u.auth as username, u.access, u.access_read, u.access_edit, u.access_full, u.access_deny
                  FROM credentials c
                  JOIN users u ON u.id = c.user_id
                  WHERE c.identifier = $1 AND c.type = 'api_key' AND c.deleted_at IS NULL
@@ -76,7 +76,7 @@ async function authenticateApiKey(apiKey: string, tenantName: string): Promise<A
             dbName,
             nsName,
             `SELECT c.id, c.user_id, c.secret, c.permissions, c.expires_at,
-                    u.name as user_name, u.access, u.access_read, u.access_edit, u.access_full, u.access_deny
+                    u.name as user_name, u.auth as username, u.access, u.access_read, u.access_edit, u.access_full, u.access_deny
              FROM credentials c
              JOIN users u ON u.id = c.user_id
              WHERE c.identifier = $1 AND c.type = 'api_key' AND c.deleted_at IS NULL
@@ -142,6 +142,7 @@ async function authenticateApiKey(apiKey: string, tenantName: string): Promise<A
     const payload: JWTPayload = {
         sub: credential.user_id,
         user_id: credential.user_id,
+        username: credential.username,
         tenant: name,
         db_type: dbType || 'postgresql',
         db: dbName,

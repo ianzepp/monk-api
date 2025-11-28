@@ -13,6 +13,7 @@ import { sign, verify } from 'hono/jwt';
 export interface JWTPayload {
     sub: string;
     user_id: string | null;
+    username: string;
     tenant: string;
     db_type: 'postgresql' | 'sqlite'; // Database backend type
     db: string; // Database name (PG) or directory (SQLite)
@@ -44,6 +45,7 @@ export interface JWTPayload {
 export interface JWTUserData {
     id: string;
     user_id?: string | null;
+    username: string;
     tenant: string;
     dbType?: 'postgresql' | 'sqlite'; // Maps to 'db_type' in JWT (default: 'postgresql')
     dbName: string; // Maps to 'db' in JWT
@@ -102,6 +104,7 @@ export class JWTGenerator {
         const payload: JWTPayload = {
             sub: userData.id,
             user_id: userData.user_id ?? userData.id,
+            username: userData.username,
             tenant: userData.tenant,
             db_type: userData.dbType || 'postgresql', // Database backend type
             db: userData.dbName, // Compact JWT field
@@ -137,6 +140,7 @@ export class JWTGenerator {
         const payload: JWTPayload = {
             sub: userData.id,
             user_id: userData.user_id ?? userData.id,
+            username: userData.username,
             tenant: userData.tenant,
             db_type: userData.dbType || 'postgresql',
             db: userData.dbName,
@@ -169,7 +173,7 @@ export class JWTGenerator {
      * @returns JWT token string with impersonation metadata
      */
     static async generateFakeToken(
-        targetUser: { id: string; access: string; access_read?: string[]; access_edit?: string[]; access_full?: string[] },
+        targetUser: { id: string; username: string; access: string; access_read?: string[]; access_edit?: string[]; access_full?: string[] },
         currentUser: { tenant: string; dbType?: 'postgresql' | 'sqlite'; dbName: string; nsName: string },
         options: FakeTokenOptions
     ): Promise<string> {
@@ -179,6 +183,7 @@ export class JWTGenerator {
         const payload: JWTPayload = {
             sub: targetUser.id,
             user_id: targetUser.id,
+            username: targetUser.username,
             tenant: currentUser.tenant,
             db_type: currentUser.dbType || 'postgresql',
             db: currentUser.dbName,

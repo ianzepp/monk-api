@@ -1,8 +1,8 @@
 /**
  * Model-Backed Storage - Persistent FS storage using fs table
  *
- * Provides a real filesystem backed by the database for paths not handled
- * by API mounts. Supports /home, /tmp, /etc, and any custom paths.
+ * Provides a real filesystem backed by the database for user home directories.
+ * Mounted at /home/{username} to persist user files across server restarts.
  */
 
 import type { Mount, FSEntry } from './types.js';
@@ -350,16 +350,14 @@ export class ModelBackedStorage implements Mount {
 // =============================================================================
 
 /**
- * Initialize FS directory structure for a new tenant
+ * Initialize filesystem with root user's home directory
  *
  * Creates:
- *   /          - root directory
- *   /home      - user home directories
- *   /home/root - root user's home
- *   /etc       - configuration files
- *   /etc/motd  - message of the day
+ *   / (root of home mount) - root user's home directory
  *
- * Note: /tmp is handled by MemoryMount (in-memory, not persisted)
+ * Note: Only user home directories are persisted in the database.
+ * The root filesystem (/) uses MemoryMount (in-memory, ephemeral).
+ * This creates the root entry for /home/root which is mounted at that path.
  *
  * Called during tenant creation, uses raw adapter queries.
  */
@@ -370,52 +368,15 @@ export async function initializeFS(
     const { randomUUID } = await import('crypto');
     const now = new Date().toISOString();
 
-    // Helper to create a directory node
-    const createDir = async (
-        parentId: string | null,
-        name: string,
-        path: string,
-        mode: number
-    ): Promise<string> => {
-        const id = randomUUID();
-        await adapter.query(
-            `INSERT INTO fs (id, parent_id, name, path, node_type, mode, owner_id, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, 'directory', $5, $6, $7, $8)`,
-            [id, parentId, name, path, mode, rootUserId, now, now]
-        );
-        return id;
-    };
-
-    // Helper to create a file node
-    const createFile = async (
-        parentId: string,
-        name: string,
-        path: string,
-        content: string,
-        mode: number
-    ): Promise<string> => {
-        const id = randomUUID();
-        const buffer = Buffer.from(content);
-        await adapter.query(
-            `INSERT INTO fs (id, parent_id, name, path, node_type, content, size, mode, owner_id, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, 'file', $5, $6, $7, $8, $9, $10)`,
-            [id, parentId, name, path, buffer, buffer.length, mode, rootUserId, now, now]
-        );
-        return id;
-    };
-
-    // Create directory structure
-    // Note: /tmp is handled by MemoryMount, not database
-    const rootId = await createDir(null, '/', '/', 0o755);
-    const homeId = await createDir(rootId, 'home', '/home', 0o755);
-    const etcId = await createDir(rootId, 'etc', '/etc', 0o755);
-    const apiId = await createDir(rootId, 'api', '/api', 0o755);
-
     // Create root user's home directory
-    await createDir(homeId, 'root', '/home/root', 0o700);
+    // This is the root of the ModelBackedStorage mount at /home/root
+    // So the path stored is "/" (relative to mount point)
+    const id = randomUUID();
+    await adapter.query(
+        `INSERT INTO fs (id, parent_id, name, path, node_type, mode, owner_id, created_at, updated_at)
+         VALUES ($1, NULL, $2, $3, 'directory', $4, $5, $6, $7)`,
+        [id, 'root', '/', 0o700, rootUserId, now, now]
+    );
 
-    // Create default files
-    await createFile(etcId, 'motd', '/etc/motd', 'Welcome to Monk API\n', 0o644);
-
-    console.info('FS initialized', { directories: 5, files: 1 });
+    console.info('FS initialized', { directories: 1 });
 }

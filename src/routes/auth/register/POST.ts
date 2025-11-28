@@ -74,6 +74,7 @@ export default async function (context: Context) {
     const token = await JWTGenerator.generateToken({
         id: result.user.id,
         user_id: result.user.id,
+        username: result.user.auth,
         tenant: result.tenant.name,
         dbType: result.tenant.db_type,
         dbName: result.tenant.database,

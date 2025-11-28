@@ -153,6 +153,7 @@ export async function registerAppTenant(appName: string): Promise<{
         const token = await JWTGenerator.generateToken({
             id: user.id,
             user_id: user.id,
+            username: 'root',
             tenant: tenantName,
             dbType: 'postgresql',
             dbName,
@@ -214,6 +215,7 @@ export async function registerAppTenant(appName: string): Promise<{
         const token = await JWTGenerator.generateToken({
             id: ownerUserId,
             user_id: ownerUserId,
+            username: 'root',
             tenant: tenantName,
             dbType: 'postgresql',
             dbName,

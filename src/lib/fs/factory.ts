@@ -14,7 +14,7 @@ import { FilterMount } from './mounts/filter-mount.js';
 import { TrashedMount } from './mounts/trashed-mount.js';
 import { ProcMount } from './mounts/proc-mount.js';
 import { BinMount } from './mounts/bin-mount.js';
-import { TmpMountRegistry } from './mounts/memory-mount.js';
+import { MemoryMountRegistry } from './mounts/memory-mount.js';
 
 /**
  * Options for creating a FS instance
@@ -24,6 +24,8 @@ export interface CreateFSOptions {
     sessionPid?: number | null;
     /** Command names for /bin mount */
     commandNames?: string[];
+    /** Username for home directory mount (e.g., "root" -> /home/root) */
+    username?: string;
 }
 
 /**
@@ -37,8 +39,8 @@ export interface CreateFSOptions {
  * - /bin - Built-in commands (read-only)
  * - /proc - Process table (read-only)
  * - /system - System introspection (read-only)
- * - /tmp - In-memory storage (per-tenant, ephemeral)
- * - /* (fallback) - ModelBackedStorage for /home, /etc
+ * - /home/{username} - Persistent storage (database-backed)
+ * - / (fallback) - In-memory storage (per-tenant, ephemeral)
  *
  * @param system - Authenticated system context
  * @param options - Optional configuration
@@ -64,11 +66,13 @@ export function createFS(system: System, options?: CreateFSOptions): FS {
     // System introspection (read-only)
     fs.mount('/system', new SystemMount(system));
 
-    // Temporary files (in-memory, per-tenant, ephemeral)
-    fs.mount('/tmp', TmpMountRegistry.get(system.tenant));
+    // User home directory (database-backed, persistent)
+    if (options?.username) {
+        fs.mount(`/home/${options.username}`, new ModelBackedStorage(system));
+    }
 
-    // Fallback to database-backed storage for /home, /etc
-    fs.setFallback(new ModelBackedStorage(system));
+    // Fallback to in-memory storage (per-tenant, ephemeral)
+    fs.setFallback(MemoryMountRegistry.get(system.tenant));
 
     return fs;
 }

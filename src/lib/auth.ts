@@ -167,6 +167,7 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
     const payload: JWTPayload = {
         sub: user.id,
         user_id: user.id,
+        username: user.auth,
         tenant: name,
         db_type: dbType || 'postgresql',
         db: dbName,
@@ -183,6 +184,7 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
     // Generate token
     const token = await JWTGenerator.generateToken({
         id: user.id,
+        username: user.auth,
         tenant: name,
         dbType: dbType || 'postgresql',
         dbName,
@@ -333,6 +335,7 @@ export async function register(
     const token = await JWTGenerator.generateToken({
         id: result.user.id,
         user_id: result.user.id,
+        username: result.user.auth,
         tenant: result.tenant.name,
         dbType: result.tenant.db_type,
         dbName: result.tenant.database,
