@@ -1,0 +1,45 @@
+NAME
+    date - display date and time
+
+SYNOPSIS
+    date [-u] [-I] [+FORMAT]
+
+DESCRIPTION
+    Displays the current date and time.
+    Custom formats use strftime-style codes.
+
+OPTIONS
+    -u, --utc       Display time in UTC
+    -I, --iso-8601  Display in ISO 8601 format
+
+FORMAT CODES
+    %Y      Year (4 digits)
+    %y      Year (2 digits)
+    %m      Month (01-12)
+    %d      Day of month (01-31)
+    %H      Hour (00-23)
+    %M      Minute (00-59)
+    %S      Second (00-59)
+    %a      Abbreviated weekday (Sun-Sat)
+    %b      Abbreviated month (Jan-Dec)
+    %j      Day of year (001-366)
+    %%      Literal %
+
+EXAMPLES
+    date
+        Show current date/time
+
+    date -u
+        Show UTC time
+
+    date -I
+        Show ISO format (2024-01-15T10:30:00.000Z)
+
+    date +%Y-%m-%d
+        Custom format: 2024-01-15
+
+    date "+%a %b %d %H:%M:%S"
+        Custom: Mon Jan 15 10:30:00
+
+SEE ALSO
+    env

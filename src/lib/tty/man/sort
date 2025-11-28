@@ -1,0 +1,30 @@
+NAME
+    sort - sort lines of text
+
+SYNOPSIS
+    sort [-rnu] [file]
+
+DESCRIPTION
+    Sorts lines of text alphabetically or numerically.
+    Reads from file or stdin if no file specified.
+
+OPTIONS
+    -r      Reverse the sort order
+    -n      Sort numerically instead of alphabetically
+    -u      Output only unique lines (remove duplicates)
+
+EXAMPLES
+    sort /tmp/list.txt
+        Sort alphabetically
+
+    sort -r /tmp/list.txt
+        Sort in reverse order
+
+    sort -n /tmp/numbers.txt
+        Sort numerically
+
+    find . | sort -u
+        Sort and remove duplicates
+
+SEE ALSO
+    uniq, head, tail

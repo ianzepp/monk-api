@@ -1,0 +1,28 @@
+NAME
+    head - output the first part of files
+
+SYNOPSIS
+    head [-n N] [file]
+
+DESCRIPTION
+    Prints the first N lines of a file or stdin.
+    Default is 10 lines if -n is not specified.
+
+OPTIONS
+    -n N    Output the first N lines
+
+EXAMPLES
+    head /tmp/log.txt
+        Show first 10 lines
+
+    head -n 5 /tmp/log.txt
+        Show first 5 lines
+
+    cat file | head -n 20
+        Show first 20 lines from pipe
+
+    find . | head -n 3
+        Show first 3 results
+
+SEE ALSO
+    tail, cat

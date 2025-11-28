@@ -1,0 +1,28 @@
+NAME
+    tail - output the last part of files
+
+SYNOPSIS
+    tail [-n N] [file]
+
+DESCRIPTION
+    Prints the last N lines of a file or stdin.
+    Default is 10 lines if -n is not specified.
+
+OPTIONS
+    -n N    Output the last N lines
+
+EXAMPLES
+    tail /tmp/log.txt
+        Show last 10 lines
+
+    tail -n 5 /tmp/log.txt
+        Show last 5 lines
+
+    cat file | tail -n 20
+        Show last 20 lines from pipe
+
+    find . | tail -n 3
+        Show last 3 results
+
+SEE ALSO
+    head, cat

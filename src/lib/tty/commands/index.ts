@@ -19,6 +19,8 @@ import { mount } from './mount.js';
 
 // File operations
 import { cat } from './cat.js';
+import { head } from './head.js';
+import { tail } from './tail.js';
 import { jq } from './jq.js';
 import { touch } from './touch.js';
 import { rm } from './rm.js';
@@ -32,10 +34,17 @@ import { rmdir } from './rmdir.js';
 import { select } from './select.js';
 import { describe } from './describe.js';
 
+// Text processing
+import { sort } from './sort.js';
+import { uniq } from './uniq.js';
+import { wc } from './wc.js';
+
 // Info commands
 import { echo } from './echo.js';
 import { whoami } from './whoami.js';
 import { env } from './env.js';
+import { date } from './date.js';
+import { history } from './history.js';
 import { export as exportCmd } from './export.js';
 
 // Session commands
@@ -64,10 +73,15 @@ export { grep } from './grep.js';
 export { xargs } from './xargs.js';
 export { mount } from './mount.js';
 export { cat } from './cat.js';
+export { head } from './head.js';
+export { tail } from './tail.js';
 export { jq } from './jq.js';
 export { touch } from './touch.js';
 export { rm } from './rm.js';
 export { mv } from './mv.js';
+export { sort } from './sort.js';
+export { uniq } from './uniq.js';
+export { wc } from './wc.js';
 export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
@@ -75,6 +89,8 @@ export { describe } from './describe.js';
 export { echo } from './echo.js';
 export { whoami } from './whoami.js';
 export { env } from './env.js';
+export { date } from './date.js';
+export { history } from './history.js';
 export { export as exportCmd } from './export.js';
 export { clear } from './clear.js';
 export { help } from './help.js';
@@ -103,6 +119,8 @@ export const commands: Record<string, CommandHandler> = {
 
     // File operations
     cat,
+    head,
+    tail,
     jq,
     touch,
     rm,
@@ -116,10 +134,17 @@ export const commands: Record<string, CommandHandler> = {
     select,
     describe,
 
+    // Text processing
+    sort,
+    uniq,
+    wc,
+
     // Info commands
     echo,
     whoami,
     env,
+    date,
+    history,
     export: exportCmd,
 
     // Session commands
