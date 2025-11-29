@@ -39,6 +39,7 @@ import { rmdir } from './rmdir.js';
 // Query commands
 import { select } from './select.js';
 import { describe } from './describe.js';
+import { introspect } from './introspect.js';
 import { query } from './query.js';
 import { insert } from './insert.js';
 import { update } from './update.js';
@@ -127,8 +128,11 @@ import { keys } from './keys/index.js';
 import { sshKey } from './ssh-key.js';
 
 // AI
-import { ai } from './ai.js';
+import { ai } from './ai/index.js';
 import { glow } from './glow.js';
+
+// Control flow
+import { if_, then, else_, elif, fi } from './control.js';
 
 // Re-export types
 export type { CommandHandler } from './shared.js';
@@ -174,6 +178,7 @@ export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
 export { describe } from './describe.js';
+export { introspect } from './introspect.js';
 export { query } from './query.js';
 export { insert } from './insert.js';
 export { update } from './update.js';
@@ -219,8 +224,9 @@ export { shasum } from './shasum.js';
 export { git } from './git/index.js';
 export { keys } from './keys/index.js';
 export { sshKey } from './ssh-key.js';
-export { ai } from './ai.js';
+export { ai } from './ai/index.js';
 export { glow } from './glow.js';
+export { if_, then, else_, elif, fi } from './control.js';
 
 /**
  * Command registry
@@ -259,6 +265,7 @@ export const commands: Record<string, CommandHandler> = {
     // Query commands
     select,
     describe,
+    introspect,
     query,
     insert,
     update,
@@ -354,6 +361,13 @@ export const commands: Record<string, CommandHandler> = {
     '@': ai,
     ai,
     glow,
+
+    // Control flow
+    if: if_,
+    then,
+    else: else_,
+    elif,
+    fi,
 };
 
 // Initialize commands that need the registry

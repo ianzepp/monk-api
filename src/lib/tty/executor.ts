@@ -24,6 +24,10 @@ import { runTransaction } from '@src/lib/transaction.js';
 import { spawnProcess } from '@src/lib/process.js';
 import { PassThrough } from 'node:stream';
 import { applySessionMounts } from './profile.js';
+import { shouldExecute } from './commands/control.js';
+
+/** Commands that manage control flow - always execute regardless of conditional state */
+const CONTROL_FLOW_COMMANDS = ['if', 'then', 'else', 'elif', 'fi'];
 
 /**
  * Options for executeLine
@@ -73,6 +77,11 @@ export async function executeLine(
     if (addToHistory) {
         if (session.history[session.history.length - 1] !== input) {
             session.history.push(input);
+            // Trim to HISTSIZE
+            const histSize = parseInt(session.env['HISTSIZE'] || '1000', 10) || 1000;
+            if (session.history.length > histSize) {
+                session.history = session.history.slice(-histSize);
+            }
         }
         session.historyIndex = -1;
         session.historyBuffer = '';
@@ -185,8 +194,18 @@ async function executeSingleCommand(
 ): Promise<number> {
     const handler = commands[cmd.command];
     if (!handler) {
+        // Check if we should execute - if not, silently skip unknown commands too
+        if (!CONTROL_FLOW_COMMANDS.includes(cmd.command) && !shouldExecute(session)) {
+            return 0;
+        }
         io.stderr.write(`${cmd.command}: command not found\n`);
         return 127;
+    }
+
+    // Control flow commands always execute (they manage the conditional state)
+    // Other commands only execute if the current conditional context allows it
+    if (!CONTROL_FLOW_COMMANDS.includes(cmd.command) && !shouldExecute(session)) {
+        return 0;
     }
 
     const cmdIO = createIO(signal);
@@ -415,7 +434,8 @@ function buildPipeline(parsed: ParsedCommand, env: Record<string, string>): Pars
 function commandTreeNeedsTransaction(parsed: ParsedCommand): boolean {
     const noTransactionCommands = [
         'echo', 'env', 'export', 'clear', 'help', 'pwd', 'whoami',
-        'exit', 'logout', 'quit', 'true', 'false', 'test', '['
+        'exit', 'logout', 'quit', 'true', 'false', 'test', '[',
+        'if', 'then', 'else', 'elif', 'fi',
     ];
 
     let current: ParsedCommand | undefined = parsed;

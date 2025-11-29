@@ -73,17 +73,6 @@ function getAgentPromptBase(): string {
     return _agentPromptBase;
 }
 
-function getAgentPromptTools(): string {
-    if (_agentPromptTools === null) {
-        try {
-            _agentPromptTools = readFileSync(join(getProjectRoot(), 'monkfs', 'etc', 'agents', 'ai-tools'), 'utf-8');
-        } catch {
-            _agentPromptTools = '';
-        }
-    }
-    return _agentPromptTools;
-}
-
 // Cache for custom command help (each command as separate entry)
 let _customCommands: { name: string; content: string }[] | null = null;
 
@@ -304,16 +293,6 @@ function buildSystemPrompt(session: Session, withTools: boolean): SystemBlock[] 
         text: getAgentPromptBase(),
         cache_control: { type: 'ephemeral' },
     });
-
-    // Tool usage guidelines (static, cached)
-    const toolsPrompt = getAgentPromptTools();
-    if (withTools && toolsPrompt) {
-        blocks.push({
-            type: 'text',
-            text: toolsPrompt,
-            cache_control: { type: 'ephemeral' },
-        });
-    }
 
     // Custom commands - each as separate block (static, cached)
     const customCommands = getCustomCommands();
@@ -685,9 +664,15 @@ async function handleAIMessage(
                 tools: TOOLS,
             };
 
-            // Debug: show outgoing request
+            // Debug: show outgoing request (only the new message, not full context)
             if (session.debugMode) {
-                writeToStream(stream, `\n\x1b[33m-> ${JSON.stringify(requestBody)}\x1b[0m\n`);
+                const lastMsg = state.messages[state.messages.length - 1];
+                const debugInfo = {
+                    model: state.config.model,
+                    message: lastMsg,
+                    contextSize: state.messages.length,
+                };
+                writeToStream(stream, `\n\x1b[33m-> ${JSON.stringify(debugInfo)}\x1b[0m\n`);
             }
 
             const response = await fetch(ANTHROPIC_API_URL, {

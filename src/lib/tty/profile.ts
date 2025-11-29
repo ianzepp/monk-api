@@ -113,9 +113,12 @@ async function loadProfile(stream: TTYStream, session: Session): Promise<void> {
 
 /**
  * Load command history from ~/.history
+ * Respects HISTSIZE environment variable (default: 1000)
  */
 export async function loadHistory(session: Session): Promise<void> {
     if (!session.systemInit) return;
+
+    const histSize = parseInt(session.env['HISTSIZE'] || '1000', 10) || 1000;
 
     try {
         await runTransaction(session.systemInit, async (system) => {
@@ -123,7 +126,9 @@ export async function loadHistory(session: Session): Promise<void> {
 
             try {
                 const content = await system.fs.read(historyPath);
-                session.history = content.toString().split('\n').filter(Boolean);
+                const lines = content.toString().split('\n').filter(Boolean);
+                // Limit to HISTSIZE
+                session.history = lines.slice(-histSize);
             } catch {
                 session.history = [];
             }
@@ -135,9 +140,12 @@ export async function loadHistory(session: Session): Promise<void> {
 
 /**
  * Save command history to ~/.history
+ * Respects HISTFILESIZE environment variable (default: 2000)
  */
 export async function saveHistory(session: Session): Promise<void> {
     if (!session.systemInit || session.history.length === 0) return;
+
+    const histFileSize = parseInt(session.env['HISTFILESIZE'] || '2000', 10) || 2000;
 
     try {
         await runTransaction(session.systemInit, async (system) => {
@@ -148,8 +156,8 @@ export async function saveHistory(session: Session): Promise<void> {
                 await system.fs.mkdir(homePath);
             }
 
-            // Keep last 1000 commands
-            const trimmed = session.history.slice(-1000);
+            // Limit to HISTFILESIZE
+            const trimmed = session.history.slice(-histFileSize);
             await system.fs.write(historyPath, trimmed.join('\n') + '\n');
         });
     } catch {

@@ -93,6 +93,7 @@ export function renderMarkdown(text: string): string {
     const result: string[] = [];
     let inCodeBlock = false;
     let codeBlockLang = '';
+    let codeBlockLines: string[] = [];
     let inTable = false;
     let tableRows: string[][] = [];
     let tableAlignments: ('left' | 'center' | 'right')[] = [];
@@ -105,22 +106,31 @@ export function renderMarkdown(text: string): string {
             if (!inCodeBlock) {
                 inCodeBlock = true;
                 codeBlockLang = line.slice(3).trim();
-                result.push(`${DIM}┌${'─'.repeat(60)}${RESET}`);
-                if (codeBlockLang) {
-                    result.push(`${DIM}│${RESET} ${CYAN}${codeBlockLang}${RESET}`);
-                    result.push(`${DIM}├${'─'.repeat(60)}${RESET}`);
-                }
+                codeBlockLines = [];
             } else {
+                // Render the code block with proper width
+                const width = Math.max(40, ...codeBlockLines.map(l => l.length + 2));
+                result.push(`${DIM}┌${'─'.repeat(width)}┐${RESET}`);
+                if (codeBlockLang) {
+                    const langPad = ' '.repeat(width - codeBlockLang.length - 1);
+                    result.push(`${DIM}│${RESET} ${CYAN}${codeBlockLang}${RESET}${langPad}${DIM}│${RESET}`);
+                    result.push(`${DIM}├${'─'.repeat(width)}┤${RESET}`);
+                }
+                for (const codeLine of codeBlockLines) {
+                    const pad = ' '.repeat(width - codeLine.length - 1);
+                    result.push(`${DIM}│${RESET} ${CYAN}${codeLine}${RESET}${pad}${DIM}│${RESET}`);
+                }
+                result.push(`${DIM}└${'─'.repeat(width)}┘${RESET}`);
                 inCodeBlock = false;
                 codeBlockLang = '';
-                result.push(`${DIM}└${'─'.repeat(60)}${RESET}`);
+                codeBlockLines = [];
             }
             continue;
         }
 
-        // Inside code block - just colorize, no other processing
+        // Inside code block - collect lines
         if (inCodeBlock) {
-            result.push(`${DIM}│${RESET} ${CYAN}${line}${RESET}`);
+            codeBlockLines.push(line);
             continue;
         }
 
@@ -230,7 +240,18 @@ export function renderMarkdown(text: string): string {
 
     // Handle unclosed code block
     if (inCodeBlock) {
-        result.push(`${DIM}└${'─'.repeat(60)}${RESET}`);
+        const width = Math.max(40, ...codeBlockLines.map(l => l.length + 2));
+        result.push(`${DIM}┌${'─'.repeat(width)}┐${RESET}`);
+        if (codeBlockLang) {
+            const langPad = ' '.repeat(width - codeBlockLang.length - 1);
+            result.push(`${DIM}│${RESET} ${CYAN}${codeBlockLang}${RESET}${langPad}${DIM}│${RESET}`);
+            result.push(`${DIM}├${'─'.repeat(width)}┤${RESET}`);
+        }
+        for (const codeLine of codeBlockLines) {
+            const pad = ' '.repeat(width - codeLine.length - 1);
+            result.push(`${DIM}│${RESET} ${CYAN}${codeLine}${RESET}${pad}${DIM}│${RESET}`);
+        }
+        result.push(`${DIM}└${'─'.repeat(width)}┘${RESET}`);
     }
 
     return result.join('\n');

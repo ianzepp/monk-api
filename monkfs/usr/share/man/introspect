@@ -1,0 +1,35 @@
+NAME
+    introspect - show summary of all models with fields and record counts
+
+SYNOPSIS
+    introspect [model]
+
+DESCRIPTION
+    Displays a summary of all models in the database, including:
+    - Model name and total record count
+    - User-defined fields (excludes system fields)
+    - Field types and required markers
+
+    System fields excluded: id, created_at, updated_at, access_read,
+    access_edit, deleted_at
+
+    Required fields are marked with an asterisk (*).
+
+OPTIONS
+    model
+        Show only the specified model. If omitted, shows all models.
+
+EXAMPLES
+    introspect
+        Show all models with their fields and counts
+
+    introspect users
+        Show only the users model
+
+OUTPUT FORMAT
+    model_name (N records)
+      - field_name*: type
+      - field_name: reference(other_model)
+
+SEE ALSO
+    describe, select, count

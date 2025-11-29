@@ -384,10 +384,15 @@ async function processLine(
     // Route by mode
     if (session.mode === 'ai') {
         const shouldContinue = await processAIInput(stream, session, line);
-        if (!shouldContinue || session.shouldClose) {
+        if (session.shouldClose) {
+            // Full exit from AI mode - save context and close
+            await saveAIContext(session);
+            await saveHistory(session);
             cleanupAIState(session.id);
             stream.end();
         }
+        // If !shouldContinue but !shouldClose, we switched to shell mode
+        // Don't cleanup - keep AI state for when we return
         return;
     }
 

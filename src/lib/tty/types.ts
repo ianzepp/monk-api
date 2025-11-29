@@ -189,6 +189,9 @@ export interface Session {
 
     /** Debug mode - show AI network traffic */
     debugMode: boolean;
+
+    /** Stack of conditional contexts for if/then/else/fi */
+    conditionalStack: ConditionalContext[];
 }
 
 /**
@@ -197,6 +200,26 @@ export interface Session {
 export type SessionMount =
     | { type: 'local'; path: string; readonly: boolean }
     | { type: 'find'; model: string; query: Record<string, any> };
+
+/**
+ * Conditional block context for if/then/else/fi
+ */
+export interface ConditionalContext {
+    /** Block type */
+    type: 'if';
+
+    /** Condition result (0 = true, non-zero = false) */
+    condition: number;
+
+    /** Current branch: 'condition' (before then), 'then', 'else' */
+    branch: 'condition' | 'then' | 'else';
+
+    /** Whether any branch has matched (for elif chains) */
+    matched: boolean;
+
+    /** Nesting depth for nested if statements */
+    skipDepth: number;
+}
 
 /**
  * Parsed command with arguments and redirects
@@ -338,6 +361,7 @@ export function createSession(id: string): Session {
         mounts: new Map(),
         foregroundIO: null,
         debugMode: false,
+        conditionalStack: [],
     };
 }
 
