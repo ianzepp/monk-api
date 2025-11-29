@@ -591,7 +591,7 @@ export class Infrastructure {
                     }
 
                     // Initialize FS directory structure
-                    const { initializeFS } = await import('./fs/storage.js');
+                    const { initializeFS } = await import('./fs/init.js');
                     await initializeFS(adapter, ROOT_USER_ID);
 
                     db.exec('COMMIT');
@@ -626,7 +626,7 @@ export class Infrastructure {
                     }
 
                     // Initialize FS directory structure
-                    const { initializeFS } = await import('./fs/storage.js');
+                    const { initializeFS } = await import('./fs/init.js');
                     await initializeFS(adapter, ROOT_USER_ID);
 
                     await adapter.commit();

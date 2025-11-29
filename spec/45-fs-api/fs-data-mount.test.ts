@@ -15,6 +15,12 @@ import type { SystemInit } from '@src/lib/system.js';
  *
  * Tests the DataMount in isolation using a temporary SQLite database.
  * No HTTP layer, no server required - direct mount testing.
+ *
+ * Structure (records as directories):
+ * - /                        → directory (list models)
+ * - /products/               → directory (list records)
+ * - /products/:id/           → directory (list fields)
+ * - /products/:id/:field     → file (field value)
  */
 
 describe('DataMount - Unit', () => {
@@ -143,12 +149,26 @@ describe('DataMount - Unit', () => {
             expect(entry.name).toBe('products');
         });
 
-        it('should return file for existing record', async () => {
+        it('should return directory for existing record', async () => {
             const entry = await withMount(m => m.stat('/products/prod-001'));
-            expect(entry.type).toBe('file');
+            expect(entry.type).toBe('directory');
             expect(entry.name).toBe('prod-001');
+            expect(entry.mode).toBe(0o755);
+        });
+
+        it('should return file for existing field', async () => {
+            const entry = await withMount(m => m.stat('/products/prod-001/name'));
+            expect(entry.type).toBe('file');
+            expect(entry.name).toBe('name');
             expect(entry.size).toBeGreaterThan(0);
-            expect(entry.mode).toBe(0o644);
+            expect(entry.mode).toBe(0o644); // writable field
+        });
+
+        it('should return read-only file for id field', async () => {
+            const entry = await withMount(m => m.stat('/products/prod-001/id'));
+            expect(entry.type).toBe('file');
+            expect(entry.name).toBe('id');
+            expect(entry.mode).toBe(0o444); // read-only
         });
 
         it('should throw ENOENT for non-existent model', async () => {
@@ -170,9 +190,18 @@ describe('DataMount - Unit', () => {
             }
         });
 
+        it('should throw ENOENT for non-existent field', async () => {
+            try {
+                await withMount(m => m.stat('/products/prod-001/nonexistent'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('ENOENT');
+            }
+        });
+
         it('should throw ENOENT for too-deep path', async () => {
             try {
-                await withMount(m => m.stat('/products/prod-001/extra/path'));
+                await withMount(m => m.stat('/products/prod-001/name/extra'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOENT');
@@ -200,15 +229,31 @@ describe('DataMount - Unit', () => {
             expect(names).toContain('prod-001');
             expect(names).toContain('prod-002');
 
+            // All entries should be directories (records are directories)
+            for (const entry of entries) {
+                expect(entry.type).toBe('directory');
+            }
+        });
+
+        it('should list fields in record directory', async () => {
+            const entries = await withMount(m => m.readdir('/products/prod-001'));
+
+            const names = entries.map(e => e.name);
+            expect(names).toContain('id');
+            expect(names).toContain('name');
+            expect(names).toContain('price');
+            expect(names).toContain('created_at');
+            expect(names).toContain('updated_at');
+
             // All entries should be files
             for (const entry of entries) {
                 expect(entry.type).toBe('file');
             }
         });
 
-        it('should throw ENOTDIR for record path', async () => {
+        it('should throw ENOTDIR for field path', async () => {
             try {
-                await withMount(m => m.readdir('/products/prod-001'));
+                await withMount(m => m.readdir('/products/prod-001/name'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOTDIR');
@@ -226,13 +271,14 @@ describe('DataMount - Unit', () => {
     });
 
     describe('read', () => {
-        it('should return JSON for record', async () => {
-            const content = await withMount(m => m.read('/products/prod-001'));
-            const data = JSON.parse(content as string);
+        it('should return field value', async () => {
+            const content = await withMount(m => m.read('/products/prod-001/name'));
+            expect(content).toBe('Widget');
+        });
 
-            expect(data.id).toBe('prod-001');
-            expect(data.name).toBe('Widget');
-            expect(data.price).toBe(9.99);
+        it('should return numeric field as string', async () => {
+            const content = await withMount(m => m.read('/products/prod-001/price'));
+            expect(content).toBe('9.99');
         });
 
         it('should throw EISDIR for root', async () => {
@@ -253,9 +299,18 @@ describe('DataMount - Unit', () => {
             }
         });
 
-        it('should throw ENOENT for non-existent record', async () => {
+        it('should throw EISDIR for record directory', async () => {
             try {
-                await withMount(m => m.read('/products/not-found'));
+                await withMount(m => m.read('/products/prod-001'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EISDIR');
+            }
+        });
+
+        it('should throw ENOENT for non-existent field', async () => {
+            try {
+                await withMount(m => m.read('/products/prod-001/nonexistent'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOENT');
@@ -264,30 +319,38 @@ describe('DataMount - Unit', () => {
     });
 
     describe('write', () => {
-        it('should create new record', async () => {
-            await withMount(m => m.write(
-                '/products/prod-new',
-                JSON.stringify({ name: 'New Product', price: 5.99 })
-            ));
-
-            // Verify creation
-            const content = await withMount(m => m.read('/products/prod-new'));
-            const data = JSON.parse(content as string);
-            expect(data.id).toBe('prod-new');
-            expect(data.name).toBe('New Product');
-        });
-
-        it('should update existing record', async () => {
-            await withMount(m => m.write(
-                '/products/prod-002',
-                JSON.stringify({ name: 'Updated Gadget', price: 29.99 })
-            ));
+        it('should update existing field', async () => {
+            await withMount(m => m.write('/products/prod-002/name', 'Updated Gadget'));
 
             // Verify update
-            const content = await withMount(m => m.read('/products/prod-002'));
-            const data = JSON.parse(content as string);
-            expect(data.name).toBe('Updated Gadget');
-            expect(data.price).toBe(29.99);
+            const content = await withMount(m => m.read('/products/prod-002/name'));
+            expect(content).toBe('Updated Gadget');
+        });
+
+        it('should update numeric field', async () => {
+            await withMount(m => m.write('/products/prod-002/price', '29.99'));
+
+            // Verify update
+            const content = await withMount(m => m.read('/products/prod-002/price'));
+            expect(content).toBe('29.99');
+        });
+
+        it('should throw EROFS for read-only field (id)', async () => {
+            try {
+                await withMount(m => m.write('/products/prod-001/id', 'new-id'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EROFS');
+            }
+        });
+
+        it('should throw EROFS for read-only field (created_at)', async () => {
+            try {
+                await withMount(m => m.write('/products/prod-001/created_at', '2000-01-01'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EROFS');
+            }
         });
 
         it('should throw EISDIR for model path', async () => {
@@ -298,25 +361,33 @@ describe('DataMount - Unit', () => {
                 expect((err as FSError).code).toBe('EISDIR');
             }
         });
+
+        it('should throw EISDIR for record path', async () => {
+            try {
+                await withMount(m => m.write('/products/prod-001', '{}'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EISDIR');
+            }
+        });
     });
 
     describe('unlink', () => {
-        it('should delete record', async () => {
-            // Create a record to delete
-            await withMount(m => m.write(
-                '/products/to-delete',
-                JSON.stringify({ name: 'Delete Me' })
-            ));
-
-            // Delete it
-            await withMount(m => m.unlink('/products/to-delete'));
-
-            // Verify deletion
+        it('should throw EISDIR for record (use rmdir)', async () => {
             try {
-                await withMount(m => m.stat('/products/to-delete'));
+                await withMount(m => m.unlink('/products/prod-001'));
                 expect(true).toBe(false);
             } catch (err) {
-                expect((err as FSError).code).toBe('ENOENT');
+                expect((err as FSError).code).toBe('EISDIR');
+            }
+        });
+
+        it('should throw EROFS for field (cannot delete individual fields)', async () => {
+            try {
+                await withMount(m => m.unlink('/products/prod-001/name'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EROFS');
             }
         });
 
@@ -337,14 +408,93 @@ describe('DataMount - Unit', () => {
                 expect((err as FSError).code).toBe('EISDIR');
             }
         });
+    });
 
-        it('should throw ENOENT for non-existent record', async () => {
+    describe('rmdir', () => {
+        it('should delete record', async () => {
+            // Create a record to delete via direct SQL
+            const originalDataDir = process.env.SQLITE_DATA_DIR;
+            process.env.SQLITE_DATA_DIR = tempDir;
             try {
-                await withMount(m => m.unlink('/products/not-found'));
+                await runTransaction(systemInit, async (system) => {
+                    await system.adapter!.query(`
+                        INSERT INTO "products" (id, name, price, created_at, updated_at)
+                        VALUES ('to-delete', 'Delete Me', 0, datetime('now'), datetime('now'))
+                    `);
+                });
+            } finally {
+                if (originalDataDir) process.env.SQLITE_DATA_DIR = originalDataDir;
+            }
+
+            // Delete via rmdir
+            await withMount(m => m.rmdir('/products/to-delete'));
+
+            // Verify deletion
+            try {
+                await withMount(m => m.stat('/products/to-delete'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOENT');
             }
+        });
+
+        it('should throw EACCES for model directory', async () => {
+            try {
+                await withMount(m => m.rmdir('/products'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EACCES');
+            }
+        });
+
+        it('should throw EACCES for root', async () => {
+            try {
+                await withMount(m => m.rmdir('/'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EACCES');
+            }
+        });
+
+        it('should throw ENOENT for non-existent record', async () => {
+            try {
+                await withMount(m => m.rmdir('/products/not-found'));
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('ENOENT');
+            }
+        });
+    });
+
+    describe('getType (lightweight)', () => {
+        it('should return directory for root without I/O', async () => {
+            await withMount(async m => {
+                expect(m.getType('/')).toBe('directory');
+            });
+        });
+
+        it('should return directory for model without I/O', async () => {
+            await withMount(async m => {
+                expect(m.getType('/products')).toBe('directory');
+            });
+        });
+
+        it('should return directory for record without I/O', async () => {
+            await withMount(async m => {
+                expect(m.getType('/products/any-id')).toBe('directory');
+            });
+        });
+
+        it('should return file for field without I/O', async () => {
+            await withMount(async m => {
+                expect(m.getType('/products/any-id/any-field')).toBe('file');
+            });
+        });
+
+        it('should return null for too-deep path', async () => {
+            await withMount(async m => {
+                expect(m.getType('/products/id/field/extra')).toBe(null);
+            });
         });
     });
 
@@ -357,7 +507,7 @@ describe('DataMount - Unit', () => {
 
         it('should handle multiple slashes', async () => {
             const entry = await withMount(m => m.stat('//products//prod-001'));
-            expect(entry.type).toBe('file');
+            expect(entry.type).toBe('directory');
         });
 
         it('should handle empty segments', async () => {

@@ -35,7 +35,7 @@ const MOUNT_INFO: Record<string, { dev: string; info: (m: any, saved: boolean) =
     BinMount: { dev: '/dev/bin', info: () => 'readonly' },
     SystemMount: { dev: '/dev/system', info: () => 'readonly' },
     MemoryMount: { dev: '/dev/mem', info: () => 'memory, 500MB' },
-    ModelBackedStorage: { dev: '/dev/fs', info: () => 'database' },
+    DatabaseMount: { dev: '/dev/db', info: () => 'database' },
     LocalMount: { dev: '/dev/local', info: (m, saved) => {
         const parts = [`local:${m.rootPath || '?'}`];
         if (m.writable === false) parts.push('readonly');

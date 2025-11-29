@@ -155,62 +155,70 @@ describe('FS API - Basic Operations', () => {
             expect(names).toContain('products');
         });
 
-        it('should list records in model', async () => {
+        it('should list records in model as directories', async () => {
             const response = await tenant.httpClient.get('/fs/api/data/products');
 
             expect(response.type).toBe('directory');
             expect(response.entries.length).toBeGreaterThanOrEqual(2);
+            // Records are now directories (not files)
+            expect(response.entries[0].type).toBe('directory');
+        });
+
+        it('should list fields in record', async () => {
+            const response = await tenant.httpClient.get(`/fs/api/data/products/${recordId}`);
+
+            expect(response.type).toBe('directory');
+            // Should have field entries
+            const fieldNames = response.entries.map((e: any) => e.name);
+            expect(fieldNames).toContain('id');
+            expect(fieldNames).toContain('name');
+            expect(fieldNames).toContain('price');
+            // Fields are files
             expect(response.entries[0].type).toBe('file');
         });
 
-        it('should read record as JSON', async () => {
-            const response = await tenant.httpClient.getRaw(`/fs/api/data/products/${recordId}`);
+        it('should read field value', async () => {
+            const response = await tenant.httpClient.getRaw(`/fs/api/data/products/${recordId}/name`);
             expect(response.ok).toBe(true);
 
-            const record = await response.json() as Record<string, any>;
-            expect(record.id).toBe(recordId);
-            expect(record.name).toBeDefined();
+            const value = await response.text();
+            expect(value).toBeDefined();
+            expect(value.length).toBeGreaterThan(0);
         });
 
-        it('should write (update) record', async () => {
-            // Update via FS
+        it('should write (update) field', async () => {
+            // Update name field via FS
             const updateResponse = await tenant.httpClient.putRaw(
-                `/fs/api/data/products/${recordId}`,
-                JSON.stringify({ name: 'Updated Widget', price: 12.99 })
+                `/fs/api/data/products/${recordId}/name`,
+                'Updated Widget'
             );
             expect(updateResponse.ok).toBe(true);
 
-            // Verify update
-            const readResponse = await tenant.httpClient.getRaw(`/fs/api/data/products/${recordId}`);
-            const record = await readResponse.json() as Record<string, any>;
-            expect(record.name).toBe('Updated Widget');
-            expect(record.price).toBe(12.99);
+            // Verify update by reading field
+            const readResponse = await tenant.httpClient.getRaw(`/fs/api/data/products/${recordId}/name`);
+            const value = await readResponse.text();
+            expect(value).toBe('Updated Widget');
         });
 
-        it('should create new record via write', async () => {
-            const newId = crypto.randomUUID();
-            const createResponse = await tenant.httpClient.putRaw(
-                `/fs/api/data/products/${newId}`,
-                JSON.stringify({ name: 'New Product', price: 5.99 })
+        it('should reject write to readonly field', async () => {
+            const updateResponse = await tenant.httpClient.putRaw(
+                `/fs/api/data/products/${recordId}/id`,
+                'new-id'
             );
-            expect(createResponse.ok).toBe(true);
-
-            // Verify creation
-            const readResponse = await tenant.httpClient.getRaw(`/fs/api/data/products/${newId}`);
-            const record = await readResponse.json() as Record<string, any>;
-            expect(record.id).toBe(newId);
-            expect(record.name).toBe('New Product');
+            expect(updateResponse.ok).toBe(false);
+            const error = await updateResponse.json() as { error: string };
+            expect(error.error).toBe('EROFS');
         });
 
-        it('should delete record', async () => {
-            // Create a record to delete
-            const deleteId = crypto.randomUUID();
-            await tenant.httpClient.putRaw(
-                `/fs/api/data/products/${deleteId}`,
-                JSON.stringify({ name: 'To Delete', price: 1.00 })
-            );
+        it('should delete record via rmdir', async () => {
+            // Create a record to delete via API
+            const createResponse = await tenant.httpClient.post('/api/data/products', [
+                { name: 'To Delete', price: 1.00 },
+            ]);
+            expectSuccess(createResponse);
+            const deleteId = createResponse.data[0].id;
 
-            // Delete via FS
+            // Delete via FS (DELETE on directory calls rmdir)
             const deleteResponse = await tenant.httpClient.deleteRaw(`/fs/api/data/products/${deleteId}`);
             expect(deleteResponse.ok).toBe(true);
 
@@ -250,30 +258,42 @@ describe('FS API - Basic Operations', () => {
             expect(names).toContain('products');
         });
 
-        it('should list trashed records', async () => {
+        it('should list trashed records as directories', async () => {
             const response = await tenant.httpClient.get('/fs/api/trashed/products');
 
             expect(response.type).toBe('directory');
             expect(response.entries.length).toBeGreaterThanOrEqual(1);
+            // Records are directories
+            expect(response.entries[0].type).toBe('directory');
 
             const ids = response.entries.map((e: any) => e.name);
             expect(ids).toContain(trashedId);
         });
 
-        it('should read trashed record', async () => {
-            const response = await tenant.httpClient.getRaw(`/fs/api/trashed/products/${trashedId}`);
-            expect(response.ok).toBe(true);
+        it('should list fields in trashed record', async () => {
+            const response = await tenant.httpClient.get(`/fs/api/trashed/products/${trashedId}`);
 
-            const record = await response.json() as Record<string, any>;
-            expect(record.id).toBe(trashedId);
-            expect(record.name).toBe('Trashed Item');
-            expect(record.trashed_at).toBeDefined();
+            expect(response.type).toBe('directory');
+            const fieldNames = response.entries.map((e: any) => e.name);
+            expect(fieldNames).toContain('id');
+            expect(fieldNames).toContain('name');
+            expect(fieldNames).toContain('trashed_at');
+            // Fields are files
+            expect(response.entries[0].type).toBe('file');
         });
 
-        it('should be read-only (no write)', async () => {
+        it('should read trashed record field', async () => {
+            const response = await tenant.httpClient.getRaw(`/fs/api/trashed/products/${trashedId}/name`);
+            expect(response.ok).toBe(true);
+
+            const value = await response.text();
+            expect(value).toBe('Trashed Item');
+        });
+
+        it('should be read-only (no write to field)', async () => {
             const response = await tenant.httpClient.putRaw(
-                `/fs/api/trashed/products/${trashedId}`,
-                JSON.stringify({ name: 'Should Fail' })
+                `/fs/api/trashed/products/${trashedId}/name`,
+                'Should Fail'
             );
             expect(response.ok).toBe(false);
             expect(response.status).toBe(405); // EROFS -> 405 Method Not Allowed

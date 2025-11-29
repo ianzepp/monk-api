@@ -1,14 +1,13 @@
 /**
- * Model-Backed Storage - Persistent FS storage using fs table
+ * DatabaseMount - Persistent FS storage using database table
  *
- * Provides a real filesystem backed by the database for user home directories.
+ * Provides a filesystem backed by the database for user home directories.
  * Mounted at /home/{username} to persist user files across server restarts.
  */
 
-import type { Mount, FSEntry } from './types.js';
-import { FSError } from './types.js';
-import type { System } from '../system.js';
-import type { DatabaseAdapter } from '../database/adapter.js';
+import type { Mount, FSEntry } from '../types.js';
+import { FSError } from '../types.js';
+import type { System } from '../../system.js';
 
 interface FSNode {
     id: string;
@@ -25,7 +24,7 @@ interface FSNode {
     updated_at: Date;
 }
 
-export class ModelBackedStorage implements Mount {
+export class DatabaseMount implements Mount {
     constructor(private system: System) {}
 
     async stat(path: string): Promise<FSEntry> {
@@ -345,38 +344,5 @@ export class ModelBackedStorage implements Mount {
     }
 }
 
-// =============================================================================
-// FS INITIALIZATION
-// =============================================================================
-
-/**
- * Initialize filesystem with root user's home directory
- *
- * Creates:
- *   / (root of home mount) - root user's home directory
- *
- * Note: Only user home directories are persisted in the database.
- * The root filesystem (/) uses MemoryMount (in-memory, ephemeral).
- * This creates the root entry for /home/root which is mounted at that path.
- *
- * Called during tenant creation, uses raw adapter queries.
- */
-export async function initializeFS(
-    adapter: DatabaseAdapter,
-    rootUserId: string
-): Promise<void> {
-    const { randomUUID } = await import('crypto');
-    const now = new Date().toISOString();
-
-    // Create root user's home directory
-    // This is the root of the ModelBackedStorage mount at /home/root
-    // So the path stored is "/" (relative to mount point)
-    const id = randomUUID();
-    await adapter.query(
-        `INSERT INTO fs (id, parent_id, name, path, node_type, mode, owner_id, created_at, updated_at)
-         VALUES ($1, NULL, $2, $3, 'directory', $4, $5, $6, $7)`,
-        [id, 'root', '/', 0o700, rootUserId, now, now]
-    );
-
-    console.info('FS initialized', { directories: 1 });
-}
+/** @deprecated Use DatabaseMount instead */
+export const ModelBackedStorage = DatabaseMount;

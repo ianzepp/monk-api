@@ -182,7 +182,9 @@ export async function FsPut(c: Context) {
 }
 
 /**
- * DELETE /fs/* - Delete file
+ * DELETE /fs/* - Delete file or directory
+ *
+ * Automatically detects if target is a file (unlink) or directory (rmdir).
  */
 export async function FsDelete(c: Context) {
     const systemInit = c.get('systemInit') as SystemInit;
@@ -191,7 +193,14 @@ export async function FsDelete(c: Context) {
     try {
         const result = await runTransaction(systemInit, async (system): Promise<FsResult> => {
             try {
-                await system.fs.unlink(path);
+                // Check if target is a directory or file
+                const entry = await system.fs.stat(path);
+
+                if (entry.type === 'directory') {
+                    await system.fs.rmdir(path);
+                } else {
+                    await system.fs.unlink(path);
+                }
                 return { type: 'success', path };
             } catch (err) {
                 if (err instanceof FSError) {

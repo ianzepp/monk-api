@@ -2,24 +2,40 @@
  * TrashedMount - Soft-deleted records as filesystem
  *
  * Like DataMount but only shows trashed records:
- * - /api/trashed/                 → List models with trashed records
- * - /api/trashed/orders/          → List trashed records for model
- * - /api/trashed/orders/:id       → View trashed record (JSON)
+ * - /api/trashed/                    → List models with trashed records
+ * - /api/trashed/orders/             → List trashed records (directories)
+ * - /api/trashed/orders/:id/         → List fields in trashed record
+ * - /api/trashed/orders/:id/:field   → View field value
  *
- * Read-only mount. Restore/permanent delete via /api/data.
+ * Read-only mount. Restore/permanent delete via API.
  */
 
 import type { System } from '@src/lib/system.js';
-import type { Mount, FSEntry } from '../types.js';
+import type { Mount, FSEntry, FSEntryType } from '../types.js';
 import { FSError } from '../types.js';
 
 type ParsedPath =
     | { type: 'root' }
     | { type: 'model'; modelName: string }
-    | { type: 'record'; modelName: string; recordId: string };
+    | { type: 'record'; modelName: string; recordId: string }
+    | { type: 'field'; modelName: string; recordId: string; fieldName: string };
 
 export class TrashedMount implements Mount {
     constructor(private readonly system: System) {}
+
+    /**
+     * Get entry type from path structure (no I/O)
+     *
+     * Path depth determines type:
+     * - 0-2 segments: directory (root, model, record)
+     * - 3 segments: file (field)
+     */
+    getType(path: string): FSEntryType | null {
+        const segments = path.split('/').filter(Boolean);
+        if (segments.length <= 2) return 'directory';
+        if (segments.length === 3) return 'file';
+        return null; // Invalid path depth
+    }
 
     async stat(path: string): Promise<FSEntry> {
         const parsed = this.parsePath(path);
@@ -68,14 +84,35 @@ export class TrashedMount implements Mount {
                 throw new FSError('ENOENT', path);
             }
 
-            const content = JSON.stringify(record, null, 2);
             return {
                 name: parsed.recordId,
-                type: 'file',
-                size: Buffer.byteLength(content, 'utf8'),
-                mode: 0o444,
+                type: 'directory',
+                size: 0,
+                mode: 0o555, // read-only directory
                 mtime: record.trashed_at ? new Date(record.trashed_at) : undefined,
                 ctime: record.created_at ? new Date(record.created_at) : undefined,
+            };
+        }
+
+        if (parsed.type === 'field') {
+            const record = await this.system.database.selectOne(parsed.modelName, {
+                where: { id: parsed.recordId },
+            }, { context: 'api', trashed: 'only' });
+
+            if (!record) {
+                throw new FSError('ENOENT', path);
+            }
+            if (!(parsed.fieldName in record)) {
+                throw new FSError('ENOENT', path);
+            }
+
+            const value = this.formatValue(record[parsed.fieldName]);
+            return {
+                name: parsed.fieldName,
+                type: 'file',
+                size: Buffer.byteLength(value, 'utf8'),
+                mode: 0o444, // read-only
+                mtime: record.trashed_at ? new Date(record.trashed_at) : undefined,
             };
         }
 
@@ -117,24 +154,15 @@ export class TrashedMount implements Mount {
                 throw new FSError('ENOENT', path);
             }
 
+            // Records are directories
             return records.map(r => ({
                 name: r.id,
-                type: 'file' as const,
+                type: 'directory' as const,
                 size: 0,
-                mode: 0o444,
+                mode: 0o555, // read-only directory
                 mtime: r.trashed_at ? new Date(r.trashed_at) : undefined,
                 ctime: r.created_at ? new Date(r.created_at) : undefined,
             }));
-        }
-
-        throw new FSError('ENOTDIR', path);
-    }
-
-    async read(path: string): Promise<string> {
-        const parsed = this.parsePath(path);
-
-        if (parsed.type === 'root' || parsed.type === 'model') {
-            throw new FSError('EISDIR', path);
         }
 
         if (parsed.type === 'record') {
@@ -146,10 +174,60 @@ export class TrashedMount implements Mount {
                 throw new FSError('ENOENT', path);
             }
 
-            return JSON.stringify(record, null, 2);
+            // List all fields as files
+            const entries: FSEntry[] = [];
+            for (const [key, value] of Object.entries(record)) {
+                const formatted = this.formatValue(value);
+                entries.push({
+                    name: key,
+                    type: 'file',
+                    size: Buffer.byteLength(formatted, 'utf8'),
+                    mode: 0o444, // read-only
+                    mtime: record.trashed_at ? new Date(record.trashed_at) : undefined,
+                });
+            }
+            return entries;
+        }
+
+        throw new FSError('ENOTDIR', path);
+    }
+
+    async read(path: string): Promise<string> {
+        const parsed = this.parsePath(path);
+
+        if (parsed.type === 'root' || parsed.type === 'model' || parsed.type === 'record') {
+            throw new FSError('EISDIR', path);
+        }
+
+        if (parsed.type === 'field') {
+            const record = await this.system.database.selectOne(parsed.modelName, {
+                where: { id: parsed.recordId },
+            }, { context: 'api', trashed: 'only' });
+
+            if (!record) {
+                throw new FSError('ENOENT', path);
+            }
+            if (!(parsed.fieldName in record)) {
+                throw new FSError('ENOENT', path);
+            }
+
+            return this.formatValue(record[parsed.fieldName]);
         }
 
         throw new FSError('ENOENT', path);
+    }
+
+    /**
+     * Format a field value for display
+     */
+    private formatValue(value: unknown): string {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        if (typeof value === 'object') {
+            return JSON.stringify(value);
+        }
+        return String(value);
     }
 
     private parsePath(path: string): ParsedPath {
@@ -165,6 +243,15 @@ export class TrashedMount implements Mount {
 
         if (segments.length === 2) {
             return { type: 'record', modelName: segments[0], recordId: segments[1] };
+        }
+
+        if (segments.length === 3) {
+            return {
+                type: 'field',
+                modelName: segments[0],
+                recordId: segments[1],
+                fieldName: segments[2],
+            };
         }
 
         throw new FSError('ENOENT', path);

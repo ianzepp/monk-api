@@ -57,7 +57,22 @@ export class FSError extends Error {
  * For example, if mounted at "/api/data", a request for "/api/data/users/123.json"
  * will call the mount with path "/users/123.json".
  */
+/** Entry type for lightweight type checking */
+export type FSEntryType = 'file' | 'directory' | 'symlink';
+
 export interface Mount {
+    /**
+     * Get entry type from path structure (optional, no I/O)
+     *
+     * Returns the type if determinable from path alone, null otherwise.
+     * Mounts with fixed path structures (e.g., DataMount) can implement this
+     * to avoid database queries when only the type is needed.
+     *
+     * @param path - Path relative to mount point
+     * @returns Entry type or null if I/O required
+     */
+    getType?(path: string): FSEntryType | null;
+
     /**
      * Get metadata for a file or directory
      */

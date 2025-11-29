@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'bun:test';
 import { mkdtempSync, mkdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { ModelBackedStorage } from '@src/lib/fs/storage.js';
+import { DatabaseMount } from '@src/lib/fs/mounts/database-mount.js';
 import { FSError } from '@src/lib/fs/types.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { Infrastructure, ROOT_USER_ID } from '@src/lib/infrastructure.js';
@@ -11,13 +11,13 @@ import { NamespaceCacheManager } from '@src/lib/namespace-cache.js';
 import type { SystemInit } from '@src/lib/system.js';
 
 /**
- * ModelBackedStorage Tests
+ * DatabaseMount Tests
  *
- * Tests the fs-backed storage in isolation using a temporary SQLite database.
+ * Tests the database-backed storage in isolation using a temporary SQLite database.
  * FS initialization creates /, /home, /home/root, /tmp, /etc, /etc/motd.
  */
 
-describe('ModelBackedStorage', () => {
+describe('DatabaseMount', () => {
     let tempDir: string;
     let systemInit: SystemInit;
 
@@ -68,14 +68,14 @@ describe('ModelBackedStorage', () => {
     /**
      * Helper to run storage operations within a transaction
      */
-    async function withStorage<T>(fn: (storage: ModelBackedStorage) => Promise<T>): Promise<T> {
+    async function withStorage<T>(fn: (storage: DatabaseMount) => Promise<T>): Promise<T> {
         // Ensure SQLITE_DATA_DIR is set for this operation
         const originalDataDir = process.env.SQLITE_DATA_DIR;
         process.env.SQLITE_DATA_DIR = tempDir;
 
         try {
             return await runTransaction(systemInit, async (system) => {
-                const storage = new ModelBackedStorage(system);
+                const storage = new DatabaseMount(system);
                 return fn(storage);
             });
         } finally {

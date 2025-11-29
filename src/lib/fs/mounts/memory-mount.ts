@@ -17,7 +17,7 @@
  * - Use MemoryMountRegistry.get(tenant) to obtain the shared instance
  *
  * Note: User home directories (/home/{user}) are mounted separately
- * with ModelBackedStorage for persistence.
+ * with DatabaseMount for persistence.
  */
 
 import type { Mount, FSEntry } from '../types.js';
@@ -74,6 +74,58 @@ export class MemoryMountRegistry {
      */
     static remove(tenant: string): void {
         this.mounts.delete(tenant);
+    }
+}
+
+/**
+ * Registry of per-user tmp mounts
+ *
+ * Ensures each user gets their own isolated /tmp that:
+ * - Persists across their sessions (two terminals = same /tmp)
+ * - Is isolated from other users in the same tenant
+ * - Lives for the server lifetime (or until explicitly cleared)
+ */
+export class UserTmpRegistry {
+    private static mounts = new Map<string, MemoryMount>();
+
+    /**
+     * Get or create the /tmp mount for a specific user
+     */
+    static get(tenant: string, username: string): MemoryMount {
+        const key = `${tenant}:${username}`;
+        let mount = this.mounts.get(key);
+        if (!mount) {
+            mount = new MemoryMount();
+            this.mounts.set(key, mount);
+        }
+        return mount;
+    }
+
+    /**
+     * Clear all user tmp mounts (for testing)
+     */
+    static clear(): void {
+        this.mounts.clear();
+    }
+
+    /**
+     * Remove a specific user's tmp mount (for user logout cleanup)
+     */
+    static remove(tenant: string, username: string): void {
+        const key = `${tenant}:${username}`;
+        this.mounts.delete(key);
+    }
+
+    /**
+     * Remove all tmp mounts for a tenant (for tenant deletion)
+     */
+    static removeTenant(tenant: string): void {
+        const prefix = `${tenant}:`;
+        for (const key of this.mounts.keys()) {
+            if (key.startsWith(prefix)) {
+                this.mounts.delete(key);
+            }
+        }
     }
 }
 

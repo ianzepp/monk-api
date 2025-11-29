@@ -14,9 +14,11 @@ import type { Mount, FSEntry, ResolvedPath } from './types.js';
 import { FSError } from './types.js';
 
 export { FSError } from './types.js';
-export type { FSEntry, FSErrorCode, Mount, ResolvedPath } from './types.js';
-export { ModelBackedStorage, initializeFS } from './storage.js';
+export type { FSEntry, FSEntryType, FSErrorCode, Mount, ResolvedPath } from './types.js';
+export { DatabaseMount, ModelBackedStorage } from './mounts/database-mount.js';
+export { initializeFS } from './init.js';
 export { LocalMount } from './mounts/local-mount.js';
+export { MemoryMountRegistry, UserTmpRegistry } from './mounts/memory-mount.js';
 export type { LocalMountOptions } from './mounts/local-mount.js';
 
 /**
@@ -24,13 +26,20 @@ export type { LocalMountOptions } from './mounts/local-mount.js';
  *
  * Routes filesystem operations to appropriate mount handlers based on path.
  * Mounts are matched by longest-prefix matching (most specific wins).
+ *
+ * System context is optional - required only for mounts that need database access.
+ * A base FS with static mounts (LocalMount to monkfs/) can exist without System.
  */
 export class FS {
     private mounts: Map<string, Mount> = new Map();
     private sortedMounts: [string, Mount][] = [];
     private fallback: Mount | null = null;
 
-    constructor(public readonly system: System) {}
+    /**
+     * Create a new filesystem instance
+     * @param system - Optional authenticated system context (required for database-backed mounts)
+     */
+    constructor(public readonly system?: System) {}
 
     /**
      * Mount a handler at a path
@@ -274,27 +283,48 @@ export class FS {
     }
 
     /**
+     * Get entry type only (lightweight, may avoid I/O)
+     *
+     * Uses mount's getType() if available (no I/O), otherwise falls back to stat().
+     * Returns null if path doesn't exist.
+     */
+    async statType(path: string): Promise<'file' | 'directory' | 'symlink' | null> {
+        const { handler, relativePath } = this.resolvePath(path);
+
+        // Try lightweight getType first (no I/O)
+        if (handler.getType) {
+            const type = handler.getType(relativePath);
+            if (type !== null) {
+                return type;
+            }
+        }
+
+        // Fall back to full stat
+        try {
+            const entry = await handler.stat(relativePath);
+            return entry.type;
+        } catch (err) {
+            if (err instanceof FSError && err.code === 'ENOENT') {
+                return null;
+            }
+            throw err;
+        }
+    }
+
+    /**
      * Check if path is a file
      */
     async isFile(path: string): Promise<boolean> {
-        try {
-            const entry = await this.stat(path);
-            return entry.type === 'file';
-        } catch {
-            return false;
-        }
+        const type = await this.statType(path);
+        return type === 'file';
     }
 
     /**
      * Check if path is a directory
      */
     async isDirectory(path: string): Promise<boolean> {
-        try {
-            const entry = await this.stat(path);
-            return entry.type === 'directory';
-        } catch {
-            return false;
-        }
+        const type = await this.statType(path);
+        return type === 'directory';
     }
 
     /**
