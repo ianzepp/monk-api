@@ -20,7 +20,7 @@ import { getProjectRoot } from '@src/lib/constants.js';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 /**
- * Agent response structure
+ * Agent response structure (for non-streaming)
  */
 export interface AgentResponse {
     success: boolean;
@@ -32,6 +32,16 @@ export interface AgentResponse {
     }[];
     error?: string;
 }
+
+/**
+ * Streaming event types
+ */
+export type AgentStreamEvent =
+    | { type: 'tool_call'; name: string; input: Record<string, unknown> }
+    | { type: 'tool_result'; name: string; output: string; exitCode?: number }
+    | { type: 'text'; content: string }
+    | { type: 'error'; message: string }
+    | { type: 'done'; success: boolean };
 
 /**
  * Tool call record
@@ -427,6 +437,159 @@ export async function executeAgentPrompt(
         response: responseText,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     };
+}
+
+/**
+ * Execute AI agent with streaming events
+ *
+ * Yields events as they occur for real-time progress updates.
+ */
+export async function* executeAgentPromptStream(
+    systemInit: SystemInit,
+    prompt: string,
+    options?: {
+        sessionId?: string;
+        maxTurns?: number;
+    }
+): AsyncGenerator<AgentStreamEvent> {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+        yield { type: 'error', message: 'ANTHROPIC_API_KEY not configured' };
+        yield { type: 'done', success: false };
+        return;
+    }
+
+    const session = getOrCreateHeadlessSession(systemInit, options?.sessionId);
+    const config = { ...DEFAULT_CONFIG };
+    if (options?.maxTurns) {
+        config.maxTurns = options.maxTurns;
+    }
+
+    const systemPrompt = buildSystemPrompt(session);
+    const messages: Message[] = [{ role: 'user', content: prompt }];
+
+    // Agentic loop
+    let turns = 0;
+    let continueLoop = true;
+
+    while (continueLoop && turns < config.maxTurns) {
+        continueLoop = false;
+        turns++;
+
+        try {
+            const response = await fetch(ANTHROPIC_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                },
+                body: JSON.stringify({
+                    model: config.model,
+                    max_tokens: config.maxTokens,
+                    system: systemPrompt,
+                    messages,
+                    tools: TOOLS,
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                yield { type: 'error', message: `API error ${response.status}: ${error}` };
+                yield { type: 'done', success: false };
+                return;
+            }
+
+            const result = (await response.json()) as {
+                content: ContentBlock[];
+                stop_reason: string;
+            };
+
+            // Process response
+            const assistantContent: ContentBlock[] = [];
+            const toolResults: ContentBlock[] = [];
+
+            for (const block of result.content) {
+                if (block.type === 'text') {
+                    assistantContent.push(block);
+                    yield { type: 'text', content: block.text };
+                } else if (block.type === 'tool_use') {
+                    assistantContent.push(block);
+
+                    // Emit tool_call event
+                    yield { type: 'tool_call', name: block.name, input: block.input };
+
+                    let output: string;
+                    let exitCode: number | undefined;
+
+                    if (block.name === 'run_command') {
+                        const cmd = (block.input as { command: string }).command;
+                        const cmdResult = await executeCommandCapture(session, cmd);
+                        exitCode = cmdResult.exitCode;
+                        output =
+                            cmdResult.exitCode !== 0
+                                ? `${cmdResult.output}\n[Exit code: ${cmdResult.exitCode}]`
+                                : cmdResult.output;
+                    } else if (block.name === 'read_file') {
+                        const path = (block.input as { path: string }).path;
+                        const resolved = resolvePath(session.cwd, path);
+
+                        try {
+                            output = await runTransaction(session.systemInit!, async (system) => {
+                                applySessionMounts(session, system.fs, system);
+                                const data = await system.fs.read(resolved);
+                                return data.toString();
+                            });
+                        } catch (err) {
+                            const msg = err instanceof Error ? err.message : String(err);
+                            output = `[Error: ${msg}]`;
+                        }
+                    } else if (block.name === 'write_file') {
+                        const { path, content } = block.input as { path: string; content: string };
+                        const resolved = resolvePath(session.cwd, path);
+
+                        try {
+                            await runTransaction(session.systemInit!, async (system) => {
+                                applySessionMounts(session, system.fs, system);
+                                await system.fs.write(resolved, content);
+                            });
+                            output = `Wrote ${content.length} bytes to ${resolved}`;
+                        } catch (err) {
+                            const msg = err instanceof Error ? err.message : String(err);
+                            output = `[Error: ${msg}]`;
+                        }
+                    } else {
+                        output = `Unknown tool: ${block.name}`;
+                    }
+
+                    // Emit tool_result event
+                    yield { type: 'tool_result', name: block.name, output, exitCode };
+
+                    toolResults.push({
+                        type: 'tool_result',
+                        tool_use_id: block.id,
+                        content: output,
+                    });
+                }
+            }
+
+            // Add assistant message
+            messages.push({ role: 'assistant', content: assistantContent });
+
+            // If there were tool uses, continue loop
+            if (toolResults.length > 0) {
+                messages.push({ role: 'user', content: toolResults });
+                continueLoop = true;
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            yield { type: 'error', message };
+            yield { type: 'done', success: false };
+            return;
+        }
+    }
+
+    yield { type: 'done', success: true };
 }
 
 /**
