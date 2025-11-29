@@ -1,7 +1,7 @@
 # MCP-TTY Agent Bridge
 
 **Date**: 2024-11-29
-**Status**: Approved for implementation
+**Status**: Implemented (commit 1c7f9b5)
 
 ## Problem
 
@@ -73,7 +73,7 @@ No raw shell bypass exposed externally.
 ### HTTP Endpoint
 
 ```
-POST /api/agent/ai
+POST /api/agent
 Authorization: Bearer <jwt>
 Content-Type: application/json
 
@@ -93,7 +93,7 @@ monk ai "show me the schema for the orders table"
 ```
 External AI ──► MCP: MonkAgent ──┐
                                  ├──► TTY AI Agent ──► Internal Tools ──► Response
-CLI ──► HTTP: /api/agent/ai ────┘
+CLI ──► HTTP: POST /api/agent ──┘
 ```
 
 ## Implementation Plan
@@ -137,15 +137,15 @@ async function executeAgentPrompt(
 ): Promise<AgentResponse>
 ```
 
-## Files to Create/Modify
+## Files Created/Modified
 
 | File | Action |
 |------|--------|
-| `src/lib/tty/headless.ts` | Create - headless session + shared handler |
-| `src/routes/api/agent/ai.ts` | Create - HTTP endpoint |
-| `src/routes/api/agent/index.ts` | Create - route registration |
-| `src/servers/mcp.ts` | Modify - add MonkAgent tool |
-| `src/servers/http.ts` | Modify - register agent routes |
+| `src/lib/tty/headless.ts` | Created - headless session + executeAgentPrompt() |
+| `src/routes/api/agent/POST.ts` | Created - HTTP endpoint handler |
+| `src/routes/api/agent/routes.ts` | Created - route barrel export |
+| `src/servers/mcp.ts` | Modified - added MonkAgent tool |
+| `src/servers/http.ts` | Modified - registered /api/agent route |
 
 ## Response Format
 
