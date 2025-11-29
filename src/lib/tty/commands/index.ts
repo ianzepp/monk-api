@@ -42,8 +42,11 @@ import { describe } from './describe.js';
 import { introspect } from './introspect.js';
 import { query } from './query.js';
 import { insert } from './insert.js';
+import { insert_bulk } from './insert-bulk.js';
 import { update } from './update.js';
+import { update_bulk } from './update-bulk.js';
 import { delete_ } from './delete.js';
+import { delete_bulk } from './delete-bulk.js';
 import { count } from './count.js';
 import { dump } from './dump.js';
 import { restore } from './restore.js';
@@ -55,6 +58,7 @@ import { uniq } from './uniq.js';
 import { wc } from './wc.js';
 import { cut } from './cut.js';
 import { tr } from './tr.js';
+import { format } from './format.js';
 import { sed } from './sed.js';
 
 // Output formatting
@@ -164,6 +168,7 @@ export { uniq } from './uniq.js';
 export { wc } from './wc.js';
 export { cut } from './cut.js';
 export { tr } from './tr.js';
+export { format } from './format.js';
 export { sed } from './sed.js';
 export { printf } from './printf.js';
 export { diff } from './diff.js';
@@ -183,7 +188,9 @@ export { query } from './query.js';
 export { insert } from './insert.js';
 export { insert_bulk } from './insert-bulk.js';
 export { update } from './update.js';
+export { update_bulk } from './update-bulk.js';
 export { delete_ } from './delete.js';
+export { delete_bulk } from './delete-bulk.js';
 export { count } from './count.js';
 export { dump } from './dump.js';
 export { restore } from './restore.js';
@@ -269,8 +276,11 @@ export const commands: Record<string, CommandHandler> = {
     introspect,
     query,
     insert,
+    insert_bulk,
     update,
+    update_bulk,
     delete: delete_,
+    delete_bulk,
     count,
     dump,
     restore,
@@ -283,6 +293,7 @@ export const commands: Record<string, CommandHandler> = {
     cut,
     tr,
     sed,
+    format,
 
     // Output formatting
     printf,

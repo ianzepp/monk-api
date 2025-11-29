@@ -1,0 +1,55 @@
+NAME
+    update_bulk - bulk update records from JSON array
+
+SYNOPSIS
+    update_bulk <model> [--file=<file>] [--dry-run]
+    cat data.json | update_bulk <model>
+
+DESCRIPTION
+    Updates multiple records efficiently using a single API call.
+    Input must be a JSON array of record objects with "id" fields.
+
+    Unlike update, this command:
+    - Does NOT accept field=value pairs
+    - Requires JSON array input with "id" in each object
+    - Uses direct API for better performance
+    - Is designed for batch operations
+
+OPTIONS
+    --file=<path>
+        Read JSON from file instead of stdin.
+
+    --dry-run
+        Validate input without updating. Reports how many
+        records would be updated.
+
+EXAMPLES
+    cat users.json | update_bulk users
+        Bulk update from piped JSON
+
+    update_bulk products --file=products.json
+        Update from file
+
+    update_bulk orders --dry-run < orders.json
+        Validate without updating
+
+INPUT FORMAT
+    Input must be a JSON array of objects with "id" fields:
+
+    [
+      {"id": "abc-123", "status": "active"},
+      {"id": "def-456", "role": "admin"}
+    ]
+
+    Only specified fields are updated; others remain unchanged.
+
+OUTPUT
+    On success: "Updated N records in <model>"
+    On dry-run: "Dry run: would update N records in <model>"
+
+EXIT STATUS
+    0   Success
+    1   Error (invalid JSON, missing IDs, API error, etc.)
+
+SEE ALSO
+    update, insert_bulk, delete_bulk, select

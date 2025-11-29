@@ -1,22 +1,22 @@
 /**
- * insert_bulk - Bulk insert records
+ * update_bulk - Bulk update records
  *
  * Usage:
- *   insert_bulk <model> < data.json
- *   insert_bulk <model> --file=data.json
- *   cat data.json | insert_bulk <model>
+ *   update_bulk <model> < data.json
+ *   update_bulk <model> --file=data.json
+ *   cat data.json | update_bulk <model>
  *
- * Input must be a JSON array of records.
- * Uses direct API call for efficient bulk insertion.
+ * Input must be a JSON array of records with "id" fields.
+ * Uses direct API call for efficient bulk updates.
  *
  * Options:
  *   --file=<path>   Read from file instead of stdin
- *   --dry-run       Validate without inserting
+ *   --dry-run       Validate without updating
  *
  * Examples:
- *   cat users.json | insert_bulk users
- *   insert_bulk products --file=products.json
- *   insert_bulk orders --dry-run < orders.json
+ *   cat users.json | update_bulk users
+ *   update_bulk products --file=products.json
+ *   update_bulk orders --dry-run < orders.json
  */
 
 import type { CommandHandler } from './shared.js';
@@ -24,10 +24,10 @@ import { resolvePath } from '../parser.js';
 import { getHonoApp } from '@src/lib/internal-api.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
-export const insert_bulk: CommandHandler = async (session, fs, args, io) => {
+export const update_bulk: CommandHandler = async (session, fs, args, io) => {
     if (args.length === 0) {
-        io.stderr.write('insert_bulk: missing model\n');
-        io.stderr.write('Usage: insert_bulk <model> [--file=<file>] [--dry-run] < data.json\n');
+        io.stderr.write('update_bulk: missing model\n');
+        io.stderr.write('Usage: update_bulk <model> [--file=<file>] [--dry-run] < data.json\n');
         return 1;
     }
 
@@ -45,25 +45,25 @@ export const insert_bulk: CommandHandler = async (session, fs, args, io) => {
             if (modelArg === null) {
                 modelArg = arg;
             } else {
-                io.stderr.write(`insert_bulk: unexpected argument: ${arg}\n`);
-                io.stderr.write('Note: insert_bulk does not accept field=value pairs. Use insert for single records.\n');
+                io.stderr.write(`update_bulk: unexpected argument: ${arg}\n`);
+                io.stderr.write('Note: update_bulk does not accept field=value pairs. Use update for single records.\n');
                 return 1;
             }
         } else {
-            io.stderr.write(`insert_bulk: unknown option: ${arg}\n`);
+            io.stderr.write(`update_bulk: unknown option: ${arg}\n`);
             return 1;
         }
     }
 
     if (!modelArg) {
-        io.stderr.write('insert_bulk: missing model\n');
+        io.stderr.write('update_bulk: missing model\n');
         return 1;
     }
 
     // Extract model name (strip /api/data/ prefix if present)
     const model = modelArg.replace(/^\/api\/data\//, '').replace(/\/$/, '');
     if (!model || model.includes('/')) {
-        io.stderr.write(`insert_bulk: invalid model: ${modelArg}\n`);
+        io.stderr.write(`update_bulk: invalid model: ${modelArg}\n`);
         return 1;
     }
 
@@ -73,7 +73,7 @@ export const insert_bulk: CommandHandler = async (session, fs, args, io) => {
     if (filePath) {
         // Read from file
         if (!fs) {
-            io.stderr.write('insert_bulk: filesystem not available\n');
+            io.stderr.write('update_bulk: filesystem not available\n');
             return 1;
         }
         try {
@@ -81,7 +81,7 @@ export const insert_bulk: CommandHandler = async (session, fs, args, io) => {
             const data = await fs.read(resolvedFile);
             jsonStr = data.toString();
         } catch (err) {
-            io.stderr.write(`insert_bulk: cannot read file: ${filePath}\n`);
+            io.stderr.write(`update_bulk: cannot read file: ${filePath}\n`);
             return 1;
         }
     } else {
@@ -94,7 +94,7 @@ export const insert_bulk: CommandHandler = async (session, fs, args, io) => {
     }
 
     if (!jsonStr.trim()) {
-        io.stderr.write('insert_bulk: no data provided\n');
+        io.stderr.write('update_bulk: no data provided\n');
         io.stderr.write('Pipe JSON array to stdin or use --file=<path>\n');
         return 1;
     }
@@ -104,52 +104,57 @@ export const insert_bulk: CommandHandler = async (session, fs, args, io) => {
     try {
         const data = JSON.parse(jsonStr);
         if (!Array.isArray(data)) {
-            io.stderr.write('insert_bulk: input must be a JSON array\n');
-            io.stderr.write('Use insert for single records.\n');
+            io.stderr.write('update_bulk: input must be a JSON array\n');
+            io.stderr.write('Use update for single records.\n');
             return 1;
         }
         records = data;
     } catch (err) {
-        io.stderr.write('insert_bulk: invalid JSON\n');
+        io.stderr.write('update_bulk: invalid JSON\n');
         return 1;
     }
 
     if (records.length === 0) {
-        io.stderr.write('insert_bulk: empty array\n');
+        io.stderr.write('update_bulk: empty array\n');
         return 1;
     }
 
-    // Validate records (basic check)
+    // Validate records have IDs
     for (let i = 0; i < records.length; i++) {
         if (typeof records[i] !== 'object' || records[i] === null) {
-            io.stderr.write(`insert_bulk: record ${i} is not an object\n`);
+            io.stderr.write(`update_bulk: record ${i} is not an object\n`);
+            return 1;
+        }
+        if (!records[i].id) {
+            io.stderr.write(`update_bulk: record ${i} missing required "id" field\n`);
             return 1;
         }
     }
 
     if (dryRun) {
-        io.stdout.write(`Dry run: would insert ${records.length} records into ${model}\n`);
+        io.stdout.write(`Dry run: would update ${records.length} records in ${model}\n`);
         return 0;
     }
 
     // Get Hono app for internal API call
     const app = getHonoApp();
     if (!app) {
-        io.stderr.write('insert_bulk: internal API not available\n');
+        io.stderr.write('update_bulk: internal API not available\n');
         return 1;
     }
 
     // Generate JWT for the request
     if (!session.systemInit) {
-        io.stderr.write('insert_bulk: not authenticated\n');
+        io.stderr.write('update_bulk: not authenticated\n');
         return 1;
     }
 
     try {
         const token = await JWTGenerator.fromSystemInit(session.systemInit);
 
+        // Use PATCH for bulk update
         const response = await app.fetch(new Request(`http://localhost/api/data/${model}`, {
-            method: 'POST',
+            method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
@@ -159,7 +164,7 @@ export const insert_bulk: CommandHandler = async (session, fs, args, io) => {
 
         if (!response.ok) {
             const errorText = await response.text();
-            io.stderr.write(`insert_bulk: API error ${response.status}\n`);
+            io.stderr.write(`update_bulk: API error ${response.status}\n`);
             try {
                 const errorJson = JSON.parse(errorText);
                 io.stderr.write(`${errorJson.error || errorText}\n`);
@@ -170,15 +175,15 @@ export const insert_bulk: CommandHandler = async (session, fs, args, io) => {
         }
 
         const result = await response.json() as { data?: any[] } | any[];
-        const inserted = (result as any).data ?? result;
-        const count = Array.isArray(inserted) ? inserted.length : 1;
+        const updated = (result as any).data ?? result;
+        const count = Array.isArray(updated) ? updated.length : 1;
 
-        io.stdout.write(`Inserted ${count} records into ${model}\n`);
+        io.stdout.write(`Updated ${count} records in ${model}\n`);
         return 0;
 
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        io.stderr.write(`insert_bulk: ${msg}\n`);
+        io.stderr.write(`update_bulk: ${msg}\n`);
         return 1;
     }
 };

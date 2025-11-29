@@ -1,30 +1,30 @@
 /**
- * update - Update records
+ * update - Update a single record
  *
  * Usage:
- *   update <path>                         Read JSON from stdin
- *   update <path> '<json>'                Inline JSON
- *   update <path> field=value ...         Field-value pairs
- *
- * Path should be a record: /api/data/users/123
+ *   update <model> <id> [field=value ...]
+ *   update <model> <id> '<json>'
+ *   echo '<json>' | update <model> <id>
+ *   update . [field=value ...]          (use current record)
  *
  * Examples:
- *   echo '{"status":"active"}' | update /api/data/users/123
- *   update /api/data/users/123 '{"status":"active"}'
- *   update /api/data/users/123 status=active name="John Doe"
+ *   update users abc-123 status=active name="John Doe"
+ *   update users abc-123 '{"status":"active"}'
+ *   echo '{"status":"active"}' | update users abc-123
+ *   update . status=active              (when in /api/data/users/abc-123)
+ *
+ * For bulk updates, use update_bulk instead.
  *
  * Outputs the updated record as JSON.
  */
 
 import { FSError } from '@src/lib/fs/index.js';
-import { resolvePath } from '../parser.js';
 import type { CommandHandler } from './shared.js';
 
 /**
  * Parse field=value arguments into an object
  */
 function parseFieldValues(args: string[]): Record<string, any> | null {
-    // Check if args look like field=value pairs
     if (!args.some(arg => arg.includes('='))) {
         return null;
     }
@@ -33,14 +33,12 @@ function parseFieldValues(args: string[]): Record<string, any> | null {
 
     for (const arg of args) {
         const eqIndex = arg.indexOf('=');
-        if (eqIndex === -1) {
-            continue;
-        }
+        if (eqIndex === -1) continue;
 
         const key = arg.slice(0, eqIndex);
         let value: any = arg.slice(eqIndex + 1);
 
-        // Try to parse value as JSON (for numbers, booleans, arrays, objects)
+        // Try to parse value as JSON
         try {
             value = JSON.parse(value);
         } catch {
@@ -57,6 +55,42 @@ function parseFieldValues(args: string[]): Record<string, any> | null {
     return Object.keys(result).length > 0 ? result : null;
 }
 
+/**
+ * Resolve model and id from arguments and cwd
+ * Returns { model, id, recordPath } or null if invalid
+ */
+function resolveRecord(args: string[], cwd: string): { model: string; id: string; recordPath: string; remainingArgs: string[] } | null {
+    if (args.length === 0) return null;
+
+    if (args[0] === '.') {
+        // Use current directory - must be a record (/api/data/<model>/<id>)
+        const match = cwd.match(/^\/api\/data\/([^/]+)\/([^/]+)\/?$/);
+        if (!match) return null;
+        return {
+            model: match[1],
+            id: match[2],
+            recordPath: `/api/data/${match[1]}/${match[2]}`,
+            remainingArgs: args.slice(1)
+        };
+    }
+
+    // Need at least model and id
+    if (args.length < 2) return null;
+
+    const model = args[0].replace(/^\/api\/data\//, '').replace(/\/$/, '');
+    if (!model || model.includes('/')) return null;
+
+    const id = args[1];
+    if (!id || id.includes('/')) return null;
+
+    return {
+        model,
+        id,
+        recordPath: `/api/data/${model}/${id}`,
+        remainingArgs: args.slice(2)
+    };
+}
+
 export const update: CommandHandler = async (session, fs, args, io) => {
     if (!fs) {
         io.stderr.write('update: filesystem not available\n');
@@ -64,25 +98,39 @@ export const update: CommandHandler = async (session, fs, args, io) => {
     }
 
     if (args.length === 0) {
-        io.stderr.write('update: missing path\n');
-        io.stderr.write('Usage: update <path> [json | field=value ...]\n');
+        io.stderr.write('update: missing model and id\n');
+        io.stderr.write('Usage: update <model> <id> [field=value ...]\n');
         return 1;
     }
 
-    const pathArg = args[0];
-    const resolved = resolvePath(session.cwd, pathArg);
+    const resolved = resolveRecord(args, session.cwd);
+
+    if (!resolved) {
+        if (args[0] === '.') {
+            io.stderr.write('update: not in a record directory\n');
+            io.stderr.write('Use: cd /api/data/<model>/<id> first, or specify model and id\n');
+        } else if (args.length < 2) {
+            io.stderr.write('update: missing id\n');
+            io.stderr.write('Usage: update <model> <id> [field=value ...]\n');
+        } else {
+            io.stderr.write(`update: invalid model or id\n`);
+        }
+        return 1;
+    }
+
+    const { model, id, recordPath, remainingArgs } = resolved;
 
     // Get data from args or stdin
     let changes: any;
 
-    if (args.length > 1) {
+    if (remainingArgs.length > 0) {
         // Try field=value syntax first
-        const fieldValues = parseFieldValues(args.slice(1));
+        const fieldValues = parseFieldValues(remainingArgs);
         if (fieldValues) {
             changes = fieldValues;
         } else {
             // Try as JSON
-            const jsonStr = args.slice(1).join(' ');
+            const jsonStr = remainingArgs.join(' ');
             try {
                 changes = JSON.parse(jsonStr);
             } catch {
@@ -113,33 +161,33 @@ export const update: CommandHandler = async (session, fs, args, io) => {
 
     try {
         // Verify path is a file (record)
-        const stat = await fs.stat(resolved);
+        const stat = await fs.stat(recordPath);
         if (stat.type !== 'file') {
-            io.stderr.write(`update: ${pathArg}: not a record (use path to specific record)\n`);
+            io.stderr.write(`update: ${model}/${id}: not a record\n`);
             return 1;
         }
 
         // Read existing record
-        const existing = await fs.read(resolved);
+        const existing = await fs.read(recordPath);
         const record = JSON.parse(existing.toString());
 
         // Merge changes (shallow merge, changes override existing)
         const updated = { ...record, ...changes };
 
         // Write back
-        await fs.write(resolved, JSON.stringify(updated));
+        await fs.write(recordPath, JSON.stringify(updated));
 
         // Read back to get the full record
-        const result = await fs.read(resolved);
+        const result = await fs.read(recordPath);
         io.stdout.write(result.toString() + '\n');
 
         return 0;
     } catch (err) {
         if (err instanceof FSError) {
             if (err.code === 'ENOENT') {
-                io.stderr.write(`update: ${pathArg}: not found\n`);
+                io.stderr.write(`update: ${model}/${id}: not found\n`);
             } else {
-                io.stderr.write(`update: ${pathArg}: ${err.message}\n`);
+                io.stderr.write(`update: ${model}/${id}: ${err.message}\n`);
             }
             return 1;
         }

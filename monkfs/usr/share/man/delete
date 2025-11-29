@@ -1,25 +1,25 @@
 NAME
-    delete - remove records (soft delete)
+    delete - remove a single record (soft delete)
 
 SYNOPSIS
-    delete <path>
+    delete <model> <id>
+    delete .
 
 DESCRIPTION
-    Removes records at the specified path. Records are soft-deleted,
-    meaning they are moved to the trash and can be restored later.
+    Removes a single record. Specify the model and record ID, or use "."
+    when in a record directory (/api/data/<model>/<id>).
 
-    The path should point to a specific record (include the record ID)
-    or use "." for the current directory if already in a record context.
+    Records are soft-deleted, meaning they are moved to the trash and
+    can be restored later.
+
+    For bulk deletes, use delete_bulk instead.
 
 EXAMPLES
-    delete /api/data/users/abc-123
-        Delete a specific record by ID
+    delete users abc-123
+        Delete a specific record
 
     delete .
-        Delete current record (when in a record directory)
-
-    delete users/abc-123
-        Delete using relative path
+        Delete current record (when in /api/data/users/abc-123)
 
 TRASH AND RESTORE
     Soft-deleted records are moved to /api/trashed/<model>/.
@@ -38,4 +38,4 @@ EXIT STATUS
     1   Error (record not found, permission denied, etc.)
 
 SEE ALSO
-    insert, update, select, rm
+    delete_bulk, insert, update, select, rm

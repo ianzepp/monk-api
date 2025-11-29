@@ -1,0 +1,55 @@
+NAME
+    format - convert JSON to various output formats
+
+SYNOPSIS
+    format <type>
+    cat data.json | format <type>
+    select * FROM users | format csv
+
+DESCRIPTION
+    Converts JSON input from stdin to the specified output format.
+    Uses the @monk/formatter-* packages for encoding.
+
+    Input must be valid JSON. For tabular formats (csv, markdown),
+    input should be an array of objects.
+
+FORMATS
+    csv         Comma-separated values (for spreadsheets)
+    markdown    Markdown table (aliases: md, table)
+    toml        TOML configuration format
+    toon        Token-Oriented Object Notation (compact for LLMs)
+    grid        Compact grid format (alias: compact)
+    cbor        Concise Binary Object Representation (base64 output)
+    msgpack     MessagePack binary format (base64 output)
+    qr          QR code as ASCII art
+    morse       Morse code
+    brainfuck   Brainfuck encoding (just for fun)
+
+EXAMPLES
+    select * FROM users | format csv
+        Export users as CSV
+
+    select * FROM products | format markdown
+        Display products as a markdown table
+
+    select * FROM config | format toon
+        Convert to TOON (30-60% fewer tokens for LLMs)
+
+    cat data.json | format qr
+        Generate QR code from JSON
+
+    select name, email FROM users | format csv > users.csv
+        Export specific fields to file
+
+NOTES
+    Binary formats (cbor, msgpack) output base64-encoded data.
+
+    For CSV and markdown, input should be an array of flat objects.
+    Nested objects will be JSON-stringified.
+
+EXIT STATUS
+    0   Success
+    1   Error (invalid JSON, unsupported format, encoding error)
+
+SEE ALSO
+    jq, select, cat

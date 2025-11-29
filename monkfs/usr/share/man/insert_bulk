@@ -2,15 +2,15 @@ NAME
     insert_bulk - bulk insert records from JSON array
 
 SYNOPSIS
-    insert_bulk <path> [--file=<file>] [--dry-run]
-    cat data.json | insert_bulk <path>
+    insert_bulk <model> [--file=<file>] [--dry-run]
+    cat data.json | insert_bulk <model>
 
 DESCRIPTION
     Inserts multiple records efficiently using a single API call.
     Input must be a JSON array of record objects.
 
     Unlike insert, this command:
-    - Does NOT accept key=value pairs
+    - Does NOT accept field=value pairs
     - Requires JSON array input (not single objects)
     - Uses direct API for better performance
     - Is designed for imports and batch operations
@@ -24,16 +24,16 @@ OPTIONS
         records would be inserted.
 
 EXAMPLES
-    cat users.json | insert_bulk /api/data/users
+    cat users.json | insert_bulk users
         Bulk insert from piped JSON
 
-    insert_bulk /api/data/products --file=products.json
+    insert_bulk products --file=products.json
         Insert from file
 
-    insert_bulk /api/data/orders --dry-run < orders.json
+    insert_bulk orders --dry-run < orders.json
         Validate without inserting
 
-    curl -s https://example.com/data.json | insert_bulk /api/data/items
+    curl -s https://example.com/data.json | insert_bulk items
         Insert from remote source
 
 INPUT FORMAT
@@ -55,4 +55,4 @@ EXIT STATUS
     1   Error (invalid JSON, API error, etc.)
 
 SEE ALSO
-    insert, update, delete, select, dump, restore
+    insert, update_bulk, delete_bulk, select, dump, restore

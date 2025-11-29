@@ -1,0 +1,61 @@
+NAME
+    delete_bulk - bulk delete records by ID
+
+SYNOPSIS
+    delete_bulk <model> [--file=<file>] [--dry-run]
+    echo -e "id1\nid2" | delete_bulk <model>
+    select id FROM users WHERE inactive=true | delete_bulk users
+
+DESCRIPTION
+    Deletes multiple records efficiently using a single API call.
+    Input can be IDs (one per line), a JSON array of IDs, or a
+    JSON array of objects with "id" fields.
+
+    Unlike delete, this command:
+    - Accepts multiple IDs at once
+    - Uses direct API for better performance
+    - Is designed for batch operations
+
+OPTIONS
+    --file=<path>
+        Read IDs from file instead of stdin.
+
+    --dry-run
+        Validate input without deleting. Reports how many
+        records would be deleted.
+
+EXAMPLES
+    echo -e "abc-123\ndef-456" | delete_bulk users
+        Delete by piped IDs (newline-separated)
+
+    delete_bulk products --file=ids.txt
+        Delete from file of IDs
+
+    select id FROM users WHERE status='inactive' | delete_bulk users
+        Delete query results (pipe select output)
+
+    delete_bulk orders --dry-run < ids.json
+        Validate without deleting
+
+INPUT FORMATS
+    Newline-separated IDs:
+        abc-123
+        def-456
+        ghi-789
+
+    JSON array of IDs:
+        ["abc-123", "def-456", "ghi-789"]
+
+    JSON array of objects (id field extracted):
+        [{"id": "abc-123"}, {"id": "def-456"}]
+
+OUTPUT
+    On success: "Deleted N records from <model>"
+    On dry-run: "Dry run: would delete N records from <model>"
+
+EXIT STATUS
+    0   Success
+    1   Error (invalid input, API error, etc.)
+
+SEE ALSO
+    delete, insert_bulk, update_bulk, select

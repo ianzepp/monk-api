@@ -1,18 +1,20 @@
 NAME
-    update - modify existing records
+    update - modify a single record
 
 SYNOPSIS
-    update <path> [field=value ...]
-    update <path> '<json>'
-    echo '<json>' | update <path>
+    update <model> <id> [field=value ...]
+    update <model> <id> '<json>'
+    echo '<json>' | update <model> <id>
+    update . [field=value ...]
 
 DESCRIPTION
-    Updates existing records at the specified path. The path should
-    point to a specific record (include the record ID) or use "."
-    for the current directory if already in a record context.
+    Updates a single existing record. Specify the model and record ID,
+    or use "." when in a record directory (/api/data/<model>/<id>).
 
     Fields can be updated by specifying field=value pairs on the
-    command line, or by piping JSON data to stdin.
+    command line, or by piping a JSON object to stdin.
+
+    For bulk updates, use update_bulk instead.
 
 OPTIONS
     field=value
@@ -20,28 +22,24 @@ OPTIONS
         Only specified fields are updated; others remain unchanged.
 
 EXAMPLES
-    update /api/data/users/abc-123 name="New Name"
-        Update a specific record by ID
+    update users abc-123 status=active
+        Update a specific field
 
-    update . status=active
-        Update current record (when in a record directory)
+    update users abc-123 status=active name="John Doe"
+        Update multiple fields
 
-    update /api/data/users/abc-123 '{"name":"New Name","status":"active"}'
+    update users abc-123 '{"status":"active","role":"admin"}'
         Update with inline JSON
 
-    cat changes.json | update /api/data/products/xyz-789
+    echo '{"status":"active"}' | update users abc-123
         Update from JSON via stdin
 
-    update users/abc-123 role=admin verified=true
-        Update multiple fields
+    update . status=active
+        Update current record (when in /api/data/users/abc-123)
 
 EXIT STATUS
     0   Success
     1   Error (record not found, validation failed, etc.)
 
-NOTES
-    Use insert to create new records.
-    Use delete to remove records.
-
 SEE ALSO
-    insert, delete, select, describe
+    update_bulk, insert, delete, select, describe

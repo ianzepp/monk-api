@@ -1,18 +1,20 @@
 NAME
-    insert - create new records
+    insert - create a single record
 
 SYNOPSIS
-    insert <path> [field=value ...]
-    insert <path> '<json>'
-    echo '<json>' | insert <path>
+    insert <model> [field=value ...]
+    insert <model> '<json>'
+    echo '<json>' | insert <model>
+    insert . [field=value ...]
 
 DESCRIPTION
-    Creates new records in the specified model. Records can be created
-    by specifying field=value pairs on the command line, or by piping
-    JSON data to stdin.
+    Creates a single new record in the specified model. Records can be
+    created by specifying field=value pairs on the command line, or by
+    piping a JSON object to stdin.
 
-    Path can be relative (uses current directory) or absolute.
-    The path should point to a model directory (e.g., /api/data/users).
+    Use "." to insert into the current collection when in /api/data/<model>.
+
+    For bulk inserts, use insert_bulk instead.
 
 OPTIONS
     field=value
@@ -21,24 +23,21 @@ OPTIONS
         treated as strings.
 
 EXAMPLES
-    insert /api/data/users name="John Doe" access=user
+    insert users name="John Doe" role=user
         Create a user with inline field values
 
-    insert users email=test@example.com
-        Create in relative path
-
-    insert /api/data/users '{"name":"Bob","email":"bob@test.com"}'
+    insert users '{"name":"Bob","email":"bob@test.com"}'
         Create with inline JSON
 
-    echo '[{"name":"Bob"}]' | insert /api/data/users
-        Create from JSON array via stdin
+    echo '{"name":"Bob"}' | insert users
+        Create from JSON via stdin
 
-    cat data.json | insert products
-        Bulk insert from file
+    insert . name=Bob
+        Insert into current collection (when in /api/data/users)
 
 EXIT STATUS
     0   Success
-    1   Error (path not found, validation failed, etc.)
+    1   Error (model not found, validation failed, array provided, etc.)
 
 SEE ALSO
-    update, delete, select, describe
+    insert_bulk, update, delete, select, describe
