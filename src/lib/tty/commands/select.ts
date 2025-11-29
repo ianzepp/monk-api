@@ -4,13 +4,15 @@
  * Usage:
  *   select <columns> from <model> [where <conditions>] [group by <columns>] [order by <column> [asc|desc]] [limit N]
  *
+ * Output: JSON array (pipe to `format markdown` for tables)
+ *
  * Examples:
- *   select * from users
+ *   select all from users                (use 'all' to avoid shell glob expansion)
  *   select id, name from users
  *   select id, name from users where status = 'active'
  *   select type, count(*) from fields group by type
- *   select type, count(*) from fields group by type order by count desc
- *   select * from orders where amount > 100 order by created_at desc limit 10
+ *   select all from users | format markdown
+ *   select all from users | format csv > users.csv
  *
  * Aggregate functions:
  *   count(*), count(field), sum(field), avg(field), min(field), max(field)
@@ -209,7 +211,12 @@ function tokenize(query: string): string[] {
  * Parse a column specification
  */
 function parseColumn(tokens: string[], pos: number): { spec: ColumnSpec; nextPos: number } {
-    const token = tokens[pos];
+    let token = tokens[pos];
+
+    // Handle 'all' as alias for '*' (avoids shell glob expansion)
+    if (token.toLowerCase() === 'all') {
+        token = '*';
+    }
 
     // Check for aggregate function: count(*), sum(field), etc.
     const aggMatch = token.match(/^(count|sum|avg|min|max)\(([^)]+)\)$/i);
@@ -549,82 +556,26 @@ function sortRows(rows: any[], orderBy: { field: string; direction: 'asc' | 'des
 }
 
 /**
- * Format and output results
+ * Format and output results as JSON
  */
 function formatOutput(rows: any[], parsed: ParsedQuery, io: CommandIO): void {
-    if (rows.length === 0) {
-        io.stdout.write('(0 rows)\n');
-        return;
+    // Filter columns if specific ones were requested
+    let output = rows;
+    if (parsed.columns[0]?.name !== '*') {
+        const columns = parsed.columns.map(c => c.name);
+        output = rows.map(row => {
+            const filtered: Record<string, any> = {};
+            for (const col of columns) {
+                if (col in row) {
+                    filtered[col] = row[col];
+                }
+            }
+            return filtered;
+        });
     }
 
-    // Determine columns to display
-    let columns: string[];
-    if (parsed.columns[0]?.name === '*') {
-        // Use all keys from first row
-        columns = Object.keys(rows[0]);
-    } else {
-        columns = parsed.columns.map(c => c.name);
-    }
-
-    // Calculate column widths
-    const widths: Record<string, number> = {};
-    for (const col of columns) {
-        widths[col] = col.length;
-    }
-
-    for (const row of rows) {
-        for (const col of columns) {
-            const value = formatValue(row[col]);
-            widths[col] = Math.max(widths[col], value.length);
-        }
-    }
-
-    // Cap column widths at 40 characters
-    for (const col of columns) {
-        widths[col] = Math.min(widths[col], 40);
-    }
-
-    // Print header
-    const header = columns.map(col => col.padEnd(widths[col])).join('  ');
-    io.stdout.write(header + '\n');
-
-    // Print separator
-    const separator = columns.map(col => '-'.repeat(widths[col])).join('  ');
-    io.stdout.write(separator + '\n');
-
-    // Print rows
-    for (const row of rows) {
-        const line = columns.map(col => {
-            const value = formatValue(row[col]);
-            return truncate(value, widths[col]).padEnd(widths[col]);
-        }).join('  ');
-        io.stdout.write(line + '\n');
-    }
-
-    io.stdout.write(`(${rows.length} row${rows.length === 1 ? '' : 's'})\n`);
-}
-
-/**
- * Format a value for display
- */
-function formatValue(value: any): string {
-    if (value === null || value === undefined) {
-        return '';
-    }
-    if (typeof value === 'object') {
-        return JSON.stringify(value);
-    }
-    return String(value);
-}
-
-/**
- * Truncate a string to max length
- */
-function truncate(str: string, maxLen: number): string {
-    if (str.length <= maxLen) {
-        return str;
-    }
-    return str.slice(0, maxLen - 1) + '…';
+    // Output as JSON array
+    io.stdout.write(JSON.stringify(output, null, 2) + '\n');
 }
 
 /**

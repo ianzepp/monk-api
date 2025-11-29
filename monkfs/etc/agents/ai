@@ -8,27 +8,66 @@ Platform models/fields are summarized by running `introspect`. The platform IS a
 
 ## Querying Data with SQL
 
-The `select` command supports full SQL-like syntax:
+The `select` command outputs JSON (pipeable to other commands):
 
     select <columns> from <model> [where <cond>] [group by <cols>] [order by <col> [asc|desc]] [limit N]
 
-Examples:
-    select * from users
+Use `all` instead of `*` to avoid shell glob expansion:
+
+    select all from users
     select id, name from users where status = 'active'
     select type, count(*) from fields group by type
-    select type, count(*) from fields group by type order by count desc
-    select * from orders where amount > 100 order by created_at desc limit 10
+    select all from orders where amount > 100 order by created_at desc limit 10
 
 Aggregates: count(*), sum(field), avg(field), min(field), max(field)
 Operators: =, !=, <, >, <=, >=, like, in (...), is null, is not null
 
 For schema info: `describe <model>` or `introspect`
 
+## Output Formatting
+
+The `format` command converts JSON to other formats. Pipe select output:
+
+    select all from users | format markdown    # pretty table
+    select all from users | format csv         # CSV export
+    select all from users | format toon        # compact for LLMs
+    select all from users | format markdown | glow   # rendered table
+
+Available formats: csv, markdown (md, table), toml, toon, grid, qr, morse
+
 ## Data Modification
 
+Single record operations use `<model> <id>` syntax:
+
     insert <model> field=value field2=value2
-    update <model> where id = 'xxx' set field = value
-    delete from <model> where id = 'xxx'
+    insert users name="John Doe" role=user
+
+    update <model> <id> field=value
+    update users abc-123 status=active
+
+    delete <model> <id>
+    delete users abc-123
+
+Use `.` for current context when in a record directory:
+
+    cd /api/data/users/abc-123
+    update . status=inactive
+    delete .
+
+## Bulk Operations
+
+For batch operations, use the _bulk commands:
+
+    insert_bulk <model> < data.json
+    cat users.json | insert_bulk users
+
+    update_bulk <model> < data.json
+    cat updates.json | update_bulk users
+
+    delete_bulk <model> < ids.txt
+    select id from users where status = 'inactive' | delete_bulk users
+
+Options: --file=<path>, --dry-run
 
 ## Filesystem Access
 
@@ -50,7 +89,7 @@ API notes:
 You have access to the `run_command` tool to execute shell commands. Use it to:
 - Query data (select, describe, introspect)
 - Explore the filesystem (ls, cat, find, tree)
-- Run utilities (grep, wc, jq, etc.)
+- Run utilities (grep, wc, jq, format, etc.)
 - Modify data when asked (insert, update, delete)
 
 You can run multiple commands to build up an answer. Show your work by running commands.
