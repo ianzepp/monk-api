@@ -8,6 +8,9 @@
 import type { Hono } from 'hono';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
+import { executeAgentPrompt } from '@src/lib/tty/headless.js';
+import { systemInitFromJWT } from '@src/lib/system.js';
+import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
 // =============================================================================
 // Types
@@ -110,6 +113,21 @@ const TOOLS: McpTool[] = [
                 },
             },
             required: ['method', 'path'],
+        },
+    },
+    {
+        name: 'MonkAgent',
+        description:
+            'Invoke AI agent to perform tasks. The agent interprets your natural language request and executes appropriate database queries, file operations, or other commands. Requires authentication (use MonkAuth login first).',
+        inputSchema: {
+            type: 'object' as const,
+            properties: {
+                prompt: {
+                    type: 'string',
+                    description: 'Natural language request for the AI agent (e.g., "what records changed in the last day", "count users by access level")',
+                },
+            },
+            required: ['prompt'],
         },
     },
 ];
@@ -323,6 +341,38 @@ async function handleMonkHttp(
     return callApi(honoApp, session, method, path, query, body, requireAuth);
 }
 
+async function handleMonkAgent(
+    sessionId: string,
+    session: McpSession,
+    params: Record<string, any>
+): Promise<any> {
+    const { prompt } = params;
+
+    if (!prompt || typeof prompt !== 'string') {
+        throw new Error('Missing required parameter: prompt');
+    }
+
+    if (!session.token) {
+        throw new Error('Authentication required. Use MonkAuth login first.');
+    }
+
+    // Verify JWT and get payload
+    const payload = await JWTGenerator.validateToken(session.token);
+    if (!payload) {
+        throw new Error('Invalid or expired token. Please login again.');
+    }
+
+    // Create SystemInit from JWT
+    const systemInit = systemInitFromJWT(payload);
+
+    // Execute agent prompt
+    const result = await executeAgentPrompt(systemInit, prompt, {
+        sessionId: `mcp-${sessionId}`,
+    });
+
+    return result;
+}
+
 async function handleToolCall(
     honoApp: Hono,
     sessionId: string,
@@ -335,6 +385,8 @@ async function handleToolCall(
             return handleMonkAuth(honoApp, sessionId, session, args);
         case 'MonkHttp':
             return handleMonkHttp(honoApp, session, args);
+        case 'MonkAgent':
+            return handleMonkAgent(sessionId, session, args);
         default:
             throw new Error(`Unknown tool: ${name}`);
     }

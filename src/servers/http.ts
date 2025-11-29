@@ -24,6 +24,7 @@ import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as trackedRoutes from '@src/routes/api/tracked/routes.js';
 import * as trashedRoutes from '@src/routes/api/trashed/routes.js';
 import * as cronRoutes from '@src/routes/api/cron/routes.js';
+import * as agentRoutes from '@src/routes/api/agent/routes.js';
 import * as fsRoutes from '@src/routes/fs/routes.js';
 
 // Public endpoints
@@ -205,6 +206,9 @@ export function createHttpApp(): Hono {
     app.delete('/api/cron/:pid', cronRoutes.CronDelete);
     app.post('/api/cron/:pid/enable', cronRoutes.CronEnable);
     app.post('/api/cron/:pid/disable', cronRoutes.CronDisable);
+
+    // Agent API route
+    app.post('/api/agent', agentRoutes.AgentPost);
 
     // Error handling
     app.onError((err, c) => createInternalError(c, err));
