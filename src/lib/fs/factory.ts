@@ -4,6 +4,7 @@
  * Creates a fully configured FS instance with all standard mounts.
  */
 
+import { join } from 'node:path';
 import type { System } from '@src/lib/system.js';
 import { FS } from './index.js';
 import { ModelBackedStorage } from './storage.js';
@@ -14,6 +15,7 @@ import { FilterMount } from './mounts/filter-mount.js';
 import { TrashedMount } from './mounts/trashed-mount.js';
 import { ProcMount } from './mounts/proc-mount.js';
 import { BinMount } from './mounts/bin-mount.js';
+import { LocalMount } from './mounts/local-mount.js';
 import { MemoryMountRegistry } from './mounts/memory-mount.js';
 
 /**
@@ -32,6 +34,7 @@ export interface CreateFSOptions {
  * Create a fully configured FS instance with all standard mounts.
  *
  * Mounts:
+ * - / - Root filesystem from monkfs/ (read-only)
  * - /api/data - CRUD operations on model records
  * - /api/describe - Model schemas
  * - /api/find - Saved queries/filters
@@ -40,7 +43,7 @@ export interface CreateFSOptions {
  * - /proc - Process table (read-only)
  * - /system - System introspection (read-only)
  * - /home/{username} - Persistent storage (database-backed)
- * - / (fallback) - In-memory storage (per-tenant, ephemeral)
+ * - /tmp - Temporary storage (per-tenant, ephemeral)
  *
  * @param system - Authenticated system context
  * @param options - Optional configuration
@@ -48,6 +51,20 @@ export interface CreateFSOptions {
  */
 export function createFS(system: System, options?: CreateFSOptions): FS {
     const fs = new FS(system);
+
+    // Root filesystem from monkfs/ (read-only)
+    // Contains /etc, /usr/share/man, /var, etc.
+    // Falls back to MemoryMount if PROJECT_ROOT not set (e.g., in tests)
+    if (process.env.PROJECT_ROOT) {
+        const monkfsPath = join(process.env.PROJECT_ROOT, 'monkfs');
+        fs.mount('/', new LocalMount(monkfsPath, { writable: false }));
+    } else {
+        // Fallback for tests or environments without monkfs
+        fs.setFallback(MemoryMountRegistry.get(system.tenant));
+    }
+
+    // Temporary storage (per-tenant, ephemeral, writable)
+    fs.mount('/tmp', MemoryMountRegistry.get(system.tenant));
 
     // API mounts
     fs.mount('/api/data', new DataMount(system));
@@ -70,9 +87,6 @@ export function createFS(system: System, options?: CreateFSOptions): FS {
     if (options?.username) {
         fs.mount(`/home/${options.username}`, new ModelBackedStorage(system));
     }
-
-    // Fallback to in-memory storage (per-tenant, ephemeral)
-    fs.setFallback(MemoryMountRegistry.get(system.tenant));
 
     return fs;
 }

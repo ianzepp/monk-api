@@ -27,14 +27,111 @@
 
 import type { CommandHandler } from './shared.js';
 import type { Session, CommandIO } from '../types.js';
-import type { FS } from '@src/lib/fs/index.js';
+import type { FS, FSError } from '@src/lib/fs/index.js';
 import { executeLine } from '../executor.js';
+import { renderMarkdown } from './glow.js';
+import { resolvePath } from '../parser.js';
 import { PassThrough } from 'node:stream';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-20250514';
+
+/**
+ * AI configuration with defaults
+ */
+interface AIConfig {
+    model: string;
+    maxTurns: number;
+    contextStrategy: 'none' | 'truncate' | 'summarize';
+    maxTokens: number;
+    promptCaching: boolean;
+    markdownRendering: boolean;
+    summaryPrompt: string;
+}
+
+const DEFAULT_CONFIG: AIConfig = {
+    model: 'claude-sonnet-4-20250514',
+    maxTurns: 20,
+    contextStrategy: 'summarize',
+    maxTokens: 4096,
+    promptCaching: true,
+    markdownRendering: true,
+    summaryPrompt: 'Summarize the key points and decisions from this conversation in 2-3 sentences.',
+};
+
+/**
+ * Parse env-style config file content
+ */
+function parseConfig(content: string): Record<string, string> {
+    const config: Record<string, string> = {};
+    for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        // Skip comments and empty lines
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eqIndex = trimmed.indexOf('=');
+        if (eqIndex > 0) {
+            const key = trimmed.slice(0, eqIndex).trim();
+            const value = trimmed.slice(eqIndex + 1).trim();
+            config[key] = value;
+        }
+    }
+    return config;
+}
+
+/**
+ * Load AI configuration from /etc/agents/ai.conf and ~/.ai/config
+ */
+function loadConfig(fs: FS | null, homeDir: string): AIConfig {
+    const config = { ...DEFAULT_CONFIG };
+
+    // Load system config from /etc/agents/ai.conf
+    if (process.env.PROJECT_ROOT) {
+        try {
+            const systemConf = readFileSync(
+                join(process.env.PROJECT_ROOT, 'monkfs', 'etc', 'agents', 'ai.conf'),
+                'utf-8'
+            );
+            applyConfig(config, parseConfig(systemConf));
+        } catch {
+            // Use defaults
+        }
+    }
+
+    // User config loaded async in conversationMode (needs fs)
+    return config;
+}
+
+/**
+ * Load user config overrides from ~/.ai/config
+ */
+async function loadUserConfig(fs: FS | null, homeDir: string): Promise<Record<string, string>> {
+    if (!fs) return {};
+    try {
+        const data = await fs.read(`${homeDir}/.ai/config`);
+        return parseConfig(data.toString());
+    } catch {
+        return {};
+    }
+}
+
+/**
+ * Apply parsed config values to AIConfig
+ */
+function applyConfig(config: AIConfig, values: Record<string, string>): void {
+    if (values.MODEL) config.model = values.MODEL;
+    if (values.MAX_TURNS) config.maxTurns = parseInt(values.MAX_TURNS, 10) || config.maxTurns;
+    if (values.CONTEXT_STRATEGY) {
+        const strategy = values.CONTEXT_STRATEGY.toLowerCase();
+        if (strategy === 'none' || strategy === 'truncate' || strategy === 'summarize') {
+            config.contextStrategy = strategy;
+        }
+    }
+    if (values.MAX_TOKENS) config.maxTokens = parseInt(values.MAX_TOKENS, 10) || config.maxTokens;
+    if (values.PROMPT_CACHING) config.promptCaching = values.PROMPT_CACHING.toLowerCase() === 'true';
+    if (values.MARKDOWN_RENDERING) config.markdownRendering = values.MARKDOWN_RENDERING.toLowerCase() === 'true';
+    if (values.SUMMARY_PROMPT) config.summaryPrompt = values.SUMMARY_PROMPT;
+}
 
 // Load agent prompts from monkfs/etc/agents/
 const AGENT_PROMPT_BASE = (() => {
@@ -53,20 +150,52 @@ const AGENT_PROMPT_TOOLS = (() => {
     }
 })();
 
-// Tool definition for command execution
+// Tool definitions for AI capabilities
 const TOOLS = [
     {
         name: 'run_command',
-        description: 'Execute a shell command in monksh and return the output. Use this to explore the filesystem, query data, run utilities, etc.',
+        description: 'Execute a shell command in monksh and return the output. Use this to explore the filesystem, query data, run utilities, etc. Do NOT use this for reading or writing files - use read_file and write_file instead.',
         input_schema: {
             type: 'object',
             properties: {
                 command: {
                     type: 'string',
-                    description: 'The shell command to execute (e.g., "ls -la", "cat /api/data/users", "select * from users")',
+                    description: 'The shell command to execute (e.g., "ls -la", "select * from users", "ps")',
                 },
             },
             required: ['command'],
+        },
+    },
+    {
+        name: 'read_file',
+        description: 'Read the contents of a file. Use this instead of cat or run_command for reading files.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                path: {
+                    type: 'string',
+                    description: 'The file path to read (absolute or relative to current directory)',
+                },
+            },
+            required: ['path'],
+        },
+    },
+    {
+        name: 'write_file',
+        description: 'Write content to a file. Creates the file if it does not exist, overwrites if it does. Use this instead of echo/redirect for writing files.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                path: {
+                    type: 'string',
+                    description: 'The file path to write (absolute or relative to current directory)',
+                },
+                content: {
+                    type: 'string',
+                    description: 'The content to write to the file',
+                },
+            },
+            required: ['path', 'content'],
         },
     },
 ];
@@ -80,6 +209,159 @@ type ContentBlock =
     | { type: 'text'; text: string }
     | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
     | { type: 'tool_result'; tool_use_id: string; content: string };
+
+/** Context file path relative to home directory */
+const CONTEXT_FILE = '.ai/context.json';
+
+/**
+ * Load saved conversation context from ~/.ai/context.json
+ */
+async function loadContext(fs: FS | null, homeDir: string): Promise<Message[]> {
+    if (!fs) return [];
+
+    const contextPath = `${homeDir}/${CONTEXT_FILE}`;
+    try {
+        const data = await fs.read(contextPath);
+        const parsed = JSON.parse(data.toString());
+        if (Array.isArray(parsed.messages)) {
+            return parsed.messages;
+        }
+    } catch {
+        // File doesn't exist or invalid JSON - start fresh
+    }
+    return [];
+}
+
+/**
+ * Save conversation context to ~/.ai/context.json
+ */
+async function saveContext(fs: FS | null, homeDir: string, messages: Message[]): Promise<void> {
+    if (!fs || messages.length === 0) return;
+
+    const contextPath = `${homeDir}/${CONTEXT_FILE}`;
+    const aiDir = `${homeDir}/.ai`;
+
+    try {
+        // Ensure .ai directory exists
+        try {
+            await fs.stat(aiDir);
+        } catch {
+            await fs.mkdir(aiDir);
+        }
+
+        // Save context with metadata
+        const context = {
+            version: 1,
+            savedAt: new Date().toISOString(),
+            messageCount: messages.length,
+            messages,
+        };
+        await fs.write(contextPath, JSON.stringify(context, null, 2));
+    } catch {
+        // Silently fail - don't interrupt exit
+    }
+}
+
+/**
+ * Apply context strategy (sliding window) to messages
+ */
+async function applyContextStrategy(
+    messages: Message[],
+    config: AIConfig,
+    apiKey: string,
+    systemPrompt: string
+): Promise<Message[]> {
+    const maxMessages = config.maxTurns * 2; // Each turn = user + assistant
+
+    if (messages.length <= maxMessages) {
+        return messages;
+    }
+
+    switch (config.contextStrategy) {
+        case 'none':
+            // No limit - return all messages
+            return messages;
+
+        case 'truncate':
+            // Simple truncation - keep most recent messages
+            return messages.slice(-maxMessages);
+
+        case 'summarize': {
+            // Summarize old messages, keep recent ones
+            const oldMessages = messages.slice(0, -maxMessages);
+            const recentMessages = messages.slice(-maxMessages);
+
+            // Generate summary of old messages
+            const summary = await summarizeMessages(oldMessages, config, apiKey, systemPrompt);
+
+            // Return summary + recent messages
+            return [
+                { role: 'user', content: `[Previous conversation summary: ${summary}]` },
+                { role: 'assistant', content: 'I understand the context from our previous conversation.' },
+                ...recentMessages,
+            ];
+        }
+
+        default:
+            return messages;
+    }
+}
+
+/**
+ * Summarize a list of messages using the AI
+ */
+async function summarizeMessages(
+    messages: Message[],
+    config: AIConfig,
+    apiKey: string,
+    systemPrompt: string
+): Promise<string> {
+    // Build a condensed view of the conversation
+    const conversationText = messages
+        .map(m => {
+            const role = m.role === 'user' ? 'User' : 'Assistant';
+            const content = typeof m.content === 'string'
+                ? m.content
+                : m.content
+                    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+                    .map(b => b.text)
+                    .join('\n');
+            return `${role}: ${content.slice(0, 500)}${content.length > 500 ? '...' : ''}`;
+        })
+        .join('\n\n');
+
+    try {
+        const response = await fetch(ANTHROPIC_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+                model: config.model,
+                max_tokens: 500,
+                system: 'You are a helpful assistant that summarizes conversations concisely.',
+                messages: [
+                    {
+                        role: 'user',
+                        content: `${config.summaryPrompt}\n\nConversation:\n${conversationText}`,
+                    },
+                ],
+            }),
+        });
+
+        if (!response.ok) {
+            return 'Previous conversation context (summary unavailable)';
+        }
+
+        const result = await response.json() as { content: ContentBlock[] };
+        const textBlock = result.content.find((b): b is { type: 'text'; text: string } => b.type === 'text');
+        return textBlock?.text || 'Previous conversation context';
+    } catch {
+        return 'Previous conversation context (summary unavailable)';
+    }
+}
 
 export const ai: CommandHandler = async (session, fs, args, io) => {
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -166,6 +448,10 @@ async function oneShotMode(
     stdinContent: string,
     io: CommandIO
 ): Promise<number> {
+    // Load configuration
+    const homeDir = `/home/${session.username}`;
+    const config = loadConfig(null, homeDir);
+
     // Build user message
     let userMessage = '';
 
@@ -182,19 +468,30 @@ async function oneShotMode(
     // Build system prompt with session context
     const systemPrompt = buildSystemPrompt(session, false);
 
+    // Build headers based on config
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+    };
+    if (config.promptCaching) {
+        headers['anthropic-beta'] = 'prompt-caching-2024-07-31';
+    }
+
+    // Build system prompt (with or without caching)
+    const systemPayload = config.promptCaching
+        ? [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }]
+        : systemPrompt;
+
     try {
         const response = await fetch(ANTHROPIC_API_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-            },
+            headers,
             body: JSON.stringify({
-                model: MODEL,
-                max_tokens: 4096,
+                model: config.model,
+                max_tokens: config.maxTokens,
                 stream: true,
-                system: systemPrompt,
+                system: systemPayload,
                 messages: [
                     {
                         role: 'user',
@@ -235,13 +532,50 @@ async function conversationMode(
     apiKey: string,
     io: CommandIO
 ): Promise<number> {
-    io.stdout.write('Entering AI conversation mode. Type "exit" or Ctrl+D to return to shell.\n\n');
+    io.stdout.write('Entering AI conversation mode. Type "exit" or Ctrl+D to return to shell.\n');
+
+    const homeDir = `/home/${session.username}`;
+
+    // Load configuration (system + user overrides)
+    const config = loadConfig(fs, homeDir);
+    const userConfig = await loadUserConfig(fs, homeDir);
+    applyConfig(config, userConfig);
+
+    // List loaded agent configuration files
+    const agentsDir = process.env.PROJECT_ROOT
+        ? join(process.env.PROJECT_ROOT, 'monkfs', 'etc', 'agents')
+        : null;
+
+    if (agentsDir) {
+        try {
+            const files = readdirSync(agentsDir).sort();
+            for (const file of files) {
+                io.stdout.write(`  - /etc/agents/${file}\n`);
+            }
+        } catch {
+            // Directory doesn't exist or not readable
+        }
+    }
+
+    // Show user config if present
+    if (Object.keys(userConfig).length > 0) {
+        io.stdout.write(`  - ~/.ai/config\n`);
+    }
+
+    // Load previous conversation context
+    let messages: Message[] = await loadContext(fs, homeDir);
+
+    if (messages.length > 0) {
+        const turns = messages.filter(m => m.role === 'user').length;
+        io.stdout.write(`  - ~/.ai/context.json (${turns} turn${turns !== 1 ? 's' : ''} restored)\n`);
+    }
+
+    io.stdout.write('\n');
 
     const systemPrompt = buildSystemPrompt(session, true);
-    const messages: Message[] = [];
 
     // Show initial prompt
-    io.stdout.write('\x1b[36mai>\x1b[0m ');
+    io.stdout.write('\x1b[36m@>\x1b[0m ');
 
     // Read lines from stdin
     for await (const line of readLines(io.stdin, io.signal)) {
@@ -249,29 +583,48 @@ async function conversationMode(
 
         // Exit commands
         if (!trimmed || trimmed === 'exit' || trimmed === 'quit') {
+            // Save context before exiting
+            await saveContext(fs, homeDir, messages);
+            if (messages.length > 0) {
+                io.stdout.write('\x1b[2mContext saved to ~/.ai/context.json\x1b[0m\n');
+            }
             break;
         }
 
         // Add user message
         messages.push({ role: 'user', content: trimmed });
 
+        // Apply sliding window if needed
+        messages = await applyContextStrategy(messages, config, apiKey, systemPrompt);
+
         // Chat loop with potential tool use
         let continueLoop = true;
         while (continueLoop) {
             continueLoop = false;
 
+            // Build headers based on config
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+            };
+            if (config.promptCaching) {
+                headers['anthropic-beta'] = 'prompt-caching-2024-07-31';
+            }
+
+            // Build system prompt (with or without caching)
+            const systemPayload = config.promptCaching
+                ? [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }]
+                : systemPrompt;
+
             try {
                 const response = await fetch(ANTHROPIC_API_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                    },
+                    headers,
                     body: JSON.stringify({
-                        model: MODEL,
-                        max_tokens: 4096,
-                        system: systemPrompt,
+                        model: config.model,
+                        max_tokens: config.maxTokens,
+                        system: systemPayload,
                         messages,
                         tools: TOOLS,
                     }),
@@ -295,16 +648,74 @@ async function conversationMode(
                 for (const block of result.content) {
                     if (block.type === 'text') {
                         assistantContent.push(block);
-                        io.stdout.write(block.text);
+                        io.stdout.write(config.markdownRendering ? renderMarkdown(block.text) : block.text);
                     } else if (block.type === 'tool_use') {
                         assistantContent.push(block);
 
                         if (block.name === 'run_command') {
                             const cmd = (block.input as { command: string }).command;
-                            io.stdout.write(`\n\x1b[2m[Running: ${cmd}]\x1b[0m\n`);
+                            io.stdout.write(`\n\x1b[36m\u25cf\x1b[0m run_command(${cmd})\n`);
 
                             // Execute the command
                             const output = await executeCommandCapture(session, fs, cmd, io);
+
+                            // Show result summary
+                            const lines = output.split('\n').filter(l => l.trim()).length;
+                            const chars = output.length;
+                            io.stdout.write(`  \x1b[2m\u23bf\x1b[0m  ${lines} line${lines !== 1 ? 's' : ''}, ${chars} chars\n\n`);
+
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: block.id,
+                                content: output,
+                            });
+                        } else if (block.name === 'read_file') {
+                            const path = (block.input as { path: string }).path;
+                            const resolved = resolvePath(session.cwd, path);
+                            io.stdout.write(`\n\x1b[36m\u25cf\x1b[0m read_file(${resolved})\n`);
+
+                            let output: string;
+                            try {
+                                if (!fs) {
+                                    output = '[Error: filesystem not available]';
+                                } else {
+                                    const data = await fs.read(resolved);
+                                    output = data.toString();
+                                }
+                            } catch (err) {
+                                const msg = err instanceof Error ? err.message : String(err);
+                                output = `[Error: ${msg}]`;
+                            }
+
+                            // Show result summary
+                            const lines = output.split('\n').length;
+                            const chars = output.length;
+                            io.stdout.write(`  \x1b[2m\u23bf\x1b[0m  ${lines} line${lines !== 1 ? 's' : ''}, ${chars} chars\n\n`);
+
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: block.id,
+                                content: output,
+                            });
+                        } else if (block.name === 'write_file') {
+                            const { path, content } = block.input as { path: string; content: string };
+                            const resolved = resolvePath(session.cwd, path);
+                            io.stdout.write(`\n\x1b[36m\u25cf\x1b[0m write_file(${resolved})\n`);
+
+                            let output: string;
+                            try {
+                                if (!fs) {
+                                    output = '[Error: filesystem not available]';
+                                } else {
+                                    await fs.write(resolved, content);
+                                    output = `Wrote ${content.length} bytes to ${resolved}`;
+                                }
+                            } catch (err) {
+                                const msg = err instanceof Error ? err.message : String(err);
+                                output = `[Error: ${msg}]`;
+                            }
+
+                            io.stdout.write(`  \x1b[2m\u23bf\x1b[0m  ${output}\n\n`);
 
                             toolResults.push({
                                 type: 'tool_result',
@@ -333,7 +744,7 @@ async function conversationMode(
         }
 
         // Show prompt for next input
-        io.stdout.write('\x1b[36mai>\x1b[0m ');
+        io.stdout.write('\x1b[36m@>\x1b[0m ');
     }
 
     return 0;

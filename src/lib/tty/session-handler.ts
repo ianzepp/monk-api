@@ -5,6 +5,7 @@
  * - Character-by-character input handling
  * - Escape sequence parsing (arrow keys)
  * - History navigation
+ * - Tab completion for paths
  * - Line buffering and dispatch
  *
  * Delegates to:
@@ -13,10 +14,13 @@
  */
 
 import type { Session, TTYStream, TTYConfig } from './types.js';
+import type { FS, FSEntry } from '@src/lib/fs/index.js';
 import { DEFAULT_MOTD } from './types.js';
 import { handleAuthState, printPrompt } from './auth.js';
 import { executeLine, createIO } from './executor.js';
-import { saveHistory } from './profile.js';
+import { saveHistory, applySessionMounts } from './profile.js';
+import { FSError } from '@src/lib/fs/index.js';
+import { runTransaction } from '@src/lib/transaction.js';
 
 /**
  * Write text to stream with CRLF line endings (telnet convention)
@@ -107,6 +111,118 @@ function handleHistoryDown(stream: TTYStream, session: Session): void {
     } else {
         replaceLine(stream, session, session.history[session.historyIndex]);
     }
+}
+
+/**
+ * Handle tab completion for paths
+ *
+ * Completes the current word (space-delimited) as a filesystem path.
+ * - Single match: completes the path, adds / for directories
+ * - Multiple matches: shows all options on a new line
+ * - No matches: does nothing (bell could be added)
+ */
+async function handleTabCompletion(stream: TTYStream, session: Session): Promise<void> {
+    if (!session.systemInit) return;
+
+    const input = session.inputBuffer;
+
+    // Find the word being completed (last space-delimited token)
+    const lastSpaceIndex = input.lastIndexOf(' ');
+    const partial = input.slice(lastSpaceIndex + 1);
+
+    // Run completion inside a transaction to access the filesystem
+    await runTransaction(session.systemInit, async (system) => {
+        applySessionMounts(session, system.fs, system);
+        const fs = system.fs;
+
+        // Determine directory to search and prefix to match
+        let searchDir: string;
+        let matchPrefix: string;
+
+        if (partial === '') {
+            // Empty partial - complete from cwd
+            searchDir = session.cwd;
+            matchPrefix = '';
+        } else if (partial.endsWith('/')) {
+            // Trailing slash - list contents of that directory
+            searchDir = fs.resolve(session.cwd, partial);
+            matchPrefix = '';
+        } else {
+            // Partial name - search parent directory
+            const resolved = fs.resolve(session.cwd, partial);
+            searchDir = fs.dirname(resolved);
+            matchPrefix = fs.basename(resolved);
+        }
+
+        // Get directory contents
+        let entries: FSEntry[];
+        try {
+            entries = await fs.readdir(searchDir);
+        } catch (err) {
+            if (err instanceof FSError && err.code === 'ENOENT') {
+                return; // Directory doesn't exist
+            }
+            throw err;
+        }
+
+        // Filter to matching entries (exclude hidden files unless prefix starts with .)
+        const showHidden = matchPrefix.startsWith('.');
+        const matches = entries
+            .filter((e: FSEntry) => e.name.startsWith(matchPrefix) && (showHidden || !e.name.startsWith('.')))
+            .sort((a: FSEntry, b: FSEntry) => a.name.localeCompare(b.name));
+
+        if (matches.length === 0) {
+            return; // No matches
+        }
+
+        if (matches.length === 1) {
+            // Single match - complete it
+            const match = matches[0];
+            const completion = match.name.slice(matchPrefix.length);
+            const suffix = match.type === 'directory' ? '/' : ' ';
+
+            session.inputBuffer = input + completion + suffix;
+            writeToStream(stream, completion + suffix);
+        } else {
+            // Multiple matches - find common prefix and show options
+            const names = matches.map((m: FSEntry) => m.name);
+            const commonPrefix = findCommonPrefix(names);
+            const additionalChars = commonPrefix.slice(matchPrefix.length);
+
+            if (additionalChars) {
+                // Complete the common prefix
+                session.inputBuffer = input + additionalChars;
+                writeToStream(stream, additionalChars);
+            } else {
+                // Show all options
+                writeToStream(stream, '\n');
+                for (const match of matches) {
+                    const suffix = match.type === 'directory' ? '/' : '';
+                    writeToStream(stream, match.name + suffix + '  ');
+                }
+                writeToStream(stream, '\n');
+                printPrompt(stream, session);
+                writeToStream(stream, session.inputBuffer);
+            }
+        }
+    });
+}
+
+/**
+ * Find the longest common prefix among strings
+ */
+function findCommonPrefix(strings: string[]): string {
+    if (strings.length === 0) return '';
+    if (strings.length === 1) return strings[0];
+
+    let prefix = strings[0];
+    for (let i = 1; i < strings.length; i++) {
+        while (!strings[i].startsWith(prefix)) {
+            prefix = prefix.slice(0, -1);
+            if (prefix === '') return '';
+        }
+    }
+    return prefix;
 }
 
 /**
@@ -202,6 +318,12 @@ export async function handleInput(
                     writeToStream(stream, '\b \b');
                 }
             }
+            continue;
+        }
+
+        // Handle tab - path completion (only when authenticated)
+        if (char === '\t' && session.state === 'AUTHENTICATED') {
+            await handleTabCompletion(stream, session);
             continue;
         }
 

@@ -88,7 +88,7 @@ export const glow: CommandHandler = async (session, fs, args, io) => {
 /**
  * Render markdown to ANSI-styled text
  */
-function renderMarkdown(text: string): string {
+export function renderMarkdown(text: string): string {
     const lines = text.split('\n');
     const result: string[] = [];
     let inCodeBlock = false;

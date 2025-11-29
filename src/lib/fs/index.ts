@@ -86,6 +86,15 @@ export class FS {
         const normalized = this.normalize(path);
 
         for (const [mountPath, handler] of this.sortedMounts) {
+            // Root mount matches everything - check last (it's sorted last by length)
+            if (mountPath === '/') {
+                return {
+                    handler,
+                    relativePath: normalized,
+                    mountPath: '/',
+                };
+            }
+
             if (normalized === mountPath || normalized.startsWith(mountPath + '/')) {
                 return {
                     handler,
@@ -126,6 +135,9 @@ export class FS {
 
         // Inject mount points that appear at this level
         for (const [mountPath] of this.sortedMounts) {
+            // Skip root mount - it's not a subdirectory entry
+            if (mountPath === '/') continue;
+
             const mountParent = this.dirname(mountPath);
             if (mountParent === normalized) {
                 const mountName = this.basename(mountPath);
