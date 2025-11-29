@@ -14,7 +14,10 @@ import type { SystemInit } from '@src/lib/system.js';
  * DatabaseMount Tests
  *
  * Tests the database-backed storage in isolation using a temporary SQLite database.
- * FS initialization creates /, /home, /home/root, /tmp, /etc, /etc/motd.
+ *
+ * Architecture: DatabaseMount is used for user home directories. When mounted at
+ * /home/{username}, the mount root (path='/') becomes that user's home directory.
+ * FS initialization creates just the user home directory root (name='root', path='/').
  */
 
 describe('DatabaseMount', () => {
@@ -86,63 +89,41 @@ describe('DatabaseMount', () => {
     }
 
     describe('initialization', () => {
-        it('should have root directory', async () => {
+        it('should have user home directory root', async () => {
+            // The root entry represents the user's home directory
+            // name='root' (username), path='/' (mount root)
             const entry = await withStorage(s => s.stat('/'));
             expect(entry.type).toBe('directory');
-            expect(entry.name).toBe('/');
+            expect(entry.name).toBe('root'); // username, not '/'
+            expect(entry.mode).toBe(0o700); // Private home directory
         });
 
-        it('should have /home directory', async () => {
-            const entry = await withStorage(s => s.stat('/home'));
-            expect(entry.type).toBe('directory');
-            expect(entry.name).toBe('home');
-        });
-
-        it('should have /home/root directory', async () => {
-            const entry = await withStorage(s => s.stat('/home/root'));
-            expect(entry.type).toBe('directory');
-            expect(entry.name).toBe('root');
-            expect(entry.mode).toBe(0o700); // Private
-        });
-
-        it('should have /tmp directory with sticky bit', async () => {
-            const entry = await withStorage(s => s.stat('/tmp'));
-            expect(entry.type).toBe('directory');
-            expect(entry.mode).toBe(0o1777);
-        });
-
-        it('should have /etc directory', async () => {
-            const entry = await withStorage(s => s.stat('/etc'));
-            expect(entry.type).toBe('directory');
-        });
-
-        it('should have /etc/motd file', async () => {
-            const entry = await withStorage(s => s.stat('/etc/motd'));
-            expect(entry.type).toBe('file');
-            expect(entry.size).toBeGreaterThan(0);
-        });
-
-        it('should read /etc/motd content', async () => {
-            const content = await withStorage(s => s.read('/etc/motd'));
-            expect(content.toString()).toBe('Welcome to Monk API\n');
+        it('should have empty home directory initially', async () => {
+            const entries = await withStorage(s => s.readdir('/'));
+            expect(entries.length).toBe(0);
         });
     });
 
     describe('readdir', () => {
-        it('should list root contents', async () => {
+        it('should list created directories', async () => {
+            await withStorage(s => s.mkdir('/docs'));
+            await withStorage(s => s.mkdir('/projects'));
+
             const entries = await withStorage(s => s.readdir('/'));
             const names = entries.map(e => e.name);
 
-            expect(names).toContain('home');
-            expect(names).toContain('tmp');
-            expect(names).toContain('etc');
+            expect(names).toContain('docs');
+            expect(names).toContain('projects');
         });
 
-        it('should list /etc contents', async () => {
-            const entries = await withStorage(s => s.readdir('/etc'));
+        it('should list directory contents after creating files', async () => {
+            await withStorage(s => s.mkdir('/config'));
+            await withStorage(s => s.write('/config/settings.json', '{}'));
+
+            const entries = await withStorage(s => s.readdir('/config'));
             const names = entries.map(e => e.name);
 
-            expect(names).toContain('motd');
+            expect(names).toContain('settings.json');
         });
 
         it('should throw ENOENT for non-existent directory', async () => {
@@ -155,8 +136,10 @@ describe('DatabaseMount', () => {
         });
 
         it('should throw ENOTDIR for file', async () => {
+            await withStorage(s => s.write('/testfile.txt', 'content'));
+
             try {
-                await withStorage(s => s.readdir('/etc/motd'));
+                await withStorage(s => s.readdir('/testfile.txt'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOTDIR');
@@ -165,26 +148,26 @@ describe('DatabaseMount', () => {
     });
 
     describe('write and read', () => {
-        it('should create new file', async () => {
-            await withStorage(s => s.write('/tmp/test.txt', 'Hello World'));
+        it('should create new file in home directory', async () => {
+            await withStorage(s => s.write('/test.txt', 'Hello World'));
 
-            const content = await withStorage(s => s.read('/tmp/test.txt'));
+            const content = await withStorage(s => s.read('/test.txt'));
             expect(content.toString()).toBe('Hello World');
         });
 
         it('should update existing file', async () => {
-            await withStorage(s => s.write('/tmp/update.txt', 'Original'));
-            await withStorage(s => s.write('/tmp/update.txt', 'Updated'));
+            await withStorage(s => s.write('/update.txt', 'Original'));
+            await withStorage(s => s.write('/update.txt', 'Updated'));
 
-            const content = await withStorage(s => s.read('/tmp/update.txt'));
+            const content = await withStorage(s => s.read('/update.txt'));
             expect(content.toString()).toBe('Updated');
         });
 
         it('should write binary content', async () => {
             const binary = Buffer.from([0x00, 0x01, 0x02, 0xff]);
-            await withStorage(s => s.write('/tmp/binary.bin', binary));
+            await withStorage(s => s.write('/binary.bin', binary));
 
-            const content = await withStorage(s => s.read('/tmp/binary.bin'));
+            const content = await withStorage(s => s.read('/binary.bin'));
             expect(Buffer.isBuffer(content)).toBe(true);
             expect(content).toEqual(binary);
         });
@@ -199,8 +182,10 @@ describe('DatabaseMount', () => {
         });
 
         it('should throw EISDIR when reading directory', async () => {
+            await withStorage(s => s.mkdir('/readable-dir'));
+
             try {
-                await withStorage(s => s.read('/tmp'));
+                await withStorage(s => s.read('/readable-dir'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('EISDIR');
@@ -210,24 +195,24 @@ describe('DatabaseMount', () => {
 
     describe('mkdir', () => {
         it('should create directory', async () => {
-            await withStorage(s => s.mkdir('/tmp/newdir'));
+            await withStorage(s => s.mkdir('/newdir'));
 
-            const entry = await withStorage(s => s.stat('/tmp/newdir'));
+            const entry = await withStorage(s => s.stat('/newdir'));
             expect(entry.type).toBe('directory');
         });
 
         it('should create directory with custom mode', async () => {
-            await withStorage(s => s.mkdir('/tmp/private', 0o700));
+            await withStorage(s => s.mkdir('/private-dir', 0o700));
 
-            const entry = await withStorage(s => s.stat('/tmp/private'));
+            const entry = await withStorage(s => s.stat('/private-dir'));
             expect(entry.mode).toBe(0o700);
         });
 
         it('should throw EEXIST for existing path', async () => {
-            await withStorage(s => s.mkdir('/tmp/existing'));
+            await withStorage(s => s.mkdir('/existing-dir'));
 
             try {
-                await withStorage(s => s.mkdir('/tmp/existing'));
+                await withStorage(s => s.mkdir('/existing-dir'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('EEXIST');
@@ -246,11 +231,11 @@ describe('DatabaseMount', () => {
 
     describe('unlink', () => {
         it('should delete file', async () => {
-            await withStorage(s => s.write('/tmp/to-delete.txt', 'delete me'));
-            await withStorage(s => s.unlink('/tmp/to-delete.txt'));
+            await withStorage(s => s.write('/to-delete.txt', 'delete me'));
+            await withStorage(s => s.unlink('/to-delete.txt'));
 
             try {
-                await withStorage(s => s.stat('/tmp/to-delete.txt'));
+                await withStorage(s => s.stat('/to-delete.txt'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOENT');
@@ -259,7 +244,7 @@ describe('DatabaseMount', () => {
 
         it('should throw ENOENT for non-existent file', async () => {
             try {
-                await withStorage(s => s.unlink('/tmp/not-found'));
+                await withStorage(s => s.unlink('/not-found'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOENT');
@@ -267,8 +252,10 @@ describe('DatabaseMount', () => {
         });
 
         it('should throw EISDIR for directory', async () => {
+            await withStorage(s => s.mkdir('/unlink-dir'));
+
             try {
-                await withStorage(s => s.unlink('/tmp'));
+                await withStorage(s => s.unlink('/unlink-dir'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('EISDIR');
@@ -278,11 +265,11 @@ describe('DatabaseMount', () => {
 
     describe('rmdir', () => {
         it('should delete empty directory', async () => {
-            await withStorage(s => s.mkdir('/tmp/empty-dir'));
-            await withStorage(s => s.rmdir('/tmp/empty-dir'));
+            await withStorage(s => s.mkdir('/empty-dir'));
+            await withStorage(s => s.rmdir('/empty-dir'));
 
             try {
-                await withStorage(s => s.stat('/tmp/empty-dir'));
+                await withStorage(s => s.stat('/empty-dir'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOENT');
@@ -290,11 +277,11 @@ describe('DatabaseMount', () => {
         });
 
         it('should throw ENOTEMPTY for non-empty directory', async () => {
-            await withStorage(s => s.mkdir('/tmp/full-dir'));
-            await withStorage(s => s.write('/tmp/full-dir/file.txt', 'content'));
+            await withStorage(s => s.mkdir('/full-dir'));
+            await withStorage(s => s.write('/full-dir/file.txt', 'content'));
 
             try {
-                await withStorage(s => s.rmdir('/tmp/full-dir'));
+                await withStorage(s => s.rmdir('/full-dir'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOTEMPTY');
@@ -302,10 +289,10 @@ describe('DatabaseMount', () => {
         });
 
         it('should throw ENOTDIR for file', async () => {
-            await withStorage(s => s.write('/tmp/a-file.txt', 'content'));
+            await withStorage(s => s.write('/a-file.txt', 'content'));
 
             try {
-                await withStorage(s => s.rmdir('/tmp/a-file.txt'));
+                await withStorage(s => s.rmdir('/a-file.txt'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOTDIR');
@@ -315,14 +302,14 @@ describe('DatabaseMount', () => {
 
     describe('rename', () => {
         it('should rename file', async () => {
-            await withStorage(s => s.write('/tmp/old-name.txt', 'content'));
-            await withStorage(s => s.rename('/tmp/old-name.txt', '/tmp/new-name.txt'));
+            await withStorage(s => s.write('/old-name.txt', 'content'));
+            await withStorage(s => s.rename('/old-name.txt', '/new-name.txt'));
 
-            const content = await withStorage(s => s.read('/tmp/new-name.txt'));
+            const content = await withStorage(s => s.read('/new-name.txt'));
             expect(content.toString()).toBe('content');
 
             try {
-                await withStorage(s => s.stat('/tmp/old-name.txt'));
+                await withStorage(s => s.stat('/old-name.txt'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('ENOENT');
@@ -330,20 +317,20 @@ describe('DatabaseMount', () => {
         });
 
         it('should move file to different directory', async () => {
-            await withStorage(s => s.mkdir('/tmp/dest'));
-            await withStorage(s => s.write('/tmp/moveme.txt', 'moving'));
-            await withStorage(s => s.rename('/tmp/moveme.txt', '/tmp/dest/moved.txt'));
+            await withStorage(s => s.mkdir('/dest'));
+            await withStorage(s => s.write('/moveme.txt', 'moving'));
+            await withStorage(s => s.rename('/moveme.txt', '/dest/moved.txt'));
 
-            const content = await withStorage(s => s.read('/tmp/dest/moved.txt'));
+            const content = await withStorage(s => s.read('/dest/moved.txt'));
             expect(content.toString()).toBe('moving');
         });
 
         it('should throw EEXIST if target exists', async () => {
-            await withStorage(s => s.write('/tmp/src.txt', 'source'));
-            await withStorage(s => s.write('/tmp/dst.txt', 'dest'));
+            await withStorage(s => s.write('/src.txt', 'source'));
+            await withStorage(s => s.write('/dst.txt', 'dest'));
 
             try {
-                await withStorage(s => s.rename('/tmp/src.txt', '/tmp/dst.txt'));
+                await withStorage(s => s.rename('/src.txt', '/dst.txt'));
                 expect(true).toBe(false);
             } catch (err) {
                 expect((err as FSError).code).toBe('EEXIST');
@@ -353,36 +340,36 @@ describe('DatabaseMount', () => {
 
     describe('symlink', () => {
         it('should create symlink', async () => {
-            await withStorage(s => s.write('/tmp/target.txt', 'target content'));
-            await withStorage(s => s.symlink('/tmp/target.txt', '/tmp/link'));
+            await withStorage(s => s.write('/target.txt', 'target content'));
+            await withStorage(s => s.symlink('/target.txt', '/link'));
 
-            const entry = await withStorage(s => s.stat('/tmp/link'));
+            const entry = await withStorage(s => s.stat('/link'));
             expect(entry.type).toBe('symlink');
         });
 
         it('should read symlink target', async () => {
-            await withStorage(s => s.write('/tmp/real.txt', 'real'));
-            await withStorage(s => s.symlink('/tmp/real.txt', '/tmp/sym'));
+            await withStorage(s => s.write('/real.txt', 'real'));
+            await withStorage(s => s.symlink('/real.txt', '/sym'));
 
-            const target = await withStorage(s => s.readlink('/tmp/sym'));
-            expect(target).toBe('/tmp/real.txt');
+            const target = await withStorage(s => s.readlink('/sym'));
+            expect(target).toBe('/real.txt');
         });
 
         it('should follow symlink on read', async () => {
-            await withStorage(s => s.write('/tmp/actual.txt', 'actual content'));
-            await withStorage(s => s.symlink('/tmp/actual.txt', '/tmp/pointer'));
+            await withStorage(s => s.write('/actual.txt', 'actual content'));
+            await withStorage(s => s.symlink('/actual.txt', '/pointer'));
 
-            const content = await withStorage(s => s.read('/tmp/pointer'));
+            const content = await withStorage(s => s.read('/pointer'));
             expect(content.toString()).toBe('actual content');
         });
     });
 
     describe('chmod', () => {
         it('should change file mode', async () => {
-            await withStorage(s => s.write('/tmp/chmod-test.txt', 'test'));
-            await withStorage(s => s.chmod('/tmp/chmod-test.txt', 0o600));
+            await withStorage(s => s.write('/chmod-test.txt', 'test'));
+            await withStorage(s => s.chmod('/chmod-test.txt', 0o600));
 
-            const entry = await withStorage(s => s.stat('/tmp/chmod-test.txt'));
+            const entry = await withStorage(s => s.stat('/chmod-test.txt'));
             expect(entry.mode).toBe(0o600);
         });
     });
@@ -410,45 +397,45 @@ describe('DatabaseMount', () => {
                 }
             }
 
-            await withStorage(s => s.write('/tmp/chown-test.txt', 'test'));
-            await withStorage(s => s.chown('/tmp/chown-test.txt', newOwnerId));
+            await withStorage(s => s.write('/chown-test.txt', 'test'));
+            await withStorage(s => s.chown('/chown-test.txt', newOwnerId));
 
-            const entry = await withStorage(s => s.stat('/tmp/chown-test.txt'));
+            const entry = await withStorage(s => s.stat('/chown-test.txt'));
             expect(entry.uid).toBe(newOwnerId);
         });
     });
 
     describe('getUsage', () => {
         it('should return file size for a file', async () => {
-            await withStorage(s => s.write('/tmp/size-test.txt', 'Hello World')); // 11 bytes
+            await withStorage(s => s.write('/size-test.txt', 'Hello World')); // 11 bytes
 
-            const usage = await withStorage(s => s.getUsage('/tmp/size-test.txt'));
+            const usage = await withStorage(s => s.getUsage('/size-test.txt'));
             expect(usage).toBe(11);
         });
 
         it('should return 0 for empty directory', async () => {
-            await withStorage(s => s.mkdir('/tmp/empty-usage'));
+            await withStorage(s => s.mkdir('/empty-usage'));
 
-            const usage = await withStorage(s => s.getUsage('/tmp/empty-usage'));
+            const usage = await withStorage(s => s.getUsage('/empty-usage'));
             expect(usage).toBe(0);
         });
 
         it('should return sum of file sizes for directory', async () => {
-            await withStorage(s => s.mkdir('/tmp/usage-dir'));
-            await withStorage(s => s.write('/tmp/usage-dir/a.txt', '12345')); // 5 bytes
-            await withStorage(s => s.write('/tmp/usage-dir/b.txt', '1234567890')); // 10 bytes
+            await withStorage(s => s.mkdir('/usage-dir'));
+            await withStorage(s => s.write('/usage-dir/a.txt', '12345')); // 5 bytes
+            await withStorage(s => s.write('/usage-dir/b.txt', '1234567890')); // 10 bytes
 
-            const usage = await withStorage(s => s.getUsage('/tmp/usage-dir'));
+            const usage = await withStorage(s => s.getUsage('/usage-dir'));
             expect(usage).toBe(15);
         });
 
         it('should include nested directory sizes', async () => {
-            await withStorage(s => s.mkdir('/tmp/nested-usage'));
-            await withStorage(s => s.write('/tmp/nested-usage/file.txt', '12345')); // 5 bytes
-            await withStorage(s => s.mkdir('/tmp/nested-usage/subdir'));
-            await withStorage(s => s.write('/tmp/nested-usage/subdir/deep.txt', '1234567890')); // 10 bytes
+            await withStorage(s => s.mkdir('/nested-usage'));
+            await withStorage(s => s.write('/nested-usage/file.txt', '12345')); // 5 bytes
+            await withStorage(s => s.mkdir('/nested-usage/subdir'));
+            await withStorage(s => s.write('/nested-usage/subdir/deep.txt', '1234567890')); // 10 bytes
 
-            const usage = await withStorage(s => s.getUsage('/tmp/nested-usage'));
+            const usage = await withStorage(s => s.getUsage('/nested-usage'));
             expect(usage).toBe(15);
         });
 
