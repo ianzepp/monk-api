@@ -181,6 +181,7 @@ export { describe } from './describe.js';
 export { introspect } from './introspect.js';
 export { query } from './query.js';
 export { insert } from './insert.js';
+export { insert_bulk } from './insert-bulk.js';
 export { update } from './update.js';
 export { delete_ } from './delete.js';
 export { count } from './count.js';
