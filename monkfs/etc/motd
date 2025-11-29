@@ -1,5 +1,10 @@
-  ┌─────────────────────────────────────────────────────────────┐
-  │                        Monk TTY                             │
-  ├─────────────────────────────────────────────────────────────┤
-  │ Transports: Telnet (2323), SSH (2222)                       │
-  └─────────────────────────────────────────────────────────────┘
+
+# Monk TTY
+
+AI-first shell. Just describe what you want to do.
+
+| Command   | Description              |
+|-----------|--------------------------|
+| `!`       | Enter shell mode         |
+| `! <cmd>` | Run a single shell command |
+| `exit`    | Disconnect               |

@@ -9,13 +9,15 @@
 export type {
     TTYStream,
     Session,
-    SessionState,
+    AuthState,
+    SessionMode,
+    SessionState, // deprecated
     ParsedCommand,
     TTYConfig,
     WriteFunction,
 } from './types.js';
 
-export { createSession, generateSessionId, DEFAULT_MOTD } from './types.js';
+export { createSession, generateSessionId, getDefaultMotd, DEFAULT_MOTD, TTY_CHARS } from './types.js';
 
 // Parser
 export { parseCommand, resolvePath } from './parser.js';

@@ -12,6 +12,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CommandHandler } from './shared.js';
+import { getProjectRoot } from '@src/lib/constants.js';
 
 export const man: CommandHandler = async (_session, _fs, args, io) => {
     const command = args[0];
@@ -23,7 +24,7 @@ export const man: CommandHandler = async (_session, _fs, args, io) => {
     }
 
     try {
-        const manPath = join(process.env.PROJECT_ROOT!, 'monkfs', 'usr', 'share', 'man', command);
+        const manPath = join(getProjectRoot(), 'monkfs', 'usr', 'share', 'man', command);
         const content = await readFile(manPath, 'utf-8');
         io.stdout.write(content);
         if (!content.endsWith('\n')) {

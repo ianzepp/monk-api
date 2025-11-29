@@ -34,6 +34,7 @@ import { resolvePath } from '../parser.js';
 import { PassThrough } from 'node:stream';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { getProjectRoot } from '@src/lib/constants.js';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -86,16 +87,14 @@ function loadConfig(fs: FS | null, homeDir: string): AIConfig {
     const config = { ...DEFAULT_CONFIG };
 
     // Load system config from /etc/agents/ai.conf
-    if (process.env.PROJECT_ROOT) {
-        try {
-            const systemConf = readFileSync(
-                join(process.env.PROJECT_ROOT, 'monkfs', 'etc', 'agents', 'ai.conf'),
-                'utf-8'
-            );
-            applyConfig(config, parseConfig(systemConf));
-        } catch {
-            // Use defaults
-        }
+    try {
+        const systemConf = readFileSync(
+            join(getProjectRoot(), 'monkfs', 'etc', 'agents', 'ai.conf'),
+            'utf-8'
+        );
+        applyConfig(config, parseConfig(systemConf));
+    } catch {
+        // Use defaults
     }
 
     // User config loaded async in conversationMode (needs fs)
@@ -133,22 +132,31 @@ function applyConfig(config: AIConfig, values: Record<string, string>): void {
     if (values.SUMMARY_PROMPT) config.summaryPrompt = values.SUMMARY_PROMPT;
 }
 
-// Load agent prompts from monkfs/etc/agents/
-const AGENT_PROMPT_BASE = (() => {
-    try {
-        return readFileSync(join(process.env.PROJECT_ROOT!, 'monkfs', 'etc', 'agents', 'ai'), 'utf-8');
-    } catch {
-        return 'You are an AI assistant embedded in a Linux-like shell called monksh.';
-    }
-})();
+// Load agent prompts lazily from monkfs/etc/agents/
+let _agentPromptBase: string | null = null;
+let _agentPromptTools: string | null = null;
 
-const AGENT_PROMPT_TOOLS = (() => {
-    try {
-        return readFileSync(join(process.env.PROJECT_ROOT!, 'monkfs', 'etc', 'agents', 'ai-tools'), 'utf-8');
-    } catch {
-        return '';
+function getAgentPromptBase(): string {
+    if (_agentPromptBase === null) {
+        try {
+            _agentPromptBase = readFileSync(join(getProjectRoot(), 'monkfs', 'etc', 'agents', 'ai'), 'utf-8');
+        } catch {
+            _agentPromptBase = 'You are an AI assistant embedded in a Linux-like shell called monksh.';
+        }
     }
-})();
+    return _agentPromptBase;
+}
+
+function getAgentPromptTools(): string {
+    if (_agentPromptTools === null) {
+        try {
+            _agentPromptTools = readFileSync(join(getProjectRoot(), 'monkfs', 'etc', 'agents', 'ai-tools'), 'utf-8');
+        } catch {
+            _agentPromptTools = '';
+        }
+    }
+    return _agentPromptTools;
+}
 
 // Tool definitions for AI capabilities
 const TOOLS = [
@@ -542,19 +550,14 @@ async function conversationMode(
     applyConfig(config, userConfig);
 
     // List loaded agent configuration files
-    const agentsDir = process.env.PROJECT_ROOT
-        ? join(process.env.PROJECT_ROOT, 'monkfs', 'etc', 'agents')
-        : null;
-
-    if (agentsDir) {
-        try {
-            const files = readdirSync(agentsDir).sort();
-            for (const file of files) {
-                io.stdout.write(`  - /etc/agents/${file}\n`);
-            }
-        } catch {
-            // Directory doesn't exist or not readable
+    const agentsDir = join(getProjectRoot(), 'monkfs', 'etc', 'agents');
+    try {
+        const files = readdirSync(agentsDir).sort();
+        for (const file of files) {
+            io.stdout.write(`  - /etc/agents/${file}\n`);
         }
+    } catch {
+        // Directory doesn't exist or not readable
     }
 
     // Show user config if present
@@ -566,8 +569,7 @@ async function conversationMode(
     let messages: Message[] = await loadContext(fs, homeDir);
 
     if (messages.length > 0) {
-        const turns = messages.filter(m => m.role === 'user').length;
-        io.stdout.write(`  - ~/.ai/context.json (${turns} turn${turns !== 1 ? 's' : ''} restored)\n`);
+        io.stdout.write(`  - ~/.ai/context.json (${messages.length} messages)\n`);
     }
 
     io.stdout.write('\n');
@@ -662,7 +664,7 @@ async function conversationMode(
                             // Show result summary
                             const lines = output.split('\n').filter(l => l.trim()).length;
                             const chars = output.length;
-                            io.stdout.write(`  \x1b[2m\u23bf\x1b[0m  ${lines} line${lines !== 1 ? 's' : ''}, ${chars} chars\n\n`);
+                            io.stdout.write(`  \x1b[2m\u23bf\x1b[0m  ${lines} lines, ${chars} chars\n\n`);
 
                             toolResults.push({
                                 type: 'tool_result',
@@ -690,7 +692,7 @@ async function conversationMode(
                             // Show result summary
                             const lines = output.split('\n').length;
                             const chars = output.length;
-                            io.stdout.write(`  \x1b[2m\u23bf\x1b[0m  ${lines} line${lines !== 1 ? 's' : ''}, ${chars} chars\n\n`);
+                            io.stdout.write(`  \x1b[2m\u23bf\x1b[0m  ${lines} lines, ${chars} chars\n\n`);
 
                             toolResults.push({
                                 type: 'tool_result',
@@ -876,7 +878,7 @@ async function streamResponse(body: ReadableStream<Uint8Array>, io: CommandIO): 
  * Build system prompt with session context
  */
 function buildSystemPrompt(session: Session, withTools: boolean): string {
-    let prompt = AGENT_PROMPT_BASE;
+    let prompt = getAgentPromptBase();
 
     prompt += `
 
@@ -885,8 +887,9 @@ Session context:
 - User: ${session.username}
 - Tenant: ${session.tenant}`;
 
-    if (withTools && AGENT_PROMPT_TOOLS) {
-        prompt += '\n\n' + AGENT_PROMPT_TOOLS;
+    const toolsPrompt = getAgentPromptTools();
+    if (withTools && toolsPrompt) {
+        prompt += '\n\n' + toolsPrompt;
     } else {
         prompt += '\nDo not use markdown formatting unless specifically asked.';
     }

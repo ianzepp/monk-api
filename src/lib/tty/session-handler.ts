@@ -15,12 +15,13 @@
 
 import type { Session, TTYStream, TTYConfig } from './types.js';
 import type { FS, FSEntry } from '@src/lib/fs/index.js';
-import { DEFAULT_MOTD } from './types.js';
 import { handleAuthState, printPrompt } from './auth.js';
 import { executeLine, createIO } from './executor.js';
 import { saveHistory, applySessionMounts } from './profile.js';
 import { FSError } from '@src/lib/fs/index.js';
 import { runTransaction } from '@src/lib/transaction.js';
+import { processAIInput, saveAIContext, cleanupAIState } from './ai-mode.js';
+import { processShellInput } from './shell-mode.js';
 
 /**
  * Write text to stream with CRLF line endings (telnet convention)
@@ -29,6 +30,8 @@ export function writeToStream(stream: TTYStream, text: string): void {
     const normalized = text.replace(/(?<!\r)\n/g, '\r\n');
     stream.write(normalized);
 }
+
+import { TTY_CHARS } from './types.js';
 
 /**
  * Handle CTRL+C (interrupt signal)
@@ -44,12 +47,18 @@ export function handleInterrupt(stream: TTYStream, session: Session): boolean {
     }
 
     // No command running - clear input and show new prompt
-    if (session.state === 'AUTHENTICATED') {
+    if (session.authenticated) {
         writeToStream(stream, '^C\n');
         session.inputBuffer = '';
         session.historyIndex = -1;
         session.historyBuffer = '';
-        printPrompt(stream, session);
+
+        // Show appropriate prompt based on mode
+        if (session.mode === 'ai') {
+            writeToStream(stream, TTY_CHARS.AI_PROMPT);
+        } else {
+            printPrompt(stream, session);
+        }
         return true;
     }
 
@@ -58,11 +67,9 @@ export function handleInterrupt(stream: TTYStream, session: Session): boolean {
 }
 
 /**
- * Send welcome message and login prompt
+ * Send login prompt
  */
-export function sendWelcome(stream: TTYStream, config?: TTYConfig): void {
-    const motd = config?.motd || DEFAULT_MOTD;
-    writeToStream(stream, motd);
+export function sendWelcome(stream: TTYStream, _config?: TTYConfig): void {
     writeToStream(stream, '\nmonk login: ');
 }
 
@@ -262,8 +269,8 @@ export async function handleInput(
             if (escapeBuffer.length >= 2 && /[A-Za-z~]/.test(char)) {
                 inEscape = false;
 
-                // Handle arrow keys for history (only when no foreground process)
-                if (!session.foregroundIO && session.state === 'AUTHENTICATED') {
+                // Handle arrow keys for history (only in shell mode when no foreground process)
+                if (!session.foregroundIO && session.authenticated && session.mode === 'shell') {
                     if (escapeBuffer === '[A') {
                         handleHistoryUp(stream, session);
                     } else if (escapeBuffer === '[B') {
@@ -321,8 +328,8 @@ export async function handleInput(
             continue;
         }
 
-        // Handle tab - path completion (only when authenticated)
-        if (char === '\t' && session.state === 'AUTHENTICATED') {
+        // Handle tab - path completion (only in shell mode)
+        if (char === '\t' && session.authenticated && session.mode === 'shell') {
             await handleTabCompletion(stream, session);
             continue;
         }
@@ -341,8 +348,8 @@ export async function handleInput(
         // Accumulate input
         session.inputBuffer += char;
         if (echo) {
-            const passwordStates = ['AWAITING_PASSWORD', 'REGISTER_PASSWORD', 'REGISTER_CONFIRM'];
-            if (passwordStates.includes(session.state)) {
+            const passwordStates: string[] = ['AWAITING_PASSWORD', 'REGISTER_PASSWORD', 'REGISTER_CONFIRM'];
+            if (passwordStates.includes(session.authState)) {
                 writeToStream(stream, '*');
             } else {
                 writeToStream(stream, char);
@@ -360,63 +367,36 @@ async function processLine(
     line: string,
     config?: TTYConfig
 ): Promise<void> {
-    const trimmed = line.trim();
-
     // Non-authenticated states go to auth handler
-    if (session.state !== 'AUTHENTICATED') {
+    if (!session.authenticated) {
         await handleAuthState(stream, session, line, config);
         return;
     }
 
-    // Empty line - just print prompt
-    if (!trimmed) {
-        printPrompt(stream, session);
+    // Route by mode
+    if (session.mode === 'ai') {
+        const shouldContinue = await processAIInput(stream, session, line);
+        if (!shouldContinue || session.shouldClose) {
+            cleanupAIState(session.id);
+            stream.end();
+        }
         return;
     }
 
-    // Execute command
-    const abortController = new AbortController();
-    session.foregroundAbort = abortController;
-
-    try {
-        // Create IO that pipes to TTY
-        const io = createIO(abortController.signal);
-
-        // Set up foreground I/O for interactive commands
-        // stdin stays open - session handler pipes input to it
-        session.foregroundIO = {
-            stdin: io.stdin,
-            stdout: io.stdout,
-            stderr: io.stderr,
-            mode: 'line',
-            lineBuffer: '',
-        };
-
-        io.stdout.on('data', (chunk) => writeToStream(stream, chunk.toString()));
-        io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
-
-        await executeLine(session, trimmed, io, {
-            addToHistory: true,
-            signal: abortController.signal,
-        });
-    } catch (err) {
-        if (!abortController.signal.aborted) {
-            const message = err instanceof Error ? err.message : String(err);
-            writeToStream(stream, `Error: ${message}\n`);
-        }
-    } finally {
-        session.foregroundAbort = null;
-        session.foregroundIO = null;
-    }
+    // Shell mode
+    const continueShell = await processShellInput(stream, session, line);
 
     // Check if exit command requested connection close
     if (session.shouldClose) {
+        await saveAIContext(session);
         await saveHistory(session);
+        cleanupAIState(session.id);
         stream.end();
         return;
     }
 
-    printPrompt(stream, session);
+    // If shell mode ended (exit command), we're back in AI mode
+    // The prompt is handled by processShellInput/exitShellMode
 }
 
 // Re-export for convenience

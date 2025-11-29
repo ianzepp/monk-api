@@ -7,11 +7,21 @@
  * - Session setup after authentication
  */
 
-import type { Session, TTYStream, TTYConfig } from './types.js';
-import { registerSession } from './types.js';
+import type { Session, TTYStream, TTYConfig, AuthState } from './types.js';
+import { registerSession, getDefaultMotd } from './types.js';
 import { login, register } from '@src/lib/auth.js';
 import { registerDaemon } from '@src/lib/process.js';
 import { initializeSession } from './profile.js';
+import { enterAIMode } from './ai-mode.js';
+import { renderMarkdown } from './commands/glow.js';
+
+/**
+ * Helper to update session auth state (updates both new and legacy fields)
+ */
+function setAuthState(session: Session, state: AuthState): void {
+    session.authState = state;
+    session.state = state; // keep deprecated field in sync
+}
 
 /**
  * Write to TTY stream with CRLF
@@ -42,7 +52,7 @@ export async function handleAuthState(
 ): Promise<void> {
     const trimmed = line.trim();
 
-    switch (session.state) {
+    switch (session.authState) {
         case 'AWAITING_USERNAME':
             await handleUsername(stream, session, trimmed);
             break;
@@ -82,7 +92,7 @@ async function handleUsername(stream: TTYStream, session: Session, input: string
     if (input.toLowerCase() === 'register') {
         writeToStream(stream, '\n=== New Tenant Registration ===\n');
         writeToStream(stream, 'Tenant name: ');
-        session.state = 'REGISTER_TENANT';
+        setAuthState(session, 'REGISTER_TENANT');
         session.registrationData = { tenant: '', username: '', password: '' };
         return;
     }
@@ -117,14 +127,14 @@ async function handleUsername(stream: TTYStream, session: Session, input: string
 
     // If password is required, prompt for it
     if (result.errorCode === 'AUTH_PASSWORD_REQUIRED') {
-        session.state = 'AWAITING_PASSWORD';
+        setAuthState(session, 'AWAITING_PASSWORD');
         writeToStream(stream, 'Password: ');
         return;
     }
 
     // Other error
     writeToStream(stream, `\nLogin failed: ${result.error}\n`);
-    session.state = 'AWAITING_USERNAME';
+    setAuthState(session, 'AWAITING_USERNAME');
     session.username = '';
     session.tenant = '';
     writeToStream(stream, 'monk login: ');
@@ -142,7 +152,7 @@ async function handlePassword(stream: TTYStream, session: Session, password: str
 
     if (!result.success) {
         writeToStream(stream, `\nLogin failed: ${result.error}\n`);
-        session.state = 'AWAITING_USERNAME';
+        setAuthState(session, 'AWAITING_USERNAME');
         session.username = '';
         session.tenant = '';
         writeToStream(stream, 'monk login: ');
@@ -168,7 +178,7 @@ async function handleRegisterTenant(stream: TTYStream, session: Session, input: 
     }
 
     session.registrationData!.tenant = input;
-    session.state = 'REGISTER_USERNAME';
+    setAuthState(session, 'REGISTER_USERNAME');
     writeToStream(stream, 'Username (default: root): ');
 }
 
@@ -185,7 +195,7 @@ async function handleRegisterUsername(stream: TTYStream, session: Session, input
     }
 
     session.registrationData!.username = username;
-    session.state = 'REGISTER_PASSWORD';
+    setAuthState(session, 'REGISTER_PASSWORD');
     writeToStream(stream, 'Password (optional): ');
 }
 
@@ -201,7 +211,7 @@ async function handleRegisterPassword(
     session.registrationData!.password = password;
 
     if (password) {
-        session.state = 'REGISTER_CONFIRM';
+        setAuthState(session, 'REGISTER_CONFIRM');
         writeToStream(stream, 'Confirm password: ');
     } else {
         await completeRegistration(stream, session, config);
@@ -220,7 +230,7 @@ async function handleRegisterConfirm(
     if (confirm !== session.registrationData!.password) {
         writeToStream(stream, 'Passwords do not match. Try again.\n');
         session.registrationData!.password = '';
-        session.state = 'REGISTER_PASSWORD';
+        setAuthState(session, 'REGISTER_PASSWORD');
         writeToStream(stream, 'Password (optional): ');
         return;
     }
@@ -238,7 +248,9 @@ async function completeLogin(
     user: { username: string; tenant: string; access: string }
 ): Promise<void> {
     session.systemInit = systemInit;
-    session.state = 'AUTHENTICATED';
+    session.authenticated = true;
+    session.mode = 'ai'; // AI-first mode
+    session.state = 'AUTHENTICATED'; // deprecated field
     session.username = user.username;
     session.tenant = user.tenant;
 
@@ -266,9 +278,12 @@ async function completeLogin(
     // Initialize session (home dir, history, profile)
     await initializeSession(stream, session);
 
-    writeToStream(stream, `\nWelcome ${session.username}@${session.tenant}!\n`);
-    writeToStream(stream, `Access level: ${user.access}\n\n`);
-    printPrompt(stream, session);
+    // Show MOTD after successful login (rendered as markdown)
+    writeToStream(stream, renderMarkdown(getDefaultMotd()));
+    writeToStream(stream, '\n\n');
+
+    // Enter AI mode
+    await enterAIMode(stream, session);
 }
 
 /**
@@ -291,7 +306,7 @@ async function completeRegistration(
 
     if (!result.success) {
         writeToStream(stream, `\nRegistration failed: ${result.error}\n\n`);
-        session.state = 'AWAITING_USERNAME';
+        setAuthState(session, 'AWAITING_USERNAME');
         session.registrationData = null;
         writeToStream(stream, 'monk login: ');
         return;
@@ -308,7 +323,7 @@ async function completeRegistration(
 
     if (!loginResult.success) {
         writeToStream(stream, `You can now login as ${result.username}@${result.tenant}\n\n`);
-        session.state = 'AWAITING_USERNAME';
+        setAuthState(session, 'AWAITING_USERNAME');
         session.registrationData = null;
         writeToStream(stream, 'monk login: ');
         return;

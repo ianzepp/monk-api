@@ -54,16 +54,34 @@ export interface TTYStream {
 }
 
 /**
- * Session state machine states
+ * Authentication flow states (only used when !authenticated)
  */
-export type SessionState =
+export type AuthState =
     | 'AWAITING_USERNAME'
     | 'AWAITING_PASSWORD'
-    | 'AUTHENTICATED'
     | 'REGISTER_TENANT'
     | 'REGISTER_USERNAME'
     | 'REGISTER_PASSWORD'
     | 'REGISTER_CONFIRM';
+
+/**
+ * Post-auth interaction modes
+ */
+export type SessionMode = 'ai' | 'shell';
+
+/**
+ * Prompt and escape characters (configurable)
+ */
+export const TTY_CHARS = {
+    AI_PROMPT: '> ',           // Prompt shown in AI mode
+    SHELL_ESCAPE: '!',         // Prefix to escape to shell from AI mode
+    AI_ESCAPE: '@',            // Prefix to invoke AI from shell mode
+} as const;
+
+/**
+ * @deprecated Use AuthState instead. Will be removed in future version.
+ */
+export type SessionState = AuthState | 'AUTHENTICATED';
 
 /**
  * Registration data collected during registration flow
@@ -84,7 +102,22 @@ export interface Session {
     /** Process ID for this shell session */
     pid: number | null;
 
-    /** Current authentication state */
+    /** Whether the user has successfully authenticated */
+    authenticated: boolean;
+
+    /** Authentication flow state (only relevant when !authenticated) */
+    authState: AuthState;
+
+    /** Interaction mode (only relevant when authenticated) */
+    mode: SessionMode;
+
+    /** Shell transcript for AI context injection */
+    shellTranscript: string[];
+
+    /**
+     * @deprecated Use `authenticated` and `authState` instead.
+     * Legacy state field for backwards compatibility.
+     */
     state: SessionState;
 
     /** Authenticated username */
@@ -278,7 +311,11 @@ export function createSession(id: string): Session {
     return {
         id,
         pid: null,
-        state: 'AWAITING_USERNAME',
+        authenticated: false,
+        authState: 'AWAITING_USERNAME',
+        mode: 'ai',
+        shellTranscript: [],
+        state: 'AWAITING_USERNAME', // deprecated, kept for compatibility
         username: '',
         tenant: '',
         foregroundAbort: null,
@@ -309,15 +346,24 @@ export function generateSessionId(): string {
 
 /**
  * Default message of the day
- * Loaded from monkfs/etc/motd at module initialization
+ * Loaded from monkfs/etc/motd at runtime
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { getProjectRoot } from '@src/lib/constants.js';
 
-export const DEFAULT_MOTD = (() => {
-    try {
-        return readFileSync(join(process.env.PROJECT_ROOT!, 'monkfs', 'etc', 'motd'), 'utf-8');
-    } catch {
-        return '\nWelcome to Monk TTY\n';
+let _motdCache: string | null = null;
+
+export function getDefaultMotd(): string {
+    if (_motdCache === null) {
+        try {
+            _motdCache = readFileSync(join(getProjectRoot(), 'monkfs', 'etc', 'motd'), 'utf-8');
+        } catch {
+            _motdCache = '\nWelcome to Monk TTY\n';
+        }
     }
-})();
+    return _motdCache;
+}
+
+/** @deprecated Use getDefaultMotd() instead */
+export const DEFAULT_MOTD = '\nWelcome to Monk TTY\n';

@@ -283,12 +283,28 @@ function parseAlignments(line: string): ('left' | 'center' | 'right')[] {
 }
 
 /**
+ * Strip markdown syntax to get display width
+ */
+function stripMarkdown(text: string): string {
+    return text
+        .replace(/`([^`]+)`/g, '$1')           // inline code
+        .replace(/\*\*\*([^*]+)\*\*\*/g, '$1') // bold+italic
+        .replace(/\*\*([^*]+)\*\*/g, '$1')     // bold
+        .replace(/__([^_]+)__/g, '$1')         // bold
+        .replace(/\*([^*]+)\*/g, '$1')         // italic
+        .replace(/_([^_]+)_/g, '$1')           // italic
+        .replace(/~~([^~]+)~~/g, '$1')         // strikethrough
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1'); // images
+}
+
+/**
  * Render a table with box-drawing characters
  */
 function renderTable(rows: string[][], alignments: ('left' | 'center' | 'right')[]): string[] {
     if (rows.length === 0) return [];
 
-    // Calculate column widths
+    // Calculate column widths based on display width (markdown stripped)
     const colCount = Math.max(...rows.map(r => r.length));
     const colWidths: number[] = [];
 
@@ -296,9 +312,8 @@ function renderTable(rows: string[][], alignments: ('left' | 'center' | 'right')
         let maxWidth = 0;
         for (const row of rows) {
             const cell = row[col] || '';
-            // Strip ANSI codes for width calculation
-            const plainText = cell.replace(/\x1b\[[0-9;]*m/g, '');
-            maxWidth = Math.max(maxWidth, plainText.length);
+            const displayText = stripMarkdown(cell);
+            maxWidth = Math.max(maxWidth, displayText.length);
         }
         colWidths.push(Math.max(maxWidth, 3)); // Minimum width of 3
     }
@@ -318,8 +333,8 @@ function renderTable(rows: string[][], alignments: ('left' | 'center' | 'right')
         const cells = colWidths.map((width, colIdx) => {
             const cell = row[colIdx] || '';
             const rendered = renderInline(cell);
-            const plainText = cell.replace(/\x1b\[[0-9;]*m/g, '');
-            const padding = width - plainText.length;
+            const displayWidth = stripMarkdown(cell).length;
+            const padding = width - displayWidth;
             const align = alignments[colIdx] || 'left';
 
             let padded: string;
