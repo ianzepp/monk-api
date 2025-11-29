@@ -84,28 +84,26 @@ function getAgentPromptTools(): string {
     return _agentPromptTools;
 }
 
-// Cache for custom command help
-let _customCommands: string | null = null;
+// Cache for custom command help (each command as separate entry)
+let _customCommands: { name: string; content: string }[] | null = null;
 
-function getCustomCommands(): string {
+function getCustomCommands(): { name: string; content: string }[] {
     if (_customCommands === null) {
+        _customCommands = [];
         try {
             const commandsDir = join(getProjectRoot(), 'monkfs', 'etc', 'agents', 'commands');
-            const files = readdirSync(commandsDir);
-            const commands: string[] = [];
+            const files = readdirSync(commandsDir).sort();
 
             for (const file of files) {
                 try {
                     const content = readFileSync(join(commandsDir, file), 'utf-8');
-                    commands.push(content.trim());
+                    _customCommands.push({ name: file, content: content.trim() });
                 } catch {
                     // Skip unreadable files
                 }
             }
-
-            _customCommands = commands.join('\n\n---\n\n');
         } catch {
-            _customCommands = '';
+            // Directory doesn't exist
         }
     }
     return _customCommands;
@@ -284,38 +282,75 @@ async function saveContextToFile(fs: FS | null, homeDir: string, messages: Messa
     }
 }
 
+/** System prompt content block */
+interface SystemBlock {
+    type: 'text';
+    text: string;
+    cache_control?: { type: 'ephemeral' };
+}
+
 /**
- * Build system prompt with session context
+ * Build system prompt as array of content blocks
+ *
+ * Static content (base prompt, tools, commands) is marked for caching.
+ * Dynamic content (session context) is not cached.
  */
-function buildSystemPrompt(session: Session, withTools: boolean): string {
-    let prompt = getAgentPromptBase();
+function buildSystemPrompt(session: Session, withTools: boolean): SystemBlock[] {
+    const blocks: SystemBlock[] = [];
 
-    prompt += `
+    // Base agent prompt (static, cached)
+    blocks.push({
+        type: 'text',
+        text: getAgentPromptBase(),
+        cache_control: { type: 'ephemeral' },
+    });
 
-Session context:
+    // Tool usage guidelines (static, cached)
+    const toolsPrompt = getAgentPromptTools();
+    if (withTools && toolsPrompt) {
+        blocks.push({
+            type: 'text',
+            text: toolsPrompt,
+            cache_control: { type: 'ephemeral' },
+        });
+    }
+
+    // Custom commands - each as separate block (static, cached)
+    const customCommands = getCustomCommands();
+    if (customCommands.length > 0) {
+        blocks.push({
+            type: 'text',
+            text: '# Custom Commands\n\nThese commands are specific to monksh:',
+            cache_control: { type: 'ephemeral' },
+        });
+
+        for (const cmd of customCommands) {
+            blocks.push({
+                type: 'text',
+                text: cmd.content,
+                cache_control: { type: 'ephemeral' },
+            });
+        }
+    }
+
+    // Session context (dynamic, not cached)
+    let sessionContext = `Session context:
 - Working directory: ${session.cwd}
 - User: ${session.username}
 - Tenant: ${session.tenant}`;
 
     // Inject shell transcript if available
     if (session.shellTranscript.length > 0) {
-        prompt += `\n\nRecent shell session:\n${session.shellTranscript.join('\n---\n')}`;
+        sessionContext += `\n\nRecent shell session:\n${session.shellTranscript.join('\n---\n')}`;
     }
 
-    const toolsPrompt = getAgentPromptTools();
-    if (withTools && toolsPrompt) {
-        prompt += '\n\n' + toolsPrompt;
-    } else {
-        prompt += '\nDo not use markdown formatting unless specifically asked.';
-    }
+    blocks.push({
+        type: 'text',
+        text: sessionContext,
+        // No cache_control - this is dynamic per-session
+    });
 
-    // Add custom command reference
-    const customCommands = getCustomCommands();
-    if (customCommands) {
-        prompt += '\n\n# Custom Commands\n\nThese commands are specific to monksh and extend standard Unix commands:\n\n' + customCommands;
-    }
-
-    return prompt;
+    return blocks;
 }
 
 /**
@@ -324,8 +359,7 @@ Session context:
 async function applyContextStrategy(
     messages: Message[],
     config: AIConfig,
-    apiKey: string,
-    systemPrompt: string
+    apiKey: string
 ): Promise<Message[]> {
     const maxMessages = config.maxTurns * 2;
 
@@ -343,7 +377,7 @@ async function applyContextStrategy(
         case 'summarize': {
             const oldMessages = messages.slice(0, -maxMessages);
             const recentMessages = messages.slice(-maxMessages);
-            const summary = await summarizeMessages(oldMessages, config, apiKey, systemPrompt);
+            const summary = await summarizeMessages(oldMessages, config, apiKey);
             return [
                 { role: 'user', content: `[Previous conversation summary: ${summary}]` },
                 { role: 'assistant', content: 'I understand the context from our previous conversation.' },
@@ -362,8 +396,7 @@ async function applyContextStrategy(
 async function summarizeMessages(
     messages: Message[],
     config: AIConfig,
-    apiKey: string,
-    _systemPrompt: string
+    apiKey: string
 ): Promise<string> {
     const conversationText = messages
         .map(m => {
@@ -618,13 +651,13 @@ async function handleAIMessage(
 ): Promise<void> {
     const state = getAIState(session);
     const homeDir = `/home/${session.username}`;
-    const systemPrompt = buildSystemPrompt(session, true);
+    const systemBlocks = buildSystemPrompt(session, true);
 
     // Add user message
     state.messages.push({ role: 'user', content: message });
 
     // Apply sliding window if needed
-    state.messages = await applyContextStrategy(state.messages, state.config, apiKey, systemPrompt);
+    state.messages = await applyContextStrategy(state.messages, state.config, apiKey);
 
     // Agentic loop with tool use
     let continueLoop = true;
@@ -643,26 +676,32 @@ async function handleAIMessage(
             headers['anthropic-beta'] = 'prompt-caching-2024-07-31';
         }
 
-        const systemPayload = state.config.promptCaching
-            ? [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }]
-            : systemPrompt;
-
         try {
+            const requestBody = {
+                model: state.config.model,
+                max_tokens: state.config.maxTokens,
+                system: systemBlocks,
+                messages: state.messages,
+                tools: TOOLS,
+            };
+
+            // Debug: show outgoing request
+            if (session.debugMode) {
+                writeToStream(stream, `\n\x1b[33m-> ${JSON.stringify(requestBody)}\x1b[0m\n`);
+            }
+
             const response = await fetch(ANTHROPIC_API_URL, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({
-                    model: state.config.model,
-                    max_tokens: state.config.maxTokens,
-                    system: systemPayload,
-                    messages: state.messages,
-                    tools: TOOLS,
-                }),
+                body: JSON.stringify(requestBody),
                 signal: state.abortController.signal,
             });
 
             if (!response.ok) {
                 const error = await response.text();
+                if (session.debugMode) {
+                    writeToStream(stream, `\n\x1b[31m<- ${error}\x1b[0m\n`);
+                }
                 writeToStream(stream, `AI error: ${response.status} ${error}\n`);
                 break;
             }
@@ -671,6 +710,11 @@ async function handleAIMessage(
                 content: ContentBlock[];
                 stop_reason: string;
             };
+
+            // Debug: show incoming response
+            if (session.debugMode) {
+                writeToStream(stream, `\n\x1b[32m<- ${JSON.stringify(result)}\x1b[0m\n`);
+            }
 
             // Process response content
             const assistantContent: ContentBlock[] = [];

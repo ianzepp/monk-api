@@ -186,6 +186,9 @@ export interface Session {
 
     /** Session-local mounts (re-applied to each transaction's FS) */
     mounts: Map<string, SessionMount>;
+
+    /** Debug mode - show AI network traffic */
+    debugMode: boolean;
 }
 
 /**
@@ -334,6 +337,7 @@ export function createSession(id: string): Session {
         historyBuffer: '',
         mounts: new Map(),
         foregroundIO: null,
+        debugMode: false,
     };
 }
 

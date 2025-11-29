@@ -84,6 +84,7 @@ import { free } from './free.js';
 
 // Session commands
 import { clear } from './clear.js';
+import { debug } from './debug.js';
 import { help } from './help.js';
 import { man } from './man.js';
 import { exit, logout, quit } from './exit.js';
@@ -191,6 +192,7 @@ export { export as exportCmd } from './export.js';
 export { uname } from './uname.js';
 export { free } from './free.js';
 export { clear } from './clear.js';
+export { debug } from './debug.js';
 export { help } from './help.js';
 export { man } from './man.js';
 export { exit, logout, quit } from './exit.js';
@@ -302,6 +304,7 @@ export const commands: Record<string, CommandHandler> = {
 
     // Session commands
     clear,
+    debug,
     help,
     man,
     exit,
