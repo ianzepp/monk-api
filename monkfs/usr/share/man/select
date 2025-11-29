@@ -1,28 +1,70 @@
 NAME
-    select - query records with field selection
+    select - SQL-like query command
 
 SYNOPSIS
-    select <fields> [from <path>]
+    select <columns> from <model> [where <conditions>] [group by <columns>]
+           [order by <column> [asc|desc]] [limit N]
 
 DESCRIPTION
-    Queries records and displays selected fields in table format.
-    Fields are comma-separated. Path defaults to current directory.
+    Queries records using SQL-like syntax. Supports field selection,
+    filtering, aggregation, grouping, ordering, and limiting.
+
+    Unlike traditional SQL, there's no need to connect to a database -
+    the entire platform IS a database.
+
+COLUMNS
+    *                   All fields
+    field1, field2      Specific fields
+    count(*)            Count all records
+    count(field)        Count non-null values
+    sum(field)          Sum of numeric field
+    avg(field)          Average of numeric field
+    min(field)          Minimum value
+    max(field)          Maximum value
+
+WHERE OPERATORS
+    =, ==               Equals
+    !=, <>              Not equals
+    <, >, <=, >=        Comparison
+    like                Pattern match (% wildcard)
+    ilike               Case-insensitive pattern match
+    in (a, b, c)        Value in list
+    not in (a, b, c)    Value not in list
+    is null             Field is null
+    is not null         Field is not null
+
+    Combine conditions with AND (OR support is limited).
 
 EXAMPLES
-    select id, name
-        Select from current directory
+    select * from users
+        All fields from users model
 
     select id, name from users
-        Select from relative path
+        Specific fields
 
-    select id, email from /api/data/users
-        Select from absolute path
+    select id, name from users where status = 'active'
+        With filter
 
-    select *
-        Select all fields (not yet supported)
+    select id, name from users where created_at > '2024-01-01'
+        Date comparison
+
+    select * from orders where amount > 100 order by created_at desc
+        With ordering
+
+    select * from products limit 10
+        Limit results
+
+    select type, count(*) from fields group by type
+        Aggregate with grouping
+
+    select type, count(*) from fields group by type order by count desc
+        Aggregate with ordering
+
+    select model_name, sum(amount) from orders group by model_name
+        Sum by group
 
 OUTPUT
-    Results displayed in formatted table with headers.
+    Results displayed in formatted table with headers and row count.
 
 SEE ALSO
-    describe, cat, ls
+    describe, insert, update, delete, introspect
