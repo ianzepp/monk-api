@@ -58,7 +58,7 @@ describe('ACLs API', () => {
 
     describe('Initial State', () => {
         it('should have empty ACL arrays initially', async () => {
-            const response = await tenant.httpClient.get(`/api/data/accounts/${testRecordId}`);
+            const response = await tenant.httpClient.get(`/api/data/accounts/${testRecordId}?access=true`);
 
             expectSuccess(response);
 
@@ -144,7 +144,7 @@ describe('ACLs API', () => {
 
     describe('Data API Integration (after POST)', () => {
         it('should show ACLs added via ACLs API in Data API response', async () => {
-            const response = await tenant.httpClient.get(`/api/data/accounts/${testRecordId}`);
+            const response = await tenant.httpClient.get(`/api/data/accounts/${testRecordId}?access=true`);
 
             expectSuccess(response);
 
@@ -245,7 +245,7 @@ describe('ACLs API', () => {
         });
 
         it('should show cleared ACLs in Data API', async () => {
-            const response = await tenant.httpClient.get(`/api/data/accounts/${testRecordId}`);
+            const response = await tenant.httpClient.get(`/api/data/accounts/${testRecordId}?access=true`);
 
             expectSuccess(response);
 

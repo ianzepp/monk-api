@@ -90,7 +90,11 @@ function applyFieldExtraction(data: any, context: Context): any {
     };
 
     // Step 1a: Transform data fields (apply stat/access/select filtering)
-    if (result.data !== undefined) {
+    // Only filter stat/access fields for data record endpoints
+    const path = context.req.path;
+    const shouldFilterFields = path.startsWith('/api/data') || path.startsWith('/api/trashed');
+
+    if (result.data !== undefined && shouldFilterFields) {
         const options = { stat: includeStat, access: includeAccess, select: selectFields };
         if (Array.isArray(result.data)) {
             result.data = transformMany(result.data, options);

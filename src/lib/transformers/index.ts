@@ -95,13 +95,19 @@ export function transform<T extends Record<string, unknown>>(
  *
  * @param data - Array of raw records
  * @param options - Transform options
- * @returns Array of transformed records
+ * @returns Array of transformed records (primitives pass through unchanged)
  */
 export function transformMany<T extends Record<string, unknown>>(
     data: T[],
     options: TransformOptions = {}
-): Partial<T>[] {
-    return data.map(record => transform(record, options));
+): (Partial<T> | T)[] {
+    return data.map(record => {
+        // Only transform objects, pass through primitives (strings, numbers, etc.)
+        if (typeof record === 'object' && record !== null && !Array.isArray(record)) {
+            return transform(record, options);
+        }
+        return record;
+    });
 }
 
 /**
