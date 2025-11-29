@@ -38,6 +38,7 @@ import { rmdir } from './rmdir.js';
 
 // Query commands
 import { select } from './select.js';
+import { aggregate } from './aggregate.js';
 import { describe } from './describe.js';
 import { introspect } from './introspect.js';
 import { query } from './query.js';
@@ -182,6 +183,7 @@ export { df } from './df.js';
 export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
+export { aggregate } from './aggregate.js';
 export { describe } from './describe.js';
 export { introspect } from './introspect.js';
 export { query } from './query.js';
@@ -272,6 +274,7 @@ export const commands: Record<string, CommandHandler> = {
 
     // Query commands
     select,
+    aggregate,
     describe,
     introspect,
     query,

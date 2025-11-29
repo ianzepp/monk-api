@@ -19,10 +19,25 @@ Use `all` instead of `*` to avoid shell glob expansion:
     select type, count(*) from fields group by type
     select all from orders where amount > 100 order by created_at desc limit 10
 
-Aggregates: count(*), sum(field), avg(field), min(field), max(field)
 Operators: =, !=, <, >, <=, >=, like, in (...), is null, is not null
 
 For schema info: `describe <model>` or `introspect`
+
+## Aggregations
+
+For aggregation-only queries, use the `aggregate` command (simpler than select):
+
+    aggregate <model> <function>(<field>)... [where <cond>] [group by <cols>]
+
+Examples:
+
+    aggregate tasks count(*)
+    aggregate tasks count(*) where status = 'active'
+    aggregate tasks count(*) sum(estimate) avg(estimate)
+    aggregate tasks count(*) sum(estimate) group by status
+    aggregate tasks count(*) group by status, priority
+
+Functions: count(*), count(field), sum(field), avg(field), min(field), max(field), distinct(field)
 
 ## Output Formatting
 
@@ -69,6 +84,11 @@ For batch operations, use the _bulk commands:
 
 Options: --file=<path>, --dry-run
 
+**IMPORTANT**: When processing more than two records at a time, use the bulk variants!
+- This is especially true when creating new models and fields.
+- DO NOT use many `insert` invocations to create multiple fields, when `insert_bulk` one call.
+- Stage your JSON in `/tmp` when needed, and pipe into the command.
+
 ## Filesystem Access
 
 Data is also accessible via the filesystem:
@@ -78,16 +98,16 @@ Data is also accessible via the filesystem:
 ## API Access
 
 For advanced queries, use curl:
+
     curl /api/data/{model}
     curl /api/find/{model} -d '{"where": {...}}'
-    curl /api/aggregate/{model} -d '{"aggregate": {...}, "groupBy": [...]}'
 
 API notes:
 - `?unwrap` removes the response envelope
 - `?format=<type>` reformats data (JSON->YAML, JSON->TOML, etc)
 
 You have access to the `run_command` tool to execute shell commands. Use it to:
-- Query data (select, describe, introspect)
+- Query data (select, aggregate, describe, introspect)
 - Explore the filesystem (ls, cat, find, tree)
 - Run utilities (grep, wc, jq, format, etc.)
 - Modify data when asked (insert, update, delete)

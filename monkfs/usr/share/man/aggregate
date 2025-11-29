@@ -1,0 +1,83 @@
+NAME
+    aggregate - database aggregation command
+
+SYNOPSIS
+    aggregate <model> <function>(<field>)... [where <conditions>]
+              [group by <columns>]
+
+DESCRIPTION
+    Performs database aggregations like counting, summing, and averaging.
+    Simpler alternative to `select` for aggregation-focused queries.
+
+    Unlike `select`, this command only accepts aggregate functions -
+    no raw field selection. Use `select` for mixed queries.
+
+AGGREGATE FUNCTIONS
+    count(*)            Count all records
+    count(field)        Count non-null values in field
+    sum(field)          Sum of numeric field
+    avg(field)          Average of numeric field
+    min(field)          Minimum value
+    max(field)          Maximum value
+    distinct(field)     Count distinct values
+
+WHERE OPERATORS
+    =, ==               Equals
+    !=, <>              Not equals
+    <, >, <=, >=        Comparison
+    like                Pattern match (% wildcard)
+    ilike               Case-insensitive pattern match
+    in (a, b, c)        Value in list
+    not in (a, b, c)    Value not in list
+    is null             Field is null
+    is not null         Field is not null
+
+    Combine conditions with AND.
+
+EXAMPLES
+    aggregate tasks count(*)
+        Total count of tasks
+
+    aggregate tasks count(*) where status = 'active'
+        Count with filter
+
+    aggregate tasks count(*) sum(estimate) avg(estimate)
+        Multiple aggregations
+
+    aggregate tasks count(*) group by status
+        Count by status
+
+    aggregate tasks count(*) sum(estimate) group by status
+        Count and sum by status
+
+    aggregate tasks count(*) group by status, priority
+        Group by multiple columns
+
+    aggregate orders min(created_at) max(created_at)
+        Date range across all orders
+
+    aggregate orders sum(amount) group by customer_id
+        Sum amounts per customer
+
+    aggregate tasks count(*) where due_date < '2024-12-01' group by status
+        Filtered aggregation with grouping
+
+    aggregate tasks count(*) | jq '.[0].count'
+        Extract single value with jq
+
+OUTPUT
+    Results output as JSON array. Each object contains the aggregation
+    result fields plus any group-by columns.
+
+    Example output for: aggregate tasks count(*) sum(estimate) group by status
+    [
+      {"status": "active", "count": 15, "sum_estimate": 120},
+      {"status": "completed", "count": 42, "sum_estimate": 340}
+    ]
+
+    Pipe to `format` for other formats:
+    - format markdown   Pretty table
+    - format csv        Comma-separated values
+
+SEE ALSO
+    select, format, describe, introspect

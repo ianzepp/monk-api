@@ -1,10 +1,3 @@
 
-# Monk TTY
-
-AI-first shell. Just describe what you want to do.
-
-| Command   | Description              |
-|-----------|--------------------------|
-| `!`       | Enter shell mode         |
-| `! <cmd>` | Run a single shell command |
-| `exit`    | Disconnect               |
+**AI-first** console mode. All messages will be sent to the AI.
+Use `!` to enter shell mode. Use `CTRL+D` or `exit` to exit.
