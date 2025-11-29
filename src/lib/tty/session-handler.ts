@@ -113,6 +113,7 @@ function handleHistoryDown(stream: TTYStream, session: Session): void {
  * Handle input data from the stream
  *
  * Buffers input until newline, then processes.
+ * If a foreground process is active, input is piped to it instead.
  */
 export async function handleInput(
     stream: TTYStream,
@@ -122,6 +123,12 @@ export async function handleInput(
     echo = true
 ): Promise<void> {
     const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
+
+    // If foreground process in raw mode, send everything directly
+    if (session.foregroundIO?.mode === 'raw') {
+        session.foregroundIO.stdin.write(text);
+        return;
+    }
 
     let inEscape = false;
     let escapeBuffer = '';
@@ -139,15 +146,53 @@ export async function handleInput(
             if (escapeBuffer.length >= 2 && /[A-Za-z~]/.test(char)) {
                 inEscape = false;
 
-                // Handle arrow keys for history (only in AUTHENTICATED state)
-                if (session.state === 'AUTHENTICATED' && escapeBuffer === '[A') {
-                    handleHistoryUp(stream, session);
-                } else if (session.state === 'AUTHENTICATED' && escapeBuffer === '[B') {
-                    handleHistoryDown(stream, session);
+                // Handle arrow keys for history (only when no foreground process)
+                if (!session.foregroundIO && session.state === 'AUTHENTICATED') {
+                    if (escapeBuffer === '[A') {
+                        handleHistoryUp(stream, session);
+                    } else if (escapeBuffer === '[B') {
+                        handleHistoryDown(stream, session);
+                    }
+                } else if (session.foregroundIO) {
+                    // Pass escape sequence to foreground process
+                    session.foregroundIO.stdin.write('\x1b' + escapeBuffer);
                 }
             }
             continue;
         }
+
+        // If foreground process in line mode, use its line buffer
+        if (session.foregroundIO?.mode === 'line') {
+            // Handle backspace
+            if (char === '\x7f' || char === '\x08') {
+                if (session.foregroundIO.lineBuffer.length > 0) {
+                    session.foregroundIO.lineBuffer = session.foregroundIO.lineBuffer.slice(0, -1);
+                    if (echo) {
+                        writeToStream(stream, '\b \b');
+                    }
+                }
+                continue;
+            }
+
+            // Handle newline - flush to stdin
+            if (char === '\n' || char === '\r') {
+                if (echo) {
+                    writeToStream(stream, '\r\n');
+                }
+                session.foregroundIO.stdin.write(session.foregroundIO.lineBuffer + '\n');
+                session.foregroundIO.lineBuffer = '';
+                continue;
+            }
+
+            // Accumulate
+            session.foregroundIO.lineBuffer += char;
+            if (echo) {
+                writeToStream(stream, char);
+            }
+            continue;
+        }
+
+        // Default shell input handling (no foreground process)
 
         // Handle backspace
         if (char === '\x7f' || char === '\x08') {
@@ -214,7 +259,17 @@ async function processLine(
     try {
         // Create IO that pipes to TTY
         const io = createIO(abortController.signal);
-        io.stdin.end(); // No interactive stdin for now
+
+        // Set up foreground I/O for interactive commands
+        // stdin stays open - session handler pipes input to it
+        session.foregroundIO = {
+            stdin: io.stdin,
+            stdout: io.stdout,
+            stderr: io.stderr,
+            mode: 'line',
+            lineBuffer: '',
+        };
+
         io.stdout.on('data', (chunk) => writeToStream(stream, chunk.toString()));
         io.stderr.on('data', (chunk) => writeToStream(stream, chunk.toString()));
 
@@ -229,6 +284,7 @@ async function processLine(
         }
     } finally {
         session.foregroundAbort = null;
+        session.foregroundIO = null;
     }
 
     // Check if exit command requested connection close

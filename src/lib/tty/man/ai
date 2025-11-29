@@ -1,0 +1,47 @@
+NAME
+    @ / ai - send a prompt to the AI assistant
+
+SYNOPSIS
+    @ <prompt>
+    ai <prompt>
+    <input> | @ [prompt]
+    <input> | ai [prompt]
+
+DESCRIPTION
+    Send a prompt to the AI assistant and receive a streaming response.
+    The AI has context about your current session including working
+    directory and username.
+
+    When data is piped to the command, it is included as input context
+    for the AI to analyze or transform.
+
+OPTIONS
+    None. All arguments are treated as the prompt.
+
+ENVIRONMENT
+    ANTHROPIC_API_KEY
+        Required. Your Anthropic API key for authentication.
+
+EXAMPLES
+    Ask a question:
+        @ what is the capital of France?
+
+    Analyze piped data:
+        cat /api/data/users | @ summarize this data
+
+    Transform data:
+        select * from users | @ convert to csv format
+
+    Query with context:
+        cat error.log | @ what went wrong?
+
+    Chain with other commands:
+        @ list 10 random words | sort
+
+EXIT STATUS
+    0   Success
+    1   Error (missing API key, API error, no prompt)
+    130 Interrupted (SIGINT)
+
+SEE ALSO
+    echo(1), cat(1), select(1)

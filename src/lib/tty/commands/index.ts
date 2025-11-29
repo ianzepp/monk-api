@@ -120,6 +120,10 @@ import { keys } from './keys/index.js';
 // Deprecated stubs
 import { sshKey } from './ssh-key.js';
 
+// AI
+import { ai } from './ai.js';
+import { glow } from './glow.js';
+
 // Re-export types
 export type { CommandHandler } from './shared.js';
 export { formatMode, formatEntry } from './shared.js';
@@ -205,6 +209,8 @@ export { shasum } from './shasum.js';
 export { git } from './git/index.js';
 export { keys } from './keys/index.js';
 export { sshKey } from './ssh-key.js';
+export { ai } from './ai.js';
+export { glow } from './glow.js';
 
 /**
  * Command registry
@@ -327,6 +333,11 @@ export const commands: Record<string, CommandHandler> = {
 
     // Deprecated stubs
     'ssh-key': sshKey,
+
+    // AI
+    '@': ai,
+    ai,
+    glow,
 };
 
 // Initialize commands that need the registry

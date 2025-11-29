@@ -96,6 +96,31 @@ export interface Session {
     /** Abort controller for current foreground command (null if idle) */
     foregroundAbort: AbortController | null;
 
+    /**
+     * Foreground process with interactive I/O.
+     * When set, TTY input is piped to this process's stdin.
+     * The process reads from stdin and writes to stdout/stderr.
+     */
+    foregroundIO: {
+        /** Stdin stream - session handler writes to this */
+        stdin: import('node:stream').PassThrough;
+        /** Stdout stream - piped to TTY */
+        stdout: import('node:stream').PassThrough;
+        /** Stderr stream - piped to TTY */
+        stderr: import('node:stream').PassThrough;
+        /**
+         * Input mode:
+         * - 'raw': every character goes directly to stdin
+         * - 'line': line buffering with editing (default shell behavior)
+         */
+        mode: 'raw' | 'line';
+        /**
+         * Line buffer for 'line' mode.
+         * Accumulated until newline, then flushed to stdin.
+         */
+        lineBuffer: string;
+    } | null;
+
     /** Current working directory in the virtual filesystem */
     cwd: string;
 
@@ -271,6 +296,7 @@ export function createSession(id: string): Session {
         historyIndex: -1,
         historyBuffer: '',
         mounts: new Map(),
+        foregroundIO: null,
     };
 }
 
