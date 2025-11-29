@@ -126,6 +126,8 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 - `passwd [user]` - Change password
 - `date [-uI] [+format]` - Show date/time
 - `history [-c] [N]` - Show command history
+- `uname [-asnrvmo]` - Print system information
+- `free [-hbkmgt]` - Display memory usage
 
 ### Utilities
 - `xargs [-0dIntrLP] <cmd>` - Build commands from stdin

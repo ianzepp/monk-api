@@ -1,0 +1,34 @@
+NAME
+    uname - print system information
+
+SYNOPSIS
+    uname [-asnrvmo]
+
+DESCRIPTION
+    Print system information about the Monk virtual environment.
+    With no options, -s is assumed.
+
+OPTIONS
+    -a, --all               Print all information
+    -s, --kernel-name       Print kernel name (Monk)
+    -n, --nodename          Print network node hostname (tenant)
+    -r, --kernel-release    Print kernel release version
+    -v, --kernel-version    Print kernel version
+    -m, --machine           Print machine hardware name
+    -o, --operating-system  Print operating system name
+
+EXAMPLES
+    uname
+        Print kernel name: Monk
+
+    uname -a
+        Print all: Monk mytenant 1.0.0 #1 SMP ... virtual MonkOS
+
+    uname -sr
+        Print kernel name and release: Monk 1.0.0
+
+    uname -n
+        Print hostname (tenant name)
+
+SEE ALSO
+    free, env, whoami

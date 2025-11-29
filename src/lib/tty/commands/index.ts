@@ -77,6 +77,10 @@ import { date } from './date.js';
 import { history } from './history.js';
 import { export as exportCmd } from './export.js';
 
+// System info
+import { uname } from './uname.js';
+import { free } from './free.js';
+
 // Session commands
 import { clear } from './clear.js';
 import { help } from './help.js';
@@ -182,6 +186,8 @@ export { env } from './env.js';
 export { date } from './date.js';
 export { history } from './history.js';
 export { export as exportCmd } from './export.js';
+export { uname } from './uname.js';
+export { free } from './free.js';
 export { clear } from './clear.js';
 export { help } from './help.js';
 export { man } from './man.js';
@@ -286,6 +292,10 @@ export const commands: Record<string, CommandHandler> = {
     date,
     history,
     export: exportCmd,
+
+    // System info
+    uname,
+    free,
 
     // Session commands
     clear,
