@@ -9,6 +9,13 @@
  * - Graceful shutdown coordination
  */
 
+// Set PROJECT_ROOT before anything else
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+process.env.PROJECT_ROOT = join(__dirname, '..');
+
 // Import process environment as early as possible
 import { loadEnv } from '@src/lib/env/load-env.js';
 
@@ -73,6 +80,9 @@ import { startHttpServer, createHttpApp, type HttpServerHandle } from '@src/serv
 import { startTelnetServer, type TelnetServerHandle } from '@src/servers/telnet.js';
 import { startSSHServer, type SSHServerHandle } from '@src/servers/ssh.js';
 import { startMcpServer, type McpServerHandle } from '@src/servers/mcp.js';
+
+// Cron scheduler
+import { Crontab } from '@src/lib/crontab.js';
 
 // Check database connection before doing anything else
 console.info('Checking database connection:');
@@ -167,9 +177,17 @@ const mcpConfig = {
 };
 mcpServer = startMcpServer(httpServer.app, mcpConfig);
 
+// Start cron scheduler (PostgreSQL only - requires processes table)
+if (!isSqliteMode) {
+    Crontab.startScheduler();
+}
+
 // Graceful shutdown
 const gracefulShutdown = async () => {
     console.info('Shutting down servers gracefully');
+
+    // Stop cron scheduler
+    Crontab.stopScheduler();
 
     // Stop all servers
     httpServer?.stop();

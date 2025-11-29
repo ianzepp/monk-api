@@ -23,6 +23,7 @@ import * as statRoutes from '@src/routes/api/stat/routes.js';
 import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as trackedRoutes from '@src/routes/api/tracked/routes.js';
 import * as trashedRoutes from '@src/routes/api/trashed/routes.js';
+import * as cronRoutes from '@src/routes/api/cron/routes.js';
 import * as fsRoutes from '@src/routes/fs/routes.js';
 
 // Public endpoints
@@ -195,6 +196,15 @@ export function createHttpApp(): Hono {
     app.get('/api/trashed/:model/:id', trashedRoutes.RecordTrashedGet);
     app.post('/api/trashed/:model/:id', trashedRoutes.RecordTrashedPost);
     app.delete('/api/trashed/:model/:id', trashedRoutes.RecordTrashedDelete);
+
+    // Cron API routes
+    app.get('/api/cron', cronRoutes.CronList);
+    app.post('/api/cron', cronRoutes.CronCreate);
+    app.get('/api/cron/:pid', cronRoutes.CronGet);
+    app.patch('/api/cron/:pid', cronRoutes.CronUpdate);
+    app.delete('/api/cron/:pid', cronRoutes.CronDelete);
+    app.post('/api/cron/:pid/enable', cronRoutes.CronEnable);
+    app.post('/api/cron/:pid/disable', cronRoutes.CronDisable);
 
     // Error handling
     app.onError((err, c) => createInternalError(c, err));

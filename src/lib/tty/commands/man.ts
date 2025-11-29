@@ -10,13 +10,8 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import type { CommandHandler } from './shared.js';
-
-// Get the directory where man pages are stored
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const manDir = join(__dirname, '..', 'man');
 
 export const man: CommandHandler = async (_session, _fs, args, io) => {
     const command = args[0];
@@ -28,7 +23,7 @@ export const man: CommandHandler = async (_session, _fs, args, io) => {
     }
 
     try {
-        const manPath = join(manDir, command);
+        const manPath = join(process.env.PROJECT_ROOT!, 'monkfs', 'usr', 'share', 'man', command);
         const content = await readFile(manPath, 'utf-8');
         io.stdout.write(content);
         if (!content.endsWith('\n')) {

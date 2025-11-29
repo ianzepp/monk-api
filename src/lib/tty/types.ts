@@ -309,17 +309,14 @@ export function generateSessionId(): string {
 
 /**
  * Default message of the day
- * Loaded from motd.txt at module initialization
+ * Loaded from monkfs/etc/motd at module initialization
  */
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { join } from 'node:path';
 
 export const DEFAULT_MOTD = (() => {
     try {
-        return readFileSync(join(__dirname, 'motd.txt'), 'utf-8');
+        return readFileSync(join(process.env.PROJECT_ROOT!, 'monkfs', 'etc', 'motd'), 'utf-8');
     } catch {
         return '\nWelcome to Monk TTY\n';
     }

@@ -30,9 +30,28 @@ import type { Session, CommandIO } from '../types.js';
 import type { FS } from '@src/lib/fs/index.js';
 import { executeLine } from '../executor.js';
 import { PassThrough } from 'node:stream';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-sonnet-4-20250514';
+
+// Load agent prompts from monkfs/etc/agents/
+const AGENT_PROMPT_BASE = (() => {
+    try {
+        return readFileSync(join(process.env.PROJECT_ROOT!, 'monkfs', 'etc', 'agents', 'ai'), 'utf-8');
+    } catch {
+        return 'You are an AI assistant embedded in a Linux-like shell called monksh.';
+    }
+})();
+
+const AGENT_PROMPT_TOOLS = (() => {
+    try {
+        return readFileSync(join(process.env.PROJECT_ROOT!, 'monkfs', 'etc', 'agents', 'ai-tools'), 'utf-8');
+    } catch {
+        return '';
+    }
+})();
 
 // Tool definition for command execution
 const TOOLS = [
@@ -446,34 +465,19 @@ async function streamResponse(body: ReadableStream<Uint8Array>, io: CommandIO): 
  * Build system prompt with session context
  */
 function buildSystemPrompt(session: Session, withTools: boolean): string {
-    let prompt = `You are an AI assistant embedded in a Linux-like shell called monksh.
-You help users understand data, answer questions, and provide concise responses.
+    let prompt = AGENT_PROMPT_BASE;
+
+    prompt += `
 
 Session context:
 - Working directory: ${session.cwd}
 - User: ${session.username}
-- Tenant: ${session.tenant}
+- Tenant: ${session.tenant}`;
 
-Keep responses concise and appropriate for terminal output.
-When given data in <input> tags, analyze or transform it as requested.`;
-
-    if (withTools) {
-        prompt += `
-
-You have access to the run_command tool to execute shell commands. Use it to:
-- Explore the filesystem (ls, cat, find, tree)
-- Query data (select, describe, count)
-- Run utilities (grep, wc, jq, etc.)
-- Modify files when asked (touch, mkdir, rm, etc.)
-
-You can run multiple commands to build up an answer. Show your work by running commands.
-When you run a command, the user will see the output. After running commands, summarize what you found.
-
-Available commands include: ls, cd, cat, head, tail, find, grep, tree, select, describe, count,
-insert, update, delete, touch, mkdir, rm, mv, cp, echo, env, ps, ping, and many more.`;
+    if (withTools && AGENT_PROMPT_TOOLS) {
+        prompt += '\n\n' + AGENT_PROMPT_TOOLS;
     } else {
-        prompt += `
-Do not use markdown formatting unless specifically asked.`;
+        prompt += '\nDo not use markdown formatting unless specifically asked.';
     }
 
     return prompt;
