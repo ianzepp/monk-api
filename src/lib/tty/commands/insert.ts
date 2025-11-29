@@ -2,14 +2,16 @@
  * insert - Create records
  *
  * Usage:
- *   insert <path>                    Read JSON from stdin
- *   insert <path> '<json>'           Inline JSON
+ *   insert <path>                         Read JSON from stdin
+ *   insert <path> '<json>'                Inline JSON
+ *   insert <path> field=value ...         Field-value pairs
  *
  * Path should be a collection: /api/data/users
  *
  * Examples:
  *   echo '{"name":"bob"}' | insert /api/data/users
  *   insert /api/data/users '{"name":"bob"}'
+ *   insert /api/data/users name=bob email=bob@example.com
  *   cat records.json | insert /api/data/users
  *
  * Outputs the created record(s) as JSON.
@@ -19,6 +21,44 @@ import { FSError } from '@src/lib/fs/index.js';
 import { resolvePath } from '../parser.js';
 import type { CommandHandler } from './shared.js';
 
+/**
+ * Parse field=value arguments into an object
+ */
+function parseFieldValues(args: string[]): Record<string, any> | null {
+    // Check if args look like field=value pairs
+    if (!args.some(arg => arg.includes('='))) {
+        return null;
+    }
+
+    const result: Record<string, any> = {};
+
+    for (const arg of args) {
+        const eqIndex = arg.indexOf('=');
+        if (eqIndex === -1) {
+            // Not a field=value, skip
+            continue;
+        }
+
+        const key = arg.slice(0, eqIndex);
+        let value: any = arg.slice(eqIndex + 1);
+
+        // Try to parse value as JSON (for numbers, booleans, arrays, objects)
+        try {
+            value = JSON.parse(value);
+        } catch {
+            // Keep as string - remove surrounding quotes if present
+            if ((value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))) {
+                value = value.slice(1, -1);
+            }
+        }
+
+        result[key] = value;
+    }
+
+    return Object.keys(result).length > 0 ? result : null;
+}
+
 export const insert: CommandHandler = async (session, fs, args, io) => {
     if (!fs) {
         io.stderr.write('insert: filesystem not available\n');
@@ -27,38 +67,50 @@ export const insert: CommandHandler = async (session, fs, args, io) => {
 
     if (args.length === 0) {
         io.stderr.write('insert: missing path\n');
-        io.stderr.write('Usage: insert <path> [json]\n');
+        io.stderr.write('Usage: insert <path> [json | field=value ...]\n');
         return 1;
     }
 
     const pathArg = args[0];
     const resolved = resolvePath(session.cwd, pathArg);
 
-    // Get JSON from args or stdin
-    let jsonStr: string;
+    // Get data from args or stdin
+    let data: any;
+
     if (args.length > 1) {
-        jsonStr = args.slice(1).join(' ');
+        // Try field=value syntax first
+        const fieldValues = parseFieldValues(args.slice(1));
+        if (fieldValues) {
+            data = fieldValues;
+        } else {
+            // Try as JSON
+            const jsonStr = args.slice(1).join(' ');
+            try {
+                data = JSON.parse(jsonStr);
+            } catch {
+                io.stderr.write('insert: invalid JSON\n');
+                return 1;
+            }
+        }
     } else {
         // Read from stdin
         const chunks: string[] = [];
         for await (const chunk of io.stdin) {
             chunks.push(chunk.toString());
         }
-        jsonStr = chunks.join('');
-    }
+        const jsonStr = chunks.join('');
 
-    if (!jsonStr.trim()) {
-        io.stderr.write('insert: no data provided\n');
-        return 1;
-    }
+        if (!jsonStr.trim()) {
+            io.stderr.write('insert: no data provided\n');
+            return 1;
+        }
 
-    // Parse JSON
-    let data: any;
-    try {
-        data = JSON.parse(jsonStr);
-    } catch {
-        io.stderr.write('insert: invalid JSON\n');
-        return 1;
+        try {
+            data = JSON.parse(jsonStr);
+        } catch {
+            io.stderr.write('insert: invalid JSON\n');
+            return 1;
+        }
     }
 
     // Handle array of records or single record
