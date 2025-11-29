@@ -1,0 +1,12 @@
+insert - Create new records
+
+Usage:
+  insert <path> [field=value ...]
+  echo '<json>' | insert <path>
+
+Examples:
+  insert /api/data/users name="John Doe" access=user
+  insert users email=test@example.com
+  echo '[{"name":"Bob"}]' | insert /api/data/users
+
+Path can be relative (uses current directory) or absolute.

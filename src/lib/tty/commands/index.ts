@@ -39,6 +39,7 @@ import { rmdir } from './rmdir.js';
 // Query commands
 import { select } from './select.js';
 import { describe } from './describe.js';
+import { query } from './query.js';
 import { insert } from './insert.js';
 import { update } from './update.js';
 import { delete_ } from './delete.js';
@@ -172,6 +173,7 @@ export { mkdir } from './mkdir.js';
 export { rmdir } from './rmdir.js';
 export { select } from './select.js';
 export { describe } from './describe.js';
+export { query } from './query.js';
 export { insert } from './insert.js';
 export { update } from './update.js';
 export { delete_ } from './delete.js';
@@ -255,6 +257,7 @@ export const commands: Record<string, CommandHandler> = {
     // Query commands
     select,
     describe,
+    query,
     insert,
     update,
     delete: delete_,

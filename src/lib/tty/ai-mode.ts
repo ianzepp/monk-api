@@ -13,7 +13,7 @@ import { saveHistory } from './profile.js';
 import { renderMarkdown } from './commands/glow.js';
 import { resolvePath } from './parser.js';
 import { PassThrough } from 'node:stream';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { getProjectRoot } from '@src/lib/constants.js';
 import type { FS } from '@src/lib/fs/index.js';
@@ -82,6 +82,33 @@ function getAgentPromptTools(): string {
         }
     }
     return _agentPromptTools;
+}
+
+// Cache for custom command help
+let _customCommands: string | null = null;
+
+function getCustomCommands(): string {
+    if (_customCommands === null) {
+        try {
+            const commandsDir = join(getProjectRoot(), 'monkfs', 'etc', 'agents', 'commands');
+            const files = readdirSync(commandsDir);
+            const commands: string[] = [];
+
+            for (const file of files) {
+                try {
+                    const content = readFileSync(join(commandsDir, file), 'utf-8');
+                    commands.push(content.trim());
+                } catch {
+                    // Skip unreadable files
+                }
+            }
+
+            _customCommands = commands.join('\n\n---\n\n');
+        } catch {
+            _customCommands = '';
+        }
+    }
+    return _customCommands;
 }
 
 // Tool definitions for AI capabilities
@@ -282,6 +309,12 @@ Session context:
         prompt += '\nDo not use markdown formatting unless specifically asked.';
     }
 
+    // Add custom command reference
+    const customCommands = getCustomCommands();
+    if (customCommands) {
+        prompt += '\n\n# Custom Commands\n\nThese commands are specific to monksh and extend standard Unix commands:\n\n' + customCommands;
+    }
+
     return prompt;
 }
 
@@ -378,13 +411,19 @@ async function summarizeMessages(
     }
 }
 
+interface CommandResult {
+    output: string;
+    exitCode: number;
+    error?: string;
+}
+
 /**
  * Execute a command and capture its output
  */
 async function executeCommandCapture(
     session: Session,
     command: string
-): Promise<string> {
+): Promise<CommandResult> {
     const stdout = new PassThrough();
     const stderr = new PassThrough();
     const stdin = new PassThrough();
@@ -408,15 +447,18 @@ async function executeCommandCapture(
             useTransaction: true,
         });
 
-        if (exitCode !== 0) {
-            output += `\n[Exit code: ${exitCode}]`;
-        }
+        return {
+            output: output || '[No output]',
+            exitCode,
+        };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        output += `\n[Error: ${message}]`;
+        return {
+            output: output || '',
+            exitCode: 1,
+            error: message,
+        };
     }
-
-    return output || '[No output]';
 }
 
 /** Session-level AI state */
@@ -424,6 +466,7 @@ interface AIState {
     config: AIConfig;
     messages: Message[];
     initialized: boolean;
+    abortController: AbortController | null;
 }
 
 /** Map of session ID to AI state */
@@ -439,10 +482,24 @@ function getAIState(session: Session): AIState {
             config: loadConfig(),
             messages: [],
             initialized: false,
+            abortController: null,
         };
         aiStates.set(session.id, state);
     }
     return state;
+}
+
+/**
+ * Abort any in-progress AI request for a session
+ */
+export function abortAIRequest(sessionId: string): boolean {
+    const state = aiStates.get(sessionId);
+    if (state?.abortController) {
+        state.abortController.abort();
+        state.abortController = null;
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -574,6 +631,9 @@ async function handleAIMessage(
     while (continueLoop) {
         continueLoop = false;
 
+        // Create abort controller for this request
+        state.abortController = new AbortController();
+
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
@@ -598,6 +658,7 @@ async function handleAIMessage(
                     messages: state.messages,
                     tools: TOOLS,
                 }),
+                signal: state.abortController.signal,
             });
 
             if (!response.ok) {
@@ -621,7 +682,7 @@ async function handleAIMessage(
                     const text = state.config.markdownRendering
                         ? renderMarkdown(block.text)
                         : block.text;
-                    writeToStream(stream, text);
+                    writeToStream(stream, '\n' + text);
                 } else if (block.type === 'tool_use') {
                     assistantContent.push(block);
 
@@ -629,16 +690,27 @@ async function handleAIMessage(
                         const cmd = (block.input as { command: string }).command;
                         writeToStream(stream, `\n\x1b[36m\u25cf\x1b[0m run_command(${cmd})\n`);
 
-                        const output = await executeCommandCapture(session, cmd);
+                        const result = await executeCommandCapture(session, cmd);
 
-                        const lines = output.split('\n').filter(l => l.trim()).length;
-                        const chars = output.length;
-                        writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${lines} lines, ${chars} chars\n\n`);
+                        const lines = result.output.split('\n').filter(l => l.trim()).length;
+                        const chars = result.output.length;
+
+                        if (result.exitCode !== 0 || result.error) {
+                            const errorInfo = result.error || `exit code ${result.exitCode}`;
+                            writeToStream(stream, `  \x1b[31m\u2717\x1b[0m  ${errorInfo}\n`);
+                        } else {
+                            writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${lines} lines, ${chars} chars\n`);
+                        }
+
+                        // Include exit code in tool result for AI awareness
+                        const toolOutput = result.exitCode !== 0
+                            ? `${result.output}\n[Exit code: ${result.exitCode}]`
+                            : result.output;
 
                         toolResults.push({
                             type: 'tool_result',
                             tool_use_id: block.id,
-                            content: output,
+                            content: toolOutput,
                         });
                     } else if (block.name === 'read_file') {
                         const path = (block.input as { path: string }).path;
@@ -663,7 +735,7 @@ async function handleAIMessage(
 
                         const lines = output.split('\n').length;
                         const chars = output.length;
-                        writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${lines} lines, ${chars} chars\n\n`);
+                        writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${lines} lines, ${chars} chars\n`);
 
                         toolResults.push({
                             type: 'tool_result',
@@ -691,7 +763,7 @@ async function handleAIMessage(
                             output = `[Error: ${msg}]`;
                         }
 
-                        writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${output}\n\n`);
+                        writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${output}\n`);
 
                         toolResults.push({
                             type: 'tool_result',
@@ -713,9 +785,16 @@ async function handleAIMessage(
                 writeToStream(stream, '\n\n');
             }
         } catch (err) {
+            // Check if this was an abort
+            if (err instanceof Error && err.name === 'AbortError') {
+                writeToStream(stream, '\n^C\n');
+                break;
+            }
             const errMessage = err instanceof Error ? err.message : 'unknown error';
             writeToStream(stream, `AI error: ${errMessage}\n`);
             break;
+        } finally {
+            state.abortController = null;
         }
     }
 

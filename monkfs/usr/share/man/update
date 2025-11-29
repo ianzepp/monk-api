@@ -1,0 +1,43 @@
+NAME
+    update - modify existing records
+
+SYNOPSIS
+    update <path> [field=value ...]
+    echo '<json>' | update <path>
+
+DESCRIPTION
+    Updates existing records at the specified path. The path should
+    point to a specific record (include the record ID) or use "."
+    for the current directory if already in a record context.
+
+    Fields can be updated by specifying field=value pairs on the
+    command line, or by piping JSON data to stdin.
+
+OPTIONS
+    field=value
+        Set a field value. Can be repeated for multiple fields.
+        Only specified fields are updated; others remain unchanged.
+
+EXAMPLES
+    update /api/data/users/abc-123 name="New Name"
+        Update a specific record by ID
+
+    update . status=active
+        Update current record (when in a record directory)
+
+    cat changes.json | update /api/data/products/xyz-789
+        Update from JSON via stdin
+
+    update users/abc-123 role=admin verified=true
+        Update multiple fields
+
+EXIT STATUS
+    0   Success
+    1   Error (record not found, validation failed, etc.)
+
+NOTES
+    Use insert to create new records.
+    Use delete to remove records.
+
+SEE ALSO
+    insert, delete, select, describe

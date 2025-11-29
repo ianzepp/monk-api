@@ -1,0 +1,40 @@
+NAME
+    insert - create new records
+
+SYNOPSIS
+    insert <path> [field=value ...]
+    echo '<json>' | insert <path>
+
+DESCRIPTION
+    Creates new records in the specified model. Records can be created
+    by specifying field=value pairs on the command line, or by piping
+    JSON data to stdin.
+
+    Path can be relative (uses current directory) or absolute.
+    The path should point to a model directory (e.g., /api/data/users).
+
+OPTIONS
+    field=value
+        Set a field value. Can be repeated for multiple fields.
+        Values are parsed as JSON if they look like JSON, otherwise
+        treated as strings.
+
+EXAMPLES
+    insert /api/data/users name="John Doe" access=user
+        Create a user with inline field values
+
+    insert users email=test@example.com
+        Create in relative path
+
+    echo '[{"name":"Bob"}]' | insert /api/data/users
+        Create from JSON array via stdin
+
+    cat data.json | insert products
+        Bulk insert from file
+
+EXIT STATUS
+    0   Success
+    1   Error (path not found, validation failed, etc.)
+
+SEE ALSO
+    update, delete, select, describe

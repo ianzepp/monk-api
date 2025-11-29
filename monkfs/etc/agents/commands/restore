@@ -1,0 +1,11 @@
+restore - Import records from JSON
+
+Usage:
+  restore <path> < file.json
+  cat file.json | restore <path>
+
+Examples:
+  restore /api/data/users < backup.json
+  cat products.json | restore products
+
+Imports JSON array of records.

@@ -1,0 +1,25 @@
+curl - HTTP requests to internal or external APIs
+
+Usage:
+  curl [options] <url>
+
+Options:
+  -X <method>    HTTP method (GET, POST, PUT, DELETE, PATCH)
+  -H <header>    Add header (repeatable)
+  -d <data>      Request body (use @- for stdin)
+  -o <file>      Write output to file
+  -i             Include response headers
+  -s             Silent mode
+  -v             Verbose
+
+URL formats:
+  /api/...                 Internal API (auto-authenticated)
+  https://example.com      External URL
+
+Examples:
+  curl /api/data/users
+  curl /api/data/users?unwrap&format=toon
+  curl -X POST -d '{"name":"test"}' /api/data/users
+  curl https://api.external.com/data
+
+For queries, prefer: query (simpler, auto-formats output)

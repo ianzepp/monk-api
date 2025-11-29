@@ -1,0 +1,12 @@
+select - Query with field projection (table output)
+
+Usage:
+  select <fields> [from <path>]
+
+Examples:
+  select id, name                    (from current directory)
+  select id, name from users
+  select amount, status from /api/data/orders
+
+Output is ASCII table format, good for human display.
+For compact AI-friendly output, prefer: query

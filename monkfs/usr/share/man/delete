@@ -1,0 +1,41 @@
+NAME
+    delete - remove records (soft delete)
+
+SYNOPSIS
+    delete <path>
+
+DESCRIPTION
+    Removes records at the specified path. Records are soft-deleted,
+    meaning they are moved to the trash and can be restored later.
+
+    The path should point to a specific record (include the record ID)
+    or use "." for the current directory if already in a record context.
+
+EXAMPLES
+    delete /api/data/users/abc-123
+        Delete a specific record by ID
+
+    delete .
+        Delete current record (when in a record directory)
+
+    delete users/abc-123
+        Delete using relative path
+
+TRASH AND RESTORE
+    Soft-deleted records are moved to /api/trashed/<model>/.
+
+    To view trashed records:
+        ls /api/trashed/users
+
+    To restore a trashed record:
+        Use the restore API endpoint
+
+    To permanently delete:
+        Use the permanent delete API endpoint
+
+EXIT STATUS
+    0   Success
+    1   Error (record not found, permission denied, etc.)
+
+SEE ALSO
+    insert, update, select, rm

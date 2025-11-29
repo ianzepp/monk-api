@@ -20,7 +20,7 @@ import { executeLine, createIO } from './executor.js';
 import { saveHistory, applySessionMounts } from './profile.js';
 import { FSError } from '@src/lib/fs/index.js';
 import { runTransaction } from '@src/lib/transaction.js';
-import { processAIInput, saveAIContext, cleanupAIState } from './ai-mode.js';
+import { processAIInput, saveAIContext, cleanupAIState, abortAIRequest } from './ai-mode.js';
 import { processShellInput } from './shell-mode.js';
 
 /**
@@ -44,6 +44,14 @@ export function handleInterrupt(stream: TTYStream, session: Session): boolean {
         session.foregroundAbort.abort();
         writeToStream(stream, '^C\n');
         return true;
+    }
+
+    // If in AI mode, try to abort any in-progress AI request
+    if (session.authenticated && session.mode === 'ai') {
+        if (abortAIRequest(session.id)) {
+            // Abort was triggered - the AI handler will show ^C and prompt
+            return true;
+        }
     }
 
     // No command running - clear input and show new prompt

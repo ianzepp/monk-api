@@ -204,11 +204,20 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
                         return;
                     }
                     if (byte === 0x04) {
-                        // CTRL+D - abort any running command, then disconnect
+                        // CTRL+D - behavior depends on mode
                         if (session.foregroundAbort) {
                             session.foregroundAbort.abort();
                             session.foregroundAbort = null;
                         }
+
+                        // In shell mode, return to AI mode instead of disconnecting
+                        if (session.authenticated && session.mode === 'shell') {
+                            const { exitShellMode } = await import('@src/lib/tty/shell-mode.js');
+                            await exitShellMode(stream, session);
+                            return;
+                        }
+
+                        // In AI mode or unauthenticated, disconnect
                         console.info(`Telnet: Session ${session.id} disconnect via Ctrl+D`);
                         socket.end();
                         return;

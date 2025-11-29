@@ -1,0 +1,12 @@
+update - Modify existing records
+
+Usage:
+  update <path> [field=value ...]
+  echo '<json>' | update <path>
+
+Examples:
+  update /api/data/users/<id> name="New Name"
+  update . status=active
+  cat changes.json | update /api/data/products/<id>
+
+Path should point to a specific record (include ID).
