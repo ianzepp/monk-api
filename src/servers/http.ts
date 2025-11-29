@@ -81,7 +81,7 @@ export function createHttpApp(): Hono {
     app.use('/auth/*', middleware.formatDetectorMiddleware);
     app.use('/auth/*', middleware.responseTransformerMiddleware);
 
-    app.use('/docs/*' /* no auth middleware */);
+    // /docs/* routes are public (no auth middleware applied)
 
     // Protected API routes - require authentication
     app.use('/api/*', middleware.bodyParserMiddleware);
@@ -100,7 +100,7 @@ export function createHttpApp(): Hono {
 
     // Public docs routes (no authentication required)
     app.get('/docs', docsRoutes.ReadmeGet);
-    app.get('/docs/:endpoint{.*}', docsRoutes.ApiEndpointGet);
+    app.get('/docs/*', docsRoutes.ApiEndpointGet);
 
     // App packages - dynamically loaded
     registerAppRoutes(app);

@@ -16,7 +16,9 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * @see Self-documenting API pattern for CLI and AI integration
  */
 export default async function (context: Context) {
-    const endpoint = context.req.param('endpoint') || '';
+    // Extract path from URL, removing /docs prefix
+    const url = new URL(context.req.url);
+    const endpoint = url.pathname.replace(/^\/docs\/?/, '');
     const segments = endpoint.split('/').filter(s => s.length > 0);
 
     if (segments.length === 0) {
@@ -74,11 +76,18 @@ export default async function (context: Context) {
     } else {
         // Pattern 2: API overview documentation (PUBLIC.md)
         // Example: /docs/api/data → api/data/PUBLIC.md
+        // Also supports shorthand: /docs/data → api/data/PUBLIC.md
         const apiDir = join(process.cwd(), baseDir, 'routes', ...segments);
         const publicPath = join(apiDir, 'PUBLIC.md');
 
+        // Try with api/ prefix if direct path doesn't exist (shorthand support)
+        const apiPrefixDir = join(process.cwd(), baseDir, 'routes', 'api', ...segments);
+        const apiPrefixPath = join(apiPrefixDir, 'PUBLIC.md');
+
         if (existsSync(publicPath)) {
             mdFilePath = publicPath;
+        } else if (existsSync(apiPrefixPath)) {
+            mdFilePath = apiPrefixPath;
         } else {
             throw HttpErrors.notFound(
                 `API documentation not found: ${endpoint}. Try /docs/ to see available APIs.`,
