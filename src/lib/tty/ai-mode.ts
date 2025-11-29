@@ -487,6 +487,69 @@ async function summarizeMessages(
     }
 }
 
+/**
+ * Generate a user-facing conversation summary
+ */
+async function generateConversationSummary(
+    messages: Message[],
+    config: AIConfig,
+    apiKey: string
+): Promise<string> {
+    // Build conversation text
+    const conversationText = messages
+        .map(m => {
+            const role = m.role === 'user' ? 'User' : 'Assistant';
+            const content = typeof m.content === 'string'
+                ? m.content
+                : m.content
+                    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+                    .map(b => b.text)
+                    .join('\n');
+            // Include more context for user-facing summary
+            return `${role}: ${content.slice(0, 1000)}${content.length > 1000 ? '...' : ''}`;
+        })
+        .join('\n\n');
+
+    try {
+        const response = await fetch(ANTHROPIC_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+                model: config.model,
+                max_tokens: 1000,
+                system: 'You provide clear, executive summaries of conversations. Be concise but comprehensive.',
+                messages: [
+                    {
+                        role: 'user',
+                        content: `Summarize this conversation. Include:
+- Main topics discussed
+- Key decisions or conclusions reached
+- Any pending questions or action items
+
+Conversation:
+${conversationText}`,
+                    },
+                ],
+            }),
+        });
+
+        if (!response.ok) {
+            return 'Unable to generate summary (API error)';
+        }
+
+        const result = await response.json() as { content: ContentBlock[] };
+        const textBlock = result.content.find((b): b is { type: 'text'; text: string } => b.type === 'text');
+        return textBlock?.text || 'Unable to generate summary';
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : 'unknown error';
+        return `Unable to generate summary: ${msg}`;
+    }
+}
+
 interface CommandResult {
     output: string;
     exitCode: number;
@@ -691,6 +754,31 @@ export async function processAIInput(
         }
 
         writeToStream(stream, 'Context cleared. Starting fresh.\n');
+        writeToStream(stream, TTY_CHARS.AI_PROMPT);
+        return true;
+    }
+
+    // Summarize current conversation
+    if (trimmed === '/summary' || trimmed === '/summarize') {
+        const state = getAIState(session);
+
+        if (state.messages.length === 0) {
+            writeToStream(stream, 'No conversation to summarize.\n');
+            writeToStream(stream, TTY_CHARS.AI_PROMPT);
+            return true;
+        }
+
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) {
+            writeToStream(stream, 'Error: ANTHROPIC_API_KEY not set.\n');
+            writeToStream(stream, TTY_CHARS.AI_PROMPT);
+            return true;
+        }
+
+        writeToStream(stream, '\x1b[2mSummarizing conversation...\x1b[0m\n\n');
+
+        const summary = await generateConversationSummary(state.messages, state.config, apiKey);
+        writeToStream(stream, summary + '\n\n');
         writeToStream(stream, TTY_CHARS.AI_PROMPT);
         return true;
     }
