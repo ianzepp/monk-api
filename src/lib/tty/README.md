@@ -159,6 +159,12 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 ### Version Control
 - `git clone <url> [dest]` - Clone repository to /tmp
 
+### AI Assistant
+- `@` / `ai` - AI assistant (conversation mode when no args)
+- `@ <prompt>` - One-shot question
+- `<input> | @ <prompt>` - Ask about piped data
+- `glow [file]` - Render markdown with terminal styling
+
 ### Session
 - `help` - Show available commands
 - `man <cmd>` - Show manual page
@@ -459,3 +465,81 @@ restore --merge <path>      # Only import new models
 restore -s <path>           # Schema only
 restore -d <path>           # Data only
 ```
+
+## AI Assistant
+
+The `@` command provides an AI assistant powered by Claude. Requires `ANTHROPIC_API_KEY` environment variable on the server.
+
+### One-Shot Mode
+
+Ask a quick question or analyze piped data:
+
+```bash
+@ what time is it in Tokyo?
+cat /api/data/users | @ summarize this data
+select * from users | @ find users with admin role
+@ list 10 unix commands | head -5
+```
+
+### Conversation Mode
+
+Enter interactive mode where the AI can execute commands:
+
+```bash
+$ @
+Entering AI conversation mode. Type "exit" or Ctrl+D to return to shell.
+
+ai> what models are available?
+[Running: describe users]
+The system has a users model with fields: name, auth, access...
+
+ai> how many users are there?
+[Running: count /api/data/users]
+There are 3 users in the system.
+
+ai> exit
+$
+```
+
+In conversation mode, the AI can:
+- Explore the filesystem (`ls`, `cat`, `find`, `tree`)
+- Query data (`select`, `describe`, `count`)
+- Run utilities (`grep`, `wc`, `jq`)
+- Modify files when asked (`touch`, `mkdir`, `rm`)
+
+### Markdown Rendering
+
+Pipe AI output through `glow` for styled terminal output:
+
+```bash
+@ explain docker in markdown | glow
+```
+
+## Foreground Process I/O
+
+Interactive commands can read from stdin while the session handler manages input:
+
+```typescript
+export const myInteractiveCommand: CommandHandler = async (session, fs, args, io) => {
+    io.stdout.write('Enter your name: ');
+
+    // Read a line from stdin (session handler buffers and sends on Enter)
+    for await (const chunk of io.stdin) {
+        const name = chunk.toString().trim();
+        io.stdout.write(`Hello, ${name}!\n`);
+        break;
+    }
+
+    return 0;
+};
+```
+
+The session tracks foreground I/O state:
+- `session.foregroundIO.mode = 'line'` - Line-buffered input with editing
+- `session.foregroundIO.mode = 'raw'` - Raw character-by-character input
+
+When a foreground process is active:
+- User input is piped to `foregroundIO.stdin`
+- Process output goes to `foregroundIO.stdout/stderr`
+- History navigation is disabled
+- Escape sequences are forwarded to the process

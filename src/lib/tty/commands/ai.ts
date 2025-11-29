@@ -367,15 +367,14 @@ async function executeCommandCapture(
     let output = '';
 
     stdout.on('data', (chunk) => {
-        const text = chunk.toString();
-        output += text;
-        parentIO.stdout.write(`\x1b[2m${text}\x1b[0m`); // Dim output
+        output += chunk.toString();
+        // Don't echo stdout - AI will summarize
     });
 
     stderr.on('data', (chunk) => {
         const text = chunk.toString();
         output += text;
-        parentIO.stderr.write(`\x1b[31m${text}\x1b[0m`); // Red errors
+        parentIO.stderr.write(`\x1b[31m${text}\x1b[0m`); // Show errors to user
     });
 
     try {
