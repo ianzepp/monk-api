@@ -224,23 +224,87 @@ function applyConfig(config: AIConfig, values: Record<string, string>): void {
     if (values.SUMMARY_PROMPT) config.summaryPrompt = values.SUMMARY_PROMPT;
 }
 
+/** Context with metadata */
+interface SavedContext {
+    messages: Message[];
+    savedAt?: string;
+}
+
 /**
  * Load saved conversation context from ~/.ai/context.json
  */
-async function loadContext(fs: FS | null, homeDir: string): Promise<Message[]> {
-    if (!fs) return [];
+async function loadContext(fs: FS | null, homeDir: string): Promise<SavedContext> {
+    if (!fs) return { messages: [] };
 
     const contextPath = `${homeDir}/${CONTEXT_FILE}`;
     try {
         const data = await fs.read(contextPath);
         const parsed = JSON.parse(data.toString());
         if (Array.isArray(parsed.messages)) {
-            return parsed.messages;
+            return {
+                messages: parsed.messages,
+                savedAt: parsed.savedAt,
+            };
         }
     } catch {
         // File doesn't exist or invalid JSON
     }
-    return [];
+    return { messages: [] };
+}
+
+/**
+ * Clear saved context
+ */
+async function clearContext(fs: FS | null, homeDir: string): Promise<void> {
+    if (!fs) return;
+    const contextPath = `${homeDir}/${CONTEXT_FILE}`;
+    try {
+        await fs.unlink(contextPath);
+    } catch {
+        // File doesn't exist - that's fine
+    }
+}
+
+/**
+ * Format time ago string
+ */
+function formatTimeAgo(savedAt: string): string {
+    const saved = new Date(savedAt);
+    const now = new Date();
+    const diffMs = now.getTime() - saved.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    if (diffMins > 0) return `${diffMins}m ago`;
+    return 'just now';
+}
+
+/**
+ * Extract last topic from messages (truncated last user message)
+ */
+function extractLastTopic(messages: Message[]): string | null {
+    // Find last user message
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.role === 'user') {
+            const content = typeof msg.content === 'string'
+                ? msg.content
+                : msg.content
+                    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+                    .map(b => b.text)
+                    .join(' ');
+            // Truncate and clean
+            const cleaned = content.replace(/\s+/g, ' ').trim();
+            if (cleaned.length > 50) {
+                return cleaned.slice(0, 47) + '...';
+            }
+            return cleaned || null;
+        }
+    }
+    return null;
 }
 
 /**
@@ -533,6 +597,8 @@ export async function enterAIMode(
 
     // Load context and user config inside transaction
     if (!state.initialized && session.systemInit) {
+        let savedAt: string | undefined;
+
         await runTransaction(session.systemInit, async (system) => {
             applySessionMounts(session, system.fs, system);
             const fs = system.fs;
@@ -542,14 +608,20 @@ export async function enterAIMode(
             applyConfig(state.config, userConfig);
 
             // Load previous conversation context
-            state.messages = await loadContext(fs, homeDir);
+            const context = await loadContext(fs, homeDir);
+            state.messages = context.messages;
+            savedAt = context.savedAt;
         });
 
         state.initialized = true;
 
-        // Show loaded context info
-        if (state.messages.length > 0) {
-            writeToStream(stream, `Context restored (${state.messages.length} messages).\n`);
+        // Show loaded context info with topic summary
+        if (state.messages.length > 0 && savedAt) {
+            const timeAgo = formatTimeAgo(savedAt);
+            const topic = extractLastTopic(state.messages);
+            const topicInfo = topic ? `\n  Last: "${topic}"` : '';
+            writeToStream(stream, `\x1b[2mResuming conversation (${state.messages.length} messages, ${timeAgo})${topicInfo}\x1b[0m\n`);
+            writeToStream(stream, `\x1b[2mType /new to start fresh\x1b[0m\n\n`);
         }
     }
 
@@ -602,6 +674,25 @@ export async function processAIInput(
         await saveHistory(session);
         session.shouldClose = true;
         return false;
+    }
+
+    // Clear context and start fresh
+    if (trimmed === '/new' || trimmed === '/clear') {
+        const state = getAIState(session);
+        const homeDir = `/home/${session.username}`;
+
+        state.messages = [];
+
+        if (session.systemInit) {
+            await runTransaction(session.systemInit, async (system) => {
+                applySessionMounts(session, system.fs, system);
+                await clearContext(system.fs, homeDir);
+            });
+        }
+
+        writeToStream(stream, 'Context cleared. Starting fresh.\n');
+        writeToStream(stream, TTY_CHARS.AI_PROMPT);
+        return true;
     }
 
     // Check for API key
