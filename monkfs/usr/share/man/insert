@@ -3,6 +3,7 @@ NAME
 
 SYNOPSIS
     insert <path> [field=value ...]
+    insert <path> '<json>'
     echo '<json>' | insert <path>
 
 DESCRIPTION
@@ -25,6 +26,9 @@ EXAMPLES
 
     insert users email=test@example.com
         Create in relative path
+
+    insert /api/data/users '{"name":"Bob","email":"bob@test.com"}'
+        Create with inline JSON
 
     echo '[{"name":"Bob"}]' | insert /api/data/users
         Create from JSON array via stdin

@@ -3,6 +3,7 @@ NAME
 
 SYNOPSIS
     update <path> [field=value ...]
+    update <path> '<json>'
     echo '<json>' | update <path>
 
 DESCRIPTION
@@ -24,6 +25,9 @@ EXAMPLES
 
     update . status=active
         Update current record (when in a record directory)
+
+    update /api/data/users/abc-123 '{"name":"New Name","status":"active"}'
+        Update with inline JSON
 
     cat changes.json | update /api/data/products/xyz-789
         Update from JSON via stdin
