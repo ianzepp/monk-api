@@ -44,7 +44,7 @@ export async function oneShotMode(
     }
 
     // Build system prompt with session context
-    const systemPrompt = buildSystemPrompt(session, false);
+    const systemPrompt = await buildSystemPrompt(session, false);
 
     // Build headers based on config
     const headers: Record<string, string> = {
@@ -144,7 +144,7 @@ export async function conversationMode(
 
     io.stdout.write('\n');
 
-    const systemPrompt = buildSystemPrompt(session, true);
+    const systemPrompt = await buildSystemPrompt(session, true);
 
     // Show initial prompt
     io.stdout.write('\x1b[36m@>\x1b[0m ');

@@ -7,17 +7,18 @@
 
 import type { Session } from './types.js';
 import type { SystemInit } from '@src/lib/system.js';
+import type { AgentEvent } from '@src/lib/ai.js';
 import { createSession, generateSessionId } from './types.js';
 import { runTransaction } from '@src/lib/transaction.js';
-import { applySessionMounts, loadHistory } from './profile.js';
-import { executeLine, createIO } from './executor.js';
-import { resolvePath } from './parser.js';
-import { PassThrough } from 'node:stream';
+import { applySessionMounts } from './profile.js';
+import { loadSTMFull, formatAlarmsForPrompt } from './memory.js';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { getProjectRoot } from '@src/lib/constants.js';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+// =============================================================================
+// Types
+// =============================================================================
 
 /**
  * Agent response structure (for non-streaming)
@@ -34,7 +35,7 @@ export interface AgentResponse {
 }
 
 /**
- * Streaming event types
+ * Streaming event types (re-export compatible with existing consumers)
  */
 export type AgentStreamEvent =
     | { type: 'tool_call'; name: string; input: Record<string, unknown> }
@@ -43,89 +44,9 @@ export type AgentStreamEvent =
     | { type: 'error'; message: string }
     | { type: 'done'; success: boolean };
 
-/**
- * Tool call record
- */
-interface ToolCall {
-    name: string;
-    input: Record<string, unknown>;
-    output: string;
-}
-
-/**
- * AI configuration
- */
-interface AIConfig {
-    model: string;
-    maxTurns: number;
-    maxTokens: number;
-}
-
-const DEFAULT_CONFIG: AIConfig = {
-    model: 'claude-sonnet-4-20250514',
-    maxTurns: 20,
-    maxTokens: 4096,
-};
-
-type ContentBlock =
-    | { type: 'text'; text: string }
-    | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
-    | { type: 'tool_result'; tool_use_id: string; content: string };
-
-type Message = {
-    role: 'user' | 'assistant';
-    content: string | ContentBlock[];
-};
-
-// Tool definitions for AI capabilities
-const TOOLS = [
-    {
-        name: 'run_command',
-        description: 'Execute a shell command in monksh and return the output.',
-        input_schema: {
-            type: 'object',
-            properties: {
-                command: {
-                    type: 'string',
-                    description: 'The shell command to execute',
-                },
-            },
-            required: ['command'],
-        },
-    },
-    {
-        name: 'read_file',
-        description: 'Read the contents of a file.',
-        input_schema: {
-            type: 'object',
-            properties: {
-                path: {
-                    type: 'string',
-                    description: 'The file path to read',
-                },
-            },
-            required: ['path'],
-        },
-    },
-    {
-        name: 'write_file',
-        description: 'Write content to a file.',
-        input_schema: {
-            type: 'object',
-            properties: {
-                path: {
-                    type: 'string',
-                    description: 'The file path to write',
-                },
-                content: {
-                    type: 'string',
-                    description: 'The content to write',
-                },
-            },
-            required: ['path', 'content'],
-        },
-    },
-];
+// =============================================================================
+// Agent Prompts
+// =============================================================================
 
 // Cache for agent prompt
 let _agentPrompt: string | null = null;
@@ -167,6 +88,10 @@ function getCustomCommands(): { name: string; content: string }[] {
     }
     return _customCommands;
 }
+
+// =============================================================================
+// Session Management
+// =============================================================================
 
 /**
  * Session cache for headless sessions
@@ -212,9 +137,20 @@ export function getOrCreateHeadlessSession(
 }
 
 /**
+ * Clear cached session
+ */
+export function clearHeadlessSession(sessionId: string): void {
+    sessionCache.delete(sessionId);
+}
+
+// =============================================================================
+// System Prompt Building
+// =============================================================================
+
+/**
  * Build system prompt for headless agent
  */
-function buildSystemPrompt(session: Session): string {
+async function buildSystemPrompt(session: Session): Promise<string> {
     const parts: string[] = [];
 
     // Base agent prompt
@@ -237,42 +173,33 @@ Session context:
 - Tenant: ${session.tenant}
 `);
 
+    // Include STM contents if available
+    const stmData = await loadSTMFull(session);
+    const stmEntries = Object.entries(stmData.entries);
+
+    if (stmEntries.length > 0 || stmData.alarms.length > 0) {
+        let stmSection = 'Current short-term memory (STM):';
+
+        if (stmEntries.length > 0) {
+            stmSection += `\n${stmEntries.map(([k, v]) => `- ${k}: ${v}`).join('\n')}`;
+        }
+
+        if (stmData.alarms.length > 0) {
+            const alarmText = formatAlarmsForPrompt(stmData.alarms);
+            if (alarmText) {
+                stmSection += `\n\nPending alarms:\n${alarmText}`;
+            }
+        }
+
+        parts.push(stmSection);
+    }
+
     return parts.join('\n');
 }
 
-/**
- * Execute a command and capture output
- */
-async function executeCommandCapture(
-    session: Session,
-    command: string
-): Promise<{ output: string; exitCode: number; error?: string }> {
-    const stdout = new PassThrough();
-    const stderr = new PassThrough();
-    const stdin = new PassThrough();
-    stdin.end();
-
-    const io = { stdin, stdout, stderr };
-    let output = '';
-
-    stdout.on('data', (chunk) => {
-        output += chunk.toString();
-    });
-    stderr.on('data', (chunk) => {
-        output += chunk.toString();
-    });
-
-    try {
-        const exitCode = await executeLine(session, command, io, {
-            addToHistory: false,
-            useTransaction: true,
-        });
-        return { output: output || '[No output]', exitCode };
-    } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { output, exitCode: 1, error: message };
-    }
-}
+// =============================================================================
+// Agent Execution
+// =============================================================================
 
 /**
  * Execute AI agent with a prompt
@@ -287,155 +214,64 @@ export async function executeAgentPrompt(
         maxTurns?: number;
     }
 ): Promise<AgentResponse> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    const session = getOrCreateHeadlessSession(systemInit, options?.sessionId);
+
+    // Build system prompt
+    const systemPrompt = await buildSystemPrompt(session);
+
+    const toolCalls: { name: string; input: Record<string, unknown>; output: string }[] = [];
+    let responseText = '';
+    let success = true;
+    let error: string | undefined;
+
+    try {
+        // Use system.ai.agent() via transaction
+        await runTransaction(systemInit, async (system) => {
+            applySessionMounts(session, system.fs, system);
+
+            for await (const event of system.ai.agent(session, prompt, {
+                systemPrompt,
+                maxTurns: options?.maxTurns,
+            })) {
+                switch (event.type) {
+                    case 'text':
+                        responseText += (responseText ? '\n' : '') + event.content;
+                        break;
+                    case 'tool_call':
+                        // Will be paired with tool_result
+                        break;
+                    case 'tool_result':
+                        toolCalls.push({
+                            name: event.name,
+                            input: {}, // Input was in tool_call event
+                            output: event.output,
+                        });
+                        break;
+                    case 'error':
+                        error = event.message;
+                        success = false;
+                        break;
+                    case 'done':
+                        success = event.success;
+                        break;
+                }
+            }
+        });
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
         return {
             success: false,
-            response: '',
-            error: 'ANTHROPIC_API_KEY not configured',
+            response: responseText,
+            toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+            error: message,
         };
     }
 
-    const session = getOrCreateHeadlessSession(systemInit, options?.sessionId);
-    const config = { ...DEFAULT_CONFIG };
-    if (options?.maxTurns) {
-        config.maxTurns = options.maxTurns;
-    }
-
-    const systemPrompt = buildSystemPrompt(session);
-    const messages: Message[] = [{ role: 'user', content: prompt }];
-    const toolCalls: ToolCall[] = [];
-    let responseText = '';
-
-    // Agentic loop
-    let turns = 0;
-    let continueLoop = true;
-
-    while (continueLoop && turns < config.maxTurns) {
-        continueLoop = false;
-        turns++;
-
-        try {
-            const response = await fetch(ANTHROPIC_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01',
-                },
-                body: JSON.stringify({
-                    model: config.model,
-                    max_tokens: config.maxTokens,
-                    system: systemPrompt,
-                    messages,
-                    tools: TOOLS,
-                }),
-            });
-
-            if (!response.ok) {
-                const error = await response.text();
-                return {
-                    success: false,
-                    response: responseText,
-                    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-                    error: `API error ${response.status}: ${error}`,
-                };
-            }
-
-            const result = (await response.json()) as {
-                content: ContentBlock[];
-                stop_reason: string;
-            };
-
-            // Process response
-            const assistantContent: ContentBlock[] = [];
-            const toolResults: ContentBlock[] = [];
-
-            for (const block of result.content) {
-                if (block.type === 'text') {
-                    assistantContent.push(block);
-                    responseText += (responseText ? '\n' : '') + block.text;
-                } else if (block.type === 'tool_use') {
-                    assistantContent.push(block);
-
-                    let output: string;
-
-                    if (block.name === 'run_command') {
-                        const cmd = (block.input as { command: string }).command;
-                        const result = await executeCommandCapture(session, cmd);
-                        output =
-                            result.exitCode !== 0
-                                ? `${result.output}\n[Exit code: ${result.exitCode}]`
-                                : result.output;
-
-                        toolCalls.push({ name: 'run_command', input: block.input, output });
-                    } else if (block.name === 'read_file') {
-                        const path = (block.input as { path: string }).path;
-                        const resolved = resolvePath(session.cwd, path);
-
-                        try {
-                            output = await runTransaction(session.systemInit!, async (system) => {
-                                applySessionMounts(session, system.fs, system);
-                                const data = await system.fs.read(resolved);
-                                return data.toString();
-                            });
-                        } catch (err) {
-                            const msg = err instanceof Error ? err.message : String(err);
-                            output = `[Error: ${msg}]`;
-                        }
-
-                        toolCalls.push({ name: 'read_file', input: block.input, output });
-                    } else if (block.name === 'write_file') {
-                        const { path, content } = block.input as { path: string; content: string };
-                        const resolved = resolvePath(session.cwd, path);
-
-                        try {
-                            await runTransaction(session.systemInit!, async (system) => {
-                                applySessionMounts(session, system.fs, system);
-                                await system.fs.write(resolved, content);
-                            });
-                            output = `Wrote ${content.length} bytes to ${resolved}`;
-                        } catch (err) {
-                            const msg = err instanceof Error ? err.message : String(err);
-                            output = `[Error: ${msg}]`;
-                        }
-
-                        toolCalls.push({ name: 'write_file', input: block.input, output });
-                    } else {
-                        output = `Unknown tool: ${block.name}`;
-                    }
-
-                    toolResults.push({
-                        type: 'tool_result',
-                        tool_use_id: block.id,
-                        content: output,
-                    });
-                }
-            }
-
-            // Add assistant message
-            messages.push({ role: 'assistant', content: assistantContent });
-
-            // If there were tool uses, continue loop
-            if (toolResults.length > 0) {
-                messages.push({ role: 'user', content: toolResults });
-                continueLoop = true;
-            }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            return {
-                success: false,
-                response: responseText,
-                toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-                error: message,
-            };
-        }
-    }
-
     return {
-        success: true,
+        success,
         response: responseText,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        error,
     };
 }
 
@@ -452,149 +288,61 @@ export async function* executeAgentPromptStream(
         maxTurns?: number;
     }
 ): AsyncGenerator<AgentStreamEvent> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-        yield { type: 'error', message: 'ANTHROPIC_API_KEY not configured' };
-        yield { type: 'done', success: false };
-        return;
-    }
-
     const session = getOrCreateHeadlessSession(systemInit, options?.sessionId);
-    const config = { ...DEFAULT_CONFIG };
-    if (options?.maxTurns) {
-        config.maxTurns = options.maxTurns;
-    }
 
-    const systemPrompt = buildSystemPrompt(session);
-    const messages: Message[] = [{ role: 'user', content: prompt }];
+    // Build system prompt
+    const systemPrompt = await buildSystemPrompt(session);
 
-    // Agentic loop
-    let turns = 0;
-    let continueLoop = true;
+    // Track tool calls for pairing with results
+    const pendingToolCalls = new Map<string, { name: string; input: Record<string, unknown> }>();
 
-    while (continueLoop && turns < config.maxTurns) {
-        continueLoop = false;
-        turns++;
+    try {
+        // Use system.ai.agent() via transaction
+        // Note: We collect events inside the transaction and yield after
+        // because generators can't yield across async boundaries in some cases
+        const events: AgentStreamEvent[] = [];
 
-        try {
-            const response = await fetch(ANTHROPIC_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01',
-                },
-                body: JSON.stringify({
-                    model: config.model,
-                    max_tokens: config.maxTokens,
-                    system: systemPrompt,
-                    messages,
-                    tools: TOOLS,
-                }),
-            });
+        await runTransaction(systemInit, async (system) => {
+            applySessionMounts(session, system.fs, system);
 
-            if (!response.ok) {
-                const error = await response.text();
-                yield { type: 'error', message: `API error ${response.status}: ${error}` };
-                yield { type: 'done', success: false };
-                return;
-            }
-
-            const result = (await response.json()) as {
-                content: ContentBlock[];
-                stop_reason: string;
-            };
-
-            // Process response
-            const assistantContent: ContentBlock[] = [];
-            const toolResults: ContentBlock[] = [];
-
-            for (const block of result.content) {
-                if (block.type === 'text') {
-                    assistantContent.push(block);
-                    yield { type: 'text', content: block.text };
-                } else if (block.type === 'tool_use') {
-                    assistantContent.push(block);
-
-                    // Emit tool_call event
-                    yield { type: 'tool_call', name: block.name, input: block.input };
-
-                    let output: string;
-                    let exitCode: number | undefined;
-
-                    if (block.name === 'run_command') {
-                        const cmd = (block.input as { command: string }).command;
-                        const cmdResult = await executeCommandCapture(session, cmd);
-                        exitCode = cmdResult.exitCode;
-                        output =
-                            cmdResult.exitCode !== 0
-                                ? `${cmdResult.output}\n[Exit code: ${cmdResult.exitCode}]`
-                                : cmdResult.output;
-                    } else if (block.name === 'read_file') {
-                        const path = (block.input as { path: string }).path;
-                        const resolved = resolvePath(session.cwd, path);
-
-                        try {
-                            output = await runTransaction(session.systemInit!, async (system) => {
-                                applySessionMounts(session, system.fs, system);
-                                const data = await system.fs.read(resolved);
-                                return data.toString();
-                            });
-                        } catch (err) {
-                            const msg = err instanceof Error ? err.message : String(err);
-                            output = `[Error: ${msg}]`;
-                        }
-                    } else if (block.name === 'write_file') {
-                        const { path, content } = block.input as { path: string; content: string };
-                        const resolved = resolvePath(session.cwd, path);
-
-                        try {
-                            await runTransaction(session.systemInit!, async (system) => {
-                                applySessionMounts(session, system.fs, system);
-                                await system.fs.write(resolved, content);
-                            });
-                            output = `Wrote ${content.length} bytes to ${resolved}`;
-                        } catch (err) {
-                            const msg = err instanceof Error ? err.message : String(err);
-                            output = `[Error: ${msg}]`;
-                        }
-                    } else {
-                        output = `Unknown tool: ${block.name}`;
-                    }
-
-                    // Emit tool_result event
-                    yield { type: 'tool_result', name: block.name, output, exitCode };
-
-                    toolResults.push({
-                        type: 'tool_result',
-                        tool_use_id: block.id,
-                        content: output,
-                    });
+            for await (const event of system.ai.agent(session, prompt, {
+                systemPrompt,
+                maxTurns: options?.maxTurns,
+            })) {
+                // Convert AgentEvent to AgentStreamEvent
+                switch (event.type) {
+                    case 'text':
+                        events.push({ type: 'text', content: event.content });
+                        break;
+                    case 'tool_call':
+                        pendingToolCalls.set(event.id, { name: event.name, input: event.input });
+                        events.push({ type: 'tool_call', name: event.name, input: event.input });
+                        break;
+                    case 'tool_result':
+                        events.push({
+                            type: 'tool_result',
+                            name: event.name,
+                            output: event.output,
+                            exitCode: event.exitCode,
+                        });
+                        break;
+                    case 'error':
+                        events.push({ type: 'error', message: event.message });
+                        break;
+                    case 'done':
+                        events.push({ type: 'done', success: event.success });
+                        break;
                 }
             }
+        });
 
-            // Add assistant message
-            messages.push({ role: 'assistant', content: assistantContent });
-
-            // If there were tool uses, continue loop
-            if (toolResults.length > 0) {
-                messages.push({ role: 'user', content: toolResults });
-                continueLoop = true;
-            }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            yield { type: 'error', message };
-            yield { type: 'done', success: false };
-            return;
+        // Yield collected events
+        for (const event of events) {
+            yield event;
         }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        yield { type: 'error', message };
+        yield { type: 'done', success: false };
     }
-
-    yield { type: 'done', success: true };
-}
-
-/**
- * Clear cached session
- */
-export function clearHeadlessSession(sessionId: string): void {
-    sessionCache.delete(sessionId);
 }

@@ -5,22 +5,22 @@
  * Users can escape to shell via '!' or '! cmd'.
  */
 
-import type { Session, TTYStream, CommandIO } from './types.js';
+import type { Session, TTYStream } from './types.js';
+import type { Message } from '@src/lib/ai.js';
 import { TTY_CHARS } from './types.js';
 import { enterShellMode } from './shell-mode.js';
-import { executeLine, createIO } from './executor.js';
 import { saveHistory } from './profile.js';
+import { loadSTMFull, formatAlarmsForPrompt } from './memory.js';
 import { renderMarkdown } from './commands/glow.js';
-import { resolvePath } from './parser.js';
-import { PassThrough } from 'node:stream';
+import { runTransaction } from '@src/lib/transaction.js';
+import { applySessionMounts } from './profile.js';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { getProjectRoot } from '@src/lib/constants.js';
-import type { FS } from '@src/lib/fs/index.js';
-import { runTransaction } from '@src/lib/transaction.js';
-import { applySessionMounts } from './profile.js';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+// =============================================================================
+// Configuration
+// =============================================================================
 
 /**
  * AI configuration with defaults
@@ -45,22 +45,12 @@ const DEFAULT_CONFIG: AIConfig = {
     summaryPrompt: 'Summarize the key points and decisions from this conversation in 2-3 sentences.',
 };
 
-type Message = {
-    role: 'user' | 'assistant';
-    content: string | ContentBlock[];
-};
-
-type ContentBlock =
-    | { type: 'text'; text: string }
-    | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
-    | { type: 'tool_result'; tool_use_id: string; content: string };
-
-/** Context file path relative to home directory */
-const CONTEXT_FILE = '.ai/context.json';
+// =============================================================================
+// Agent Prompts
+// =============================================================================
 
 // Load agent prompts lazily from monkfs/etc/agents/
 let _agentPromptBase: string | null = null;
-let _agentPromptTools: string | null = null;
 
 function getAgentPromptBase(): string {
     if (_agentPromptBase === null) {
@@ -98,55 +88,9 @@ function getCustomCommands(): { name: string; content: string }[] {
     return _customCommands;
 }
 
-// Tool definitions for AI capabilities
-const TOOLS = [
-    {
-        name: 'run_command',
-        description: 'Execute a shell command in monksh and return the output. Use this to explore the filesystem, query data, run utilities, etc. Do NOT use this for reading or writing files - use read_file and write_file instead.',
-        input_schema: {
-            type: 'object',
-            properties: {
-                command: {
-                    type: 'string',
-                    description: 'The shell command to execute (e.g., "ls -la", "select * from users", "ps")',
-                },
-            },
-            required: ['command'],
-        },
-    },
-    {
-        name: 'read_file',
-        description: 'Read the contents of a file. Use this instead of cat or run_command for reading files.',
-        input_schema: {
-            type: 'object',
-            properties: {
-                path: {
-                    type: 'string',
-                    description: 'The file path to read (absolute or relative to current directory)',
-                },
-            },
-            required: ['path'],
-        },
-    },
-    {
-        name: 'write_file',
-        description: 'Write content to a file. Creates the file if it does not exist, overwrites if it does. Use this instead of echo/redirect for writing files.',
-        input_schema: {
-            type: 'object',
-            properties: {
-                path: {
-                    type: 'string',
-                    description: 'The file path to write (absolute or relative to current directory)',
-                },
-                content: {
-                    type: 'string',
-                    description: 'The content to write to the file',
-                },
-            },
-            required: ['path', 'content'],
-        },
-    },
-];
+// =============================================================================
+// Utilities
+// =============================================================================
 
 /**
  * Write to TTY stream with CRLF
@@ -194,19 +138,6 @@ function loadConfig(): AIConfig {
 }
 
 /**
- * Load user config overrides from ~/.ai/config
- */
-async function loadUserConfig(fs: FS | null, homeDir: string): Promise<Record<string, string>> {
-    if (!fs) return {};
-    try {
-        const data = await fs.read(`${homeDir}/.ai/config`);
-        return parseConfig(data.toString());
-    } catch {
-        return {};
-    }
-}
-
-/**
  * Apply parsed config values to AIConfig
  */
 function applyConfig(config: AIConfig, values: Record<string, string>): void {
@@ -224,6 +155,13 @@ function applyConfig(config: AIConfig, values: Record<string, string>): void {
     if (values.SUMMARY_PROMPT) config.summaryPrompt = values.SUMMARY_PROMPT;
 }
 
+// =============================================================================
+// Context Management
+// =============================================================================
+
+/** Context file path relative to home directory */
+const CONTEXT_FILE = '.ai/context.json';
+
 /** Context with metadata */
 interface SavedContext {
     messages: Message[];
@@ -233,35 +171,87 @@ interface SavedContext {
 /**
  * Load saved conversation context from ~/.ai/context.json
  */
-async function loadContext(fs: FS | null, homeDir: string): Promise<SavedContext> {
-    if (!fs) return { messages: [] };
+async function loadContext(session: Session): Promise<SavedContext> {
+    if (!session.systemInit) return { messages: [] };
 
+    const homeDir = `/home/${session.username}`;
     const contextPath = `${homeDir}/${CONTEXT_FILE}`;
+
     try {
-        const data = await fs.read(contextPath);
-        const parsed = JSON.parse(data.toString());
-        if (Array.isArray(parsed.messages)) {
-            return {
-                messages: parsed.messages,
-                savedAt: parsed.savedAt,
-            };
-        }
+        let result: SavedContext = { messages: [] };
+        await runTransaction(session.systemInit, async (system) => {
+            applySessionMounts(session, system.fs, system);
+            try {
+                const data = await system.fs.read(contextPath);
+                const parsed = JSON.parse(data.toString());
+                if (Array.isArray(parsed.messages)) {
+                    result = {
+                        messages: parsed.messages,
+                        savedAt: parsed.savedAt,
+                    };
+                }
+            } catch {
+                // File doesn't exist or invalid JSON
+            }
+        });
+        return result;
     } catch {
-        // File doesn't exist or invalid JSON
+        return { messages: [] };
     }
-    return { messages: [] };
+}
+
+/**
+ * Save conversation context to ~/.ai/context.json
+ */
+async function saveContext(session: Session, messages: Message[]): Promise<void> {
+    if (!session.systemInit || messages.length === 0) return;
+
+    const homeDir = `/home/${session.username}`;
+    const contextPath = `${homeDir}/${CONTEXT_FILE}`;
+    const aiDir = `${homeDir}/.ai`;
+
+    try {
+        await runTransaction(session.systemInit, async (system) => {
+            applySessionMounts(session, system.fs, system);
+            try {
+                await system.fs.stat(aiDir);
+            } catch {
+                await system.fs.mkdir(aiDir);
+            }
+
+            const context = {
+                version: 1,
+                savedAt: new Date().toISOString(),
+                messageCount: messages.length,
+                messages,
+            };
+            await system.fs.write(contextPath, JSON.stringify(context, null, 2));
+        });
+    } catch {
+        // Silently fail
+    }
 }
 
 /**
  * Clear saved context
  */
-async function clearContext(fs: FS | null, homeDir: string): Promise<void> {
-    if (!fs) return;
+async function clearContext(session: Session): Promise<void> {
+    if (!session.systemInit) return;
+
+    const homeDir = `/home/${session.username}`;
     const contextPath = `${homeDir}/${CONTEXT_FILE}`;
+
     try {
-        await fs.unlink(contextPath);
+        await runTransaction(session.systemInit, async (system) => {
+            applySessionMounts(session, system.fs, system);
+            try {
+                await system.fs.unlink(contextPath);
+            } catch {
+                // File doesn't exist - that's fine
+            }
+        });
     } catch {
-        // File doesn't exist - that's fine
+        // Silently fail
     }
 }
 
@@ -307,102 +297,75 @@ function extractLastTopic(messages: Message[]): string | null {
     return null;
 }
 
-/**
- * Save conversation context to ~/.ai/context.json
- */
-async function saveContextToFile(fs: FS | null, homeDir: string, messages: Message[]): Promise<void> {
-    if (!fs || messages.length === 0) return;
-
-    const contextPath = `${homeDir}/${CONTEXT_FILE}`;
-    const aiDir = `${homeDir}/.ai`;
-
-    try {
-        try {
-            await fs.stat(aiDir);
-        } catch {
-            await fs.mkdir(aiDir);
-        }
-
-        const context = {
-            version: 1,
-            savedAt: new Date().toISOString(),
-            messageCount: messages.length,
-            messages,
-        };
-        await fs.write(contextPath, JSON.stringify(context, null, 2));
-    } catch {
-        // Silently fail
-    }
-}
-
-/** System prompt content block */
-interface SystemBlock {
-    type: 'text';
-    text: string;
-    cache_control?: { type: 'ephemeral' };
-}
+// =============================================================================
+// System Prompt Building
+// =============================================================================
 
 /**
- * Build system prompt as array of content blocks
- *
- * Static content (base prompt, tools, commands) is marked for caching.
- * Dynamic content (session context) is not cached.
+ * Build system prompt with STM contents
  */
-function buildSystemPrompt(session: Session, withTools: boolean): SystemBlock[] {
-    const blocks: SystemBlock[] = [];
+async function buildSystemPrompt(session: Session): Promise<string> {
+    const parts: string[] = [];
 
-    // Base agent prompt (static, cached)
-    blocks.push({
-        type: 'text',
-        text: getAgentPromptBase(),
-        cache_control: { type: 'ephemeral' },
-    });
+    // Base agent prompt
+    parts.push(getAgentPromptBase());
 
-    // Custom commands - each as separate block (static, cached)
+    // Custom commands
     const customCommands = getCustomCommands();
     if (customCommands.length > 0) {
-        blocks.push({
-            type: 'text',
-            text: '# Custom Commands\n\nThese commands are specific to monksh:',
-            cache_control: { type: 'ephemeral' },
-        });
-
+        parts.push('\n# Custom Commands\n\nThese commands are specific to monksh:');
         for (const cmd of customCommands) {
-            blocks.push({
-                type: 'text',
-                text: cmd.content,
-                cache_control: { type: 'ephemeral' },
-            });
+            parts.push(cmd.content);
         }
     }
 
-    // Session context (dynamic, not cached)
-    let sessionContext = `Session context:
+    // Session context
+    parts.push(`
+Session context:
 - Working directory: ${session.cwd}
 - User: ${session.username}
-- Tenant: ${session.tenant}`;
+- Tenant: ${session.tenant}`);
 
     // Inject shell transcript if available
     if (session.shellTranscript.length > 0) {
-        sessionContext += `\n\nRecent shell session:\n${session.shellTranscript.join('\n---\n')}`;
+        parts.push(`\n\nRecent shell session:\n${session.shellTranscript.join('\n---\n')}`);
     }
 
-    blocks.push({
-        type: 'text',
-        text: sessionContext,
-        // No cache_control - this is dynamic per-session
-    });
+    // Include STM contents if available
+    const stmData = await loadSTMFull(session);
+    const stmEntries = Object.entries(stmData.entries);
 
-    return blocks;
+    if (stmEntries.length > 0 || stmData.alarms.length > 0) {
+        let stmText = '\n\nCurrent short-term memory (STM):';
+
+        if (stmEntries.length > 0) {
+            stmText += `\n${stmEntries.map(([k, v]) => `- ${k}: ${v}`).join('\n')}`;
+        }
+
+        if (stmData.alarms.length > 0) {
+            const alarmText = formatAlarmsForPrompt(stmData.alarms);
+            if (alarmText) {
+                stmText += `\n\nPending alarms:\n${alarmText}`;
+            }
+        }
+
+        parts.push(stmText);
+    }
+
+    return parts.join('\n');
 }
+
+// =============================================================================
+// Context Strategy
+// =============================================================================
 
 /**
  * Apply context strategy (sliding window) to messages
  */
 async function applyContextStrategy(
+    session: Session,
     messages: Message[],
-    config: AIConfig,
-    apiKey: string
+    config: AIConfig
 ): Promise<Message[]> {
     const maxMessages = config.maxTurns * 2;
 
@@ -420,7 +383,7 @@ async function applyContextStrategy(
         case 'summarize': {
             const oldMessages = messages.slice(0, -maxMessages);
             const recentMessages = messages.slice(-maxMessages);
-            const summary = await summarizeMessages(oldMessages, config, apiKey);
+            const summary = await summarizeMessages(session, oldMessages, config);
             return [
                 { role: 'user', content: `[Previous conversation summary: ${summary}]` },
                 { role: 'assistant', content: 'I understand the context from our previous conversation.' },
@@ -437,10 +400,12 @@ async function applyContextStrategy(
  * Summarize a list of messages using the AI
  */
 async function summarizeMessages(
+    session: Session,
     messages: Message[],
-    config: AIConfig,
-    apiKey: string
+    config: AIConfig
 ): Promise<string> {
+    if (!session.systemInit) return 'Previous conversation context';
+
     const conversationText = messages
         .map(m => {
             const role = m.role === 'user' ? 'User' : 'Assistant';
@@ -455,33 +420,18 @@ async function summarizeMessages(
         .join('\n\n');
 
     try {
-        const response = await fetch(ANTHROPIC_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify({
-                model: config.model,
-                max_tokens: 500,
-                system: 'You are a helpful assistant that summarizes conversations concisely.',
-                messages: [
-                    {
-                        role: 'user',
-                        content: `${config.summaryPrompt}\n\nConversation:\n${conversationText}`,
-                    },
-                ],
-            }),
+        let summary = 'Previous conversation context';
+        await runTransaction(session.systemInit, async (system) => {
+            summary = await system.ai.prompt(
+                `${config.summaryPrompt}\n\nConversation:\n${conversationText}`,
+                {
+                    model: config.model,
+                    maxTokens: 500,
+                    systemPrompt: 'You are a helpful assistant that summarizes conversations concisely.',
+                }
+            );
         });
-
-        if (!response.ok) {
-            return 'Previous conversation context (summary unavailable)';
-        }
-
-        const result = await response.json() as { content: ContentBlock[] };
-        const textBlock = result.content.find((b): b is { type: 'text'; text: string } => b.type === 'text');
-        return textBlock?.text || 'Previous conversation context';
+        return summary;
     } catch {
         return 'Previous conversation context (summary unavailable)';
     }
@@ -491,11 +441,12 @@ async function summarizeMessages(
  * Generate a user-facing conversation summary
  */
 async function generateConversationSummary(
+    session: Session,
     messages: Message[],
-    config: AIConfig,
-    apiKey: string
+    config: AIConfig
 ): Promise<string> {
-    // Build conversation text
+    if (!session.systemInit) return 'Unable to generate summary';
+
     const conversationText = messages
         .map(m => {
             const role = m.role === 'user' ? 'User' : 'Assistant';
@@ -505,100 +456,38 @@ async function generateConversationSummary(
                     .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
                     .map(b => b.text)
                     .join('\n');
-            // Include more context for user-facing summary
             return `${role}: ${content.slice(0, 1000)}${content.length > 1000 ? '...' : ''}`;
         })
         .join('\n\n');
 
     try {
-        const response = await fetch(ANTHROPIC_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify({
-                model: config.model,
-                max_tokens: 1000,
-                system: 'You provide clear, executive summaries of conversations. Be concise but comprehensive.',
-                messages: [
-                    {
-                        role: 'user',
-                        content: `Summarize this conversation. Include:
+        let summary = 'Unable to generate summary';
+        await runTransaction(session.systemInit, async (system) => {
+            summary = await system.ai.prompt(
+                `Summarize this conversation. Include:
 - Main topics discussed
 - Key decisions or conclusions reached
 - Any pending questions or action items
 
 Conversation:
 ${conversationText}`,
-                    },
-                ],
-            }),
+                {
+                    model: config.model,
+                    maxTokens: 1000,
+                    systemPrompt: 'You provide clear, executive summaries of conversations. Be concise but comprehensive.',
+                }
+            );
         });
-
-        if (!response.ok) {
-            return 'Unable to generate summary (API error)';
-        }
-
-        const result = await response.json() as { content: ContentBlock[] };
-        const textBlock = result.content.find((b): b is { type: 'text'; text: string } => b.type === 'text');
-        return textBlock?.text || 'Unable to generate summary';
+        return summary;
     } catch (err) {
         const msg = err instanceof Error ? err.message : 'unknown error';
         return `Unable to generate summary: ${msg}`;
     }
 }
 
-interface CommandResult {
-    output: string;
-    exitCode: number;
-    error?: string;
-}
-
-/**
- * Execute a command and capture its output
- */
-async function executeCommandCapture(
-    session: Session,
-    command: string
-): Promise<CommandResult> {
-    const stdout = new PassThrough();
-    const stderr = new PassThrough();
-    const stdin = new PassThrough();
-    stdin.end();
-
-    const io: CommandIO = { stdin, stdout, stderr };
-
-    let output = '';
-
-    stdout.on('data', (chunk) => {
-        output += chunk.toString();
-    });
-
-    stderr.on('data', (chunk) => {
-        output += chunk.toString();
-    });
-
-    try {
-        const exitCode = await executeLine(session, command, io, {
-            addToHistory: false,
-            useTransaction: true,
-        });
-
-        return {
-            output: output || '[No output]',
-            exitCode,
-        };
-    } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return {
-            output: output || '',
-            exitCode: 1,
-            error: message,
-        };
-    }
-}
+// =============================================================================
+// Session State
+// =============================================================================
 
 /** Session-level AI state */
 interface AIState {
@@ -648,6 +537,10 @@ export function cleanupAIState(sessionId: string): void {
     aiStates.delete(sessionId);
 }
 
+// =============================================================================
+// Entry Points
+// =============================================================================
+
 /**
  * Enter AI mode (called after login)
  */
@@ -656,31 +549,33 @@ export async function enterAIMode(
     session: Session
 ): Promise<void> {
     const state = getAIState(session);
-    const homeDir = `/home/${session.username}`;
 
-    // Load context and user config inside transaction
+    // Load context and user config
     if (!state.initialized && session.systemInit) {
-        let savedAt: string | undefined;
+        const savedContext = await loadContext(session);
+        state.messages = savedContext.messages;
 
-        await runTransaction(session.systemInit, async (system) => {
-            applySessionMounts(session, system.fs, system);
-            const fs = system.fs;
-
-            // Load user config overrides
-            const userConfig = await loadUserConfig(fs, homeDir);
-            applyConfig(state.config, userConfig);
-
-            // Load previous conversation context
-            const context = await loadContext(fs, homeDir);
-            state.messages = context.messages;
-            savedAt = context.savedAt;
-        });
+        // Load user config overrides
+        try {
+            await runTransaction(session.systemInit, async (system) => {
+                applySessionMounts(session, system.fs, system);
+                try {
+                    const homeDir = `/home/${session.username}`;
+                    const data = await system.fs.read(`${homeDir}/.ai/config`);
+                    applyConfig(state.config, parseConfig(data.toString()));
+                } catch {
+                    // No user config
+                }
+            });
+        } catch {
+            // Ignore config load errors
+        }
 
         state.initialized = true;
 
         // Show loaded context info with topic summary
-        if (state.messages.length > 0 && savedAt) {
-            const timeAgo = formatTimeAgo(savedAt);
+        if (state.messages.length > 0 && savedContext.savedAt) {
+            const timeAgo = formatTimeAgo(savedContext.savedAt);
             const topic = extractLastTopic(state.messages);
             const topicInfo = topic ? `\n  Last: "${topic}"` : '';
             writeToStream(stream, `\x1b[2mResuming conversation (${state.messages.length} messages, ${timeAgo})${topicInfo}\x1b[0m\n`);
@@ -696,14 +591,8 @@ export async function enterAIMode(
  */
 export async function saveAIContext(session: Session): Promise<void> {
     const state = aiStates.get(session.id);
-    if (!state || state.messages.length === 0 || !session.systemInit) return;
-
-    const homeDir = `/home/${session.username}`;
-
-    await runTransaction(session.systemInit, async (system) => {
-        applySessionMounts(session, system.fs, system);
-        await saveContextToFile(system.fs, homeDir, state.messages);
-    });
+    if (!state || state.messages.length === 0) return;
+    await saveContext(session, state.messages);
 }
 
 /**
@@ -739,20 +628,12 @@ export async function processAIInput(
         return false;
     }
 
+    const state = getAIState(session);
+
     // Clear context and start fresh
     if (trimmed === '/new' || trimmed === '/clear') {
-        const state = getAIState(session);
-        const homeDir = `/home/${session.username}`;
-
         state.messages = [];
-
-        if (session.systemInit) {
-            await runTransaction(session.systemInit, async (system) => {
-                applySessionMounts(session, system.fs, system);
-                await clearContext(system.fs, homeDir);
-            });
-        }
-
+        await clearContext(session);
         writeToStream(stream, 'Context cleared. Starting fresh.\n');
         writeToStream(stream, TTY_CHARS.AI_PROMPT);
         return true;
@@ -760,32 +641,21 @@ export async function processAIInput(
 
     // Summarize current conversation
     if (trimmed === '/summary' || trimmed === '/summarize') {
-        const state = getAIState(session);
-
         if (state.messages.length === 0) {
             writeToStream(stream, 'No conversation to summarize.\n');
             writeToStream(stream, TTY_CHARS.AI_PROMPT);
             return true;
         }
 
-        const apiKey = process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) {
-            writeToStream(stream, 'Error: ANTHROPIC_API_KEY not set.\n');
-            writeToStream(stream, TTY_CHARS.AI_PROMPT);
-            return true;
-        }
-
         writeToStream(stream, '\x1b[2mSummarizing conversation...\x1b[0m\n\n');
-
-        const summary = await generateConversationSummary(state.messages, state.config, apiKey);
+        const summary = await generateConversationSummary(session, state.messages, state.config);
         writeToStream(stream, summary + '\n\n');
         writeToStream(stream, TTY_CHARS.AI_PROMPT);
         return true;
     }
 
     // Check for API key
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    if (!process.env.ANTHROPIC_API_KEY) {
         writeToStream(stream, 'Error: ANTHROPIC_API_KEY environment variable not set.\n');
         writeToStream(stream, 'Use ! to enter shell mode, or set the API key.\n');
         writeToStream(stream, TTY_CHARS.AI_PROMPT);
@@ -793,7 +663,7 @@ export async function processAIInput(
     }
 
     // Process AI message
-    await handleAIMessage(stream, session, trimmed, apiKey);
+    await handleAIMessage(stream, session, trimmed);
 
     return true;
 }
@@ -804,210 +674,107 @@ export async function processAIInput(
 async function handleAIMessage(
     stream: TTYStream,
     session: Session,
-    message: string,
-    apiKey: string
+    message: string
 ): Promise<void> {
-    const state = getAIState(session);
-    const homeDir = `/home/${session.username}`;
-    const systemBlocks = buildSystemPrompt(session, true);
+    if (!session.systemInit) {
+        writeToStream(stream, 'Error: Session not initialized.\n');
+        writeToStream(stream, TTY_CHARS.AI_PROMPT);
+        return;
+    }
 
-    // Add user message
-    state.messages.push({ role: 'user', content: message });
+    const state = getAIState(session);
+    const systemPrompt = await buildSystemPrompt(session);
 
     // Apply sliding window if needed
-    state.messages = await applyContextStrategy(state.messages, state.config, apiKey);
+    state.messages = await applyContextStrategy(session, state.messages, state.config);
 
-    // Agentic loop with tool use
-    let continueLoop = true;
-    while (continueLoop) {
-        continueLoop = false;
+    // Create abort controller for this request
+    state.abortController = new AbortController();
 
-        // Create abort controller for this request
-        state.abortController = new AbortController();
+    try {
+        await runTransaction(session.systemInit, async (system) => {
+            applySessionMounts(session, system.fs, system);
 
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-        };
-        if (state.config.promptCaching) {
-            headers['anthropic-beta'] = 'prompt-caching-2024-07-31';
-        }
-
-        try {
-            const requestBody = {
-                model: state.config.model,
-                max_tokens: state.config.maxTokens,
-                system: systemBlocks,
-                messages: state.messages,
-                tools: TOOLS,
-            };
-
-            // Debug: show outgoing request (only the new message, not full context)
+            // Debug: show outgoing request
             if (session.debugMode) {
-                const lastMsg = state.messages[state.messages.length - 1];
                 const debugInfo = {
                     model: state.config.model,
-                    message: lastMsg,
+                    message: message.slice(0, 100) + (message.length > 100 ? '...' : ''),
                     contextSize: state.messages.length,
                 };
                 writeToStream(stream, `\n\x1b[33m-> ${JSON.stringify(debugInfo)}\x1b[0m\n`);
             }
 
-            const response = await fetch(ANTHROPIC_API_URL, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody),
-                signal: state.abortController.signal,
-            });
+            for await (const event of system.ai.agent(session, message, {
+                model: state.config.model,
+                maxTokens: state.config.maxTokens,
+                maxTurns: state.config.maxTurns,
+                systemPrompt,
+                messages: state.messages,
+                promptCaching: state.config.promptCaching,
+                signal: state.abortController!.signal,
+            })) {
+                switch (event.type) {
+                    case 'text': {
+                        const text = state.config.markdownRendering
+                            ? renderMarkdown(event.content)
+                            : event.content;
+                        writeToStream(stream, '\n' + text);
+                        break;
+                    }
 
-            if (!response.ok) {
-                const error = await response.text();
-                if (session.debugMode) {
-                    writeToStream(stream, `\n\x1b[31m<- ${error}\x1b[0m\n`);
-                }
-                writeToStream(stream, `AI error: ${response.status} ${error}\n`);
-                break;
-            }
+                    case 'tool_call':
+                        writeToStream(stream, `\n\x1b[36m\u25cf\x1b[0m ${event.name}(${formatToolInput(event.input)})\n`);
+                        break;
 
-            const result = await response.json() as {
-                content: ContentBlock[];
-                stop_reason: string;
-            };
-
-            // Debug: show incoming response
-            if (session.debugMode) {
-                writeToStream(stream, `\n\x1b[32m<- ${JSON.stringify(result)}\x1b[0m\n`);
-            }
-
-            // Process response content
-            const assistantContent: ContentBlock[] = [];
-            const toolResults: ContentBlock[] = [];
-
-            for (const block of result.content) {
-                if (block.type === 'text') {
-                    assistantContent.push(block);
-                    const text = state.config.markdownRendering
-                        ? renderMarkdown(block.text)
-                        : block.text;
-                    writeToStream(stream, '\n' + text);
-                } else if (block.type === 'tool_use') {
-                    assistantContent.push(block);
-
-                    if (block.name === 'run_command') {
-                        const cmd = (block.input as { command: string }).command;
-                        writeToStream(stream, `\n\x1b[36m\u25cf\x1b[0m run_command(${cmd})\n`);
-
-                        const result = await executeCommandCapture(session, cmd);
-
-                        const lines = result.output.split('\n').filter(l => l.trim()).length;
-                        const chars = result.output.length;
-
-                        if (result.exitCode !== 0 || result.error) {
-                            const errorInfo = result.error || `exit code ${result.exitCode}`;
-                            writeToStream(stream, `  \x1b[31m\u2717\x1b[0m  ${errorInfo}\n`);
+                    case 'tool_result': {
+                        if (event.exitCode !== undefined && event.exitCode !== 0) {
+                            writeToStream(stream, `  \x1b[31m\u2717\x1b[0m  exit code ${event.exitCode}\n`);
                         } else {
+                            const lines = event.output.split('\n').filter(l => l.trim()).length;
+                            const chars = event.output.length;
                             writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${lines} lines, ${chars} chars\n`);
                         }
-
-                        // Include exit code in tool result for AI awareness
-                        const toolOutput = result.exitCode !== 0
-                            ? `${result.output}\n[Exit code: ${result.exitCode}]`
-                            : result.output;
-
-                        toolResults.push({
-                            type: 'tool_result',
-                            tool_use_id: block.id,
-                            content: toolOutput,
-                        });
-                    } else if (block.name === 'read_file') {
-                        const path = (block.input as { path: string }).path;
-                        const resolved = resolvePath(session.cwd, path);
-                        writeToStream(stream, `\n\x1b[36m\u25cf\x1b[0m read_file(${resolved})\n`);
-
-                        let output: string;
-                        try {
-                            if (!session.systemInit) {
-                                output = '[Error: filesystem not available]';
-                            } else {
-                                output = await runTransaction(session.systemInit, async (system) => {
-                                    applySessionMounts(session, system.fs, system);
-                                    const data = await system.fs.read(resolved);
-                                    return data.toString();
-                                });
-                            }
-                        } catch (err) {
-                            const msg = err instanceof Error ? err.message : String(err);
-                            output = `[Error: ${msg}]`;
-                        }
-
-                        const lines = output.split('\n').length;
-                        const chars = output.length;
-                        writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${lines} lines, ${chars} chars\n`);
-
-                        toolResults.push({
-                            type: 'tool_result',
-                            tool_use_id: block.id,
-                            content: output,
-                        });
-                    } else if (block.name === 'write_file') {
-                        const { path, content } = block.input as { path: string; content: string };
-                        const resolved = resolvePath(session.cwd, path);
-                        writeToStream(stream, `\n\x1b[36m\u25cf\x1b[0m write_file(${resolved})\n`);
-
-                        let output: string;
-                        try {
-                            if (!session.systemInit) {
-                                output = '[Error: filesystem not available]';
-                            } else {
-                                await runTransaction(session.systemInit, async (system) => {
-                                    applySessionMounts(session, system.fs, system);
-                                    await system.fs.write(resolved, content);
-                                });
-                                output = `Wrote ${content.length} bytes to ${resolved}`;
-                            }
-                        } catch (err) {
-                            const msg = err instanceof Error ? err.message : String(err);
-                            output = `[Error: ${msg}]`;
-                        }
-
-                        writeToStream(stream, `  \x1b[2m\u23bf\x1b[0m  ${output}\n`);
-
-                        toolResults.push({
-                            type: 'tool_result',
-                            tool_use_id: block.id,
-                            content: output,
-                        });
+                        break;
                     }
+
+                    case 'error':
+                        writeToStream(stream, `\nAI error: ${event.message}\n`);
+                        break;
+
+                    case 'done':
+                        // Update message history from the agent
+                        if (event.messages) {
+                            state.messages = event.messages;
+                        }
+                        break;
                 }
             }
+        });
 
-            // Add assistant message
-            state.messages.push({ role: 'assistant', content: assistantContent });
-
-            // If there were tool uses, add results and continue
-            if (toolResults.length > 0) {
-                state.messages.push({ role: 'user', content: toolResults });
-                continueLoop = true;
-            } else {
-                writeToStream(stream, '\n\n');
-            }
-        } catch (err) {
-            // Check if this was an abort
-            if (err instanceof Error && err.name === 'AbortError') {
-                writeToStream(stream, '\n^C\n');
-                break;
-            }
+        writeToStream(stream, '\n\n');
+    } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+            writeToStream(stream, '\n^C\n');
+        } else {
             const errMessage = err instanceof Error ? err.message : 'unknown error';
             writeToStream(stream, `AI error: ${errMessage}\n`);
-            break;
-        } finally {
-            state.abortController = null;
         }
+    } finally {
+        state.abortController = null;
     }
 
     // Clear shell transcript after it's been incorporated into AI context
     session.shellTranscript = [];
 
     writeToStream(stream, TTY_CHARS.AI_PROMPT);
+}
+
+/**
+ * Format tool input for display
+ */
+function formatToolInput(input: Record<string, unknown>): string {
+    if ('command' in input) return String(input.command);
+    if ('path' in input) return String(input.path);
+    return JSON.stringify(input);
 }

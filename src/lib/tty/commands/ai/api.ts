@@ -6,6 +6,7 @@ import type { Session, CommandIO } from '../../types.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getProjectRoot } from '@src/lib/constants.js';
+import { loadSTMFull, formatAlarmsForPrompt } from '../../memory.js';
 
 // Load agent prompts lazily from monkfs/etc/agents/
 let _agentPromptBase: string | null = null;
@@ -23,9 +24,9 @@ function getAgentPromptBase(): string {
 }
 
 /**
- * Build system prompt with session context
+ * Build system prompt with session context and STM
  */
-export function buildSystemPrompt(session: Session, withTools: boolean): string {
+export async function buildSystemPrompt(session: Session, withTools: boolean): Promise<string> {
     let prompt = getAgentPromptBase();
 
     prompt += `
@@ -34,6 +35,25 @@ Session context:
 - Working directory: ${session.cwd}
 - User: ${session.username}
 - Tenant: ${session.tenant}`;
+
+    // Include STM contents if available
+    const stmData = await loadSTMFull(session);
+    const stmEntries = Object.entries(stmData.entries);
+
+    if (stmEntries.length > 0 || stmData.alarms.length > 0) {
+        prompt += `\n\nCurrent short-term memory (STM):`;
+
+        if (stmEntries.length > 0) {
+            prompt += `\n${stmEntries.map(([k, v]) => `- ${k}: ${v}`).join('\n')}`;
+        }
+
+        if (stmData.alarms.length > 0) {
+            const alarmText = formatAlarmsForPrompt(stmData.alarms);
+            if (alarmText) {
+                prompt += `\n\nPending alarms:\n${alarmText}`;
+            }
+        }
+    }
 
     return prompt;
 }
