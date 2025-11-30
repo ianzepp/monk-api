@@ -4,9 +4,13 @@
 
 import { saveHistory } from '../session-handler.js';
 import { terminateDaemon } from '@src/lib/process.js';
+import { autoCoalesce } from '../memory.js';
 import type { CommandHandler } from './shared.js';
 
 export const exit: CommandHandler = async (session, _fs, _args, io) => {
+    // Auto-coalesce STM before logout
+    await autoCoalesce(session, (msg) => io.stdout.write(msg));
+
     // Save command history
     await saveHistory(session);
 

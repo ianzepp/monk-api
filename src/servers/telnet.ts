@@ -11,6 +11,7 @@ import type { Socket } from 'bun';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
 import { createSession, generateSessionId, unregisterSession } from '@src/lib/tty/types.js';
 import { handleInput, sendWelcome, saveHistory, handleInterrupt } from '@src/lib/tty/session-handler.js';
+import { autoCoalesce } from '@src/lib/tty/memory.js';
 import { terminateDaemon } from '@src/lib/process.js';
 import { PassThrough } from 'node:stream';
 
@@ -251,6 +252,9 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
                     session.foregroundAbort.abort();
                     session.foregroundAbort = null;
                 }
+
+                // Auto-coalesce STM (silent - no output on disconnect)
+                await autoCoalesce(session);
 
                 // End the input stream
                 stream.input.end();

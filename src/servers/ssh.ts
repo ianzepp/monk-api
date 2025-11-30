@@ -12,6 +12,7 @@ import { PassThrough } from 'node:stream';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
 import { createSession, generateSessionId, unregisterSession } from '@src/lib/tty/types.js';
 import { handleInput, printPrompt, writeToStream, saveHistory, handleInterrupt } from '@src/lib/tty/session-handler.js';
+import { autoCoalesce } from '@src/lib/tty/memory.js';
 import { login } from '@src/lib/auth.js';
 import { terminateDaemon } from '@src/lib/process.js';
 
@@ -348,6 +349,9 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
                     session.foregroundAbort.abort();
                     session.foregroundAbort = null;
                 }
+
+                // Auto-coalesce STM (silent - no output on disconnect)
+                await autoCoalesce(session);
 
                 // Unregister from global session registry and terminate shell process
                 if (session.pid) {
