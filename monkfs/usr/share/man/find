@@ -1,0 +1,62 @@
+NAME
+    find - search for files in a directory hierarchy
+
+SYNOPSIS
+    find [path...] [expression]
+
+DESCRIPTION
+    Recursively descends directory trees, evaluating an expression
+    for each file. By default, prints paths of all files found.
+
+PRIMARIES
+    -name <pattern>     Match filename (supports *, ?)
+    -iname <pattern>    Case-insensitive -name
+    -path <pattern>     Match full path
+    -ipath <pattern>    Case-insensitive -path
+    -type <c>           File type: f (file), d (directory), l (symlink)
+    -maxdepth <n>       Descend at most n directory levels
+    -mindepth <n>       Ignore first n directory levels
+    -empty              Match empty files or directories
+
+ACTIONS
+    -print              Print path with newline (default)
+    -print0             Print path with NUL terminator
+    -exec <cmd> {} \;   Execute command for each match
+    -delete             Delete matched files
+
+OPERATORS
+    ! <expr>            Negate expression
+    -not <expr>         Same as !
+    -a, -and            AND (implicit between primaries)
+    -o, -or             OR
+
+EXAMPLES
+    find .
+        List all files recursively
+
+    find /api/data -type f
+        Find only files
+
+    find . -name "*.json"
+        Find by filename pattern
+
+    find . -iname "readme*"
+        Case-insensitive name match
+
+    find . -name "*.log" -delete
+        Find and delete log files
+
+    find . -type f -exec cat {} \;
+        Cat each file found
+
+    find . -print0 | xargs -0 rm
+        Safe handling of special characters
+
+    find . -maxdepth 2 -type d
+        Directories within 2 levels
+
+    find . ! -name "*.txt"
+        Files NOT ending in .txt
+
+SEE ALSO
+    ls, grep, xargs

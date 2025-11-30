@@ -20,6 +20,7 @@ export const USER_TO_POSTGRESQL: Record<string, string> = {
     'date': 'DATE',
     'uuid': 'UUID',
     'jsonb': 'JSONB',
+    'binary': 'BYTEA',
 
     // Array types
     'text[]': 'TEXT[]',
@@ -44,6 +45,7 @@ export const USER_TO_SQLITE: Record<string, string> = {
     'date': 'TEXT',            // YYYY-MM-DD string
     'uuid': 'TEXT',            // 36-char UUID string
     'jsonb': 'TEXT',           // JSON string
+    'binary': 'BLOB',          // Binary data
 
     // Array types (all stored as JSON text)
     'text[]': 'TEXT',
@@ -64,6 +66,7 @@ export const POSTGRESQL_TO_USER: Record<string, string> = {
     'date': 'date',
     'uuid': 'uuid',
     'jsonb': 'jsonb',
+    'bytea': 'binary',
     'text[]': 'text[]',
     'integer[]': 'integer[]',
     'numeric[]': 'decimal[]',

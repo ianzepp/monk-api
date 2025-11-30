@@ -1,0 +1,67 @@
+NAME
+    curl - transfer data from or to a server
+
+SYNOPSIS
+    curl [options] <url>
+
+DESCRIPTION
+    Transfers data using HTTP. Supports both internal API calls (using
+    session authentication) and external URLs.
+
+    Internal paths starting with / route through the Monk API with
+    the current session's authentication context.
+
+OPTIONS
+    -X <method>
+            HTTP method: GET, POST, PUT, DELETE, PATCH
+            Default: GET
+
+    -H <header>
+            Add HTTP header. Can be used multiple times.
+            Format: "Header-Name: value"
+
+    -d <data>
+            Request body. Use @- to read from stdin.
+
+    -o <file>
+            Write response body to file instead of stdout
+
+    -i      Include response headers in output
+
+    -s      Silent mode (suppress errors and progress)
+
+    -v      Verbose mode (show request details)
+
+    -L      Follow redirects (external URLs only)
+
+URL FORMATS
+    /api/data/users
+            Internal API path (uses session auth)
+
+    https://example.com/api
+            External URL
+
+EXAMPLES
+    curl /api/data/users
+        List users via internal API
+
+    curl -X POST -d '{"name":"bob"}' /api/data/users
+        Create user via internal API
+
+    curl https://api.example.com/data
+        Fetch from external URL
+
+    curl -H "Authorization: Bearer $TOKEN" https://api.example.com/me
+        External request with custom header
+
+    select id, name from users | curl -X POST https://webhook.com/import
+        Pipe local data to external webhook
+
+    curl https://external.com/data | insert /api/data/records
+        Fetch external data and insert locally
+
+    curl -o /tmp/response.json /api/data/users
+        Save response to file
+
+SEE ALSO
+    select, insert, update, delete, jq

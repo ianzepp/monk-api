@@ -20,6 +20,11 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * - access_read, access_edit, access_full: UUID arrays
  */
 export default withTransaction(async ({ system, params, body }) => {
+    // Body type validation
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
+    }
+
     const targetId = params.id === 'me' ? system.userId : params.id;
     const isSelf = targetId === system.userId;
     const hasSudo = system.isSudo();

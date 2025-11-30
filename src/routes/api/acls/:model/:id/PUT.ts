@@ -17,7 +17,6 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  */
 export default withTransaction(async ({ system, params, body }) => {
     const { model, id } = params;
-    const options = { context: 'api' as const };
 
     // Validate and prepare updates for all ACL fields
     const validFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
@@ -46,7 +45,7 @@ export default withTransaction(async ({ system, params, body }) => {
     await system.database.select404(model!, {
         where: { id: id! },
         select: ['id']
-    }, undefined, options);
+    });
 
     // Replace all ACL lists (returns the updated record)
     const updatedRecord = await system.database.updateOne(model!, id!, updates);

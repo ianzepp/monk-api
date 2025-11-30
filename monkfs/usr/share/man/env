@@ -1,0 +1,25 @@
+NAME
+    env - display environment variables
+
+SYNOPSIS
+    env
+
+DESCRIPTION
+    Lists all environment variables in KEY=value format.
+
+DEFAULT VARIABLES
+    TERM        Terminal type (xterm)
+    SHELL       Shell path (/bin/monksh)
+    USER        Current username
+    TENANT      Current tenant
+    ACCESS      Access level
+
+EXAMPLES
+    env
+        List all variables
+
+    env | grep USER
+        Find USER variable
+
+SEE ALSO
+    export, echo

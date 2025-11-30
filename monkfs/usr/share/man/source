@@ -1,0 +1,43 @@
+SOURCE(1)                   User Commands                   SOURCE(1)
+
+NAME
+       source - execute commands from a file
+
+SYNOPSIS
+       source file
+       . file
+
+DESCRIPTION
+       Read and execute commands from file in the current shell
+       environment. The file does not need to be executable.
+
+       Commands are executed in the current session, so any changes
+       to environment variables (via export) affect the session.
+
+       Lines starting with # are treated as comments and ignored.
+       The shebang line (#!/bin/monksh) is also ignored if present.
+
+       The special variable $? contains the exit code of the last
+       executed command.
+
+OPTIONS
+       None.
+
+EXIT STATUS
+       Returns the exit status of the last command executed, or
+       1 if the file cannot be read.
+
+EXAMPLES
+       source ~/.profile
+              Execute login profile.
+
+       . /scripts/setup.sh
+              Execute setup script using dot notation.
+
+       Create a script:
+              echo 'export FOO=bar' > ~/test.sh
+              echo 'echo $FOO' >> ~/test.sh
+              source ~/test.sh
+
+SEE ALSO
+       export(1), echo(1)

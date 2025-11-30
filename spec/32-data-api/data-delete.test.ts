@@ -35,8 +35,8 @@ describe('DELETE /api/data/:model/:id - Delete Single Record', () => {
         ]);
         const recordId = createResponse.data[0].id;
 
-        // Delete record
-        const response = await tenant.httpClient.delete(`/api/data/products/${recordId}`);
+        // Delete record (stat=true to get trashed_at)
+        const response = await tenant.httpClient.delete(`/api/data/products/${recordId}?stat=true`);
 
         expectSuccess(response);
         expect(response.data.id).toBe(recordId);
@@ -51,8 +51,8 @@ describe('DELETE /api/data/:model/:id - Delete Single Record', () => {
         ]);
         const recordId = createResponse.data[0].id;
 
-        // Delete record
-        const response = await tenant.httpClient.delete(`/api/data/products/${recordId}`);
+        // Delete record (stat=true to get timestamp fields)
+        const response = await tenant.httpClient.delete(`/api/data/products/${recordId}?stat=true`);
 
         expectSuccess(response);
         expect(response.data.id).toBeDefined();
@@ -70,8 +70,8 @@ describe('DELETE /api/data/:model/:id - Delete Single Record', () => {
         ]);
         const recordId = createResponse.data[0].id;
 
-        // Delete record
-        const response = await tenant.httpClient.delete(`/api/data/products/${recordId}`);
+        // Delete record (stat=true to get trashed_at/deleted_at)
+        const response = await tenant.httpClient.delete(`/api/data/products/${recordId}?stat=true`);
 
         expectSuccess(response);
         expect(response.data.trashed_at).not.toBeNull();
@@ -87,8 +87,8 @@ describe('DELETE /api/data/:model/:id - Delete Single Record', () => {
         ]);
         const recordId = createResponse.data[0].id;
 
-        // Delete record
-        const response = await tenant.httpClient.delete(`/api/data/products/${recordId}`);
+        // Delete record (stat=true to get trashed_at)
+        const response = await tenant.httpClient.delete(`/api/data/products/${recordId}?stat=true`);
 
         expectSuccess(response);
         const trashedAt = new Date(response.data.trashed_at);

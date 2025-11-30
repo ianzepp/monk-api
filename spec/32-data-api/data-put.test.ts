@@ -69,15 +69,15 @@ describe('PUT /api/data/:model/:id - Update Single Record', () => {
     });
 
     it('should update updated_at timestamp', async () => {
-        // Get original timestamp
-        const getResponse = await tenant.httpClient.get(`/api/data/products/${recordId}`);
+        // Get original timestamp (stat=true to get timestamp fields)
+        const getResponse = await tenant.httpClient.get(`/api/data/products/${recordId}?stat=true`);
         const originalUpdatedAt = getResponse.data.updated_at;
 
         // Wait a moment to ensure timestamp changes
         await new Promise(resolve => setTimeout(resolve, 10));
 
-        // Update record
-        const response = await tenant.httpClient.put(`/api/data/products/${recordId}`, {
+        // Update record (stat=true to get timestamp fields)
+        const response = await tenant.httpClient.put(`/api/data/products/${recordId}?stat=true`, {
             price: 49.99,
         });
 
@@ -87,12 +87,12 @@ describe('PUT /api/data/:model/:id - Update Single Record', () => {
     });
 
     it('should not change created_at timestamp', async () => {
-        // Get original timestamp
-        const getResponse = await tenant.httpClient.get(`/api/data/products/${recordId}`);
+        // Get original timestamp (stat=true to get timestamp fields)
+        const getResponse = await tenant.httpClient.get(`/api/data/products/${recordId}?stat=true`);
         const originalCreatedAt = getResponse.data.created_at;
 
-        // Update record
-        const response = await tenant.httpClient.put(`/api/data/products/${recordId}`, {
+        // Update record (stat=true to get timestamp fields)
+        const response = await tenant.httpClient.put(`/api/data/products/${recordId}?stat=true`, {
             price: 59.99,
         });
 
@@ -101,7 +101,7 @@ describe('PUT /api/data/:model/:id - Update Single Record', () => {
     });
 
     it('should include all fields in response', async () => {
-        const response = await tenant.httpClient.put(`/api/data/products/${recordId}`, {
+        const response = await tenant.httpClient.put(`/api/data/products/${recordId}?stat=true`, {
             in_stock: false,
         });
 

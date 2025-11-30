@@ -7,7 +7,7 @@ export default withTransaction(async ({ system, params, body }) => {
 
     // Support trashed option in body for aggregations
     const trashed = body?.trashed;
-    const options = { context: 'api' as const, ...(trashed && { trashed }) };
+    const options = trashed ? { trashed } : {};
     const result = await system.database.aggregate(model!, body, options);
 
     return result;

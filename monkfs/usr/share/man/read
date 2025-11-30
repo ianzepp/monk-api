@@ -1,0 +1,36 @@
+READ(1)                     User Commands                     READ(1)
+
+NAME
+       read - read a line from stdin into variables
+
+SYNOPSIS
+       read [-r] [-p PROMPT] VAR [VAR2 ...]
+
+DESCRIPTION
+       Read a line from standard input and split it into variables.
+       When multiple variables are given, the line is split on
+       whitespace and assigned to each. The last variable receives
+       all remaining words.
+
+OPTIONS
+       -p PROMPT  Display PROMPT before reading (no newline added)
+       -r         Raw mode; do not interpret backslash escapes
+
+EXIT STATUS
+       0    Line was read successfully
+       1    EOF or error
+
+EXAMPLES
+       echo "hello world" | read greeting
+              Sets greeting="hello world"
+
+       echo "a b c d" | read first second rest
+              Sets first="a", second="b", rest="c d"
+
+       cat users.txt | while read name email; do
+           echo "User: $name, Email: $email"
+       done
+              Process file line by line (requires while loop support)
+
+SEE ALSO
+       echo(1), cat(1)

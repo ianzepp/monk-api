@@ -165,3 +165,33 @@ export class HttpErrors {
 export function isHttpError(error: unknown): error is HttpError {
     return error instanceof HttpError;
 }
+
+/**
+ * Convert FSError to HttpError
+ *
+ * Maps POSIX error codes to appropriate HTTP status codes.
+ * Used by HTTP routes that delegate to the FS layer.
+ */
+export function fsErrorToHttp(error: { code: string; path: string; message: string }): HttpError {
+    switch (error.code) {
+        case 'ENOENT':
+            return HttpErrors.notFound(error.message, 'NOT_FOUND');
+        case 'EEXIST':
+            return HttpErrors.conflict(error.message, 'ALREADY_EXISTS');
+        case 'EACCES':
+            return HttpErrors.forbidden(error.message, 'ACCESS_DENIED');
+        case 'EISDIR':
+            return HttpErrors.badRequest(error.message, 'IS_DIRECTORY');
+        case 'ENOTDIR':
+            return HttpErrors.badRequest(error.message, 'NOT_DIRECTORY');
+        case 'EINVAL':
+            return HttpErrors.badRequest(error.message, 'INVALID_ARGUMENT');
+        case 'EROFS':
+            return HttpErrors.methodNotAllowed(error.message, 'READ_ONLY');
+        case 'ENOTEMPTY':
+            return HttpErrors.conflict(error.message, 'NOT_EMPTY');
+        case 'EIO':
+        default:
+            return HttpErrors.internal(error.message, 'IO_ERROR');
+    }
+}

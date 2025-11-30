@@ -5,10 +5,12 @@
  * test suite lifecycle. This module is called by the vitest global setup.
  */
 
+import { spawn, type ChildProcess } from 'child_process';
 import { TEST_CONFIG } from './test-config.js';
 
 export class TestInfrastructure {
     private static serverReady = false;
+    private static serverProcess: ChildProcess | null = null;
 
     /**
      * Initialize test infrastructure
@@ -18,41 +20,84 @@ export class TestInfrastructure {
      * 1. The API server is running on the test port (9001)
      * 2. The server is responding to requests
      *
-     * If the server is not running, this throws a clear error message
-     * explaining how to start the server.
-     *
-     * NOTE: This does NOT start the server - that's done by test-ts.sh wrapper.
-     * Tests should verify prerequisites, not create them.
+     * If the server is not running, it will attempt to start it automatically.
      */
     static async initialize(): Promise<void> {
         console.log(`\n🔍 Verifying test server on ${TEST_CONFIG.API_URL}...`);
 
+        // Check if server is already running
+        if (await this.checkServerHealth()) {
+            this.serverReady = true;
+            console.log(`✅ Test server already running on port ${TEST_CONFIG.PORT}\n`);
+            return;
+        }
+
+        // Server not running - start it
+        console.log(`⚙️  Starting test server on port ${TEST_CONFIG.PORT}...`);
+
+        let serverError = '';
+
+        this.serverProcess = spawn('bun', ['run', 'dist/index.js'], {
+            env: { ...process.env, PORT: String(TEST_CONFIG.PORT) },
+            stdio: ['ignore', 'pipe', 'pipe'],
+            detached: false,
+        });
+
+        // Capture stderr for debugging
+        this.serverProcess.stderr?.on('data', (data) => {
+            serverError += data.toString();
+        });
+
+        this.serverProcess.on('error', (err) => {
+            serverError = err.message;
+        });
+
+        // Wait for server to be ready
+        const maxWait = 20000;
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < maxWait) {
+            // Check if process died
+            if (this.serverProcess.exitCode !== null) {
+                throw new Error(
+                    `\n❌ Test server process exited with code ${this.serverProcess.exitCode}\n` +
+                        `Error: ${serverError || 'No error output'}\n`
+                );
+            }
+
+            if (await this.checkServerHealth()) {
+                this.serverReady = true;
+                console.log(`✅ Test server ready on port ${TEST_CONFIG.PORT}\n`);
+                return;
+            }
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        // Timeout - kill process and throw
+        this.serverProcess?.kill();
+        throw new Error(
+            `\n❌ Failed to start test server on ${TEST_CONFIG.API_URL} within ${maxWait}ms\n\n` +
+                `Server output: ${serverError || 'No error output'}\n` +
+                `Make sure the code is built: npm run build\n`
+        );
+    }
+
+    /**
+     * Check if server responds to health endpoint
+     */
+    private static async checkServerHealth(): Promise<boolean> {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), TEST_CONFIG.SERVER_CHECK_TIMEOUT);
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
 
-            const response = await fetch(`${TEST_CONFIG.API_URL}/`, {
+            const response = await fetch(`${TEST_CONFIG.API_URL}/health`, {
                 signal: controller.signal,
             });
 
             clearTimeout(timeoutId);
-
-            // Server responded - we're good!
-            this.serverReady = true;
-            console.log(`✅ Test server ready on port ${TEST_CONFIG.PORT}`);
-            console.log(`   Status: ${response.status} ${response.statusText}\n`);
-        } catch (error) {
-            // Server not running or not responding
-            throw new Error(
-                `\n❌ Test server not running on ${TEST_CONFIG.API_URL}!\n\n` +
-                    `Prerequisites for running tests:\n` +
-                    `  1. npm run build              # Build the code first\n` +
-                    `  2. PORT=${TEST_CONFIG.PORT} npm run start:bg   # Start test server\n` +
-                    `  3. npx vitest                 # Run tests\n\n` +
-                    `OR use the wrapper script that handles everything:\n` +
-                    `  npm run test:ts               # Builds, starts server, runs tests\n\n` +
-                    `Error: ${error instanceof Error ? error.message : String(error)}\n`
-            );
+            return response.ok;
+        } catch {
+            return false;
         }
     }
 
@@ -71,9 +116,7 @@ export class TestInfrastructure {
      * This is called once at the end of the test suite (via globalSetup teardown).
      * It performs cleanup tasks like:
      * - Closing all test database connection pools
-     * - Cleaning up all test tenants (tenants with names starting with 'test_')
-     *
-     * NOTE: This does NOT stop the server - that's done by test-ts.sh wrapper.
+     * - Stopping the server if we started it
      */
     static async cleanup(): Promise<void> {
         console.log(`\n🧹 Cleaning up test infrastructure...`);
@@ -90,11 +133,18 @@ export class TestInfrastructure {
                     console.log(`✅ Closed ${poolsData.data.poolsClosed} test database pool(s)`);
                 }
             }
-
-            console.log(`✅ Test infrastructure cleanup completed\n`);
         } catch (error) {
-            console.warn(`⚠️  Cleanup encountered issues (may be expected): ${error}\n`);
+            // Ignore - server might already be down
         }
+
+        // Kill server if we started it
+        if (this.serverProcess) {
+            console.log(`🛑 Stopping test server...`);
+            this.serverProcess.kill();
+            this.serverProcess = null;
+        }
+
+        console.log(`✅ Test infrastructure cleanup completed\n`);
     }
 
     /**

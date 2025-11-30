@@ -1,0 +1,39 @@
+NAME
+    kill - terminate a process
+
+SYNOPSIS
+    kill PID
+    kill -9 PID
+
+DESCRIPTION
+    Sends a termination signal to the specified process.
+    The process must belong to the current tenant.
+
+    The -9 flag is accepted for compatibility but all
+    terminations are immediate (there is no graceful vs
+    forced distinction).
+
+ARGUMENTS
+    PID     Process ID to terminate (from ps output)
+
+EXIT STATUS
+    0       Process was successfully terminated
+    1       Error (no such process, already terminated, etc.)
+
+EXAMPLES
+    kill 42
+        Terminate process with PID 42
+
+    kill -9 42
+        Same as above (force flag accepted but ignored)
+
+    ps | grep export
+    kill 15
+        Find and kill an export process
+
+NOTES
+    Only processes in 'running' or 'pending' status can be killed.
+    Killing a process sets its status to 'killed'.
+
+SEE ALSO
+    ps, jobs

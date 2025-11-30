@@ -13,20 +13,15 @@
  */
 
 import { parse, stringify } from '@iarna/toml';
-
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes, fromBytes } from '@monk/common';
 
 export const TomlFormatter: Formatter = {
-    encode(data: any): string {
-        return stringify(data);
+    encode(data: any): Uint8Array {
+        return toBytes(stringify(data));
     },
 
-    decode(text: string): any {
-        return parse(text);
+    decode(data: Uint8Array): any {
+        return parse(fromBytes(data));
     },
 
     contentType: 'application/toml; charset=utf-8'

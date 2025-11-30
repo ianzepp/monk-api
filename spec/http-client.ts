@@ -199,6 +199,54 @@ export class HttpClient {
     }
 
     /**
+     * Make a GET request returning raw Response object
+     *
+     * @param path - API path
+     * @returns Promise with fetch Response
+     */
+    async getRaw(path: string): Promise<Response> {
+        const url = `${this.baseUrl}${path}`;
+        const headers: Record<string, string> = {};
+        if (this.authToken) {
+            headers['Authorization'] = `Bearer ${this.authToken}`;
+        }
+        return fetch(url, { method: 'GET', headers });
+    }
+
+    /**
+     * Make a PUT request returning raw Response object
+     *
+     * @param path - API path
+     * @param body - Request body as string
+     * @returns Promise with fetch Response
+     */
+    async putRaw(path: string, body: string): Promise<Response> {
+        const url = `${this.baseUrl}${path}`;
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+        if (this.authToken) {
+            headers['Authorization'] = `Bearer ${this.authToken}`;
+        }
+        return fetch(url, { method: 'PUT', headers, body });
+    }
+
+    /**
+     * Make a DELETE request returning raw Response object
+     *
+     * @param path - API path
+     * @returns Promise with fetch Response
+     */
+    async deleteRaw(path: string): Promise<Response> {
+        const url = `${this.baseUrl}${path}`;
+        const headers: Record<string, string> = {};
+        if (this.authToken) {
+            headers['Authorization'] = `Bearer ${this.authToken}`;
+        }
+        return fetch(url, { method: 'DELETE', headers });
+    }
+
+    /**
      * Make a POST request with YAML format
      *
      * @param path - API path

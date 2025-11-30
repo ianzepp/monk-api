@@ -24,7 +24,14 @@ import type { DatabaseType } from '@src/lib/database/adapter.js';
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { tenant, username, description, adapter } = await context.req.json();
+    const body = await context.req.json();
+
+    // Body type validation
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
+    }
+
+    const { tenant, username, password, description, adapter } = body;
 
     // Input validation
     if (!tenant) {
@@ -64,18 +71,7 @@ export default async function (context: Context) {
     }
 
     // Generate JWT token for the new user
-    const token = await JWTGenerator.generateToken({
-        id: result.user.id,
-        user_id: result.user.id,
-        tenant: result.tenant.name,
-        dbType: result.tenant.db_type,
-        dbName: result.tenant.database,
-        nsName: result.tenant.schema,
-        access: result.user.access,
-        access_read: [],
-        access_edit: [],
-        access_full: [],
-    });
+    const token = await JWTGenerator.fromUserAndTenant(result.user, result.tenant);
 
     return context.json({
         success: true,

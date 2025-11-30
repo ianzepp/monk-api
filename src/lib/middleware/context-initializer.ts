@@ -4,8 +4,8 @@
  * Hono middleware that initializes System context and attaches it to the request context.
  * Provides global error handling and automatic response formatting.
  *
- * Requires jwtValidatorMiddleware and userValidatorMiddleware to run first
- * to populate context.systemInit with authentication data.
+ * Requires authValidatorMiddleware to run first to populate context.systemInit
+ * with authentication data.
  */
 
 import type { Context, Next } from 'hono';
@@ -19,7 +19,7 @@ import { ValidationError, BusinessLogicError, SystemError } from '@src/lib/obser
  * Attaches system to context.set('system', system) for use in route handlers.
  * Provides global error handling with proper error categorization.
  *
- * Uses systemInit from context (set by jwtValidatorMiddleware, enriched by userValidatorMiddleware).
+ * Uses systemInit from context (set by authValidatorMiddleware).
  */
 export async function contextInitializerMiddleware(context: Context, next: Next) {
     try {

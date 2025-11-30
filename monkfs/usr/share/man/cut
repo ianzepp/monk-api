@@ -1,0 +1,37 @@
+NAME
+    cut - remove sections from each line
+
+SYNOPSIS
+    cut -d<delim> -f<fields> [file]
+    cut -c<chars> [file]
+
+DESCRIPTION
+    Extracts portions of each line from a file or stdin.
+    Can extract by field (with delimiter) or by character position.
+
+OPTIONS
+    -d DELIM    Use DELIM as field delimiter (default: tab)
+    -f FIELDS   Select fields (1-indexed)
+    -c CHARS    Select characters (1-indexed)
+
+    Fields and characters can be:
+    - Single: -f1
+    - Multiple: -f1,3,5
+    - Range: -f1-3
+    - Combined: -f1-3,5,7
+
+EXAMPLES
+    echo "a,b,c" | cut -d, -f2
+        Output: b
+
+    cat file | cut -d: -f1,3
+        Extract fields 1 and 3
+
+    cat file | cut -c1-10
+        Extract first 10 characters
+
+    ls -l | cut -c1-10
+        Extract permission bits
+
+SEE ALSO
+    grep, tr, sort

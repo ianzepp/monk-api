@@ -1,0 +1,65 @@
+# glow
+
+Render markdown with terminal styling
+
+## Synopsis
+
+```
+glow <file>
+<input> | glow
+```
+
+## Description
+
+Renders markdown text with **ANSI terminal colors** and formatting.
+Similar to the `glow` CLI tool but built into *monksh*.
+
+### Supported Elements
+
+- Headings (`# ## ### ####`)
+- **Bold** (`**text**` or `__text__`)
+- *Italic* (`*text*` or `_text_`)
+- Inline `code`
+- Code blocks (triple backticks)
+- Unordered lists (`-` or `*` or `+`)
+- Ordered lists (`1. 2. 3.`)
+- Task lists (`- [ ]` or `- [x]`)
+- Blockquotes (`> text`)
+- Links (`[text](url)`)
+- Images (`![alt](url)`)
+- Horizontal rules (`---` or `***`)
+- ~~Strikethrough~~ (`~~text~~`)
+
+---
+
+## Examples
+
+Render a markdown file:
+
+```bash
+glow README.md
+```
+
+Pipe AI output through glow:
+
+```bash
+ai explain docker | glow
+```
+
+Render markdown from another command:
+
+```bash
+cat notes.md | glow
+```
+
+## Exit Status
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error (file not found, etc.) |
+| 130 | Interrupted (SIGINT) |
+
+## See Also
+
+`ai`, `cat`, `man`

@@ -4,23 +4,16 @@
  * Standard JSON encoding/decoding wrapper.
  */
 
-export const JsonFormatter = {
-    /**
-     * Encode data to JSON string
-     */
-    encode(data: any): string {
-        return JSON.stringify(data, null, 2);
+import { type Formatter, toBytes, fromBytes } from '@monk/common';
+
+export const JsonFormatter: Formatter = {
+    encode(data: any): Uint8Array {
+        return toBytes(JSON.stringify(data, null, 2));
     },
 
-    /**
-     * Decode JSON string to data
-     */
-    decode(text: string): any {
-        return JSON.parse(text);
+    decode(data: Uint8Array): any {
+        return JSON.parse(fromBytes(data));
     },
 
-    /**
-     * Content-Type for responses
-     */
     contentType: 'application/json; charset=utf-8'
 };

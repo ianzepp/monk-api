@@ -16,7 +16,6 @@ export default withTransaction(async ({ system }) => {
     // Query each model for trashed records
     for (const modelName of modelNames) {
         const trashedRecords = await system.database.selectAny(modelName, {}, {
-            context: 'api' as const,
             trashed: 'only',
         });
 

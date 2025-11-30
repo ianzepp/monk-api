@@ -37,6 +37,7 @@ export default async function (context: Context) {
         {
             id: user.id,
             user_id: user.id,
+            username: user.username,
             tenant: user.tenant,
             dbName: user.db, // Extract from JWT compact field
             nsName: user.ns, // Extract from JWT compact field

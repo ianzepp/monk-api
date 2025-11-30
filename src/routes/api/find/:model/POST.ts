@@ -7,7 +7,7 @@ export default withTransaction(async ({ system, params, body }) => {
 
     // Support trashed option in body (not URL query param)
     const trashed = body?.trashed;
-    const options = { context: 'api' as const, ...(trashed && { trashed }) };
+    const options = trashed ? { trashed } : {};
     const result = await system.database.selectAny(model!, body, options);
 
     // If count=true or includeTotal=true, include total filtered count for pagination

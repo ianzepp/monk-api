@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS "fields" (
     "field_name" TEXT NOT NULL,
     "type" TEXT NOT NULL CHECK ("type" IN (
         'text', 'integer', 'bigint', 'bigserial', 'numeric', 'boolean',
-        'jsonb', 'uuid', 'timestamp', 'date',
+        'jsonb', 'uuid', 'timestamp', 'date', 'binary',
         'text[]', 'integer[]', 'numeric[]', 'uuid[]'
     )),
     "required" INTEGER DEFAULT 0 NOT NULL,
@@ -160,6 +160,34 @@ CREATE TABLE IF NOT EXISTS "tracked" (
 );
 
 CREATE INDEX IF NOT EXISTS "idx_tracked_model_record" ON "tracked" (model_name, record_id, change_id DESC);
+
+-- FS Nodes table (filesystem storage)
+CREATE TABLE IF NOT EXISTS "fs" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    "parent_id" TEXT,
+    "name" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "node_type" TEXT NOT NULL CHECK ("node_type" IN ('file', 'directory', 'symlink')),
+    "content" BLOB,
+    "target" TEXT,
+    "mode" INTEGER DEFAULT 420 NOT NULL,
+    "size" INTEGER DEFAULT 0 NOT NULL,
+    "owner_id" TEXT,
+    CONSTRAINT "fs_path_unique" UNIQUE("path"),
+    FOREIGN KEY ("parent_id") REFERENCES "fs"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("owner_id") REFERENCES "users"("id") ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS "idx_fs_parent" ON "fs" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_fs_path" ON "fs" ("path");
 
 -- =============================================================================
 -- NOTE: Seed data for SQLite is managed in src/lib/infrastructure.ts

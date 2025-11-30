@@ -30,6 +30,7 @@ import { NamespaceManager } from '@src/lib/namespace-manager.js';
 import { Infrastructure } from '@src/lib/infrastructure.js';
 import { JWTGenerator, type JWTPayload } from '@src/lib/jwt-generator.js';
 import { YamlFormatter } from '@src/lib/formatters/yaml.js';
+import { toBytes } from '@monk/common';
 import type { SystemInit } from '@src/lib/system.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { createInProcessClient, type InProcessClient } from './in-process-client.js';
@@ -67,7 +68,7 @@ export async function loadAppConfig(appName: string): Promise<AppConfig> {
         const configPath = join(dirname(packagePath), '..', 'app.yaml');
 
         const content = await readFile(configPath, 'utf-8');
-        const config = YamlFormatter.decode(content) as AppConfig;
+        const config = YamlFormatter.decode(toBytes(content)) as AppConfig;
 
         // Validate required fields
         if (!config.name) config.name = appName;
@@ -138,7 +139,7 @@ export async function registerAppTenant(appName: string): Promise<{
         const userResult = await DatabaseConnection.queryInNamespace(
             dbName,
             nsName,
-            'SELECT id, access, access_read, access_edit, access_full FROM users WHERE auth = $1 AND deleted_at IS NULL',
+            'SELECT id, auth, access, access_read, access_edit, access_full FROM users WHERE auth = $1 AND deleted_at IS NULL',
             ['root']
         );
 
@@ -149,18 +150,11 @@ export async function registerAppTenant(appName: string): Promise<{
         const user = userResult.rows[0];
 
         // Generate long-lived token
-        const token = await JWTGenerator.generateToken({
-            id: user.id,
-            user_id: user.id,
-            tenant: tenantName,
-            dbType: 'postgresql',
-            dbName,
-            nsName,
-            access: user.access,
-            access_read: user.access_read || [],
-            access_edit: user.access_edit || [],
-            access_full: user.access_full || [],
-        }, APP_TOKEN_EXPIRY);
+        const token = await JWTGenerator.fromUserAndTenant(
+            user,
+            { name: tenantName, db_type: 'postgresql', database: dbName, schema: nsName },
+            APP_TOKEN_EXPIRY
+        );
 
         console.info(`App tenant exists: ${tenantName}`);
 
@@ -210,18 +204,13 @@ export async function registerAppTenant(appName: string): Promise<{
         await mainPool.query('COMMIT');
 
         // Generate long-lived token for owner (ROOT_USER_ID for app tenants)
-        const token = await JWTGenerator.generateToken({
-            id: ownerUserId,
-            user_id: ownerUserId,
-            tenant: tenantName,
-            dbType: 'postgresql',
+        const token = await JWTGenerator.forRootUser(
+            ownerUserId,
+            tenantName,
             dbName,
             nsName,
-            access: 'root',
-            access_read: [],
-            access_edit: [],
-            access_full: [],
-        }, APP_TOKEN_EXPIRY);
+            APP_TOKEN_EXPIRY
+        );
 
         console.info(`Created app tenant: ${tenantName}`);
 
@@ -360,7 +349,7 @@ async function loadAppModelsFromYaml(packagePath: string, appName: string): Prom
         for (const file of yamlFiles) {
             const filePath = join(modelsDir, file.name);
             const content = await readFile(filePath, 'utf-8');
-            const model = YamlFormatter.decode(content) as AppModelDefinition;
+            const model = YamlFormatter.decode(toBytes(content)) as AppModelDefinition;
 
             if (!model.model_name) {
                 console.warn(`YAML model file ${file.name} missing model_name, skipping`);

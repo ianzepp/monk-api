@@ -1,28 +1,21 @@
 /**
  * @monk/formatter-csv - CSV Formatter
  *
- * CSV (Comma-Separated Values) format encoding for tabular data export.
+ * CSV (Comma-Separated Values) format for tabular data import/export.
  *
- * IMPORTANT CONSTRAINTS:
- * - Response-only format (no request parsing support)
- * - Only works with array of objects: [{...}, {...}, ...]
- * - Validates data structure before formatting
+ * Supported operations:
+ * - encode: Convert array of objects to CSV string
+ * - decode: Parse CSV string to array of objects
  *
  * Use cases:
  * - Data export for Excel/Google Sheets
+ * - Bulk data import from spreadsheets
  * - Reporting and analytics
- * - Bulk data extraction
  * - Integration with data analysis tools
- * - Database query results export
  */
 
 import Papa from 'papaparse';
-
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes, fromBytes } from '@monk/common';
 
 /**
  * Validate that data is an array of objects suitable for CSV export
@@ -68,7 +61,7 @@ function flattenForCsv(data: any[]): any[] {
 }
 
 export const CsvFormatter: Formatter = {
-    encode(data: any): string {
+    encode(data: any): Uint8Array {
         validateCsvData(data);
         const flatData = flattenForCsv(data);
         const csv = Papa.unparse(flatData, {
@@ -79,11 +72,23 @@ export const CsvFormatter: Formatter = {
             delimiter: ',',
             newline: '\n',
         });
-        return csv;
+        return toBytes(csv);
     },
 
-    decode(_text: string): never {
-        throw new Error('CSV parsing for request bodies is not supported. CSV is a response-only format.');
+    decode(data: Uint8Array): any[] {
+        const text = fromBytes(data);
+        const result = Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: true,
+        });
+
+        if (result.errors.length > 0) {
+            const firstError = result.errors[0];
+            throw new Error(`CSV parse error at row ${firstError.row}: ${firstError.message}`);
+        }
+
+        return result.data as any[];
     },
 
     contentType: 'text/csv; charset=utf-8; header=present'

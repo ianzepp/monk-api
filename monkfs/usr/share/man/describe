@@ -1,0 +1,22 @@
+NAME
+    describe - show model schema
+
+SYNOPSIS
+    describe [model]
+
+DESCRIPTION
+    Displays the YAML schema for a model.
+    If no model given, infers from current directory.
+
+EXAMPLES
+    describe users
+        Show users model schema
+
+    describe
+        Infer model from CWD (if in /api/data/users)
+
+    cd /api/data/orders && describe
+        Describe orders model
+
+SEE ALSO
+    select, ls

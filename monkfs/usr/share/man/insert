@@ -1,0 +1,43 @@
+NAME
+    insert - create a single record
+
+SYNOPSIS
+    insert <model> [field=value ...]
+    insert <model> '<json>'
+    echo '<json>' | insert <model>
+    insert . [field=value ...]
+
+DESCRIPTION
+    Creates a single new record in the specified model. Records can be
+    created by specifying field=value pairs on the command line, or by
+    piping a JSON object to stdin.
+
+    Use "." to insert into the current collection when in /api/data/<model>.
+
+    For bulk inserts, use insert_bulk instead.
+
+OPTIONS
+    field=value
+        Set a field value. Can be repeated for multiple fields.
+        Values are parsed as JSON if they look like JSON, otherwise
+        treated as strings.
+
+EXAMPLES
+    insert users name="John Doe" role=user
+        Create a user with inline field values
+
+    insert users '{"name":"Bob","email":"bob@test.com"}'
+        Create with inline JSON
+
+    echo '{"name":"Bob"}' | insert users
+        Create from JSON via stdin
+
+    insert . name=Bob
+        Insert into current collection (when in /api/data/users)
+
+EXIT STATUS
+    0   Success
+    1   Error (model not found, validation failed, array provided, etc.)
+
+SEE ALSO
+    insert_bulk, update, delete, select, describe

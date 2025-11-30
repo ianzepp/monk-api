@@ -1,0 +1,51 @@
+NAME
+    xargs - build and execute commands from stdin
+
+SYNOPSIS
+    <input> | xargs [options] <command> [args...]
+
+DESCRIPTION
+    Reads items from stdin and executes the specified command with
+    those items as arguments. By default, items are split on whitespace.
+
+OPTIONS
+    -0              Input items are NUL-separated (use with find -print0)
+    -d <delim>      Use delimiter instead of whitespace
+    -I <replace>    Replace string in command (implies -n 1)
+    -n <max>        Use at most max arguments per command invocation
+    -t              Print commands before executing (trace mode)
+    -r              Don't run command if stdin is empty
+    -L <max>        Use at most max lines per command invocation
+    -P <max>        Run up to max processes in parallel
+
+EXAMPLES
+    find . -type f | xargs cat
+        Cat all files found
+
+    find . -print0 | xargs -0 rm
+        Safe delete with NUL separator (handles spaces in names)
+
+    echo "a b c" | xargs -n1 echo
+        One argument per command:
+            echo a
+            echo b
+            echo c
+
+    find . | xargs -I {} cp {} /backup/
+        Use replacement string
+
+    find . -type f | xargs -P4 -n10 gzip
+        Parallel execution: 4 processes, 10 files each
+
+    echo "1,2,3" | xargs -d, echo
+        Split by comma
+
+    find . -name "*.txt" | xargs -t wc -l
+        Trace mode shows commands
+
+EXIT STATUS
+    Returns the exit code of the last command executed,
+    or 0 if -r was specified and stdin was empty.
+
+SEE ALSO
+    find, grep, cat

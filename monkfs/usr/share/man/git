@@ -1,0 +1,52 @@
+NAME
+    git - version control operations
+
+SYNOPSIS
+    git <subcommand> [options] [args]
+
+DESCRIPTION
+    Simplified git for the virtual filesystem. Downloads repository
+    contents but does not track history or support commits.
+
+SUBCOMMANDS
+    clone <url> [destination]
+            Clone a repository into the virtual filesystem.
+            If no destination is specified, clones to /tmp/<repo-name>.
+
+CLONE DETAILS
+    Supported hosts:
+        github.com      GitHub repositories
+        gitlab.com      GitLab repositories
+
+    URL formats:
+        https://github.com/user/repo
+        https://github.com/user/repo.git
+        https://github.com/user/repo?ref=branch
+
+    The ?ref=branch query parameter selects a specific branch.
+    Default branch (main or master) is used if not specified.
+
+    Note: Only public repositories are supported. The clone downloads
+    file contents only - no .git directory or history is created.
+
+EXAMPLES
+    git clone https://github.com/user/repo
+        Clone to /tmp/repo
+
+    git clone https://github.com/user/repo /home/root/myrepo
+        Clone to specific destination
+
+    git clone https://github.com/user/repo?ref=develop
+        Clone the develop branch
+
+    git clone https://gitlab.com/user/project /tmp/project
+        Clone from GitLab
+
+LIMITATIONS
+    - Public repositories only (no authentication)
+    - No commit history or .git directory
+    - No push, pull, or other git operations
+    - Large repositories may be slow (GitHub API rate limits)
+
+SEE ALSO
+    curl, cat, ls

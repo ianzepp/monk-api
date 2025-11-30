@@ -5,11 +5,7 @@
  * Converts text to dots (.) and dashes (-) representation.
  */
 
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes, fromBytes } from '@monk/common';
 
 const MORSE_CODE: Record<string, string> = {
     'A': '.-',    'B': '-...',  'C': '-.-.',  'D': '-..',   'E': '.',
@@ -33,26 +29,21 @@ const MORSE_TO_CHAR: Record<string, string> = Object.fromEntries(
 );
 
 export const MorseFormatter: Formatter = {
-    /**
-     * Encode text to morse code (dots and dashes)
-     * Uses hex encoding first to avoid case sensitivity issues
-     */
-    encode(data: any): string {
+    encode(data: any): Uint8Array {
         const jsonString = JSON.stringify(data, null, 2);
         const hexString = Buffer.from(jsonString).toString('hex').toUpperCase();
 
-        return hexString
+        const morse = hexString
             .split('')
             .map(char => MORSE_CODE[char] || '')
             .filter(code => code.length > 0)
             .join(' ');
+
+        return toBytes(morse);
     },
 
-    /**
-     * Decode morse code (dots and dashes) to text
-     * Decodes from hex to restore original JSON
-     */
-    decode(text: string): any {
+    decode(data: Uint8Array): any {
+        const text = fromBytes(data);
         const hexString = text
             .split(' ')
             .map(code => MORSE_TO_CHAR[code] || '')

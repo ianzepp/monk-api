@@ -1,0 +1,29 @@
+NAME
+    uniq - report or filter out repeated lines
+
+SYNOPSIS
+    uniq [-cd] [file]
+
+DESCRIPTION
+    Filters out adjacent duplicate lines from input.
+    Note: Input should typically be sorted first.
+
+OPTIONS
+    -c      Prefix lines with count of occurrences
+    -d      Only print duplicate lines
+
+EXAMPLES
+    sort file | uniq
+        Remove adjacent duplicates
+
+    sort file | uniq -c
+        Count occurrences of each line
+
+    sort file | uniq -d
+        Show only lines that appear more than once
+
+    find . | sort | uniq -c | sort -rn
+        Count and rank by frequency
+
+SEE ALSO
+    sort, grep

@@ -6,7 +6,5 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  */
 export default withTransaction(async ({ system, params }) => {
     const { model, id } = params;
-    return await system.database.select404(model, { where: { id } }, undefined, {
-        context: 'api' as const,
-    });
+    return await system.database.select404(model, { where: { id } });
 });

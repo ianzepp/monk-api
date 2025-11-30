@@ -42,7 +42,8 @@ INSERT OR IGNORE INTO "models" (id, model_name, status, sudo, description) VALUE
     ('${randomUUID()}', 'users', 'system', 1, NULL),
     ('${randomUUID()}', 'filters', 'system', 0, NULL),
     ('${randomUUID()}', 'credentials', 'system', 1, 'User authentication credentials'),
-    ('${randomUUID()}', 'tracked', 'system', 1, 'Change tracking and audit trail');
+    ('${randomUUID()}', 'tracked', 'system', 1, 'Change tracking and audit trail'),
+    ('${randomUUID()}', 'fs', 'system', 1, 'Filesystem nodes');
 
 -- Fields for models
 INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, default_value, description) VALUES
@@ -120,6 +121,18 @@ INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, desc
     ('${randomUUID()}', 'tracked', 'created_by', 'uuid', 0, 'ID of the user who made the change'),
     ('${randomUUID()}', 'tracked', 'request_id', 'text', 0, 'Request correlation ID'),
     ('${randomUUID()}', 'tracked', 'metadata', 'jsonb', 0, 'Additional context');
+
+-- Fields for fs
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, description) VALUES
+    ('${randomUUID()}', 'fs', 'parent_id', 'uuid', 0, 'Parent directory'),
+    ('${randomUUID()}', 'fs', 'name', 'text', 1, 'File or directory name'),
+    ('${randomUUID()}', 'fs', 'path', 'text', 1, 'Full absolute path'),
+    ('${randomUUID()}', 'fs', 'node_type', 'text', 1, 'Node type: file, directory, symlink'),
+    ('${randomUUID()}', 'fs', 'content', 'binary', 0, 'File content'),
+    ('${randomUUID()}', 'fs', 'target', 'text', 0, 'Symlink target path'),
+    ('${randomUUID()}', 'fs', 'mode', 'integer', 0, 'Unix permission bits'),
+    ('${randomUUID()}', 'fs', 'size', 'integer', 0, 'Content size in bytes'),
+    ('${randomUUID()}', 'fs', 'owner_id', 'uuid', 0, 'Owner user ID');
 
 -- Root user with well-known ID (customized via parameterized UPDATE if needed)
 INSERT OR IGNORE INTO "users" (id, name, auth, access) VALUES
@@ -577,6 +590,10 @@ export class Infrastructure {
                         );
                     }
 
+                    // Initialize FS directory structure
+                    const { initializeFS } = await import('./fs/init.js');
+                    await initializeFS(adapter, ROOT_USER_ID);
+
                     db.exec('COMMIT');
                 } catch (error) {
                     db.exec('ROLLBACK');
@@ -607,6 +624,10 @@ export class Infrastructure {
                             [ownerUserId, ownerUsername, ownerUsername]
                         );
                     }
+
+                    // Initialize FS directory structure
+                    const { initializeFS } = await import('./fs/init.js');
+                    await initializeFS(adapter, ROOT_USER_ID);
 
                     await adapter.commit();
                 } catch (error) {

@@ -19,6 +19,11 @@ print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_info "Starting spec TypeScript compilation..."
 print_info "Using tsconfig.spec.json (includes src/ + spec/ directories)"
 
+# Build workspace packages first (main src depends on @monk/common, formatters, etc.)
+print_info "Building workspace packages..."
+bun run build:packages
+print_info "Workspace packages built successfully"
+
 # Clean up any existing compiled spec artifacts to catch missing source files
 print_info "Cleaning up compiled spec artifacts..."
 find spec/ -name "*.js" -o -name "*.d.ts" -o -name "*.js.map" -o -name "*.d.ts.map" | xargs rm -f

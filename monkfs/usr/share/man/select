@@ -1,0 +1,83 @@
+NAME
+    select - SQL-like query command
+
+SYNOPSIS
+    select <columns> from <model> [where <conditions>] [group by <columns>]
+           [order by <column> [asc|desc]] [limit N]
+
+DESCRIPTION
+    Queries records using SQL-like syntax. Supports field selection,
+    filtering, aggregation, grouping, ordering, and limiting.
+
+    Unlike traditional SQL, there's no need to connect to a database -
+    the entire platform IS a database.
+
+COLUMNS
+    all                 All fields (preferred, avoids shell glob)
+    *                   All fields (requires quoting: '*' or \*)
+    field1, field2      Specific fields
+    count(*)            Count all records
+    count(field)        Count non-null values
+    sum(field)          Sum of numeric field
+    avg(field)          Average of numeric field
+    min(field)          Minimum value
+    max(field)          Maximum value
+
+WHERE OPERATORS
+    =, ==               Equals
+    !=, <>              Not equals
+    <, >, <=, >=        Comparison
+    like                Pattern match (% wildcard)
+    ilike               Case-insensitive pattern match
+    in (a, b, c)        Value in list
+    not in (a, b, c)    Value not in list
+    is null             Field is null
+    is not null         Field is not null
+
+    Combine conditions with AND (OR support is limited).
+
+EXAMPLES
+    select all from users
+        All fields from users model
+
+    select id, name from users
+        Specific fields
+
+    select id, name from users where status = 'active'
+        With filter
+
+    select id, name from users where created_at > '2024-01-01'
+        Date comparison
+
+    select all from orders where amount > 100 order by created_at desc
+        With ordering
+
+    select all from products limit 10
+        Limit results
+
+    select type, count(*) from fields group by type
+        Aggregate with grouping
+
+    select type, count(*) from fields group by type order by count desc
+        Aggregate with ordering
+
+    select model_name, sum(amount) from orders group by model_name
+        Sum by group
+
+    select all from users | format markdown
+        Display as formatted table
+
+    select all from users | format csv > users.csv
+        Export to CSV file
+
+    select id from users where status = 'inactive' | delete_bulk users
+        Pipe to bulk delete
+
+OUTPUT
+    Results output as JSON array. Pipe to `format` for other formats:
+    - format markdown   Pretty table
+    - format csv        Comma-separated values
+    - format toon       Compact for LLMs
+
+SEE ALSO
+    format, describe, insert, update, delete, introspect

@@ -1,0 +1,28 @@
+DIRNAME(1)                  User Commands                  DIRNAME(1)
+
+NAME
+       dirname - strip last component from filename
+
+SYNOPSIS
+       dirname PATH...
+
+DESCRIPTION
+       Print the directory portion of PATH, with any trailing
+       filename component removed. If PATH contains no slashes,
+       prints "." (current directory).
+
+EXAMPLES
+       dirname /usr/bin/cat
+              Prints: /usr/bin
+
+       dirname /home/user/
+              Prints: /home
+
+       dirname file.txt
+              Prints: .
+
+       dirname /
+              Prints: /
+
+SEE ALSO
+       basename(1)

@@ -13,30 +13,15 @@
  */
 
 import { encode, decode } from '@msgpack/msgpack';
+import { type Formatter } from '@monk/common';
 
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
-
-export const MessagePackFormatter: Formatter = {
-    /**
-     * Encode data to MessagePack binary format
-     * Returns base64-encoded string for HTTP transport
-     */
-    encode(data: any): string {
-        const buffer = encode(data);
-        return Buffer.from(buffer).toString('base64');
+export const MsgpackFormatter: Formatter = {
+    encode(data: any): Uint8Array {
+        return encode(data);
     },
 
-    /**
-     * Decode MessagePack binary to data
-     * Accepts base64-encoded string from HTTP transport
-     */
-    decode(text: string): any {
-        const buffer = Buffer.from(text, 'base64');
-        return decode(buffer);
+    decode(data: Uint8Array): any {
+        return decode(data);
     },
 
     contentType: 'application/msgpack'

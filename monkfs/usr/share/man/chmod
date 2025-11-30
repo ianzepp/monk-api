@@ -1,0 +1,66 @@
+NAME
+    chmod - change file mode bits
+
+SYNOPSIS
+    chmod <mode> <file>...
+
+DESCRIPTION
+    Changes the file mode (permissions) of each given file.
+
+    Mode can be specified as:
+
+    Octal notation:
+        Three or four octal digits (0-7). Each digit represents
+        permissions for owner, group, and others respectively.
+
+        4 = read (r)
+        2 = write (w)
+        1 = execute (x)
+
+        Example: 755 = rwxr-xr-x
+
+    Symbolic notation:
+        [ugoa][+-=][rwx]
+
+        Who:
+            u = user (owner)
+            g = group
+            o = others
+            a = all (default if omitted)
+
+        Operation:
+            + = add permission
+            - = remove permission
+            = = set exactly
+
+        Permissions:
+            r = read
+            w = write
+            x = execute
+
+EXAMPLES
+    chmod 755 script.sh
+        Set rwxr-xr-x (owner: full, others: read+execute)
+
+    chmod 644 file.txt
+        Set rw-r--r-- (owner: read+write, others: read)
+
+    chmod u+x script.sh
+        Add execute permission for owner
+
+    chmod go-w file.txt
+        Remove write permission from group and others
+
+    chmod a=r secret.txt
+        Set read-only for everyone
+
+NOTES
+    Only works on filesystems that support permissions:
+    - Home directories (/home/*)
+    - Temp files (/tmp/*)
+    - Local mounts (mount -t local)
+
+    API mounts (/api/*) will return "Read-only file system".
+
+SEE ALSO
+    ls, touch, mkdir

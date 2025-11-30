@@ -1,0 +1,32 @@
+NAME
+    sleep - delay for a specified amount of time
+
+SYNOPSIS
+    sleep DURATION
+
+DESCRIPTION
+    Pauses execution for the specified duration.
+
+    Duration can be specified as:
+    - 5 or 5s   - 5 seconds
+    - 500ms     - 500 milliseconds
+    - 1m        - 1 minute
+    - 1h        - 1 hour
+
+    Maximum duration is capped at 1 hour.
+
+EXAMPLES
+    sleep 5
+        Pause for 5 seconds
+
+    sleep 500ms
+        Pause for half a second
+
+    sleep 1m
+        Pause for 1 minute
+
+    sleep 30 &
+        Sleep in background
+
+SEE ALSO
+    timeout, jobs

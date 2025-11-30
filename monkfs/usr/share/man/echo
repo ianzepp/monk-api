@@ -1,0 +1,22 @@
+NAME
+    echo - output text
+
+SYNOPSIS
+    echo [text...]
+
+DESCRIPTION
+    Writes arguments to stdout, separated by spaces.
+    Supports variable expansion ($VAR, ${VAR}, ${VAR:-default}).
+
+EXAMPLES
+    echo hello world
+        Output: hello world
+
+    echo $USER
+        Output: current username
+
+    echo ${HOME:-/}
+        Output: HOME or "/" if not set
+
+SEE ALSO
+    env, export

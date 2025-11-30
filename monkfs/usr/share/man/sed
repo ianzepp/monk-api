@@ -1,0 +1,98 @@
+NAME
+    sed - stream editor for filtering and transforming text
+
+SYNOPSIS
+    sed [options] <script> [file...]
+    <input> | sed [options] <script>
+
+DESCRIPTION
+    Reads input line by line, applies editing commands, and writes
+    to stdout. By default prints all lines; use -n to suppress.
+
+OPTIONS
+    -n              Suppress automatic printing of lines
+    -e <script>     Add script commands (can be used multiple times)
+    -i              Edit files in place
+    -E, -r          Use extended regular expressions
+
+COMMANDS
+    s/pat/repl/[flags]    Substitute pattern with replacement
+    d                      Delete pattern space
+    p                      Print pattern space
+    q                      Quit (exit sed)
+    a\text                 Append text after line
+    i\text                 Insert text before line
+    c\text                 Replace line with text
+    y/src/dst/             Transliterate characters
+    =                      Print line number
+
+ADDRESSES
+    Commands can be prefixed with addresses to limit their scope:
+
+    n                      Line number (1-based)
+    $                      Last line
+    /regex/                Lines matching pattern
+    n,m                    Range from line n to m
+    n~step                 Every step-th line starting at n
+
+SUBSTITUTE FLAGS
+    g                      Replace all occurrences (global)
+    p                      Print line if substitution made
+    i, I                   Case-insensitive matching
+    n                      Replace only nth occurrence
+
+REPLACEMENT
+    &                      Entire matched string
+    \1, \2, ...            Captured groups
+    \n                     Newline
+    \t                     Tab
+
+EXAMPLES
+    sed 's/foo/bar/' file
+        Replace first 'foo' with 'bar' on each line
+
+    sed 's/foo/bar/g' file
+        Replace all occurrences of 'foo'
+
+    sed -n '/error/p' log.txt
+        Print only lines containing 'error'
+
+    sed '1,10d' file
+        Delete first 10 lines
+
+    sed -i 's/old/new/g' file
+        In-place replacement
+
+    sed '/^#/d' config
+        Delete comment lines
+
+    sed 's/[0-9]\+/(&)/g' file
+        Wrap all numbers in parentheses
+
+    sed -n '5,10p' file
+        Print lines 5-10 only
+
+    sed 'y/abc/ABC/' file
+        Translate a->A, b->B, c->C
+
+    sed '/start/,/end/d' file
+        Delete lines between start and end
+
+    sed '1i\Header' file
+        Insert header at first line
+
+    sed '$a\Footer' file
+        Append footer at last line
+
+    sed -E 's/([a-z]+)/[\1]/g' file
+        Extended regex with capture groups
+
+    sed '0~2d' file
+        Delete every other line
+
+EXIT STATUS
+    0       Success
+    1       Error
+
+SEE ALSO
+    grep, tr, cut, sort

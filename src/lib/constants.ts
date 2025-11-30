@@ -32,3 +32,11 @@ export const JWT_SUDO_EXPIRY = 15 * 60;
  * Fake/impersonation token expiry in seconds (1 hour)
  */
 export const JWT_FAKE_EXPIRY = 60 * 60;
+
+/**
+ * Get project root directory.
+ * Reads from process.env.PROJECT_ROOT at runtime (not module load time).
+ */
+export function getProjectRoot(): string {
+    return process.env.PROJECT_ROOT || process.cwd();
+}

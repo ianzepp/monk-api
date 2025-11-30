@@ -1,0 +1,44 @@
+NC(1)                       User Commands                       NC(1)
+
+NAME
+       nc - netcat: arbitrary TCP connections
+
+SYNOPSIS
+       nc [-zv] [-w timeout] host port
+
+DESCRIPTION
+       Open a TCP connection to the specified host and port.
+       Data from stdin is sent to the remote host, and data
+       received is written to stdout.
+
+OPTIONS
+       -z         Zero-I/O mode: just check if port is open
+       -v         Verbose: print connection status to stderr
+       -w SECS    Connection timeout in seconds (default: 10)
+
+EXIT STATUS
+       0    Connection succeeded (or port is open in -z mode)
+       1    Connection failed or timed out
+
+EXAMPLES
+       nc -z localhost 3000
+              Check if port 3000 is open.
+
+       nc -zv localhost 3000
+              Check port with verbose output.
+
+       nc localhost 80
+              Connect to HTTP port interactively.
+
+       echo "GET / HTTP/1.0\r\n\r\n" | nc localhost 80
+              Send HTTP request via pipe.
+
+       nc -w 5 api.example.com 443
+              Connect with 5 second timeout.
+
+NOTES
+       Listen mode (-l) is not implemented.
+       Use curl(1) for HTTP requests with better handling.
+
+SEE ALSO
+       curl(1), ping(1)

@@ -10,7 +10,6 @@ export default withTransaction(async ({ system, params }) => {
 
     // Select with trashed='only' to find only trashed records
     const record = await system.database.select404(model, { where: { id } }, 'Record not found or not trashed', {
-        context: 'api' as const,
         trashed: 'only',
     });
 

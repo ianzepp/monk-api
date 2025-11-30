@@ -4,7 +4,7 @@
  * Single middleware that orchestrates all response transformations in a predetermined order.
  *
  * Pipeline Order:
- * 1. Field Extraction - Apply ?unwrap, ?select=, ?stat=false, ?access=false
+ * 1. Field Extraction - Apply ?unwrap, ?select=, ?stat=true, ?access=true
  * 2. Format Conversion - Convert to JSON/YAML/CSV/TOON/etc based on ?format=
  * 3. Encryption - Encrypt formatted text if ?encrypt=pgp
  *
@@ -20,10 +20,11 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 // Field extraction utilities
 import { extract } from '@src/lib/field-extractor.js';
-import { filterSystemFields } from '@src/lib/system-field-filter.js';
+import { transform, transformMany } from '@src/lib/transformers/index.js';
 
 // Formatter registry
 import { getFormatter, JsonFormatter } from '@src/lib/formatters/index.js';
+import { fromBytes, toBytes } from '@monk/common';
 
 // Encryption utilities
 import { deriveKeyFromJWT, extractSaltFromPayload } from '@src/lib/encryption/key-derivation.js';
@@ -33,7 +34,7 @@ import { createArmor } from '@src/lib/encryption/pgp-armor.js';
 /**
  * Error response for unavailable format (missing optional @monk/formatter-* package)
  */
-function formatUnavailableError(format: string): { text: string; contentType: string } {
+function formatUnavailableError(format: string): { data: Uint8Array; contentType: string } {
     const error = {
         success: false,
         error: `Format '${format}' is not available`,
@@ -41,7 +42,7 @@ function formatUnavailableError(format: string): { text: string; contentType: st
         details: `Install the optional package: npm install @monk/formatter-${format}`
     };
     return {
-        text: JSON.stringify(error, null, 2),
+        data: toBytes(JSON.stringify(error, null, 2)),
         contentType: JsonFormatter.contentType
     };
 }
@@ -52,8 +53,8 @@ function formatUnavailableError(format: string): { text: string; contentType: st
  * Applies server-side field extraction and system field filtering:
  * - ?unwrap - Remove envelope, return data object
  * - ?select=id,name - Remove envelope, return specific fields
- * - ?stat=false - Exclude timestamp fields
- * - ?access=false - Exclude ACL fields
+ * - ?stat=true - Include timestamp fields (excluded by default)
+ * - ?access=true - Include ACL fields (excluded by default)
  *
  * Only processes successful responses (success: true)
  */
@@ -69,6 +70,15 @@ function applyFieldExtraction(data: any, context: Context): any {
     const statParam = context.req.query('stat');
     const accessParam = context.req.query('access');
 
+    // Parse boolean flags (default: exclude stat/access fields)
+    const includeStat = statParam === 'true' || statParam === '1';
+    const includeAccess = accessParam === 'true' || accessParam === '1';
+
+    // Parse select as comma-separated list
+    const selectFields = selectParam && selectParam.trim() !== ''
+        ? selectParam.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : undefined;
+
     // Define the result, while injecting the HTTP method, path, stat, and access
     let result = {
         success: true,
@@ -79,17 +89,21 @@ function applyFieldExtraction(data: any, context: Context): any {
         ...data
     };
 
-    // Step 1a: System field filtering (applied to data before unwrap/select)
-    if (statParam === 'false' || accessParam === 'false') {
-        const includeStat = statParam !== 'false';
-        const includeAccess = accessParam !== 'false';
+    // Step 1a: Transform data fields (apply stat/access/select filtering)
+    // Only filter stat/access fields for data record endpoints
+    const path = context.req.path;
+    const shouldFilterFields = path.startsWith('/api/data') || path.startsWith('/api/trashed');
 
-        if (result.data !== undefined) {
-            result.data = filterSystemFields(result.data, includeStat, includeAccess);
+    if (result.data !== undefined && shouldFilterFields) {
+        const options = { stat: includeStat, access: includeAccess, select: selectFields };
+        if (Array.isArray(result.data)) {
+            result.data = transformMany(result.data, options);
+        } else if (typeof result.data === 'object' && result.data !== null) {
+            result.data = transform(result.data, options);
         }
     }
 
-    // Step 1b: Unwrap or select fields
+    // Step 1b: Unwrap or select fields (envelope extraction)
     if (selectParam && selectParam.trim() !== '') {
         // select= implies unwrap + field filtering
         // Prepend "data." to each path since select operates within data scope
@@ -110,10 +124,10 @@ function applyFieldExtraction(data: any, context: Context): any {
 /**
  * Pipeline Step 2: Format Conversion
  *
- * Converts data to string in requested format using the formatter registry.
- * Returns { text, contentType } for next pipeline step.
+ * Converts data to bytes in requested format using the formatter registry.
+ * Returns { data, contentType } for next pipeline step.
  */
-function applyFormatter(data: any, context: Context): { text: string; contentType: string } {
+function applyFormatter(data: any, context: Context): { data: Uint8Array; contentType: string } {
     const format = (context.get('responseFormat') as string) || 'json';
     const formatter = getFormatter(format);
 
@@ -122,18 +136,18 @@ function applyFormatter(data: any, context: Context): { text: string; contentTyp
     }
 
     try {
-        // Special case: CSV auto-unwraps envelope
-        const inputData = (format === 'csv' && data?.data !== undefined) ? data.data : data;
+        // Special case: CSV and SQLite auto-unwrap envelope (they expect arrays)
+        const inputData = ((format === 'csv' || format === 'sqlite') && data?.data !== undefined) ? data.data : data;
 
         return {
-            text: formatter.encode(inputData),
+            data: formatter.encode(inputData),
             contentType: formatter.contentType
         };
     } catch (error) {
         // If formatting fails, gracefully fall back to JSON
         console.error(`Format encoding failed (${format}), falling back to JSON:`, error);
         return {
-            text: JSON.stringify(data, null, 2),
+            data: toBytes(JSON.stringify(data, null, 2)),
             contentType: JsonFormatter.contentType
         };
     }
@@ -142,7 +156,7 @@ function applyFormatter(data: any, context: Context): { text: string; contentTyp
 /**
  * Pipeline Step 3: Encryption (Optional)
  *
- * Encrypts formatted text if ?encrypt=pgp is present:
+ * Encrypts formatted data if ?encrypt=pgp is present:
  * - Derives encryption key from JWT token using PBKDF2
  * - Encrypts with AES-256-GCM
  * - Returns PGP-style ASCII armor
@@ -155,11 +169,11 @@ function applyFormatter(data: any, context: Context): { text: string; contentTyp
  *
  * Encrypts ALL responses including errors (prevents info leakage)
  */
-function applyEncryption(text: string, context: Context): string {
+function applyEncryption(data: Uint8Array, context: Context): { data: Uint8Array; encrypted: boolean } {
     const encryptParam = context.req.query('encrypt');
 
     if (encryptParam !== 'pgp') {
-        return text; // No encryption requested
+        return { data, encrypted: false }; // No encryption requested
     }
 
     try {
@@ -176,7 +190,7 @@ function applyEncryption(text: string, context: Context): string {
 
         const jwt = parts[1];
 
-        // Get JWT payload from context (set by jwtValidatorMiddleware)
+        // Get JWT payload from context (set by authValidatorMiddleware)
         const jwtPayload = context.get('jwtPayload') as JWTPayload | undefined;
         if (!jwtPayload) {
             throw new Error('Encryption requires valid JWT payload - token not decoded');
@@ -186,18 +200,21 @@ function applyEncryption(text: string, context: Context): string {
         const salt = extractSaltFromPayload(jwtPayload);
         const key = deriveKeyFromJWT(jwt, salt);
 
+        // Convert to string for encryption (encryption works on text)
+        const text = fromBytes(data);
+
         // Encrypt the formatted text
         const encryptionResult = encrypt(text, key);
 
         // Create PGP-style ASCII armor
         const armored = createArmor(encryptionResult);
 
-        return armored;
+        return { data: toBytes(armored), encrypted: true };
     } catch (error) {
         // Encryption failed - log error and return unencrypted
         // This allows the API to remain functional even if encryption fails
         console.error('Encryption failed, returning unencrypted response:', error);
-        return text;
+        return { data, encrypted: false };
     }
 }
 
@@ -212,7 +229,6 @@ function applyEncryption(text: string, context: Context): string {
 export async function responseTransformerMiddleware(context: Context, next: Next) {
     // Store original methods
     const originalJson = context.json.bind(context);
-    const originalText = context.text.bind(context);
 
     // Override context.json() to intercept ALL JSON responses
     context.json = function (data: any, init?: any) {
@@ -227,26 +243,25 @@ export async function responseTransformerMiddleware(context: Context, next: Next
 
         let result = data;
 
-        // Step 1: Field Extraction (?unwrap, ?select=, ?stat=false, ?access=false)
+        // Step 1: Field Extraction (?unwrap, ?select=, ?stat=true, ?access=true)
         result = applyFieldExtraction(result, context);
 
         // Step 2: Format Conversion (?format=yaml|csv|toon|etc)
-        const { text, contentType } = applyFormatter(result, context);
+        const formatted = applyFormatter(result, context);
 
         // Step 3: Encryption (?encrypt=pgp)
-        const finalText = applyEncryption(text, context);
+        const { data: finalData, encrypted } = applyEncryption(formatted.data, context);
 
         // ========== PIPELINE END ==========
 
         // Determine final content type and headers
-        const isEncrypted = context.req.query('encrypt') === 'pgp';
-        const finalContentType = isEncrypted ? 'text/plain; charset=utf-8' : contentType;
+        const finalContentType = encrypted ? 'text/plain; charset=utf-8' : formatted.contentType;
 
         const headers: Record<string, string> = {
             'Content-Type': finalContentType
         };
 
-        if (isEncrypted) {
+        if (encrypted) {
             headers['X-Monk-Encrypted'] = 'pgp';
             headers['X-Monk-Cipher'] = 'AES-256-GCM';
         }
@@ -254,8 +269,8 @@ export async function responseTransformerMiddleware(context: Context, next: Next
         // Extract status code
         const status = typeof init === 'number' ? init : init?.status || 200;
 
-        // Return final response using original text method
-        return originalText(finalText, status, headers);
+        // Return final response with byte data
+        return new Response(finalData, { status, headers });
     } as any; // Type assertion needed for Hono method override
 
     // Execute route handlers

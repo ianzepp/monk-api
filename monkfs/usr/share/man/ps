@@ -1,0 +1,37 @@
+NAME
+    ps - report process status
+
+SYNOPSIS
+    ps [-a|--all]
+
+DESCRIPTION
+    Displays information about running processes for the current
+    tenant. By default, shows only running processes.
+
+OPTIONS
+    -a, --all
+        Show all processes including completed, failed, and killed.
+
+OUTPUT COLUMNS
+    PID       Process ID (unique within tenant)
+    STATUS    pending, running, done, failed, or killed
+    TYPE      command, script, cron, export, or import
+    STARTED   Timestamp when process started
+    COMMAND   Original command that spawned the process
+
+EXAMPLES
+    ps
+        Show all running processes
+
+    ps -a
+        Show all processes including completed
+
+    ps -a | grep export
+        Find export processes
+
+NOTES
+    Processes are server-wide and persist across sessions.
+    Use 'jobs' for session-scoped background commands.
+
+SEE ALSO
+    kill, jobs, sleep, timeout

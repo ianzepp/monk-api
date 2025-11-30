@@ -1,0 +1,31 @@
+NAME
+    history - display command history
+
+SYNOPSIS
+    history [N]
+    history -c
+
+DESCRIPTION
+    Displays the command history for the current session.
+    Commands are numbered starting from 1.
+
+OPTIONS
+    N       Show only the last N entries
+    -c      Clear the command history
+
+EXAMPLES
+    history
+        Show all history
+
+    history 10
+        Show last 10 commands
+
+    history -c
+        Clear history
+
+NOTES
+    History is stored in ~/.history and persists across sessions.
+    Use up/down arrows to navigate history interactively.
+
+SEE ALSO
+    env, export

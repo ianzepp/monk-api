@@ -1,0 +1,11 @@
+# /etc/profile - System-wide shell profile
+# Executed on login for all users
+
+# Default PATH
+export PATH=/bin:/usr/bin:/usr/local/bin
+
+# Default prompt is set by the shell
+# PS1='$USER@$TENANT:$PWD$ '
+
+# Default editor
+export EDITOR=cat

@@ -1,0 +1,30 @@
+NAME
+    wc - word, line, and character count
+
+SYNOPSIS
+    wc [-lwc] [file]
+
+DESCRIPTION
+    Counts lines, words, and characters in a file or stdin.
+    By default, all three counts are displayed.
+
+OPTIONS
+    -l      Count lines only
+    -w      Count words only
+    -c      Count characters only
+
+EXAMPLES
+    wc /tmp/file.txt
+        Show lines, words, and characters
+
+    wc -l /tmp/file.txt
+        Count lines only
+
+    find . | wc -l
+        Count number of files found
+
+    cat file | wc -w
+        Count words in file
+
+SEE ALSO
+    cat, grep

@@ -1,0 +1,47 @@
+NAME
+    du - estimate file space usage
+
+SYNOPSIS
+    du [options] [file...]
+
+DESCRIPTION
+    Summarizes disk usage for each file and directory,
+    recursively for directories.
+
+OPTIONS
+    -a              Show all files, not just directories
+    -h              Human-readable sizes (1K, 2M, 3G)
+    -s              Display only total for each argument
+    -c              Produce a grand total
+    -d <depth>      Max depth to display
+    --max-depth=<n> Same as -d
+    -b              Show sizes in bytes
+    -k              Show sizes in kilobytes (default)
+    -m              Show sizes in megabytes
+
+EXAMPLES
+    du
+        Show current directory usage
+
+    du -sh /api/data
+        4.5M    /api/data
+
+    du -ah /tmp
+        Show all files with human sizes
+
+    du -d 1 /
+        Show only one level deep
+
+    du -sc /api/data /home
+        Summary for each with grand total
+
+    du -b file.txt
+        Exact byte count
+
+OUTPUT
+    SIZE    PATH
+
+    Size is in 1K blocks by default.
+
+SEE ALSO
+    df, ls, find

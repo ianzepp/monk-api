@@ -1,0 +1,41 @@
+NAME
+    delete - remove a single record (soft delete)
+
+SYNOPSIS
+    delete <model> <id>
+    delete .
+
+DESCRIPTION
+    Removes a single record. Specify the model and record ID, or use "."
+    when in a record directory (/api/data/<model>/<id>).
+
+    Records are soft-deleted, meaning they are moved to the trash and
+    can be restored later.
+
+    For bulk deletes, use delete_bulk instead.
+
+EXAMPLES
+    delete users abc-123
+        Delete a specific record
+
+    delete .
+        Delete current record (when in /api/data/users/abc-123)
+
+TRASH AND RESTORE
+    Soft-deleted records are moved to /api/trashed/<model>/.
+
+    To view trashed records:
+        ls /api/trashed/users
+
+    To restore a trashed record:
+        Use the restore API endpoint
+
+    To permanently delete:
+        Use the permanent delete API endpoint
+
+EXIT STATUS
+    0   Success
+    1   Error (record not found, permission denied, etc.)
+
+SEE ALSO
+    delete_bulk, insert, update, select, rm

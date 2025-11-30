@@ -10,6 +10,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@monk/common": "workspace:*",
     "@iarna/toml": "^2.2.5"
   },
   "devDependencies": {

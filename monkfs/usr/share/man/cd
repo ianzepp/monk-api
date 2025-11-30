@@ -1,0 +1,22 @@
+NAME
+    cd - change directory
+
+SYNOPSIS
+    cd [path]
+
+DESCRIPTION
+    Changes the current working directory.
+    Defaults to / if no path given.
+
+EXAMPLES
+    cd /api/data/users
+        Navigate to users model
+
+    cd ..
+        Go up one directory
+
+    cd
+        Go to root
+
+SEE ALSO
+    pwd, ls

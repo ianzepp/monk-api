@@ -1,0 +1,45 @@
+NAME
+    update - modify a single record
+
+SYNOPSIS
+    update <model> <id> [field=value ...]
+    update <model> <id> '<json>'
+    echo '<json>' | update <model> <id>
+    update . [field=value ...]
+
+DESCRIPTION
+    Updates a single existing record. Specify the model and record ID,
+    or use "." when in a record directory (/api/data/<model>/<id>).
+
+    Fields can be updated by specifying field=value pairs on the
+    command line, or by piping a JSON object to stdin.
+
+    For bulk updates, use update_bulk instead.
+
+OPTIONS
+    field=value
+        Set a field value. Can be repeated for multiple fields.
+        Only specified fields are updated; others remain unchanged.
+
+EXAMPLES
+    update users abc-123 status=active
+        Update a specific field
+
+    update users abc-123 status=active name="John Doe"
+        Update multiple fields
+
+    update users abc-123 '{"status":"active","role":"admin"}'
+        Update with inline JSON
+
+    echo '{"status":"active"}' | update users abc-123
+        Update from JSON via stdin
+
+    update . status=active
+        Update current record (when in /api/data/users/abc-123)
+
+EXIT STATUS
+    0   Success
+    1   Error (record not found, validation failed, etc.)
+
+SEE ALSO
+    update_bulk, insert, delete, select, describe

@@ -1,0 +1,46 @@
+NAME
+    time - time command execution
+
+SYNOPSIS
+    time [options] <command> [args...]
+
+DESCRIPTION
+    Executes the given command and reports timing statistics
+    when it completes. Times are written to stderr.
+
+OPTIONS
+    -p              POSIX format (seconds only)
+    -v              Verbose output
+
+OUTPUT
+    real            Wall clock time (actual elapsed time)
+    user            User CPU time (simulated)
+    sys             System CPU time (simulated)
+
+    Note: user and sys times are simulated approximations
+    since actual CPU accounting is not available.
+
+EXAMPLES
+    time find /api/data
+        Time a find operation
+
+    time sleep 2
+        Verify sleep duration
+
+    time -p ls -la
+        POSIX format output:
+            real 0.015
+            user 0.010
+            sys 0.002
+
+    time -v cat /api/data/users/*
+        Verbose output with exit status
+
+    time sh -c "find . | wc -l"
+        Time a pipeline
+
+EXIT STATUS
+    Returns the exit status of the timed command.
+
+SEE ALSO
+    timeout, sleep

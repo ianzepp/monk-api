@@ -1,0 +1,46 @@
+NAME
+    ping - send requests to a target in a loop
+
+SYNOPSIS
+    ping [options] <target>
+
+DESCRIPTION
+    Sends HTTP requests to a target and displays response times.
+    Runs until interrupted or count is reached.
+
+    Targets:
+    - /health           Ping local API health endpoint
+    - /api/data/users   Ping any local API path
+    - http://example.com  Ping an external URL
+
+OPTIONS
+    -c <count>
+        Stop after sending count requests. Default: infinite.
+
+    -i <interval>
+        Wait interval seconds between pings. Default: 1.
+        Minimum: 0.1
+
+EXAMPLES
+    ping /health
+        Ping the local health endpoint every second
+
+    ping -c 5 /health
+        Ping 5 times and exit
+
+    ping -i 2 http://google.com
+        Ping Google every 2 seconds
+
+    ping /health > /var/log/ping.log &
+        Run in background, log to file
+
+OUTPUT
+    64 bytes from localhost: seq=1 time=12.3ms
+    64 bytes from localhost: seq=2 time=8.1ms
+
+    --- localhost ping statistics ---
+    2 packets transmitted, 2 received, 0.0% packet loss
+    rtt min/avg/max = 8.1/10.2/12.3 ms
+
+SEE ALSO
+    ps, kill, sleep

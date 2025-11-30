@@ -1,0 +1,32 @@
+NAME
+    umount - unmount a filesystem
+
+SYNOPSIS
+    umount <mountpoint>
+
+DESCRIPTION
+    Unmounts a previously mounted filesystem and removes it from the
+    saved mounts configuration.
+
+    The mount is removed from:
+    - The current session
+    - ~/.config/mounts.json (so it won't restore on next login)
+
+    System mounts (/api/*, /proc, /bin, etc.) cannot be unmounted.
+
+EXAMPLES
+    umount /dist
+        Unmount the /dist local mount
+
+    umount /home/root/active
+        Unmount a find query mount
+
+    umount ~/big-orders
+        Unmount using ~ path expansion
+
+FILES
+    ~/.config/mounts.json
+        Mount removed from this file on umount
+
+SEE ALSO
+    mount

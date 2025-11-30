@@ -56,7 +56,7 @@ describe('GET /api/data/:model/:id - Retrieve Single Record', () => {
     });
 
     it('should include system fields', async () => {
-        const response = await tenant.httpClient.get(`/api/data/customers/${recordId}`);
+        const response = await tenant.httpClient.get(`/api/data/customers/${recordId}?stat=true`);
 
         expectSuccess(response);
         expect(response.data.id).toBeDefined();
@@ -175,7 +175,7 @@ describe('GET /api/data/:model/:id - Retrieve Single Record', () => {
     });
 
     it('should have matching created_at and updated_at for new records', async () => {
-        const response = await tenant.httpClient.get(`/api/data/customers/${recordId}`);
+        const response = await tenant.httpClient.get(`/api/data/customers/${recordId}?stat=true`);
 
         expectSuccess(response);
         // For records that haven't been updated, these should match

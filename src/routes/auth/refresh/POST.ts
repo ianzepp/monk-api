@@ -103,6 +103,7 @@ export default async function (context: Context) {
     const newPayload: JWTPayload = {
         sub: user.id,
         user_id: user.id,
+        username: user.auth,
         tenant: tenantName,
         db_type: dbType || 'postgresql', // Database backend type (default for legacy tenants)
         db: dbName, // Compact JWT field

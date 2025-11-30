@@ -1,0 +1,38 @@
+NAME
+    free - display memory usage
+
+SYNOPSIS
+    free [-h] [-b|-k|-m|-g] [-t]
+
+DESCRIPTION
+    Display the amount of free and used memory in the Node.js process.
+    Shows heap memory, external memory, and RSS (resident set size).
+
+OPTIONS
+    -h, --human   Human-readable output (e.g., 1.5Gi)
+    -b, --bytes   Show output in bytes
+    -k, --kibi    Show output in kibibytes (default)
+    -m, --mebi    Show output in mebibytes
+    -g, --gibi    Show output in gibibytes
+    -t, --total   Show a total line
+
+MEMORY TYPES
+    Heap        V8 JavaScript heap memory
+    External    Memory used by C++ objects bound to JS
+    RSS         Resident Set Size (total process memory)
+
+EXAMPLES
+    free
+        Show memory in kibibytes (default)
+
+    free -h
+        Human-readable output
+
+    free -m
+        Show memory in mebibytes
+
+    free -ht
+        Human-readable with total line
+
+SEE ALSO
+    uname, ps, env

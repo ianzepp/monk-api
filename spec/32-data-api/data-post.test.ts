@@ -51,7 +51,7 @@ describe('POST /api/data/:model - Create Records', () => {
     });
 
     it('should include system fields in response', async () => {
-        const response = await tenant.httpClient.post('/api/data/products', [
+        const response = await tenant.httpClient.post('/api/data/products?stat=true', [
             {
                 name: 'Gadget',
                 price: 49.99,
@@ -61,7 +61,7 @@ describe('POST /api/data/:model - Create Records', () => {
         expectSuccess(response);
         const record = response.data[0];
 
-        // Data API includes system fields (unlike Describe API)
+        // Data API includes system fields with ?stat=true
         expect(record.id).toBeDefined();
         expect(record.created_at).toBeDefined();
         expect(record.updated_at).toBeDefined();
@@ -100,7 +100,7 @@ describe('POST /api/data/:model - Create Records', () => {
     });
 
     it('should set timestamps on creation', async () => {
-        const response = await tenant.httpClient.post('/api/data/products', [
+        const response = await tenant.httpClient.post('/api/data/products?stat=true', [
             { name: 'Timestamped Product' },
         ]);
 

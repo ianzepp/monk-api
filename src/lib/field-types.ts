@@ -19,6 +19,7 @@ export const PG_TYPES = {
     UUID: 'uuid',
     TIMESTAMP: 'timestamp',
     DATE: 'date',
+    BYTEA: 'bytea',
     TEXT_ARRAY: 'text[]',
     INTEGER_ARRAY: 'integer[]',
     NUMERIC_ARRAY: 'numeric[]',
@@ -37,6 +38,7 @@ export const USER_TYPES = {
     DATE: 'date',
     UUID: 'uuid',
     JSONB: 'jsonb',
+    BINARY: 'binary',          // Binary data (maps to bytea in PostgreSQL)
     TEXT_ARRAY: 'text[]',
     INTEGER_ARRAY: 'integer[]',
     DECIMAL_ARRAY: 'decimal[]', // Maps to numeric[] in PostgreSQL
@@ -57,6 +59,7 @@ export const USER_TO_PG_TYPE_MAP: Record<string, string> = {
     'date': PG_TYPES.DATE,
     'uuid': PG_TYPES.UUID,
     'jsonb': PG_TYPES.JSONB,
+    'binary': PG_TYPES.BYTEA,
     'text[]': PG_TYPES.TEXT_ARRAY,
     'integer[]': PG_TYPES.INTEGER_ARRAY,
     'decimal[]': PG_TYPES.NUMERIC_ARRAY,
@@ -77,6 +80,7 @@ export const PG_TO_USER_TYPE_MAP: Record<string, string> = {
     'date': USER_TYPES.DATE,
     'uuid': USER_TYPES.UUID,
     'jsonb': USER_TYPES.JSONB,
+    'bytea': USER_TYPES.BINARY,
     'text[]': USER_TYPES.TEXT_ARRAY,
     'integer[]': USER_TYPES.INTEGER_ARRAY,
     'numeric[]': USER_TYPES.DECIMAL_ARRAY,

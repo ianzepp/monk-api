@@ -12,23 +12,18 @@
  */
 
 import { encode as encodeToon, decode as decodeToon } from '@toon-format/toon';
-
-export interface Formatter {
-    encode(data: any): string;
-    decode(text: string): any;
-    contentType: string;
-}
+import { type Formatter, toBytes, fromBytes } from '@monk/common';
 
 export const ToonFormatter: Formatter = {
-    encode(data: any): string {
-        return encodeToon(data, {
+    encode(data: any): Uint8Array {
+        return toBytes(encodeToon(data, {
             keyFolding: 'safe',
             indent: 2,
-        });
+        }));
     },
 
-    decode(text: string): any {
-        return decodeToon(text);
+    decode(data: Uint8Array): any {
+        return decodeToon(fromBytes(data));
     },
 
     contentType: 'text/plain; charset=utf-8'
