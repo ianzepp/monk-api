@@ -350,6 +350,12 @@ export class ObserverRunner {
      * Check if observer should be executed for this context
      */
     private _shouldExecuteObserver(observer: Observer, context: ObserverContext): boolean {
+        // Passthrough mode: only execute ring 5 (database)
+        // Used for high-throughput inserts (sensors, logs, telemetry)
+        if (context.model.isPassthrough() && observer.ring !== 5) {
+            return false;
+        }
+
         // Check operation targeting
         if (observer.operations && observer.operations.length > 0) {
             if (!observer.operations.includes(context.operation)) {

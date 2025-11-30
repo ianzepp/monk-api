@@ -7,10 +7,15 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * Default behavior: Create new records (all must be new)
  * With ?upsert=true: Insert new records OR update existing (by ID presence)
  *
+ * Passthrough mode (model.passthrough=true):
+ * - Bypasses observer pipeline (rings 0-4, 6-9)
+ * - Only ring 5 (database INSERT) executes
+ * - Use for high-throughput data (sensors, logs, telemetry)
+ *
  * @see docs/routes/DATA_API.md
  */
 export default withTransaction(async ({ system, params, query, body }) => {
-    const { model } = params;
+    const { model: modelName } = params;
 
     // Always expect array input for POST /api/data/:model
     if (!Array.isArray(body)) {
@@ -19,6 +24,6 @@ export default withTransaction(async ({ system, params, query, body }) => {
 
     const upsert = query.upsert === 'true';
     return upsert
-        ? await system.database.upsertAll(model, body)
-        : await system.database.createAll(model, body);
+        ? await system.database.upsertAll(modelName, body)
+        : await system.database.createAll(modelName, body);
 });

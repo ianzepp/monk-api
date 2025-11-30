@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS "models" (
     "frozen" boolean DEFAULT false NOT NULL,
     "immutable" boolean DEFAULT false NOT NULL,
     "external" boolean DEFAULT false NOT NULL,
+    "passthrough" boolean DEFAULT false NOT NULL,
     CONSTRAINT "model_name_unique" UNIQUE("model_name")
 );
 

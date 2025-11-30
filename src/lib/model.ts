@@ -53,6 +53,7 @@ export class Model {
     public readonly sudo?: boolean;
     public readonly frozen?: boolean;
     public readonly external?: boolean;
+    public readonly passthrough?: boolean;
 
     // All fields for this model - primary collection
     public readonly fields: Map<string, Field>;      // key: field_name
@@ -101,6 +102,7 @@ export class Model {
         this.sudo = modelRecord.sudo;
         this.frozen = modelRecord.frozen;
         this.external = modelRecord.external;
+        this.passthrough = modelRecord.passthrough;
 
         // Initialize all maps
         this.fields = new Map();
@@ -280,6 +282,20 @@ export class Model {
      */
     isFrozen(): boolean {
         return this.frozen === true;
+    }
+
+    /**
+     * Check if this model uses passthrough inserts
+     *
+     * Passthrough models bypass the observer pipeline for inserts:
+     * - Rings 0-4 (validation, defaults, transforms) are skipped
+     * - Ring 5 (database) executes the INSERT
+     * - Rings 6-9 (post-insert triggers, audit) are skipped
+     *
+     * Use for high-throughput data like sensor readings, logs, telemetry.
+     */
+    isPassthrough(): boolean {
+        return this.passthrough === true;
     }
 
     // ============================================================

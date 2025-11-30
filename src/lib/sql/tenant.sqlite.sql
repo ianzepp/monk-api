@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS "models" (
     "frozen" INTEGER DEFAULT 0 NOT NULL,
     "immutable" INTEGER DEFAULT 0 NOT NULL,
     "external" INTEGER DEFAULT 0 NOT NULL,
+    "passthrough" INTEGER DEFAULT 0 NOT NULL,
     CONSTRAINT "model_name_unique" UNIQUE("model_name")
 );
 
