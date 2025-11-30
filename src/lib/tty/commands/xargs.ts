@@ -70,6 +70,11 @@ function splitInput(input: string, options: XargsOptions): string[] {
         return input.split(options.delimiter).filter(s => s.length > 0);
     }
 
+    // -L option: split by lines, preserving words within each line
+    if (options.maxLines !== null) {
+        return input.split('\n').filter(s => s.trim().length > 0).map(s => s.trim());
+    }
+
     // Default: split on whitespace, respecting quotes
     const items: string[] = [];
     let current = '';
@@ -258,12 +263,6 @@ export const xargs: CommandHandler = async (session, fs, args, io) => {
         return 1;
     }
 
-    if (parsed.positional.length === 0) {
-        io.stderr.write('xargs: missing command\n');
-        io.stderr.write('Usage: <input> | xargs [options] <command> [args...]\n');
-        return 1;
-    }
-
     const options: XargsOptions = {
         nullSep: Boolean(parsed.flags.nullSep),
         delimiter: typeof parsed.flags.delimiter === 'string' ? parsed.flags.delimiter : null,
@@ -275,7 +274,8 @@ export const xargs: CommandHandler = async (session, fs, args, io) => {
         parallel: typeof parsed.flags.parallel === 'string' ? parseInt(parsed.flags.parallel, 10) : 1,
     };
 
-    const cmdName = parsed.positional[0];
+    // Default to 'echo' if no command specified (standard xargs behavior)
+    const cmdName = parsed.positional[0] || 'echo';
     const cmdArgs = parsed.positional.slice(1);
 
     // Read all stdin

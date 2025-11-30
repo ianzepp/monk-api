@@ -4,32 +4,6 @@ This document tracks known issues and limitations discovered during test develop
 
 ## Medium Issues
 
-### xargs - No Default Command
-
-**File:** `src/lib/tty/commands/xargs.ts`
-
-**Problem:** Standard xargs defaults to `echo` when no command is provided, but this implementation requires a command argument.
-
-**Expected:** `echo "a b c" | xargs` outputs `a b c`
-**Actual:** `xargs: missing command` error
-
-**Fix:** Default `cmdName` to `'echo'` when `parsed.positional.length === 0`.
-
----
-
-### xargs - `-L` Option Doesn't Preserve Lines
-
-**File:** `src/lib/tty/commands/xargs.ts`
-
-**Problem:** The `-L` option should batch input by lines, but the implementation splits all input by whitespace first, then batches.
-
-**Expected:** `printf "a b\nc d\n" | xargs -L1 echo` outputs `a b` then `c d`
-**Actual:** Outputs `a` `b` `c` `d` (one per line)
-
-**Fix:** When `-L` is specified, split by newlines first, not whitespace.
-
----
-
 ### sed - Multiple `-e` Flags Not Supported
 
 **File:** `src/lib/tty/commands/sed.ts`
