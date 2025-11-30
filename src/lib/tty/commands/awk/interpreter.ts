@@ -281,7 +281,7 @@ export class Interpreter {
                 throw new ReturnException(returnValue);
 
             case 'DeleteStmt':
-                this.executeDelete(stmt as DeleteStmtNode);
+                await this.executeDelete(stmt as DeleteStmtNode);
                 break;
 
             case 'PrintStmt':
@@ -373,7 +373,7 @@ export class Interpreter {
         }
     }
 
-    private executeDelete(stmt: DeleteStmtNode): void {
+    private async executeDelete(stmt: DeleteStmtNode): Promise<void> {
         const array = this.state.globals.arrays.get(stmt.array);
         if (!array) return;
 
@@ -382,10 +382,10 @@ export class Interpreter {
             array.clear();
         } else {
             // Delete specific element
-            const key = stmt.index.map(async (e) => toString(await this.evaluate(e)));
-            Promise.all(key).then((keys) => {
-                array.delete(keys.join(this.state.builtins.SUBSEP));
-            });
+            const keys = await Promise.all(
+                stmt.index.map(async (e) => toString(await this.evaluate(e)))
+            );
+            array.delete(keys.join(this.state.builtins.SUBSEP));
         }
     }
 
@@ -477,6 +477,11 @@ export class Interpreter {
         // Check built-in variables first
         if (name in this.state.builtins) {
             return this.state.builtins[name as keyof typeof this.state.builtins];
+        }
+
+        // Special case: `length` without parens is shorthand for length($0)
+        if (name === 'length') {
+            return this.state.fields[0]?.length ?? 0;
         }
 
         // User variable
