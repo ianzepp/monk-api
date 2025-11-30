@@ -123,7 +123,7 @@ export const then: CommandHandler = async (session, _fs, _args, io) => {
     const ctx = stack.at(-1);
 
     if (!ctx) {
-        io.stderr.write('then: not in an if block\n');
+        io?.stderr?.write('then: not in an if block\n');
         return 1;
     }
 
@@ -133,7 +133,7 @@ export const then: CommandHandler = async (session, _fs, _args, io) => {
     }
 
     if (ctx.branch !== 'condition') {
-        io.stderr.write('then: unexpected then\n');
+        io?.stderr?.write('then: unexpected then\n');
         return 1;
     }
 
@@ -155,7 +155,7 @@ export const else_: CommandHandler = async (session, _fs, _args, io) => {
     const ctx = stack.at(-1);
 
     if (!ctx) {
-        io.stderr.write('else: not in an if block\n');
+        io?.stderr?.write('else: not in an if block\n');
         return 1;
     }
 
@@ -165,7 +165,7 @@ export const else_: CommandHandler = async (session, _fs, _args, io) => {
     }
 
     if (ctx.branch !== 'then') {
-        io.stderr.write('else: unexpected else\n');
+        io?.stderr?.write('else: unexpected else\n');
         return 1;
     }
 
@@ -183,7 +183,7 @@ export const elif: CommandHandler = async (session, fs, args, io) => {
     const ctx = stack.at(-1);
 
     if (!ctx) {
-        io.stderr.write('elif: not in an if block\n');
+        io?.stderr?.write('elif: not in an if block\n');
         return 1;
     }
 
@@ -193,7 +193,7 @@ export const elif: CommandHandler = async (session, fs, args, io) => {
     }
 
     if (ctx.branch !== 'then') {
-        io.stderr.write('elif: unexpected elif\n');
+        io?.stderr?.write('elif: unexpected elif\n');
         return 1;
     }
 
@@ -231,7 +231,7 @@ export const fi: CommandHandler = async (session, _fs, _args, io) => {
     const ctx = stack.at(-1);
 
     if (!ctx) {
-        io.stderr.write('fi: not in an if block\n');
+        io?.stderr?.write('fi: not in an if block\n');
         return 1;
     }
 
