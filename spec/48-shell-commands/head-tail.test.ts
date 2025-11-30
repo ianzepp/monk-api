@@ -18,11 +18,10 @@ describe('head', () => {
             expect(outputLines(result.stdout)[9]).toBe('line10');
         });
 
-        // Note: head includes the trailing empty string from split('\n')
         it('should show all lines if fewer than 10', async () => {
             const result = await runCommand(head, [], 'a\nb\nc\n');
             expect(result.exitCode).toBe(0);
-            expect(outputLines(result.stdout)).toEqual(['a', 'b', 'c', '']);
+            expect(outputLines(result.stdout)).toEqual(['a', 'b', 'c']);
         });
     });
 
@@ -53,12 +52,11 @@ describe('head', () => {
         });
     });
 
-    // Note: empty input produces '\n' due to split/write behavior
     describe('empty input', () => {
         it('should handle empty input', async () => {
             const result = await runCommand(head, [], '');
             expect(result.exitCode).toBe(0);
-            expect(result.stdout).toBe('\n');
+            expect(result.stdout).toBe('');
         });
     });
 });

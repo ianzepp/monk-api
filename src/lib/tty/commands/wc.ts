@@ -68,7 +68,7 @@ export const wc: CommandHandler = async (session, fs, args, io) => {
     }
 
     // Count
-    const lines = content.split('\n').length - (content.endsWith('\n') ? 1 : 0);
+    const lines = content === '' ? 0 : content.split('\n').length - (content.endsWith('\n') ? 1 : 0);
     const words = content.trim() ? content.trim().split(/\s+/).length : 0;
     const chars = content.length;
 

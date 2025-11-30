@@ -92,13 +92,12 @@ describe('wc', () => {
         });
     });
 
-    // Note: empty input counts as 1 line due to split() behavior
     describe('empty input', () => {
         it('should handle empty input', async () => {
             const result = await runCommand(wc, [], '');
             expect(result.exitCode).toBe(0);
             const parts = result.stdout.trim().split(/\s+/);
-            expect(parseInt(parts[0])).toBe(1);  // 1 "line" from split
+            expect(parseInt(parts[0])).toBe(0);  // 0 lines
             expect(parseInt(parts[1])).toBe(0);  // 0 words
             expect(parseInt(parts[2])).toBe(0);  // 0 chars
         });

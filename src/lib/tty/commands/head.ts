@@ -64,6 +64,12 @@ export const head: CommandHandler = async (session, fs, args, io) => {
 
     // Output first N lines
     const allLines = content.split('\n');
+
+    // Remove trailing empty element if content ends with newline
+    if (allLines.length > 0 && allLines[allLines.length - 1] === '') {
+        allLines.pop();
+    }
+
     const output = allLines.slice(0, lines);
 
     for (const line of output) {

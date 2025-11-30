@@ -60,31 +60,6 @@ This document tracks known issues and limitations discovered during test develop
 
 ---
 
-### wc - Empty Input Counts 1 Line
-
-**File:** `src/lib/tty/commands/wc.ts`
-
-**Problem:** `''.split('\n')` returns `['']` which has length 1, so empty input is counted as 1 line.
-
-**Expected:** Empty file should have 0 lines
-**Actual:** Empty file has 1 line
-
-**Fix:** Check for empty content before splitting, or adjust the line count calculation.
-
----
-
-### head/tail - Includes Extra Empty Line
-
-**File:** `src/lib/tty/commands/head.ts`, `src/lib/tty/commands/tail.ts`
-
-**Problem:** When content ends with a newline, `split('\n')` creates an empty string element. Head/tail include this in output, producing an extra blank line.
-
-**Expected:** `head file` on 3-line file shows 3 lines
-**Actual:** Shows 4 lines (includes trailing empty string)
-
-**Fix:** Pop trailing empty string from array before slicing, similar to how sort.ts handles it.
-
----
 
 ### dirname - Root `/` Returns `.` Instead of `/`
 
