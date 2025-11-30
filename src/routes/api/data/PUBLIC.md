@@ -10,6 +10,7 @@ The Data API provides CRUD operations for model records, supporting both bulk op
 
 - **Request**: `application/json`
 - **Response**: `application/json` (default), with support for CSV, MessagePack, and other formats
+- **Streaming**: `application/x-ndjson` - Request via `Accept` header for streaming JSONL responses
 
 ## Authentication
 
@@ -174,6 +175,23 @@ curl -X GET "http://localhost:9001/api/data/users?format=csv" \
 curl -X GET "http://localhost:9001/api/data/users?stat=false" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
+
+### Streaming JSONL
+
+For large datasets, request streaming JSONL format using the `Accept` header:
+
+```bash
+# Stream records as newline-delimited JSON
+curl -X GET http://localhost:9001/api/data/orders \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Accept: application/x-ndjson"
+
+# Response (one record per line, streamed):
+# {"id":"order-1","status":"pending","total":150.00}
+# {"id":"order-2","status":"shipped","total":299.99}
+```
+
+See [`GET /api/data/:model`](:model/GET.md) for detailed streaming examples.
 
 ### Trash Management
 

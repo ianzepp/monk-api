@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { System, type SystemInit } from '@src/lib/system.js';
 import { isHttpError } from '@src/lib/errors/http-error.js';
-import { runTransaction } from '@src/lib/transaction.js';
+import { runTransaction, runWithSearchPath } from '@src/lib/transaction.js';
 
 /**
  * API Request/Response Helpers
@@ -77,6 +77,26 @@ type RouteHandler = (params: RouteParams) => Promise<any>;
  * All tenant-scoped routes should use this wrapper.
  * Auth routes that query the 'monk' master DB should NOT use this wrapper.
  */
+/**
+ * Check if a value is an async iterable (AsyncGenerator)
+ */
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+    return value !== null &&
+        typeof value === 'object' &&
+        Symbol.asyncIterator in value;
+}
+
+/**
+ * Collect async iterable into an array
+ */
+async function collectAsyncIterable<T>(iterable: AsyncIterable<T>): Promise<T[]> {
+    const results: T[] = [];
+    for await (const item of iterable) {
+        results.push(item);
+    }
+    return results;
+}
+
 export function withTransaction(handler: RouteHandler) {
     return async (context: Context) => {
         const systemInit = context.get('systemInit') as SystemInit;
@@ -103,7 +123,16 @@ export function withTransaction(handler: RouteHandler) {
                 };
 
                 // Execute handler and capture result
-                const result = await handler(routeParams);
+                let result = await handler(routeParams);
+
+                // If result is an async iterable (e.g., from streamAny()),
+                // collect it into an array while still inside the transaction.
+                // The database connection is only valid during the transaction.
+                // Mark as streamable so middleware can stream as JSONL if requested.
+                if (isAsyncIterable(result)) {
+                    result = await collectAsyncIterable(result);
+                    context.set('streamable', true);
+                }
 
                 // Set route result for response pipeline
                 if (result !== undefined) {
@@ -115,6 +144,98 @@ export function withTransaction(handler: RouteHandler) {
                     method: context.req.method,
                 },
             });
+
+        } catch (error) {
+            // If error is already an HttpError, rethrow for error handler
+            if (isHttpError(error)) {
+                throw error;
+            }
+
+            // Format unexpected errors for API response
+            return createInternalError(context, error instanceof Error ? error : String(error));
+        }
+    };
+}
+
+/**
+ * Route handler wrapper for streaming read-only operations
+ *
+ * ============================================================================
+ * WHEN TO USE THIS vs withTransaction
+ * ============================================================================
+ *
+ * Use withSearchPath when:
+ *   - Route is read-only (SELECT only, no modifications)
+ *   - Route returns streamAny() or other async iterables
+ *   - You want true streaming (connection held open during response)
+ *
+ * Use withTransaction when:
+ *   - Route modifies data (INSERT, UPDATE, DELETE)
+ *   - Route needs COMMIT semantics
+ *   - Route uses observer pipeline (creates, updates, deletes)
+ *
+ * ============================================================================
+ * HOW STREAMING WORKS
+ * ============================================================================
+ *
+ * When handler returns an AsyncGenerator (e.g., from streamAny()):
+ *   1. Connection stays open
+ *   2. Generator is wrapped to ensure cleanup
+ *   3. Result is set on context for middleware to stream
+ *   4. Middleware detects async iterable + Accept header
+ *   5. Records are streamed as JSONL to client
+ *   6. When stream completes, connection is released
+ *
+ * The transaction (BEGIN) is only used to scope SET LOCAL search_path.
+ * No COMMIT is issued - the transaction implicitly rolls back on disconnect,
+ * which is fine for read-only operations.
+ *
+ * See runWithSearchPath() in transaction.ts for detailed design decisions.
+ */
+export function withSearchPath(handler: RouteHandler) {
+    return async (context: Context) => {
+        const systemInit = context.get('systemInit') as SystemInit;
+
+        // Validate we have system init (should be set by jwt-validator middleware)
+        if (!systemInit) {
+            return createInternalError(context, 'Search path scope started without systemInit context');
+        }
+
+        // Defense in depth: validate namespace format
+        if (!/^[a-zA-Z0-9_]+$/.test(systemInit.nsName)) {
+            return createInternalError(context, `Invalid namespace format: ${systemInit.nsName}`);
+        }
+
+        try {
+            const result = await runWithSearchPath(systemInit, async (system) => {
+                // Build route params
+                const routeParams: RouteParams = {
+                    system,
+                    params: context.req.param() as Record<string, string>,
+                    query: context.req.query() as Record<string, string>,
+                    body: context.get('parsedBody'),
+                    method: context.req.method,
+                };
+
+                // Execute handler - may return async iterable for streaming
+                return await handler(routeParams);
+            }, {
+                logContext: {
+                    path: context.req.path,
+                    method: context.req.method,
+                },
+            });
+
+            // Set route result for response pipeline
+            // If result is async iterable, middleware will detect and stream
+            if (result !== undefined) {
+                context.set('routeResult', result);
+
+                // Mark as streamable if async iterable (for middleware detection)
+                if (isAsyncIterable(result)) {
+                    context.set('streamable', true);
+                }
+            }
 
         } catch (error) {
             // If error is already an HttpError, rethrow for error handler

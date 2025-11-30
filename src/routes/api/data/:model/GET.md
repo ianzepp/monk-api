@@ -292,6 +292,99 @@ const trashedDocs = documents.filter(doc =>
 renderTrashBin(trashedDocs);
 ```
 
+## Streaming JSONL Format
+
+For large datasets or real-time processing, request streaming JSONL (newline-delimited JSON) using the `Accept` header:
+
+```bash
+curl -X GET http://localhost:9001/api/data/orders \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Accept: application/x-ndjson"
+```
+
+**Response (streamed line by line):**
+```
+{"id":"order-1","status":"pending","total":150.00}
+{"id":"order-2","status":"shipped","total":299.99}
+{"id":"order-3","status":"delivered","total":75.50}
+```
+
+### Benefits of Streaming
+
+- **Memory efficient**: Records are sent as they're retrieved, not buffered
+- **Time to first byte**: Client receives data immediately
+- **Large datasets**: Process millions of records without memory issues
+- **Real-time pipelines**: Pipe directly to processing tools
+
+### Client Examples
+
+**JavaScript (fetch with streaming):**
+```javascript
+const response = await fetch('/api/data/orders', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/x-ndjson'
+  }
+});
+
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+let buffer = '';
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+
+  buffer += decoder.decode(value, { stream: true });
+  const lines = buffer.split('\n');
+  buffer = lines.pop(); // Keep incomplete line in buffer
+
+  for (const line of lines) {
+    if (line) {
+      const record = JSON.parse(line);
+      processRecord(record);
+    }
+  }
+}
+```
+
+**Command line (pipe to jq):**
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/x-ndjson" \
+  http://localhost:9001/api/data/orders | \
+  jq -c 'select(.status == "pending")'
+```
+
+**Python (streaming):**
+```python
+import requests
+import json
+
+response = requests.get(
+    'http://localhost:9001/api/data/orders',
+    headers={
+        'Authorization': f'Bearer {token}',
+        'Accept': 'application/x-ndjson'
+    },
+    stream=True
+)
+
+for line in response.iter_lines():
+    if line:
+        record = json.loads(line)
+        process_record(record)
+```
+
+### Streaming vs Array Response
+
+| Accept Header | Response Format | Use Case |
+|---------------|-----------------|----------|
+| `application/json` (default) | `{"success":true,"data":[...]}` | Small datasets, simple clients |
+| `application/x-ndjson` | One JSON object per line | Large datasets, streaming pipelines |
+
+**Note:** Streaming bypasses the response envelope and transformation middleware. Query parameters like `?unwrap`, `?select=`, `?stat=false` are not applied to streaming responses.
+
 ## Alternative Response Formats
 
 ### CSV Format

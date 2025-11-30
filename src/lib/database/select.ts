@@ -269,3 +269,68 @@ export async function selectAll<T extends Record<string, any> = Record<string, a
 
     return await selectAny<T>(system, modelName, { where: { id: { $in: ids } } }, { context: 'system' });
 }
+
+// ========================================================================
+// Stream Operations
+// ========================================================================
+
+/**
+ * Stream records matching filter criteria
+ *
+ * Returns an async generator that yields records one at a time.
+ * Useful for large result sets where you want to:
+ * - Stream JSONL to HTTP clients
+ * - Process records without loading all into memory
+ * - Pipe to other streaming consumers (MCP, MQTT, etc.)
+ *
+ * Note: Current implementation executes query then yields rows.
+ * Future optimization: use database cursors for true streaming.
+ */
+export async function* streamAny<T extends Record<string, any> = Record<string, any>>(
+    system: SystemContext,
+    modelName: string,
+    filterData: FilterData = {},
+    options: SelectOptions = {}
+): AsyncGenerator<DbRecord<T>, void, unknown> {
+    const model = system.namespace.getModel(modelName);
+    const defaultOptions = getDefaultSoftDeleteOptions(system, options.context);
+    const mergedOptions = { ...defaultOptions, ...options };
+
+    const filter = new Filter(model.model_name)
+        .assign(filterData)
+        .withAccess([system.userId], system.isSudo())
+        .withTrashed(mergedOptions);
+
+    const { query, params } = filter.toSQL();
+    const result = await execute(system, query, params);
+
+    // Yield records one at a time
+    for (const row of result.rows) {
+        let converted = convertPostgreSQLTypes(system, row, model);
+
+        // Special handling for 'fields' model: convert PG types to user types
+        if (modelName === 'fields' && converted.type) {
+            const userType = FieldTypeMapper.toUser(converted.type);
+            if (userType) {
+                converted.type = userType;
+            }
+        }
+
+        yield converted as DbRecord<T>;
+    }
+}
+
+/**
+ * Stream records by their IDs
+ *
+ * Returns an async generator that yields records one at a time.
+ */
+export async function* streamIds<T extends Record<string, any> = Record<string, any>>(
+    system: SystemContext,
+    modelName: string,
+    ids: string[],
+    options: SelectOptions = {}
+): AsyncGenerator<DbRecord<T>, void, unknown> {
+    if (ids.length === 0) return;
+    yield* streamAny<T>(system, modelName, { where: { id: { $in: ids } } }, options);
+}

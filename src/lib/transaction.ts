@@ -156,3 +156,175 @@ export async function runTransactionWithSystem<T>(
         system: capturedSystem!,
     };
 }
+
+/**
+ * Run a read-only operation with search_path scoping
+ *
+ * ============================================================================
+ * DESIGN DECISIONS
+ * ============================================================================
+ *
+ * WHY THIS EXISTS (vs runTransaction):
+ * ------------------------------------
+ * This function is optimized for read-only streaming operations where we need
+ * tenant isolation (via search_path) but don't need transaction semantics.
+ *
+ * For streaming queries, we want to yield records one at a time to the HTTP
+ * response without buffering the entire result set in memory. This requires
+ * keeping the database connection open while streaming.
+ *
+ * WHY WE USE BEGIN + SET LOCAL (not just SET):
+ * --------------------------------------------
+ * PostgreSQL has two ways to set search_path:
+ *
+ *   SET search_path = tenant_schema
+ *     - Session-scoped: persists for the entire connection lifetime
+ *     - Risk: if connection is returned to pool without reset, next request
+ *       could inherit wrong tenant's search_path (data leak!)
+ *     - Relies on pool behavior (DISCARD ALL) for safety
+ *
+ *   BEGIN; SET LOCAL search_path = tenant_schema
+ *     - Transaction-scoped: automatically reverts when transaction ends
+ *     - Safe: even if pool doesn't reset, search_path reverts on tx end
+ *     - No risk of cross-tenant data leakage
+ *
+ * We use SET LOCAL for defense-in-depth security.
+ *
+ * WHY WE DON'T COMMIT (implicit rollback):
+ * ----------------------------------------
+ * For read-only operations, COMMIT vs ROLLBACK is semantically identical -
+ * there's nothing to persist. When we disconnect, PostgreSQL implicitly
+ * rolls back any open transaction.
+ *
+ * Benefits of not explicitly committing:
+ *   - Clearer intent: this is read-only, nothing to commit
+ *   - Slightly faster: one less round-trip to database
+ *   - Simpler error handling: just disconnect on any error
+ *
+ * LONG-RUNNING TRANSACTION CONCERNS:
+ * ----------------------------------
+ * Open transactions (even read-only) can delay PostgreSQL's vacuum process
+ * because MVCC keeps old row versions visible to the transaction's snapshot.
+ *
+ *   Stream duration  | Impact
+ *   -----------------|--------
+ *   < 1 minute       | Negligible
+ *   1-10 minutes     | Minor vacuum delay
+ *   > 10 minutes     | Could cause table bloat
+ *
+ * For typical API streaming (thousands/millions of rows), expect seconds to
+ * ~1 minute. This is acceptable for most workloads.
+ *
+ * STREAMING FLOW:
+ * ---------------
+ *   1. Get connection from pool
+ *   2. BEGIN (starts transaction scope)
+ *   3. SET LOCAL search_path = tenant_schema
+ *   4. Execute query, return async generator
+ *   5. Caller iterates generator, streaming to HTTP response
+ *   6. When generator exhausts (or error), disconnect
+ *   7. Connection returns to pool (implicit rollback cleans up)
+ *
+ * ============================================================================
+ *
+ * @param init - System initialization parameters (from JWT)
+ * @param handler - Async function that may return an AsyncGenerator for streaming
+ * @param options - Optional configuration
+ * @returns The result of the handler (may be AsyncGenerator)
+ */
+export async function runWithSearchPath<T>(
+    init: SystemInit,
+    handler: (system: System) => Promise<T>,
+    options: TransactionOptions = {}
+): Promise<T> {
+    const system = new System(init);
+    const adapter = createAdapter({
+        dbType: init.dbType,
+        db: init.dbName,
+        ns: init.nsName,
+    });
+
+    const logContext = {
+        dbType: init.dbType,
+        namespace: init.nsName,
+        tenant: init.tenant,
+        ...options.logContext,
+    };
+
+    // Connect and set up search_path scope
+    await adapter.connect();
+    await adapter.beginTransaction(); // Required for SET LOCAL scoping
+    system.adapter = adapter;
+
+    // Load namespace cache if needed
+    if (!options.skipCacheLoad && system.namespace && !system.namespace.isLoaded()) {
+        await system.namespace.loadAll(system);
+    }
+
+    console.debug('Search path scope started', logContext);
+
+    try {
+        // Execute handler - may return AsyncGenerator for streaming
+        const result = await handler(system);
+
+        // Check if result is an async iterable (streaming)
+        if (result !== null && typeof result === 'object' && Symbol.asyncIterator in result) {
+            // Wrap the generator to ensure cleanup after iteration completes
+            return wrapAsyncIterableWithCleanup(
+                result as AsyncIterable<unknown>,
+                adapter,
+                system,
+                logContext
+            ) as T;
+        }
+
+        // Non-streaming result: clean up immediately
+        await adapter.disconnect();
+        system.adapter = null;
+        console.debug('Search path scope ended (non-streaming)', logContext);
+
+        return result;
+
+    } catch (error) {
+        // Clean up on error
+        await adapter.disconnect();
+        system.adapter = null;
+        console.debug('Search path scope ended (error)', {
+            ...logContext,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+    }
+}
+
+/**
+ * Wrap an async iterable to ensure database cleanup after iteration
+ *
+ * This creates a new async generator that:
+ * 1. Yields all values from the source iterable
+ * 2. Disconnects the adapter when iteration completes (success or error)
+ * 3. Handles client disconnect (generator abandoned) via finally block
+ */
+async function* wrapAsyncIterableWithCleanup<T>(
+    iterable: AsyncIterable<T>,
+    adapter: ReturnType<typeof createAdapter>,
+    system: System,
+    logContext: Record<string, any>
+): AsyncGenerator<T, void, unknown> {
+    try {
+        for await (const item of iterable) {
+            yield item;
+        }
+        console.debug('Search path scope ended (stream complete)', logContext);
+    } catch (error) {
+        console.debug('Search path scope ended (stream error)', {
+            ...logContext,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+    } finally {
+        // Always clean up, even if client disconnects mid-stream
+        await adapter.disconnect();
+        system.adapter = null;
+    }
+}

@@ -113,6 +113,48 @@ export class Database {
     }
 
     // ========================================================================
+    // Stream Operations
+    // ========================================================================
+
+    /**
+     * Stream records matching filter criteria
+     *
+     * Returns an async generator that yields records one at a time.
+     * Use for large result sets or when streaming to clients (JSONL, MCP, MQTT).
+     *
+     * @example
+     * // Stream all records
+     * for await (const record of db.streamAny('orders')) {
+     *     console.log(record);
+     * }
+     *
+     * // Stream with filter
+     * for await (const record of db.streamAny('orders', { where: { status: 'pending' } })) {
+     *     process(record);
+     * }
+     */
+    streamAny<T extends Record<string, any> = Record<string, any>>(
+        modelName: ModelName,
+        filterData: FilterData = {},
+        options: SelectOptions = {}
+    ): AsyncGenerator<DbRecord<T>, void, unknown> {
+        return selectOps.streamAny<T>(this.system, modelName, filterData, options);
+    }
+
+    /**
+     * Stream records by their IDs
+     *
+     * Returns an async generator that yields records one at a time.
+     */
+    streamIds<T extends Record<string, any> = Record<string, any>>(
+        modelName: ModelName,
+        ids: string[],
+        options: SelectOptions = {}
+    ): AsyncGenerator<DbRecord<T>, void, unknown> {
+        return selectOps.streamIds<T>(this.system, modelName, ids, options);
+    }
+
+    // ========================================================================
     // Create Operations
     // ========================================================================
 
