@@ -43,7 +43,8 @@ INSERT OR IGNORE INTO "models" (id, model_name, status, sudo, description) VALUE
     ('${randomUUID()}', 'filters', 'system', 0, NULL),
     ('${randomUUID()}', 'credentials', 'system', 1, 'User authentication credentials'),
     ('${randomUUID()}', 'tracked', 'system', 1, 'Change tracking and audit trail'),
-    ('${randomUUID()}', 'fs', 'system', 1, 'Filesystem nodes');
+    ('${randomUUID()}', 'fs', 'system', 1, 'Filesystem nodes'),
+    ('${randomUUID()}', 'memories', 'system', 0, 'Long-term memory storage for AI agents');
 
 -- Fields for models
 INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, default_value, description) VALUES
@@ -133,6 +134,11 @@ INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, desc
     ('${randomUUID()}', 'fs', 'mode', 'integer', 0, 'Unix permission bits'),
     ('${randomUUID()}', 'fs', 'size', 'integer', 0, 'Content size in bytes'),
     ('${randomUUID()}', 'fs', 'owner_id', 'uuid', 0, 'Owner user ID');
+
+-- Fields for memories (long-term memory)
+INSERT OR IGNORE INTO "fields" (id, model_name, field_name, type, required, searchable, description) VALUES
+    ('${randomUUID()}', 'memories', 'owner', 'text', 1, 0, 'Username who owns this memory'),
+    ('${randomUUID()}', 'memories', 'content', 'text', 1, 1, 'Memory content (full-text searchable)');
 
 -- Root user with well-known ID (customized via parameterized UPDATE if needed)
 INSERT OR IGNORE INTO "users" (id, name, auth, access) VALUES

@@ -191,6 +191,28 @@ CREATE INDEX IF NOT EXISTS "idx_fs_parent" ON "fs" ("parent_id");
 CREATE INDEX IF NOT EXISTS "idx_fs_path" ON "fs" ("path");
 
 -- =============================================================================
+-- LONG TERM MEMORY (LTM)
+-- =============================================================================
+
+-- Memories table (long-term memory for AI agents)
+CREATE TABLE IF NOT EXISTS "memories" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "access_read" TEXT DEFAULT '[]',
+    "access_edit" TEXT DEFAULT '[]',
+    "access_full" TEXT DEFAULT '[]',
+    "access_deny" TEXT DEFAULT '[]',
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "trashed_at" TEXT,
+    "deleted_at" TEXT,
+    "owner" TEXT NOT NULL,
+    "content" TEXT NOT NULL
+);
+
+-- Index for owner lookup (FTS handled via LIKE for SQLite)
+CREATE INDEX IF NOT EXISTS "idx_memories_owner" ON "memories" ("owner", "created_at" DESC);
+
+-- =============================================================================
 -- NOTE: Seed data for SQLite is managed in src/lib/infrastructure.ts
 -- (TENANT_SEED_SQLITE constant) to allow dynamic UUID generation at runtime.
 -- PostgreSQL seed data is in tenant.pg.sql using gen_random_uuid().

@@ -319,3 +319,41 @@ INSERT INTO "fields" (model_name, field_name, type, required, description) VALUE
     ('fs', 'size', 'integer', false, 'Content size in bytes'),
     ('fs', 'owner_id', 'uuid', false, 'Owner user ID')
 ON CONFLICT (model_name, field_name) DO NOTHING;
+
+-- =============================================================================
+-- LONG TERM MEMORY (LTM)
+-- =============================================================================
+
+-- Memories table (long-term memory for AI agents)
+CREATE TABLE IF NOT EXISTS "memories" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "access_read" uuid[] DEFAULT '{}'::uuid[],
+    "access_edit" uuid[] DEFAULT '{}'::uuid[],
+    "access_full" uuid[] DEFAULT '{}'::uuid[],
+    "access_deny" uuid[] DEFAULT '{}'::uuid[],
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "trashed_at" timestamp,
+    "deleted_at" timestamp,
+    "owner" text NOT NULL,
+    "content" text NOT NULL
+);
+
+-- Full-text search index on content
+CREATE INDEX IF NOT EXISTS "idx_memories_content_search"
+    ON "memories" USING GIN (to_tsvector('english', "content"));
+
+-- Index for owner lookup
+CREATE INDEX IF NOT EXISTS "idx_memories_owner"
+    ON "memories" ("owner", "created_at" DESC);
+
+-- Register memories model
+INSERT INTO "models" (model_name, status, description) VALUES
+    ('memories', 'system', 'Long-term memory storage for AI agents')
+ON CONFLICT (model_name) DO NOTHING;
+
+-- Fields for memories
+INSERT INTO "fields" (model_name, field_name, type, required, searchable, description) VALUES
+    ('memories', 'owner', 'text', true, false, 'Username who owns this memory'),
+    ('memories', 'content', 'text', true, true, 'Memory content (full-text searchable)')
+ON CONFLICT (model_name, field_name) DO NOTHING;
