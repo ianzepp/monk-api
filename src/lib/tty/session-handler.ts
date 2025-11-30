@@ -357,7 +357,7 @@ export async function handleInput(
         session.inputBuffer += char;
         if (echo) {
             const passwordStates: string[] = ['AWAITING_PASSWORD', 'REGISTER_PASSWORD', 'REGISTER_CONFIRM'];
-            if (passwordStates.includes(session.authState)) {
+            if (!session.authenticated && passwordStates.includes(session.authState)) {
                 writeToStream(stream, '*');
             } else {
                 writeToStream(stream, char);
