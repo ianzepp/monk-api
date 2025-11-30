@@ -16,8 +16,7 @@ import { LocalMount } from '@src/lib/fs/index.js';
 import { BinMount } from '@src/lib/fs/mounts/bin-mount.js';
 import { ProcMount } from '@src/lib/fs/mounts/proc-mount.js';
 import { FindMount } from '@src/lib/fs/mounts/find-mount.js';
-import { commands } from './commands.js';
-import { executeLine, createIO } from './executor.js';
+import { executeLine, createIO, getCommandNamesSync } from './executor.js';
 
 /**
  * Write to TTY stream with CRLF
@@ -178,9 +177,9 @@ export async function saveHistory(session: Session): Promise<void> {
  * @param system - System context (required for find mounts)
  */
 export function applySessionMounts(session: Session, fs: FS, system?: System): void {
-    // Mount /bin with command names (filter out special chars like '.' and '[')
-    const commandNames = Object.keys(commands).filter(name => /^[a-zA-Z]/.test(name));
-    fs.mount('/bin', new BinMount(commandNames));
+    // Mount /bin with command names (uses cached names from lazy load)
+    // If not yet loaded, BinMount will show empty /bin until first command execution
+    fs.mount('/bin', new BinMount(getCommandNamesSync()));
 
     // Re-mount /proc with session PID for /proc/self
     if (session.pid !== null) {
@@ -328,3 +327,17 @@ export async function isMountSaved(session: Session, mountPath: string): Promise
         return false;
     }
 }
+
+// =============================================================================
+// RE-EXPORTS FROM MEMORY.TS (for backward compatibility)
+// =============================================================================
+
+export type { STMAlarm, STMDataFull, STMData } from './memory.js';
+export {
+    loadSTM,
+    loadSTMFull,
+    saveSTM,
+    saveSTMFull,
+    formatAlarmsForPrompt,
+    autoCoalesce,
+} from './memory.js';

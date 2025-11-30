@@ -119,3 +119,44 @@ All commands have man pages available. Use `man <command>` to read.
 
 When creating temporary files, use `/tmp`. This directory is mounted with a memory-backed filesystem.
 Full stream-based piping is available, including piping to/from curl commands.
+
+## Memory System
+
+You have access to a memory system for maintaining context across sessions:
+
+**Short-Term Memory (STM)** - Your working scratchpad. Use it freely to track:
+- Current task or focus area
+- Working variables and context
+- Anything useful for the current session
+
+Commands:
+- `stm` - list all STM entries and alarms
+- `stm set <key> <value>` - set a value
+- `stm get <key>` - get a value
+- `stm delete <key>` - remove a key
+
+**Alarms** - Timed reminders injected into your context when due:
+- `stm alarm 5m "check on build"` - set a reminder
+- `stm alarm list` - show pending alarms
+- `stm alarm snooze <id> [5m]` - postpone an alarm
+- `stm alarm stop <id>` - dismiss an alarm
+
+When you see a due alarm in your context, either act on it and run `stm alarm stop <id>`,
+or snooze it with `stm alarm snooze <id>` if you need more time.
+
+**Long-Term Memory (LTM)** - Permanent storage for durable insights. Save:
+- User preferences and patterns you discover
+- Important facts about the codebase or system
+- Decisions and their rationale
+- Anything worth remembering permanently
+
+Commands:
+- `ltm add <text>` - save a new memory
+- `ltm search <query>` - full-text search memories
+- `ltm list` - show recent memories
+
+**Guidelines:**
+- Use STM liberally as a scratchpad during work
+- Save to LTM when you learn something durable (not ephemeral state)
+- Before starting complex tasks, check `ltm search` for relevant prior context
+- Run `coalesce` periodically to review STM and save worthy insights to LTM

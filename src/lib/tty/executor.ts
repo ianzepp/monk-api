@@ -18,13 +18,45 @@
 
 import type { Session, ParsedCommand, CommandIO } from './types.js';
 import type { FS } from '@src/lib/fs/index.js';
+import type { CommandHandler } from './commands/shared.js';
 import { parseCommand, expandVariables, resolvePath } from './parser.js';
-import { commands } from './commands.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { spawnProcess } from '@src/lib/process.js';
 import { PassThrough } from 'node:stream';
 import { applySessionMounts } from './profile.js';
 import { shouldExecute } from './commands/control.js';
+
+// =============================================================================
+// Lazy Command Registry
+// =============================================================================
+
+/**
+ * Lazy-loaded command registry to avoid circular dependencies.
+ * The commands module imports many command files, which may import
+ * modules that eventually import system.ts -> ai.ts -> executor.ts.
+ */
+let _commands: Record<string, CommandHandler> | null = null;
+let _commandNames: string[] | null = null;
+
+/**
+ * Get the commands registry (lazy-loaded)
+ */
+export async function getCommands(): Promise<Record<string, CommandHandler>> {
+    if (!_commands) {
+        const mod = await import('./commands.js');
+        _commands = mod.commands;
+        _commandNames = Object.keys(_commands).filter(name => /^[a-zA-Z]/.test(name));
+    }
+    return _commands;
+}
+
+/**
+ * Get command names for /bin mount (synchronous, returns cached)
+ * Returns empty array if commands haven't been loaded yet.
+ */
+export function getCommandNamesSync(): string[] {
+    return _commandNames || [];
+}
 
 /** Commands that manage control flow - always execute regardless of conditional state */
 const CONTROL_FLOW_COMMANDS = ['if', 'then', 'else', 'elif', 'fi'];
@@ -192,6 +224,8 @@ async function executeSingleCommand(
     hasInputRedirect?: string,
     hasOutputRedirect?: string | boolean
 ): Promise<number> {
+    // Lazy-load commands registry
+    const commands = await getCommands();
     const handler = commands[cmd.command];
     if (!handler) {
         // Check if we should execute - if not, silently skip unknown commands too
@@ -271,6 +305,9 @@ async function executeMultiCommandPipeline(
     hasInputRedirect?: string,
     hasOutputRedirect?: string | boolean
 ): Promise<number> {
+    // Lazy-load commands registry once for the pipeline
+    const commands = await getCommands();
+
     let lastExitCode = 0;
     let previousOutput = '';
 

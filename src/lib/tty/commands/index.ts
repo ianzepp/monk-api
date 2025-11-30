@@ -23,7 +23,7 @@ import { umount } from './umount.js';
 import { cat } from './cat.js';
 import { head } from './head.js';
 import { tail } from './tail.js';
-import { jq } from './jq.js';
+import { jq } from './jq/index.js';
 import { touch } from './touch.js';
 import { rm } from './rm.js';
 import { mv } from './mv.js';
@@ -135,6 +135,11 @@ import { bc, calc } from './bc.js';
 // Line processing
 import { nl } from './nl.js';
 
+// Memory
+import { stm } from './stm.js';
+import { ltm } from './ltm.js';
+import { coalesce } from './coalesce.js';
+
 // Subcommand groups
 import { git } from './git/index.js';
 import { keys } from './keys/index.js';
@@ -166,7 +171,7 @@ export { umount } from './umount.js';
 export { cat } from './cat.js';
 export { head } from './head.js';
 export { tail } from './tail.js';
-export { jq } from './jq.js';
+export { jq } from './jq/index.js';
 export { touch } from './touch.js';
 export { rm } from './rm.js';
 export { mv } from './mv.js';
@@ -245,6 +250,9 @@ export { shasum } from './shasum.js';
 export { base64 } from './base64.js';
 export { bc, calc } from './bc.js';
 export { nl } from './nl.js';
+export { stm } from './stm.js';
+export { ltm } from './ltm.js';
+export { coalesce } from './coalesce.js';
 export { git } from './git/index.js';
 export { keys } from './keys/index.js';
 export { sshKey } from './ssh-key.js';
@@ -389,6 +397,11 @@ export const commands: Record<string, CommandHandler> = {
 
     // Line processing
     nl,
+
+    // Memory
+    stm,
+    ltm,
+    coalesce,
 
     // Subcommand groups
     git,

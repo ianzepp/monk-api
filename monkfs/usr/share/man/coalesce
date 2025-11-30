@@ -1,0 +1,61 @@
+NAME
+    coalesce - consolidate short-term memory into long-term memory
+
+SYNOPSIS
+    coalesce
+    coalesce --dry-run
+
+DESCRIPTION
+    Consolidates short-term memory (STM) into long-term memory (LTM).
+    Mimics the human sleep cycle where daily experiences are reviewed
+    and important insights are saved to permanent memory.
+
+    The command:
+    1. Reads current STM contents
+    2. Uses AI to identify insights worth preserving long-term
+    3. Saves identified memories to LTM
+    4. Clears STM for a fresh start
+
+    Run periodically (e.g., end of day, end of session) to preserve
+    valuable context before clearing STM.
+
+OPTIONS
+    -n, --dry-run   Show what would be saved without committing changes
+
+AI ANALYSIS
+    The AI evaluates STM entries and identifies 0-5 items worth saving:
+    - Durable truths (not ephemeral state)
+    - User preferences and patterns
+    - Important decisions and rationale
+    - Learned facts about the system
+
+    Ephemeral state like "current task" or "working on X" is typically
+    not saved to LTM.
+
+EXAMPLES
+    coalesce
+        Review STM, save insights to LTM, clear STM
+
+    coalesce --dry-run
+        Preview what would be saved without making changes
+
+TYPICAL WORKFLOW
+    # During work session
+    stm set task "implementing auth"
+    stm set decision "using JWT for stateless auth"
+    stm set learned "rate limiter is in middleware/rate.ts"
+
+    # End of session
+    coalesce
+    # AI identifies "rate limiter is in middleware/rate.ts" as durable
+    # Saves to LTM, clears STM
+
+ENVIRONMENT
+    ANTHROPIC_API_KEY   Required for AI analysis
+
+EXIT STATUS
+    0       Success (including when nothing to save)
+    1       Error (API failure, missing key, etc.)
+
+SEE ALSO
+    stm, ltm

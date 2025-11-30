@@ -1,0 +1,65 @@
+NAME
+    ltm - long-term memory storage
+
+SYNOPSIS
+    ltm
+    ltm add <text>
+    ltm search <query>
+    ltm list [limit]
+    ltm delete <id>
+
+DESCRIPTION
+    Long-term memory for the AI agent. Append-only storage backed by the
+    database with full-text search. Use for durable insights, learned
+    facts, user preferences, and anything worth remembering permanently.
+
+    Unlike STM (short-term memory), LTM persists across sessions and is
+    never automatically cleared. Use coalesce to consolidate STM insights
+    into LTM.
+
+COMMANDS
+    (none), list [N]    List recent memories (default: 20)
+    add <text>          Append a new memory
+    search <query>      Full-text search memories
+    delete <id>         Delete a memory by ID (first 8 chars sufficient)
+
+FULL-TEXT SEARCH
+    The search command uses PostgreSQL's full-text search (tsvector) or
+    SQLite's LIKE for matching. Search terms are matched against the
+    content of all memories owned by the current user.
+
+EXAMPLES
+    ltm add "User prefers TypeScript over JavaScript"
+        Save a learned preference
+
+    ltm add "Auth system uses JWT with 24h expiry"
+        Save a technical fact
+
+    ltm search "auth"
+        Find memories about authentication
+
+    ltm search "preferences"
+        Find stored preferences
+
+    ltm list
+        Show 20 most recent memories
+
+    ltm list 50
+        Show 50 most recent memories
+
+    ltm delete abc123
+        Delete a specific memory
+
+OUTPUT FORMAT
+    Memories are displayed as:
+        [<id>] <date>: <content>
+
+    Example:
+        [abc12345] 2024-01-15: User prefers verbose output
+
+EXIT STATUS
+    0       Success
+    1       Error or no matches found
+
+SEE ALSO
+    stm, coalesce

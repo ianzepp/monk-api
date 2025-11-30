@@ -1,0 +1,83 @@
+NAME
+    stm - short-term memory scratchpad
+
+SYNOPSIS
+    stm
+    stm get <key>
+    stm set <key> <value>
+    stm delete <key>
+    stm clear
+    stm alarm <duration> <message>
+    stm alarm list
+    stm alarm snooze <id> [duration]
+    stm alarm stop <id>
+    stm alarm clear
+
+DESCRIPTION
+    Short-term memory for the AI agent. A key/value scratchpad stored in
+    ~/.config/stm.json. Use freely to track current context, working
+    variables, and temporary state.
+
+    STM contents are automatically injected into the AI's context on
+    each prompt. The AI can read and write STM to maintain working memory.
+
+    Alarms are timed reminders that appear in the AI's context when due.
+    Use them to track tasks that need follow-up.
+
+COMMANDS
+    (none), list    List all entries and pending alarms
+    get <key>       Get value for key (silent if not found)
+    set <key> <val> Set key to value
+    delete <key>    Remove key (alias: rm)
+    clear           Clear all entries (preserves alarms)
+
+ALARM COMMANDS
+    alarm <dur> <msg>       Set a reminder (e.g., 5m, 1h, 30s)
+    alarm list              Show pending alarms with status
+    alarm snooze <id> [dur] Postpone alarm (default: 5m)
+    alarm stop <id>         Dismiss alarm (alias: dismiss)
+    alarm clear             Clear all alarms
+
+DURATION FORMAT
+    5s      5 seconds
+    5m      5 minutes
+    1h      1 hour
+    90m     90 minutes
+
+EXAMPLES
+    stm set task "debugging auth flow"
+        Track current task
+
+    stm set branch feature/auth
+        Remember current branch
+
+    stm get task
+        Retrieve current task
+
+    stm
+        List all entries and alarms
+
+    stm alarm 10m "check if tests passed"
+        Set a 10-minute reminder
+
+    stm alarm snooze abc123
+        Snooze alarm for 5 more minutes
+
+    stm alarm snooze abc123 15m
+        Snooze alarm for 15 minutes
+
+    stm alarm stop abc123
+        Dismiss the alarm
+
+    stm clear
+        Clear entries (start fresh)
+
+FILES
+    ~/.config/stm.json      Storage location
+
+EXIT STATUS
+    0       Success
+    1       Error or key not found
+
+SEE ALSO
+    ltm, coalesce
