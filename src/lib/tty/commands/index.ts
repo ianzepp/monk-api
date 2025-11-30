@@ -126,6 +126,15 @@ import { nc } from './nc.js';
 import { md5sum } from './md5sum.js';
 import { shasum } from './shasum.js';
 
+// Encoding
+import { base64 } from './base64.js';
+
+// Math
+import { bc, calc } from './bc.js';
+
+// Line processing
+import { nl } from './nl.js';
+
 // Subcommand groups
 import { git } from './git/index.js';
 import { keys } from './keys/index.js';
@@ -233,6 +242,9 @@ export { dirname } from './dirname.js';
 export { nc } from './nc.js';
 export { md5sum } from './md5sum.js';
 export { shasum } from './shasum.js';
+export { base64 } from './base64.js';
+export { bc, calc } from './bc.js';
+export { nl } from './nl.js';
 export { git } from './git/index.js';
 export { keys } from './keys/index.js';
 export { sshKey } from './ssh-key.js';
@@ -367,6 +379,16 @@ export const commands: Record<string, CommandHandler> = {
     // Hashing
     md5sum,
     shasum,
+
+    // Encoding
+    base64,
+
+    // Math
+    bc,
+    calc,
+
+    // Line processing
+    nl,
 
     // Subcommand groups
     git,
