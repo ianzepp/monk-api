@@ -15,7 +15,7 @@ import { ls } from './ls.js';
 import { find } from './find.js';
 import { tree } from './tree.js';
 import { grep } from './grep.js';
-import { xargs } from './xargs.js';
+import { xargs, setXargsCommandRegistry } from './xargs.js';
 import { mount } from './mount.js';
 import { umount } from './umount.js';
 
@@ -392,3 +392,4 @@ export const commands: Record<string, CommandHandler> = {
 setCommandRegistry(commands);
 setTimeCommandRegistry(commands);
 setWatchCommandRegistry(commands);
+setXargsCommandRegistry(commands);

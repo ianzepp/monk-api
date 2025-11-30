@@ -1,18 +1,12 @@
 /**
  * xargs - build commands from stdin tests
- *
- * NOTE: xargs tests are SKIPPED due to circular dependency issue.
- * xargs.ts imports commands from index.ts, which imports xargs.
- * This causes a ReferenceError during module initialization.
- *
- * These tests would need xargs to be refactored to avoid the
- * circular dependency (e.g., lazy import or DI pattern).
  */
 
-import { describe, it } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
+import { xargs } from '@src/lib/tty/commands/index.js';
+import { runCommand, outputLines } from './command-test-helper.js';
 
-// Skipped due to circular dependency - xargs imports commands from index.ts
-describe.skip('xargs', () => {
+describe('xargs', () => {
     describe('basic operation', () => {
         it('should pass stdin as arguments to echo by default', async () => {
             const result = await runCommand(xargs, [], 'a b c\n');

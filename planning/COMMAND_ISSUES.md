@@ -2,26 +2,33 @@
 
 This document tracks known issues and limitations discovered during test development.
 
-## Critical Issues
+## Medium Issues
 
-### xargs - Circular Dependency
+### xargs - No Default Command
 
 **File:** `src/lib/tty/commands/xargs.ts`
 
-**Problem:** xargs imports `commands` from `./index.js`, but index.js imports xargs. This creates a circular dependency that causes a ReferenceError during module initialization when importing xargs directly.
+**Problem:** Standard xargs defaults to `echo` when no command is provided, but this implementation requires a command argument.
 
-**Error:** `ReferenceError: Cannot access ',m' before initialization`
+**Expected:** `echo "a b c" | xargs` outputs `a b c`
+**Actual:** `xargs: missing command` error
 
-**Solution Options:**
-1. Lazy import: Move `import { commands }` inside the function that uses it
-2. Dependency injection: Pass commands registry as a parameter
-3. Separate registry: Move command registry to a separate file
-
-**Impact:** xargs tests are skipped; xargs likely fails when invoked
+**Fix:** Default `cmdName` to `'echo'` when `parsed.positional.length === 0`.
 
 ---
 
-## Medium Issues
+### xargs - `-L` Option Doesn't Preserve Lines
+
+**File:** `src/lib/tty/commands/xargs.ts`
+
+**Problem:** The `-L` option should batch input by lines, but the implementation splits all input by whitespace first, then batches.
+
+**Expected:** `printf "a b\nc d\n" | xargs -L1 echo` outputs `a b` then `c d`
+**Actual:** Outputs `a` `b` `c` `d` (one per line)
+
+**Fix:** When `-L` is specified, split by newlines first, not whitespace.
+
+---
 
 ### sed - `q` (quit) Command Duplicates Output
 

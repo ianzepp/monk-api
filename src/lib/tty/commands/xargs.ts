@@ -27,7 +27,14 @@ import type { FS } from '@src/lib/fs/index.js';
 import type { CommandHandler } from './shared.js';
 import { parseArgs } from './shared.js';
 import type { Session, CommandIO } from '../types.js';
-import { commands } from './index.js';
+
+// We need access to the command registry, but can't import it directly
+// due to circular deps. The caller will inject it.
+let commandRegistry: Record<string, CommandHandler> | null = null;
+
+export function setXargsCommandRegistry(registry: Record<string, CommandHandler>): void {
+    commandRegistry = registry;
+}
 
 const argSpecs = {
     nullSep: { short: '0', desc: 'NUL-separated input' },
@@ -165,7 +172,12 @@ async function executeCommand(
         io.stderr.write(`+ ${cmdName} ${fullArgs.join(' ')}\n`);
     }
 
-    const handler = commands[cmdName];
+    if (!commandRegistry) {
+        io.stderr.write('xargs: command registry not initialized\n');
+        return 1;
+    }
+
+    const handler = commandRegistry[cmdName];
     if (!handler) {
         io.stderr.write(`xargs: ${cmdName}: command not found\n`);
         return 127;
