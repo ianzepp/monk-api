@@ -61,6 +61,7 @@ import { cut } from './cut.js';
 import { tr } from './tr.js';
 import { format } from './format.js';
 import { sed } from './sed.js';
+import { awk } from './awk/index.js';
 
 // Output formatting
 import { printf } from './printf.js';
@@ -171,6 +172,7 @@ export { cut } from './cut.js';
 export { tr } from './tr.js';
 export { format } from './format.js';
 export { sed } from './sed.js';
+export { awk } from './awk/index.js';
 export { printf } from './printf.js';
 export { diff } from './diff.js';
 export { stat } from './stat.js';
@@ -296,6 +298,7 @@ export const commands: Record<string, CommandHandler> = {
     cut,
     tr,
     sed,
+    awk,
     format,
 
     // Output formatting

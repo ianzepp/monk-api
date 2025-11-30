@@ -1,0 +1,165 @@
+NAME
+    awk - pattern scanning and text processing language
+
+SYNOPSIS
+    awk [options] 'program' [file...]
+    awk [options] -f progfile [file...]
+    <input> | awk [options] 'program'
+
+DESCRIPTION
+    AWK is a powerful text processing language. It scans input line
+    by line, splits each line into fields, and executes actions for
+    lines that match patterns.
+
+OPTIONS
+    -F fs           Set field separator (default: whitespace)
+    -v var=value    Set variable before execution (multiple allowed)
+    -f progfile     Read program from file
+
+PROGRAM STRUCTURE
+    An AWK program consists of pattern-action pairs:
+
+    BEGIN { actions }       Execute once before processing input
+    pattern { actions }     Execute for each line matching pattern
+    END { actions }         Execute once after processing input
+
+    If pattern is omitted, action runs for all lines.
+    If action is omitted, matching lines are printed.
+
+PATTERNS
+    /regex/                 Match regex against $0
+    expression              True if non-zero or non-empty
+    /start/,/end/          Range: match from start to end pattern
+    BEGIN                   Before any input
+    END                     After all input
+
+FIELDS
+    $0                      Entire input record (line)
+    $1, $2, ...            Individual fields
+    $NF                     Last field
+    $(expr)                 Field number from expression
+
+BUILT-IN VARIABLES
+    FS          Input field separator (default: " ")
+    RS          Input record separator (default: "\n")
+    OFS         Output field separator (default: " ")
+    ORS         Output record separator (default: "\n")
+    NR          Total number of records read
+    NF          Number of fields in current record
+    FNR         Record number in current file
+    FILENAME    Current input filename
+    SUBSEP      Array subscript separator (default: "\034")
+    RSTART      Start of match (set by match())
+    RLENGTH     Length of match (set by match())
+
+OPERATORS
+    +, -, *, /, %, ^       Arithmetic
+    ==, !=, <, >, <=, >=   Comparison
+    ~, !~                   Regex match/not match
+    &&, ||, !               Logical
+    ++, --                  Increment/decrement
+    =, +=, -=, *=, /=, %=  Assignment
+    ? :                     Ternary conditional
+
+CONTROL FLOW
+    if (cond) stmt [else stmt]
+    while (cond) stmt
+    do stmt while (cond)
+    for (init; cond; incr) stmt
+    for (var in array) stmt
+    break, continue, next, exit
+
+STRING FUNCTIONS
+    length(s)               Length of string (or $0)
+    substr(s, start, len)   Substring (1-indexed)
+    index(s, t)             Position of t in s (0 if not found)
+    split(s, arr, fs)       Split s into array, return count
+    sub(r, s, t)            Replace first match of r with s in t
+    gsub(r, s, t)           Replace all matches of r with s in t
+    match(s, r)             Match r in s, set RSTART/RLENGTH
+    tolower(s)              Convert to lowercase
+    toupper(s)              Convert to uppercase
+    sprintf(fmt, ...)       Format string (printf-style)
+
+MATH FUNCTIONS
+    sin(x), cos(x)          Trigonometric
+    atan2(y, x)             Arc tangent
+    exp(x), log(x)          Exponential and natural log
+    sqrt(x)                 Square root
+    int(x)                  Truncate to integer
+    rand()                  Random number 0 <= r < 1
+    srand(seed)             Seed random generator
+
+ARRAYS
+    Arrays are associative (keyed by strings):
+
+    arr[key] = value        Set element
+    key in arr              Test if key exists
+    delete arr[key]         Delete element
+    delete arr              Delete entire array
+    for (k in arr)          Iterate over keys
+
+PRINT STATEMENTS
+    print                   Print $0
+    print expr, ...         Print expressions (OFS-separated)
+    printf fmt, ...         Formatted output
+    print > "file"          Redirect to file
+    print >> "file"         Append to file
+    print | "cmd"           Pipe to command
+
+EXAMPLES
+    awk '{print $1}' file
+        Print first field of each line
+
+    awk -F: '{print $1}' /etc/passwd
+        Print usernames (colon-separated)
+
+    awk '/error/{print}' log
+        Print lines containing 'error'
+
+    awk '{sum+=$1} END{print sum}' data
+        Sum first column
+
+    awk 'NR>1{print $2}' data
+        Skip header, print second column
+
+    awk 'BEGIN{FS=","} {print $3}' data.csv
+        CSV processing: print third column
+
+    awk '{print NR, $0}' file
+        Number all lines
+
+    awk 'NF>0' file
+        Remove blank lines
+
+    awk '{print $NF}' file
+        Print last field of each line
+
+    awk 'length>80' file
+        Print lines longer than 80 characters
+
+    awk '{gsub(/old/,"new"); print}' file
+        Replace all occurrences of 'old' with 'new'
+
+    awk -F: '$3>=1000{print $1}' /etc/passwd
+        Print users with UID >= 1000
+
+    awk 'BEGIN{for(i=1;i<=10;i++)print i}'
+        Print numbers 1 to 10
+
+    awk '{a[$1]+=$2} END{for(k in a)print k,a[k]}' data
+        Aggregate by first column
+
+USER-DEFINED FUNCTIONS
+    function name(params) {
+        body
+        return value
+    }
+
+EXIT STATUS
+    0       Success
+    1       Error
+    n       Exit code from exit(n)
+
+SEE ALSO
+    sed, grep, cut, sort

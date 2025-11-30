@@ -109,6 +109,7 @@ A Linux-like terminal interface for Monk, providing shell access over Telnet and
 ### Text Processing
 - `grep [-ivFwxcnloqm] <pattern>` - Filter lines by regex
 - `sed [-nEri] <script>` - Stream editor
+- `awk [-F fs] [-v var=val] 'program'` - Pattern scanning and text processing
 - `sort [-rnufbdhk] [-t delim]` - Sort lines
 - `uniq [-cd]` - Filter adjacent duplicate lines
 - `wc [-lwc]` - Word, line, character count
