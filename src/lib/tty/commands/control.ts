@@ -24,15 +24,26 @@ import type { CommandHandler } from './shared.js';
 import { executeLine } from '../executor.js';
 
 /**
+ * Ensure conditionalStack is initialized (for cached sessions from before this field was added)
+ */
+function ensureStack(session: { conditionalStack?: import('../types.js').ConditionalContext[] }): import('../types.js').ConditionalContext[] {
+    if (!session.conditionalStack) {
+        session.conditionalStack = [];
+    }
+    return session.conditionalStack;
+}
+
+/**
  * Check if we should execute commands in current conditional context
  */
-export function shouldExecute(session: { conditionalStack: import('../types.js').ConditionalContext[] }): boolean {
-    if (session.conditionalStack.length === 0) {
+export function shouldExecute(session: { conditionalStack?: import('../types.js').ConditionalContext[] }): boolean {
+    const stack = ensureStack(session);
+    if (stack.length === 0) {
         return true;
     }
 
     // Check all contexts in the stack - all must allow execution
-    for (const ctx of session.conditionalStack) {
+    for (const ctx of stack) {
         // If we're skipping nested blocks, don't execute
         if (ctx.skipDepth > 0) {
             return false;
@@ -68,7 +79,8 @@ export function shouldExecute(session: { conditionalStack: import('../types.js')
  * The command is executed and its exit code becomes the condition.
  */
 export const if_: CommandHandler = async (session, fs, args, io) => {
-    const ctx = session.conditionalStack.at(-1);
+    const stack = ensureStack(session);
+    const ctx = stack.at(-1);
 
     // If we're in a non-executing branch, just track nesting
     if (ctx && !shouldExecute(session)) {
@@ -77,7 +89,7 @@ export const if_: CommandHandler = async (session, fs, args, io) => {
     }
 
     // Push new conditional context
-    session.conditionalStack.push({
+    stack.push({
         type: 'if',
         condition: 1, // Default to false, will be set by condition evaluation
         branch: 'condition',
@@ -87,7 +99,7 @@ export const if_: CommandHandler = async (session, fs, args, io) => {
 
     // If no condition provided, treat as false
     if (args.length === 0) {
-        session.conditionalStack.at(-1)!.condition = 1;
+        stack.at(-1)!.condition = 1;
         return 0;
     }
 
@@ -99,7 +111,7 @@ export const if_: CommandHandler = async (session, fs, args, io) => {
         fs: fs ?? undefined,
     });
 
-    session.conditionalStack.at(-1)!.condition = exitCode;
+    stack.at(-1)!.condition = exitCode;
     return 0;
 };
 
@@ -107,7 +119,8 @@ export const if_: CommandHandler = async (session, fs, args, io) => {
  * then - Start the "then" branch
  */
 export const then: CommandHandler = async (session, _fs, _args, io) => {
-    const ctx = session.conditionalStack.at(-1);
+    const stack = ensureStack(session);
+    const ctx = stack.at(-1);
 
     if (!ctx) {
         io.stderr.write('then: not in an if block\n');
@@ -138,7 +151,8 @@ export const then: CommandHandler = async (session, _fs, _args, io) => {
  * else - Start the "else" branch
  */
 export const else_: CommandHandler = async (session, _fs, _args, io) => {
-    const ctx = session.conditionalStack.at(-1);
+    const stack = ensureStack(session);
+    const ctx = stack.at(-1);
 
     if (!ctx) {
         io.stderr.write('else: not in an if block\n');
@@ -165,7 +179,8 @@ export const else_: CommandHandler = async (session, _fs, _args, io) => {
  * Syntax: elif <command> [args...]
  */
 export const elif: CommandHandler = async (session, fs, args, io) => {
-    const ctx = session.conditionalStack.at(-1);
+    const stack = ensureStack(session);
+    const ctx = stack.at(-1);
 
     if (!ctx) {
         io.stderr.write('elif: not in an if block\n');
@@ -212,7 +227,8 @@ export const elif: CommandHandler = async (session, fs, args, io) => {
  * fi - End the conditional block
  */
 export const fi: CommandHandler = async (session, _fs, _args, io) => {
-    const ctx = session.conditionalStack.at(-1);
+    const stack = ensureStack(session);
+    const ctx = stack.at(-1);
 
     if (!ctx) {
         io.stderr.write('fi: not in an if block\n');
@@ -226,6 +242,6 @@ export const fi: CommandHandler = async (session, _fs, _args, io) => {
     }
 
     // Pop the conditional context
-    session.conditionalStack.pop();
+    stack.pop();
     return 0;
 };
