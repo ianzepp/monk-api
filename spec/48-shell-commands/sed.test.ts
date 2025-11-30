@@ -116,20 +116,17 @@ describe('sed', () => {
         });
     });
 
-    // Note: quit has a bug that outputs the line twice (in case and after loop)
     describe('quit (q)', () => {
         it('should quit after first line', async () => {
             const result = await runCommand(sed, ['1q'], 'a\nb\nc\n');
             expect(result.exitCode).toBe(0);
-            // Bug: outputs 'a' twice due to implementation issue
-            expect(outputLines(result.stdout)).toEqual(['a', 'a']);
+            expect(outputLines(result.stdout)).toEqual(['a']);
         });
 
         it('should quit after match', async () => {
             const result = await runCommand(sed, ['/stop/q'], 'a\nstop\nb\n');
             expect(result.exitCode).toBe(0);
-            // Bug: outputs 'stop' twice
-            expect(outputLines(result.stdout)).toEqual(['a', 'stop', 'stop']);
+            expect(outputLines(result.stdout)).toEqual(['a', 'stop']);
         });
     });
 

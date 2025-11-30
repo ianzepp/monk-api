@@ -31,17 +31,17 @@ export const dirname: CommandHandler = async (_session, _fs, args, io) => {
  * Get directory name of a path
  */
 function getDirname(path: string): string {
-    // Remove trailing slashes (except for root)
-    let p = path.replace(/\/+$/, '');
-
-    // Handle empty string
-    if (!p) {
-        return '.';
+    // Handle root (path is all slashes)
+    if (/^\/+$/.test(path)) {
+        return '/';
     }
 
-    // Handle root
-    if (p === '/') {
-        return '/';
+    // Remove trailing slashes
+    const p = path.replace(/\/+$/, '');
+
+    // Handle empty string (was just slashes, or empty input)
+    if (!p) {
+        return '.';
     }
 
     // Find last slash

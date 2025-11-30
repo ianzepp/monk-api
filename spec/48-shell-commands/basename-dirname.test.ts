@@ -94,11 +94,10 @@ describe('dirname', () => {
             expect(result.stdout.trim()).toBe('/path/to');
         });
 
-        // Note: dirname strips trailing slashes first, so "/" becomes "."
         it('should handle root', async () => {
             const result = await runCommand(dirname, ['/']);
             expect(result.exitCode).toBe(0);
-            expect(result.stdout.trim()).toBe('.');
+            expect(result.stdout.trim()).toBe('/');
         });
 
         it('should handle single directory', async () => {

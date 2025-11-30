@@ -30,21 +30,6 @@ This document tracks known issues and limitations discovered during test develop
 
 ---
 
-### sed - `q` (quit) Command Duplicates Output
-
-**File:** `src/lib/tty/commands/sed.ts`
-
-**Problem:** The quit command outputs the current line twice:
-1. Once inside the `case 'q':` block
-2. Once after the commands loop in `if (print && !deleted)`
-
-**Expected:** `sed '1q' file` should output just the first line
-**Actual:** Outputs the first line twice
-
-**Fix:** Remove the `output.push(line)` inside the `case 'q':` block, or set `print = false` before the output.
-
----
-
 ### sed - Multiple `-e` Flags Not Supported
 
 **File:** `src/lib/tty/commands/sed.ts`
@@ -57,20 +42,6 @@ This document tracks known issues and limitations discovered during test develop
 **Workaround:** Use semicolon-separated commands: `sed 's/a/A/; s/b/B/' file`
 
 **Fix:** Modify parseArgs to support array values for repeated flags, or accumulate `-e` values separately.
-
----
-
-
-### dirname - Root `/` Returns `.` Instead of `/`
-
-**File:** `src/lib/tty/commands/dirname.ts`
-
-**Problem:** The implementation strips trailing slashes first, so `/` becomes empty string, which then returns `.`.
-
-**Expected:** `dirname /` returns `/`
-**Actual:** `dirname /` returns `.`
-
-**Fix:** Add special case for `/` before stripping trailing slashes.
 
 ---
 

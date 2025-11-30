@@ -430,6 +430,7 @@ function processLines(
 
                 case 'q':
                     if (print && !deleted) output.push(line);
+                    print = false;  // Prevent duplicate output after loop
                     quit = true;
                     break;
 
