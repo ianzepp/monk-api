@@ -12,6 +12,10 @@ build/
 branches/
 rc-cleanup-*
 
+# SSH keys
+ssh_host_key
+*.pem
+
 # Environment variables
 .env
 .env.local
