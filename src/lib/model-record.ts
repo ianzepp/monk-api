@@ -117,8 +117,14 @@ export class ModelRecord {
      * @returns The effective value (current overrides original)
      */
     get(field: string): any {
-        // Return current value if set, otherwise fall back to original
-        return this._current[field] ?? this._original?.[field];
+        // Preserve explicit null, but treat undefined as not set for fallback behavior.
+        const currentValue = this._current[field];
+
+        if (currentValue === null) {
+            return null;
+        }
+
+        return currentValue ?? this._original?.[field];
     }
 
     /**
