@@ -1,6 +1,6 @@
 # User API
 
-The User API provides self-service user profile management endpoints that allow authenticated users to manage their own accounts without requiring sudo access. This API complements the generic Data API by providing controlled write access to the sudo-protected users table.
+The User API provides both self-service account operations and sudo-gated tenant user management. It complements the generic Data API by exposing explicit user workflows on top of the sudo-protected `users` model.
 
 ## Base Path
 All User API routes are prefixed with `/api/user`
@@ -21,6 +21,14 @@ Unlike the Data API (which requires sudo for the users table), the User API allo
 - ✅ Update their own name and auth identifier
 - ✅ Deactivate their own account
 
+### Administrative Operations
+With a sudo token from [`POST /api/user/sudo`](sudo/POST.md), privileged users can:
+- ✅ List tenant users
+- ✅ Create users
+- ✅ Read, update, and delete other users
+- ✅ Manage passwords and API keys for tenant users
+- ✅ Issue impersonation tokens with `POST /api/user/fake`
+
 ### Security Boundaries
 The User API enforces strict security controls:
 - ❌ Cannot modify own access level (prevents privilege escalation)
@@ -31,13 +39,19 @@ The User API enforces strict security controls:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/user/profile`](#get-apiuserprofile) | View your own user profile |
-| PUT | [`/api/user/profile`](#put-apiuserprofile) | Update your own name or auth identifier |
-| POST | [`/api/user/deactivate`](#post-apiuserdeactivate) | Deactivate your own account (soft delete) |
+| GET | `/api/user/me` | View your own user profile |
+| PUT | `/api/user/me` | Update your own name or auth identifier |
+| DELETE | `/api/user/me` | Deactivate your own account (soft delete) |
+| GET | `/api/user` | List users in the tenant (sudo required) |
+| POST | `/api/user` | Create a user in the tenant (sudo required) |
+| GET | `/api/user/:id` | View a specific user by UUID or `me` |
+| PUT | `/api/user/:id` | Update a specific user by UUID or `me` |
+| DELETE | `/api/user/:id` | Delete a specific user by UUID or `me` |
+| POST | [`/api/user/sudo`](sudo/POST.md) | Issue a short-lived sudo token |
 
 ---
 
-## GET /api/user/profile
+## GET /api/user/me
 
 Retrieve your own user profile information including access levels and permissions.
 
@@ -49,7 +63,7 @@ Retrieve your own user profile information including access levels and permissio
 ```bash
 curl -X GET \
   -H "Authorization: Bearer $TOKEN" \
-  https://api.example.com/api/user/profile
+  https://api.example.com/api/user/me
 ```
 
 ### Success Response (200)
@@ -85,7 +99,7 @@ curl -X GET \
 
 ---
 
-## PUT /api/user/profile
+## PUT /api/user/me
 
 Update your own profile information. You can only modify your `name` and `auth` fields - access levels and permissions require admin access via the Data API.
 
@@ -112,7 +126,7 @@ curl -X PUT \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Jane Doe", "auth": "jane@example.com"}' \
-  https://api.example.com/api/user/profile
+  https://api.example.com/api/user/me
 ```
 
 ### Success Response (200)
@@ -169,7 +183,7 @@ curl -X PUT \
 
 ---
 
-## POST /api/user/deactivate
+## DELETE /api/user/me
 
 Deactivate your own account (soft delete). This sets the `trashed_at` timestamp and prevents future authentication. An administrator can reactivate the account if needed.
 
@@ -191,11 +205,11 @@ Deactivate your own account (soft delete). This sets the `trashed_at` timestamp 
 
 ### Request
 ```bash
-curl -X POST \
+curl -X DELETE \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"confirm": true, "reason": "Leaving company"}' \
-  https://api.example.com/api/user/deactivate
+  https://api.example.com/api/user/me
 ```
 
 ### Success Response (200)
@@ -230,6 +244,33 @@ curl -X POST \
 - The account data is preserved (soft delete via `trashed_at`)
 - An administrator can reactivate the account using the Data API with sudo access
 - To permanently delete an account, an administrator must use the Data API with sudo and `permanent=true`
+
+---
+
+## Administrative User Management
+
+For tenant-wide user management, use the collection and `:id` endpoints with a sudo token:
+
+```bash
+# 1. Exchange a normal token for a sudo token
+curl -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "User administration"}' \
+  https://api.example.com/api/user/sudo
+
+# 2. Use the sudo token to list users
+curl -X GET \
+  -H "Authorization: Bearer $SUDO_TOKEN" \
+  https://api.example.com/api/user
+
+# 3. Create or manage other users
+curl -X POST \
+  -H "Authorization: Bearer $SUDO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "New User", "auth": "new@example.com", "access": "edit"}' \
+  https://api.example.com/api/user
+```
 
 ---
 
@@ -281,7 +322,7 @@ The User API implements the `withSelfServiceSudo()` pattern:
 
 ### Protection Against Privilege Escalation
 - Users cannot update their own `access` field
-- Attempting to modify `access` via PUT /api/user/profile returns 400 error
+- Attempting to modify `access` via `PUT /api/user/me` returns 400 error
 - Access level changes require admin access via Data API with sudo
 - The `as_sudo` flag is request-scoped and automatically cleaned up
 

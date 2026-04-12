@@ -26,18 +26,18 @@ This directory contains the complete test suite - organized shell integration te
 The project has two test suites that both require a running test server:
 
 - **Shell Tests** (`spec/**/*.test.sh`) - End-to-end integration tests using bash/curl
-- **TypeScript Tests** (`spec/**/*.test.ts`) - Unit/integration tests using Vitest
+- **TypeScript Tests** (`spec/**/*.test.ts`) - Unit/integration tests using Bun test
 
 ### Build System
 
-**Application Build** (`npm run build`):
+**Application Build** (`bun run build`):
 - Compiles TypeScript source code (`src/` → `dist/`)
 - Required before starting ANY server
 - Outputs JavaScript files to `dist/` directory
 
-**Test Type-Checking** (`npm run build:spec`):
+**Test Type-Checking** (`bun run build:spec`):
 - Type-checks test files (`spec/**/*.ts`)
-- Does NOT compile tests (Vitest runs them directly)
+- Does NOT compile tests (Bun test runs them directly)
 - Validates TypeScript types in test code
 
 ⚠️ **CRITICAL**: These are DIFFERENT commands with DIFFERENT purposes. Both are required.
@@ -46,8 +46,8 @@ The project has two test suites that both require a running test server:
 
 **Single Server (Port 9001)**:
 ```bash
-npm start      # Start server in foreground
-npm run stop   # Stop server
+bun run start      # Start server in foreground
+bun run stop       # Stop server
 ```
 - Uses `.env` → `monk` database
 - Single port for all environments (development, testing, etc.)
@@ -59,22 +59,22 @@ npm run stop   # Stop server
 
 ```bash
 # 1. Build the application
-npm run build
+bun run build
 
 # 2. Start server on port 9001
-npm start
+bun run start
 
 # 3. Run tests (in another terminal)
-npm run test:ts        # TypeScript tests
-npm run test:sh        # Shell tests
+bun run test:ts        # TypeScript tests
+bun run test:sh        # Shell tests
 
 # 4. Stop server when done
-npm run stop
+bun run stop
 ```
 
 **Build steps:**
-- `npm run build` - Compiles application code (src/ → dist/)
-- `npm run build:spec` - Type-checks test files (spec/)
+- `bun run build` - Compiles application code (src/ → dist/)
+- `bun run build:spec` - Type-checks test files (spec/)
 - Both are required for a complete test run
 
 ### Database Connection Management
@@ -82,78 +82,78 @@ npm run stop
 Tests create temporary tenant databases, each with connection pools. To avoid exhausting PostgreSQL's connection limit:
 
 - **Test DB pools**: 2 connections each (reduced from default 5)
-- **Max concurrent tests**: 5 files (configured in `vitest.config.ts`)
+- **Test preload**: `bunfig.toml` loads `spec/bun-test-setup.ts` before Bun test runs
 - **Pool cleanup**: Automatic via `/test/pools` endpoint at test completion
 
 **If you see "too many clients already":**
 ```bash
 # Stop server to release all pools
-npm run stop
+bun run stop
 
 # Drop accumulated test databases
 psql -c "SELECT 'DROP DATABASE \"' || datname || '\";' FROM pg_database WHERE datname LIKE 'tenant_test_%';" | grep DROP | psql
 
 # Restart server
-npm start
+bun run start
 ```
 
 ### Common Mistakes to Avoid
 
-1. ❌ Running `npx vitest` directly without server
+1. ❌ Running `bun test` directly without the required server and build prerequisites
 2. ❌ Forgetting to rebuild after source changes
-3. ❌ Confusing `npm run build` with `npm run build:spec`
+3. ❌ Confusing `bun run build` with `bun run build:spec`
 4. ❌ Stopping server and forgetting to restart before next test run
 
 ## Quick Start
 
 ```bash
 # Run all shell integration tests
-npm run test:sh
+bun run test:sh
 
 # Run specific test series
-npm run test:sh 31-describe-api
-npm run test:sh 32-data-api
+bun run test:sh 31-describe-api
+bun run test:sh 32-data-api
 
 # Run individual test
 ./spec/31-describe-api/create-model.test.sh
 
 # Run with detailed output
-TEST_VERBOSE=1 npm run test:sh 31-describe-api
+TEST_VERBOSE=1 bun run test:sh 31-describe-api
 
 # Clean up test databases
-npm run test:cleanup
+bun run test:cleanup
 ```
 
 ## Test Execution
 
-### Available NPM Scripts
+### Available Package Scripts
 
-- **`npm run test:sh [pattern]`** - Run shell integration tests
-- **`npm run test:cleanup`** - Clean up all test databases without running tests
+- **`bun run test:sh [pattern]`** - Run shell integration tests
+- **`bun run test:cleanup`** - Clean up all test databases without running tests
 
 ### Pattern Matching
 
 ```bash
 # Run specific test category
-npm run test:sh 31-describe   # All describe API tests
-npm run test:sh 32-data        # Data API tests
-npm run test:sh auth           # All tests with "auth" in path
+bun run test:sh 31-describe   # All describe API tests
+bun run test:sh 32-data       # Data API tests
+bun run test:sh auth          # All tests with "auth" in path
 
 # Run specific test file
-npm run test:sh 31-describe-api/select-model.test.sh
+bun run test:sh 31-describe-api/select-model.test.sh
 
 # Wildcard matching
-npm run test:sh describe       # Matches any test with "describe" in path
-npm run test:sh find           # Matches any test with "find" in path
+bun run test:sh describe       # Matches any test with "describe" in path
+bun run test:sh find           # Matches any test with "find" in path
 ```
 
 ### Range Selection
 
 ```bash
 # Run tests in numeric range
-npm run test:sh 30-39         # All 30-series tests
-npm run test:sh 10-15         # Tests 10, 11, 12, 13, 14, 15
-npm run test:sh 01-05         # Tests 01, 02, 03, 04, 05
+bun run test:sh 30-39         # All 30-series tests
+bun run test:sh 10-15         # Tests 10, 11, 12, 13, 14, 15
+bun run test:sh 01-05         # Tests 01, 02, 03, 04, 05
 ```
 
 ### Verbose Mode
@@ -162,8 +162,8 @@ Use `TEST_VERBOSE` to show detailed success messages:
 
 ```bash
 # Verbose mode - shows all output including success messages
-TEST_VERBOSE=1 npm run test:sh 31-describe
-TEST_VERBOSE=true npm run test:cleanup
+TEST_VERBOSE=1 bun run test:sh 31-describe
+TEST_VERBOSE=true bun run test:cleanup
 ```
 
 **Quiet mode (default)** shows:
@@ -188,7 +188,7 @@ Tests are organized by numbered series for logical categorization:
 | **00-prerequisites** | System requirements | Command availability, environment checks |
 | **01-basic** | Basic API functionality | Tenant isolation, API discovery |
 | **02-server-config** | Server configuration | Startup, configuration validation |
-| **03-template-infrastructure** | Database templates | Template system (see [FIXTURES.md](../fixtures/README.md)) |
+| **03-template-infrastructure** | Database templates | Template system (fixture sources are not tracked in this checkout) |
 | **05-infrastructure** | Core connectivity | Database setup, basic operations |
 
 ### Security & Authentication (10-19)
@@ -244,28 +244,28 @@ Tests are organized by numbered series for logical categorization:
 
 **Quick validation** (< 1 minute):
 ```bash
-npm run test:sh 01-basic       # Basic functionality
-npm run test:sh 31-describe-api    # Model operations
+bun run test:sh 01-basic           # Basic functionality
+bun run test:sh 31-describe-api    # Model operations
 ```
 
 **Core API validation** (2-3 minutes):
 ```bash
-npm run test:sh 30-49          # All API tests
+bun run test:sh 30-49          # All API tests
 ```
 
 **Security validation** (1-2 minutes):
 ```bash
-npm run test:sh 10-15          # All security tests
+bun run test:sh 10-15          # All security tests
 ```
 
 **Application features** (2-3 minutes):
 ```bash
-npm run test:sh 50-79          # All app tests (extracts, restores, grids)
+bun run test:sh 50-79          # All app tests (extracts, restores, grids)
 ```
 
 **Complete suite** (5-10 minutes):
 ```bash
-npm run test:sh                # Everything
+bun run test:sh                # Everything
 ```
 
 ## Test Database Management
@@ -280,7 +280,7 @@ Each test gets its own isolated tenant database:
 
 ### Database Templates
 
-See [../fixtures/README.md](../fixtures/README.md) for complete documentation.
+Fixture sources are not tracked in this checkout. See [scripts/README.md](../scripts/README.md) for the current fixture command behavior.
 
 - **Basic Template**: Pre-populated with test data (5 accounts, 5 contacts)
 - **Large Template**: 100+ records for performance testing
@@ -291,10 +291,10 @@ See [../fixtures/README.md](../fixtures/README.md) for complete documentation.
 
 ```bash
 # Manual cleanup (run anytime)
-npm run test:cleanup
+bun run test:cleanup
 
 # Verbose cleanup (see what's being cleaned)
-TEST_VERBOSE=1 npm run test:cleanup
+TEST_VERBOSE=1 bun run test:cleanup
 ```
 
 **Automatic cleanup** runs after test suite completion.
@@ -497,8 +497,8 @@ source "$(dirname "$0")/../test-helper.sh"
 
 #### Server won't start
 ```bash
-npm run stop                    # Kill any existing server
-npm run start:bg                # Start fresh server
+bun run stop                    # Kill any existing server
+bun run start:bg                # Start fresh server
 ```
 
 #### Database connection issues
@@ -507,7 +507,7 @@ npm run start:bg                # Start fresh server
 psql postgresql://monk:monk@127.0.0.1:55432/monk -c "SELECT 1;"
 
 # Rebuild templates
-npm run fixtures:build testing
+bun run fixtures:build testing
 
 # Check PostgreSQL is running
 pg_isready -h 127.0.0.1 -p 55432 -U monk
@@ -516,7 +516,7 @@ pg_isready -h 127.0.0.1 -p 55432 -U monk
 #### Test database pollution
 ```bash
 # Clean up all test databases
-npm run test:cleanup
+bun run test:cleanup
 
 # Check for orphaned databases
 psql -c "SELECT datname FROM pg_database WHERE datname LIKE 'tenant_test_%';"
@@ -539,7 +539,8 @@ curl http://localhost:9001/health
 ./spec/31-describe-api/create-model.test.sh
 
 # Via npm with verbose mode
-TEST_VERBOSE=1 npm run test:sh 31-describe-api/create-model.test.sh
+# Via bun with verbose mode
+TEST_VERBOSE=1 bun run test:sh 31-describe-api/create-model.test.sh
 ```
 
 #### Check test database state
@@ -557,12 +558,12 @@ psql -d tenant_<hash> -c "SELECT * FROM accounts LIMIT 5;"
 #### Performance debugging
 ```bash
 # Time specific test categories
-time npm run test:sh 31-describe-api
-time npm run test:sh 32-data-api
+time bun run test:sh 31-describe-api
+time bun run test:sh 32-data-api
 
 # Compare template vs fresh setup
-time npm run test:sh 32-data-api  # Uses templates (fast)
-time npm run test:sh 15-authentication  # May use fresh setup
+time bun run test:sh 32-data-api  # Uses templates (fast)
+time bun run test:sh 15-authentication  # May use fresh setup
 ```
 
 ### CI/CD Integration
@@ -700,17 +701,17 @@ Shell tests are ideal for:
 
 ```bash
 # Run all tests
-npm run test:sh
+bun run test:sh
 
 # Run specific series
-npm run test:sh 31-describe-api
-npm run test:sh 32-data-api
+bun run test:sh 31-describe-api
+bun run test:sh 32-data-api
 
 # Run with verbose output
-TEST_VERBOSE=1 npm run test:sh 33-find-api
+TEST_VERBOSE=1 bun run test:sh 33-find-api
 
 # Clean up test databases
-npm run test:cleanup
+bun run test:cleanup
 
 # Run individual test
 ./spec/31-describe-api/create-model.test.sh
@@ -798,15 +799,15 @@ This is intentional design - Describe API focuses on model structure, not record
 
 ---
 
-# TypeScript Test Suite (Vitest)
+# TypeScript Test Suite (Bun Test)
 
 ## Overview
 
-In addition to shell tests, the project includes **TypeScript integration tests** using Vitest. These tests provide:
+In addition to shell tests, the project includes **TypeScript integration tests** using Bun test. These tests provide:
 - Type-safe test code with TypeScript
 - IDE integration (debugging, breakpoints)
 - Async/await support
-- Vitest's modern test runner features
+- Bun's native TypeScript test runner
 
 ## Running TypeScript Tests
 
@@ -814,45 +815,35 @@ In addition to shell tests, the project includes **TypeScript integration tests*
 
 ```bash
 # Run all TypeScript tests
-npm run test:ts
-
-# Run specific test directory
-npm run test:ts 33
-
-# Run tests in range
-npm run test:ts 30-39
+bun run test:ts
 ```
 
-The `test-ts.sh` script handles all prerequisites:
-1. Builds the code (`npm run build`)
-2. Starts test server on **port 9001**
-3. Runs vitest
-4. Stops server
+`bun run test:ts` executes the TypeScript suite through Bun test. It assumes the API server is already running on **port 9001**.
 
-### Advanced: Direct Vitest
+### Direct Bun Test
 
-You can run `npx vitest` directly, but prerequisites must be met:
+You can run `bun test ./spec/**/*.test.ts` directly, but the same prerequisites must be met:
 
 ```bash
 # 1. Build code
-npm run build
+bun run build
 
 # 2. Start server on port 9001
-npm start
+bun run start
 
 # 3. Run tests (in another terminal)
-npx vitest
+bun test ./spec/**/*.test.ts
 
 # 4. Stop server when done
-npm run stop
+bun run stop
 ```
 
-**Important**: If you run `npx vitest` without the server running, you'll get a clear error explaining what's missing.
+**Important**: If you run `bun test ./spec/**/*.test.ts` without the server running, you'll get a clear error explaining what's missing.
 
 ## Test Server
 
 - **Single server**: Port 9001 (used for all environments)
-- Start with `npm start` before running tests
+- Start with `bun run start` before running tests
 
 ## Test Templates and Fixtures
 
@@ -905,7 +896,7 @@ When you register a new tenant via `/auth/register`, you specify a template to c
   - Performance testing with realistic data
 - **Setup required:**
   ```bash
-  npm run fixtures:build testing
+  bun run fixtures:build testing
   ```
 - **Benefits:**
   - Faster tests (data already exists)
@@ -913,7 +904,7 @@ When you register a new tenant via `/auth/register`, you specify a template to c
   - Good for query/filter testing
 - **Example:**
   ```typescript
-  // Requires: npm run fixtures:build testing
+  // Requires: bun run fixtures:build testing
   tenant = await TestHelpers.createTestTenant('query-test', 'testing');
   
   // Testing template has 5 pre-populated accounts
@@ -1079,8 +1070,8 @@ The TypeScript test framework includes **automatic JWT token caching** to elimin
 - **`spec/test-helpers.ts`** - TestHelpers API for test files
 - **`spec/auth-client.ts`** - AuthClient for login/register with auto JWT caching
 - **`spec/http-client.ts`** - HTTP request utilities with JWT caching
-- **`spec/global-setup.ts`** - Vitest global hooks
-- **`vitest.config.ts`** - Vitest configuration
+- **`spec/bun-test-setup.ts`** - Bun test preload and global setup
+- **`bunfig.toml`** - Bun test configuration
 
 ### Architecture
 
@@ -1179,23 +1170,23 @@ tenant = await TestHelpers.createTestTenant('my-test');
 
 ### Error: "Test server not running on http://localhost:9001"
 
-**Solution**: Use the wrapper script:
+**Solution**: Use the package script:
 ```bash
-npm run test:ts
+bun run test:ts
 ```
 
 Or manually start server:
 ```bash
-npm start
+bun run start
 # Then in another terminal:
-npx vitest
+bun test ./spec/**/*.test.ts
 ```
 
 ### Error: "Template database not found"
 
 **Solution**: Build test fixtures:
 ```bash
-npm run fixtures:build testing
+bun run fixtures:build testing
 ```
 
 ### Tests fail with connection errors
@@ -1209,9 +1200,9 @@ npm run fixtures:build testing
 
 **Solution**: Stop existing server:
 ```bash
-npm run stop
+bun run stop
 # Or kill manually:
-pkill -f "node.*dist/index.js"
+pkill -f "bun.*dist/index"
 ```
 
 ## Current TypeScript Test Files
@@ -1226,17 +1217,10 @@ Located in `spec/*/*.test.ts`:
 
 ## Configuration Files
 
-### vitest.config.ts
+### bunfig.toml
 ```typescript
-{
-    test: {
-        environment: 'node',
-        testTimeout: 30000,
-        globalSetup: ['./spec/global-setup.ts'],  // ← Verifies server
-        setupFiles: ['./src/test-setup.ts'],
-        include: ['spec/**/*.test.ts'],
-    }
-}
+[test]
+preload = ["./spec/bun-test-setup.ts"]
 ```
 
 ### spec/test-config.ts

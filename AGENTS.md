@@ -15,19 +15,19 @@ This file contains important instructions for AI agents and assistants working o
 ## Key Project Patterns
 
 ### Build System
-- `npm run build` - Compiles TypeScript application code (src/ → dist/)
-- `npm run build:spec` - Type-checks test files (spec/)
+- `bun run build` - Compiles TypeScript application code (src/ → dist/)
+- `bun run build:spec` - Type-checks test files (spec/)
 - These are DIFFERENT and serve different purposes
 
 ### Server Environment
-- **Single Server**: Port 9001 (`npm start`, uses `.env` → `monk` database)
+- **Single Server**: Port 9001 (`bun run start`, uses `.env` → `monk` database)
 - All environments use the same port and master `.env` file
-- Use `npm run stop` to kill the server process
+- Use `bun run stop` to kill the server process
 
 ### Documentation Location
 - Project documentation is co-located with code, not in a separate docs/ directory
 - Test documentation: `spec/README.md`
-- Route documentation: `src/routes/PUBLIC.md`
+- Route documentation: `src/routes/docs/PUBLIC.md` plus per-route `PUBLIC.md` and `METHOD.md` files under `src/routes/`
 - Check README.md for other documentation references
 
 ## General Workflow

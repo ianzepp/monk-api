@@ -19,7 +19,7 @@ This document provides detailed architecture, development workflows, and technic
 
 ### Prerequisites
 
-- **Node.js 18+** and npm
+- **Bun 1.0+**
 - **PostgreSQL 12+** server running and accessible
 - **jq** (for JSON processing in CLI and tests)
 - **Docker** (optional, for the local development PostgreSQL service)
@@ -108,7 +108,7 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - 30x faster setup (0.1s vs 2-3s) for tests, tenants, sandboxes
 - Templates: `default` (minimal), `testing`, `testing_xl`, `demo`
 - Infrastructure integration with templates, sandboxes, snapshots
-- See: [fixtures/README.md](fixtures/README.md)
+- Fixture sources are not tracked in this checkout; see [scripts/README.md](scripts/README.md) for current fixture command caveats.
 
 ### System Architecture
 
@@ -133,10 +133,10 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 
 ```bash
 # Development with auto-reload
-npm run start:dev
+bun run start:dev
 
 # Production build and start
-npm run build && npm run start
+bun run build && bun run start
 ```
 
 ### Observer Development
@@ -282,7 +282,7 @@ Each tenant gets a dedicated SQLite file:
 - **Lifecycle**: Short-lived with expiration dates (typically 7-14 days)
 - **Source**: Cloned from templates or tenants
 - **Ownership**: Team-scoped (belongs to parent tenant for collaboration)
-- **API**: Managed via `/api/sudo/sandboxes/*` endpoints
+- **Status in this checkout**: Backing services exist, but no public `/api/sudo/sandboxes/*` route surface is registered
 
 **Snapshots** (Point-in-Time Backups)
 - **Storage**: `snapshot_*` schema or exported file
@@ -292,39 +292,18 @@ Each tenant gets a dedicated SQLite file:
 - **Status**: `pending` → `processing` → `active` or `failed`
 - **Immutability**: Read-only after creation
 - **Restriction**: Only from tenant schemas (not sandboxes)
-- **API**: Managed via `/api/sudo/snapshots/*` endpoints
+- **Status in this checkout**: Backing services exist, but no public `/api/sudo/snapshots/*` route surface is registered
 
 #### Infrastructure Management
 
-All infrastructure operations require **sudo access** via `/api/sudo/*` endpoints:
+Infrastructure concepts such as templates, sandboxes, and snapshots still appear in the service layer, but this checkout does not register a public `/api/sudo/*` HTTP surface for them. Treat those capabilities as implementation details until matching routes land.
 
 ```bash
-# 1. Get sudo token (15 min validity)
+# Request a sudo token for shipped privileged operations
 POST /api/user/sudo
-
-# 2. List templates
-GET /api/sudo/templates
-
-# 3. Create sandbox from template
-POST /api/sudo/sandboxes
-{
-  "template": "testing",
-  "expires_in_days": 7
-}
-
-# 4. Create snapshot (async)
-POST /api/sudo/snapshots
-{
-  "name": "pre-migration",
-  "snapshot_type": "pre_migration"
-}
-
-# 5. Poll snapshot status
-GET /api/sudo/snapshots/pre-migration
-# → Check status: pending → processing → active
 ```
 
-**Complete API Reference**: [src/routes/api/sudo/PUBLIC.md](src/routes/api/sudo/PUBLIC.md)
+**Shipped privileged route reference**: [src/routes/api/user/PUBLIC.md](src/routes/api/user/PUBLIC.md)
 
 ## Build and Deployment
 
@@ -534,16 +513,16 @@ Docs: Update observer development guide (#160)
 
 - **Testing**: [spec/README.md](spec/README.md)
 - **Observers**: [src/observers/README.md](src/observers/README.md)
-- **Fixtures**: [fixtures/README.md](fixtures/README.md)
-- **API Reference**: [src/routes/PUBLIC.md](src/routes/PUBLIC.md)
+- **Fixtures**: [scripts/README.md](scripts/README.md)
+- **API Reference**: [src/routes/docs/PUBLIC.md](src/routes/docs/PUBLIC.md)
 - **Troubleshooting**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ### Route-Specific Documentation
 
 Each API route has detailed documentation:
-- Auth API: [src/routes/auth/README.md](src/routes/auth/README.md)
-- Data API: [src/routes/api/data/README.md](src/routes/api/data/README.md)
-- Describe API: [src/routes/api/describe/README.md](src/routes/api/describe/README.md)
+- Auth API: [src/routes/auth/PUBLIC.md](src/routes/auth/PUBLIC.md)
+- Data API: [src/routes/api/data/PUBLIC.md](src/routes/api/data/PUBLIC.md)
+- Describe API: [src/routes/api/describe/PUBLIC.md](src/routes/api/describe/PUBLIC.md)
 - Find API: [src/routes/api/find/README.md](src/routes/api/find/README.md)
 - And more in `src/routes/*/README.md`
 

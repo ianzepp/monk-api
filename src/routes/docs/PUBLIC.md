@@ -14,20 +14,18 @@
 ### Protected Routes (JWT Authentication Required)
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
-| **Auth API** | `/api/auth/*` | User account management and privilege escalation |
-| **Data API** | `/api/data/:model[/:record]` | CRUD operations for model records |
+| **User API** | `/api/user/*` | User identity, tenant user management, sudo and impersonation |
+| **Data API** | `/api/data/:model[/:id]` | CRUD operations for model records |
 | **Describe API** | `/api/describe/:model[/fields[/:field]]` | Model definition and field management |
 | **Find API** | `/api/find/:model` | Advanced search and filtering with 25+ operators |
 | **Aggregate API** | `/api/aggregate/:model` | Data aggregation and analytics operations |
 | **Bulk API** | `/api/bulk` | Batch operations across multiple models |
-| **ACLs API** | `/api/acls/:model/:record` | Access control list management for records |
-| **Stat API** | `/api/stat/:model/:record` | Record metadata (timestamps, etag, size) |
-| **Tracked API** | `/api/tracked/:model/:record[/:change]` | Change tracking and audit trails |
-
-### Administrative Routes (Sudo Token Required)
-| API | Endpoints | Purpose |
-|-----|-----------|---------|
-| **Sudo API** | `/api/sudo/*` | User management (tenant-scoped, requires sudo token) |
+| **ACLs API** | `/api/acls/:model/:id` | Access control list management for records |
+| **Stat API** | `/api/stat/:model/:id` | Record metadata (timestamps, etag, size) |
+| **Tracked API** | `/api/tracked/:model/:id[/:change]` | Change tracking and audit trails |
+| **Trashed API** | `/api/trashed/*` | Soft-delete inspection, restore, and purge workflows |
+| **Cron API** | `/api/cron/*` | Scheduled process management |
+| **Filesystem API** | `/fs/*` | Tenant-scoped virtual filesystem access |
 
 ## Key Features
 
@@ -84,33 +82,21 @@ curl http://localhost:9001/
 {
   "success": true,
   "data": {
-    "name": "Monk API (Hono)",
-    "version": "3.1.0",
+    "name": "Monk API",
+    "version": "6.x.x",
     "endpoints": {
-      "home": ["/ (public)", "/health (public)"],
-      "docs": ["/README.md (public)", "/docs/:api (public)"],
-      "auth": ["/auth/* (public)", "/api/auth/* (protected)"],
-      "describe": ["/api/describe[/:model[/:field]] (protected)"],
-      "data": ["/api/data/:model[/:record[/:relationship[/:child]]] (protected)"],
-      "find": ["/api/find/:model (protected)"],
-      "aggregate": ["/api/aggregate/:model (protected)"],
-      "bulk": ["/api/bulk (protected)"],
-      "acls": ["/api/acls/:model/:record (protected)"],
-      "stat": ["/api/stat/:model/:record (protected)"],
-      "tracked": ["/api/tracked/:model/:record[/:change] (protected)"],
-      "sudo": ["/api/sudo/* (sudo token required)"]
-    },
-    "documentation": {
-      "auth": ["/docs/auth"],
-      "describe": ["/docs/api/describe"],
-      "data": ["/docs/api/data"],
-      "find": ["/docs/api/find"],
-      "aggregate": ["/docs/api/aggregate"],
-      "bulk": ["/docs/api/bulk"],
-      "acls": ["/docs/api/acls"],
-      "stat": ["/docs/api/stat"],
-      "tracked": ["/docs/api/tracked"],
-      "sudo": ["/docs/api/sudo"]
+      "docs": ["/docs", "/docs/auth", "/docs/describe", "/docs/data"],
+      "auth": ["/auth/login", "/auth/register", "/auth/refresh", "/auth/tenants"],
+      "user": ["/api/user", "/api/user/:id", "/api/user/sudo", "/api/user/fake"],
+      "data": ["/api/data/:model", "/api/data/:model/:id", "/api/data/:model/:id/:relationship"],
+      "describe": ["/api/describe", "/api/describe/:model", "/api/describe/:model/fields"],
+      "find": ["/api/find/:model"],
+      "aggregate": ["/api/aggregate/:model"],
+      "bulk": ["/api/bulk", "/api/bulk/export", "/api/bulk/import"],
+      "acls": ["/api/acls/:model/:id"],
+      "stat": ["/api/stat/:model/:id"],
+      "tracked": ["/api/tracked/:model/:id", "/api/tracked/:model/:id/:change"],
+      "trashed": ["/api/trashed", "/api/trashed/:model", "/api/trashed/:model/:id"]
     }
   }
 }
@@ -133,17 +119,17 @@ Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authenticat
 - Quick start guides
 
 **Available API Documentation**:
-- `/docs/api/describe` - Model and field management
-- `/docs/api/data` - CRUD operations on records
-- `/docs/api/find` - Advanced querying with filters
-- `/docs/api/aggregate` - Data aggregation and analytics
-- `/docs/api/bulk` - Batch operations across models
-- `/docs/api/acls` - Access control management
-- `/docs/api/stat` - Record metadata access
-- `/docs/api/tracked` - Change tracking and audit trails
+- `/docs/describe` or `/docs/api/describe` - Model and field management
+- `/docs/data` or `/docs/api/data` - CRUD operations on records
+- `/docs/find` or `/docs/api/find` - Advanced querying with filters
+- `/docs/aggregate` or `/docs/api/aggregate` - Data aggregation and analytics
+- `/docs/bulk` or `/docs/api/bulk` - Batch operations across models
+- `/docs/acls` or `/docs/api/acls` - Access control management
+- `/docs/stat` or `/docs/api/stat` - Record metadata access
+- `/docs/tracked` or `/docs/api/tracked` - Change tracking and audit trails
 - `/docs/auth` - Authentication and token management
-- `/docs/api/user` - User account management
-- `/docs/api/sudo` - Administrative operations
+- `/docs/user` or `/docs/api/user` - User account management
+- `/docs/trashed` or `/docs/api/trashed` - Trashed record management
 
 ### Then: Access Endpoint-Specific Docs (Level 3)
 
@@ -162,7 +148,7 @@ To get detailed documentation for a specific endpoint, construct the URL:
 2. Replace parameter placeholders with literal names:
    - `:model` → `model`
    - `:field` → `field`
-   - `:record` → `record`
+   - `:id` → `id`
    - `:relationship` → `relationship`
    - `:child` → `child`
 3. Append HTTP method: `api/describe/model/GET`
@@ -181,8 +167,8 @@ DELETE /api/describe/:model/fields/:field      → /docs/api/describe/model/fiel
 
 GET    /api/data/:model                  → /docs/api/data/model/GET
 POST   /api/data/:model                  → /docs/api/data/model/POST
-GET    /api/data/:model/:record          → /docs/api/data/model/record/GET
-GET    /api/data/:model/:record/:rel     → /docs/api/data/model/record/relationship/GET
+GET    /api/data/:model/:id              → /docs/api/data/model/id/GET
+GET    /api/data/:model/:id/:relationship → /docs/api/data/model/id/relationship/GET
 
 GET    /auth/login                        → /docs/auth/login/GET
 POST   /auth/login                        → /docs/auth/login/POST
@@ -213,7 +199,7 @@ POST   /auth/register                     → /docs/auth/register/POST
 - **Data Aggregation**: `/docs/api/aggregate` - Analytics and aggregation operations
 - **Batch Processing**: `/docs/api/bulk` - Multi-model transaction operations
 - **Change Tracking**: `/docs/api/tracked` - Audit trails and change history
-- **Administration**: `/docs/api/sudo` - User management and administrative operations
+- **Deleted Records**: `/docs/api/trashed` - Restore and purge workflows
 
 ## Common Operations Quick Reference
 

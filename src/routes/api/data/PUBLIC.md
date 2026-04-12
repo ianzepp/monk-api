@@ -59,21 +59,21 @@ See individual endpoint documentation for detailed examples.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/data/:model/:record`](:model/:record/GET.md) | Retrieve a single record by UUID. |
-| PUT | [`/api/data/:model/:record`](:model/:record/PUT.md) | Update a single record (full replacement or partial patch). |
-| DELETE | [`/api/data/:model/:record`](:model/:record/DELETE.md) | Soft delete a single record (sets `trashed_at`). |
+| GET | [`/api/data/:model/:id`](:model/:id/GET.md) | Retrieve a single record by UUID. |
+| PUT | [`/api/data/:model/:id`](:model/:id/PUT.md) | Update a single record (full replacement or partial patch). |
+| DELETE | [`/api/data/:model/:id`](:model/:id/DELETE.md) | Soft delete a single record (sets `trashed_at`). |
 
 ### Relationship Operations
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/GET.md) | List all child records for a parent relationship. |
-| POST | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/POST.md) | Create a child record with automatic parent foreign key assignment. |
-| PUT | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/PUT.md) | Bulk update child records (not yet implemented). |
-| DELETE | [`/api/data/:model/:record/:relationship`](:model/:record/:relationship/DELETE.md) | Soft delete all child records belonging to parent. |
-| GET | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/GET.md) | Fetch a specific child record through parent relationship. |
-| PUT | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/PUT.md) | Update a specific child record while preserving parent relationship. |
-| DELETE | [`/api/data/:model/:record/:relationship/:child`](:model/:record/:relationship/:child/DELETE.md) | Soft delete a specific child record. |
+| GET | [`/api/data/:model/:id/:relationship`](:model/:id/:relationship/GET.md) | List all child records for a parent relationship. |
+| POST | [`/api/data/:model/:id/:relationship`](:model/:id/:relationship/POST.md) | Create a child record with automatic parent foreign key assignment. |
+| PUT | `/api/data/:model/:id/:relationship` | Bulk update child records (not yet implemented). |
+| DELETE | [`/api/data/:model/:id/:relationship`](:model/:id/:relationship/DELETE.md) | Soft delete all child records belonging to parent. |
+| GET | [`/api/data/:model/:id/:relationship/:child`](:model/:id/:relationship/:child/GET.md) | Fetch a specific child record through parent relationship. |
+| PUT | [`/api/data/:model/:id/:relationship/:child`](:model/:id/:relationship/:child/PUT.md) | Update a specific child record while preserving parent relationship. |
+| DELETE | [`/api/data/:model/:id/:relationship/:child`](:model/:id/:relationship/:child/DELETE.md) | Soft delete a specific child record. |
 
 ## Delete Operations
 
