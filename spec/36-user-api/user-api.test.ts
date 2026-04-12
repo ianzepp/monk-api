@@ -16,6 +16,22 @@ import { HttpClient } from '../http-client.js';
 describe('User API', () => {
     let tenant: TestTenant;
     let nonRootClient: HttpClient;
+    let fullAccessClient: HttpClient;
+    let testUserId: string;
+
+    function decodeJwtPayload(token: string) {
+        const [, payloadBase64Url] = token.split('.');
+        if (!payloadBase64Url) {
+            throw new Error('Invalid JWT format');
+        }
+
+        const base64 = payloadBase64Url
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+            .padEnd(payloadBase64Url.length + ((4 - payloadBase64Url.length % 4) % 4), '=');
+
+        return JSON.parse(Buffer.from(base64, 'base64').toString('utf8')) as Record<string, unknown>;
+    }
 
     beforeAll(async () => {
         // Create tenant with root user
@@ -28,6 +44,19 @@ describe('User API', () => {
             access: 'edit',
         });
         expectSuccess(createUserResponse);
+        testUserId = createUserResponse.data.id;
+
+        // Create a full-access user for sudo-token behavior tests
+        const createFullUserResponse = await tenant.httpClient.post('/api/user', {
+            name: 'Full User',
+            auth: 'fulluser',
+            access: 'full',
+        });
+        expectSuccess(createFullUserResponse);
+
+        const fullUserToken = await TestHelpers.loginToTenant(tenant.tenantName, 'fulluser');
+        fullAccessClient = new HttpClient('http://localhost:9001');
+        fullAccessClient.setAuthToken(fullUserToken);
 
         // Login as the non-root user
         const loginToken = await TestHelpers.loginToTenant(tenant.tenantName, 'testuser');
@@ -106,34 +135,69 @@ describe('User API', () => {
     });
 
     describe('POST /api/user/sudo - Privilege Escalation', () => {
-        it('should allow sudo escalation with reason', async () => {
-            const response = await tenant.httpClient.post('/api/user/sudo', {
+        it('should allow full users to mint a usable sudo token', async () => {
+            const response = await fullAccessClient.post('/api/user/sudo', {
                 reason: 'Testing sudo escalation',
             });
 
-            // Root user should be able to escalate
-            if (response.success) {
-                expect(response.data).toBeDefined();
-                // May include sudo_token, expires_in, is_sudo
-                if (response.data.sudo_token) {
-                    expect(response.data.sudo_token).toBeDefined();
-                }
-                if (response.data.is_sudo !== undefined) {
-                    expect(response.data.is_sudo).toBe(true);
-                }
-            } else {
-                // Some users may not have sudo privileges
-                expect(response.error).toBeDefined();
-            }
+            expectSuccess(response);
+
+            expect(response.data.sudo_token).toBeDefined();
+            expect(response.data.is_sudo).toBe(true);
+
+            const payload = decodeJwtPayload(response.data.sudo_token);
+            expect(payload.db).toBeTruthy();
+            expect(payload.ns).toBeTruthy();
+
+            const sudoClient = new HttpClient('http://localhost:9001');
+            sudoClient.setAuthToken(response.data.sudo_token);
+            const sudoProtectedResponse = await sudoClient.get(`/api/user/${testUserId}`);
+
+            expectSuccess(sudoProtectedResponse);
+            expect(sudoProtectedResponse.data.id).toBe(testUserId);
+            expect(sudoProtectedResponse.data.auth).toBe('testuser');
         });
 
-        it('should require reason for sudo escalation', async () => {
-            const response = await tenant.httpClient.post('/api/user/sudo', {});
+        it('should allow root user to request sudo escalation', async () => {
+            const response = await tenant.httpClient.post('/api/user/sudo', {
+                reason: 'Testing root sudo escalation',
+            });
 
-            // Should either fail or require reason
-            if (!response.success) {
-                expectError(response);
-            }
+            expectSuccess(response);
+            expect(response.data.sudo_token).toBeDefined();
+        });
+    });
+
+    describe('POST /api/user/fake - Impersonation', () => {
+        it('should reject fake token requests from non-root users', async () => {
+            const response = await nonRootClient.post('/api/user/fake', {
+                username: 'fulluser',
+            });
+
+            expectError(response);
+            expect(response.error_code).toBe('AUTH_FAKE_ACCESS_DENIED');
+        });
+
+        it('should allow root users to impersonate another user without runtime DB context errors', async () => {
+            const response = await tenant.httpClient.post('/api/user/fake', {
+                username: 'testuser',
+            });
+
+            expectSuccess(response);
+            expect(response.data.fake_token).toBeDefined();
+
+            const fakeClient = new HttpClient('http://localhost:9001');
+            fakeClient.setAuthToken(response.data.fake_token);
+
+            const fakeTokenPayload = decodeJwtPayload(response.data.fake_token);
+            expect(fakeTokenPayload.db).toBeTruthy();
+            expect(fakeTokenPayload.ns).toBeTruthy();
+
+            const refreshResponse = await fakeClient.post('/auth/refresh', {
+                token: response.data.fake_token,
+            });
+            expectError(refreshResponse);
+            expect(refreshResponse.error_code).toBe('AUTH_FAKE_TOKEN_REFRESH_DENIED');
         });
     });
 

@@ -31,6 +31,12 @@ export default async function (context: Context) {
 
     // Extract optional reason for audit trail
     const { reason } = await context.req.json().catch(() => ({ reason: 'Administrative operation' }));
+    const dbName = user.dbName || userJwt.db;
+    const nsName = user.nsName || userJwt.ns;
+
+    if (!dbName || !nsName) {
+        throw HttpErrors.unauthorized('Invalid authentication context', 'AUTH_TOKEN_INVALID');
+    }
 
     // Generate short-lived sudo token (15 minutes)
     const sudoToken = await JWTGenerator.generateSudoToken(
@@ -39,8 +45,9 @@ export default async function (context: Context) {
             user_id: user.id,
             username: user.username,
             tenant: user.tenant,
-            dbName: user.db, // Extract from JWT compact field
-            nsName: user.ns, // Extract from JWT compact field
+            dbName,
+            nsName,
+            dbType: userJwt.db_type,
             access: user.access,
             access_read: user.access_read || [],
             access_edit: user.access_edit || [],

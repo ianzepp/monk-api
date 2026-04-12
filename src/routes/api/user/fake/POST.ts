@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 
 /**
  * POST /api/user/fake - Impersonate another user (root only)
@@ -53,22 +54,58 @@ export default async function (context: Context) {
         );
     }
 
+    const dbName = context.get('dbName');
+    const nsName = context.get('nsName');
+
+    if (!dbName || !nsName) {
+        throw HttpErrors.unauthorized('Invalid authentication context', 'AUTH_TOKEN_INVALID');
+    }
+
+    const db = async (query: string, params: string[]) => {
+        const result = await DatabaseConnection.queryInNamespace(
+            dbName,
+            nsName,
+            query,
+            params
+        );
+
+        return result.rows[0];
+    };
+
+    const parseAccess = (value: unknown): string[] => {
+        if (Array.isArray(value)) {
+            return value as string[];
+        }
+
+        if (typeof value === 'string') {
+            try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        return [];
+    };
+
     // Look up target user in tenant database
-    const db = context.get('db');
     let targetUser;
 
     if (user_id) {
-        const result = await db.query(
+        const result = await db(
             'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
             [user_id]
         );
-        targetUser = result.rows[0];
+
+        targetUser = result;
     } else {
-        const result = await db.query(
+        const result = await db(
             'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
             [username]
         );
-        targetUser = result.rows[0];
+
+        targetUser = result;
     }
 
     if (!targetUser) {
@@ -92,14 +129,15 @@ export default async function (context: Context) {
             id: targetUser.id,
             username: targetUser.auth,
             access: targetUser.access,
-            access_read: targetUser.access_read || [],
-            access_edit: targetUser.access_edit || [],
-            access_full: targetUser.access_full || [],
+            access_read: parseAccess(targetUser.access_read),
+            access_edit: parseAccess(targetUser.access_edit),
+            access_full: parseAccess(targetUser.access_full),
         },
         {
             tenant: currentJwt.tenant,
-            dbName: currentJwt.db, // Extract from JWT compact field
-            nsName: currentJwt.ns, // Extract from JWT compact field
+            dbName: dbName || currentJwt.db,
+            nsName: nsName || currentJwt.ns,
+            dbType: currentJwt.db_type,
         },
         {
             faked_by_user_id: currentUser.id,
