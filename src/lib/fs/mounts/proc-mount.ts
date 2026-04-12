@@ -16,7 +16,6 @@
  * Read-only mount.
  */
 
-import type { Session } from '@src/lib/tty/types.js';
 import type { Mount, FSEntry } from '../types.js';
 import { FSError } from '../types.js';
 import { listProcesses, getProcess, type ProcessRecord } from '@src/lib/process.js';

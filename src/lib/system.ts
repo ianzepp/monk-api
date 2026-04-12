@@ -3,7 +3,6 @@ import type { FS } from '@src/lib/fs/index.js';
 import { createFS } from '@src/lib/fs/factory.js';
 import { Database } from '@src/lib/database.js';
 import { Describe } from '@src/lib/describe.js';
-import { AI } from '@src/lib/ai.js';
 import { NamespaceCacheManager, NamespaceCache } from '@src/lib/namespace-cache.js';
 import type { SystemContext, SystemOptions, UserInfo } from '@src/lib/system-context-types.js';
 import type { DatabaseAdapter, DatabaseType } from '@src/lib/database/adapter.js';
@@ -101,8 +100,6 @@ export class System implements SystemContext {
     // System services
     public readonly database: Database;
     public readonly describe!: Describe;
-    public readonly ai: AI;
-
     // Namespace cache bound to this request's db:ns
     public readonly namespace: NamespaceCache;
 
@@ -163,7 +160,6 @@ export class System implements SystemContext {
         // Note: system.adapter is set by runTransaction() before any database operations
         this.database = new Database(this);
         this.describe = new Describe(this);
-        this.ai = new AI(this);
         this.fs = createFS(this, { username: this.username });
 
         // Bind namespace cache

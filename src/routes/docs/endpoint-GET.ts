@@ -7,7 +7,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * GET /docs/* - Get API documentation (endpoint-specific or API overview)
  *
  * Supports three patterns:
- * 1. App Docs: /docs/app/mcp → node_modules/@monk-app/mcp/dist/docs/PUBLIC.md
+ * 1. App Docs: /docs/app/{appName} → node_modules/@monk-app/{appName}/dist/docs/PUBLIC.md
  * 2. API Overview: /docs/api/data → api/data/PUBLIC.md
  * 3. Endpoint-Specific: /docs/api/data/model/GET → api/data/:model/GET.md
  *
@@ -197,8 +197,8 @@ function findMethodDocumentation(
  * Looks for docs in: node_modules/@monk-app/{appName}/dist/docs/
  *
  * Patterns:
- * - /docs/app/mcp → PUBLIC.md
- * - /docs/app/mcp/tools → tools.md or tools/PUBLIC.md
+ * - /docs/app/{appName} → PUBLIC.md
+ * - /docs/app/{appName}/tools → tools.md or tools/PUBLIC.md
  */
 async function serveAppDocs(context: Context, appName: string, subPath: string): Promise<Response> {
     // Security: Validate appName contains only safe characters (alphanumeric, dash, underscore)

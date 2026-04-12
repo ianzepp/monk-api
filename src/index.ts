@@ -91,10 +91,7 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
 
 // Servers
-import { startHttpServer, createHttpApp, type HttpServerHandle } from '@src/servers/http.js';
-import { startTelnetServer, type TelnetServerHandle } from '@src/servers/telnet.js';
-import { startSSHServer, type SSHServerHandle } from '@src/servers/ssh.js';
-import { startMcpServer, type McpServerHandle } from '@src/servers/mcp.js';
+import { startHttpServer, type HttpServerHandle } from '@src/servers/http.js';
 
 // Cron scheduler
 import { Crontab } from '@src/lib/crontab.js';
@@ -140,9 +137,6 @@ if (process.argv.includes('--no-startup')) {
 
 // Server handles for graceful shutdown
 let httpServer: HttpServerHandle | null = null;
-let telnetServer: TelnetServerHandle | null = null;
-let sshServer: SSHServerHandle | null = null;
-let mcpServer: McpServerHandle | null = null;
 
 // Start HTTP server
 console.info('Starting Monk API servers');
@@ -173,25 +167,6 @@ try {
 const httpPort = Number(process.env.PORT || 9001);
 httpServer = startHttpServer(httpPort);
 
-// Start TTY servers
-const ttyConfig = {
-    telnetPort: Number(process.env.TELNET_PORT || 2323),
-    telnetHost: process.env.TELNET_HOST || '0.0.0.0',
-    sshPort: Number(process.env.SSH_PORT || 2222),
-    sshHost: process.env.SSH_HOST || '0.0.0.0',
-    sshHostKey: process.env.SSH_HOST_KEY,
-};
-
-telnetServer = startTelnetServer(ttyConfig);
-sshServer = startSSHServer(ttyConfig);
-
-// Start MCP server (shares the HTTP app for API calls)
-const mcpConfig = {
-    port: Number(process.env.MCP_PORT || 3001),
-    host: process.env.MCP_HOST || '0.0.0.0',
-};
-mcpServer = startMcpServer(httpServer.app, mcpConfig);
-
 // Start cron scheduler (PostgreSQL only - requires processes table)
 if (!isSqliteMode) {
     Crontab.startScheduler();
@@ -206,10 +181,6 @@ const gracefulShutdown = async () => {
 
     // Stop all servers
     httpServer?.stop();
-    telnetServer?.stop();
-    sshServer?.stop();
-    mcpServer?.stop();
-
     // Close database connections
     await DatabaseConnection.closeConnections();
     console.info('Database connections closed');

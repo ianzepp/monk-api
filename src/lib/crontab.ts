@@ -691,77 +691,17 @@ export class Crontab {
         access: string;
         command: string;
     }): Promise<void> {
-        let exitCode = 0;
-        let error: string | null = null;
-
-        try {
-            // Dynamic import to avoid circular dependency
-            const { executeLine } = await import('@src/lib/tty/executor.js');
-            const { PassThrough } = await import('node:stream');
-
-            // Create a minimal session for execution
-            const session = {
-                id: `cron-${job.pid}`,
-                state: 'AUTHENTICATED' as const,
-                username: 'cron',
-                tenant: job.tenant,
-                cwd: '/',
-                env: {
-                    USER: 'cron',
-                    TENANT: job.tenant,
-                    HOME: '/',
-                    SHELL: '/bin/monksh',
-                },
-                history: [],
-                historyIndex: -1,
-                inputBuffer: '',
-                cursorPosition: 0,
-                pid: null,
-                systemInit: {
-                    tenant: job.tenant,
-                    dbType: job.dbType as 'postgresql' | 'sqlite',
-                    dbName: job.dbName,
-                    nsName: job.nsName,
-                    userId: job.uid,
-                    username: 'cron',
-                    access: job.access,
-                    isSudo: job.access === 'root',
-                    accessRead: [],
-                    accessEdit: [],
-                    accessFull: [],
-                },
-                registrationData: null,
-                foregroundIO: null,
-            };
-
-            // Create I/O streams (output discarded for now)
-            const io = {
-                stdin: new PassThrough(),
-                stdout: new PassThrough(),
-                stderr: new PassThrough(),
-            };
-            io.stdin.end();
-
-            // Capture output for logging/debugging
-            let stdout = '';
-            let stderr = '';
-            io.stdout.on('data', chunk => { stdout += chunk.toString(); });
-            io.stderr.on('data', chunk => { stderr += chunk.toString(); });
-
-            // Execute the command
-            exitCode = await executeLine(session as any, job.command, io as any, {
-                addToHistory: false,
-                useTransaction: true,
-            });
-
-            if (exitCode !== 0 && stderr) {
-                error = stderr.slice(0, 1000); // Truncate error message
-            }
-
-        } catch (err) {
-            exitCode = 1;
-            error = err instanceof Error ? err.message : String(err);
-        }
+        const exitCode = 1;
+        const error = 'Cron execution backend is temporarily unavailable after shell removal';
+        console.warn(`[Crontab] Job ${job.pid} cannot execute: ${error}`, {
+            tenant: job.tenant,
+            command: job.command,
+            dbType: job.dbType,
+            dbName: job.dbName,
+            nsName: job.nsName,
+            uid: job.uid,
+            access: job.access,
+        });
 
         // Mark job complete and schedule next run
         await this.completeJob(job.pid, exitCode, error);

@@ -17,7 +17,6 @@ import { DescribeMount } from './mounts/describe-mount.js';
 import { FilterMount } from './mounts/filter-mount.js';
 import { TrashedMount } from './mounts/trashed-mount.js';
 import { ProcMount } from './mounts/proc-mount.js';
-import { BinMount } from './mounts/bin-mount.js';
 import { LocalMount } from './mounts/local-mount.js';
 import { MemoryMountRegistry, UserTmpRegistry } from './mounts/memory-mount.js';
 
@@ -27,8 +26,6 @@ import { MemoryMountRegistry, UserTmpRegistry } from './mounts/memory-mount.js';
 export interface UserMountOptions {
     /** Current session's PID for /proc/self symlink */
     sessionPid?: number | null;
-    /** Command names for /bin mount */
-    commandNames?: string[];
     /** Username for home directory and /tmp mount */
     username?: string;
 }
@@ -77,7 +74,6 @@ export function createBaseFS(): FS {
  * - /proc - Process table
  * - /system - System introspection
  * - /home/{username} - User home directory
- * - /bin - Command binaries
  *
  * @param fs - Base FS instance (from createBaseFS or new FS)
  * @param system - Authenticated system context
@@ -96,11 +92,6 @@ export function applyUserMounts(fs: FS, system: System, options?: UserMountOptio
     fs.mount('/api/describe', new DescribeMount(system));
     fs.mount('/api/find', new FilterMount(system));
     fs.mount('/api/trashed', new TrashedMount(system));
-
-    // Command binaries (read-only)
-    if (options?.commandNames?.length) {
-        fs.mount('/bin', new BinMount(options.commandNames));
-    }
 
     // Process table (read-only)
     fs.mount('/proc', new ProcMount(system.tenant, options?.sessionPid ?? null));
@@ -130,7 +121,6 @@ export function applyUserMounts(fs: FS, system: System, options?: UserMountOptio
  * - /api/describe - Model schemas
  * - /api/find - Saved queries/filters
  * - /api/trashed - Soft-deleted records
- * - /bin - Built-in commands (read-only)
  * - /proc - Process table (read-only)
  * - /system - System introspection (read-only)
  * - /home/{username} - Persistent storage (database-backed)
