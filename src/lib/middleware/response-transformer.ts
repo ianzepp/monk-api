@@ -34,7 +34,7 @@ import { createArmor } from '@src/lib/encryption/pgp-armor.js';
 /**
  * Error response for unavailable format (missing optional @monk/formatter-* package)
  */
-function formatUnavailableError(format: string): { data: Uint8Array; contentType: string } {
+function formatUnavailableError(format: string, status = 400): { data: Uint8Array; contentType: string; status: number } {
     const error = {
         success: false,
         error: `Format '${format}' is not available`,
@@ -43,8 +43,63 @@ function formatUnavailableError(format: string): { data: Uint8Array; contentType
     };
     return {
         data: toBytes(JSON.stringify(error, null, 2)),
-        contentType: JsonFormatter.contentType
+        contentType: JsonFormatter.contentType,
+        status
     };
+}
+
+/**
+ * Error response for encryption failures (including unsupported format combinations).
+ */
+function encryptionError(error: string, errorCode: string, details: string, status = 400): {
+    data: Uint8Array;
+    contentType: string;
+    status: number;
+} {
+    return {
+        data: toBytes(JSON.stringify({
+            success: false,
+            error,
+            error_code: errorCode,
+            details,
+        }, null, 2)),
+        contentType: JsonFormatter.contentType,
+        status
+    };
+}
+
+/**
+ * Binary formats that cannot be safely encrypted with current pipeline
+ * because encryption currently serializes to UTF-8 text before encryption.
+ */
+const BINARY_FORMATS = new Set(['msgpack', 'cbor', 'sqlite']);
+
+/**
+ * Whether a formatter name is known to produce binary output.
+ */
+function isBinaryFormat(format: string): boolean {
+    return BINARY_FORMATS.has(format);
+}
+
+function formatResponseStatus(status: number): boolean {
+    return status < 200 || status >= 300;
+}
+
+/**
+ * Apply formatter result and status to headers.
+ */
+function buildResponseHeaders(contentType: string, encrypted: boolean): Record<string, string> {
+    const headers: Record<string, string> = {
+        'Content-Type': contentType,
+    };
+
+    // Mirror non-2xx error paths as plain JSON without encryption headers
+    if (encrypted) {
+        headers['X-Monk-Encrypted'] = 'pgp';
+        headers['X-Monk-Cipher'] = 'AES-256-GCM';
+    }
+
+    return headers;
 }
 
 /**
@@ -127,12 +182,12 @@ function applyFieldExtraction(data: any, context: Context): any {
  * Converts data to bytes in requested format using the formatter registry.
  * Returns { data, contentType } for next pipeline step.
  */
-function applyFormatter(data: any, context: Context): { data: Uint8Array; contentType: string } {
+function applyFormatter(data: any, context: Context): { data: Uint8Array; contentType: string; status?: number } {
     const format = (context.get('responseFormat') as string) || 'json';
     const formatter = getFormatter(format);
 
     if (!formatter) {
-        return formatUnavailableError(format);
+        return formatUnavailableError(format, 400);
     }
 
     try {
@@ -169,23 +224,50 @@ function applyFormatter(data: any, context: Context): { data: Uint8Array; conten
  *
  * Encrypts ALL responses including errors (prevents info leakage)
  */
-function applyEncryption(data: Uint8Array, context: Context): { data: Uint8Array; encrypted: boolean } {
+function applyEncryption(data: Uint8Array, context: Context, format: string): { data: Uint8Array; encrypted: boolean; status?: number } {
     const encryptParam = context.req.query('encrypt');
 
     if (encryptParam !== 'pgp') {
         return { data, encrypted: false }; // No encryption requested
     }
 
+    if (isBinaryFormat(format)) {
+        return {
+            ...encryptionError(
+                'Binary formats are not supported with encryption',
+                'ENCRYPTION_UNSUPPORTED_FORMAT',
+                'Use a text-safe format (json, yaml, toml, csv, etc.) when requesting ?encrypt=pgp'
+            ),
+            encrypted: false
+        };
+    }
+
     try {
         // Extract JWT token from Authorization header
         const authHeader = context.req.header('Authorization');
         if (!authHeader) {
-            throw new Error('Encryption requires authentication - missing Authorization header');
+            return {
+                ...encryptionError(
+                    'Encryption requires authentication',
+                    'ENCRYPTION_MISSING_AUTH',
+                    'Set Authorization: Bearer <token> when using ?encrypt=pgp',
+                    401
+                ),
+                encrypted: false
+            };
         }
 
         const parts = authHeader.split(' ');
         if (parts.length !== 2 || parts[0] !== 'Bearer') {
-            throw new Error('Encryption requires authentication - invalid Authorization header format');
+            return {
+                ...encryptionError(
+                    'Invalid Authorization header format for encryption',
+                    'ENCRYPTION_INVALID_AUTH_FORMAT',
+                    'Use: Authorization: Bearer <token>',
+                    401
+                ),
+                encrypted: false
+            };
         }
 
         const jwt = parts[1];
@@ -193,7 +275,15 @@ function applyEncryption(data: Uint8Array, context: Context): { data: Uint8Array
         // Get JWT payload from context (set by authValidatorMiddleware)
         const jwtPayload = context.get('jwtPayload') as JWTPayload | undefined;
         if (!jwtPayload) {
-            throw new Error('Encryption requires valid JWT payload - token not decoded');
+            return {
+                ...encryptionError(
+                    'Encryption requires valid JWT payload',
+                    'ENCRYPTION_MISSING_JWT_PAYLOAD',
+                    'Request must pass through auth validator middleware first',
+                    401
+                ),
+                encrypted: false
+            };
         }
 
         // Derive encryption key from JWT token
@@ -211,10 +301,18 @@ function applyEncryption(data: Uint8Array, context: Context): { data: Uint8Array
 
         return { data: toBytes(armored), encrypted: true };
     } catch (error) {
-        // Encryption failed - log error and return unencrypted
-        // This allows the API to remain functional even if encryption fails
+        // Encryption failed - return explicit error response instead of plaintext fallback
         console.error('Encryption failed, returning unencrypted response:', error);
-        return { data, encrypted: false };
+
+        return {
+            ...encryptionError(
+                'Encryption failed',
+                'ENCRYPTION_FAILED',
+                error instanceof Error ? error.message : 'Unknown encryption error',
+                500
+            ),
+            encrypted: false
+        };
     }
 }
 
@@ -249,22 +347,34 @@ export async function responseTransformerMiddleware(context: Context, next: Next
         // Step 2: Format Conversion (?format=yaml|csv|toon|etc)
         const formatted = applyFormatter(result, context);
 
+        if (formatResponseStatus(formatted.status ?? 200) && formatted.status !== undefined) {
+            return new Response(formatted.data, {
+                status: formatted.status,
+                headers: {
+                    'Content-Type': formatted.contentType,
+                }
+            });
+        }
+
         // Step 3: Encryption (?encrypt=pgp)
-        const { data: finalData, encrypted } = applyEncryption(formatted.data, context);
+        const format = (context.get('responseFormat') as string) || 'json';
+        const { data: finalData, encrypted, status: encryptionStatus } = applyEncryption(formatted.data, context, format);
+
+        if (formatResponseStatus(encryptionStatus ?? 200) && encryptionStatus !== undefined) {
+            return new Response(finalData, {
+                status: encryptionStatus,
+                headers: {
+                    'Content-Type': JsonFormatter.contentType,
+                }
+            });
+        }
 
         // ========== PIPELINE END ==========
 
         // Determine final content type and headers
         const finalContentType = encrypted ? 'text/plain; charset=utf-8' : formatted.contentType;
 
-        const headers: Record<string, string> = {
-            'Content-Type': finalContentType
-        };
-
-        if (encrypted) {
-            headers['X-Monk-Encrypted'] = 'pgp';
-            headers['X-Monk-Cipher'] = 'AES-256-GCM';
-        }
+        const headers = buildResponseHeaders(finalContentType, encrypted);
 
         // Extract status code
         const status = typeof init === 'number' ? init : init?.status || 200;
