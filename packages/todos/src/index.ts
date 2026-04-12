@@ -93,7 +93,7 @@ export function createApp(context: AppContext): Hono {
         }
         // By default, only show top-level todos (parent_id is null)
         if (!includeChildren) {
-            query['where[parent_id][is]'] = 'null';
+            query['where[parent_id][null]'] = 'true';
         }
 
         const result = await client.get('/api/data/todos', query);
