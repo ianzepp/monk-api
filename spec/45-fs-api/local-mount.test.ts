@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, symlinkSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, symlinkSync, realpathSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { LocalMount } from '@src/lib/fs/mounts/local-mount.js';
 import { FSError } from '@src/lib/fs/types.js';
 
@@ -14,10 +14,17 @@ import { FSError } from '@src/lib/fs/types.js';
 describe('LocalMount', () => {
     let tempDir: string;
     let mount: LocalMount;
+    let escapeDir: string;
+    let prefixCollisionPath: string;
+    let escapeTargetFile: string;
+    let siblingEscapingSymlinkTarget: string;
 
     beforeAll(() => {
         // Create temp directory for tests
         tempDir = mkdtempSync(join(tmpdir(), 'monk-local-mount-test-'));
+        escapeDir = `${tempDir}2`;
+        escapeTargetFile = join(escapeDir, 'secret.txt');
+        siblingEscapingSymlinkTarget = `${tempDir}-outside-target`;
 
         // Create test file structure
         writeFileSync(join(tempDir, 'test.txt'), 'Hello World');
@@ -29,6 +36,13 @@ describe('LocalMount', () => {
         // Create symlink
         symlinkSync(join(tempDir, 'test.txt'), join(tempDir, 'link-to-test'));
 
+        mkdirSync(escapeDir);
+        writeFileSync(escapeTargetFile, 'escape payload');
+        prefixCollisionPath = `../${basename(escapeDir)}/secret.txt`;
+        mkdirSync(siblingEscapingSymlinkTarget);
+        writeFileSync(join(siblingEscapingSymlinkTarget, 'outside.txt'), 'outside payload');
+        symlinkSync(join(siblingEscapingSymlinkTarget, 'outside.txt'), join(tempDir, 'link-to-escape'));
+
         // Create mount
         mount = new LocalMount(tempDir);
     });
@@ -36,6 +50,8 @@ describe('LocalMount', () => {
     afterAll(() => {
         // Cleanup temp directory
         rmSync(tempDir, { recursive: true, force: true });
+        rmSync(escapeDir, { recursive: true, force: true });
+        rmSync(siblingEscapingSymlinkTarget, { recursive: true, force: true });
     });
 
     describe('stat', () => {
@@ -284,6 +300,24 @@ describe('LocalMount', () => {
                 expect((err as FSError).code).toBe('EACCES');
             }
         });
+
+        it('should block prefix-collision traversal', async () => {
+            try {
+                await mount.read(prefixCollisionPath);
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EACCES');
+            }
+        });
+
+        it('should block escaped symlink target', async () => {
+            try {
+                await mount.read('/link-to-escape');
+                expect(true).toBe(false);
+            } catch (err) {
+                expect((err as FSError).code).toBe('EACCES');
+            }
+        });
     });
 
     describe('read-only mode', () => {
@@ -328,13 +362,15 @@ describe('LocalMount', () => {
 
     describe('getRealPath', () => {
         it('should return real path for virtual path', () => {
+            const canonicalBase = realpathSync(tempDir);
             const realPath = mount.getRealPath('/test.txt');
-            expect(realPath).toBe(join(tempDir, 'test.txt'));
+            expect(realPath).toBe(join(canonicalBase, 'test.txt'));
         });
 
         it('should return real path for nested path', () => {
+            const canonicalBase = realpathSync(tempDir);
             const realPath = mount.getRealPath('/subdir/nested.txt');
-            expect(realPath).toBe(join(tempDir, 'subdir', 'nested.txt'));
+            expect(realPath).toBe(join(canonicalBase, 'subdir', 'nested.txt'));
         });
     });
 

@@ -14,8 +14,9 @@
  * - Symlinks pointing outside basePath are rejected
  */
 
-import { readFile, writeFile, readdir, stat, mkdir, unlink, rmdir, rename, symlink, readlink, chmod } from 'fs/promises';
-import { join, resolve, basename, relative } from 'path';
+import { readFile, writeFile, readdir, stat, mkdir, unlink, rmdir, rename, symlink, readlink, chmod, lstat, realpath } from 'fs/promises';
+import { mkdirSync, realpathSync } from 'fs';
+import { join, resolve, basename, sep } from 'path';
 import type { Mount, FSEntry } from '../types.js';
 import { FSError } from '../types.js';
 
@@ -30,20 +31,28 @@ export interface LocalMountOptions {
 
 export class LocalMount implements Mount {
     private readonly basePath: string;
+    private readonly basePathWithTrailingSeparator: string;
     private readonly writable: boolean;
     private readonly followSymlinks: boolean;
 
     constructor(basePath: string, options: LocalMountOptions = {}) {
-        this.basePath = resolve(basePath);
+        const resolvedBasePath = resolve(basePath);
+        if (options.createIfMissing) {
+            // Ensure base path exists (called at mount time)
+            mkdirSync(resolvedBasePath, { recursive: true });
+        }
+
+        let canonicalBasePath = resolvedBasePath;
+        try {
+            canonicalBasePath = realpathSync(resolvedBasePath);
+        } catch {
+            canonicalBasePath = resolvedBasePath;
+        }
+
+        this.basePath = canonicalBasePath;
+        this.basePathWithTrailingSeparator = this.basePath.endsWith(sep) ? this.basePath : `${this.basePath}${sep}`;
         this.writable = options.writable ?? true;
         this.followSymlinks = options.followSymlinks ?? true;
-
-        if (options.createIfMissing) {
-            // Synchronously ensure base path exists (called at mount time)
-            import('fs').then(fs => {
-                fs.mkdirSync(this.basePath, { recursive: true });
-            });
-        }
     }
 
     /**
@@ -61,11 +70,48 @@ export class LocalMount implements Mount {
         const resolved = resolve(realPath);
 
         // Security check: ensure resolved path is within basePath
-        if (!resolved.startsWith(this.basePath)) {
+        if (!this.containsRealPath(resolved)) {
             throw new FSError('EACCES', virtualPath, 'Path traversal denied');
         }
 
         return resolved;
+    }
+
+    private async resolveRealPath(virtualPath: string, allowMissingTarget = false): Promise<string> {
+        const resolved = this.resolvePath(virtualPath);
+
+        try {
+            const canonical = await realpath(resolved);
+            if (!this.containsRealPath(canonical)) {
+                throw new FSError('EACCES', virtualPath, 'Symlink target outside mount');
+            }
+            return allowMissingTarget ? resolved : canonical;
+        } catch (err: any) {
+            if (err.code === 'ENOENT') {
+                if (!allowMissingTarget) {
+                    throw new FSError('ENOENT', virtualPath);
+                }
+
+                const parent = resolve(resolved, '..');
+                const canonicalParent = await realpath(parent);
+                if (!this.containsRealPath(canonicalParent)) {
+                    throw new FSError('EACCES', virtualPath, 'Path traversal denied');
+                }
+
+                return resolved;
+            }
+
+            if (err instanceof FSError) {
+                throw err;
+            }
+
+            throw new FSError('EIO', virtualPath, err.message);
+        }
+    }
+
+    private containsRealPath(realPath: string): boolean {
+        const resolved = resolve(realPath);
+        return resolved === this.basePath || resolved.startsWith(this.basePathWithTrailingSeparator);
     }
 
     /**
@@ -88,19 +134,26 @@ export class LocalMount implements Mount {
     }
 
     async stat(path: string): Promise<FSEntry> {
-        const realPath = this.resolvePath(path);
+        const lexicalPath = this.resolvePath(path);
+
+        let realPath: string;
+        try {
+            realPath = await this.resolveRealPath(path);
+        } catch (err: any) {
+            if (err instanceof FSError) throw err;
+            if (err.code === 'ENOENT') {
+                throw new FSError('ENOENT', path);
+            }
+            throw new FSError('EIO', path, err.message);
+        }
 
         try {
-            const stats = await stat(realPath);
+            const stats = await lstat(lexicalPath);
+            const target = stats.isSymbolicLink() ? await readlink(lexicalPath) : undefined;
+            const entryStats = stats.isSymbolicLink() ? await stat(realPath) : stats;
             const name = path === '/' ? basename(this.basePath) : basename(path);
 
-            // If symlink, get target
-            let target: string | undefined;
-            if (stats.isSymbolicLink()) {
-                target = await readlink(realPath);
-            }
-
-            return this.statsToEntry(name, stats, target);
+            return this.statsToEntry(name, entryStats, target);
         } catch (err: any) {
             if (err.code === 'ENOENT') {
                 throw new FSError('ENOENT', path);
@@ -110,7 +163,7 @@ export class LocalMount implements Mount {
     }
 
     async readdir(path: string): Promise<FSEntry[]> {
-        const realPath = this.resolvePath(path);
+        const realPath = await this.resolveRealPath(path);
 
         try {
             const entries = await readdir(realPath, { withFileTypes: true });
@@ -119,7 +172,7 @@ export class LocalMount implements Mount {
             for (const entry of entries) {
                 const entryPath = join(realPath, entry.name);
                 try {
-                    const stats = await stat(entryPath);
+                    const stats = await lstat(entryPath);
                     let target: string | undefined;
                     if (entry.isSymbolicLink()) {
                         target = await readlink(entryPath);
@@ -143,7 +196,8 @@ export class LocalMount implements Mount {
     }
 
     async read(path: string): Promise<Buffer> {
-        const realPath = this.resolvePath(path);
+        const lexicalPath = this.resolvePath(path);
+        const realPath = await this.resolveRealPath(path);
 
         try {
             // Check if it's a directory
@@ -152,13 +206,10 @@ export class LocalMount implements Mount {
                 throw new FSError('EISDIR', path);
             }
 
-            // If symlink and followSymlinks is true, readFile will follow it
-            // But we should validate the target is within basePath
-            if (stats.isSymbolicLink() && this.followSymlinks) {
-                const target = await readlink(realPath);
-                const resolvedTarget = resolve(join(realPath, '..'), target);
-                if (!resolvedTarget.startsWith(this.basePath)) {
-                    throw new FSError('EACCES', path, 'Symlink target outside mount');
+            if (!this.followSymlinks) {
+                const linkStats = await lstat(lexicalPath);
+                if (linkStats.isSymbolicLink()) {
+                    throw new FSError('EACCES', path, 'Symlink reads disabled');
                 }
             }
 
@@ -180,7 +231,7 @@ export class LocalMount implements Mount {
             throw new FSError('EROFS', path, 'Mount is read-only');
         }
 
-        const realPath = this.resolvePath(path);
+        const realPath = await this.resolveRealPath(path, true);
         const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
 
         try {
@@ -289,7 +340,7 @@ export class LocalMount implements Mount {
         // Validate target stays within basePath if it's absolute
         if (target.startsWith('/')) {
             const resolvedTarget = resolve(target);
-            if (!resolvedTarget.startsWith(this.basePath)) {
+            if (!this.containsRealPath(resolvedTarget)) {
                 throw new FSError('EACCES', path, 'Symlink target must be within mount');
             }
         }
@@ -380,7 +431,7 @@ export class LocalMount implements Mount {
             const entryPath = join(dirPath, entry.name);
 
             // Security check: ensure we stay within basePath
-            if (!entryPath.startsWith(this.basePath)) {
+            if (!this.containsRealPath(entryPath)) {
                 continue;
             }
 
@@ -408,11 +459,4 @@ export class LocalMount implements Mount {
         return this.resolvePath(virtualPath);
     }
 
-    /**
-     * Check if a real path is within this mount's basePath.
-     */
-    containsRealPath(realPath: string): boolean {
-        const resolved = resolve(realPath);
-        return resolved.startsWith(this.basePath);
-    }
 }
