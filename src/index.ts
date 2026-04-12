@@ -35,6 +35,21 @@ import { Infrastructure, parseInfraConfig } from '@src/lib/infrastructure.js';
 // Check infrastructure mode (sqlite vs postgresql)
 const infraConfig = parseInfraConfig();
 const isSqliteMode = infraConfig.dbType === 'sqlite';
+const describeDatabaseUrl = (databaseUrl: string | undefined) => {
+    if (!databaseUrl || databaseUrl.startsWith('sqlite:')) {
+        return databaseUrl;
+    }
+
+    try {
+        const url = new URL(databaseUrl);
+        if (url.password) {
+            url.password = '***';
+        }
+        return url.toString();
+    } catch {
+        return '<configured>';
+    }
+};
 
 // Set defaults for SQLite mode (zero-config standalone)
 if (isSqliteMode) {
@@ -88,7 +103,7 @@ import { Crontab } from '@src/lib/crontab.js';
 console.info('Checking database connection:');
 console.info('- NODE_ENV:', process.env.NODE_ENV);
 console.info('- PORT:', process.env.PORT);
-console.info('- DATABASE_URL:', process.env.DATABASE_URL);
+console.info('- DATABASE_URL:', describeDatabaseUrl(process.env.DATABASE_URL));
 console.info('- SQLITE_DATA_DIR:', process.env.SQLITE_DATA_DIR);
 console.info('- Infrastructure mode:', infraConfig.dbType);
 
