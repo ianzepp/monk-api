@@ -1,12 +1,12 @@
 # POST /auth/refresh
 
-Exchange an existing JWT token (even if expired) for a new token while preserving the original tenant, user, and access scope. The refresh route validates signature integrity, re-hydrates the user context, and re-issues a token with a new expiration window.
+Exchange a valid JWT token for a new token while preserving the original tenant, user, and access scope. The refresh route validates signature integrity, re-hydrates the user context, and re-issues a token with a new expiration window.
 
 ## Request Body
 
 ```json
 {
-  "token": "string"    // Required: Current JWT token (may be expired)
+  "token": "string"    // Required: Current JWT token
 }
 ```
 
@@ -28,17 +28,16 @@ Exchange an existing JWT token (even if expired) for a new token while preservin
 |--------|------------|---------|-----------|
 | 400 | `AUTH_TOKEN_REQUIRED` | "Token is required for refresh" | Missing token field |
 | 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Invalid or corrupted token signature |
-| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Token expired and cannot be refreshed (user/tenant deleted) |
+| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Expired token |
 
 ## Token Refresh Behavior
 
-The refresh endpoint accepts tokens in three states:
+The refresh endpoint accepts tokens in two states:
 
 1. **Valid, unexpired token** - Refreshes successfully with new expiration
-2. **Expired token with valid signature** - Refreshes if user/tenant still exists
-3. **Invalid signature or corrupted token** - Returns `AUTH_TOKEN_INVALID` error
+2. **Invalid, malformed, or expired token** - Returns token error response
 
-**Important:** Refresh validates that the user and tenant still exist in the database. If either has been deleted, refresh fails with `AUTH_TOKEN_EXPIRED` even if the signature is valid.
+**Important:** Refresh validates that the user and tenant still exist in the database. If either has been deleted, refresh fails with `AUTH_TOKEN_REFRESH_FAILED`.
 
 ## Example Usage
 

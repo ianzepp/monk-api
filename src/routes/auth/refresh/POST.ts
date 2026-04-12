@@ -7,19 +7,21 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
 /**
  * POST /auth/refresh - Refresh JWT token using valid token
  *
- * Accepts a valid JWT token and issues a new token with extended expiration.
+ * Accepts a valid non-expired JWT token and issues a new token with extended expiration.
  * Verifies that the user and tenant still exist and are active before issuing
  * a new token. This allows clients to extend their session without re-authenticating.
  *
  * Error codes:
  * - AUTH_TOKEN_REQUIRED: Missing token field (400)
  * - AUTH_TOKEN_INVALID: Invalid or corrupted token (401)
+ * - AUTH_TOKEN_EXPIRED: Expired token (401)
  * - AUTH_TOKEN_REFRESH_FAILED: Token valid but user/tenant no longer exists (401)
  *
  * @see docs/routes/AUTH_API.md
  */
 export default async function (context: Context) {
-    const { token } = await context.req.json();
+    const body = context.get('parsedBody') ?? await context.req.json().catch(() => ({}));
+    const { token } = body;
 
     // Input validation
     if (!token) {
@@ -32,9 +34,19 @@ export default async function (context: Context) {
     try {
         payload = (await verify(token, process.env.JWT_SECRET!)) as JWTPayload;
     } catch (error: any) {
+        const errorMessage = String(error?.message ?? '').toLowerCase();
+        if (error?.name === 'JwtTokenExpired' || errorMessage.includes('expired')) {
+            return context.json(
+                {
+                    success: false,
+                    error: 'Token has expired',
+                    error_code: 'AUTH_TOKEN_EXPIRED',
+                },
+                401
+            );
+        }
+
         // Handle JWT verification errors (invalid signature, malformed)
-        // Note: Refresh endpoint accepts expired tokens - that's the whole point
-        // Only reject if token is invalid (bad signature, corrupted)
         return context.json(
             {
                 success: false,

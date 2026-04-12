@@ -2,15 +2,32 @@ import { describe, it, expect, beforeAll } from 'bun:test';
 import { TestHelpers } from '../test-helpers.js';
 import { HttpClient } from '../http-client.js';
 import { TEST_CONFIG } from '../test-config.js';
+import { sign } from 'hono/jwt';
 
 /**
  * POST /auth/refresh - Refresh JWT token
  *
  * Tests token refresh endpoint. Allows clients to get a new access token
  * using a valid refresh token, extending their session without re-authenticating.
- *
- * Current Status: Endpoint is unimplemented - throws "Unimplemented" error
  */
+
+function decodeJwtPayload(token: string): Record<string, any> {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+        throw new Error(`Invalid token format: expected 3 dot-separated parts, got ${parts.length}`);
+    }
+
+    const payloadPart = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = payloadPart.padEnd(payloadPart.length + ((4 - (payloadPart.length % 4)) % 4), '=');
+    return JSON.parse(Buffer.from(paddedPayload, 'base64').toString('utf8'));
+}
+
+function getTestJwtSecret(): string {
+    if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET not set in test environment');
+    }
+    return process.env.JWT_SECRET;
+}
 
 describe('POST /auth/refresh - Refresh JWT Token', () => {
     let testTenant: any;
@@ -20,6 +37,18 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
     });
 
     describe('Input Validation', () => {
+        it('should reject empty request body', async () => {
+            const client = new HttpClient(TEST_CONFIG.API_URL);
+
+            const response = await client.request('/auth/refresh', {
+                method: 'POST',
+            });
+
+            expect(response.json?.success).toBe(false);
+            expect(response.json?.error).toContain('required');
+            expect(response.json?.error_code).toBe('AUTH_TOKEN_REQUIRED');
+        });
+
         it('should reject missing token field', async () => {
             const client = new HttpClient(TEST_CONFIG.API_URL);
 
@@ -94,24 +123,27 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
             expect(response.error_code).toBe('AUTH_TOKEN_INVALID');
         });
 
-        it.skip('should reject expired token', async () => {
-            // BLOCKED: Requires time manipulation or manual token creation with short expiration
-            // When implemented, should:
-            // 1. Create a token with very short expiration
-            // 2. Wait for expiration
-            // 3. Attempt refresh and verify it fails
-            // Status: Requires test fixtures with adjustable token expiration or test clock manipulation
+        it('should reject expired token', async () => {
             const client = new HttpClient(TEST_CONFIG.API_URL);
 
-            // Would need to create an expired token here
-            const expiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+            const payload = decodeJwtPayload(testTenant.token);
+            const now = Math.floor(Date.now() / 1000);
+
+            const expiredToken = await sign(
+                {
+                    ...payload,
+                    iat: now - 120,
+                    exp: now - 30,
+                },
+                getTestJwtSecret()
+            );
 
             const response = await client.post('/auth/refresh', {
                 token: expiredToken,
             });
 
             expect(response.success).toBe(false);
-            expect(response.error_code).toBe('AUTH_TOKEN_INVALID');
+            expect(response.error_code).toBe('AUTH_TOKEN_EXPIRED');
         });
 
         it.skip('should include format preference in refreshed token', async () => {
