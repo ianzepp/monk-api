@@ -25,12 +25,26 @@ import { ValidationError } from '@src/lib/observers/errors.js';
 
 export default class ImmutableValidator extends BaseObserver {
     readonly ring = ObserverRing.InputValidation;
-    readonly operations = ['update'] as const;
+    readonly operations = ['update', 'delete'] as const;
     readonly priority = 30;
 
     async execute(context: ObserverContext): Promise<void> {
-        const { model, record } = context;
+        const { model, operation, record } = context;
         const modelName = model.model_name;
+
+        if (model.isImmutable()) {
+            const operationVerb = operation === 'delete' ? 'delete' : 'modify';
+            throw new ValidationError(
+                `Cannot ${operationVerb} records in immutable model '${modelName}'. ` +
+                `Records are write-once and can only be created.`,
+                undefined,
+                'MODEL_IMMUTABLE'
+            );
+        }
+
+        if (operation !== 'update') {
+            return;
+        }
 
         // Get immutable fields from cached model metadata (O(1))
         const immutableFields = model.getImmutableFields();

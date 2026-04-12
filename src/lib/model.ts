@@ -52,6 +52,7 @@ export class Model {
     public readonly status: string;
     public readonly sudo?: boolean;
     public readonly frozen?: boolean;
+    public readonly immutable?: boolean;
     public readonly external?: boolean;
     public readonly passthrough?: boolean;
 
@@ -101,6 +102,7 @@ export class Model {
         this.status = modelRecord.status || 'active';
         this.sudo = modelRecord.sudo;
         this.frozen = modelRecord.frozen;
+        this.immutable = modelRecord.immutable || false;
         this.external = modelRecord.external;
         this.passthrough = modelRecord.passthrough;
 
@@ -282,6 +284,13 @@ export class Model {
      */
     isFrozen(): boolean {
         return this.frozen === true;
+    }
+
+    /**
+     * Check if this model is immutable (records can be created once but not modified)
+     */
+    isImmutable(): boolean {
+        return this.immutable === true;
     }
 
     /**

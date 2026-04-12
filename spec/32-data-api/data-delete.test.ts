@@ -11,6 +11,8 @@ import type { TestTenant } from '../test-helpers.js';
 
 describe('DELETE /api/data/:model/:id - Delete Single Record', () => {
     let tenant: TestTenant;
+    let immutableModelRecordId: string;
+    const immutableModelName = 'cs008_immutable_delete';
 
     beforeAll(async () => {
         tenant = await TestHelpers.createTestTenant('data-delete');
@@ -26,6 +28,30 @@ describe('DELETE /api/data/:model/:id - Delete Single Record', () => {
             field_name: 'price',
             type: 'decimal',
         });
+
+        await tenant.httpClient.post(`/api/describe/${immutableModelName}`, {
+            immutable: true,
+        });
+        await tenant.httpClient.post(`/api/describe/${immutableModelName}/fields/name`, {
+            field_name: 'name',
+            type: 'text',
+            required: true,
+        });
+
+        const immutableCreateResponse = await tenant.httpClient.post(`/api/data/${immutableModelName}`, [
+            {
+                name: 'Immutable Delete Record',
+            },
+        ]);
+        expectSuccess(immutableCreateResponse);
+        immutableModelRecordId = immutableCreateResponse.data[0].id;
+    });
+
+    it('should reject delete for immutable model records', async () => {
+        const response = await tenant.httpClient.delete(`/api/data/${immutableModelName}/${immutableModelRecordId}`);
+
+        expect(response.success).toBe(false);
+        expect(response.error).toContain('immutable');
     });
 
     it('should soft delete record', async () => {

@@ -12,6 +12,8 @@ import type { TestTenant } from '../test-helpers.js';
 describe('PUT /api/data/:model/:id - Update Single Record', () => {
     let tenant: TestTenant;
     let recordId: string;
+    let immutableModelRecordId: string;
+    const immutableModelName = 'cs008_products';
 
     beforeAll(async () => {
         tenant = await TestHelpers.createTestTenant('data-put');
@@ -42,6 +44,37 @@ describe('PUT /api/data/:model/:id - Update Single Record', () => {
         ]);
         expectSuccess(createResponse);
         recordId = createResponse.data[0].id;
+
+        await tenant.httpClient.post(`/api/describe/${immutableModelName}`, {
+            immutable: true,
+        });
+        await tenant.httpClient.post(`/api/describe/${immutableModelName}/fields/name`, {
+            field_name: 'name',
+            type: 'text',
+            required: true,
+        });
+        await tenant.httpClient.post(`/api/describe/${immutableModelName}/fields/value`, {
+            field_name: 'value',
+            type: 'decimal',
+        });
+
+        const immutableCreateResponse = await tenant.httpClient.post(`/api/data/${immutableModelName}`, [
+            {
+                name: 'Immutable Record',
+                value: 100,
+            },
+        ]);
+        expectSuccess(immutableCreateResponse);
+        immutableModelRecordId = immutableCreateResponse.data[0].id;
+    });
+
+    it('should reject update for immutable model records', async () => {
+        const response = await tenant.httpClient.put(`/api/data/${immutableModelName}/${immutableModelRecordId}`, {
+            value: 150,
+        });
+
+        expect(response.success).toBe(false);
+        expect(response.error).toContain('immutable');
     });
 
     it('should update single field', async () => {

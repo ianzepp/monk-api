@@ -51,11 +51,11 @@ export default class FieldSudoValidator extends BaseObserver {
         // Track which sudo fields are being modified
         const sudoFieldsModified: Set<string> = new Set();
 
-        // Convert to plain object to iterate fields
-        const plainRecord = record.toObject();
+        // Check only changed fields for this operation
+        const changedFields = record.getChangedFields();
 
         // Check each field in the record
-        for (const fieldName of Object.keys(plainRecord)) {
+        for (const fieldName of changedFields) {
             // Skip non-sudo fields
             if (!sudoFields.has(fieldName)) {
                 continue;
