@@ -160,6 +160,20 @@ bun run db:local:reset
 bun dist/index.js --no-startup
 ```
 
+## Railway Deployment
+
+Production is hosted on Railway in the `monk` project.
+
+| Resource | Link |
+|----------|------|
+| Public API | <https://monk-api-production.up.railway.app> |
+| Health check | <https://monk-api-production.up.railway.app/health> |
+| Source repository | <https://github.com/ianzepp/monk-api> |
+| Railway app service | `monk-api` |
+| Railway database service | `Postgres` |
+
+The Railway app service is linked to `ianzepp/monk-api` on `main` and uses Railway's managed Postgres `DATABASE_URL`. Do not use `compose.local.yml` for Railway.
+
 ## Installation
 
 **Prerequisites:** Bun 1.0+, PostgreSQL 12+ (or SQLite for standalone)
