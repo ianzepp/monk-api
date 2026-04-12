@@ -82,10 +82,10 @@ describe('response-transformer fail-closed behavior', () => {
             query: {},
         });
 
-        await responseTransformerMiddleware(context, async () => {});
+        await responseTransformerMiddleware(context as any, async () => {});
 
         const response = await context.json({ success: true, data: { token: 'abc' } });
-        const body = await response.json();
+        const body = await response.json() as any;
 
         expect(response.status).toBe(400);
         expect(body.success).toBe(false);
@@ -99,10 +99,10 @@ describe('response-transformer fail-closed behavior', () => {
             query: { encrypt: 'pgp' },
         });
 
-        await responseTransformerMiddleware(context, async () => {});
+        await responseTransformerMiddleware(context as any, async () => {});
 
         const response = await context.json({ success: true, data: { token: 'abc' } });
-        const body = await response.json();
+        const body = await response.json() as any;
 
         expect(response.status).toBe(401);
         expect(body.success).toBe(false);
@@ -129,10 +129,10 @@ describe('response-transformer fail-closed behavior', () => {
             },
         });
 
-        await responseTransformerMiddleware(context, async () => {});
+        await responseTransformerMiddleware(context as any, async () => {});
 
         const response = await context.json({ success: true, data: { token: 'abc' } });
-        const body = await response.json();
+        const body = await response.json() as any;
 
         expect(response.status).toBe(400);
         expect(body.success).toBe(false);

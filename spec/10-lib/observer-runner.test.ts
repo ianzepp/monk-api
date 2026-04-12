@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, spyOn, type SpyMock } from 'bun:test';
+import { afterEach, describe, expect, it, spyOn } from 'bun:test';
 import { Model } from '@src/lib/model.js';
 import { ModelRecord } from '@src/lib/model-record.js';
 import type { SystemContext } from '@src/lib/system-context-types.js';
@@ -8,7 +8,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 import { ObserverLoader } from '@src/lib/observers/loader.js';
 import { ObserverRunner } from '@src/lib/observers/runner.js';
 
-type ObserverGetSpy = SpyMock<[model: string, ring: ObserverRing], Observer[]>;
+type ObserverGetSpy = ReturnType<typeof spyOn>;
 
 function createModel(): Model {
     return new Model({} as SystemContext, 'users', {
@@ -68,7 +68,7 @@ describe('ObserverRunner', () => {
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].code).toBe('RING_5_ERROR');
         expect(ringsExecuted).toEqual(['ring-5']);
-        expect(getObserversSpy.mock.calls.map(([_, ring]) => ring)).toEqual([
+        expect(getObserversSpy.mock.calls.map(([_model, ring]: [string, ObserverRing]) => ring)).toEqual([
             ObserverRing.DataPreparation,
             ObserverRing.InputValidation,
             ObserverRing.Security,

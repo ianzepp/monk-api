@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createApp } from '../../packages/todos/src/index.ts';
+import { createApp } from '../../packages/todos/src/index.js';
 
 function makeTodoAppWithRecorder() {
     const calls: { url: string | null } = { url: null };
