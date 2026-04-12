@@ -41,18 +41,18 @@ print_error() {
 
 server_start() {
     print_header "Starting server"
-    npm run start:bg
+    bun run start:bg
     print_success "Server starting, waiting 3 seconds.."
     sleep 3
 }
 
 server_stop() {
     print_header "Stopping server (if running)"
-    npm run stop
+    bun run stop
 }
 
 # Run the build
-npm run build
+bun run build
 
 # Start the API server
 server_stop

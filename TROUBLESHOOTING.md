@@ -225,10 +225,7 @@ cat ~/.config/monk/env.json | jq '{DATABASE_URL, JWT_SECRET, NODE_ENV}'
 ### Reset Configuration
 
 ```bash
-# Regenerate configuration (interactive)
-npm run autoinstall
-
-# Or manually create ~/.config/monk/env.json
+# Manually create ~/.config/monk/env.json
 {
   "DATABASE_URL": "postgresql://user:password@localhost:5432/monk",
   "JWT_SECRET": "your-secret-key",
@@ -313,9 +310,9 @@ Common issues:
 
 ```bash
 # Quick fixes
-npm run test:cleanup              # Clean test databases
-npm run stop && npm run start:bg  # Restart server
-npm run fixtures:build testing    # Rebuild templates
+bun run test:cleanup              # Clean test databases
+bun run stop && bun run start:bg  # Restart server
+bun run fixtures:build testing    # Rebuild templates
 ```
 
 ### Observers
@@ -328,8 +325,8 @@ Common issues:
 
 ```bash
 # Quick fixes
-npm run build                     # Compile observers
-npm run start:dev                 # Check loading logs
+bun run build                     # Compile observers
+bun run start:dev                 # Check loading logs
 ```
 
 ### Fixtures/Templates
@@ -342,7 +339,7 @@ Common issues:
 
 ```bash
 # Quick fixes
-npm run fixtures:build testing   # Build template
+bun run fixtures:build testing   # Build template
 rm fixtures/testing/.locked       # Unlock (if intentional)
 ```
 
@@ -350,10 +347,10 @@ rm fixtures/testing/.locked       # Unlock (if intentional)
 
 ### Restart Everything
 ```bash
-npm run stop
-npm run build
-npm run fixtures:build testing
-npm run start:bg
+bun run stop
+bun run build
+bun run fixtures:build testing
+bun run start:bg
 ```
 
 ### Check All Systems
@@ -366,26 +363,26 @@ pg_isready
 curl http://localhost:9001/health
 
 # Build
-npm run build
+bun run build
 
 # Tests
-npm run test:sh 01-basic
+bun run test:sh 01-basic
 ```
 
 ### Clean Slate
 ```bash
 # Stop server
-npm run stop
+bun run stop
 
 # Clean test databases
-npm run test:cleanup
+bun run test:cleanup
 
 # Rebuild everything
-npm run build
-npm run fixtures:build testing
+bun run build
+bun run fixtures:build testing
 
 # Start fresh
-npm run start:dev
+bun run start:dev
 ```
 
 ## Getting Help

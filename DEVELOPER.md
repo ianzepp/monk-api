@@ -30,36 +30,37 @@ This document provides detailed architecture, development workflows, and technic
 git clone https://github.com/ianzepp/monk-api.git
 cd monk-api
 
-# 2. Automated setup (handles everything)
-npm run autoinstall
+# 2. Install dependencies with Bun
+bun install --frozen-lockfile
 
-# 3. Start development server
-npm run start:dev
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with DATABASE_URL, PORT, NODE_ENV, and JWT_SECRET
 
-# 4. Verify installation
-npm run test:sh spec/01-basic/api-discovery.test.sh
+# 4. Build and start development server
+bun run build
+bun run start:dev
+
+# 5. Verify installation
+bun run test:ts
 ```
 
-The `npm run autoinstall` script handles:
-- Verifies PostgreSQL connectivity
-- Creates auth database (`monk`) with tenant table
-- Configures local server in `~/.config/monk/server.json`
-- Creates test tenant (`local-test`) for development
-- Compiles TypeScript and verifies setup
+No automated install script is currently tracked in this checkout. Configure the PostgreSQL database manually or use SQLite mode by leaving `DATABASE_URL` unset at runtime.
 
 ### Essential Commands
 
 ```bash
 # Development
-npm run start:dev                       # API server with auto-reload
-npm run build                           # TypeScript compilation
+bun run start:dev                       # API server with auto-reload
+bun run build                           # TypeScript compilation
 
 # Testing
-npm run test:sh                         # All shell integration tests
-npm run test:cleanup                    # Clean test databases
+bun run test:ts                         # TypeScript tests
+bun run test:sh                         # Shell integration tests
+bun run test:cleanup                    # Clean test databases
 
 # Fixtures
-npm run fixtures:build testing         # Build test template
+bun run fixtures:build testing          # Build test template
 ```
 
 ## Project Architecture
@@ -157,16 +158,16 @@ Observers auto-load at server startup. See: [src/observers/README.md](src/observ
 
 ```bash
 # Run all tests
-npm run test:sh
+bun run test:sh
 
 # Run specific test series
-npm run test:sh 31-describe-api
+bun run test:sh 31-describe-api
 
 # Run single test
 ./spec/31-describe-api/create-model.test.sh
 
 # Clean up test databases
-npm run test:cleanup
+bun run test:cleanup
 ```
 
 See: [spec/README.md](spec/README.md)
@@ -320,37 +321,22 @@ GET /api/sudo/snapshots/pre-migration
 
 ```bash
 # TypeScript compilation
-npm run build                       # Compiles src/ to dist/
+bun run build                       # Compiles src/ to dist/
 
-# Complete setup
-npm run autoinstall                 # Full environment setup
+# Test type-check
+bun run build:spec                  # Type-checks src/ and spec/
 ```
 
 ### Version Control and Releases
 
-The project uses **managed npm package versioning**:
-
-```bash
-# Bug fixes and patches
-npm run version:patch
-
-# New features
-npm run version:minor
-
-# Major releases
-npm run version:major
-```
-
-Each version command automatically:
-1. **Pre-version validation**: Runs `npm run build && npm run test:sh`
-2. **Version bump**: Updates `package.json` and creates Git tag
-3. **Release automation**: Pushes commits/tags, creates GitHub release with auto-generated notes
+No versioning or release automation scripts are currently tracked in `package.json`. Version bumps should be handled explicitly until release automation is restored.
 
 ### Deployment Checklist
 
-- [ ] Run full test suite: `npm run test:sh`
-- [ ] Verify build: `npm run build`
-- [ ] Update version: `npm run version:minor` (or patch/major)
+- [ ] Run TypeScript tests: `bun run test:ts`
+- [ ] Run shell integration tests when PostgreSQL fixtures are available: `bun run test:sh`
+- [ ] Verify build: `bun run build`
+- [ ] Update version explicitly in `package.json`
 - [ ] Verify release created on GitHub
 - [ ] Deploy to production environment
 - [ ] Verify health endpoint: `curl https://api.example.com/health`

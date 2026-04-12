@@ -578,20 +578,20 @@ jobs:
           sudo -u postgres psql -c "CREATE DATABASE monk;"
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Build project
-        run: npm run build
+        run: bun run build
 
       - name: Setup templates
-        run: npm run fixtures:build testing
+        run: bun run fixtures:build testing
 
       - name: Run tests
-        run: npm run test:sh
+        run: bun run test:sh
 
       - name: Cleanup
         if: always()
-        run: npm run test:cleanup
+        run: bun run test:cleanup
 ```
 
 ## Best Practices

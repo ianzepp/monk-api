@@ -47,22 +47,16 @@ OVERALL_FAILED_TESTS=()
 # Function to run TypeScript tests
 run_typescript_tests() {
     print_header "TypeScript Tests"
-    
-    # Check if TypeScript tests are implemented
-    if ! grep -q "🚧 TypeScript tests are planned" "$(dirname "${BASH_SOURCE[0]}")/test-ts.sh"; then
-        print_success "Running TypeScript tests..."
-        
-        # Run TypeScript tests with the same arguments
-        if "$(dirname "${BASH_SOURCE[0]}")/test-ts.sh" "$@"; then
-            print_success "TypeScript tests passed"
-            ((OVERALL_PASSED++))
-        else
-            print_error "TypeScript tests failed"
-            ((OVERALL_FAILED++))
-            OVERALL_FAILED_TESTS+=("TypeScript Tests")
-        fi
+
+    print_success "Running TypeScript tests..."
+
+    if bun run test:ts "$@"; then
+        print_success "TypeScript tests passed"
+        ((OVERALL_PASSED++))
     else
-        print_warning "TypeScript tests not yet implemented - skipping"
+        print_error "TypeScript tests failed"
+        ((OVERALL_FAILED++))
+        OVERALL_FAILED_TESTS+=("TypeScript Tests")
     fi
 }
 
@@ -86,7 +80,7 @@ print_header "Monk API Test Suite"
 
 echo
 print_success "Building project..."
-if ! npm run build; then
+if ! bun run build; then
     print_error "Build failed - aborting tests"
     exit 1
 fi
