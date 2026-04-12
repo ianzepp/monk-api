@@ -21,14 +21,10 @@
         "@monk-app/openapi": "workspace:*",
         "@monk-app/todos": "workspace:*",
         "@monk/bindings": "workspace:*",
-        "@monk/formatter-brainfuck": "workspace:*",
         "@monk/formatter-csv": "workspace:*",
         "@monk/formatter-grid-compact": "workspace:*",
         "@monk/formatter-markdown": "workspace:*",
-        "@monk/formatter-morse": "workspace:*",
         "@monk/formatter-msgpack": "workspace:*",
-        "@monk/formatter-qr": "workspace:*",
-        "@monk/formatter-toml": "workspace:*",
         "@monk/formatter-toon": "workspace:*",
       },
     },
@@ -42,16 +38,6 @@
     "packages/common": {
       "name": "@monk/common",
       "version": "1.0.0",
-      "devDependencies": {
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/formatter-brainfuck": {
-      "name": "@monk/formatter-brainfuck",
-      "version": "1.0.0",
-      "dependencies": {
-        "@monk/common": "workspace:*",
-      },
       "devDependencies": {
         "typescript": "^5.9.3",
       },
@@ -99,17 +85,6 @@
         "typescript": "^5.9.3",
       },
     },
-    "packages/formatter-morse": {
-      "name": "@monk/formatter-morse",
-      "version": "1.0.0",
-      "dependencies": {
-        "@monk/common": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/node": "^22.19.17",
-        "typescript": "^5.9.3",
-      },
-    },
     "packages/formatter-msgpack": {
       "name": "@monk/formatter-msgpack",
       "version": "1.0.0",
@@ -122,17 +97,6 @@
         "typescript": "^5.9.3",
       },
     },
-    "packages/formatter-qr": {
-      "name": "@monk/formatter-qr",
-      "version": "1.0.0",
-      "dependencies": {
-        "@monk/common": "workspace:*",
-        "qr": "^0.5.5",
-      },
-      "devDependencies": {
-        "typescript": "^5.9.3",
-      },
-    },
     "packages/formatter-sqlite": {
       "name": "@monk/formatter-sqlite",
       "version": "1.0.0",
@@ -141,17 +105,6 @@
       },
       "devDependencies": {
         "@types/bun": "^1.3.11",
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/formatter-toml": {
-      "name": "@monk/formatter-toml",
-      "version": "1.0.0",
-      "dependencies": {
-        "@iarna/toml": "^2.2.5",
-        "@monk/common": "workspace:*",
-      },
-      "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
@@ -210,8 +163,6 @@
 
     "@cbor-extract/cbor-extract-win32-x64": ["@cbor-extract/cbor-extract-win32-x64@2.2.2", "", { "os": "win32", "cpu": "x64" }, "sha512-dI+9P7cfWxkTQ+oE+7Aa6onEn92PHgfWXZivjNheCRmTBDBf2fx6RyTi0cmgpYLnD1KLZK9ZYrMxaPZ4oiXhGA=="],
 
-    "@iarna/toml": ["@iarna/toml@2.2.5", "", {}, "sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg=="],
-
     "@monk-app/grids": ["@monk-app/grids@workspace:packages/grids"],
 
     "@monk-app/openapi": ["@monk-app/openapi@workspace:packages/openapi"],
@@ -222,8 +173,6 @@
 
     "@monk/common": ["@monk/common@workspace:packages/common"],
 
-    "@monk/formatter-brainfuck": ["@monk/formatter-brainfuck@workspace:packages/formatter-brainfuck"],
-
     "@monk/formatter-cbor": ["@monk/formatter-cbor@workspace:packages/formatter-cbor"],
 
     "@monk/formatter-csv": ["@monk/formatter-csv@workspace:packages/formatter-csv"],
@@ -232,15 +181,9 @@
 
     "@monk/formatter-markdown": ["@monk/formatter-markdown@workspace:packages/formatter-markdown"],
 
-    "@monk/formatter-morse": ["@monk/formatter-morse@workspace:packages/formatter-morse"],
-
     "@monk/formatter-msgpack": ["@monk/formatter-msgpack@workspace:packages/formatter-msgpack"],
 
-    "@monk/formatter-qr": ["@monk/formatter-qr@workspace:packages/formatter-qr"],
-
     "@monk/formatter-sqlite": ["@monk/formatter-sqlite@workspace:packages/formatter-sqlite"],
-
-    "@monk/formatter-toml": ["@monk/formatter-toml@workspace:packages/formatter-toml"],
 
     "@monk/formatter-toon": ["@monk/formatter-toon@workspace:packages/formatter-toon"],
 
@@ -357,8 +300,6 @@
     "postgres-date": ["postgres-date@1.0.7", "", {}, "sha512-suDmjLVQg78nMK2UZ454hAG+OAW+HQPZ6n++TNDUX+L0+uUlLywnoxJKDou51Zm+zTCjrCl0Nq6J9C5hP9vK/Q=="],
 
     "postgres-interval": ["postgres-interval@1.2.0", "", { "dependencies": { "xtend": "^4.0.0" } }, "sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ=="],
-
-    "qr": ["qr@0.5.5", "", {}, "sha512-iQBvKj7MRKO+co+MY0IZpyLO+ezvttxsmV86WywrgPuAmgBkv0pytyi03wourniSoPgzffeBW6cBgIkpqcvjTg=="],
 
     "queue-lit": ["queue-lit@1.5.2", "", {}, "sha512-tLc36IOPeMAubu8BkW8YDBV+WyIgKlYU7zUNs0J5Vk9skSZ4JfGlPOqplP0aHdfv7HL0B2Pg6nwiq60Qc6M2Hw=="],
 

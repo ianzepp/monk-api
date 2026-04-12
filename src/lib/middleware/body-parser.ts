@@ -21,13 +21,9 @@ const CONTENT_TYPE_MAP: Array<{ match: string | RegExp; format: string }> = [
     { match: 'application/x-yaml', format: 'yaml' },
     { match: 'text/yaml', format: 'yaml' },
     { match: 'text/x-yaml', format: 'yaml' },
-    { match: 'application/toml', format: 'toml' },
-    { match: 'application/x-toml', format: 'toml' },
-    { match: 'text/toml', format: 'toml' },
     { match: 'application/msgpack', format: 'msgpack' },
     { match: 'application/x-msgpack', format: 'msgpack' },
     { match: 'application/cbor', format: 'cbor' },
-    { match: 'application/morse', format: 'morse' },
     { match: 'text/csv', format: 'csv' },
     { match: 'application/csv', format: 'csv' },
     { match: 'application/x-sqlite3', format: 'sqlite' },
@@ -56,10 +52,6 @@ function detectFormat(contentType: string, body: Uint8Array): string {
         // TOON: starts with { (object notation)
         if (text.startsWith('{')) {
             return 'toon';
-        }
-        // Morse: only dots, dashes, spaces, slashes
-        if (/^[.\-\s\/]+$/.test(text)) {
-            return 'morse';
         }
     }
 

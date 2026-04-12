@@ -7,7 +7,7 @@
  * - json, yaml
  *
  * Optional Formatters (loaded from @monk/formatter-* packages if installed):
- * - toon, toml, csv, sqlite, msgpack, cbor, qr, brainfuck, morse, markdown, grid-compact
+ * - toon, csv, sqlite, msgpack, cbor, markdown, grid-compact
  *
  * Usage:
  *   import { getFormatter } from '@src/lib/formatters/index.js';
@@ -42,14 +42,10 @@ export { JsonFormatter, YamlFormatter };
  */
 const optionalFormats = [
     'toon',
-    'toml',
     'csv',
     'sqlite',
     'msgpack',
     'cbor',
-    'qr',
-    'brainfuck',
-    'morse',
     'markdown',
     'grid-compact'
 ];

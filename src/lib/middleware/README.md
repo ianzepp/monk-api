@@ -119,12 +119,8 @@ GET /api/data/users?stat=false&access=false
 - `json` - Standard JSON (default)
 - `toon` - Compact format for LLMs (~30-40% fewer tokens)
 - `yaml` - YAML format
-- `toml` - TOML configuration format
 - `csv` - CSV tabular data (array of objects only)
 - `msgpack` - MessagePack binary format
-- `brainfuck` - Brainfuck encoding (novelty)
-- `morse` - Morse code encoding
-- `qr` - QR code ASCII art
 - `markdown` - Markdown tables and lists
 
 **Examples:**

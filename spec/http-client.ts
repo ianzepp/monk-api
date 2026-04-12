@@ -2,7 +2,7 @@
  * HTTP Client Test Utilities
  *
  * Provides helpers for making HTTP requests with different Content-Type formats
- * Used for testing format middleware (YAML, TOON, Morse, etc.)
+ * Used for testing format middleware (YAML, TOON, etc.)
  */
 
 export interface HttpRequestOptions {
@@ -274,22 +274,6 @@ export class HttpClient {
             method: 'POST',
             contentType: 'application/toon',
             accept: 'application/toon',
-            body,
-        });
-    }
-
-    /**
-     * Make a POST request with Morse format
-     *
-     * @param path - API path
-     * @param body - Request body (will be sent as-is, should be Morse formatted)
-     * @returns Promise with response
-     */
-    async postMorse(path: string, body: string): Promise<HttpResponse> {
-        return this.request(path, {
-            method: 'POST',
-            contentType: 'application/morse',
-            accept: 'application/morse',
             body,
         });
     }

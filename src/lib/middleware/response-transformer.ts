@@ -236,7 +236,7 @@ function applyEncryption(data: Uint8Array, context: Context, format: string): { 
             ...encryptionError(
                 'Binary formats are not supported with encryption',
                 'ENCRYPTION_UNSUPPORTED_FORMAT',
-                'Use a text-safe format (json, yaml, toml, csv, etc.) when requesting ?encrypt=pgp'
+                'Use a text-safe format (json, yaml, csv, markdown, etc.) when requesting ?encrypt=pgp'
             ),
             encrypted: false
         };

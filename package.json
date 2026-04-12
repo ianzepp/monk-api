@@ -44,14 +44,10 @@
         "pg": "^8.20.0"
     },
     "optionalDependencies": {
-        "@monk/formatter-brainfuck": "workspace:*",
         "@monk/formatter-csv": "workspace:*",
         "@monk/formatter-grid-compact": "workspace:*",
         "@monk/formatter-markdown": "workspace:*",
-        "@monk/formatter-morse": "workspace:*",
         "@monk/formatter-msgpack": "workspace:*",
-        "@monk/formatter-qr": "workspace:*",
-        "@monk/formatter-toml": "workspace:*",
         "@monk/formatter-toon": "workspace:*",
         "@monk/bindings": "workspace:*",
         "@monk-app/grids": "workspace:*",

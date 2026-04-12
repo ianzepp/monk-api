@@ -115,51 +115,6 @@ curl http://localhost:9001/api/user/whoami?select=access_read,access_edit&format
   access_edit: []
 ```
 
-### TOML
-TOML (Tom's Obvious, Minimal Language) configuration file format. Clean and human-readable with explicit typing.
-
-**Request:**
-```bash
-curl -X POST http://localhost:9001/auth/login \
-  -H "Content-Type: application/toml" \
-  -H "Accept: application/toml" \
-  -d 'tenant = "toon-test"
-username = "root"'
-```
-
-**Response:**
-```toml
-success = true
-
-[data]
-token = "eyJhbGc..."
-
-[data.user]
-id = "c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c"
-name = "Demo User"
-```
-
-**Features:**
-- Clear, minimal syntax
-- Explicit data types (strings, integers, booleans, dates)
-- Section headers for nested structures
-- Popular for configuration files
-- Better than JSON for human editing
-
-**With Field Extraction:**
-```bash
-curl http://localhost:9001/api/user/whoami?select=id,access&format=toml
-→ id = "c81d0a9b..."
-  access = "root"
-```
-
-**Use Cases:**
-- Configuration files
-- Infrastructure as Code (IaC)
-- Application settings
-- Deployment manifests
-- CI/CD pipeline configuration
-
 ### CSV (Response-Only)
 Comma-Separated Values format for tabular data export. Perfect for Excel, Google Sheets, and data analysis tools.
 
@@ -258,66 +213,6 @@ curl http://localhost:9001/auth/login?select=token&format=msgpack \
 - Microservice communication
 - IoT/embedded systems
 - Mobile applications
-
-### Morse Code
-Converts JSON to/from Morse code (dots and dashes). Uses hex encoding internally to preserve case sensitivity.
-
-**Request:**
-```bash
-curl -X POST http://localhost:9001/auth/login \
-  -H "Content-Type: application/morse" \
-  -H "Accept: application/morse" \
-  -d '--... -... ..--- ..--- --... ....- ...'
-```
-
-**Response:**
-```
---... -... ----- .- ..--- ----- ..--- ----- ..--- ..--- --... ...-- ...
-```
-
-**How it works:**
-1. JSON → Hex encoding (preserves case, only 0-9 A-F)
-2. Hex → Morse code (dots and dashes)
-3. Morse → Hex → JSON (perfect round-trip)
-
-**With Field Extraction:**
-```bash
-# Extract field and return as Morse code
-curl http://localhost:9001/api/user/whoami?select=name&format=morse
-```
-
-### QR Code (Response-Only)
-Generates scannable ASCII art QR codes from JSON responses. Perfect for mobile access and air-gapped data transfer.
-
-**Request:**
-```bash
-curl http://localhost:9001/auth/tenants?format=qr
-```
-
-**Response:**
-```
-█████████████████████████████████████████
-██ ▄▄▄▄▄ █▀ ▀█▀  ▀▄█ ▄█▀  ▀▀▄▄█  █▄▀ ▄▄▀██
-██ █   █ ██▀█▀▀█ ██   █▀█ ▀▄▄██▀▄██ ▄▄▄██
-██ █▄▄▄█ █▄▄  ▀▄▀▄█ ██▀▀█▀ ▄▄▄ ▀ ▀█  ▀▄ ██
-██▄▄▄▄▄▄▄█▄█ ▀▄▀▄█ ▀ █ ▀▄▀ █▄█ ▀▄▀ █ ▀ ███
-...
-```
-
-**Features:**
-- Scannable with any QR code reader app
-- Medium error correction for reliability
-- Unicode block characters (█ ▀ ▄) for high contrast
-- Works in terminals and text displays
-
-**With Field Extraction:**
-```bash
-# Generate QR code of just the token
-curl http://localhost:9001/auth/login?select=token&format=qr \
-  -d '{"tenant":"demo","username":"root"}'
-```
-
-**Note:** QR code decoding for request bodies is intentionally not supported.
 
 ### Markdown (Response-Only)
 Converts JSON responses to readable Markdown with tables, lists, and structured formatting. Perfect for documentation and terminal display.
@@ -498,9 +393,6 @@ All subsequent requests with that JWT will default to TOON format.
 | TOML | ✓ | ✓ | ✓ | ✗ |
 | CSV | ✗ | ✓ (array only) | ✓ | ✓ |
 | MessagePack | ✓ | ✓ | ✓ | ✗ |
-| Brainfuck | ✗ | ✓ | ✓ | ✗ |
-| Morse | ✓ | ✓ | ✓ | ✗ |
-| QR Code | ✗ | ✓ | ✓ | ✗ |
 | Markdown | ✗ | ✓ | ✓ | ✗ |
 
 **Note:** Field extraction works with all response formats - data is extracted first (from JSON), then formatted.
@@ -512,10 +404,8 @@ Request bodies must specify the correct Content-Type header:
 - JSON: `application/json`
 - TOON: `application/toon` or `text/plain`
 - YAML: `application/yaml` or `text/yaml`
-- TOML: `application/toml` or `application/x-toml`
 - CSV: Not supported for requests (response-only)
 - MessagePack: `application/msgpack` or `application/x-msgpack`
-- Morse: `application/morse` or `text/plain` (with morse pattern)
 
 **Note:** CSV decoding is intentionally not supported for request bodies.
 
@@ -610,12 +500,8 @@ All format and extraction handling is implemented in:
   - `json.ts` - Standard JSON (default)
   - `toon.ts` - Compact TOON format
   - `yaml.ts` - YAML format
-  - `toml.ts` - TOML configuration format
   - `csv.ts` - CSV tabular data (response-only, auto-unwrap)
   - `msgpack.ts` - MessagePack binary format
-  - `brainfuck.ts` - Brainfuck encoding (response-only)
-  - `morse.ts` - Morse code encoding/decoding
-  - `qr.ts` - QR code ASCII art (response-only)
   - `markdown.ts` - Markdown formatting (response-only)
 
 **Encryption:**
@@ -684,7 +570,6 @@ Format and extraction functionality is tested in:
 **Format Tests:**
 - `spec/51-formatters/format-toon.test.sh` - TOON encoding/decoding
 - `spec/51-formatters/format-yaml.test.sh` - YAML encoding/decoding
-- `spec/51-formatters/format-morse.test.sh` - Morse code encoding/decoding
 
 **Extraction Tests:**
 - `spec/10-auth/whoami.test.sh` - Single/multiple field extraction

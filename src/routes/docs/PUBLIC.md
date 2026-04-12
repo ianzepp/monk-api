@@ -268,12 +268,8 @@ Choose response encoding format to optimize for different use cases:
 - `json` (default) - Standard JSON with 2-space indentation
 - `toon` - Compact human-readable format (30-40% fewer tokens for LLMs)
 - `yaml` - YAML format for human readability
-- `toml` - TOML configuration format (explicit typing, clean syntax)
 - `csv` - CSV tabular data (response-only, auto-unwraps, array of objects only)
 - `msgpack` - Binary format (30-50% smaller, base64-encoded for HTTP)
-- `brainfuck` - Novelty format (response-only)
-- `morse` - Morse code encoding
-- `qr` - QR code ASCII art (response-only)
 - `markdown` - Markdown tables and formatting (response-only)
 - `grid-compact` - Compact Grid API format (60% smaller, Grid API only, response-only)
 
@@ -281,9 +277,6 @@ Choose response encoding format to optimize for different use cases:
 ```bash
 # Get response in TOON format (compact for LLMs)
 curl http://localhost:9001/api/user/whoami?format=toon
-
-# Get response as TOML (great for config files)
-curl http://localhost:9001/api/user/whoami?format=toml
 
 # Get response as MessagePack binary (efficient)
 curl http://localhost:9001/api/data/users?format=msgpack

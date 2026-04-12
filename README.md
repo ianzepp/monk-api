@@ -115,13 +115,11 @@ All endpoints support query parameters for response formatting:
 
 **Optional packages** (install from `packages/formatter-*`):
 - `toon` - Compact format for LLMs (30-40% smaller)
-- `toml` - TOML format
 - `csv` - Tabular export
 - `msgpack` - Binary format (30-50% smaller)
 - `markdown` - Markdown tables
 - `grid-compact` - 60% smaller for Grid API
 - `cbor`, `sqlite` - Additional package-backed encodings
-- `brainfuck`, `morse`, `qr` - Novelty formats
 
 ### Field Extraction
 - `?unwrap` - Remove `{success, data}` envelope

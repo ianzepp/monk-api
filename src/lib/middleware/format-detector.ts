@@ -11,9 +11,9 @@
 import type { Context, Next } from 'hono';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
-export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'toml' | 'csv' | 'sqlite' | 'msgpack' | 'cbor' | 'brainfuck' | 'morse' | 'qr' | 'markdown' | 'grid-compact';
+export type ResponseFormat = 'json' | 'toon' | 'yaml' | 'csv' | 'sqlite' | 'msgpack' | 'cbor' | 'markdown' | 'grid-compact';
 
-const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'toml', 'csv', 'sqlite', 'msgpack', 'cbor', 'brainfuck', 'morse', 'qr', 'markdown', 'grid-compact'];
+const SUPPORTED_FORMATS: ResponseFormat[] = ['json', 'toon', 'yaml', 'csv', 'sqlite', 'msgpack', 'cbor', 'markdown', 'grid-compact'];
 
 /**
  * Resolves the response format for the current request
@@ -44,9 +44,6 @@ function resolveFormat(context: Context): ResponseFormat {
     }
     if (acceptHeader?.includes('application/cbor')) {
         return 'cbor';
-    }
-    if (acceptHeader?.includes('application/toml') || acceptHeader?.includes('application/x-toml')) {
-        return 'toml';
     }
     if (acceptHeader?.includes('text/csv') || acceptHeader?.includes('application/csv')) {
         return 'csv';
