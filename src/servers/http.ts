@@ -135,6 +135,7 @@ export function createHttpApp(): Hono {
     app.post('/api/data/:model', dataRoutes.ModelPost);
     app.get('/api/data/:model', dataRoutes.ModelGet);
     app.put('/api/data/:model', dataRoutes.ModelPut);
+    app.patch('/api/data/:model', dataRoutes.ModelPut);
     app.delete('/api/data/:model', dataRoutes.ModelDelete);
 
     app.get('/api/data/:model/:id', dataRoutes.RecordGet);
