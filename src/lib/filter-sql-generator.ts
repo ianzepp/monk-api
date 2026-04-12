@@ -154,9 +154,10 @@ export class FilterSqlGenerator {
         try {
             // Build aggregation SELECT clause
             const aggregateClause = this.buildAggregateClause(aggregations);
+            const validatedGroupBy = this.validateGroupByColumns(groupBy);
 
             // Build GROUP BY clause if provided
-            const groupByClause = this.buildGroupByClause(groupBy);
+            const groupByClause = this.buildGroupByClause(validatedGroupBy);
 
             // Get WHERE clause with parameters
             const { whereClause, params } = this.toWhereSQL(state);
@@ -165,8 +166,8 @@ export class FilterSqlGenerator {
             const selectParts: string[] = [];
 
             // Add GROUP BY fields to SELECT
-            if (groupBy && groupBy.length > 0) {
-                selectParts.push(...groupBy.map(col => `"${this.sanitizeFieldName(col)}"`));
+            if (validatedGroupBy.length > 0) {
+                selectParts.push(...validatedGroupBy.map(col => `"${col}"`));
             }
 
             // Add aggregations to SELECT
@@ -334,13 +335,23 @@ export class FilterSqlGenerator {
             return '';
         }
 
-        // Validate and sanitize field names
-        const sanitizedFields = groupBy.map(col => {
-            const sanitized = this.sanitizeFieldName(col);
-            return `"${sanitized}"`;
-        });
+        const quotedGroupBy = groupBy.map(col => `"${col}"`);
 
-        return `GROUP BY ${sanitizedFields.join(', ')}`;
+        return `GROUP BY ${quotedGroupBy.join(', ')}`;
+    }
+
+    /**
+     * Validate GROUP BY field identifiers.
+     *
+     * Reuse the same field-name policy used by WHERE/select validation:
+     * reject invalid identifiers instead of normalizing characters away.
+     */
+    private static validateGroupByColumns(groupBy?: string[]): string[] {
+        if (!groupBy || groupBy.length === 0) {
+            return [];
+        }
+
+        return groupBy.map((col) => this.sanitizeFieldName(col));
     }
 
     /**

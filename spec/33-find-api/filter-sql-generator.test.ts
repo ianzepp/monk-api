@@ -742,6 +742,25 @@ describe('FilterSqlGenerator - Field Validation', () => {
         }).toThrow('Invalid field name format');
     });
 
+    it('should reject GROUP BY entries that could be sanitized into a different identifier', () => {
+        const state: FilterState = {
+            tableName: 'orders',
+            select: [],
+            whereData: {},
+            order: [],
+            accessUserIds: [],
+            trashedOption: {}
+        };
+
+        const aggregations: AggregateSpec = {
+            total_amount: { $sum: 'amount' }
+        };
+
+        expect(() => {
+            FilterSqlGenerator.toAggregateSQL(state, aggregations, ['customer-id']);
+        }).toThrow('Invalid field name format');
+    });
+
     it('should accept valid field names with underscores', () => {
         const state: FilterState = {
             tableName: 'orders',

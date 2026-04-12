@@ -165,17 +165,20 @@ export class DatabaseConnection {
 
     /** Health check for base monk database */
     static async healthCheck(): Promise<{ success: boolean; error?: string }> {
+        const pool = this.getMainPool();
+        let client: pg.PoolClient | null = null;
+
         try {
-            const pool = this.getMainPool();
-            const client = await pool.connect();
+            client = await pool.connect();
             await client.query('SELECT 1');
-            client.release();
             return { success: true };
         } catch (error) {
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown database error',
             };
+        } finally {
+            client?.release();
         }
     }
 
