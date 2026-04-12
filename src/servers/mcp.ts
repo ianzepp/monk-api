@@ -8,6 +8,22 @@
 import type { Hono } from 'hono';
 import type { JsonRpcRequest, McpContext, McpServerHandle, McpServerConfig } from '@src/lib/mcp/index.js';
 import { jsonRpcSuccess, jsonRpcError, getOrCreateSession, TOOLS, handleToolCall } from '@src/lib/mcp/index.js';
+import { randomUUID } from 'node:crypto';
+
+const MCP_SESSION_HEADER = 'mcp-session-id';
+
+function resolveSessionId(method: string, headerValue: string | null): string | null {
+    const sessionId = headerValue?.trim();
+    if (sessionId) {
+        return sessionId;
+    }
+
+    if (method === 'initialize') {
+        return `mcp-${randomUUID()}`;
+    }
+
+    return null;
+}
 
 // =============================================================================
 // Request Handler
@@ -33,13 +49,6 @@ async function handleRequest(honoApp: Hono, request: Request): Promise<Response>
         });
     }
 
-    // Get or create session
-    const sessionId = request.headers.get('mcp-session-id') || 'default';
-    const session = getOrCreateSession(sessionId);
-
-    // Build context
-    const ctx: McpContext = { honoApp, sessionId, session };
-
     // Parse request body
     let rpcRequest: JsonRpcRequest;
     try {
@@ -49,6 +58,26 @@ async function handleRequest(honoApp: Hono, request: Request): Promise<Response>
     }
 
     const { method, params = {}, id } = rpcRequest;
+    const sessionId = resolveSessionId(method, request.headers.get(MCP_SESSION_HEADER));
+
+    if (!sessionId) {
+        return Response.json(
+            jsonRpcError(id, -32600, 'mcp-session-id header is required for MCP calls'),
+            {
+                status: 400,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type, mcp-session-id',
+                },
+            }
+        );
+    }
+
+    // Get or create session
+    const session = getOrCreateSession(sessionId);
+
+    // Build context
+    const ctx: McpContext = { honoApp, sessionId, session };
 
     try {
         switch (method) {
@@ -70,10 +99,22 @@ async function handleRequest(honoApp: Hono, request: Request): Promise<Response>
                 );
 
             case 'initialized':
-                return Response.json(jsonRpcSuccess(id, {}));
+                return Response.json(jsonRpcSuccess(id, {}), {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                        'mcp-session-id': sessionId,
+                    },
+                });
 
             case 'tools/list':
-                return Response.json(jsonRpcSuccess(id, { tools: TOOLS }));
+                return Response.json(jsonRpcSuccess(id, { tools: TOOLS }), {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                        'mcp-session-id': sessionId,
+                    },
+                });
 
             case 'tools/call': {
                 const { name, arguments: args = {} } = params;
@@ -83,7 +124,14 @@ async function handleRequest(honoApp: Hono, request: Request): Promise<Response>
                 return Response.json(
                     jsonRpcSuccess(id, {
                         content: [{ type: 'text', text: content }],
-                    })
+                    }),
+                    {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*',
+                            'mcp-session-id': sessionId,
+                        },
+                    }
                 );
             }
 

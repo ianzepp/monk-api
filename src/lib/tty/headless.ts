@@ -95,9 +95,15 @@ function getCustomCommands(): { name: string; content: string }[] {
 
 /**
  * Session cache for headless sessions
- * Key: sessionId (from MCP or generated)
+ * Key: sessionId plus authenticated identity (from MCP + user context)
  */
 const sessionCache = new Map<string, Session>();
+
+function buildHeadlessSessionKey(baseSessionId: string, systemInit: SystemInit): string {
+    const tenant = systemInit.tenant || 'unknown';
+    const userId = systemInit.userId || 'anonymous';
+    return `${baseSessionId}:${tenant}:${userId}`;
+}
 
 /**
  * Create or retrieve a headless session
@@ -107,15 +113,16 @@ export function getOrCreateHeadlessSession(
     sessionId?: string
 ): Session {
     const id = sessionId || generateSessionId();
+    const cacheId = buildHeadlessSessionKey(id, systemInit);
 
     // Check cache
-    const cached = sessionCache.get(id);
+    const cached = sessionCache.get(cacheId);
     if (cached && cached.systemInit) {
         return cached;
     }
 
     // Create new session
-    const session = createSession(id);
+    const session = createSession(cacheId);
     session.systemInit = systemInit;
     session.authenticated = true;
     session.username = systemInit.username || 'root';
@@ -131,7 +138,7 @@ export function getOrCreateHeadlessSession(
     session.cwd = home;
 
     // Cache session
-    sessionCache.set(id, session);
+    sessionCache.set(cacheId, session);
 
     return session;
 }

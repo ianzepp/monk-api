@@ -13,6 +13,10 @@ const SESSION_FILE = process.env.MCP_SESSION_FILE || '.data/mcp-sessions.json';
 // In-memory cache backed by file
 let sessionCache: Map<string, McpSession> | null = null;
 
+function normalizeSessionId(sessionId: string): string {
+    return sessionId.trim();
+}
+
 function loadSessions(): Map<string, McpSession> {
     if (sessionCache) return sessionCache;
 
@@ -51,16 +55,17 @@ function saveSessions(): void {
 
 export function getOrCreateSession(sessionId: string): McpSession {
     const sessions = loadSessions();
-    const cached = sessions.get(sessionId);
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    const cached = sessions.get(normalizedSessionId);
     if (cached) return cached;
 
     const newSession: McpSession = { token: null, tenant: null };
-    sessions.set(sessionId, newSession);
+    sessions.set(normalizedSessionId, newSession);
     return newSession;
 }
 
 export function updateSession(sessionId: string, session: McpSession): void {
     const sessions = loadSessions();
-    sessions.set(sessionId, session);
+    sessions.set(normalizeSessionId(sessionId), session);
     saveSessions();
 }
