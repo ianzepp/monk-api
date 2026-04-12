@@ -27,6 +27,7 @@
 
 import { createAdapter } from '@src/lib/database/index.js';
 import type { DatabaseAdapter } from '@src/lib/database/adapter.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
 import type { SystemInit } from '@src/lib/system.js';
 
 // =============================================================================
@@ -229,7 +230,7 @@ export interface CreateCronOptions {
 async function getPublicAdapter(): Promise<DatabaseAdapter> {
     const adapter = createAdapter({
         dbType: 'postgresql',
-        db: process.env.MONK_PG_DATABASE || 'monk',
+        db: process.env.MONK_PG_DATABASE || DatabaseConnection.getMainDatabaseName(),
         ns: 'public',
     });
     await adapter.connect();
