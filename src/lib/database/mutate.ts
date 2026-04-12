@@ -23,6 +23,13 @@ function boundSelectAny(system: SystemContext): SelectAnyFn {
     return (modelName, filterData, options) => selectAny(system, modelName, filterData, options);
 }
 
+/**
+ * Escape SQL identifiers to avoid injection and preserve quoted names.
+ */
+function escapeIdentifier(identifier: string): string {
+    return `"${identifier.replace(/"/g, '""')}"`;
+}
+
 // ============================================================================
 // CREATE Operations
 // ============================================================================
@@ -238,6 +245,21 @@ export async function deleteIds<T extends Record<string, any> = Record<string, a
     if (ids.length === 0) return [];
     const deleteRecords = ids.map(id => ({ id }));
     return await deleteAll<T>(system, modelName, deleteRecords);
+}
+
+/**
+ * Hard-delete all records for a model.
+ *
+ * This bypasses soft-delete semantics and is intentionally narrow:
+ * it deletes all rows for the given model table directly.
+ */
+export async function hardDeleteAll(system: SystemContext, modelName: string): Promise<void> {
+    if (!system.adapter) {
+        throw new Error('Database adapter not initialized - ensure withTransaction() wrapper is used');
+    }
+
+    const tableName = escapeIdentifier(modelName);
+    await system.adapter.query(`DELETE FROM ${tableName}`);
 }
 
 /**

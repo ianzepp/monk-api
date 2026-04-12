@@ -88,6 +88,11 @@ export async function bodyParserMiddleware(context: Context, next: Next) {
         return await next();
     }
 
+    // Bulk import owns raw multipart/binary parsing so it can read SQLite files.
+    if (context.req.path === '/api/bulk/import') {
+        return await next();
+    }
+
     try {
         const contentType = context.req.header('content-type') || '';
         const arrayBuffer = await context.req.arrayBuffer();
@@ -95,6 +100,11 @@ export async function bodyParserMiddleware(context: Context, next: Next) {
 
         // Skip if empty body
         if (rawBody.length === 0) {
+            const parsedBody = {};
+            context.set('parsedBody', parsedBody);
+            context.req.json = async function() {
+                return parsedBody;
+            } as any;
             return await next();
         }
 

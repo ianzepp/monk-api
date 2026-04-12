@@ -116,7 +116,7 @@ export async function importAll(
 
         // Check which tables exist in the import file
         const tables = importDb.query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_%'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name != '_meta'"
         ).all() as { name: string }[];
         const tableSet = new Set(tables.map(t => t.name));
 
@@ -262,10 +262,7 @@ async function importData(
 
         // Handle replace strategy - delete all existing records first
         if (strategy === 'replace') {
-            const existing = await selectOps.selectAny(system, modelName, {});
-            if (existing.length > 0) {
-                await mutateOps.deleteIds(system, modelName, existing.map(r => r.id));
-            }
+            await mutateOps.hardDeleteAll(system, modelName);
         }
 
         // Read records from import file
