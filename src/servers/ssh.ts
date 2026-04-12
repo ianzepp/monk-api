@@ -10,11 +10,9 @@ import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { generateKeyPairSync } from 'crypto';
 import { PassThrough } from 'node:stream';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
-import { createSession, generateSessionId, unregisterSession } from '@src/lib/tty/types.js';
-import { handleInput, printPrompt, writeToStream, saveHistory, handleInterrupt } from '@src/lib/tty/session-handler.js';
-import { autoCoalesce } from '@src/lib/tty/memory.js';
+import { createSession, generateSessionId } from '@src/lib/tty/types.js';
+import { finalizeSession, handleInput, printPrompt, writeToStream, handleInterrupt } from '@src/lib/tty/session-handler.js';
 import { login } from '@src/lib/auth.js';
-import { terminateDaemon } from '@src/lib/process.js';
 
 /**
  * Resize callback type
@@ -149,6 +147,7 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
 
     const server = new Server({ hostKeys: [hostKey] }, (client: Connection) => {
         let session: Session | null = null;
+        let activeStream: SSHStream | null = null;
 
         client.on('authentication', async (ctx) => {
             // Parse username as user@tenant
@@ -227,9 +226,6 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
             client.on('session', (accept) => {
                 const sshSession = accept();
 
-                // Track stream for resize events
-                let activeStream: SSHStream | null = null;
-
                 sshSession.on('pty', (accept, _reject, info) => {
                     accept?.();
                     // Set initial size if stream exists
@@ -297,14 +293,6 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
                     channel.on('close', () => {
                         console.info(`SSH: Session ${session?.id} channel closed`);
                         activeStream = null;
-                        // Run cleanup handlers
-                        for (const cleanup of session!.cleanupHandlers) {
-                            try {
-                                cleanup();
-                            } catch {
-                                // Ignore cleanup errors
-                            }
-                        }
                     });
                 });
 
@@ -343,37 +331,7 @@ export function startSSHServer(config?: TTYConfig): SSHServerHandle {
         client.on('close', async () => {
             if (session) {
                 console.info(`SSH: Session ${session.id} closed`);
-
-                // Abort any running foreground command
-                if (session.foregroundAbort) {
-                    session.foregroundAbort.abort();
-                    session.foregroundAbort = null;
-                }
-
-                // Auto-coalesce STM (silent - no output on disconnect)
-                await autoCoalesce(session);
-
-                // Unregister from global session registry and terminate shell process
-                if (session.pid) {
-                    unregisterSession(session.pid);
-                    try {
-                        await terminateDaemon(session.pid, 0);
-                    } catch {
-                        // Ignore termination errors
-                    }
-                }
-
-                // Save command history
-                await saveHistory(session);
-
-                // Run cleanup handlers
-                for (const cleanup of session.cleanupHandlers) {
-                    try {
-                        cleanup();
-                    } catch {
-                        // Ignore cleanup errors
-                    }
-                }
+                await finalizeSession(session, activeStream ?? undefined);
             }
         });
     });

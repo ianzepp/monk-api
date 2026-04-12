@@ -9,10 +9,8 @@
 
 import type { Socket } from 'bun';
 import type { Session, TTYStream, TTYConfig } from '@src/lib/tty/types.js';
-import { createSession, generateSessionId, unregisterSession } from '@src/lib/tty/types.js';
-import { handleInput, sendWelcome, saveHistory, handleInterrupt } from '@src/lib/tty/session-handler.js';
-import { autoCoalesce } from '@src/lib/tty/memory.js';
-import { terminateDaemon } from '@src/lib/process.js';
+import { createSession, generateSessionId } from '@src/lib/tty/types.js';
+import { finalizeSession, handleInput, sendWelcome, handleInterrupt } from '@src/lib/tty/session-handler.js';
 import { PassThrough } from 'node:stream';
 
 /**
@@ -246,40 +244,7 @@ export function startTelnetServer(config?: TTYConfig): TelnetServerHandle {
             async close(socket) {
                 const { session, stream } = socket.data;
                 console.info(`Telnet: Session ${session.id} closed`);
-
-                // Abort any running foreground command
-                if (session.foregroundAbort) {
-                    session.foregroundAbort.abort();
-                    session.foregroundAbort = null;
-                }
-
-                // Auto-coalesce STM (silent - no output on disconnect)
-                await autoCoalesce(session);
-
-                // End the input stream
-                stream.input.end();
-
-                // Unregister from global session registry and terminate shell process
-                if (session.pid) {
-                    unregisterSession(session.pid);
-                    try {
-                        await terminateDaemon(session.pid, 0);
-                    } catch {
-                        // Ignore termination errors
-                    }
-                }
-
-                // Save command history
-                await saveHistory(session);
-
-                // Run cleanup handlers
-                for (const cleanup of session.cleanupHandlers) {
-                    try {
-                        cleanup();
-                    } catch {
-                        // Ignore cleanup errors
-                    }
-                }
+                await finalizeSession(session, stream);
             },
 
             error(socket, error) {

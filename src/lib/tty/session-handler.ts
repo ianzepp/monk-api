@@ -22,6 +22,9 @@ import { FSError } from '@src/lib/fs/index.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { processAIInput, saveAIContext, cleanupAIState, abortAIRequest } from './ai-mode.js';
 import { processShellInput } from './shell-mode.js';
+import { terminateDaemon } from '@src/lib/process.js';
+import { unregisterSession } from './types.js';
+import { autoCoalesce } from './memory.js';
 
 /**
  * Write text to stream with CRLF line endings (telnet convention)
@@ -32,6 +35,69 @@ export function writeToStream(stream: TTYStream, text: string): void {
 }
 
 import { TTY_CHARS } from './types.js';
+
+/** Track sessions already finalized during a transport close cycle. */
+const finalizedSessions = new WeakSet<Session>();
+
+/**
+ * Finalize a TTY session on transport close.
+ *
+ * Shared across Telnet/SSH to keep disconnect behavior consistent and avoid
+ * duplicate cleanup paths.
+ */
+export async function finalizeSession(session: Session, stream?: TTYStream): Promise<void> {
+    if (finalizedSessions.has(session)) return;
+    finalizedSessions.add(session);
+
+    const sessionLabel = `session ${session.id}`;
+
+    const safe = async (action: string, fn: () => Promise<void> | void): Promise<void> => {
+        try {
+            await fn();
+        } catch (error) {
+            console.error(`TTY: Failed to ${action} for ${sessionLabel}`, error);
+        }
+    };
+
+    await safe('abort foreground process', () => {
+        if (session.foregroundAbort) {
+            session.foregroundAbort.abort();
+            session.foregroundAbort = null;
+        }
+    });
+
+    await safe('auto-coalesce STM', async () => {
+        await autoCoalesce(session);
+    });
+
+    await safe('save AI context', async () => {
+        await saveAIContext(session);
+    });
+
+    await safe('save history', async () => {
+        await saveHistory(session);
+    });
+
+    await safe('cleanup AI state', () => {
+        cleanupAIState(session.id);
+    });
+
+    await safe('unregister and terminate process', async () => {
+        if (session.pid) {
+            unregisterSession(session.pid);
+            await terminateDaemon(session.pid, 0);
+        }
+    });
+
+    for (const cleanup of session.cleanupHandlers) {
+        await safe(`run cleanup handler "${cleanup.name || 'anonymous'}"`, cleanup);
+    }
+    session.cleanupHandlers = [];
+
+    await safe('close input stream', () => {
+        stream?.input.end();
+    });
+}
 
 /**
  * Handle CTRL+C (interrupt signal)
