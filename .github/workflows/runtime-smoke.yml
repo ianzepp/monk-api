@@ -1,0 +1,40 @@
+name: Runtime Smoke Check
+
+on:
+    pull_request:
+        branches: [main]
+    push:
+        branches: [main]
+
+jobs:
+    runtime-smoke:
+        runs-on: ubuntu-latest
+        name: bun runtime smoke
+
+        env:
+            NODE_ENV: test
+            PORT: "9001"
+            TEST_PORT: "9001"
+            TEST_API_URL: http://localhost:9001
+            TEST_DB_TYPES: sqlite
+            DATABASE_URL: sqlite:monk
+            SQLITE_DATA_DIR: .data
+            JWT_SECRET: ci-runtime-smoke-secret
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install dependencies
+              run: bun install
+
+            - name: Build application
+              run: bun run build
+
+            - name: Run runtime smoke tests
+              run: bun test --timeout 30000 spec/30-auth-api/login.test.ts
