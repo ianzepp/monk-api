@@ -7,7 +7,6 @@
 
 import type { Session } from './types.js';
 import type { SystemInit } from '@src/lib/system.js';
-import type { AgentEvent } from '@src/lib/ai.js';
 import { createSession, generateSessionId } from './types.js';
 import { runTransaction } from '@src/lib/transaction.js';
 import { applySessionMounts } from './profile.js';
@@ -300,56 +299,103 @@ export async function* executeAgentPromptStream(
     // Build system prompt
     const systemPrompt = await buildSystemPrompt(session);
 
-    // Track tool calls for pairing with results
-    const pendingToolCalls = new Map<string, { name: string; input: Record<string, unknown> }>();
+    const eventQueue: AgentStreamEvent[] = [];
+    const waiters: ((value: IteratorResult<AgentStreamEvent>) => void)[] = [];
+    let producerDone = false;
+    let producerError: unknown;
+
+    const flush = () => {
+        while (waiters.length > 0) {
+            const waiter = waiters.shift();
+            if (!waiter) {
+                continue;
+            }
+
+            if (eventQueue.length > 0) {
+                waiter({ done: false, value: eventQueue.shift() as AgentStreamEvent });
+            } else if (producerDone) {
+                waiter({ done: true, value: undefined });
+            } else {
+                // No events and still running -> keep waiting
+                waiters.unshift(waiter);
+                break;
+            }
+        }
+    };
+
+    const emit = (event: AgentStreamEvent): void => {
+        eventQueue.push(event);
+        flush();
+    };
+
+    const run = runTransaction(systemInit, async (system) => {
+        applySessionMounts(session, system.fs, system);
+
+        for await (const event of system.ai.agent(session, prompt, {
+            systemPrompt,
+            maxTurns: options?.maxTurns,
+        })) {
+            switch (event.type) {
+                case 'text':
+                    emit({ type: 'text', content: event.content });
+                    break;
+                case 'tool_call':
+                    emit({ type: 'tool_call', name: event.name, input: event.input });
+                    break;
+                case 'tool_result':
+                    emit({
+                        type: 'tool_result',
+                        name: event.name,
+                        output: event.output,
+                        exitCode: event.exitCode,
+                    });
+                    break;
+                case 'error':
+                    emit({ type: 'error', message: event.message });
+                    break;
+                case 'done':
+                    emit({ type: 'done', success: event.success });
+                    break;
+            }
+        }
+    }).catch((error: unknown) => {
+        producerError = error;
+    }).finally(() => {
+        producerDone = true;
+        flush();
+    });
 
     try {
-        // Use system.ai.agent() via transaction
-        // Note: We collect events inside the transaction and yield after
-        // because generators can't yield across async boundaries in some cases
-        const events: AgentStreamEvent[] = [];
-
-        await runTransaction(systemInit, async (system) => {
-            applySessionMounts(session, system.fs, system);
-
-            for await (const event of system.ai.agent(session, prompt, {
-                systemPrompt,
-                maxTurns: options?.maxTurns,
-            })) {
-                // Convert AgentEvent to AgentStreamEvent
-                switch (event.type) {
-                    case 'text':
-                        events.push({ type: 'text', content: event.content });
-                        break;
-                    case 'tool_call':
-                        pendingToolCalls.set(event.id, { name: event.name, input: event.input });
-                        events.push({ type: 'tool_call', name: event.name, input: event.input });
-                        break;
-                    case 'tool_result':
-                        events.push({
-                            type: 'tool_result',
-                            name: event.name,
-                            output: event.output,
-                            exitCode: event.exitCode,
-                        });
-                        break;
-                    case 'error':
-                        events.push({ type: 'error', message: event.message });
-                        break;
-                    case 'done':
-                        events.push({ type: 'done', success: event.success });
-                        break;
+        while (true) {
+            const value = await new Promise<IteratorResult<AgentStreamEvent>>((resolve) => {
+                if (eventQueue.length > 0) {
+                    resolve({ done: false, value: eventQueue.shift() as AgentStreamEvent });
+                    return;
                 }
-            }
-        });
 
-        // Yield collected events
-        for (const event of events) {
-            yield event;
+                if (producerDone) {
+                    resolve({ done: true, value: undefined });
+                    return;
+                }
+
+                waiters.push(resolve);
+            });
+
+            if (value.done) {
+                break;
+            }
+
+            yield value.value;
         }
-    } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        yield { type: 'error', message };
-        yield { type: 'done', success: false };
+
+        if (producerError) {
+            const message = producerError instanceof Error ? producerError.message : String(producerError);
+            yield { type: 'error', message };
+            yield { type: 'done', success: false };
+        }
+    } finally {
+        producerDone = true;
+        flush();
+        await run;
     }
 }
