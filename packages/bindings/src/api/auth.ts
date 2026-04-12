@@ -51,11 +51,22 @@ export class AuthAPI {
   }
 
   async whoami(): Promise<ApiResponse<WhoAmIResponse>> {
-    return this.client.get<WhoAmIResponse>('/api/auth/whoami');
+    return this.client.get<WhoAmIResponse>('/api/user/me');
   }
 
   async sudo(request?: SudoRequest): Promise<ApiResponse<SudoResponse>> {
-    return this.client.post<SudoResponse>('/api/auth/sudo', request || {});
+    const response = await this.client.post<SudoResponse>('/api/user/sudo', request || {});
+
+    const sudoToken =
+      (response as { data?: { sudo_token?: string; root_token?: string; token?: string } }).data?.sudo_token ??
+      (response as { data?: { root_token?: string; token?: string } }).data?.root_token ??
+      (response as { data?: { token?: string } }).data?.token;
+
+    if (response.success && sudoToken) {
+      this.client.setToken(sudoToken);
+    }
+
+    return response;
   }
 
   logout(): void {
