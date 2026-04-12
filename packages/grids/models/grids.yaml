@@ -23,4 +23,4 @@ fields:
   - field_name: col_max
     type: text
     default_value: "Z"
-    description: Maximum column letter allowed (A-Z)
+    description: Maximum column letter allowed (A-Z, single-letter columns only, Phase 1)

@@ -22,6 +22,7 @@ export interface ParsedRange {
     maxRow?: number;        // Highest row referenced (for validation)
 }
 
+const MAX_SUPPORTED_COLUMN = 'Z';
 /**
  * Parse Excel-style range notation into structured coordinates
  *
@@ -49,17 +50,43 @@ export function parseRange(rangeStr: string): ParsedRange {
     }
 }
 
+function parseSingleColumn(col: string): string {
+    if (!/^[A-Z]+$/.test(col)) {
+        throw new Error(`Invalid column: ${col}. Expected A-Z letters`);
+    }
+
+    if (col.length !== 1) {
+        throw new Error(
+            `Multi-letter columns are not supported. Expected a single letter A-Z (received ${col}).`
+        );
+    }
+
+    return col;
+}
+
+function columnToIndex(col: string): number {
+    const singleCol = parseSingleColumn(col);
+
+    if (singleCol > MAX_SUPPORTED_COLUMN) {
+        throw new Error(
+            `Column ${singleCol} exceeds the maximum supported column ${MAX_SUPPORTED_COLUMN}`
+        );
+    }
+
+    return singleCol.charCodeAt(0) - 64;
+}
+
 /**
  * Parse single cell notation (e.g., "A1", "Z100")
  */
 function parseSingleCell(cell: string): ParsedRange {
-    const match = cell.match(/^([A-Z])(\d+)$/);
+    const match = cell.match(/^([A-Z]+)(\d+)$/);
 
     if (!match) {
         throw new Error(`Invalid cell format: ${cell}. Expected format: A1, B5, Z100`);
     }
 
-    const col = match[1];
+    const col = parseSingleColumn(match[1]);
     const row = parseInt(match[2], 10);
 
     if (row <= 0) {
@@ -92,12 +119,12 @@ function parseRangeNotation(rangeStr: string): ParsedRange {
     }
 
     // Column range (e.g., "A:A", "B:Z")
-    if (/^[A-Z]$/.test(start) && /^[A-Z]$/.test(end)) {
+    if (/^[A-Z]+$/.test(start) && /^[A-Z]+$/.test(end)) {
         return parseColRange(start, end);
     }
 
     // Cell range (e.g., "A1:Z100")
-    if (/^[A-Z]\d+$/.test(start) && /^[A-Z]\d+$/.test(end)) {
+    if (/^[A-Z]+\d+$/.test(start) && /^[A-Z]+\d+$/.test(end)) {
         return parseCellRange(start, end);
     }
 
@@ -132,7 +159,10 @@ function parseRowRange(startStr: string, endStr: string): ParsedRange {
  * Parse column range (e.g., "A:A", "B:Z")
  */
 function parseColRange(startCol: string, endCol: string): ParsedRange {
-    if (startCol > endCol) {
+    const startColIndex = columnToIndex(startCol);
+    const endColIndex = columnToIndex(endCol);
+
+    if (startColIndex > endColIndex) {
         throw new Error(`Invalid range: start column ${startCol} is after end column ${endCol}`);
     }
 
@@ -148,8 +178,8 @@ function parseColRange(startCol: string, endCol: string): ParsedRange {
  * Parse cell range (e.g., "A1:Z100")
  */
 function parseCellRange(start: string, end: string): ParsedRange {
-    const startMatch = start.match(/^([A-Z])(\d+)$/);
-    const endMatch = end.match(/^([A-Z])(\d+)$/);
+    const startMatch = start.match(/^([A-Z]+)(\d+)$/);
+    const endMatch = end.match(/^([A-Z]+)(\d+)$/);
 
     if (!startMatch || !endMatch) {
         throw new Error(`Invalid cell range format: ${start}:${end}`);
@@ -168,7 +198,10 @@ function parseCellRange(start: string, end: string): ParsedRange {
         throw new Error(`Invalid range: start row ${startRow} is after end row ${endRow}`);
     }
 
-    if (startCol > endCol) {
+    const startColIndex = columnToIndex(startCol);
+    const endColIndex = columnToIndex(endCol);
+
+    if (startColIndex > endColIndex) {
         throw new Error(`Invalid range: start column ${startCol} is after end column ${endCol}`);
     }
 
@@ -197,8 +230,10 @@ export function validateRangeBounds(range: ParsedRange, rowMax: number, colMax: 
     }
 
     // Validate column bounds
+    const maxColIndex = columnToIndex(colMax);
     const checkCol = (col: string) => {
-        if (col > colMax) {
+        const colIndex = columnToIndex(col);
+        if (colIndex > maxColIndex) {
             throw new Error(`Column ${col} exceeds grid limit ${colMax}`);
         }
     };
@@ -220,15 +255,18 @@ export function isCellInRange(cell: { row: number; col: string }, range: ParsedR
             return (
                 cell.row >= range.startRow! &&
                 cell.row <= range.endRow! &&
-                cell.col >= range.startCol! &&
-                cell.col <= range.endCol!
+                columnToIndex(cell.col) >= columnToIndex(range.startCol!) &&
+                columnToIndex(cell.col) <= columnToIndex(range.endCol!)
             );
 
         case 'row':
             return cell.row >= range.startRow! && cell.row <= range.endRow!;
 
         case 'col':
-            return cell.col >= range.startCol! && cell.col <= range.endCol!;
+            return (
+                columnToIndex(cell.col) >= columnToIndex(range.startCol!) &&
+                columnToIndex(cell.col) <= columnToIndex(range.endCol!)
+            );
 
         default:
             return false;
