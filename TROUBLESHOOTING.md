@@ -19,13 +19,13 @@ Follow this systematic approach to identify issues:
 
 ```bash
 # Test PostgreSQL directly
-psql -d monk -c "SELECT current_user;"
+psql postgresql://monk:monk@127.0.0.1:55432/monk -c "SELECT current_user;"
 
 # Test HTTP API (if running)
 curl http://localhost:9001/health
 
 # Test compilation
-npm run build
+bun run build
 ```
 
 ### 2. Identify Issue Type
@@ -52,6 +52,26 @@ echo $NODE_ENV        # development/production/test
 ```
 
 ## PostgreSQL Issues
+
+### Local Docker PostgreSQL
+
+The tracked Docker setup is for local development only. It starts PostgreSQL on host port 55432 so it does not conflict with a system PostgreSQL install.
+
+```bash
+bun run db:local:up
+export DATABASE_URL=postgresql://monk:monk@127.0.0.1:55432/monk
+bun run build
+bun dist/index.js --no-startup
+```
+
+Reset local data:
+
+```bash
+bun run db:local:reset
+bun dist/index.js --no-startup
+```
+
+Railway deployments should use Railway's managed `DATABASE_URL` instead.
 
 ### SCRAM Authentication Error
 

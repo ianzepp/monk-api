@@ -2,6 +2,10 @@ import pg from 'pg';
 
 const { Pool, Client } = pg;
 
+// PostgreSQL TIMESTAMP values are generated in UTC by the local and hosted
+// databases; node-postgres otherwise parses oid 1114 as local time.
+pg.types.setTypeParser(1114, (value: string) => new Date(`${value}Z`));
+
 /** Transaction context type - a connected pool client */
 export type TxContext = pg.PoolClient;
 

@@ -463,6 +463,13 @@ These variables are set by test helpers:
 | `NODE_ENV` | Environment mode | `test` |
 | `DATABASE_URL` | PostgreSQL connection | From `.env` |
 
+For local development, `compose.local.yml` starts PostgreSQL on port 55432:
+
+```bash
+bun run db:local:up
+DATABASE_URL=postgresql://monk:monk@127.0.0.1:55432/monk bun dist/index.js --no-startup
+```
+
 ## Helper Libraries
 
 ### Core Helpers
@@ -497,13 +504,13 @@ npm run start:bg                # Start fresh server
 #### Database connection issues
 ```bash
 # Test main database
-psql -d monk -c "SELECT 1;"
+psql postgresql://monk:monk@127.0.0.1:55432/monk -c "SELECT 1;"
 
 # Rebuild templates
 npm run fixtures:build testing
 
 # Check PostgreSQL is running
-pg_isready
+pg_isready -h 127.0.0.1 -p 55432 -U monk
 ```
 
 #### Test database pollution

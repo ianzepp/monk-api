@@ -22,6 +22,7 @@ This document provides detailed architecture, development workflows, and technic
 - **Node.js 18+** and npm
 - **PostgreSQL 12+** server running and accessible
 - **jq** (for JSON processing in CLI and tests)
+- **Docker** (optional, for the local development PostgreSQL service)
 
 ### Fresh Environment Setup
 
@@ -37,8 +38,12 @@ bun install --frozen-lockfile
 cp .env.example .env
 # Edit .env with DATABASE_URL, PORT, NODE_ENV, and JWT_SECRET
 
+# Optional local-only PostgreSQL service
+bun run db:local:up
+
 # 4. Build and start development server
 bun run build
+bun dist/index.js --no-startup
 bun run start:dev
 
 # 5. Verify installation
@@ -46,6 +51,7 @@ bun run test:ts
 ```
 
 No automated install script is currently tracked in this checkout. Configure the PostgreSQL database manually or use SQLite mode by leaving `DATABASE_URL` unset at runtime.
+For local PostgreSQL without installing a database server, use `compose.local.yml`; Railway should provide `DATABASE_URL` directly in deployed environments.
 
 ### Essential Commands
 
@@ -58,6 +64,11 @@ bun run build                           # TypeScript compilation
 bun run test:ts                         # TypeScript tests
 bun run test:sh                         # Shell integration tests
 bun run test:cleanup                    # Clean test databases
+
+# Local database
+bun run db:local:up                     # Start local PostgreSQL on port 55432
+bun run db:local:down                   # Stop local PostgreSQL
+bun run db:local:reset                  # Recreate local PostgreSQL data volume
 
 # Fixtures
 bun run fixtures:build testing          # Build test template

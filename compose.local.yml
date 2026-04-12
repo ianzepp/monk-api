@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: monk-api-pg
+    ports:
+      - "55432:5432"
+    environment:
+      POSTGRES_USER: monk
+      POSTGRES_PASSWORD: monk
+      POSTGRES_DB: monk
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monk -d monk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - monk-api-pg-data:/var/lib/postgresql/data
+
+volumes:
+  monk-api-pg-data:

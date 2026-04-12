@@ -27,7 +27,13 @@ export default class SqlUpdateObserver extends BaseObserver {
             throw new SystemError('Update record must have id field');
         }
 
-        const { id, ...updateFields } = plainRecord;
+        const { id } = plainRecord;
+        const updateFields = Object.fromEntries(
+            record
+                .diff()
+                .filter(field => field !== 'id')
+                .map(field => [field, record.new(field)])
+        );
 
         // Process UUID arrays for PostgreSQL compatibility
         let processedFields = SqlUtils.processUuidArrays(updateFields);

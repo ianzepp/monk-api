@@ -103,9 +103,9 @@ describe('GET /auth/tenants - List Available Tenants', () => {
                 const client = new HttpClient(TEST_CONFIG.API_URL);
                 client.setAuthToken(tenant.token);
 
-                const response = await client.get('/auth/tenants');
+                const response = await client.request('/auth/tenants', { method: 'GET' });
 
-                expect(response.statusCode).toBe(403);
+                expect(response.status).toBe(403);
             });
 
             it('should reject even without authentication', async () => {

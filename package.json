@@ -24,6 +24,9 @@
         "test:unit": "bun test --timeout 5000 ./spec/**/*.unit.ts",
         "test:cleanup": "scripts/test-cleanup.sh",
         "fixtures:build": "scripts/fixtures-build.sh",
+        "db:local:up": "docker compose -f compose.local.yml up -d",
+        "db:local:down": "docker compose -f compose.local.yml down",
+        "db:local:reset": "docker compose -f compose.local.yml down -v && docker compose -f compose.local.yml up -d",
         "build:standalone": "scripts/build-standalone.sh"
     },
     "keywords": [

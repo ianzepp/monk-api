@@ -129,6 +129,37 @@ Four ACL arrays per record:
 
 ---
 
+## Local Development Database
+
+Use Docker only for the local PostgreSQL dependency. Railway deployment should use Railway's managed `DATABASE_URL`, not this compose file.
+
+```bash
+bun run db:local:up
+```
+
+Create `.env` for local development:
+
+```bash
+DATABASE_URL=postgresql://monk:monk@127.0.0.1:55432/monk
+PORT=9001
+NODE_ENV=development
+JWT_SECRET=test
+```
+
+Initialize the database after building:
+
+```bash
+bun run build
+bun dist/index.js --no-startup
+```
+
+Reset the local database when you need a clean checkout state:
+
+```bash
+bun run db:local:reset
+bun dist/index.js --no-startup
+```
+
 ## Installation
 
 **Prerequisites:** Bun 1.0+, PostgreSQL 12+ (or SQLite for standalone)
