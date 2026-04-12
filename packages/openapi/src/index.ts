@@ -52,13 +52,25 @@ interface OpenAPISpec {
 /**
  * Map Monk field types to OpenAPI types
  */
-function mapFieldType(type: string): { type: string; format?: string } {
+type OpenAPISchema = {
+    type: string;
+    format?: string;
+    description?: string;
+    items?: OpenAPISchema;
+    additionalProperties?: boolean;
+    deprecated?: boolean;
+    [key: string]: unknown;
+};
+
+function mapKnownScalarFieldType(type: string): OpenAPISchema | null {
     switch (type) {
         case 'text':
             return { type: 'string' };
         case 'integer':
-            return { type: 'integer' };
+        case 'bigserial':
+            return { type: 'integer', format: 'int32' };
         case 'decimal':
+        case 'numeric':
             return { type: 'number', format: 'double' };
         case 'boolean':
             return { type: 'boolean' };
@@ -69,10 +81,53 @@ function mapFieldType(type: string): { type: string; format?: string } {
         case 'uuid':
             return { type: 'string', format: 'uuid' };
         case 'json':
-            return { type: 'object' };
+        case 'jsonb':
+            return { type: 'object', additionalProperties: true };
+        case 'binary':
+            return { type: 'string', format: 'byte' };
         default:
-            return { type: 'string' };
+            return null;
     }
+}
+
+function mapFieldType(type: string): OpenAPISchema {
+    const normalizedType = (type || '').trim().toLowerCase();
+    const isArray = normalizedType.endsWith('[]');
+
+    if (isArray) {
+        const baseType = normalizedType.slice(0, -2);
+        const itemSchema = mapKnownScalarFieldType(baseType);
+
+        if (!itemSchema) {
+            return {
+                type: 'array',
+                items: {
+                    type: 'string',
+                    description: `Unsupported array item type '${baseType}'`,
+                },
+                description: `Unsupported Monk field type '${normalizedType}'`,
+                deprecated: true,
+                'x-monk-unsupported-type': normalizedType,
+            };
+        }
+
+        return {
+            type: 'array',
+            items: itemSchema,
+        };
+    }
+
+    const scalarSchema = mapKnownScalarFieldType(normalizedType);
+    if (scalarSchema) {
+        return scalarSchema;
+    }
+
+    return {
+        type: 'string',
+        description: `Unsupported Monk field type '${normalizedType}'`,
+        deprecated: true,
+        'x-monk-unsupported-type': normalizedType,
+    };
 }
 
 /**
