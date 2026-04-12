@@ -79,8 +79,10 @@ export default function (context: Context) {
                     '/api/trashed/:model/:id'
                 ],
                 grids: [
-                    '/api/grids/:id/:range',
-                    '/api/grids/:id/cells'
+                    '/app/grids/:id/:range',
+                    '/app/grids/:id/cells',
+                    '/api/data/grids',
+                    '/api/data/grid_cells'
                 ]
             }
         }
