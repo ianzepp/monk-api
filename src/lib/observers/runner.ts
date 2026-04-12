@@ -280,8 +280,10 @@ export class ObserverRunner {
             }
         }
 
-        // Check for errors after each pre-database ring
-        if (context.errors.length > 0 && ring < 5) {
+        // Stop executing later rings when an earlier ring reported errors.
+        // This prevents post-database side-effects from running after rollback-worthy
+        // or validation failures in ring 0-5.
+        if (context.errors.length > 0) {
             return false; // Stop execution for this record
         }
 
