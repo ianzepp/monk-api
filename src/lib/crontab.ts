@@ -45,6 +45,20 @@ function range(start: number, end: number, step = 1): number[] {
     return result;
 }
 
+function parseCronNumber(value: string, min: number, max: number): number {
+    const trimmed = value.trim();
+    if (!/^-?\d+$/.test(trimmed)) {
+        throw new Error(`Invalid cron value: ${value}`);
+    }
+
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+        throw new Error(`Cron value ${value} outside of allowed range ${min}-${max}`);
+    }
+
+    return parsed;
+}
+
 /**
  * Parse a single cron field into matching values
  *
@@ -59,29 +73,61 @@ function range(start: number, end: number, step = 1): number[] {
 function parseCronField(field: string, min: number, max: number): number[] {
     const values = new Set<number>();
 
-    for (const part of field.split(',')) {
+    const parts = field.split(',').map(part => part.trim());
+    if (parts.some(part => !part)) {
+        throw new Error(`Invalid cron field: ${field}`);
+    }
+
+    for (const part of parts) {
         if (part === '*') {
             range(min, max).forEach(v => values.add(v));
         } else if (part.includes('/')) {
-            const [rangeStr, stepStr] = part.split('/');
-            const step = parseInt(stepStr, 10);
+            const [rangeStr, stepStr, ...rest] = part.split('/');
+            if (rest.length > 0) {
+                throw new Error(`Invalid cron part: ${part}`);
+            }
+
+            const step = parseCronNumber(stepStr, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+            if (step <= 0) {
+                throw new Error(`Cron step must be greater than 0: ${step}`);
+            }
+
             let start = min;
             let end = max;
 
             if (rangeStr !== '*') {
                 if (rangeStr.includes('-')) {
-                    [start, end] = rangeStr.split('-').map(n => parseInt(n, 10));
+                    const [startStr, endStr, ...rangeRest] = rangeStr.split('-');
+                    if (rangeRest.length > 0) {
+                        throw new Error(`Invalid cron range: ${rangeStr}`);
+                    }
+
+                    start = parseCronNumber(startStr, min, max);
+                    end = parseCronNumber(endStr, min, max);
+                    if (start > end) {
+                        throw new Error(`Cron range start must be <= end: ${rangeStr}`);
+                    }
                 } else {
-                    start = parseInt(rangeStr, 10);
+                    start = parseCronNumber(rangeStr, min, max);
+                    end = start;
                 }
             }
 
             range(start, end, step).forEach(v => values.add(v));
         } else if (part.includes('-')) {
-            const [start, end] = part.split('-').map(n => parseInt(n, 10));
+            const [startStr, endStr, ...rangeRest] = part.split('-');
+            if (rangeRest.length > 0) {
+                throw new Error(`Invalid cron range: ${part}`);
+            }
+
+            const start = parseCronNumber(startStr, min, max);
+            const end = parseCronNumber(endStr, min, max);
+            if (start > end) {
+                throw new Error(`Cron range start must be <= end: ${part}`);
+            }
             range(start, end).forEach(v => values.add(v));
         } else {
-            values.add(parseInt(part, 10));
+            values.add(parseCronNumber(part, min, max));
         }
     }
 
@@ -185,7 +231,7 @@ function getNextRun(expr: string, from: Date = new Date()): Date {
 /**
  * Validate a cron expression
  */
-function isValidCron(expr: string): boolean {
+export function isValidCron(expr: string): boolean {
     try {
         parseCron(expr);
         return true;
