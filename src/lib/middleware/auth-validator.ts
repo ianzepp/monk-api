@@ -261,7 +261,7 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
             user = result.user;
         } else {
             // JWT auth - validate signature, then validate user
-            payload = await verify(token, getJwtSecret()) as JWTPayload;
+            payload = await verify(token, getJwtSecret(), 'HS256') as JWTPayload;
 
             const dbType = (payload.db_type || 'postgresql') as DatabaseType;
             const dbName = payload.db;

@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@monk/common": "workspace:*",
-    "cbor-x": "^1.6.0"
+        "cbor-x": "^1.6.4"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+        "typescript": "^5.9.3"
   },
   "license": "MIT"
 }

@@ -185,7 +185,7 @@ export async function jwtValidatorMiddleware(context: Context, next: Next) {
             payload = await authenticateApiKey(token, tenantHeader);
         } else {
             // JWT authentication
-            payload = await verify(token, getJwtSecret()) as JWTPayload;
+            payload = await verify(token, getJwtSecret(), 'HS256') as JWTPayload;
         }
 
         // Store JWT payload for middleware that needs raw payload access

@@ -8,6 +8,8 @@
 import { sign, verify } from 'hono/jwt';
 import type { SystemInit } from './system.js';
 
+const JWT_ALGORITHM = 'HS256' as const;
+
 /**
  * JWT Payload structure for all Monk API tokens
  */
@@ -118,7 +120,7 @@ export class JWTGenerator {
             exp: now + expiry,
         };
 
-        return await sign(payload, this.getJwtSecret());
+        return await sign(payload, this.getJwtSecret(), JWT_ALGORITHM);
     }
 
     /**
@@ -159,7 +161,7 @@ export class JWTGenerator {
             elevation_reason: options.reason || 'Administrative operation',
         };
 
-        return await sign(payload, this.getJwtSecret());
+        return await sign(payload, this.getJwtSecret(), JWT_ALGORITHM);
     }
 
     /**
@@ -204,7 +206,7 @@ export class JWTGenerator {
             faked_at: new Date().toISOString(),
         };
 
-        return await sign(payload, this.getJwtSecret());
+        return await sign(payload, this.getJwtSecret(), JWT_ALGORITHM);
     }
 
     /**
@@ -319,7 +321,7 @@ export class JWTGenerator {
      * @throws Error if token is invalid or expired
      */
     static async verifyToken(token: string): Promise<JWTPayload> {
-        return (await verify(token, this.getJwtSecret())) as JWTPayload;
+        return (await verify(token, this.getJwtSecret(), JWT_ALGORITHM)) as JWTPayload;
     }
 
     /**

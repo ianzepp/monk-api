@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 /**
  * POST /api/user/sudo - Elevate user privileges to sudo level
@@ -14,8 +15,20 @@ import { JWTGenerator } from '@src/lib/jwt-generator.js';
  * - edit/read/deny: Cannot request sudo tokens
  */
 export default async function (context: Context) {
-    const userJwt = context.get('jwtPayload');
-    const user = context.get('user');
+    const userJwt = context.get('jwtPayload') as JWTPayload | undefined;
+    const user = context.get('user') as
+        | {
+              id: string;
+              username: string;
+              tenant: string;
+              access: string;
+              dbName?: string;
+              nsName?: string;
+              access_read?: string[];
+              access_edit?: string[];
+              access_full?: string[];
+          }
+        | undefined;
 
     if (!userJwt || !user) {
         throw HttpErrors.unauthorized('Authorization token required', 'AUTH_TOKEN_REQUIRED');

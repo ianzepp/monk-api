@@ -8,7 +8,7 @@
 
 import type { Context, Next } from 'hono';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
-import { createAdapterFrom } from '@src/lib/database/index.js';
+import { createAdapterFrom, type DatabaseType } from '@src/lib/database/index.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import type { SystemInit } from '@src/lib/system.js';
@@ -21,11 +21,11 @@ import type { SystemInit } from '@src/lib/system.js';
  */
 export async function userValidatorMiddleware(context: Context, next: Next) {
     // Get JWT context values (set by jwtValidatorMiddleware)
-    const tenant = context.get('tenant');
-    const dbType = context.get('dbType') || 'postgresql';
-    const dbName = context.get('dbName');
-    const nsName = context.get('nsName');
-    const jwtPayload = context.get('jwtPayload');
+    const tenant = context.get('tenant') as string | undefined;
+    const dbType = ((context.get('dbType') as DatabaseType | undefined) || 'postgresql') as DatabaseType;
+    const dbName = context.get('dbName') as string | undefined;
+    const nsName = context.get('nsName') as string | undefined;
+    const jwtPayload = context.get('jwtPayload') as JWTPayload | undefined;
     const userId = jwtPayload?.user_id;
 
     if (!tenant || !dbName || !nsName || !userId) {

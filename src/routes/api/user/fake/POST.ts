@@ -2,6 +2,7 @@ import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
+import type { JWTPayload } from '@src/lib/jwt-generator.js';
 
 /**
  * POST /api/user/fake - Impersonate another user (root only)
@@ -28,8 +29,8 @@ import { DatabaseConnection } from '@src/lib/database-connection.js';
  * - AUTH_TARGET_USER_NOT_FOUND: Target user does not exist (404)
  */
 export default async function (context: Context) {
-    const currentUser = context.get('user');
-    const currentJwt = context.get('jwtPayload');
+    const currentUser = context.get('user') as { id: string; name: string; access: string } | undefined;
+    const currentJwt = context.get('jwtPayload') as JWTPayload | undefined;
 
     if (!currentUser || !currentJwt) {
         throw HttpErrors.unauthorized('Authorization token required', 'AUTH_TOKEN_REQUIRED');
@@ -54,8 +55,8 @@ export default async function (context: Context) {
         );
     }
 
-    const dbName = context.get('dbName');
-    const nsName = context.get('nsName');
+    const dbName = context.get('dbName') as string | undefined;
+    const nsName = context.get('nsName') as string | undefined;
 
     if (!dbName || !nsName) {
         throw HttpErrors.unauthorized('Invalid authentication context', 'AUTH_TOKEN_INVALID');

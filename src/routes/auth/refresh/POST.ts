@@ -32,7 +32,7 @@ export default async function (context: Context) {
 
     // Verify and decode the token
     try {
-        payload = (await verify(token, process.env.JWT_SECRET!)) as JWTPayload;
+        payload = (await verify(token, process.env.JWT_SECRET!, 'HS256')) as JWTPayload;
     } catch (error: any) {
         const errorMessage = String(error?.message ?? '').toLowerCase();
         if (error?.name === 'JwtTokenExpired' || errorMessage.includes('expired')) {

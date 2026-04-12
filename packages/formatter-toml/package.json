@@ -14,7 +14,7 @@
     "@iarna/toml": "^2.2.5"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+        "typescript": "^5.9.3"
   },
   "license": "MIT"
 }
