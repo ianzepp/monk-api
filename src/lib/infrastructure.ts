@@ -14,16 +14,15 @@
  *   const result = await Infrastructure.createTenant({ name: 'newco' });
  */
 
-import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import type { DatabaseAdapter, DatabaseType } from './database/adapter.js';
 
-// SQL schemas embedded at build time
 import INFRA_SCHEMA_POSTGRESQL from './sql/monk.pg.sql' with { type: 'text' };
 import INFRA_SCHEMA_SQLITE from './sql/monk.sqlite.sql' with { type: 'text' };
 import TENANT_SCHEMA_POSTGRESQL from './sql/tenant.pg.sql' with { type: 'text' };
 import TENANT_SCHEMA_SQLITE from './sql/tenant.sqlite.sql' with { type: 'text' };
+import { randomUUID } from 'crypto';
 
 /**
  * Well-known UUID for root user in every tenant.
@@ -31,6 +30,8 @@ import TENANT_SCHEMA_SQLITE from './sql/tenant.sqlite.sql' with { type: 'text' }
  * Exported for use in tests and other modules that need to reference root user.
  */
 export const ROOT_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+const MAX_TENANT_CREATE_ATTEMPTS = 4;
 
 // SQLite seed with static values only - no user input interpolation
 // Root user customization happens via parameterized UPDATE after seed
@@ -145,25 +146,16 @@ INSERT OR IGNORE INTO "users" (id, name, auth, access) VALUES
     ('${ROOT_USER_ID}', 'Root User', 'root', 'root');
 `;
 
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
-
 export interface InfraConfig {
     dbType: DatabaseType;
-    database: string;  // 'monk' for both PG and SQLite
-    schema: string;    // 'public' for infra
+    database: string;
+    schema: string;
 }
 
 let cachedConfig: InfraConfig | null = null;
 
 /**
- * Parse DATABASE_URL and determine infrastructure configuration
- *
- * DATABASE_URL formats:
- *   postgresql://user:pass@host:port/dbname  → PostgreSQL mode
- *   sqlite:monk                               → SQLite mode
- *   (absent)                                  → SQLite mode (default)
+ * Parse DATABASE_URL and determine infrastructure configuration.
  */
 export function parseInfraConfig(): InfraConfig {
     if (cachedConfig) {
@@ -171,37 +163,16 @@ export function parseInfraConfig(): InfraConfig {
     }
 
     const databaseUrl = process.env.DATABASE_URL || '';
-
     if (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')) {
-        // PostgreSQL mode - extract database name from URL
         const url = new URL(databaseUrl);
         const database = url.pathname.slice(1) || 'monk';
-
-        cachedConfig = {
-            dbType: 'postgresql',
-            database,
-            schema: 'public',
-        };
+        cachedConfig = { dbType: 'postgresql', database, schema: 'public' };
     } else {
-        // SQLite mode (default)
-        // DATABASE_URL=sqlite:monk or absent → database='monk'
-        const database = databaseUrl.startsWith('sqlite:')
-            ? databaseUrl.slice(7) || 'monk'
-            : 'monk';
-
-        cachedConfig = {
-            dbType: 'sqlite',
-            database,
-            schema: 'public',
-        };
+        const database = databaseUrl.startsWith('sqlite:') ? databaseUrl.slice(7) || 'monk' : 'monk';
+        cachedConfig = { dbType: 'sqlite', database, schema: 'public' };
     }
-
     return cachedConfig;
 }
-
-// =============================================================================
-// TENANT RECORD TYPE
-// =============================================================================
 
 export interface TenantRecord {
     id: string;
@@ -227,20 +198,9 @@ export interface CreateTenantResult {
     user: UserRecord;
 }
 
-// =============================================================================
-// INFRASTRUCTURE CLASS
-// =============================================================================
-
 export class Infrastructure {
     private static infraAdapter: DatabaseAdapter | null = null;
 
-    /**
-     * Get or create the infrastructure database adapter
-     *
-     * This is a singleton that connects to the infrastructure database
-     * (tenants registry). For SQLite, this is .data/monk/public.db.
-     * For PostgreSQL, this is the public schema in the monk database.
-     */
     static async getAdapter(): Promise<DatabaseAdapter> {
         if (this.infraAdapter) {
             return this.infraAdapter;
@@ -248,8 +208,6 @@ export class Infrastructure {
 
         const config = parseInfraConfig();
         const { createAdapterFrom } = await import('./database/index.js');
-
-        // Ensure data directory exists for SQLite
         if (config.dbType === 'sqlite') {
             const dataDir = process.env.SQLITE_DATA_DIR || '.data';
             const dbDir = join(dataDir, config.database);
@@ -257,56 +215,35 @@ export class Infrastructure {
                 mkdirSync(dbDir, { recursive: true });
             }
         }
-
         this.infraAdapter = createAdapterFrom(config.dbType, config.database, config.schema);
         return this.infraAdapter;
     }
 
-    /**
-     * Initialize infrastructure tables
-     *
-     * Idempotent - safe to call multiple times.
-     * Creates tenants and tenant_fixtures tables if they don't exist.
-     */
     static async initialize(): Promise<void> {
         const config = parseInfraConfig();
         const adapter = await this.getAdapter();
-
-        console.info('Initializing infrastructure', { dbType: config.dbType, database: config.database });
-
         await adapter.connect();
-
         try {
             const schema = config.dbType === 'sqlite' ? INFRA_SCHEMA_SQLITE : INFRA_SCHEMA_POSTGRESQL;
-
             if (config.dbType === 'sqlite') {
-                // SQLite: execute via raw connection (handles multiple statements)
                 const db = adapter.getRawConnection() as { exec: (sql: string) => void };
                 db.exec(schema);
             } else {
-                // PostgreSQL: execute as single query
                 await adapter.query(schema);
             }
-
-            console.info('Infrastructure ready');
         } finally {
             await adapter.disconnect();
         }
     }
 
-    /**
-     * Check if infrastructure is initialized
-     */
     static async isInitialized(): Promise<boolean> {
         const adapter = await this.getAdapter();
         await adapter.connect();
-
         try {
             const config = parseInfraConfig();
             const sql = config.dbType === 'sqlite'
                 ? `SELECT name FROM sqlite_master WHERE type='table' AND name='tenants'`
                 : `SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='tenants'`;
-
             const result = await adapter.query<{ name?: string; table_name?: string }>(sql);
             return result.rows.length > 0;
         } catch {
@@ -316,13 +253,9 @@ export class Infrastructure {
         }
     }
 
-    /**
-     * Get tenant by name
-     */
     static async getTenant(tenantName: string): Promise<TenantRecord | null> {
         const adapter = await this.getAdapter();
         await adapter.connect();
-
         try {
             const result = await adapter.query<TenantRecord>(
                 `SELECT id, name, db_type, database, schema, owner_id, is_active, created_at, updated_at
@@ -330,31 +263,16 @@ export class Infrastructure {
                  WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL`,
                 [tenantName]
             );
-
             if (result.rows.length === 0) {
                 return null;
             }
-
             const row = result.rows[0];
-            return {
-                ...row,
-                is_active: Boolean(row.is_active),
-            };
+            return { ...row, is_active: Boolean(row.is_active) };
         } finally {
             await adapter.disconnect();
         }
     }
 
-    /**
-     * Create a new tenant with full provisioning
-     *
-     * This method:
-     * 1. Creates the tenant database/schema
-     * 2. Deploys core tables (models, fields, users, filters)
-     * 3. Seeds model/field metadata
-     * 4. Creates root user
-     * 5. Registers tenant in infrastructure database
-     */
     static async createTenant(options: {
         name: string;
         db_type?: DatabaseType;
@@ -364,117 +282,206 @@ export class Infrastructure {
         const config = parseInfraConfig();
         const dbType = options.db_type || config.dbType;
         const ownerUsername = options.owner_username || 'root';
-
-        // Validate tenant name
         const tenantName = options.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
         if (!tenantName || tenantName.length < 2) {
             throw new Error('Tenant name must be at least 2 characters');
         }
 
-        // Generate tenant ID (root user uses well-known ROOT_USER_ID)
-        const tenantId = randomUUID();
-        const schemaName = `ns_tenant_${tenantName}`;
-        const database = config.database;  // Always 'monk'
+        const params = {
+            dbType,
+            tenantName,
+            ownerUsername,
+            ownerUserId: ownerUsername === 'root' ? ROOT_USER_ID : randomUUID(),
+            schemaName: `ns_tenant_${tenantName}`,
+            database: config.database,
+            description: options.description || null,
+        };
 
-        console.info('Creating tenant', { name: tenantName, dbType, schema: schemaName });
-
-        // Check if tenant already exists
-        const existing = await this.getTenant(tenantName);
-        if (existing) {
-            throw new Error(`Tenant '${tenantName}' already exists`);
+        let attempt = 0;
+        let lastError: unknown;
+        while (attempt < (dbType === 'sqlite' ? MAX_TENANT_CREATE_ATTEMPTS : 1)) {
+            attempt += 1;
+            try {
+                return await this.createTenantTransactional(params);
+            } catch (error) {
+                lastError = error;
+                if (this.shouldRetryTenantCreate(error, dbType)) {
+                    await new Promise(resolve => setTimeout(resolve, 40 * attempt));
+                    continue;
+                }
+                throw error;
+            }
         }
 
-        // Step 1: Create tenant database/schema
-        await this.provisionTenantDatabase(dbType, database, schemaName);
+        throw lastError ?? new Error('Unable to create tenant');
+    }
 
-        // Step 2: Deploy tenant schema and seed data (returns owner user ID)
-        const ownerUserId = await this.deployTenantSchema(dbType, database, schemaName, ownerUsername);
+    private static shouldRetryTenantCreate(error: unknown, dbType: DatabaseType): boolean {
+        if (dbType !== 'sqlite' || !error) return false;
+        const message = String((error as Error).message ?? error).toLowerCase();
+        const code = String((error as { code?: string }).code ?? '').toLowerCase();
+        return code === 'sqlite_busy'
+            || code === 'sqlite_locked'
+            || message.includes('database is locked')
+            || message.includes('database is busy');
+    }
 
-        // Step 3: Register tenant in infrastructure
-        const infraAdapter = await this.getAdapter();
+    private static async createTenantTransactional(params: {
+        dbType: DatabaseType;
+        tenantName: string;
+        ownerUsername: string;
+        ownerUserId: string;
+        schemaName: string;
+        database: string;
+        description: string | null;
+    }): Promise<CreateTenantResult> {
+        const { createAdapterFrom } = await import('./database/index.js');
+        const infraAdapter = createAdapterFrom(params.dbType, params.database, 'public');
+        const tenantId = randomUUID();
+        let registered = false;
+        let provisioned = false;
+
         await infraAdapter.connect();
-
         try {
+            if (params.dbType === 'sqlite') {
+                await infraAdapter.query('PRAGMA busy_timeout = 5000');
+                await infraAdapter.query('BEGIN IMMEDIATE');
+            } else {
+                await infraAdapter.beginTransaction();
+            }
+
             const timestamp = new Date().toISOString();
+            try {
+                await infraAdapter.query(
+                    `INSERT INTO tenants (id, name, db_type, database, schema, owner_id, is_active, description, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                    [
+                        tenantId,
+                        params.tenantName,
+                        params.dbType,
+                        params.database,
+                        params.schemaName,
+                        params.ownerUserId,
+                        false,
+                        params.description,
+                        timestamp,
+                        timestamp,
+                    ]
+                );
+                registered = true;
+            } catch (error) {
+                if (this.isTenantDuplicateError(error)) {
+                    throw new Error(`Tenant '${params.tenantName}' already exists`);
+                }
+                throw error;
+            }
+
+            await this.provisionTenantDatabase(params.dbType, params.database, params.schemaName);
+            provisioned = true;
+            const deployedOwnerUserId = await this.deployTenantSchema(
+                params.dbType,
+                params.database,
+                params.schemaName,
+                params.ownerUsername
+            );
 
             await infraAdapter.query(
-                `INSERT INTO tenants (id, name, db_type, database, schema, owner_id, description, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                [
-                    tenantId,
-                    tenantName,
-                    dbType,
-                    database,
-                    schemaName,
-                    ownerUserId,
-                    options.description || null,
-                    timestamp,
-                    timestamp,
-                ]
+                `UPDATE tenants
+                 SET is_active = true,
+                     owner_id = $1,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $2`,
+                [deployedOwnerUserId, tenantId]
             );
+
+            if (params.dbType === 'sqlite') {
+                await infraAdapter.query('COMMIT');
+            } else {
+                await infraAdapter.commit();
+            }
+
+            return {
+                tenant: {
+                    id: tenantId,
+                    name: params.tenantName,
+                    db_type: params.dbType,
+                    database: params.database,
+                    schema: params.schemaName,
+                    owner_id: deployedOwnerUserId,
+                    is_active: true,
+                    created_at: timestamp,
+                    updated_at: new Date().toISOString(),
+                },
+                user: {
+                    id: deployedOwnerUserId,
+                    name: params.ownerUsername === 'root' ? 'Root User' : params.ownerUsername,
+                    auth: params.ownerUsername,
+                    access: 'root',
+                },
+            };
+        } catch (error) {
+            if (params.dbType === 'sqlite') {
+                try {
+                    await infraAdapter.query('ROLLBACK');
+                } catch {
+                    // best-effort cleanup
+                }
+            } else {
+                try {
+                    await infraAdapter.rollback();
+                } catch {
+                    // best-effort cleanup
+                }
+            }
+
+            if (provisioned) {
+                await this.cleanupTenantProvisioning(params.dbType, params.database, params.schemaName);
+            }
+            if (registered) {
+                try {
+                    await infraAdapter.query('DELETE FROM tenants WHERE id = $1', [tenantId]);
+                } catch {
+                    // best-effort cleanup
+                }
+            }
+            throw error;
         } finally {
             await infraAdapter.disconnect();
         }
-
-        console.info('Tenant created', { name: tenantName, id: tenantId });
-
-        // Return owner user info (root user if ownerUsername='root', separate user otherwise)
-        const ownerDisplayName = ownerUsername === 'root' ? 'Root User' : ownerUsername;
-
-        return {
-            tenant: {
-                id: tenantId,
-                name: tenantName,
-                db_type: dbType,
-                database,
-                schema: schemaName,
-                owner_id: ownerUserId,
-                is_active: true,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            },
-            user: {
-                id: ownerUserId,
-                name: ownerDisplayName,
-                auth: ownerUsername,
-                access: 'root',
-            },
-        };
     }
 
-    /**
-     * Soft delete a tenant
-     *
-     * Sets deleted_at and is_active=false. Tenant cannot log in after this.
-     * Database/schema files remain for recovery.
-     */
+    private static isTenantDuplicateError(error: unknown): boolean {
+        if (!error) {
+            return false;
+        }
+        const message = String((error as Error).message ?? error).toLowerCase();
+        return message.includes('duplicate key value violates unique constraint')
+            || message.includes('unique constraint')
+            || message.includes('already exists')
+            || message.includes('sqlite_constraint')
+            || message.includes('unique constraint failed');
+    }
+
     static async deleteTenant(tenantName: string): Promise<boolean> {
         const adapter = await this.getAdapter();
         await adapter.connect();
-
         try {
             const timestamp = new Date().toISOString();
-
             const result = await adapter.query(
                 `UPDATE tenants
                  SET deleted_at = $1, is_active = false, updated_at = $1
                  WHERE name = $2 AND deleted_at IS NULL`,
                 [timestamp, tenantName]
             );
-
             return result.rowCount > 0;
         } finally {
             await adapter.disconnect();
         }
     }
 
-    /**
-     * List all active tenants
-     */
     static async listTenants(): Promise<TenantRecord[]> {
         const adapter = await this.getAdapter();
         await adapter.connect();
-
         try {
             const result = await adapter.query<TenantRecord>(
                 `SELECT id, name, db_type, database, schema, owner_id, is_active, created_at, updated_at
@@ -482,23 +489,15 @@ export class Infrastructure {
                  WHERE is_active = true AND trashed_at IS NULL AND deleted_at IS NULL
                  ORDER BY created_at DESC`
             );
-
-            return result.rows.map(row => ({
-                ...row,
-                is_active: Boolean(row.is_active),
-            }));
+            return result.rows.map(row => ({ ...row, is_active: Boolean(row.is_active) }));
         } finally {
             await adapter.disconnect();
         }
     }
 
-    /**
-     * Record fixture deployment for a tenant
-     */
     static async recordFixtureDeployment(tenantId: string, fixtureName: string): Promise<void> {
         const adapter = await this.getAdapter();
         await adapter.connect();
-
         try {
             await adapter.query(
                 `INSERT INTO tenant_fixtures (tenant_id, fixture_name, deployed_at)
@@ -511,13 +510,6 @@ export class Infrastructure {
         }
     }
 
-    // =========================================================================
-    // PRIVATE METHODS
-    // =========================================================================
-
-    /**
-     * Create the tenant database/schema
-     */
     private static async provisionTenantDatabase(
         dbType: DatabaseType,
         database: string,
@@ -526,24 +518,18 @@ export class Infrastructure {
         const { createAdapterFrom } = await import('./database/index.js');
 
         if (dbType === 'sqlite') {
-            // SQLite: Ensure directory exists, file created on connect
             const dataDir = process.env.SQLITE_DATA_DIR || '.data';
             const dbPath = join(dataDir, database, `${schemaName}.db`);
             const dirPath = dirname(dbPath);
-
             if (!existsSync(dirPath)) {
                 mkdirSync(dirPath, { recursive: true });
             }
-
-            // Touch file by connecting (adapter creates file)
             const adapter = createAdapterFrom('sqlite', database, schemaName);
             await adapter.connect();
             await adapter.disconnect();
         } else {
-            // PostgreSQL: Create schema
             const adapter = createAdapterFrom('postgresql', database, 'public');
             await adapter.connect();
-
             try {
                 await adapter.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
             } finally {
@@ -552,18 +538,6 @@ export class Infrastructure {
         }
     }
 
-    /**
-     * Deploy tenant schema (tables) and seed data
-     *
-     * Creates models, fields, users, filters tables and seeds with root user.
-     * If ownerUsername differs from 'root', creates an additional owner user.
-     * Used internally by createTenant() and by apps/loader for app namespaces.
-     *
-     * Unix model: root always exists (auth='root', id=ROOT_USER_ID).
-     * Owner user is separate if username != 'root'.
-     *
-     * @returns Owner user ID (ROOT_USER_ID if owner is root, random UUID otherwise)
-     */
     static async deployTenantSchema(
         dbType: DatabaseType,
         database: string,
@@ -572,56 +546,39 @@ export class Infrastructure {
     ): Promise<string> {
         const { createAdapterFrom } = await import('./database/index.js');
         const adapter = createAdapterFrom(dbType, database, schemaName);
-
-        // Determine owner user ID - root uses well-known ID, others get random UUID
         const ownerUserId = ownerUsername === 'root' ? ROOT_USER_ID : randomUUID();
-
         await adapter.connect();
-
         try {
             if (dbType === 'sqlite') {
-                // SQLite: Execute schema + seed via raw connection
                 const db = adapter.getRawConnection() as { exec: (sql: string) => void };
-
+                await adapter.query(`PRAGMA busy_timeout = 5000`);
                 db.exec('BEGIN');
                 try {
                     db.exec(TENANT_SCHEMA_SQLITE);
                     db.exec(TENANT_SEED_SQLITE);
-
-                    // If owner is not root, create separate owner user
                     if (ownerUsername !== 'root') {
                         await adapter.query(
                             `INSERT INTO users (id, name, auth, access) VALUES ($1, $2, $3, 'root')`,
                             [ownerUserId, ownerUsername, ownerUsername]
                         );
                     }
-
-                    // Initialize FS directory structure
                     const { initializeFS } = await import('./fs/init.js');
                     await initializeFS(adapter, ROOT_USER_ID);
-
                     db.exec('COMMIT');
                 } catch (error) {
                     db.exec('ROLLBACK');
                     throw error;
                 }
             } else {
-                // PostgreSQL: Execute schema + seed
                 await adapter.beginTransaction();
-
                 try {
-                    // Schema includes seed data (models, fields metadata)
                     await adapter.query(TENANT_SCHEMA_POSTGRESQL);
-
-                    // Always create root user (auth='root', id=ROOT_USER_ID)
                     await adapter.query(
                         `INSERT INTO users (id, name, auth, access)
                          VALUES ($1, 'Root User', 'root', 'root')
                          ON CONFLICT (auth) DO NOTHING`,
                         [ROOT_USER_ID]
                     );
-
-                    // If owner is not root, create separate owner user
                     if (ownerUsername !== 'root') {
                         await adapter.query(
                             `INSERT INTO users (id, name, auth, access)
@@ -630,11 +587,8 @@ export class Infrastructure {
                             [ownerUserId, ownerUsername, ownerUsername]
                         );
                     }
-
-                    // Initialize FS directory structure
                     const { initializeFS } = await import('./fs/init.js');
                     await initializeFS(adapter, ROOT_USER_ID);
-
                     await adapter.commit();
                 } catch (error) {
                     await adapter.rollback();
@@ -644,7 +598,36 @@ export class Infrastructure {
         } finally {
             await adapter.disconnect();
         }
-
         return ownerUserId;
+    }
+
+    private static async cleanupTenantProvisioning(
+        dbType: DatabaseType,
+        database: string,
+        schemaName: string
+    ): Promise<void> {
+        if (dbType === 'sqlite') {
+            await this.cleanupSqliteTenantDatabase(database, schemaName);
+            return;
+        }
+
+        const { createAdapterFrom } = await import('./database/index.js');
+        const adapter = createAdapterFrom('postgresql', database, 'public');
+        await adapter.connect();
+        try {
+            await adapter.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    private static async cleanupSqliteTenantDatabase(database: string, schemaName: string): Promise<void> {
+        const dataDir = process.env.SQLITE_DATA_DIR || '.data';
+        const tenantDbPath = join(dataDir, database, `${schemaName}.db`);
+        for (const target of [tenantDbPath, `${tenantDbPath}-shm`, `${tenantDbPath}-wal`]) {
+            if (existsSync(target)) {
+                rmSync(target, { force: true });
+            }
+        }
     }
 }
