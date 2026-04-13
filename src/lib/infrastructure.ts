@@ -495,9 +495,9 @@ export class Infrastructure {
             const timestamp = new Date().toISOString();
             const result = await adapter.query(
                 `UPDATE tenants
-                 SET deleted_at = $1, is_active = false, updated_at = $1
-                 WHERE name = $2 AND deleted_at IS NULL`,
-                [timestamp, tenantName]
+                 SET deleted_at = $1, is_active = false, updated_at = $2
+                 WHERE name = $3 AND deleted_at IS NULL`,
+                [timestamp, timestamp, tenantName]
             );
             return result.rowCount > 0;
         } finally {

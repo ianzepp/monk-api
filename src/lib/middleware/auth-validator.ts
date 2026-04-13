@@ -18,9 +18,17 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { systemInitFromJWT } from '@src/lib/system.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import { isValidApiKeyFormat, verifyApiKey } from '@src/lib/credentials/index.js';
-import { Infrastructure } from '@src/lib/infrastructure.js';
+import { Infrastructure, type TenantRecord } from '@src/lib/infrastructure.js';
 import { createAdapterFrom, type DatabaseType } from '@src/lib/database/index.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
+import {
+    Auth0ConfigError,
+    Auth0IdentityMappingError,
+    Auth0VerificationError,
+    Auth0Verifier,
+    resolveAuth0Identity,
+    type VerifiedAuth0Identity,
+} from '@src/lib/auth0/index.js';
 
 function getJwtSecret(): string {
     return process.env['JWT_SECRET']!;
@@ -36,6 +44,14 @@ interface AuthResult {
         access_edit: string[];
         access_full: string[];
     };
+}
+
+type Auth0VerifierFactory = () => Pick<Auth0Verifier, 'verifyAccessToken'>;
+
+let auth0VerifierFactory: Auth0VerifierFactory | null = null;
+
+export function setAuth0VerifierFactoryForTests(factory: Auth0VerifierFactory | null): void {
+    auth0VerifierFactory = factory;
 }
 
 /**
@@ -217,6 +233,58 @@ async function validateUser(
     }
 }
 
+async function authenticateAuth0Bearer(token: string): Promise<AuthResult> {
+    const verifier = auth0VerifierFactory ? auth0VerifierFactory() : new Auth0Verifier();
+    const identity = await verifier.verifyAccessToken(token);
+    const resolved = await resolveAuth0Identity(identity.iss, identity.sub);
+    const { tenant, user } = resolved;
+
+    const payload = jwtPayloadFromAuth0Identity(identity, tenant, user);
+
+    return {
+        payload,
+        user: {
+            id: user.id,
+            name: user.name,
+            access: user.access,
+            access_read: user.access_read,
+            access_edit: user.access_edit,
+            access_full: user.access_full,
+        },
+    };
+}
+
+function jwtPayloadFromAuth0Identity(
+    identity: VerifiedAuth0Identity,
+    tenant: TenantRecord,
+    user: AuthResult['user'] & { auth?: string }
+): JWTPayload {
+    return {
+        sub: user.id,
+        user_id: user.id,
+        username: user.name,
+        tenant: tenant.name,
+        tenant_id: tenant.id,
+        db_type: tenant.db_type,
+        db: tenant.database,
+        ns: tenant.schema,
+        access: user.access,
+        access_read: user.access_read,
+        access_edit: user.access_edit,
+        access_full: user.access_full,
+        iat: identity.iat || Math.floor(Date.now() / 1000),
+        exp: identity.exp || Math.floor(Date.now() / 1000),
+        is_sudo: false,
+        auth0_issuer: identity.iss,
+        auth0_subject: identity.sub,
+    };
+}
+
+function shouldUseAuth0ForBearer(): boolean {
+    return process.env.NODE_ENV === 'production'
+        || Boolean(process.env.AUTH0_ISSUER || process.env.AUTH0_DOMAIN || process.env.AUTH0_AUDIENCE || process.env.AUTH0_JWKS_URL);
+}
+
 /**
  * Auth validation middleware - validates token and user in one pass
  *
@@ -260,19 +328,25 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
             payload = result.payload;
             user = result.user;
         } else {
-            // JWT auth - validate signature, then validate user
-            payload = await verify(token, getJwtSecret(), 'HS256') as JWTPayload;
+            if (shouldUseAuth0ForBearer()) {
+                const result = await authenticateAuth0Bearer(token);
+                payload = result.payload;
+                user = result.user;
+            } else {
+                // Development/test bootstrap path. Production bearer auth is Auth0/OIDC.
+                payload = await verify(token, getJwtSecret(), 'HS256') as JWTPayload;
 
-            const dbType = (payload.db_type || 'postgresql') as DatabaseType;
-            const dbName = payload.db;
-            const nsName = payload.ns;
-            const userId = payload.user_id;
+                const dbType = (payload.db_type || 'postgresql') as DatabaseType;
+                const dbName = payload.db;
+                const nsName = payload.ns;
+                const userId = payload.user_id;
 
-            if (!dbName || !nsName || !userId) {
-                throw HttpErrors.unauthorized('Invalid JWT - missing required claims', 'AUTH_TOKEN_INVALID');
+                if (!dbName || !nsName || !userId) {
+                    throw HttpErrors.unauthorized('Invalid JWT - missing required claims', 'AUTH_TOKEN_INVALID');
+                }
+
+                user = await validateUser(userId, dbType, dbName, nsName);
             }
-
-            user = await validateUser(userId, dbType, dbName, nsName);
         }
 
         // Create SystemInit with fresh user permissions
@@ -284,8 +358,11 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
         systemInit.accessEdit = user.access_edit;
         systemInit.accessFull = user.access_full;
 
-        // Set up database connection for request
-        DatabaseConnection.setDatabaseAndNamespaceForRequest(context, systemInit.dbName, systemInit.nsName);
+        // Set up PostgreSQL pool context when the request targets PostgreSQL.
+        // SQLite tenants are opened through per-request adapters downstream.
+        if (systemInit.dbType === 'postgresql') {
+            DatabaseConnection.setDatabaseAndNamespaceForRequest(context, systemInit.dbName, systemInit.nsName);
+        }
 
         // Store in context
         context.set('jwtPayload', payload);
@@ -323,6 +400,18 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
         // Token invalid
         if (error.name === 'JwtTokenInvalid' || error.message?.includes('jwt') || error.message === 'Unauthorized') {
             throw HttpErrors.unauthorized('Invalid token', 'AUTH_TOKEN_INVALID');
+        }
+
+        if (error instanceof Auth0ConfigError) {
+            throw HttpErrors.unauthorized(error.message, error.code);
+        }
+
+        if (error instanceof Auth0VerificationError) {
+            throw HttpErrors.unauthorized(error.message, error.code);
+        }
+
+        if (error instanceof Auth0IdentityMappingError) {
+            throw HttpErrors.unauthorized(error.message, error.code);
         }
 
         throw error;

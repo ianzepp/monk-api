@@ -22,7 +22,13 @@ export interface CreateAuth0IdentityMappingInput {
 export interface ResolvedAuth0Identity {
     mapping: Auth0IdentityMapping;
     tenant: TenantRecord;
-    user: UserRecord;
+    user: Auth0MappedUser;
+}
+
+export interface Auth0MappedUser extends UserRecord {
+    access_read: string[];
+    access_edit: string[];
+    access_full: string[];
 }
 
 export class Auth0IdentityMappingError extends Error {
@@ -149,20 +155,39 @@ export async function resolveAuth0Identity(
     return { mapping, tenant, user };
 }
 
-async function getTenantUser(tenant: TenantRecord, userId: string): Promise<UserRecord | null> {
+async function getTenantUser(tenant: TenantRecord, userId: string): Promise<Auth0MappedUser | null> {
     const adapter = createAdapterFrom(tenant.db_type, tenant.database, tenant.schema);
     await adapter.connect();
     try {
-        const result = await adapter.query<UserRecord>(
-            `SELECT id, name, auth, access
+        const result = await adapter.query<Auth0MappedUser>(
+            `SELECT id, name, auth, access, access_read, access_edit, access_full
              FROM users
              WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL`,
             [userId]
         );
-        return result.rows[0] || null;
+        const user = result.rows[0];
+        if (!user) {
+            return null;
+        }
+        return {
+            ...user,
+            access_read: parseAccessArray(user.access_read),
+            access_edit: parseAccessArray(user.access_edit),
+            access_full: parseAccessArray(user.access_full),
+        };
     } finally {
         await adapter.disconnect();
     }
+}
+
+function parseAccessArray(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value as string[];
+    }
+    if (typeof value === 'string' && value) {
+        return JSON.parse(value) as string[];
+    }
+    return [];
 }
 
 function normalizeIssuer(issuer: string): string {
