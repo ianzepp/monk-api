@@ -33,15 +33,24 @@ export default function (context: Context) {
     const path = context.req.path;
 
     if (path === '/index.css') {
-        context.header('Content-Type', 'text/css; charset=utf-8');
-        return context.text(readRootAsset('index.css'));
+        return new Response(readRootAsset('index.css'), {
+            headers: {
+                'Content-Type': 'text/css; charset=utf-8',
+            },
+        });
     }
 
     if (path === '/llms.txt') {
-        context.header('Content-Type', 'text/markdown; charset=utf-8');
-        return context.text(readRootAsset('README.md'));
+        return new Response(readRootAsset('README.md'), {
+            headers: {
+                'Content-Type': 'text/markdown; charset=utf-8',
+            },
+        });
     }
 
-    context.header('Content-Type', 'text/html; charset=utf-8');
-    return context.text(readRootAsset('index.html'));
+    return new Response(readRootAsset('index.html'), {
+        headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+        },
+    });
 }
