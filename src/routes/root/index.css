@@ -248,19 +248,16 @@ article {
   margin-top: 0;
   border: 1px solid var(--line);
   border-top: none;
-  padding: 14px 22px;
+  padding: 20px 32px;
   text-align: center;
 }
 
 .install-url {
-  display: block;
   padding: 0;
   border: none;
   background: transparent;
   color: var(--accent);
   line-height: 1.6;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 h2 {
