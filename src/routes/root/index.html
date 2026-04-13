@@ -13,9 +13,18 @@
   </head>
   <body>
     <main class="page">
-      <section class="hero shell">
+      <div class="topbar">
+        <span class="topbar-name">Monk API</span>
+        <span class="topbar-tag">multi-tenant paas backend</span>
+        <nav class="topbar-links">
+          <a href="/llms.txt">/llms.txt</a>
+          <a href="/docs">/docs</a>
+          <a href="/health">/health</a>
+        </nav>
+      </div>
+
+      <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Monk API</p>
           <h1>Multi-tenant PaaS backend. Model-first. Schema-isolated.</h1>
           <p class="lede">
             Each tenant gets a schema-isolated database, a full HTTP API surface,
@@ -84,6 +93,12 @@
           </ul>
         </article>
       </section>
+
+      <footer class="footer">
+        <span>monk-api</span>
+        <span>self-documenting &mdash; see <a href="/docs">/docs</a></span>
+        <span>agent primer &mdash; see <a href="/llms.txt">/llms.txt</a></span>
+      </footer>
     </main>
   </body>
 </html>
