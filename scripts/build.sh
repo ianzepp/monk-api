@@ -54,14 +54,14 @@ main() {
 
     # Step 1: TypeScript compilation
     log_info "Compiling TypeScript sources..."
-    if ! npx tsc; then
+    if ! bunx tsc; then
         log_error "TypeScript compilation failed"
         exit 1
     fi
 
     # Step 2: Resolve path aliases
     log_info "Resolving TypeScript path aliases..."
-    if ! npx tsc-alias; then
+    if ! bunx tsc-alias; then
         log_error "Path alias resolution failed"
         exit 1
     fi

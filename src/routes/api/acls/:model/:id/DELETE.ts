@@ -1,4 +1,5 @@
 import { withTransaction } from '@src/lib/api-helpers.js';
+import { requireAclMutationAccess } from '../../acl-utils.js';
 
 /**
  * DELETE /api/acls/:model/:id - Clear all ACL lists
@@ -14,6 +15,8 @@ import { withTransaction } from '@src/lib/api-helpers.js';
  */
 export default withTransaction(async ({ system, params }) => {
     const { model, id } = params;
+
+    requireAclMutationAccess(system);
 
     // Verify record exists before updating (select404 automatically throws 404 if not found)
     await system.database.select404(model!, {
