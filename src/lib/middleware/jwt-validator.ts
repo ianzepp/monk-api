@@ -18,6 +18,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { systemInitFromJWT } from '@src/lib/system.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import { isValidApiKeyFormat, verifyApiKey } from '@src/lib/credentials/index.js';
+import { computeEffectiveApiKeyAccess, parseStoredApiKeyPermissions } from '@src/lib/credentials/permissions.js';
 import { Infrastructure } from '@src/lib/infrastructure.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
@@ -118,6 +119,16 @@ async function authenticateApiKey(apiKey: string, tenantName: string): Promise<J
     };
     updateLastUsed(); // Don't await
 
+    const effectiveAccess = computeEffectiveApiKeyAccess(
+        {
+            access: credential.access,
+            access_read: credential.access_read || [],
+            access_edit: credential.access_edit || [],
+            access_full: credential.access_full || [],
+        },
+        parseStoredApiKeyPermissions(credential.permissions)
+    );
+
     // Build synthetic JWT payload for the API key
     const payload: JWTPayload = {
         sub: credential.user_id,
@@ -127,13 +138,13 @@ async function authenticateApiKey(apiKey: string, tenantName: string): Promise<J
         db_type: dbType || 'postgresql',
         db: dbName,
         ns: nsName,
-        access: credential.access,
-        access_read: credential.access_read || [],
-        access_edit: credential.access_edit || [],
-        access_full: credential.access_full || [],
+        access: effectiveAccess.access,
+        access_read: effectiveAccess.access_read,
+        access_edit: effectiveAccess.access_edit,
+        access_full: effectiveAccess.access_full,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour synthetic expiry
-        is_sudo: credential.access === 'root',
+        is_sudo: effectiveAccess.is_sudo,
         is_api_key: true, // Flag this as API key auth
         api_key_id: credential.id,
     };

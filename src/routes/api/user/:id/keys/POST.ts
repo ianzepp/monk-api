@@ -1,6 +1,7 @@
 import { withTransaction, withSelfServiceSudo } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { generateApiKey, type ApiKeyEnvironment } from '@src/lib/credentials/index.js';
+import { validateApiKeyPermissions } from '@src/lib/credentials/permissions.js';
 import { randomUUID } from 'crypto';
 import { resolveUserTargetId } from '../../user-id.js';
 
@@ -79,6 +80,19 @@ export default withTransaction(async ({ system, params, body }) => {
         expiresAt = date.toISOString();
     }
 
+    let permissions: Record<string, unknown> | null = null;
+    if (body.permissions !== undefined) {
+        try {
+            permissions = validateApiKeyPermissions(body.permissions) as Record<string, unknown> | null;
+        } catch (error) {
+            throw HttpErrors.badRequest(
+                error instanceof Error ? error.message : 'Invalid API key permissions',
+                'VALIDATION_ERROR',
+                { field: 'permissions' }
+            );
+        }
+    }
+
     // Generate the API key
     const generated = generateApiKey(environment as ApiKeyEnvironment);
 
@@ -90,7 +104,7 @@ export default withTransaction(async ({ system, params, body }) => {
         identifier: generated.prefix,
         secret: generated.hash,
         algorithm: generated.algorithm,
-        permissions: body.permissions ? JSON.stringify(body.permissions) : null,
+        permissions: permissions ? JSON.stringify(permissions) : null,
         name: body.name || null,
         expires_at: expiresAt,
         last_used_at: null,
@@ -110,7 +124,7 @@ export default withTransaction(async ({ system, params, body }) => {
             key: generated.key, // Full key - only shown once!
             prefix: generated.prefix,
             name: credential.name,
-            permissions: body.permissions || null,
+            permissions,
             expires_at: expiresAt,
             created_at: new Date().toISOString(),
         },
