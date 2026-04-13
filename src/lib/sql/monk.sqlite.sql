@@ -35,6 +35,24 @@ CREATE INDEX IF NOT EXISTS "idx_tenants_name_active" ON "tenants" ("name", "is_a
 CREATE INDEX IF NOT EXISTS "idx_tenants_database" ON "tenants" ("database");
 CREATE INDEX IF NOT EXISTS "idx_tenants_owner" ON "tenants" ("owner_id");
 
+-- Auth0/OIDC external identity mappings
+-- Auth0 proves issuer + subject only. Monk resolves that identity to local
+-- tenant and user state before deriving routing or authorization.
+CREATE TABLE IF NOT EXISTS "auth0_identity_mappings" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "issuer" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "tenant_id" TEXT NOT NULL REFERENCES "tenants"("id") ON DELETE CASCADE,
+    "user_id" TEXT NOT NULL,
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT "auth0_identity_mappings_identity_unique" UNIQUE ("issuer", "subject"),
+    CONSTRAINT "auth0_identity_mappings_user_unique" UNIQUE ("tenant_id", "user_id")
+);
+
+CREATE INDEX IF NOT EXISTS "idx_auth0_identity_mappings_tenant" ON "auth0_identity_mappings" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_auth0_identity_mappings_user" ON "auth0_identity_mappings" ("tenant_id", "user_id");
+
 -- Processes table (server-wide background jobs and tasks)
 -- Modeled after Linux /proc filesystem
 CREATE TABLE IF NOT EXISTS "processes" (

@@ -13,3 +13,14 @@ export {
     type Auth0VerifierOptions,
     type VerifiedAuth0Identity,
 } from './verifier.js';
+
+export {
+    Auth0IdentityMappingError,
+    auth0UserAuthValue,
+    createAuth0IdentityMapping,
+    getAuth0IdentityMapping,
+    resolveAuth0Identity,
+    type Auth0IdentityMapping,
+    type CreateAuth0IdentityMappingInput,
+    type ResolvedAuth0Identity,
+} from './identity-mapping.js';

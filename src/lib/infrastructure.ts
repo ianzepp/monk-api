@@ -168,6 +168,10 @@ export function parseInfraConfig(): InfraConfig {
     return cachedConfig;
 }
 
+export function resetInfraConfigForTests(): void {
+    cachedConfig = null;
+}
+
 export interface TenantRecord {
     id: string;
     name: string;
@@ -194,6 +198,14 @@ export interface CreateTenantResult {
 
 export class Infrastructure {
     private static infraAdapter: DatabaseAdapter | null = null;
+
+    static async resetForTests(): Promise<void> {
+        if (this.infraAdapter?.isConnected()) {
+            await this.infraAdapter.disconnect();
+        }
+        this.infraAdapter = null;
+        resetInfraConfigForTests();
+    }
 
     static async getAdapter(): Promise<DatabaseAdapter> {
         if (this.infraAdapter) {
