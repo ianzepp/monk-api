@@ -11,6 +11,7 @@
 import type { Observer, ObserverContext } from '@src/lib/observers/interfaces.js';
 import type { ObserverRing, OperationType } from '@src/lib/observers/types.js';
 import {
+    ObserverError,
     ValidationError,
     BusinessLogicError,
     SystemError,
@@ -137,6 +138,10 @@ export abstract class BaseObserver implements Observer {
 
         } else if (error instanceof BusinessLogicError) {
             // Recoverable business logic errors - collect for user feedback
+            context.errors.push(error);
+
+        } else if (error instanceof ObserverError) {
+            // Recoverable observer errors - collect for user feedback
             context.errors.push(error);
 
         } else if (error instanceof SystemError || error instanceof ObserverTimeoutError) {

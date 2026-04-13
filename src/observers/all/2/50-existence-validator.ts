@@ -18,6 +18,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 export default class ExistenceValidator extends BaseObserver {
     readonly ring = ObserverRing.Security;
     readonly operations = ['update', 'delete', 'revert'] as const;
+    readonly priority = 40;
 
     async execute(context: ObserverContext): Promise<void> {
         const { operation, record } = context;

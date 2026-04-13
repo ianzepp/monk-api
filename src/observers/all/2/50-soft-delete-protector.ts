@@ -20,6 +20,7 @@ import { ObserverRing } from '@src/lib/observers/types.js';
 export default class SoftDeleteProtector extends BaseObserver {
     readonly ring = ObserverRing.Security;
     readonly operations = ['update', 'delete'] as const;
+    readonly priority = 50;
 
     async execute(context: ObserverContext): Promise<void> {
         const { operation, record } = context;
