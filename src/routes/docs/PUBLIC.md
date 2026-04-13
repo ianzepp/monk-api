@@ -8,10 +8,10 @@
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
 | **Health Check** | `/health` | System health status and uptime |
-| **Public Auth** | `/auth/*` | Token acquisition (login, register, refresh) |
+| **Public Auth** | `/auth/*` | Auth0-authenticated tenant provisioning plus explicit local-dev bootstrap routes |
 | **Documentation** | `/docs/*` | Self-documenting API reference |
 
-### Protected Routes (JWT Authentication Required)
+### Protected Routes (Auth0 Bearer Token or API Key Required)
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
 | **User API** | `/api/user/*` | User identity, tenant user management, sudo and impersonation |
@@ -30,7 +30,7 @@
 ## Key Features
 
 - **Model-First Development**: Define data models with in-house validation and automatic PostgreSQL table generation
-- **Multi-Tenant Architecture**: Schema-isolated tenants with JWT-based routing and security
+- **Multi-Tenant Architecture**: Schema-isolated tenants with Monk-owned tenant routing and authorization
 - **Advanced Filtering**: 25+ filter operators with complex logical operations and ACL integration
 - **Change Tracking**: Comprehensive audit trails with field-level tracking for all record modifications
 - **Privilege Escalation**: Enterprise-grade sudo model with time-limited root access for administrative operations
@@ -39,36 +39,23 @@
 
 ## Authentication Model
 
-### Three-Tier Security
-1. **Public Access**: Token acquisition and documentation (no authentication)
-2. **User Access**: Standard API operations with user-level JWT tokens
-3. **Root Access**: Administrative operations requiring elevated privileges via sudo
+### Production Auth
+1. **Public Access**: Documentation and tenant provisioning boundary (`/auth/register`)
+2. **Protected Access**: Auth0 bearer token or supported API key flow
+3. **Authorization Source**: Monk tenant registry and tenant-local user state
 
-### Token Types
-- **User JWT**: Standard operations (1 hour expiration)
-- **Root JWT**: Administrative operations (15 minutes expiration, obtained via sudo)
-- **Refresh Token**: Long-lived token renewal (configurable expiration)
-
-### JWT Token Structure
-
-All JWT tokens contain the following payload:
-
-```json
-{
-  "tenant": "tenant_name",
-  "database": "tenant_12345678",
-  "access": "user_access_level",
-  "user": "username",
-  "exp": 1234567890
-}
-```
+### Auth Flow
+- Auth0 authenticates the external identity and issues an access token for the Monk API audience.
+- Monk verifies issuer, audience, signature, expiry, and algorithm.
+- Monk resolves verified `iss + sub` through its own identity mapping and derives DB/schema routing, access, ACL arrays, and sudo eligibility from Monk-owned state.
+- `/auth/login` and `/auth/refresh` remain explicit non-production bootstrap routes only when `MONK_ENABLE_LOCAL_AUTH=true`.
 
 ### Authentication Header
 
-Include the JWT token in all protected API requests:
+Include the bearer token in protected API requests:
 
 ```bash
-Authorization: Bearer <jwt_token>
+Authorization: Bearer <auth0_access_token>
 ```
 
 ## API Discovery
@@ -154,7 +141,7 @@ Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authenticat
 - `/docs/acls` or `/docs/api/acls` - Access control management
 - `/docs/stat` or `/docs/api/stat` - Record metadata access
 - `/docs/tracked` or `/docs/api/tracked` - Change tracking and audit trails
-- `/docs/auth` - Authentication and token management
+- `/docs/auth` - Authentication and tenant provisioning
 - `/docs/user` or `/docs/api/user` - User account management
 - `/docs/trashed` or `/docs/api/trashed` - Trashed record management
 - `/docs/cron` or `/docs/api/cron` - Scheduled process management
@@ -253,7 +240,7 @@ POST   /auth/register                     → /docs/auth/register/POST
 
 1. **Health Check**: `GET /health` to verify system status
 2. **Explore APIs**: `GET /` to discover available endpoints and documentation
-3. **Authentication**: Follow `/docs/auth` to obtain JWT tokens
+3. **Authentication**: Follow `/docs/auth` to provision a tenant and use an Auth0 access token for protected routes
 4. **Model Setup**: Use `/docs/api/describe` to define your data structures
 5. **Data Operations**: Use `/docs/api/data` for standard CRUD operations
 6. **Advanced Features**: Explore `/docs/api/find`, `/docs/api/aggregate`, `/docs/api/bulk` for sophisticated data access
@@ -309,7 +296,7 @@ curl http://localhost:9001/app/grids/abc123/A1:Z100?format=grid-compact
 **Alternative Methods:**
 1. Query parameter: `?format=toon` (highest priority)
 2. Accept header: `Accept: application/toon`
-3. JWT preference: Set `format` during login (persists for session)
+3. Local-auth preference: set `format` during explicit dev/test login if you are using the local bootstrap path
 
 #### Field Extraction (`?unwrap` and `?select=`)
 
@@ -348,8 +335,9 @@ curl /api/user/whoami?select=id,name&format=toon
 # → id: c81d0a9b...
 #   name: Demo User
 
-# Extract field and get as MessagePack
-TOKEN=$(curl /auth/login?select=token -d '{"tenant":"demo","username":"root"}')
+# Extract a field and encode it as MessagePack
+curl /api/user/whoami?select=id&format=msgpack \
+  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
 ```
 
 **Benefits:**
@@ -366,11 +354,11 @@ TOKEN=$(curl /auth/login?select=token -d '{"tenant":"demo","username":"root"}')
 
 ### Response Encryption (`?encrypt=pgp`)
 
-Encrypt API responses for secure transmission using AES-256-GCM with keys derived from your JWT token.
+Encrypt API responses for secure transmission using AES-256-GCM with keys derived from the presented bearer token.
 
 **Encryption Model:**
 - **Algorithm**: AES-256-GCM (authenticated encryption)
-- **Key Source**: Derived from your JWT token via PBKDF2
+- **Key Source**: Derived from the presented bearer token via PBKDF2
 - **Output**: PGP-style ASCII armor format
 - **Purpose**: Transport security (ephemeral, not long-term storage)
 
@@ -378,14 +366,14 @@ Encrypt API responses for secure transmission using AES-256-GCM with keys derive
 ```bash
 # Encrypt any response
 curl /api/user/whoami?encrypt=pgp \
-  -H "Authorization: Bearer $JWT" > encrypted.txt
+  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" > encrypted.txt
 
-# Decrypt with same JWT
-tsx scripts/decrypt.ts "$JWT" < encrypted.txt
+# Decrypt with the same bearer token material
+tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" < encrypted.txt
 
 # Combine with formatting and field selection
 curl /api/find/users?select=id,email&format=csv&encrypt=pgp \
-  -H "Authorization: Bearer $JWT"
+  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
 ```
 
 **ASCII Armor Output:**
@@ -406,8 +394,8 @@ Cipher: AES-256-GCM
 - Preventing data logging in proxies
 
 ⚠️ **Important Limitations:**
-- JWT token IS the decryption key
-- JWT expiry means old messages become undecryptable
+- Bearer token material IS the decryption key
+- Token rotation/expiry means old messages become undecryptable
 - NOT suitable for long-term storage
 - Decrypt immediately or data may be lost
 
@@ -426,19 +414,8 @@ curl /api/describe?format=markdown&encrypt=pgp
 ### JavaScript/Node.js
 
 ```javascript
-// Login with field extraction (get token directly)
-const loginResponse = await fetch('https://api.example.com/auth/login?select=token', {
-  method: 'POST',
-  headers: {'Content-Type': 'application/json'},
-  body: JSON.stringify({
-    tenant: 'my_tenant',
-    username: 'user',
-    password: 'pass'
-  })
-});
-
-// Token is returned directly (not wrapped in envelope)
-const token = await loginResponse.text();
+// Auth0 access token is obtained from the client-side Auth0 flow
+const token = process.env.AUTH0_ACCESS_TOKEN;
 
 // Create a record
 const response = await fetch('https://api.example.com/api/data/users', {
@@ -478,18 +455,8 @@ const userInfo = await userResponse.json();  // {"email": "...", "name": "..."}
 ```python
 import requests
 
-# Login with field extraction (get token directly)
-login_response = requests.post(
-    'https://api.example.com/auth/login?select=token',
-    json={
-        'tenant': 'my_tenant',
-        'username': 'user',
-        'password': 'pass'
-    }
-)
-
-# Token is returned directly (not wrapped in envelope)
-token = login_response.text
+# Auth0 access token is obtained from the client-side Auth0 flow
+token = 'AUTH0_ACCESS_TOKEN'
 
 headers = {
     'Authorization': f'Bearer {token}',
@@ -550,10 +517,8 @@ user_info = response.json()  # Returns {"email": "...", "name": "..."}
 ### cURL
 
 ```bash
-# Get authentication token (with field extraction - no jq needed!)
-TOKEN=$(curl -X POST https://api.example.com/auth/login?select=token \
-  -H "Content-Type: application/json" \
-  -d '{"tenant":"my_tenant","username":"user","password":"pass"}')
+# Auth0 access token is obtained from the client-side Auth0 flow
+TOKEN=$AUTH0_ACCESS_TOKEN
 
 # Create a record
 curl -X POST https://api.example.com/api/data/users \
@@ -675,7 +640,7 @@ All API endpoints return consistent error responses:
 | Status | Category | Description | Common Error Codes |
 |--------|----------|-------------|-------------------|
 | `400` | Bad Request | Invalid input, missing fields, malformed requests | `VALIDATION_ERROR`, `JSON_PARSE_ERROR`, `MODEL_ERROR` |
-| `401` | Unauthorized | Authentication required or failed | `UNAUTHORIZED`, `TOKEN_EXPIRED` |
+| `401` | Unauthorized | Authentication required or failed | `AUTH_TOKEN_REQUIRED`, `AUTH_TOKEN_EXPIRED`, `AUTH0_TOKEN_*` |
 | `403` | Forbidden | Insufficient permissions | `FORBIDDEN`, `MODEL_PROTECTED`, `ACCESS_DENIED` |
 | `404` | Not Found | Resource does not exist | `NOT_FOUND`, `MODEL_NOT_FOUND`, `RECORD_NOT_FOUND` |
 | `405` | Method Not Allowed | HTTP method not supported | `UNSUPPORTED_METHOD` |
@@ -700,7 +665,7 @@ All API endpoints return consistent error responses:
 | Error Code | Description | HTTP Status |
 |------------|-------------|-------------|
 | `UNAUTHORIZED` | Missing or invalid authentication | 401 |
-| `TOKEN_EXPIRED` | JWT token has expired | 401 |
+| `AUTH_TOKEN_EXPIRED`, `AUTH0_TOKEN_EXPIRED` | Auth token has expired | 401 |
 | `FORBIDDEN` | Insufficient permissions | 403 |
 | `ACCESS_DENIED` | Access denied to resource | 403 |
 | `TENANT_MISSING` | Tenant not found or invalid | 401 |
@@ -728,7 +693,7 @@ Error codes follow `SUBJECT_FIRST` pattern for logical grouping:
 
 - **Model errors**: `MODEL_NOT_FOUND`, `MODEL_PROTECTED`
 - **Record errors**: `RECORD_NOT_FOUND`, `RECORD_ALREADY_EXISTS`
-- **Auth errors**: `TENANT_MISSING`, `TOKEN_EXPIRED`
+- **Auth errors**: `AUTH_TOKEN_REQUIRED`, `AUTH_TOKEN_EXPIRED`, `AUTH0_TOKEN_*`
 - **Request errors**: `JSON_PARSE_ERROR`, `MISSING_CONTENT_TYPE`
 
 This enables:

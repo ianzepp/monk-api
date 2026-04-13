@@ -211,7 +211,7 @@ GET /api/user/whoami?select=access&format=toon
 | Routes calling `context.text()` directly | Skip pipeline (docs, markdown responses) |
 | Error responses | Go through full pipeline (format + encrypt) |
 | Primitive values | Pass through without processing |
-| Missing bearer token + `?encrypt=pgp` | Return unencrypted (graceful fallback) |
+| Missing bearer token + `?encrypt=pgp` | Return explicit 401 encryption error payload |
 | Invalid format parameter | Fall back to JSON |
 | Format encoding failure | Fall back to JSON with error logged |
 
@@ -236,9 +236,9 @@ GET /api/user/whoami?select=access&format=toon
 
 **What it does**:
 - Checks (in order):
-  1. `?format=` query parameter
-  2. `Accept` header
-  3. Explicit local-auth token format preference
+1. `?format=` query parameter
+2. `Accept` header
+3. Explicit local-auth token format preference in development/test only
 - Stores result in `context.set('responseFormat', format)`
 
 **File**: `src/lib/middleware/format-detection.ts`

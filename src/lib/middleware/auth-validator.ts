@@ -40,6 +40,7 @@ interface AuthResult {
     user: {
         id: string;
         name: string;
+        auth?: string;
         access: string;
         access_read: string[];
         access_edit: string[];
@@ -247,6 +248,7 @@ async function authenticateAuth0Bearer(token: string): Promise<AuthResult> {
         user: {
             id: user.id,
             name: user.name,
+            auth: user.auth,
             access: user.access,
             access_read: user.access_read,
             access_edit: user.access_edit,
@@ -258,12 +260,12 @@ async function authenticateAuth0Bearer(token: string): Promise<AuthResult> {
 function jwtPayloadFromAuth0Identity(
     identity: VerifiedAuth0Identity,
     tenant: TenantRecord,
-    user: AuthResult['user'] & { auth?: string }
+    user: AuthResult['user']
 ): JWTPayload {
     return {
         sub: user.id,
         user_id: user.id,
-        username: user.name,
+        username: user.auth || user.name,
         tenant: tenant.name,
         tenant_id: tenant.id,
         db_type: tenant.db_type,

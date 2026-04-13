@@ -2,6 +2,8 @@
 
 The Monk API supports multiple response formats to optimize for different use cases, from human readability to token efficiency for LLM integrations. Additionally, server-side field extraction eliminates the need for client-side `jq` piping in test scripts.
 
+Production clients should bring an Auth0 access token for protected routes. Examples that use `/auth/login` below refer to the explicit local-auth bootstrap path for development/test.
+
 ## Quick Examples
 
 ### Format Only
@@ -374,14 +376,14 @@ curl http://localhost:9001/auth/tenants \
   -H "Accept: application/toon"
 ```
 
-### 3. JWT Format Preference
-Specify format during login and it will be stored in your JWT token:
+### 3. Local-Auth Token Format Preference
+For the explicit non-production local-auth flow, format can be stored in the locally issued bootstrap token:
 ```bash
 curl -X POST http://localhost:9001/auth/login \
   -d '{"tenant":"toon-test","username":"root","format":"toon"}'
 ```
 
-All subsequent requests with that JWT will default to TOON format.
+All subsequent requests with that local-auth token will default to TOON format.
 
 ## Bidirectional Support
 
@@ -506,13 +508,13 @@ All format and extraction handling is implemented in:
 
 **Encryption:**
 - `src/lib/encryption/aes-gcm.ts` - AES-256-GCM encryption/decryption
-- `src/lib/encryption/key-derivation.ts` - JWT-based key derivation (PBKDF2)
+- `src/lib/encryption/key-derivation.ts` - bearer-token-based key derivation (PBKDF2)
 - `src/lib/encryption/pgp-armor.ts` - PGP-style ASCII armor encoding
 
 **Middleware Pipeline:**
 - `src/lib/middleware/response-pipeline.ts` - **Single pipeline** for all transformations (extract → format → encrypt)
 - `src/lib/middleware/request-body-parser.ts` - Request parsing (TOON/YAML/Morse → JSON)
-- `src/lib/middleware/format-detection.ts` - Format selection (query param → header → JWT)
+- `src/lib/middleware/format-detection.ts` - Format selection (query param → header → local-auth token preference)
 
 **Processing Order:**
 1. **Request**: `request-body-parser` decodes TOON/YAML/Morse → JSON
@@ -602,7 +604,7 @@ monk curl GET '/api/user/whoami?select=id,name&format=yaml'
 ```
 
 The command handles:
-- Automatic JWT token injection
+- Automatic bearer token injection
 - Proper URL encoding
 - Pre-configured server/tenant
 - Shell escaping (no need to escape `&` in URLs)
@@ -704,7 +706,7 @@ In addition to format encoding, responses can be encrypted for transport securit
 
 **Query Parameter**: `?encrypt=pgp`  
 **Encryption**: AES-256-GCM (authenticated encryption)  
-**Key Derivation**: PBKDF2 from user's JWT token  
+**Key Derivation**: PBKDF2 from the presented bearer token  
 **Output Format**: PGP-style ASCII armor  
 
 **Processing Pipeline:**
@@ -716,14 +718,14 @@ Request → Route Logic → ?select=/?unwrap → ?format= → ?encrypt=pgp → R
 ```bash
 # Encrypt JSON response
 curl /api/user/whoami?encrypt=pgp \
-  -H "Authorization: Bearer $JWT" > encrypted.txt
+  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" > encrypted.txt
 
-# Decrypt with same JWT
-tsx scripts/decrypt.ts "$JWT" < encrypted.txt
+# Decrypt with the same bearer token material
+tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" < encrypted.txt
 
 # Combine with formatting
 curl /api/find/users?format=csv&encrypt=pgp \
-  -H "Authorization: Bearer $JWT" > users-encrypted.txt
+  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" > users-encrypted.txt
 ```
 
 **ASCII Armor Format:**
@@ -747,15 +749,15 @@ Cipher: AES-256-GCM
 - Compliance demonstrations
 
 ⚠️ **Limitations:**
-- JWT token IS the decryption key (if leaked, encryption broken)
+- Bearer token material IS the decryption key (if leaked, encryption broken)
 - No perfect forward secryption
-- JWT expiry means old encrypted messages become undecryptable
+- Token rotation/expiry means old encrypted messages become undecryptable
 - Not suitable for archival/long-term storage
 
 **User Flow:**
-1. Request with `?encrypt=pgp` and valid JWT
+1. Request with `?encrypt=pgp` and a valid bearer token
 2. Receive encrypted response
-3. Decrypt IMMEDIATELY with same JWT
+3. Decrypt immediately with the same bearer token material
 4. Store plaintext or re-encrypt with own keys
 
 ### Decryption
@@ -763,11 +765,11 @@ Cipher: AES-256-GCM
 **Using Decrypt Script:**
 ```bash
 # From stdin
-curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $JWT" \
-  | tsx scripts/decrypt.ts "$JWT"
+curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  | tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN"
 
 # From file
-tsx scripts/decrypt.ts "$JWT" encrypted-response.txt
+tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" encrypted-response.txt
 ```
 
 **What Gets Encrypted:**
@@ -777,11 +779,11 @@ tsx scripts/decrypt.ts "$JWT" encrypted-response.txt
 
 **Error Handling:**
 ```bash
-# Missing JWT → 401 error (JSON response)
+# Missing bearer token → 401 error (JSON response)
 curl /api/user/whoami?encrypt=pgp
 → {"success": false, "error": "Encryption requires authentication"}
 
-# Invalid JWT → Decryption fails with clear error message
+# Invalid or different bearer token → Decryption fails with clear error message
 ```
 
 ### Composability
@@ -802,15 +804,15 @@ curl /api/user/whoami?select=id&encrypt=pgp
 ⚠️ **DO:**
 - Decrypt responses immediately after receiving
 - Use for secure transmission over untrusted networks
-- Treat JWT token as encryption password (keep secure)
+- Treat bearer token material as the decryption secret (keep it secure)
 
 ❌ **DON'T:**
 - Store encrypted responses long-term
-- Expect to decrypt after JWT expires/rotates
+- Expect to decrypt after the token expires/rotates
 - Use as replacement for proper encryption-at-rest
-- Share encrypted messages (tied to YOUR JWT)
+- Share encrypted messages (tied to your bearer token)
 
-**After JWT rotation, old encrypted messages become undecryptable.**  
+**After token rotation, old encrypted messages become undecryptable.**  
 This is by design - encryption is for transport security, not archival storage.
 
 ## Summary
@@ -818,9 +820,9 @@ This is by design - encryption is for transport security, not archival storage.
 The Monk API provides a flexible, extensible format system with field extraction and optional encryption:
 
 ✅ **10 Formats**: JSON, TOON, YAML, TOML, CSV, MessagePack, Brainfuck, Morse, QR, Markdown
-✅ **Response Encryption**: AES-256-GCM with JWT-based key derivation
+✅ **Response Encryption**: AES-256-GCM with bearer-token-based key derivation
 ✅ **Bidirectional**: Request + response support (where applicable)
-✅ **Format Detection**: Query param → Accept header → JWT preference
+✅ **Format Detection**: Query param → Accept header → local-auth token preference
 ✅ **Field Extraction**: Server-side `?select=` eliminates `| jq` piping
 ✅ **Auto-Unwrap**: CSV automatically removes envelope for direct data export
 ✅ **Composable**: Combine ?select, ?format, and ?encrypt in any order

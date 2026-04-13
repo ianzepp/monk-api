@@ -52,6 +52,7 @@ describe('authValidatorMiddleware Auth0 protected request resolution', () => {
 
     it('accepts a valid mapped Auth0 token and builds context from Monk state', async () => {
         const { tenant, user } = await createTenantWithMapping('auth0|mapped');
+        await updateTenantUser(tenant, user.id, `UPDATE users SET name = 'Mapped Display Name' WHERE id = $1`);
         setVerifierSubject('auth0|mapped');
 
         const response = await requestProtected('token-with-ignored-claims');
@@ -62,6 +63,7 @@ describe('authValidatorMiddleware Auth0 protected request resolution', () => {
         expect(body.systemInit.nsName).toBe(tenant.schema);
         expect(body.systemInit.tenant).toBe(tenant.name);
         expect(body.systemInit.userId).toBe(user.id);
+        expect(body.systemInit.username).toBe(user.auth);
         expect(body.systemInit.access).toBe('root');
         expect(body.jwtPayload.auth0_subject).toBe('auth0|mapped');
     });

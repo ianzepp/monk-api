@@ -1,14 +1,11 @@
 /**
  * Auth Route Barrel Export
  *
- * All authentication routes are now public (no JWT required):
- * - Login: Get initial access token
- * - Register: Create new account
- * - Refresh: Exchange old token for new token
- * - Tenants: List available tenants (personal mode only)
- *
- * Note: User identity and privilege elevation routes have moved to User API (/api/user)
- * Note: User impersonation (fake) has been moved to a protected endpoint
+ * Public auth routes:
+ * - Register: Auth0-authenticated tenant provisioning
+ * - Login: explicit non-production local-auth bootstrap only
+ * - Refresh: explicit non-production local-auth bootstrap only
+ * - Tenants: list available tenants (personal mode only)
  */
 
 export { default as LoginPost } from './login/POST.js';
