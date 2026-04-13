@@ -200,6 +200,7 @@ export async function jwtValidatorMiddleware(context: Context, next: Next) {
         // Legacy context values for backwards compatibility
         // TODO: Migrate middleware to use systemInit directly
         context.set('tenant', payload.tenant);
+        context.set('tenantId', payload.tenant_id || null);
         context.set('dbType', systemInit.dbType);
         context.set('dbName', systemInit.dbName);
         context.set('nsName', systemInit.nsName);

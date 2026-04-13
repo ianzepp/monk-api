@@ -16,7 +16,8 @@ import { systemInitFromJWT, type SystemInit } from '@src/lib/system.js';
  * Login request parameters
  */
 export interface LoginRequest {
-    tenant: string;
+    tenant?: string;
+    tenantId?: string;
     username: string;
     password?: string;
 }
@@ -28,6 +29,7 @@ export interface AuthenticatedUser {
     id: string;
     username: string;
     tenant: string;
+    tenantId: string;
     access: string;
     accessRead: string[];
     accessEdit: string[];
@@ -61,13 +63,18 @@ export interface LoginFailure {
  * @returns Login result or failure
  */
 export async function login(request: LoginRequest): Promise<LoginResult | LoginFailure> {
-    const { tenant, username, password } = request;
+    const { tenant, tenantId, username, password } = request;
 
-    // Normalize tenant name to match how createTenant stores it
-    const normalizedTenant = tenant.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    let tenantRecord = null;
+    if (tenantId) {
+        tenantRecord = await Infrastructure.getTenantById(tenantId);
+    } else if (tenant) {
+        // Normalize tenant name to match how createTenant stores it
+        const normalizedTenant = tenant.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        tenantRecord = await Infrastructure.getTenant(normalizedTenant);
+    }
 
     // Look up tenant record from infrastructure database
-    const tenantRecord = await Infrastructure.getTenant(normalizedTenant);
 
     if (!tenantRecord) {
         return {
@@ -77,7 +84,7 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
         };
     }
 
-    const { name, db_type: dbType, database: dbName, schema: nsName } = tenantRecord;
+    const { id: resolvedTenantId, name, db_type: dbType, database: dbName, schema: nsName } = tenantRecord;
 
     // Look up user in the tenant's namespace
     let userResult: { rows: any[] };
@@ -169,6 +176,7 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
         user_id: user.id,
         username: user.auth,
         tenant: name,
+        tenant_id: resolvedTenantId,
         db_type: dbType || 'postgresql',
         db: dbName,
         ns: nsName,
@@ -184,6 +192,7 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
     // Generate token
     const token = await JWTGenerator.fromUserAndTenant(user, {
         name,
+        tenant_id: resolvedTenantId,
         db_type: dbType || 'postgresql',
         database: dbName,
         schema: nsName,
@@ -198,6 +207,7 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
             id: user.id,
             username: user.auth,
             tenant: name,
+            tenantId: resolvedTenantId,
             access: user.access,
             accessRead: user.access_read || [],
             accessEdit: user.access_edit || [],
@@ -224,6 +234,7 @@ export interface RegisterRequest {
 export interface RegisterResult {
     success: true;
     tenant: string;
+    tenantId: string;
     username: string;
     token: string;
 }
@@ -331,6 +342,7 @@ export async function register(
     return {
         success: true,
         tenant: result.tenant.name,
+        tenantId: result.tenant.id,
         username: result.user.auth,
         token,
     };

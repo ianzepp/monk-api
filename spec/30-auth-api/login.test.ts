@@ -52,7 +52,7 @@ describe('POST /auth/login - Authenticate User', () => {
         });
 
         expect(response.success).toBe(false);
-        expect(response.error).toContain('Tenant is required');
+        expect(response.error).toContain('Tenant or tenant_id is required');
         expect(response.error_code).toBe('AUTH_TENANT_MISSING');
     });
 

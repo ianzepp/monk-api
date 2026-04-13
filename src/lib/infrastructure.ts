@@ -267,6 +267,26 @@ export class Infrastructure {
         }
     }
 
+    static async getTenantById(tenantId: string): Promise<TenantRecord | null> {
+        const adapter = await this.getAdapter();
+        await adapter.connect();
+        try {
+            const result = await adapter.query<TenantRecord>(
+                `SELECT id, name, db_type, database, schema, owner_id, is_active, created_at, updated_at
+                 FROM tenants
+                 WHERE id = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL`,
+                [tenantId]
+            );
+            if (result.rows.length === 0) {
+                return null;
+            }
+            const row = result.rows[0];
+            return { ...row, is_active: Boolean(row.is_active) };
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
     static async createTenant(options: {
         name: string;
         db_type?: DatabaseType;

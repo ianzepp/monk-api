@@ -18,6 +18,7 @@ export interface JWTPayload {
     user_id: string | null;
     username: string;
     tenant: string;
+    tenant_id?: string;
     db_type: 'postgresql' | 'sqlite'; // Database backend type
     db: string; // Database name (PG) or directory (SQLite)
     ns: string; // Namespace/schema name (PG) or filename (SQLite)
@@ -50,6 +51,7 @@ export interface JWTUserData {
     user_id?: string | null;
     username: string;
     tenant: string;
+    tenantId?: string;
     dbType?: 'postgresql' | 'sqlite'; // Maps to 'db_type' in JWT (default: 'postgresql')
     dbName: string; // Maps to 'db' in JWT
     nsName: string; // Maps to 'ns' in JWT
@@ -109,6 +111,7 @@ export class JWTGenerator {
             user_id: userData.user_id ?? userData.id,
             username: userData.username,
             tenant: userData.tenant,
+            tenant_id: userData.tenantId,
             db_type: userData.dbType || 'postgresql', // Database backend type
             db: userData.dbName, // Compact JWT field
             ns: userData.nsName, // Compact JWT field
@@ -145,6 +148,7 @@ export class JWTGenerator {
             user_id: userData.user_id ?? userData.id,
             username: userData.username,
             tenant: userData.tenant,
+            tenant_id: userData.tenantId,
             db_type: userData.dbType || 'postgresql',
             db: userData.dbName,
             ns: userData.nsName,
@@ -177,7 +181,7 @@ export class JWTGenerator {
      */
     static async generateFakeToken(
         targetUser: { id: string; username: string; access: string; access_read?: string[]; access_edit?: string[]; access_full?: string[] },
-        currentUser: { tenant: string; dbType?: 'postgresql' | 'sqlite'; dbName: string; nsName: string },
+        currentUser: { tenant: string; tenantId?: string; dbType?: 'postgresql' | 'sqlite'; dbName: string; nsName: string },
         options: FakeTokenOptions
     ): Promise<string> {
         const now = Math.floor(Date.now() / 1000);
@@ -188,6 +192,7 @@ export class JWTGenerator {
             user_id: targetUser.id,
             username: targetUser.username,
             tenant: currentUser.tenant,
+            tenant_id: currentUser.tenantId,
             db_type: currentUser.dbType || 'postgresql',
             db: currentUser.dbName,
             ns: currentUser.nsName,
@@ -228,6 +233,7 @@ export class JWTGenerator {
         },
         tenant: {
             name: string;
+            tenant_id?: string;
             db_type: 'postgresql' | 'sqlite';
             database: string;
             schema: string;
@@ -240,6 +246,7 @@ export class JWTGenerator {
                 user_id: user.id,
                 username: user.auth,
                 tenant: tenant.name,
+                tenantId: tenant.tenant_id,
                 dbType: tenant.db_type,
                 dbName: tenant.database,
                 nsName: tenant.schema,
@@ -266,6 +273,7 @@ export class JWTGenerator {
                 user_id: init.userId,
                 username: init.username || 'system',
                 tenant: init.tenant,
+                tenantId: init.tenantId,
                 dbType: init.dbType,
                 dbName: init.dbName,
                 nsName: init.nsName,

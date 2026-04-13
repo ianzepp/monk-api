@@ -72,10 +72,15 @@ export default async function (context: Context) {
 
     // Verify tenant still exists and is active
     const authDb = DatabaseConnection.getMainPool();
-    const tenantResult = await authDb.query(
-        'SELECT name, db_type, database, schema FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
-        [payload.tenant]
-    );
+    const tenantResult = payload.tenant_id
+        ? await authDb.query(
+            'SELECT name, db_type, database, schema FROM tenants WHERE id = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
+            [payload.tenant_id]
+        )
+        : await authDb.query(
+            'SELECT name, db_type, database, schema FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
+            [payload.tenant]
+        );
 
     if (!tenantResult.rows || tenantResult.rows.length === 0) {
         return context.json(
@@ -117,6 +122,7 @@ export default async function (context: Context) {
         user_id: user.id,
         username: user.auth,
         tenant: tenantName,
+        tenant_id: payload.tenant_id,
         db_type: dbType || 'postgresql', // Database backend type (default for legacy tenants)
         db: dbName, // Compact JWT field
         ns: nsName, // Compact JWT field
@@ -143,6 +149,7 @@ export default async function (context: Context) {
                 id: user.id,
                 username: user.auth,
                 tenant: tenantName,
+                tenant_id: payload.tenant_id,
                 access: user.access,
                 ...(newPayload.format && { format: newPayload.format }),
             },

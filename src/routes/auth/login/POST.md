@@ -6,9 +6,10 @@ Authenticate a user against an existing tenant and receive a fresh JWT token sco
 
 ```json
 {
-  "tenant": "string",     // Required: Tenant identifier
-  "username": "string",   // Required: Username for authentication
-  "format": "string"      // Optional: Preferred response format ("json", "toon", or "yaml")
+  "tenant": "string",      // Optional: Tenant name (legacy lookup)
+  "tenant_id": "string",   // Optional: Canonical opaque tenant identifier returned by /auth/register
+  "username": "string",    // Required: Username for authentication
+  "format": "string"       // Optional: Preferred response format ("json", "toon", or "yaml")
 }
 ```
 
@@ -23,6 +24,7 @@ Authenticate a user against an existing tenant and receive a fresh JWT token sco
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "username": "john.doe",
       "tenant": "my-company",
+      "tenant_id": "550e8400-e29b-41d4-a716-446655440000",
       "database": "tenant_a1b2c3d4",
       "access": "full",
       "format": "toon"  // Included if format was provided in request
@@ -38,7 +40,7 @@ Authenticate a user against an existing tenant and receive a fresh JWT token sco
 
 | Status | Error Code | Message | Condition |
 |--------|------------|---------|-----------|
-| 400 | `AUTH_TENANT_MISSING` | "Tenant is required" | Missing tenant field |
+| 400 | `AUTH_TENANT_MISSING` | "Tenant or tenant_id is required" | Missing tenant identity |
 | 400 | `AUTH_USERNAME_MISSING` | "Username is required" | Missing username field |
 | 401 | `AUTH_LOGIN_FAILED` | "Authentication failed" | Invalid credentials or tenant not found |
 
@@ -94,7 +96,7 @@ const loginResponse = await fetch('/auth/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    tenant: 'acme',
+    tenant_id: '550e8400-e29b-41d4-a716-446655440000',
     username: 'john.doe',
     format: 'json'  // Optional: set default format
   })
@@ -112,6 +114,6 @@ const apiResponse = await fetch('/api/data/users', {
 ## Related Endpoints
 
 - [`POST /auth/refresh`](../refresh/POST.md) - Refresh an existing token
-- [`POST /auth/register`](../register/POST.md) - Create new tenant and user
+- [`POST /auth/register`](../register/POST.md) - Create new tenant and user (returns canonical `tenant_id`)
 - [`GET /auth/tenants`](../tenants/GET.md) - List available tenants (personal mode)
 - [`GET /api/user/whoami`](../../api/user/whoami/GET.md) - Get current user info

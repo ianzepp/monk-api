@@ -27,6 +27,8 @@ export interface SystemInit {
     access: string;
     /** Tenant name */
     tenant: string;
+    /** Opaque tenant identifier */
+    tenantId?: string;
     /** ACL read access */
     accessRead?: string[];
     /** ACL edit access */
@@ -52,6 +54,7 @@ export function systemInitFromJWT(payload: JWTPayload, correlationId?: string): 
         username: payload.username,
         access: payload.access,
         tenant: payload.tenant,
+        tenantId: payload.tenant_id,
         accessRead: payload.access_read || [],
         accessEdit: payload.access_edit || [],
         accessFull: payload.access_full || [],
@@ -84,6 +87,7 @@ export class System implements SystemContext {
     // Authentication context
     public readonly access: string;
     public readonly tenant: string;
+    public readonly tenantId?: string;
     public readonly username?: string;
     public readonly accessRead: string[];
     public readonly accessEdit: string[];
@@ -130,6 +134,7 @@ export class System implements SystemContext {
             const payload = c.get('jwtPayload') as JWTPayload | undefined;
             this.access = payload?.access || 'user';
             this.tenant = payload?.tenant || 'unknown';
+            this.tenantId = payload?.tenant_id;
             this.accessRead = c.get('accessReadIds') || payload?.access_read || [];
             this.accessEdit = c.get('accessEditIds') || payload?.access_edit || [];
             this.accessFull = c.get('accessFullIds') || payload?.access_full || [];
@@ -148,6 +153,7 @@ export class System implements SystemContext {
             this.username = init.username;
             this.access = init.access;
             this.tenant = init.tenant;
+            this.tenantId = init.tenantId;
             this.accessRead = init.accessRead || [];
             this.accessEdit = init.accessEdit || [];
             this.accessFull = init.accessFull || [];

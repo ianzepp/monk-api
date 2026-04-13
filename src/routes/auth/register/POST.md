@@ -8,7 +8,7 @@ Create a new tenant with core system tables and bootstrap a full-access user. A 
 
 ```json
 {
-  "tenant": "string",        // Required: Tenant identifier
+  "tenant": "string",        // Required: Tenant identifier (display name)
   "username": "string",      // Optional: Desired username
                              //           Required when server is in enterprise mode
                              //           Defaults to 'root' when server is in personal mode
@@ -28,6 +28,8 @@ The server administrator configures the database naming strategy via the `TENANT
 - Prevents collisions, opaque naming
 - Any Unicode characters allowed in tenant name
 - Most secure for multi-tenant SaaS deployments
+- `tenant_id` is the canonical identifier for agents and machine clients
+- Use `tenant_id` for login/refresh whenever available
 - `username` parameter is **required**
 - `database` parameter is **not allowed** (returns `AUTH_DATABASE_NOT_ALLOWED`)
 
@@ -36,6 +38,8 @@ The server administrator configures the database naming strategy via the `TENANT
 - Useful for personal PaaS deployments where you control all tenants
 - `username` parameter is **optional** (defaults to `'root'`)
 - `database` parameter is **optional** (defaults to sanitized `tenant` name)
+- `tenant_id` is returned for stable login/refresh flows
+- Use `tenant_id` for login/refresh whenever available
 - Stricter tenant name validation (alphanumeric, hyphens, underscores, spaces only)
 
 ## Success Response (200)
@@ -44,6 +48,7 @@ The server administrator configures the database naming strategy via the `TENANT
 {
   "success": true,
   "data": {
+    "tenant_id": "string", // Canonical opaque tenant identifier
     "tenant": "string",     // Tenant name that was provisioned
     "database": "string",   // Backing database the tenant maps to
     "username": "string",   // Auth identifier for the newly created user
@@ -163,5 +168,5 @@ curl -X POST http://localhost:9001/auth/register \
 
 ## Related Endpoints
 
-- [`POST /auth/login`](../login/POST.md) - Authenticate with existing tenant
+- [`POST /auth/login`](../login/POST.md) - Authenticate with existing tenant (prefer `tenant_id`)
 - [`GET /auth/tenants`](../tenants/GET.md) - List available tenants (personal mode)

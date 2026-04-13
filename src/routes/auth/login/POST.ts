@@ -21,13 +21,13 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
     }
 
-    const { tenant, username, password, format } = body;
+    const { tenant, tenant_id, username, password, format } = body;
 
-    console.info('/auth/login', { tenant, username, format });
+    console.info('/auth/login', { tenant, tenant_id, username, format });
 
     // Input validation
-    if (!tenant) {
-        throw HttpErrors.badRequest('Tenant is required', 'AUTH_TENANT_MISSING');
+    if (!tenant && !tenant_id) {
+        throw HttpErrors.badRequest('Tenant or tenant_id is required', 'AUTH_TENANT_MISSING');
     }
 
     if (!username) {
@@ -35,7 +35,7 @@ export default async function (context: Context) {
     }
 
     // Authenticate using core auth module
-    const result = await login({ tenant, username, password });
+    const result = await login({ tenant, tenantId: tenant_id, username, password });
 
     if (!result.success) {
         // Handle password required as 400, others as 401
@@ -64,6 +64,7 @@ export default async function (context: Context) {
                 id: result.user.id,
                 username: result.user.username,
                 tenant: result.user.tenant,
+                tenant_id: result.user.tenantId,
                 access: result.user.access,
                 ...(format && ['json', 'toon', 'yaml'].includes(format) && { format }),
             },

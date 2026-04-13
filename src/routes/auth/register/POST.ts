@@ -76,6 +76,7 @@ export default async function (context: Context) {
     return context.json({
         success: true,
         data: {
+            tenant_id: result.tenant.id,
             tenant: result.tenant.name,
             username: result.user.auth,
             token: token,
