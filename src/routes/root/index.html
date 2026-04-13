@@ -7,7 +7,7 @@
     <title>Monk API</title>
     <meta
       name="description"
-      content="Monk API is a multi-tenant backend runtime with a public landing page optimized for LLM navigation."
+      content="Monk API — multi-tenant PaaS backend. Define models, store records, query and automate per tenant. LLM entry point."
     />
     <link rel="stylesheet" href="/index.css" />
   </head>
@@ -15,63 +15,72 @@
     <main class="page">
       <section class="hero shell">
         <div class="hero-copy">
-          <p class="eyebrow">LLM-facing public root</p>
-          <h1>Read the contract. Navigate the surface. Do not guess.</h1>
+          <p class="eyebrow">Monk API</p>
+          <h1>Multi-tenant PaaS backend. Model-first. Schema-isolated.</h1>
           <p class="lede">
-            Monk API is a multi-tenant backend runtime for model-first systems.
-            This page is intentionally compact: it tells LLMs where to look, how
-            to orient, and which routes are canonical before they start calling the API.
+            Each tenant gets a schema-isolated database, a full HTTP API surface,
+            and runtime access to define models, store records, query data,
+            track changes, manage access control, and move files — all without
+            writing server-side code.
           </p>
 
           <div class="actions">
-            <a class="button primary" href="/llms.txt">Open /llms.txt</a>
-            <a class="button" href="/docs">Open /docs</a>
+            <a class="button primary" href="/llms.txt">Read /llms.txt</a>
+            <a class="button" href="/docs">Browse /docs</a>
           </div>
         </div>
 
         <aside class="hero-panel" aria-label="Navigation contract">
-          <p class="panel-label">Canonical entrypoints</p>
+          <p class="panel-label">Start here</p>
           <ul class="signal-list">
-            <li><span>Human root</span><code>/</code></li>
-            <li><span>Agent root</span><code>/llms.txt</code></li>
-            <li><span>API overview</span><code>/docs</code></li>
-            <li><span>Health</span><code>/health</code></li>
+            <li><span>Agent primer</span><code><a href="/llms.txt">/llms.txt</a></code></li>
+            <li><span>API overview</span><code><a href="/docs">/docs</a></code></li>
+            <li><span>Auth</span><code><a href="/docs/auth">/docs/auth</a></code></li>
+            <li><span>Health</span><code><a href="/health">/health</a></code></li>
           </ul>
           <p class="panel-note">
-            Humans can read this page, but the copy and structure are optimized
-            for agent navigation and endpoint discovery.
+            All API documentation is self-hosted and navigable via
+            <code>/docs/*</code>. Read the docs before composing requests.
           </p>
         </aside>
       </section>
 
-      <section class="grid" aria-label="LLM navigation cues">
+      <section class="grid" aria-label="API surface">
         <article>
-          <h2>How to start</h2>
+          <h2>Core data model</h2>
           <ul>
-            <li>Read <a href="/llms.txt">/llms.txt</a> first.</li>
-            <li>Use <a href="/docs">/docs</a> for API discovery.</li>
-            <li>Prefer documented route shapes over guessing.</li>
-            <li>Inspect route docs before writing requests.</li>
+            <li>A <strong>tenant</strong> is a schema-isolated database.</li>
+            <li>A <strong>model</strong> is a tenant-defined table with typed fields.</li>
+            <li>A <strong>record</strong> is a row in that table, keyed by UUID.</li>
+            <li>Models and fields are defined at runtime via <code>/api/describe</code>.</li>
+            <li>Records are stored and queried via <code>/api/data</code>.</li>
           </ul>
         </article>
 
         <article>
-          <h2>What this API exposes</h2>
+          <h2>API surfaces</h2>
           <ul>
-            <li><code>/api/data</code> for CRUD and traversal</li>
-            <li><code>/api/describe</code> for schema definition</li>
-            <li><code>/api/find</code> and <code>/api/aggregate</code> for queries</li>
-            <li><code>/api/bulk</code>, <code>/api/cron</code>, <code>/fs</code></li>
+            <li><code>/api/describe</code> — define and inspect models and fields</li>
+            <li><code>/api/data</code> — CRUD, relationships, and soft delete</li>
+            <li><code>/api/find</code> — advanced filtering with 25+ operators</li>
+            <li><code>/api/aggregate</code> — count, sum, avg, min, max</li>
+            <li><code>/api/bulk</code> — batch operations and import/export</li>
+            <li><code>/api/tracked</code> — field-level change history</li>
+            <li><code>/api/acls</code> — per-record access control</li>
+            <li><code>/api/cron</code> — scheduled process management</li>
+            <li><code>/fs</code> — tenant-scoped virtual filesystem</li>
           </ul>
         </article>
 
         <article>
           <h2>Request rules</h2>
           <ul>
-            <li>Protected routes expect an <code>Authorization</code> header.</li>
-            <li>Use the documented route shape; do not infer shortcuts.</li>
-            <li>Read route docs before composing write requests.</li>
-            <li><code>/llms.txt</code> is the canonical agent primer.</li>
+            <li>Register a new tenant via <code>POST /auth/register</code>.</li>
+            <li>Authenticate via <code>POST /auth/login</code> to get a JWT.</li>
+            <li>Pass it as <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+            <li>Use exact documented route shapes; do not infer shortcuts.</li>
+            <li>Read <code>/docs/:api</code> before composing write requests.</li>
+            <li><code>/auth/*</code> and <code>/docs/*</code> are public — no token needed.</li>
           </ul>
         </article>
       </section>
