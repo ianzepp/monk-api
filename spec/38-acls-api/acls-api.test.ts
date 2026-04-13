@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'bun:test';
 import { TestHelpers, type TestTenant } from '../test-helpers.js';
 import { expectSuccess, expectError } from '../test-assertions.js';
+import { HttpClient } from '../http-client.js';
 
 /**
  * ACLs API Tests
@@ -21,6 +22,8 @@ import { expectSuccess, expectError } from '../test-assertions.js';
 describe('ACLs API', () => {
     let tenant: TestTenant;
     let testRecordId: string;
+    let editClient: HttpClient;
+    let sudoClient: HttpClient;
 
     // Test UUIDs for ACL entries
     const uuid1 = '11111111-1111-1111-1111-111111111111';
@@ -31,7 +34,39 @@ describe('ACLs API', () => {
     const uuid6 = '66666666-6666-6666-6666-666666666666';
 
     beforeAll(async () => {
+        // Create tenant with root user
         tenant = await TestHelpers.createTestTenant('acls-api');
+
+        // Create a non-privileged edit user for authorization tests
+        const createEditUserResponse = await tenant.httpClient.post('/api/user', {
+            name: 'Edit User',
+            auth: 'edituser',
+            access: 'edit',
+        });
+        expectSuccess(createEditUserResponse);
+
+        const editUserToken = await TestHelpers.loginToTenant(tenant.tenantName, 'edituser');
+        editClient = new HttpClient('http://localhost:9001');
+        editClient.setAuthToken(editUserToken);
+
+        // Create a full user and elevate to sudo for privileged mutation tests
+        const createFullUserResponse = await tenant.httpClient.post('/api/user', {
+            name: 'Full User',
+            auth: 'fulluser',
+            access: 'full',
+        });
+        expectSuccess(createFullUserResponse);
+
+        const fullUserToken = await TestHelpers.loginToTenant(tenant.tenantName, 'fulluser');
+        const fullClient = new HttpClient('http://localhost:9001');
+        fullClient.setAuthToken(fullUserToken);
+        const sudoResponse = await fullClient.post('/api/user/sudo', {
+            reason: 'ACL mutation regression tests',
+        });
+        expectSuccess(sudoResponse);
+
+        sudoClient = new HttpClient('http://localhost:9001');
+        sudoClient.setAuthToken(sudoResponse.data.sudo_token);
 
         // Create test model
         await tenant.httpClient.post('/api/describe/accounts', {});
@@ -92,9 +127,39 @@ describe('ACLs API', () => {
         });
     });
 
+    describe('Privilege Enforcement', () => {
+        it('should reject ACL POST from non-sudo users', async () => {
+            const response = await editClient.post(`/api/acls/accounts/${testRecordId}`, {
+                access_read: [uuid1],
+            });
+
+            expectError(response);
+            expect(response.error_code).toBe('SUDO_REQUIRED');
+        });
+
+        it('should reject ACL PUT from non-sudo users', async () => {
+            const response = await editClient.put(`/api/acls/accounts/${testRecordId}`, {
+                access_read: [uuid1],
+                access_edit: [],
+                access_full: [],
+                access_deny: [],
+            });
+
+            expectError(response);
+            expect(response.error_code).toBe('SUDO_REQUIRED');
+        });
+
+        it('should reject ACL DELETE from non-sudo users', async () => {
+            const response = await editClient.delete(`/api/acls/accounts/${testRecordId}`);
+
+            expectError(response);
+            expect(response.error_code).toBe('SUDO_REQUIRED');
+        });
+    });
+
     describe('POST /api/acls/:model/:id - Append/Merge ACLs', () => {
         it('should add ACL entries', async () => {
-            const response = await tenant.httpClient.post(`/api/acls/accounts/${testRecordId}`, {
+            const response = await sudoClient.post(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid1, uuid2],
                 access_edit: [uuid3],
             });
@@ -107,7 +172,7 @@ describe('ACLs API', () => {
 
         it('should merge new entries with existing (not replace)', async () => {
             // Add more entries
-            const response = await tenant.httpClient.post(`/api/acls/accounts/${testRecordId}`, {
+            const response = await sudoClient.post(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid4], // New entry
                 access_edit: [uuid3], // Duplicate - should not be added twice
             });
@@ -127,7 +192,7 @@ describe('ACLs API', () => {
 
         it('should preserve existing fields when updating partial data', async () => {
             // Add only access_full, other fields should be preserved
-            const response = await tenant.httpClient.post(`/api/acls/accounts/${testRecordId}`, {
+            const response = await sudoClient.post(`/api/acls/accounts/${testRecordId}`, {
                 access_full: [uuid5],
             });
 
@@ -159,7 +224,7 @@ describe('ACLs API', () => {
 
     describe('PUT /api/acls/:model/:id - Replace ACLs', () => {
         it('should completely replace all ACL lists', async () => {
-            const response = await tenant.httpClient.put(`/api/acls/accounts/${testRecordId}`, {
+            const response = await sudoClient.put(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid6],
                 access_edit: [],
                 access_full: [],
@@ -177,7 +242,7 @@ describe('ACLs API', () => {
 
         it('should remove all previous ACL entries', async () => {
             // Verify original entries are gone
-            const response = await tenant.httpClient.get(`/api/acls/accounts/${testRecordId}`);
+            const response = await sudoClient.get(`/api/acls/accounts/${testRecordId}`);
 
             expectSuccess(response);
 
@@ -190,7 +255,7 @@ describe('ACLs API', () => {
 
         it('should set missing fields to empty arrays', async () => {
             // PUT with only access_read
-            const response = await tenant.httpClient.put(`/api/acls/accounts/${testRecordId}`, {
+            const response = await sudoClient.put(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid1],
             });
 
@@ -210,11 +275,11 @@ describe('ACLs API', () => {
             };
 
             // First PUT
-            const response1 = await tenant.httpClient.put(`/api/acls/accounts/${testRecordId}`, aclData);
+            const response1 = await sudoClient.put(`/api/acls/accounts/${testRecordId}`, aclData);
             expectSuccess(response1);
 
             // Second PUT with same data
-            const response2 = await tenant.httpClient.put(`/api/acls/accounts/${testRecordId}`, aclData);
+            const response2 = await sudoClient.put(`/api/acls/accounts/${testRecordId}`, aclData);
             expectSuccess(response2);
 
             // Results should be identical
@@ -225,7 +290,7 @@ describe('ACLs API', () => {
     describe('DELETE /api/acls/:model/:id - Clear ACLs', () => {
         it('should clear all ACLs', async () => {
             // First add some ACLs
-            await tenant.httpClient.post(`/api/acls/accounts/${testRecordId}`, {
+            await sudoClient.post(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid1, uuid2],
                 access_edit: [uuid3],
                 access_full: [uuid4],
@@ -233,7 +298,7 @@ describe('ACLs API', () => {
             });
 
             // Then clear them
-            const response = await tenant.httpClient.delete(`/api/acls/accounts/${testRecordId}`);
+            const response = await sudoClient.delete(`/api/acls/accounts/${testRecordId}`);
 
             expectSuccess(response);
 
@@ -270,20 +335,29 @@ describe('ACLs API', () => {
 
             expectError(response);
         });
+
+        it('should reject malformed UUIDs in ACL arrays', async () => {
+            const response = await sudoClient.post(`/api/acls/accounts/${testRecordId}`, {
+                access_read: ['not-a-uuid'],
+            });
+
+            expectError(response);
+            expect(response.error_code).toBe('INVALID_USER_ID_FORMAT');
+        });
     });
 
     describe('POST vs PUT Behavior Difference', () => {
         it('POST should merge, PUT should replace', async () => {
             // Clear ACLs first
-            await tenant.httpClient.delete(`/api/acls/accounts/${testRecordId}`);
+            await sudoClient.delete(`/api/acls/accounts/${testRecordId}`);
 
             // POST adds entries
-            await tenant.httpClient.post(`/api/acls/accounts/${testRecordId}`, {
+            await sudoClient.post(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid1],
             });
 
             // POST again should merge (additive)
-            const postResponse = await tenant.httpClient.post(`/api/acls/accounts/${testRecordId}`, {
+            const postResponse = await sudoClient.post(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid2],
             });
 
@@ -293,7 +367,7 @@ describe('ACLs API', () => {
             expect(postResponse.data.access_lists.access_read.length).toBe(2);
 
             // PUT should replace completely
-            const putResponse = await tenant.httpClient.put(`/api/acls/accounts/${testRecordId}`, {
+            const putResponse = await sudoClient.put(`/api/acls/accounts/${testRecordId}`, {
                 access_read: [uuid3],
             });
 

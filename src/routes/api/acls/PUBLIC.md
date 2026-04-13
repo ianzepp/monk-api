@@ -14,8 +14,14 @@ Each record contains four access control arrays:
 
 All ACLs API operations require:
 - Valid JWT authentication
-- Admin or root level privileges
 - Target record must exist in the specified model
+
+ACL mutation operations require sudo access:
+- `POST /api/acls/:model/:record`
+- `PUT /api/acls/:model/:record`
+- `DELETE /api/acls/:model/:record`
+
+In practice, that means a root user, a caller with an active sudo token, or any other context the runtime marks as sudo.
 
 ## Endpoint Summary
 
@@ -137,7 +143,7 @@ When ACL arrays are empty (`[]`), the record uses default role-based permissions
 
 ## Security Notes
 
-- Only full and root users can modify ACLs
+- ACL mutation routes require sudo access
 - User IDs in ACL arrays must be valid UUID format strings
 - Duplicate user IDs are automatically removed
 - ACL changes take effect immediately
