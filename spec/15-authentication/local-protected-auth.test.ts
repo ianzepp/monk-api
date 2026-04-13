@@ -124,6 +124,66 @@ describe('authValidatorMiddleware local protected request resolution', () => {
         expect(body.systemInit.nsName).toBe(tenant.schema);
         expect(body.user.id).toBe(user.id);
     });
+
+    it('applies current access level to legacy local JWTs after a downgrade', async () => {
+        const { tenant, user } = await Infrastructure.createTenant({
+            name: `local_downgrade_${Date.now()}_${randomUUID().slice(0, 8)}`,
+            db_type: 'sqlite',
+        });
+        const token = await makeLocalToken({
+            sub: user.id,
+            user_id: user.id,
+            username: user.auth,
+            tenant: tenant.name,
+            tenant_id: tenant.id,
+            db_type: tenant.db_type,
+            db: tenant.database,
+            ns: tenant.schema,
+            access: 'root',
+        });
+
+        await updateTenantUser(tenant, user.id, `UPDATE users SET access = 'read' WHERE id = $1`);
+
+        const response = await requestProtected(token);
+        const body = await response.json() as any;
+
+        expect(response.status).toBe(200);
+        expect(body.systemInit.access).toBe('read');
+        expect(body.user.access).toBe('read');
+        expect(body.systemInit.isSudoToken).toBe(false);
+    });
+
+    it('revokes sudo on the next request when a full user with a sudo token is downgraded', async () => {
+        const { tenant, user } = await Infrastructure.createTenant({
+            name: `local_sudo_downgrade_${Date.now()}_${randomUUID().slice(0, 8)}`,
+            db_type: 'sqlite',
+        });
+        await updateTenantUser(tenant, user.id, `UPDATE users SET access = 'full' WHERE id = $1`);
+
+        const token = await makeLocalToken({
+            sub: user.id,
+            user_id: user.id,
+            username: user.auth,
+            tenant: tenant.name,
+            tenant_id: tenant.id,
+            db_type: tenant.db_type,
+            db: tenant.database,
+            ns: tenant.schema,
+            access: 'full',
+            is_sudo: true,
+        });
+
+        await updateTenantUser(tenant, user.id, `UPDATE users SET access = 'read' WHERE id = $1`);
+
+        const response = await requestProtected(token);
+        const body = await response.json() as any;
+
+        expect(response.status).toBe(200);
+        expect(body.systemInit.access).toBe('read');
+        expect(body.user.access).toBe('read');
+        expect(body.systemInit.isSudoToken).toBe(false);
+        expect(body.jwtPayload.is_sudo).toBe(false);
+    });
 });
 
 async function makeLocalToken(input: {
@@ -136,6 +196,7 @@ async function makeLocalToken(input: {
     db: string;
     ns: string;
     access: string;
+    is_sudo?: boolean;
 }): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
     return await sign({
@@ -145,7 +206,7 @@ async function makeLocalToken(input: {
         access_full: [],
         iat: now,
         exp: now + 600,
-        is_sudo: input.access === 'root',
+        is_sudo: input.is_sudo ?? input.access === 'root',
     }, process.env.JWT_SECRET!, 'HS256');
 }
 

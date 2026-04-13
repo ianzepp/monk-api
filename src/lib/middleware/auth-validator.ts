@@ -373,14 +373,20 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
             }
         }
 
+        // Rebuild effective privilege state from current Monk user data.
+        // Token claims may be stale after role downgrades.
+        payload = {
+            ...payload,
+            access: user.access,
+            access_read: user.access_read,
+            access_edit: user.access_edit,
+            access_full: user.access_full,
+            is_sudo: payload.is_sudo === true && (user.access === 'root' || user.access === 'full'),
+        };
+
         // Create SystemInit with fresh user permissions
         const correlationId = context.req.header('x-request-id');
         const systemInit = systemInitFromJWT(payload, correlationId || undefined);
-
-        // Override JWT access arrays with fresh DB values
-        systemInit.accessRead = user.access_read;
-        systemInit.accessEdit = user.access_edit;
-        systemInit.accessFull = user.access_full;
 
         // Set up PostgreSQL pool context when the request targets PostgreSQL.
         // SQLite tenants are opened through per-request adapters downstream.
