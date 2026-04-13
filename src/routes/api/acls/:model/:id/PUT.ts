@@ -1,5 +1,6 @@
 import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { getAclFields, requireAclMutationAccess, validateAclFieldValues } from '../../acl-utils.js';
 
 /**
  * PUT /api/acls/:model/:id - Replace ACL lists entirely
@@ -18,23 +19,17 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 export default withTransaction(async ({ system, params, body }) => {
     const { model, id } = params;
 
+    requireAclMutationAccess(system);
+
     // Validate and prepare updates for all ACL fields
-    const validFields = ['access_read', 'access_edit', 'access_full', 'access_deny'];
+    const validFields = getAclFields();
     const updates: any = {};
 
     for (const field of validFields) {
         if (field in body) {
-            if (!Array.isArray(body[field])) {
-                throw HttpErrors.badRequest(`${field} must be an array`, 'INVALID_ACL_FORMAT');
-            }
-
-            // Validate all entries are strings (user IDs)
-            if (!body[field].every((userId: any) => typeof userId === 'string')) {
-                throw HttpErrors.badRequest(`${field} must contain only string user IDs`, 'INVALID_USER_ID_FORMAT');
-            }
-
+            const values = validateAclFieldValues(field, body[field]);
             // Remove duplicates
-            updates[field] = [...new Set(body[field])];
+            updates[field] = [...new Set(values)];
         } else {
             // Field not provided - set to empty array (complete replacement)
             updates[field] = [];
