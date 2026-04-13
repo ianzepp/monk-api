@@ -1,11 +1,11 @@
 import type { ModelRecord } from '@src/lib/model-record.js';
 import { SecurityError } from '@src/lib/observers/errors.js';
 import type { SystemContext } from '@src/lib/system-context-types.js';
+import type { OperationType } from '@src/lib/observers/types.js';
 
 const ACL_FIELDS = ['access_read', 'access_edit', 'access_full', 'access_deny'] as const;
 
 type AclField = (typeof ACL_FIELDS)[number];
-type MutationOperation = 'update' | 'delete' | 'revert' | 'expire' | 'access';
 
 function asStringArray(value: unknown): string[] {
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -44,7 +44,7 @@ function canAccessMutation(system: SystemContext): boolean {
 export function authorizeRecordMutation(
     system: SystemContext,
     record: ModelRecord,
-    operation: MutationOperation
+    operation: OperationType
 ): void {
     if (operation === 'access') {
         if (!canAccessMutation(system)) {
