@@ -22,7 +22,7 @@ export interface TestTenantResult {
 /**
  * Test Database Helper
  *
- * Provides utilities for creating and cleaning up test tenants in Vitest tests.
+ * Provides utilities for creating and cleaning up test tenants in Bun tests.
  * Uses Infrastructure.createTenant() for tenant provisioning.
  */
 export class TestDatabaseHelper {
@@ -103,12 +103,13 @@ export class TestDatabaseHelper {
      * Get authentication token for a test user
      *
      * This matches shell: get_user_token()
-     * Makes a request to /auth/login and returns the JWT token
+     * Makes a request to `/auth/login` and returns the local-auth bearer token.
+     * This is test-only bootstrap behavior, not the production Auth0 contract.
      *
      * @param tenantName - Tenant name
      * @param username - Username (e.g., "full", "root")
      * @param baseUrl - API base URL (default: http://localhost:9001)
-     * @returns Promise with JWT token
+     * @returns Promise with local-auth bearer token
      */
     static async getAuthToken(
         tenantName: string,

@@ -15,13 +15,13 @@ The Auth API handles Auth0-authenticated tenant provisioning and explicit local-
 
 ## Auth0 Model
 
-1. Auth0 authenticates users with its hosted username/password database connection.
-2. Clients send Auth0 access tokens for the Monk API audience.
+1. Auth0 authenticates a principal and issues an access token for the Monk API audience.
+2. The current production integration uses an Auth0 machine-to-machine application with the client credentials flow, but Monk accepts any Auth0-issued bearer token that matches the configured issuer and audience.
 3. Monk verifies issuer, audience, signature, expiry, and algorithm through Auth0 JWKS.
 4. Monk resolves verified `iss + sub` to a tenant registry row and tenant-local user row.
 5. Monk derives DB/schema routing, access level, ACL arrays, and sudo state from Monk-owned records.
 
-Unsupported in the first pass: social login, enterprise IdP login, Auth0 Organizations dependency, Auth0 RBAC, and Auth0 permission claims.
+Unsupported in the first pass: Auth0 Organizations dependency, Auth0 RBAC, and Auth0 permission claims as Monk authorization inputs. Social or enterprise user-login clients may issue acceptable tokens later, but Monk does not require a browser OAuth flow.
 
 ## Response Formats
 
@@ -45,7 +45,7 @@ For Auth0 tokens, use query parameters or `Accept` headers for response format s
 ## Quick Start
 
 ```bash
-# 1. Provision tenant after Auth0 login
+# 1. Provision tenant after obtaining an Auth0 access token
 curl -X POST http://localhost:9001/auth/register \
   -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
@@ -74,8 +74,8 @@ curl -X GET "http://localhost:9001/api/describe?format=json" \
 - `AUTH0_ISSUER` or `AUTH0_DOMAIN`
 - `AUTH0_AUDIENCE`
 - `AUTH0_JWKS_URL` unless it can be derived from issuer/domain
-- Auth0 application/API configured to issue RS256 access tokens for the Monk API audience
-- Auth0 database username/password connection for first-pass login
+- Auth0 API/resource server configured to issue RS256 access tokens for the Monk API audience
+- At least one authorized Auth0 application that can request tokens for that audience, typically a machine-to-machine application for agent use
 
 ## Related Documentation
 

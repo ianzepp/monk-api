@@ -36,7 +36,7 @@ export class HttpClient {
     /**
      * Set the authentication token for all subsequent requests
      * 
-     * @param token - JWT token to use for authentication
+     * @param token - Bearer token to use for authentication
      */
     setAuthToken(token: string): void {
         this.authToken = token;
@@ -45,7 +45,7 @@ export class HttpClient {
     /**
      * Get the current authentication token
      * 
-     * @returns Current JWT token or undefined
+     * @returns Current bearer token or undefined
      */
     getAuthToken(): string | undefined {
         return this.authToken;
@@ -295,10 +295,10 @@ export class HttpClient {
     }
 
     /**
-     * Make an authenticated request with JWT token
+     * Make an authenticated request with a bearer token
      *
      * @param path - API path
-     * @param token - JWT token
+     * @param token - Bearer token
      * @param options - Request options
      * @returns Promise with response
      */

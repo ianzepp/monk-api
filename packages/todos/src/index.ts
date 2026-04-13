@@ -2,7 +2,7 @@
  * @monk-app/todos - Todo List Application
  *
  * A tenant-scoped app: models are installed in the user's tenant,
- * and data belongs to the user. Requires JWT authentication.
+ * and data belongs to the user. Requires bearer-token authentication.
  *
  * Models are defined in models/todos.yaml and loaded automatically.
  * Supports parent-child relationships for subtasks with cascade completion.

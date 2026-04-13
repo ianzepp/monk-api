@@ -67,8 +67,8 @@ curl -X POST http://localhost:9001/auth/register \
 
 - Auth0 API audience must match `AUTH0_AUDIENCE`.
 - Access tokens must be RS256 and verifiable through the configured JWKS endpoint.
-- First-pass login support assumes Auth0 hosted username/password database authentication.
-- Unsupported first-pass features: social login, enterprise IdP login, Auth0 Organizations dependency, Auth0 RBAC, and Auth0 permission decisions.
+- The current production setup uses machine-to-machine client credentials tokens, but any Auth0-issued bearer token with the configured issuer and audience is accepted.
+- Unsupported first-pass features: Auth0 Organizations dependency, Auth0 RBAC, and Auth0 permission decisions inside Monk. Auth0 scopes gate token issuance, but Monk authorization still comes from Monk-owned tenant records.
 
 ## Related Endpoints
 

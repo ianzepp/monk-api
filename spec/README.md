@@ -950,7 +950,7 @@ describe('My Feature Tests', () => {
     });
 
     it('should do something', async () => {
-        // JWT token automatically included - no manual headers needed!
+        // Cached bearer token automatically included - no manual headers needed!
         const response = await tenant.httpClient.post('/api/find/account', {});
 
         expectSuccess(response);
@@ -1011,12 +1011,12 @@ describe('Custom Auth Tests', () => {
     tenantName: string;      // Generated name (test_myfeature_1234567890_abcd1234)
     databaseName: string;    // Hashed database name
     username: string;        // Username that was created
-    token: string;           // JWT authentication token (also cached in httpClient)
-    httpClient: HttpClient;  // Pre-configured HTTP client with cached JWT token
+    token: string;           // Local-auth bearer token used by legacy test helpers
+    httpClient: HttpClient;  // Pre-configured HTTP client with cached bearer token
 }
 ```
 
-**Important**: The `httpClient` already has the JWT token cached, so you don't need to manually add Authorization headers!
+**Important**: The `httpClient` already has the cached bearer token, so you don't need to manually add Authorization headers.
 
 ### Multiple Users in Same Tenant
 
@@ -1040,18 +1040,18 @@ it('should support different user permissions', async () => {
 
 ## TypeScript Test Infrastructure
 
-### Authentication and JWT Caching
+### Authentication and Bearer-Token Caching
 
-The TypeScript test framework includes **automatic JWT token caching** to eliminate repetitive Authorization headers:
+Production auth is Auth0-based, but parts of the TypeScript test framework still use the older explicit local-auth bootstrap flow. Those helpers cache bearer tokens so tests can hit protected routes without repeating `Authorization` headers.
 
-**AuthClient** - High-level authentication wrapper:
-- `login({ tenant, username })` - Authenticate with existing tenant
-- `register({ tenant, template, username })` - Create new tenant
-- Automatically caches JWT token in HttpClient
+**AuthClient** - High-level local-auth wrapper:
+- `login({ tenant, username })` - Authenticate with existing tenant through explicit local-auth bootstrap
+- `register({ tenant, template, username })` - Legacy pre-Auth0 tenant helper that still assumes `/auth/register` returns a token
+- Automatically caches bearer tokens in HttpClient
 - Provides `.client` property for authenticated API requests
 
 **HttpClient** - HTTP request utilities:
-- Automatically includes cached JWT in all requests
+- Automatically includes cached bearer tokens in all requests
 - `setAuthToken(token)` - Cache a token
 - `getAuthToken()` - Get cached token
 - `clearAuthToken()` - Clear cached token
@@ -1067,9 +1067,9 @@ The TypeScript test framework includes **automatic JWT token caching** to elimin
 
 - **`spec/test-config.ts`** - Configuration (PORT=9001, API_URL, etc.)
 - **`spec/test-infrastructure.ts`** - Global setup/teardown logic
-- **`spec/test-helpers.ts`** - TestHelpers API for test files
-- **`spec/auth-client.ts`** - AuthClient for login/register with auto JWT caching
-- **`spec/http-client.ts`** - HTTP request utilities with JWT caching
+- **`spec/test-helpers.ts`** - Legacy local-auth TestHelpers API pending Auth0-aware migration
+- **`spec/auth-client.ts`** - Local-auth AuthClient for login plus legacy register helper
+- **`spec/http-client.ts`** - HTTP request utilities with cached bearer-token support
 - **`spec/bun-test-setup.ts`** - Bun test preload and global setup
 - **`bunfig.toml`** - Bun test configuration
 
@@ -1080,19 +1080,19 @@ The TypeScript test framework includes **automatic JWT token caching** to elimin
    - Throws clear error if prerequisites missing
 
 2. **Per-Test Setup** (each test file's `beforeAll`)
-   - Calls `/auth/register` to create tenant from template
-   - Returns tenant info with auth token ready to use
+   - Legacy helpers may call `/auth/register` or `/auth/login` in explicit local-auth mode
+   - Auth0-specific behavior should be tested with explicit bearer-token setup and the dedicated Auth0 coverage files
 
 3. **Global Teardown** (once after all tests)
    - Automatic cleanup of test tenants
 
 ## Benefits Over Direct Database Access
 
-The new pattern uses `/auth/register` API instead of direct database cloning:
+The older helper pattern uses API auth endpoints instead of direct database cloning:
 
-1. **Tests realistic user flow** - Uses actual registration API
+1. **Tests explicit local-auth bootstrap flow** - Uses API endpoints instead of direct DB writes
 2. **Simpler test code** - One line creates tenant with auth
-3. **API coverage** - Tests the registration endpoint itself
+3. **API coverage** - Exercises the test bootstrap endpoints directly
 4. **No database dependencies** - Tests use API, not direct DB access
 
 ### Migration Examples

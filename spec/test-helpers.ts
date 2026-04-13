@@ -37,15 +37,14 @@ export class TestHelpers {
     /**
      * Create a test tenant from a template via the API
      *
-     * This uses POST /auth/register to create a new tenant from a template.
-     * The tenant name is automatically generated with a unique suffix.
+     * Historical note: this helper reflects the pre-Auth0 local test flow and
+     * still expects `/auth/register` to return a bearer token. The production
+     * Auth0 provisioning contract no longer does that.
      *
-     * Benefits over direct database cloning:
-     * - Tests the actual user registration flow
-     * - Realistic integration testing
-     * - No direct database dependencies
+     * Use this only for the legacy explicit local-auth test path until the test
+     * suite is migrated to the current Auth0-aware setup.
      *
-     * The returned HttpClient automatically includes the JWT token in all requests,
+     * The returned HttpClient automatically includes the cached bearer token in all requests,
      * so you don't need to manually add Authorization headers.
      *
      * Template Options:
@@ -123,7 +122,7 @@ export class TestHelpers {
 
         const authClient = new AuthClient(TEST_CONFIG.API_URL);
 
-        // Register tenant via AuthClient (automatically caches JWT)
+        // Register tenant via AuthClient (automatically caches the returned token)
         const response = await authClient.register({
             tenant: tenantName,
             template: template,
@@ -202,7 +201,7 @@ export class TestHelpers {
      *
      * Helper to create an HttpClient with Authorization header pre-configured.
      *
-     * @param _token - JWT token for authentication (currently unused - stored in TestTenant)
+     * @param _token - Bearer token for authentication (currently unused - stored in TestTenant)
      * @returns HttpClient instance configured with auth header
      *
      * @example

@@ -3,7 +3,7 @@
  * Decrypt Monk API Encrypted Responses
  *
  * Decrypts responses encrypted with ?encrypt=pgp parameter.
- * Requires the same JWT token that was used for encryption.
+ * Requires the same JWT-shaped bearer token that was used for encryption.
  *
  * Usage:
  *   bun scripts/decrypt.ts <jwt-token> < encrypted-message.txt
@@ -17,9 +17,9 @@
  *   bun scripts/decrypt.ts "$JWT" encrypted-response.txt
  *
  * Security Model:
- * - JWT token is the decryption key
- * - Same JWT used for encryption must be used for decryption
- * - JWT expiry means old encrypted messages become undecryptable
+ * - The bearer token string is the decryption key
+ * - The same token used for encryption must be used for decryption
+ * - Token expiry means old encrypted messages become undecryptable
  */
 
 import { createDecipheriv } from 'crypto';
@@ -76,12 +76,12 @@ function parseArmor(armored: string): ArmorComponents {
 }
 
 /**
- * Derive encryption key from JWT token
+ * Derive encryption key from bearer token
  * Must match server-side key derivation
  */
 function deriveKeyFromJWT(jwt: string, salt: string): Buffer {
     return pbkdf2Sync(
-        jwt,       // Password: JWT token
+        jwt,       // Password: bearer token string
         salt,      // Salt: tenant:userId
         100000,    // Iterations (must match server)
         32,        // Key length: 256 bits
@@ -91,7 +91,7 @@ function deriveKeyFromJWT(jwt: string, salt: string): Buffer {
 
 /**
  * Extract salt from JWT payload
- * Decodes JWT to get tenant and user ID
+ * Decodes the token payload to get tenant and user ID
  */
 function extractSaltFromJWT(jwt: string): string {
     try {

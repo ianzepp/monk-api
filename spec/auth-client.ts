@@ -1,13 +1,13 @@
 /**
  * Authentication Client
  *
- * High-level client for authentication operations that wraps HttpClient
- * and automatically manages JWT tokens.
+ * High-level client for non-production local-auth test operations that wraps
+ * HttpClient and automatically manages bearer tokens.
  *
  * Features:
  * - login() - Authenticate with username/tenant
- * - register() - Create new tenant and authenticate
- * - Automatically caches JWT token in HttpClient
+ * - register() - Legacy helper from the pre-Auth0 test flow
+ * - Automatically caches bearer tokens in HttpClient
  * - Provides access to underlying HttpClient for API requests
  */
 
@@ -61,7 +61,7 @@ export interface AuthResponse {
 /**
  * Authentication Client
  *
- * Wraps authentication operations and automatically manages JWT tokens.
+ * Wraps explicit local-auth test operations and automatically manages bearer tokens.
  */
 export class AuthClient {
     private httpClient: HttpClient;
@@ -78,7 +78,7 @@ export class AuthClient {
     /**
      * Login to an existing tenant
      *
-     * Automatically caches the JWT token for subsequent requests.
+     * Automatically caches the returned bearer token for subsequent requests.
      *
      * @param credentials - Login credentials (tenant, username)
      * @returns Promise with authentication response
@@ -111,8 +111,11 @@ export class AuthClient {
     /**
      * Register a new tenant
      *
-     * Creates a new tenant from a template and automatically caches
-     * the JWT token for the new tenant admin user.
+     * Legacy helper from the pre-Auth0 test flow.
+     *
+     * Historical note: production `/auth/register` now provisions from a verified
+     * Auth0 subject and does not return a login token. This helper remains for
+     * older test utilities until those tests are migrated.
      *
      * @param params - Registration parameters
      * @returns Promise with authentication response
@@ -144,27 +147,27 @@ export class AuthClient {
     }
 
     /**
-     * Get the current JWT token
+     * Get the current bearer token
      *
-     * @returns Current JWT token or undefined
+     * @returns Current bearer token or undefined
      */
     getToken(): string | undefined {
         return this.httpClient.getAuthToken();
     }
 
     /**
-     * Set a JWT token manually
+     * Set a bearer token manually
      *
      * Useful for testing with pre-existing tokens or switching users.
      *
-     * @param token - JWT token to use
+     * @param token - Bearer token to use
      */
     setToken(token: string): void {
         this.httpClient.setAuthToken(token);
     }
 
     /**
-     * Clear the current JWT token
+     * Clear the current bearer token
      */
     clearToken(): void {
         this.httpClient.clearAuthToken();
