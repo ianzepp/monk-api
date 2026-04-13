@@ -109,7 +109,7 @@ code {
   grid-template-columns: minmax(0, 1fr) 260px;
   gap: 0;
   border: 1px solid var(--line);
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 .hero-copy {
@@ -219,11 +219,20 @@ h1 {
 
 /* ── grid ────────────────────────────────────────────── */
 
+.install-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
-  margin-top: 2px;
+  margin-top: 24px;
 }
 
 article {
@@ -232,10 +241,14 @@ article {
 }
 
 .install-band {
-  display: block;
-  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 0;
   border: 1px solid var(--line);
-  padding: 20px 22px;
+  border-top: none;
+  padding: 14px 22px;
   text-align: center;
 }
 
@@ -282,7 +295,7 @@ ul li:first-child {
 /* ── footer ──────────────────────────────────────────── */
 
 .footer {
-  margin-top: 32px;
+  margin-top: 40px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
   font-size: 11px;
