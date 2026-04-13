@@ -221,14 +221,76 @@ h1 {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   margin-top: 2px;
+}
+
+.grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 article {
   border: 1px solid var(--line);
   padding: 20px 22px;
+}
+
+.install-band {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.install-copy,
+.install-command {
+  border: 1px solid var(--line);
+  padding: 20px 22px;
+}
+
+.install-band h2 {
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--bright);
+  margin-bottom: 10px;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.install-text {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text);
+  max-width: 52ch;
+}
+
+.install-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 8px;
+}
+
+.install-label + .install-url {
+  margin-bottom: 16px;
+}
+
+.install-url {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-row);
+  color: var(--accent);
+  line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 h2 {
@@ -285,6 +347,10 @@ ul li:first-child {
   }
 
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .install-band {
     grid-template-columns: 1fr;
   }
 }

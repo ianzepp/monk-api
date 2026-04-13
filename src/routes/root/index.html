@@ -54,7 +54,7 @@
         </aside>
       </section>
 
-      <section class="grid" aria-label="API surface">
+      <section class="grid grid-two" aria-label="API orientation">
         <article>
           <h2>Core data model</h2>
           <ul>
@@ -80,6 +80,25 @@
             <li><code>/fs</code> — tenant-scoped virtual filesystem</li>
           </ul>
         </article>
+      </section>
+
+      <section class="install-band" aria-label="CLI install">
+        <div class="install-copy">
+          <p class="panel-label">CLI install</p>
+          <h2>monk-cli install URL</h2>
+          <p class="install-text">
+            Install the latest CLI from the release script, then point it at this API.
+          </p>
+        </div>
+        <div class="install-command">
+          <p class="install-label">Install URL</p>
+          <code class="install-url">https://raw.githubusercontent.com/ianzepp/monk-cli/main/scripts/install.sh</code>
+          <p class="install-label">curl</p>
+          <code class="install-url">curl -fsSL https://raw.githubusercontent.com/ianzepp/monk-cli/main/scripts/install.sh | bash</code>
+        </div>
+      </section>
+
+      <section class="grid grid-three" aria-label="Request rules">
 
         <article>
           <h2>Request rules</h2>
@@ -90,6 +109,28 @@
             <li>Use exact documented route shapes; do not infer shortcuts.</li>
             <li>Read <code>/docs/:api</code> before composing write requests.</li>
             <li><code>/auth/*</code> and <code>/docs/*</code> are public — no token needed.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h2>CLI workflow</h2>
+          <ul>
+            <li>Install <strong>monk-cli</strong> with the release script.</li>
+            <li>Run <code>monk init</code> to create local config.</li>
+            <li>Add a server that targets this API host.</li>
+            <li>Select a tenant, then authenticate before write operations.</li>
+            <li>Use the CLI for repeatable tenant, data, ACL, and filesystem work.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h2>Auth baseline</h2>
+          <ul>
+            <li>Browser login is optional; bearer auth is the actual API contract.</li>
+            <li>Public docs live under <code>/docs/auth</code>.</li>
+            <li>Protected routes expect <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+            <li>LLM and automation clients should use documented token flows.</li>
+            <li>Auth0 identity does not replace tenant-local access and ACL rules.</li>
           </ul>
         </article>
       </section>
