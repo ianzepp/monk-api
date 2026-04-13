@@ -234,6 +234,6 @@ Models marked with `immutable=true` allow records to be created but never modifi
 - **Data Operations**: `/docs/data` - CRUD operations on model records
 - **Bulk Operations**: `/docs/bulk` - Batch operations across models
 - **Advanced Search**: `/docs/find` - Complex queries with filtering
-- **History API**: `/docs/history` - Change tracking and audit trails
+- **History API**: `/docs/api/tracked` - Change tracking and audit trails
 
 The Describe API provides the foundation for all data operations by defining database structure with Monk-native format and direct PostgreSQL mapping.

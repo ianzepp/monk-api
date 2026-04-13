@@ -78,28 +78,8 @@ Use the root endpoint to discover all available APIs and their documentation:
 ```bash
 curl http://localhost:9001/
 
-# Response includes complete API catalog:
-{
-  "success": true,
-  "data": {
-    "name": "Monk API",
-    "version": "6.x.x",
-    "endpoints": {
-      "docs": ["/docs", "/docs/auth", "/docs/describe", "/docs/data"],
-      "auth": ["/auth/login", "/auth/register", "/auth/refresh", "/auth/tenants"],
-      "user": ["/api/user", "/api/user/:id", "/api/user/sudo", "/api/user/fake"],
-      "data": ["/api/data/:model", "/api/data/:model/:id", "/api/data/:model/:id/:relationship"],
-      "describe": ["/api/describe", "/api/describe/:model", "/api/describe/:model/fields"],
-      "find": ["/api/find/:model"],
-      "aggregate": ["/api/aggregate/:model"],
-      "bulk": ["/api/bulk", "/api/bulk/export", "/api/bulk/import"],
-      "acls": ["/api/acls/:model/:id"],
-      "stat": ["/api/stat/:model/:id"],
-      "tracked": ["/api/tracked/:model/:id", "/api/tracked/:model/:id/:change"],
-      "trashed": ["/api/trashed", "/api/trashed/:model", "/api/trashed/:model/:id"]
-    }
-  }
-}
+# Response is the public root README in markdown.
+# Start from there, then follow the documented /docs links.
 ```
 
 ## Documentation Navigation

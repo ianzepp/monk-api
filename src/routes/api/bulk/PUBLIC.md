@@ -224,8 +224,8 @@ curl -X POST http://localhost:9001/api/bulk \
 
 ## Related Documentation
 
-- **CRUD Endpoints**: [`docs/data`](../../docs/32-data-api.md)
-- **Aggregation Endpoint**: [`docs/34-aggregate-api.md`](../../docs/34-aggregate-api.md)
-- **Observer System**: [`docs/OBSERVERS.md`](../../docs/OBSERVERS.md)
+- **CRUD Endpoints**: [`Data API`](/docs/api/data)
+- **Aggregation Endpoint**: [`Aggregate API`](/docs/api/aggregate)
+- **Observer System**: documented in the main API docs and route handlers
 
 The Bulk API delivers high-throughput, transaction-safe orchestration across models while preserving the Monk platform’s validation, security, and auditing guarantees.

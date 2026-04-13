@@ -104,7 +104,7 @@ curl -X GET "http://localhost:9001/api/describe?format=json" \
 
 ## Related Documentation
 
-- **User API**: `/docs/user` - User identity and account management
-- **Privileged User Operations**: `/docs/user` - Sudo token issuance and impersonation live under the User API
+- **User API**: `/docs/api/user` - User identity and account management
+- **Privileged User Operations**: `/docs/api/user` - Sudo token issuance and impersonation live under the User API
 - **Data API**: [`../api/data/PUBLIC.md`](../api/data/PUBLIC.md) - Working with model-backed data
 - **Describe API**: [`../api/describe/PUBLIC.md`](../api/describe/PUBLIC.md) - Managing models

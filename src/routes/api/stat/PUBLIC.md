@@ -52,7 +52,7 @@ Authorization: Bearer <jwt>
 ### Related Endpoints
 
 - `GET /api/data/:model/:record` - Get full record with user data
-- `POST /api/file/stat` - Filesystem-style stat operation
+- `GET /fs/*?stat=true` - Filesystem metadata lookup
 - `GET /api/acls/:model/:record` - Get ACL metadata
 
 ### Notes
@@ -62,4 +62,4 @@ Authorization: Bearer <jwt>
 - Soft-deleted records (with `trashed_at` set) are still accessible via stat
 - This endpoint respects the same ACL permissions as the Data API
 
-See [docs/39-stat-api.md](../../docs/39-stat-api.md) for complete documentation.
+See [API overview](/docs/api/stat) for complete documentation.

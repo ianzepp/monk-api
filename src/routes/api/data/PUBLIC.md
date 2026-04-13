@@ -217,4 +217,4 @@ curl -X DELETE "http://localhost:9001/api/trashed/users/user-1" \
 - **Find API**: [`../find/PUBLIC.md`](../find/PUBLIC.md) - Advanced queries with filtering, sorting, and pagination
 - **Bulk API**: [`../bulk/PUBLIC.md`](../bulk/PUBLIC.md) - Multi-model batch operations
 - **Trashed API**: [`../trashed/PUBLIC.md`](../trashed/PUBLIC.md) - Manage soft-deleted records
-- **User API**: `/docs/user` - User identity and sudo token management
+- **User API**: `/docs/api/user` - User identity and sudo token management
