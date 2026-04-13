@@ -1,5 +1,6 @@
 import { withTransaction, withSelfServiceSudo } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { resolveUserTargetId } from '../../../user-id.js';
 
 // TODO: SECURITY - The 'credentials' model is currently visible via /api/data/credentials
 // This exposes password hashes and API key hashes to users with read access.
@@ -17,7 +18,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * - Other user IDs: Requires sudo access
  */
 export default withTransaction(async ({ system, params }) => {
-    const targetId = params.id === 'me' ? system.userId : params.id;
+    const targetId = resolveUserTargetId(params.id, system.userId);
     const keyId = params.keyId;
     const isSelf = targetId === system.userId;
     const hasSudo = system.isSudo();
@@ -46,7 +47,7 @@ export default withTransaction(async ({ system, params }) => {
             user_id: targetId,
             type: 'api_key',
         }
-    });
+    }, { context: 'system' });
 
     if (!key) {
         throw HttpErrors.notFound('API key not found', 'KEY_NOT_FOUND');

@@ -1,5 +1,6 @@
 import { withTransaction } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { resolveUserTargetId } from '../user-id.js';
 
 /**
  * GET /api/user/:id - Get user profile
@@ -12,7 +13,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
  * - Other user IDs: Requires sudo access
  */
 export default withTransaction(async ({ system, params }) => {
-    const targetId = params.id === 'me' ? system.userId : params.id;
+    const targetId = resolveUserTargetId(params.id, system.userId);
     const isSelf = targetId === system.userId;
 
     // Non-self access requires sudo

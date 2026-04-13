@@ -23,7 +23,7 @@ export default withTransaction(async ({ system, query }) => {
     const offset = parseInt(query.offset) || 0;
 
     const users = await system.database.selectAny('users', {
-        order: [{ field: 'created_at', direction: 'DESC' }],
+        order: [{ field: 'created_at', sort: 'DESC' }],
         limit,
         offset,
     });

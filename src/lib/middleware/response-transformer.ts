@@ -160,13 +160,19 @@ function applyFieldExtraction(data: any, context: Context): any {
 
     // Step 1b: Unwrap or select fields (envelope extraction)
     if (selectParam && selectParam.trim() !== '') {
-        // select= implies unwrap + field filtering
-        // Prepend "data." to each path since select operates within data scope
-        const paths = (selectParam as string)
-            .split(',')
-            .map(p => `data.${p.trim()}`)
-            .join(',');
-        result = extract(result, paths);
+        // For array payloads, field filtering already happened above via transformMany().
+        // Returning the data array preserves the expected shape for list endpoints.
+        if (Array.isArray(result.data)) {
+            result = result.data;
+        } else {
+            // select= on object payloads implies unwrap + field filtering
+            // Prepend "data." to each path since select operates within data scope
+            const paths = (selectParam as string)
+                .split(',')
+                .map(p => `data.${p.trim()}`)
+                .join(',');
+            result = extract(result, paths);
+        }
     } else if (unwrapParam !== undefined) {
         // unwrap without select = return full data object
         result = extract(result, 'data');

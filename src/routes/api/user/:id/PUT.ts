@@ -1,5 +1,6 @@
 import { withTransaction, withSelfServiceSudo } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { resolveUserTargetId } from '../user-id.js';
 
 /**
  * PUT /api/user/:id - Update user profile
@@ -25,7 +26,7 @@ export default withTransaction(async ({ system, params, body }) => {
         throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
     }
 
-    const targetId = params.id === 'me' ? system.userId : params.id;
+    const targetId = resolveUserTargetId(params.id, system.userId);
     const isSelf = targetId === system.userId;
     const hasSudo = system.isSudo();
 

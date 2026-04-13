@@ -2,6 +2,7 @@ import { withTransaction, withSelfServiceSudo } from '@src/lib/api-helpers.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { hashPassword, verifyPassword } from '@src/lib/credentials/index.js';
 import { randomUUID } from 'crypto';
+import { resolveUserTargetId } from '../../user-id.js';
 
 // TODO: SECURITY - The 'credentials' model is currently visible via /api/data/credentials
 // This exposes password hashes and API key hashes to users with read access.
@@ -29,7 +30,7 @@ import { randomUUID } from 'crypto';
  * - No maximum (bcrypt truncates at 72 bytes, argon2 has no limit)
  */
 export default withTransaction(async ({ system, params, body }) => {
-    const targetId = params.id === 'me' ? system.userId : params.id;
+    const targetId = resolveUserTargetId(params.id, system.userId);
     const isSelf = targetId === system.userId;
     const hasSudo = system.isSudo();
 
@@ -76,7 +77,7 @@ export default withTransaction(async ({ system, params, body }) => {
             type: 'password'
         },
         order: { created_at: 'desc' }
-    });
+    }, { context: 'system' });
 
     // If self-service and has existing password, verify current password
     if (isSelf && !hasSudo && existingCredential) {

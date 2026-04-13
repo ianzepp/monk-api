@@ -179,6 +179,11 @@ export async function selectAny<T extends Record<string, any> = Record<string, a
     options: SelectOptions = {}
 ): Promise<DbRecord<T>[]> {
     const model = system.namespace.getModel(modelName);
+
+    if (modelName === 'credentials' && options.context !== 'system') {
+        throw HttpErrors.notFound('Model not found', 'MODEL_NOT_FOUND');
+    }
+
     const defaultOptions = getDefaultSoftDeleteOptions(system, options.context);
     const mergedOptions = { ...defaultOptions, ...options };
 
