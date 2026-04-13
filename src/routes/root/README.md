@@ -23,9 +23,8 @@ If you are a human or an LLM landing on the API, read these in order:
 10. [Tracked API](/docs/api/tracked)
 11. [Trashed API](/docs/api/trashed)
 12. [Cron API](/docs/api/cron)
-13. [Cron API](/docs/api/cron)
-14. [User API](/docs/api/user)
-15. [Filesystem API](/docs/fs)
+13. [User API](/docs/api/user)
+14. [Filesystem API](/docs/fs)
 
 ## What Monk API does
 
