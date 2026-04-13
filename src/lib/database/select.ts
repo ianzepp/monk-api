@@ -25,6 +25,12 @@ function getAdapter(system: SystemContext): DatabaseAdapter {
     return system.adapter;
 }
 
+function assertModelReadableViaGenericSurface(modelName: string, context?: 'api' | 'observer' | 'system'): void {
+    if (modelName === 'credentials' && context !== 'system') {
+        throw HttpErrors.notFound('Model not found', 'MODEL_NOT_FOUND');
+    }
+}
+
 /**
  * Get default soft delete options based on context
  */
@@ -118,6 +124,7 @@ export async function count(
     filterData: FilterData = {},
     options: SelectOptions = {}
 ): Promise<number> {
+    assertModelReadableViaGenericSurface(modelName, options.context);
     const model = system.namespace.getModel(modelName);
     const defaultOptions = getDefaultSoftDeleteOptions(system, options.context);
     const mergedOptions = { ...defaultOptions, ...options };
@@ -142,6 +149,7 @@ export async function aggregate(
     body: any = {},
     options: SelectOptions = {}
 ): Promise<any[]> {
+    assertModelReadableViaGenericSurface(modelName, options.context);
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
     }
@@ -178,11 +186,8 @@ export async function selectAny<T extends Record<string, any> = Record<string, a
     filterData: FilterData = {},
     options: SelectOptions = {}
 ): Promise<DbRecord<T>[]> {
+    assertModelReadableViaGenericSurface(modelName, options.context);
     const model = system.namespace.getModel(modelName);
-
-    if (modelName === 'credentials' && options.context !== 'system') {
-        throw HttpErrors.notFound('Model not found', 'MODEL_NOT_FOUND');
-    }
 
     const defaultOptions = getDefaultSoftDeleteOptions(system, options.context);
     const mergedOptions = { ...defaultOptions, ...options };
@@ -297,6 +302,7 @@ export async function* streamAny<T extends Record<string, any> = Record<string, 
     filterData: FilterData = {},
     options: SelectOptions = {}
 ): AsyncGenerator<DbRecord<T>, void, unknown> {
+    assertModelReadableViaGenericSurface(modelName, options.context);
     const model = system.namespace.getModel(modelName);
     const defaultOptions = getDefaultSoftDeleteOptions(system, options.context);
     const mergedOptions = { ...defaultOptions, ...options };
