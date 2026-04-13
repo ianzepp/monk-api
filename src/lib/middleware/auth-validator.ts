@@ -283,6 +283,18 @@ function jwtPayloadFromAuth0Identity(
     };
 }
 
+async function resolveActiveTenantFromPayload(payload: JWTPayload): Promise<TenantRecord> {
+    const tenant = payload.tenant_id
+        ? await Infrastructure.getTenantById(payload.tenant_id)
+        : await Infrastructure.getTenant(payload.tenant);
+
+    if (!tenant) {
+        throw HttpErrors.unauthorized('Invalid tenant', 'AUTH_INVALID_TENANT');
+    }
+
+    return tenant;
+}
+
 function shouldUseAuth0ForBearer(): boolean {
     return process.env.NODE_ENV === 'production'
         || Boolean(process.env.AUTH0_ISSUER || process.env.AUTH0_DOMAIN || process.env.AUTH0_AUDIENCE || process.env.AUTH0_JWKS_URL);
@@ -341,16 +353,23 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
                 // Explicit development/test bootstrap path. Production bearer auth is Auth0/OIDC.
                 payload = await verify(token, getJwtSecret(), 'HS256') as JWTPayload;
 
-                const dbType = (payload.db_type || 'postgresql') as DatabaseType;
-                const dbName = payload.db;
-                const nsName = payload.ns;
                 const userId = payload.user_id;
-
-                if (!dbName || !nsName || !userId) {
+                if (!userId || (!payload.tenant_id && !payload.tenant)) {
                     throw HttpErrors.unauthorized('Invalid JWT - missing required claims', 'AUTH_TOKEN_INVALID');
                 }
 
-                user = await validateUser(userId, dbType, dbName, nsName);
+                const tenant = await resolveActiveTenantFromPayload(payload);
+                user = await validateUser(userId, tenant.db_type, tenant.database, tenant.schema);
+
+                // Do not trust DB/schema routing claims from the token. Resolve them from Monk state.
+                payload = {
+                    ...payload,
+                    tenant: tenant.name,
+                    tenant_id: tenant.id,
+                    db_type: tenant.db_type,
+                    db: tenant.database,
+                    ns: tenant.schema,
+                };
             }
         }
 
