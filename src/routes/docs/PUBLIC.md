@@ -82,6 +82,52 @@ curl http://localhost:9001/
 # Start from there, then follow the documented /docs links.
 ```
 
+## LLM Navigation Notes
+
+When exploring docs, prefer the exact router-shaped paths below instead of guessing shorter forms.
+If a guessed path 404s, use the overview page listed here and then follow the links.
+
+### Overview pages
+- `/docs` → API discovery
+- `/docs/auth` → authentication
+- `/docs/api/data` → data API
+- `/docs/api/describe` → describe API
+- `/docs/api/find` → find API
+- `/docs/api/aggregate` → aggregate API
+- `/docs/api/bulk` → bulk API
+- `/docs/api/acls` → ACLs API
+- `/docs/api/stat` → stat API
+- `/docs/api/tracked` → tracked API
+- `/docs/api/trashed` → trashed API
+- `/docs/api/user` → user API
+- `/docs/api/cron` → cron API
+- `/docs/fs` → filesystem API
+
+### Endpoint docs examples
+- `/docs/api/describe/GET`
+- `/docs/api/describe/model/GET`
+- `/docs/api/describe/model/POST`
+- `/docs/api/describe/model/PUT`
+- `/docs/api/describe/model/DELETE`
+- `/docs/api/describe/model/fields/GET`
+- `/docs/api/describe/model/fields/POST`
+- `/docs/api/describe/model/fields/PUT`
+- `/docs/api/describe/model/fields/field/GET`
+- `/docs/api/describe/model/fields/field/POST`
+- `/docs/api/describe/model/fields/field/PUT`
+- `/docs/api/describe/model/fields/field/DELETE`
+- `/docs/api/find/model/POST`
+- `/docs/api/find/model/target/GET`
+- `/docs/api/cron/GET`
+- `/docs/api/cron/POST`
+- `/docs/api/cron/pid/GET`
+- `/docs/api/cron/pid/PATCH`
+- `/docs/api/cron/pid/DELETE`
+- `/docs/api/cron/pid/enable/POST`
+- `/docs/api/cron/pid/disable/POST`
+
+---
+
 ## Documentation Navigation
 
 This API is fully self-documenting with three levels of documentation depth.
@@ -110,6 +156,7 @@ Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authenticat
 - `/docs/auth` - Authentication and token management
 - `/docs/user` or `/docs/api/user` - User account management
 - `/docs/trashed` or `/docs/api/trashed` - Trashed record management
+- `/docs/cron` or `/docs/api/cron` - Scheduled process management
 
 ### Then: Access Endpoint-Specific Docs (Level 3)
 
@@ -180,6 +227,7 @@ POST   /auth/register                     → /docs/auth/register/POST
 - **Batch Processing**: `/docs/api/bulk` - Multi-model transaction operations
 - **Change Tracking**: `/docs/api/tracked` - Audit trails and change history
 - **Deleted Records**: `/docs/api/trashed` - Restore and purge workflows
+- **Scheduled Jobs**: `/docs/api/cron` - Cron job management and scheduling
 
 ## Common Operations Quick Reference
 

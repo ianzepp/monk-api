@@ -36,6 +36,27 @@ All Describe API routes are prefixed with `/api/describe`
 ## Authentication Required
 All endpoints require a valid JWT token in the Authorization header: `Bearer <token>`
 
+## LLM Navigation Notes
+
+This API uses model-scoped endpoint docs. Do **not** guess docs paths like `/docs/api/describe/post`.
+Use the exact router-shaped paths instead:
+
+- `/docs/api/describe` → overview for the Describe API
+- `/docs/api/describe/GET` → the collection endpoint docs
+- `/docs/api/describe/model/GET` → `GET /api/describe/:model`
+- `/docs/api/describe/model/POST` → `POST /api/describe/:model`
+- `/docs/api/describe/model/PUT` → `PUT /api/describe/:model`
+- `/docs/api/describe/model/DELETE` → `DELETE /api/describe/:model`
+- `/docs/api/describe/model/fields/GET` → `GET /api/describe/:model/fields`
+- `/docs/api/describe/model/fields/POST` → `POST /api/describe/:model/fields`
+- `/docs/api/describe/model/fields/PUT` → `PUT /api/describe/:model/fields`
+- `/docs/api/describe/model/fields/field/GET` → `GET /api/describe/:model/fields/:field`
+- `/docs/api/describe/model/fields/field/POST` → `POST /api/describe/:model/fields/:field`
+- `/docs/api/describe/model/fields/field/PUT` → `PUT /api/describe/:model/fields/:field`
+- `/docs/api/describe/model/fields/field/DELETE` → `DELETE /api/describe/:model/fields/:field`
+
+If you land on the shorter guessed path `/docs/api/describe/post`, read this overview and then follow the model-scoped docs above.
+
 ---
 
 ## Quick Start

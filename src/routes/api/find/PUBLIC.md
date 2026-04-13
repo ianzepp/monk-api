@@ -19,6 +19,17 @@ The Find API provides advanced search and filtering capabilities for records acr
 ## Authentication Required
 Requires valid JWT token in Authorization header: `Bearer <token>`
 
+## LLM Navigation Notes
+
+This API uses model-scoped endpoint docs. Do **not** guess docs paths like `/docs/api/find/post`.
+Use the exact router-shaped paths instead:
+
+- `/docs/api/find` → overview for the Find API
+- `/docs/api/find/model/POST` → `POST /api/find/:model`
+- `/docs/api/find/model/target/GET` → `GET /api/find/:model/:target`
+
+If you land on the shorter guessed path `/docs/api/find/post`, read this overview and then follow the model-scoped docs above.
+
 ---
 
 ## Saved Filters

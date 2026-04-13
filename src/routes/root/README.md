@@ -22,8 +22,10 @@ If you are a human or an LLM landing on the API, read these in order:
 9. [Stat API](/docs/api/stat)
 10. [Tracked API](/docs/api/tracked)
 11. [Trashed API](/docs/api/trashed)
-12. [User API](/docs/api/user)
-13. [Filesystem API](/docs/fs)
+12. [Cron API](/docs/api/cron)
+13. [Cron API](/docs/api/cron)
+14. [User API](/docs/api/user)
+15. [Filesystem API](/docs/fs)
 
 ## What Monk API does
 
@@ -34,6 +36,7 @@ Monk API provides:
 - record-level ACLs
 - change tracking and audit trails
 - soft delete and restore workflows
+- scheduled job management
 - app packages under `/app/*`
 - filesystem-style tenant access under `/fs/*`
 - response formatting for JSON, YAML, TOON, CSV, Markdown, and more
@@ -44,7 +47,7 @@ Monk API provides:
 2. Use `/api/describe/*` to define or inspect models.
 3. Use `/api/data/*` to create and update records.
 4. Use `/api/find/*` and `/api/aggregate/*` for query and analysis.
-5. Use `/api/tracked/*`, `/api/stat/*`, and `/api/trashed/*` for audit and lifecycle management.
+5. Use `/api/tracked/*`, `/api/stat/*`, `/api/trashed/*`, and `/api/cron/*` for audit, lifecycle, and scheduled jobs.
 6. Use `/fs/*` for tenant-scoped files.
 
 ## Authentication
@@ -67,6 +70,7 @@ Public routes do not require authentication:
 
 ```bash
 curl http://localhost:9001/docs/api/data
+curl http://localhost:9001/docs/api/cron
 curl -X GET http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer <token>"
 ```
