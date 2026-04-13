@@ -29,6 +29,7 @@ import {
     resolveAuth0Identity,
     type VerifiedAuth0Identity,
 } from '@src/lib/auth0/index.js';
+import { assertLocalAuthEnabled, isLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 function getJwtSecret(): string {
     return process.env['JWT_SECRET']!;
@@ -333,7 +334,9 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
                 payload = result.payload;
                 user = result.user;
             } else {
-                // Development/test bootstrap path. Production bearer auth is Auth0/OIDC.
+                assertLocalAuthEnabled('Local bearer JWT authentication');
+
+                // Explicit development/test bootstrap path. Production bearer auth is Auth0/OIDC.
                 payload = await verify(token, getJwtSecret(), 'HS256') as JWTPayload;
 
                 const dbType = (payload.db_type || 'postgresql') as DatabaseType;
@@ -412,6 +415,10 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
 
         if (error instanceof Auth0IdentityMappingError) {
             throw HttpErrors.unauthorized(error.message, error.code);
+        }
+
+        if (error.errorCode === 'LOCAL_AUTH_DISABLED') {
+            throw error;
         }
 
         throw error;

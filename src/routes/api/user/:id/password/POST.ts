@@ -3,6 +3,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { hashPassword, verifyPassword } from '@src/lib/credentials/index.js';
 import { randomUUID } from 'crypto';
 import { resolveUserTargetId } from '../../user-id.js';
+import { assertLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 // TODO: SECURITY - The 'credentials' model is currently visible via /api/data/credentials
 // This exposes password hashes and API key hashes to users with read access.
@@ -29,7 +30,7 @@ import { resolveUserTargetId } from '../../user-id.js';
  * - Minimum 8 characters
  * - No maximum (bcrypt truncates at 72 bytes, argon2 has no limit)
  */
-export default withTransaction(async ({ system, params, body }) => {
+const passwordPost = withTransaction(async ({ system, params, body }) => {
     const targetId = resolveUserTargetId(params.id, system.userId);
     const isSelf = targetId === system.userId;
     const hasSudo = system.isSudo();
@@ -125,3 +126,8 @@ export default withTransaction(async ({ system, params, body }) => {
         message: existingCredential ? 'Password changed successfully' : 'Password set successfully',
     };
 });
+
+export default async function (context: any) {
+    assertLocalAuthEnabled('Local password credential writes');
+    return await passwordPost(context);
+}

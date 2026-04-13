@@ -3,6 +3,7 @@ import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
+import { assertLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 /**
  * POST /api/user/fake - Impersonate another user (root only)
@@ -29,6 +30,8 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
  * - AUTH_TARGET_USER_NOT_FOUND: Target user does not exist (404)
  */
 export default async function (context: Context) {
+    assertLocalAuthEnabled('Local impersonation JWT issuance');
+
     const currentUser = context.get('user') as { id: string; name: string; access: string } | undefined;
     const currentJwt = context.get('jwtPayload') as JWTPayload | undefined;
 

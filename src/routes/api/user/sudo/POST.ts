@@ -2,6 +2,7 @@ import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { JWTGenerator } from '@src/lib/jwt-generator.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
+import { assertLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 /**
  * POST /api/user/sudo - Elevate user privileges to sudo level
@@ -15,6 +16,8 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
  * - edit/read/deny: Cannot request sudo tokens
  */
 export default async function (context: Context) {
+    assertLocalAuthEnabled('Local sudo JWT issuance');
+
     const userJwt = context.get('jwtPayload') as JWTPayload | undefined;
     const user = context.get('user') as
         | {

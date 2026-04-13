@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { login } from '@src/lib/auth.js';
+import { assertLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 /**
  * POST /auth/login - Authenticate user with tenant, username, and password
@@ -24,6 +25,7 @@ export default async function (context: Context) {
     const { tenant, tenant_id, username, password, format } = body;
 
     console.info('/auth/login', { tenant, tenant_id, username, format });
+    assertLocalAuthEnabled('Local password login');
 
     // Input validation
     if (!tenant && !tenant_id) {

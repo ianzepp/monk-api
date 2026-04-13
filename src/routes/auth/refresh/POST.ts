@@ -3,6 +3,7 @@ import { verify, sign } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
+import { assertLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 /**
  * POST /auth/refresh - Refresh JWT token using valid token
@@ -22,6 +23,7 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
 export default async function (context: Context) {
     const body = context.get('parsedBody') ?? await context.req.json().catch(() => ({}));
     const { token } = body;
+    assertLocalAuthEnabled('Local JWT refresh');
 
     // Input validation
     if (!token) {
