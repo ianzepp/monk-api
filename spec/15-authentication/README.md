@@ -1,16 +1,16 @@
 # 15-authentication: Authentication Workflows
 
 **Priority**: HIGH (Security)
-**Coverage**: 0% (CRITICAL SECURITY GAP - No tests implemented)
-**Status**: Specification only - NO IMPLEMENTATION
+**Coverage**: Auth0/OIDC verifier, mapping, protected request resolution, and local-auth clean-break policy
+**Status**: Implemented for Auth0 migration foundation
 
 ## Critical / Smoke Tests
 
-### Missing Critical Security Tests (4+)
-- User login and logout flows (complete workflow validation)
-- JWT token generation and validation (token structure, claims, signatures)
-- Multi-tenant authentication (tenant isolation in tokens)
-- Token refresh mechanisms (refresh without re-authentication)
+### Implemented Critical Security Tests
+- Auth0 RS256/JWKS verifier accepts valid fixture tokens and rejects bad issuer, audience, expiry, signature, and algorithm.
+- Auth0 identity mappings cover create, duplicate, missing mapping, and cross-issuer subject behavior.
+- Protected request resolution covers valid mapped tokens, missing mappings, malicious routing claims, inactive tenants, deleted users, role downgrade refresh, and production local JWT rejection.
+- Local auth policy covers production rejection and explicit non-production bootstrap gating.
 
 ## Additional Tests
 
@@ -31,8 +31,8 @@
 
 - **CRITICAL SECURITY GAP**: Zero authentication workflow testing
 - Authentication is the foundation of all security
-- JWT token validation is critical - test signature verification
-- Multi-tenant isolation must be validated (tokens can't cross tenants)
+- Auth0 token validation is critical - test signature, issuer, audience, expiry, and algorithm handling.
+- Multi-tenant isolation must be validated by proving token claims cannot select Monk tenant routing or authorization state.
 - Should test both happy path and attack scenarios
 - High priority for production deployment
 - Overlaps with 30-auth-api but focuses on security aspects

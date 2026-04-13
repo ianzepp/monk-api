@@ -1,49 +1,35 @@
 # POST /auth/refresh
 
-Exchange a valid JWT token for a new token while preserving the original tenant, user, and access scope. The refresh route validates signature integrity, re-hydrates the user context, and re-issues a token with a new expiration window.
+Production local JWT refresh is disabled. Auth0 access-token renewal is handled by the Auth0 client/session flow outside Monk.
+
+This endpoint remains only as an explicit development/test bootstrap path when `MONK_ENABLE_LOCAL_AUTH=true` and `NODE_ENV` is not `production`.
 
 ## Request Body
 
 ```json
 {
-  "token": "string"    // Required: Current JWT token
+  "token": "string"
 }
 ```
 
-## Success Response (200)
+## Success Response
 
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expires_in": 3600
-  }
-}
-```
+Only available when explicit non-production local auth is enabled. Production never refreshes a local HS256 Monk JWT.
 
 ## Error Responses
 
-| Status | Error Code | Message | Condition |
-|--------|------------|---------|-----------|
-| 400 | `AUTH_TOKEN_REQUIRED` | "Token is required for refresh" | Missing token field |
-| 401 | `AUTH_TOKEN_INVALID` | "Invalid token" | Invalid or corrupted token signature |
-| 401 | `AUTH_TOKEN_EXPIRED` | "Token has expired" | Expired token |
+| Status | Error Code | Condition |
+|--------|------------|-----------|
+| 403 | `LOCAL_AUTH_DISABLED` | Production mode or missing `MONK_ENABLE_LOCAL_AUTH=true` |
+| 400 | `AUTH_TOKEN_REQUIRED` | Missing token field |
+| 401 | `AUTH_TOKEN_INVALID` | Invalid or corrupted local bootstrap token |
+| 401 | `AUTH_TOKEN_EXPIRED` | Expired local bootstrap token |
+| 401 | `AUTH_TOKEN_REFRESH_FAILED` | Local bootstrap token references a removed tenant or user |
 
-## Token Refresh Behavior
-
-The refresh endpoint accepts tokens in two states:
-
-1. **Valid, unexpired token** - Refreshes successfully with new expiration
-2. **Invalid, malformed, or expired token** - Returns token error response
-
-**Important:** Refresh validates that the user and tenant still exist in the database. If either has been deleted, refresh fails with `AUTH_TOKEN_REFRESH_FAILED`.
-
-## Example Usage
-
-### Basic Token Refresh
+## Explicit Local Bootstrap Refresh
 
 ```bash
+MONK_ENABLE_LOCAL_AUTH=true NODE_ENV=development \
 curl -X POST http://localhost:9001/auth/refresh \
   -H "Content-Type: application/json" \
   -d '{
@@ -51,101 +37,8 @@ curl -X POST http://localhost:9001/auth/refresh \
   }'
 ```
 
-### Automatic Refresh Flow
-
-```javascript
-async function fetchWithRefresh(url, options = {}) {
-  let token = localStorage.getItem('access_token');
-
-  // Try request with current token
-  let response = await fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  // If unauthorized, try refreshing token
-  if (response.status === 401) {
-    const refreshResponse = await fetch('/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
-
-    if (refreshResponse.ok) {
-      const { token: newToken } = (await refreshResponse.json()).data;
-      localStorage.setItem('access_token', newToken);
-
-      // Retry original request with new token
-      response = await fetch(url, {
-        ...options,
-        headers: {
-          ...options.headers,
-          'Authorization': `Bearer ${newToken}`
-        }
-      });
-    } else {
-      // Refresh failed - redirect to login
-      window.location.href = '/login';
-      throw new Error('Session expired');
-    }
-  }
-
-  return response;
-}
-```
-
-## Token Lifecycle Management
-
-```javascript
-// Set up automatic refresh before expiration
-function setupAutoRefresh() {
-  const token = localStorage.getItem('access_token');
-
-  // Decode JWT to get expiration (without verification)
-  const payload = JSON.parse(atob(token.split('.')[1]));
-  const expiresAt = payload.exp * 1000; // Convert to milliseconds
-  const now = Date.now();
-
-  // Refresh 5 minutes before expiration
-  const refreshIn = expiresAt - now - (5 * 60 * 1000);
-
-  if (refreshIn > 0) {
-    setTimeout(async () => {
-      try {
-        const response = await fetch('/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
-        });
-
-        if (response.ok) {
-          const { token: newToken } = (await response.json()).data;
-          localStorage.setItem('access_token', newToken);
-          setupAutoRefresh(); // Schedule next refresh
-        }
-      } catch (error) {
-        console.error('Auto-refresh failed:', error);
-      }
-    }, refreshIn);
-  }
-}
-
-// Call after login or page load
-setupAutoRefresh();
-```
-
 ## Security Considerations
 
-- **Token reuse prevention**: Each refresh generates a completely new token
-- **Signature validation**: Refresh validates JWT signature before issuing new token
-- **User validation**: Confirms user and tenant still exist in database
-- **No credential exposure**: Refresh doesn't require username/password
-- **Expiration extension**: New token gets full 24-hour lifetime
-
-## Related Endpoints
-
-- [`POST /auth/login`](../login/POST.md) - Initial authentication
-- [`GET /api/user/whoami`](../../api/user/whoami/GET.md) - Verify token is valid
+- Monk does not refresh local HS256 tokens in production.
+- Browser, CLI, or service clients should renew Auth0 sessions/access tokens through Auth0-supported flows.
+- Local refresh exists for development/test fixtures that explicitly enable `MONK_ENABLE_LOCAL_AUTH=true`.

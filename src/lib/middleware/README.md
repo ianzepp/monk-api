@@ -12,7 +12,7 @@ The Monk API uses a single **Response Pipeline Middleware** that orchestrates al
 
 ```
 1. bodyParserMiddleware           - Decode TOON/YAML/JSON request bodies
-2. authValidatorMiddleware        - Validate JWT/API key and user
+2. authValidatorMiddleware        - Validate Auth0 bearer/API key and load Monk user state
 3. formatDetectorMiddleware       - Detect desired response format (?format=)
 4. responseTransformerMiddleware  - [SINGLE OVERRIDE POINT]
 5. contextInitializerMiddleware   - Provide database context
@@ -153,14 +153,14 @@ GET /api/user/whoami?format=toon
 
 **What it does:**
 - Encrypts the formatted response using AES-256-GCM
-- Derives encryption key from user's JWT token using PBKDF2
+- Derives encryption key from the presented bearer token using PBKDF2
 - Returns PGP-style ASCII armor
 
 **Security Model:**
 - **Ephemeral encryption** - For transport security, not long-term storage
-- JWT token IS the decryption key
-- Same JWT = same key (allows decryption)
-- JWT expiry = old encrypted messages become undecryptable
+- Bearer token material IS the decryption key
+- Same Auth0 access token = same key (allows decryption)
+- Auth0 token rotation/expiry means old encrypted messages require the original token material
 
 **Examples:**
 ```bash
@@ -178,13 +178,13 @@ GET /api/user/whoami?format=yaml&encrypt=pgp
 → (encrypted YAML output)
 
 # Decrypt
-tsx scripts/decrypt.ts "$JWT_TOKEN" < encrypted.txt
+tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" < encrypted.txt
 ```
 
 **IMPORTANT:**
 - ✅ Encrypts ALL responses including errors (prevents info leakage)
-- ⚠️ Requires valid JWT token
-- ⚠️ Not suitable for archival storage (JWT expiry)
+- ⚠️ Requires a valid bearer token and resolved Monk auth context
+- ⚠️ Not suitable for archival storage (Auth0 token rotation/expiry)
 
 **Implementation:** Uses encryption utilities from `src/lib/encryption/`
 
@@ -211,7 +211,7 @@ GET /api/user/whoami?select=access&format=toon
 | Routes calling `context.text()` directly | Skip pipeline (docs, markdown responses) |
 | Error responses | Go through full pipeline (format + encrypt) |
 | Primitive values | Pass through without processing |
-| Missing JWT + `?encrypt=pgp` | Return unencrypted (graceful fallback) |
+| Missing bearer token + `?encrypt=pgp` | Return unencrypted (graceful fallback) |
 | Invalid format parameter | Fall back to JSON |
 | Format encoding failure | Fall back to JSON with error logged |
 
@@ -238,7 +238,7 @@ GET /api/user/whoami?select=access&format=toon
 - Checks (in order):
   1. `?format=` query parameter
   2. `Accept` header
-  3. JWT token format preference
+  3. Explicit local-auth token format preference
 - Stores result in `context.set('responseFormat', format)`
 
 **File**: `src/lib/middleware/format-detection.ts`
@@ -326,8 +326,7 @@ monk curl GET '/api/find/users?format=csv'
 monk curl GET '/api/user/whoami?encrypt=pgp' > encrypted.txt
 
 # Decrypt
-TOKEN=$(monk curl POST '/auth/login' -d '{"tenant":"demo","username":"root"}' | jq -r '.data.token')
-tsx scripts/decrypt.ts "$TOKEN" < encrypted.txt
+tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" < encrypted.txt
 ```
 
 ### Test Composition

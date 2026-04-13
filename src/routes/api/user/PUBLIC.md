@@ -10,8 +10,10 @@ All User API routes are prefixed with `/api/user`
 - **Response**: `application/json`
 
 ## Authentication
-All User API routes require authentication via JWT token in the Authorization header.
-- **Header**: `Authorization: Bearer <jwt_token>`
+All User API routes require authentication via Auth0 bearer token in the Authorization header.
+- **Header**: `Authorization: Bearer <auth0_access_token>`
+
+Password, sudo-token, and impersonation-token endpoints are disabled unless explicit non-production local auth bootstrap is enabled with `MONK_ENABLE_LOCAL_AUTH=true`.
 
 ## Key Features
 

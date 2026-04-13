@@ -1,6 +1,6 @@
 # Monk API
 
-Multi-tenant backend platform built with Hono, TypeScript, Bun, and PostgreSQL/SQLite. Monk API provides model-first data APIs, schema-isolated tenants, JWT/API-key authentication, ordered observer hooks, an HTTP filesystem API, optional app packages, and a cron surface for scheduled backend work.
+Multi-tenant backend platform built with Hono, TypeScript, Bun, and PostgreSQL/SQLite. Monk API provides model-first data APIs, schema-isolated tenants, Auth0/OIDC identity authentication with Monk-owned authorization, API-key support, ordered observer hooks, an HTTP filesystem API, optional app packages, and a cron surface for scheduled backend work.
 
 The project is more than a CRUD service. It is a small programmable backend runtime: tenants define models and fields, the generic API operates on those models, observers enforce lifecycle behavior, and higher-level services can automate against the same tenant-scoped HTTP surface.
 
@@ -12,7 +12,7 @@ Read [AGENTS.md](./AGENTS.md) before starting any task.
 
 - **Language**: TypeScript with Hono framework
 - **Database**: PostgreSQL (schema-per-tenant) or SQLite (file-per-tenant)
-- **Authentication**: JWT tokens, API keys, and three-tier access (public, user, root/sudo)
+- **Authentication**: Auth0/OIDC bearer tokens, API keys, and Monk-owned three-tier access (public, user, root/sudo)
 - **Architecture**: Ring-based observer system for model lifecycle behavior
 - **Runtime surfaces**: HTTP API, dynamic `/app/*` packages, `/fs/*` filesystem API, and cron scheduler
 - **Distribution**: Compiles to standalone executable with no external dependencies
@@ -33,13 +33,13 @@ Monk starts multiple surfaces from [src/index.ts](src/index.ts):
 | Path | Purpose |
 |------|---------|
 | `/health` | Health check |
-| `/auth/login` | Get JWT token |
-| `/auth/register` | Create new tenant |
-| `/auth/refresh` | Renew token |
+| `/auth/register` | Provision a new tenant for a verified Auth0 subject |
+| `/auth/login` | Disabled in production; explicit local-dev bootstrap only |
+| `/auth/refresh` | Disabled in production; explicit local-dev bootstrap only |
 | `/auth/tenants` | List registered tenants |
 | `/docs/*` | Self-documenting API reference |
 
-### Protected Routes (JWT Required)
+### Protected Routes (Auth0 Bearer Token Required)
 
 | Path | Purpose |
 |------|---------|
@@ -60,7 +60,7 @@ Monk starts multiple surfaces from [src/index.ts](src/index.ts):
 
 ### Sudo Routes (Elevated Access)
 
-Operations on protected models require a short-lived sudo token obtained via `POST /api/user/sudo`.
+Operations on protected models require root/full authorization from the current Monk user row. Local sudo/fake JWT issuance is disabled unless explicit local auth bootstrap is enabled for development or tests.
 
 ## Model-First Data Runtime
 
@@ -126,13 +126,13 @@ All endpoints support query parameters for response formatting:
 - `?select=field1,field2` - Return only specified fields
 
 ### Response Encryption
-- `?encrypt=pgp` - AES-256-GCM encryption using JWT-derived key
+- `?encrypt=pgp` - AES-256-GCM encryption using the presented bearer token material and Monk tenant/user salt
 
 ## Multi-Tenant Architecture
 
 - **PostgreSQL**: Tenants share a regional database (e.g., `us_east`) with isolation via schema/namespace
 - **SQLite**: One file per tenant for portable, self-contained databases
-- JWT contains tenant routing information
+- Auth0 tokens prove external identity only. Monk resolves `iss + sub` through its identity mapping table, then derives tenant routing from the Monk tenant registry.
 - SHA256-based schema naming (enterprise mode) or human-readable (personal mode)
 - Tenants evolve independently (different models, fields, data)
 
@@ -171,7 +171,7 @@ On startup, the server initializes infrastructure, preloads observers, starts HT
 - **[Hono](https://hono.dev/)** - Web framework
 - **TypeScript** - Language
 - **PostgreSQL** or **SQLite** - Database backends
-- **JWT** - Authentication
+- **Auth0/OIDC** - Production identity authentication
 - **Bun** - Runtime (compiles to standalone executable)
 ---
 
@@ -190,7 +190,12 @@ DATABASE_URL=postgresql://monk:monk@127.0.0.1:55432/monk
 PORT=9001
 NODE_ENV=development
 JWT_SECRET=test
+AUTH0_ISSUER=https://your-tenant.us.auth0.com/
+AUTH0_AUDIENCE=https://your-monk-api-audience
+AUTH0_JWKS_URL=https://your-tenant.us.auth0.com/.well-known/jwks.json
 ```
+
+Production uses Auth0/OIDC and does not issue local HS256 login, refresh, sudo, or impersonation tokens. Development and tests can enable the old local auth path explicitly with `MONK_ENABLE_LOCAL_AUTH=true`; that flag is ignored when `NODE_ENV=production`.
 
 Initialize the database after building:
 
@@ -222,7 +227,8 @@ The Railway app service is linked to `ianzepp/monk-api` on `main` and uses Railw
 
 ### Production Safety Notes
 
-- `DATABASE_URL`, `JWT_SECRET`, and `NODE_ENV` are required for production startup.
+- `DATABASE_URL`, `NODE_ENV`, `AUTH0_ISSUER` or `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, and `AUTH0_JWKS_URL` are required for production Auth0/OIDC auth.
+- `JWT_SECRET` is retained only for explicit non-production local auth bootstrap and legacy test flows.
 - Cron job definitions remain visible, but new job creation is temporarily unavailable until the replacement execution backend lands.
 
 ## Installation
@@ -237,7 +243,7 @@ bun install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your DATABASE_URL and JWT_SECRET
+# Edit .env with DATABASE_URL and Auth0 issuer/audience/JWKS values
 
 # Build and start
 bun run build
@@ -253,19 +259,15 @@ bun run build:standalone
 ## Quick Start
 
 ```bash
-# Register a tenant
+# Provision a tenant after Auth0 login
 curl -X POST http://localhost:9001/auth/register \
+  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"tenant": "demo", "username": "root"}'
-
-# Login and get token
-curl -X POST http://localhost:9001/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"tenant": "demo", "username": "root"}'
+  -d '{"tenant": "demo"}'
 
 # Use the API
 curl http://localhost:9001/api/describe \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
 ```
 
 ## Related Projects

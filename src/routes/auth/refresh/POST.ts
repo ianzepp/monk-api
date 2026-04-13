@@ -6,11 +6,10 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import { assertLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 /**
- * POST /auth/refresh - Refresh JWT token using valid token
+ * POST /auth/refresh - Explicit local-bootstrap token refresh
  *
- * Accepts a valid non-expired JWT token and issues a new token with extended expiration.
- * Verifies that the user and tenant still exist and are active before issuing
- * a new token. This allows clients to extend their session without re-authenticating.
+ * Production Auth0 token renewal is handled by Auth0, not Monk. This route
+ * is retained only for explicit non-production local auth bootstrap.
  *
  * Error codes:
  * - AUTH_TOKEN_REQUIRED: Missing token field (400)
@@ -118,7 +117,7 @@ export default async function (context: Context) {
 
     const user = userResult.rows[0];
 
-    // Generate new JWT token with refreshed expiration
+    // Generate new explicit local-bootstrap token with refreshed expiration
     const newPayload: JWTPayload = {
         sub: user.id,
         user_id: user.id,

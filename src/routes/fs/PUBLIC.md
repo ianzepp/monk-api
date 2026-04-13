@@ -10,10 +10,10 @@ without going through a browser interface.
 
 ## Authentication
 
-All Filesystem API routes require a valid JWT bearer token.
+All Filesystem API routes require a valid Auth0 bearer token mapped to a Monk tenant/user.
 
 ```bash
-Authorization: Bearer <token>
+Authorization: Bearer <auth0_access_token>
 ```
 
 ## Endpoints
