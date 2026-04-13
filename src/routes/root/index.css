@@ -236,6 +236,7 @@ article {
   margin-top: 2px;
   border: 1px solid var(--line);
   padding: 20px 22px;
+  text-align: center;
 }
 
 .install-url {
