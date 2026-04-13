@@ -2,32 +2,46 @@ import type { Context } from 'hono';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/**
- * Read the public-facing root README used for both / and /llms.txt.
- *
- * This is intentionally separate from the repository root README.md,
- * which is for contributor and development context.
- */
-function readPublicRootReadme(): string {
+const ROOT_DIR = 'routes/root';
+
+function getRootAssetPath(filename: string): string {
     const projectRoot = process.env.PROJECT_ROOT || process.cwd();
     const baseDir = process.env.NODE_ENV === 'development' ? 'src' : 'dist';
-    const readmePath = join(projectRoot, baseDir, 'routes', 'root', 'README.md');
+    return join(projectRoot, baseDir, ROOT_DIR, filename);
+}
 
-    if (!existsSync(readmePath)) {
-        throw new Error('Public root README not found');
+function readRootAsset(filename: string): string {
+    const assetPath = getRootAssetPath(filename);
+
+    if (!existsSync(assetPath)) {
+        throw new Error(`Public root asset not found: ${filename}`);
     }
 
-    return readFileSync(readmePath, 'utf8');
+    return readFileSync(assetPath, 'utf8');
 }
 
 /**
- * GET / - API root endpoint
+ * GET / - Human-facing API root endpoint
+ * GET /index.html - Human-facing entrypoint
+ * GET /index.css - Stylesheet for the public root
  * GET /llms.txt - Agent-facing entrypoint
  *
- * Returns the public root README as markdown.
- * Public endpoint, no authentication required.
+ * Serves the public landing page as HTML/CSS and keeps the markdown
+ * document available for agents at /llms.txt.
  */
 export default function (context: Context) {
-    context.header('Content-Type', 'text/markdown; charset=utf-8');
-    return context.text(readPublicRootReadme());
+    const path = context.req.path;
+
+    if (path === '/index.css') {
+        context.header('Content-Type', 'text/css; charset=utf-8');
+        return context.text(readRootAsset('index.css'));
+    }
+
+    if (path === '/llms.txt') {
+        context.header('Content-Type', 'text/markdown; charset=utf-8');
+        return context.text(readRootAsset('README.md'));
+    }
+
+    context.header('Content-Type', 'text/html; charset=utf-8');
+    return context.text(readRootAsset('index.html'));
 }

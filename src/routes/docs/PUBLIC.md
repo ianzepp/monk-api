@@ -78,8 +78,9 @@ Use the root endpoint to discover all available APIs and their documentation:
 ```bash
 curl http://localhost:9001/
 
-# Response is the public root README in markdown.
-# Start from there, then follow the documented /docs links.
+# Response is the human-facing HTML root page.
+# For the agent-facing markdown entrypoint, use /llms.txt.
+# Start from the docs links on the root page.
 ```
 
 ## LLM Navigation Notes

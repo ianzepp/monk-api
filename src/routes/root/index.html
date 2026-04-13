@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Monk API</title>
+    <meta
+      name="description"
+      content="Monk API is a multi-tenant backend runtime with a public landing page optimized for LLM navigation."
+    />
+    <link rel="stylesheet" href="/index.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero shell">
+        <div class="hero-copy">
+          <p class="eyebrow">LLM-facing public root</p>
+          <h1>Read the contract. Navigate the surface. Do not guess.</h1>
+          <p class="lede">
+            Monk API is a multi-tenant backend runtime for model-first systems.
+            This page is intentionally compact: it tells LLMs where to look, how
+            to orient, and which routes are canonical before they start calling the API.
+          </p>
+
+          <div class="actions">
+            <a class="button primary" href="/llms.txt">Open /llms.txt</a>
+            <a class="button" href="/docs">Open /docs</a>
+          </div>
+        </div>
+
+        <aside class="hero-panel" aria-label="Navigation contract">
+          <p class="panel-label">Canonical entrypoints</p>
+          <ul class="signal-list">
+            <li><span>Human root</span><code>/</code></li>
+            <li><span>Agent root</span><code>/llms.txt</code></li>
+            <li><span>API overview</span><code>/docs</code></li>
+            <li><span>Health</span><code>/health</code></li>
+          </ul>
+          <p class="panel-note">
+            Humans can read this page, but the copy and structure are optimized
+            for agent navigation and endpoint discovery.
+          </p>
+        </aside>
+      </section>
+
+      <section class="grid" aria-label="LLM navigation cues">
+        <article>
+          <h2>How to start</h2>
+          <ul>
+            <li>Read <a href="/llms.txt">/llms.txt</a> first.</li>
+            <li>Use <a href="/docs">/docs</a> for API discovery.</li>
+            <li>Prefer documented route shapes over guessing.</li>
+            <li>Inspect route docs before writing requests.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h2>What this API exposes</h2>
+          <ul>
+            <li><code>/api/data</code> for CRUD and traversal</li>
+            <li><code>/api/describe</code> for schema definition</li>
+            <li><code>/api/find</code> and <code>/api/aggregate</code> for queries</li>
+            <li><code>/api/bulk</code>, <code>/api/cron</code>, <code>/fs</code></li>
+          </ul>
+        </article>
+
+        <article>
+          <h2>Operational facts</h2>
+          <ul>
+            <li>Default port: <code>9001</code></li>
+            <li>Auth: JWT and API keys</li>
+            <li>Tenants are isolated</li>
+            <li>Docs live beside the routes</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

@@ -70,8 +70,10 @@ export function createHttpApp(): Hono {
     app.use('/health', middleware.formatDetectorMiddleware);
     app.use('/health', middleware.responseTransformerMiddleware);
 
-    // Root endpoint and agent-facing alias
+    // Public root assets and agent-facing alias
     app.get('/', RootGet);
+    app.get('/index.html', RootGet);
+    app.get('/index.css', RootGet);
     app.get('/llms.txt', RootGet);
 
     // Health check endpoint (public, no authentication required)

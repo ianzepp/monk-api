@@ -4,8 +4,9 @@ Monk API is a multi-tenant PaaS backend for model-first applications.
 It gives tenants and apps the raw HTTP surfaces to define their own models,
 store records, query data, track changes, manage access, and move files.
 
-This document is the public entrypoint for the API root.
-It is served at both `/` and `/llms.txt`.
+This document is the agent-facing public entrypoint.
+It is served at `/llms.txt`.
+The human-facing root lives at `/` as HTML with a companion stylesheet at `/index.css`.
 
 ## Start here
 
