@@ -41,6 +41,7 @@ import EmailValidation from '@src/observers/users/1/50-email-validation.js';
 // =============================================================================
 import ExistenceValidator from '@src/observers/all/2/50-existence-validator.js';
 import SoftDeleteProtector from '@src/observers/all/2/50-soft-delete-protector.js';
+import RecordMutationAuthorizer from '@src/observers/all/2/60-record-mutation-authorizer.js';
 
 // =============================================================================
 // Ring 3: Business Logic
@@ -135,6 +136,7 @@ export const observers: Observer[] = [
     // Ring 2: Security
     new ExistenceValidator(),
     new SoftDeleteProtector(),
+    new RecordMutationAuthorizer(),
 
     // Ring 3: Business Logic
     new DuplicateFieldChecker(),

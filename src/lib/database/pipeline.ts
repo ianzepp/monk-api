@@ -123,7 +123,7 @@ async function executeObserverPipeline(
     // Preload existing records for update/delete/revert/access operations
     // Single batch query, then single pass to set originals
     if (ids.length > 0) {
-        await preloadExistingRecords(model.model_name, records, ids, selectAnyFn);
+        await preloadExistingRecords(system, model.model_name, records, ids, selectAnyFn);
     }
 
     const runner = new ObserverRunner();
@@ -179,33 +179,44 @@ async function executeObserverPipeline(
  * @param selectAnyFn - Function to select records
  */
 async function preloadExistingRecords(
+    system: SystemContext,
     modelName: string,
     records: ModelRecord[],
     ids: string[],
     selectAnyFn: (modelName: string, filterData: any, options: SelectOptions) => Promise<any[]>
 ): Promise<void> {
-    // Batch query for existing records - include trashed for revert operations
-    const existingRows = await selectAnyFn(modelName, { where: { id: { $in: ids } } }, {
-        trashed: 'include',
-        context: 'system'
-    });
+    const wasAsSudo = typeof (system as any).isAsSudo === 'function' ? (system as any).isAsSudo() : false;
 
-    // Create lookup map by ID
-    const existingById = new Map(existingRows.map(row => [row.id, row]));
-
-    // Load original data into each ModelRecord
-    for (const record of records) {
-        const id = record.get('id');
-        const existing = existingById.get(id);
-
-        if (existing) {
-            record.load(existing);
-        }
+    if (typeof (system as any).setAsSudo === 'function') {
+        (system as any).setAsSudo(true);
     }
 
-    console.info('Preloaded existing records for pipeline', {
-        modelName,
-        requestedCount: ids.length,
-        foundCount: existingRows.length
-    });
+    try {
+        const existingRows = await selectAnyFn(modelName, { where: { id: { $in: ids } } }, {
+            trashed: 'include',
+            context: 'system'
+        });
+
+        const existingById = new Map(existingRows.map(row => [row.id, row]));
+
+        for (const record of records) {
+            const id = record.get('id');
+            const existing = existingById.get(id);
+
+            if (existing) {
+                record.load(existing);
+            }
+        }
+
+        console.info('Preloaded existing records for pipeline', {
+            modelName,
+            requestedCount: ids.length,
+            foundCount: existingRows.length
+        });
+    } finally {
+        if (typeof (system as any).setAsSudo === 'function') {
+            (system as any).setAsSudo(wasAsSudo);
+        }
+    }
 }
+
