@@ -1,4 +1,5 @@
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { roleAtLeast } from '@src/lib/acl-policy.js';
 import { FilterOp, type FilterWhereInfo, type FilterWhereOptions } from '@src/lib/filter-types.js';
 
 /**
@@ -315,7 +316,7 @@ export class FilterWhere {
 
         // Handle ACL filtering if user IDs are provided
         if (accessUserIds.length > 0) {
-            conditions.push(this.buildAccessClause(accessUserIds));
+            conditions.push(this.buildAccessClause(accessUserIds, options.accessLevel));
         }
 
         // Add parsed conditions
@@ -333,13 +334,21 @@ export class FilterWhere {
      * User has access if their ID appears in access_read, access_edit, or access_full arrays
      * AND none of their IDs appear in access_deny
      */
-    protected buildAccessClause(userIds: string[]): string {
+    protected buildAccessClause(userIds: string[], accessLevel?: string): string {
         // PostgreSQL array overlap operator: array && ARRAY[values]
         // User has read access if ANY of their IDs overlap with ANY of the access arrays
         // AND none of their IDs are in the deny list
         const allowParams = userIds.map(id => this.PARAM(id)).join(', ');
         const denyParams = userIds.map(id => this.PARAM(id)).join(', ');
-        return `(("access_read" && ARRAY[${allowParams}] OR "access_edit" && ARRAY[${allowParams}] OR "access_full" && ARRAY[${allowParams}]) AND NOT ("access_deny" && ARRAY[${denyParams}]))`;
+        const hasExplicitAcl = `(
+            COALESCE(cardinality("access_read"), 0) > 0 OR
+            COALESCE(cardinality("access_edit"), 0) > 0 OR
+            COALESCE(cardinality("access_full"), 0) > 0 OR
+            COALESCE(cardinality("access_deny"), 0) > 0
+        )`;
+        const explicitAllow = `("access_read" && ARRAY[${allowParams}] OR "access_edit" && ARRAY[${allowParams}] OR "access_full" && ARRAY[${allowParams}])`;
+        const defaultAllow = roleAtLeast(accessLevel, 'read') ? ` OR NOT ${hasExplicitAcl}` : '';
+        return `(((${explicitAllow}${defaultAllow})) AND NOT ("access_deny" && ARRAY[${denyParams}]))`;
     }
 
     /**

@@ -131,7 +131,7 @@ export async function count(
 
     const filter = new Filter(model.model_name)
         .assign(filterData)
-        .withAccess([system.userId], system.isSudo())
+        .withAccess([system.userId], system.isSudo(), system.access)
         .withTrashed(mergedOptions);
 
     const { query, params } = filter.toCountSQL();
@@ -168,7 +168,7 @@ export async function aggregate(
 
     const filter = new Filter(model.model_name)
         .assign(filterData)
-        .withAccess([system.userId], system.isSudo())
+        .withAccess([system.userId], system.isSudo(), system.access)
         .withTrashed(mergedOptions);
 
     const { query, params } = filter.toAggregateSQL(aggregations, groupBy);
@@ -194,7 +194,7 @@ export async function selectAny<T extends Record<string, any> = Record<string, a
 
     const filter = new Filter(model.model_name)
         .assign(filterData)
-        .withAccess([system.userId], system.isSudo())
+        .withAccess([system.userId], system.isSudo(), system.access)
         .withTrashed(mergedOptions);
 
     const { query, params } = filter.toSQL();
@@ -309,7 +309,7 @@ export async function* streamAny<T extends Record<string, any> = Record<string, 
 
     const filter = new Filter(model.model_name)
         .assign(filterData)
-        .withAccess([system.userId], system.isSudo())
+        .withAccess([system.userId], system.isSudo(), system.access)
         .withTrashed(mergedOptions);
 
     const { query, params } = filter.toSQL();

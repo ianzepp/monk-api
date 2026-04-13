@@ -219,6 +219,40 @@ describe('FilterSqlGenerator - toWhereSQL()', () => {
         expect(whereClause).toBeTruthy();
         expect(params).toEqual([]);
     });
+
+    it('should include empty ACL fallback for read-capable users', () => {
+        const state: FilterState = {
+            tableName: 'documents',
+            select: [],
+            whereData: {},
+            order: [],
+            accessUserIds: ['user-123'],
+            trashedOption: { accessLevel: 'read' }
+        };
+
+        const { whereClause, params } = FilterSqlGenerator.toWhereSQL(state);
+
+        expect(whereClause).toContain('NOT (');
+        expect(whereClause).toContain('COALESCE(cardinality("access_read"), 0) > 0');
+        expect(whereClause).toContain('"access_read" && ARRAY[$1]');
+        expect(params).toEqual(['user-123', 'user-123']);
+    });
+
+    it('should not include empty ACL fallback for deny users', () => {
+        const state: FilterState = {
+            tableName: 'documents',
+            select: [],
+            whereData: {},
+            order: [],
+            accessUserIds: ['user-123'],
+            trashedOption: { accessLevel: 'deny' }
+        };
+
+        const { whereClause } = FilterSqlGenerator.toWhereSQL(state);
+
+        expect(whereClause).not.toContain('COALESCE(cardinality("access_read"), 0) > 0');
+        expect(whereClause).toContain('"access_read" && ARRAY[$1]');
+    });
 });
 
 describe('FilterSqlGenerator - toCountSQL()', () => {

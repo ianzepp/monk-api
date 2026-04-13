@@ -54,6 +54,7 @@ export class Filter {
     private _related: any[] = [];
     private _trashedOption: FilterWhereOptions = {};
     private _accessUserIds: string[] = [];
+    private _accessLevel?: string;
 
     constructor(tableName: string) {
         this._tableName = tableName;
@@ -372,9 +373,10 @@ export class Filter {
      * @param userIds - Array of user/group IDs from SystemContext.getUser()
      * @param isSudo - If true, ACL filtering is skipped entirely (sudo users see all records)
      */
-    withAccess(userIds: string[], isSudo: boolean = false): Filter {
+    withAccess(userIds: string[], isSudo: boolean = false, accessLevel?: string): Filter {
         // Sudo users bypass ACL filtering entirely
         this._accessUserIds = isSudo ? [] : userIds;
+        this._accessLevel = isSudo ? undefined : accessLevel;
         return this;
     }
 
@@ -389,7 +391,7 @@ export class Filter {
             order: this._order,
             limit: this._limit,
             offset: this._offset,
-            trashedOption: this._trashedOption,
+            trashedOption: { ...this._trashedOption, accessLevel: this._accessLevel },
             accessUserIds: this._accessUserIds
         };
     }

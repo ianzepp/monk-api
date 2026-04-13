@@ -12,6 +12,7 @@
  */
 
 import { FilterWhere } from '@src/lib/filter-where.js';
+import { roleAtLeast } from '@src/lib/acl-policy.js';
 import { FilterOp, type FilterWhereInfo } from '@src/lib/filter-types.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 
@@ -119,7 +120,7 @@ export class FilterWhereSqlite extends FilterWhere {
      * User has access if their ID appears in access_read, access_edit, or access_full arrays
      * AND none of their IDs appear in access_deny
      */
-    protected buildAccessClause(userIds: string[]): string {
+    protected buildAccessClause(userIds: string[], accessLevel?: string): string {
         // SQLite: Check if any userIds exist in the JSON arrays
         // Uses EXISTS with json_each() to check array membership
         const allowConditions = userIds.map(id => {
@@ -137,6 +138,14 @@ export class FilterWhereSqlite extends FilterWhere {
             return `NOT EXISTS (SELECT 1 FROM json_each("access_deny") WHERE value = ${param})`;
         });
 
-        return `((${allowConditions.join(' OR ')}) AND (${denyConditions.join(' AND ')}))`;
+        const hasExplicitAcl = `(
+            COALESCE(json_array_length("access_read"), 0) > 0 OR
+            COALESCE(json_array_length("access_edit"), 0) > 0 OR
+            COALESCE(json_array_length("access_full"), 0) > 0 OR
+            COALESCE(json_array_length("access_deny"), 0) > 0
+        )`;
+        const defaultAllow = roleAtLeast(accessLevel, 'read') ? ` OR NOT ${hasExplicitAcl}` : '';
+
+        return `(((${allowConditions.join(' OR ')}${defaultAllow})) AND (${denyConditions.join(' AND ')}))`;
     }
 }

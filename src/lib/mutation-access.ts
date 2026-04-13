@@ -1,30 +1,16 @@
 import type { ModelRecord } from '@src/lib/model-record.js';
+import { asStringArray, canDeleteRecord, canUpdateRecord, isDenied, type RecordAcl } from '@src/lib/acl-policy.js';
 import { SecurityError } from '@src/lib/observers/errors.js';
 import type { SystemContext } from '@src/lib/system-context-types.js';
 import type { OperationType } from '@src/lib/observers/types.js';
 
-const ACL_FIELDS = ['access_read', 'access_edit', 'access_full', 'access_deny'] as const;
-
-type AclField = (typeof ACL_FIELDS)[number];
-
-function asStringArray(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
-
-function recordAclValues(record: ModelRecord, field: AclField): string[] {
-    return asStringArray(record.old(field));
-}
-
-function isDenied(record: ModelRecord, userId: string): boolean {
-    return recordAclValues(record, 'access_deny').includes(userId);
-}
-
-function canUpdate(record: ModelRecord, userId: string): boolean {
-    return recordAclValues(record, 'access_edit').includes(userId) || recordAclValues(record, 'access_full').includes(userId);
-}
-
-function canDelete(record: ModelRecord, userId: string): boolean {
-    return recordAclValues(record, 'access_full').includes(userId);
+function recordAcl(record: ModelRecord): RecordAcl {
+    return {
+        access_read: asStringArray(record.old('access_read')),
+        access_edit: asStringArray(record.old('access_edit')),
+        access_full: asStringArray(record.old('access_full')),
+        access_deny: asStringArray(record.old('access_deny'))
+    };
 }
 
 function canAccessMutation(system: SystemContext): boolean {
@@ -58,19 +44,20 @@ export function authorizeRecordMutation(
     }
 
     const userId = system.userId;
+    const acl = recordAcl(record);
 
-    if (isDenied(record, userId)) {
+    if (isDenied(acl, userId)) {
         throw new SecurityError('Record access denied', undefined, 'ACCESS_DENIED');
     }
 
     if (operation === 'update') {
-        if (!canUpdate(record, userId)) {
+        if (!canUpdateRecord(acl, userId, system.access, system.isSudo())) {
             throw new SecurityError('Updating this record requires edit or full access', undefined, 'ACCESS_DENIED');
         }
         return;
     }
 
-    if (!canDelete(record, userId)) {
+    if (!canDeleteRecord(acl, userId, system.access, system.isSudo())) {
         throw new SecurityError('Deleting this record requires full access', undefined, 'ACCESS_DENIED');
     }
 }

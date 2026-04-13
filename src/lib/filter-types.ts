@@ -67,6 +67,7 @@ export type AdapterType = 'postgresql' | 'sqlite';
 export interface FilterWhereOptions {
     trashed?: TrashedOption;
     adapterType?: AdapterType;
+    accessLevel?: string;
 }
 
 // New tree structure for complex logical operators
