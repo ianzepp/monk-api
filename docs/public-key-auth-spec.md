@@ -95,6 +95,7 @@ Suggested stored fields:
 
 - `id`
 - `tenant_id`
+- `user_id`
 - `name`
 - `algorithm`
 - `public_key`
@@ -104,7 +105,6 @@ Suggested stored fields:
 - `last_used_at`
 - `expires_at`
 - `revoked_at`
-- `permissions` or `scope`
 
 Suggested supported algorithms:
 
@@ -129,11 +129,11 @@ Recommended tables:
 
 - `id`
 - `tenant_id` or equivalent tenant-local ownership link
+- `user_id`
 - `name`
 - `algorithm`
 - `public_key`
 - `fingerprint`
-- `scope` or `permissions`
 - `created_at`
 - `updated_at`
 - `last_used_at`
@@ -158,8 +158,8 @@ Protected Monk routes authorize a concrete tenant-local principal with `user_id`
 Requirements:
 
 - `/auth/verify` must mint a normal Monk bearer token for a concrete tenant-local principal, not a key-only anonymous session
-- the first version should bind each tenant key to a tenant-owned service principal or another explicit internal auth principal so current ACL, sudo, auditing, and `System` assumptions remain coherent
-- key scopes, if introduced, must reduce or intersect with the bound principal's access; they must not silently exceed it
+- each key should bind to a concrete tenant-local user
+- the first version should stay tenant-wide at the key layer; access control should come from the mapped user's access level and ACL context rather than an extra per-key scope model
 - audit records should capture both the principal identity and the authenticating `key_id` or fingerprint
 
 ## Flow 1: Tenant Provisioning
@@ -168,14 +168,16 @@ Requirements:
 
 Purpose:
 - Create a new tenant
-- Bind its first machine key
-- Return the first short-lived auth challenge or first access token
+- Create its first tenant-local user
+- Bind its first machine key to that user
+- Return the first auth challenge instead of a Monk bearer token
 
 Request:
 
 ```json
 {
   "tenant": "acme_agent",
+  "username": "root_agent",
   "public_key": "base64-or-pem-encoded-public-key",
   "algorithm": "ed25519",
   "key_name": "builder-1"
@@ -190,6 +192,11 @@ Success response:
   "data": {
     "tenant": "acme_agent",
     "tenant_id": "uuid",
+    "user": {
+      "id": "uuid",
+      "username": "root_agent",
+      "access": "root"
+    },
     "key": {
       "id": "uuid",
       "name": "builder-1",
@@ -207,16 +214,19 @@ Success response:
 
 Notes:
 
-- Provisioning should not require `username`, `password`, or `email`
+- Provisioning should require `tenant`, `username`, and the first `public_key`, but not `password` or `email`
 - Provisioning must fail if the tenant name is already taken
 - Provisioning should store the public key only after validating format and algorithm
-- Returning a challenge instead of an immediate bearer token keeps proof-of-possession explicit
-- If provisioning creates the tenant before proof-of-possession succeeds, the tenant should remain pending/inactive until first successful `/auth/verify`, or Monk needs explicit cleanup and recovery rules for abandoned provisions
+- Provisioning should create the first tenant-local user and bind the first key to that user
+- The first provisioned user should be the tenant bootstrap root/full principal unless the product later introduces a different bootstrap role
+- Provisioning should return a challenge instead of minting a Monk JWT before proof-of-possession is demonstrated
 
 Suggested errors:
 
 - `AUTH_TENANT_MISSING`
 - `AUTH_TENANT_INVALID`
+- `AUTH_USERNAME_MISSING`
+- `AUTH_USERNAME_INVALID`
 - `AUTH_PUBLIC_KEY_MISSING`
 - `AUTH_PUBLIC_KEY_INVALID`
 - `AUTH_KEY_ALGORITHM_UNSUPPORTED`
@@ -341,6 +351,7 @@ Success response:
   "data": [
     {
       "id": "uuid",
+      "user_id": "uuid",
       "name": "builder-1",
       "algorithm": "ed25519",
       "fingerprint": "fp_...",
@@ -358,19 +369,20 @@ Requirements:
 - Never return private key material
 - Never return challenge state
 - This route is authenticated by a valid Monk bearer token obtained from `/auth/verify`
-- Listing tenant-wide keys should require root/full access or an explicit key-admin scope, not merely any bearer token in the tenant
+- Listing tenant-wide keys should require root/full access
 
 ## Flow 5: Add Key
 
 ### `POST /api/keys`
 
 Purpose:
-- Add an additional public key to the current tenant
+- Add an additional public key bound to a specific user in the current tenant
 
 Request:
 
 ```json
 {
+  "user_id": "uuid",
   "public_key": "base64-or-pem-encoded-public-key",
   "algorithm": "ed25519",
   "name": "runtime-2",
@@ -385,6 +397,7 @@ Success response:
   "success": true,
   "data": {
     "id": "uuid",
+    "user_id": "uuid",
     "name": "runtime-2",
     "algorithm": "ed25519",
     "fingerprint": "fp_...",
@@ -399,7 +412,8 @@ Requirements:
 - Reject duplicate public keys within the same tenant
 - Validate algorithm and key encoding strictly
 - Support optional expiry
-- Adding tenant-wide keys should require root/full access or an explicit key-admin scope
+- Require an explicit target `user_id` so every key remains bound to a concrete user
+- Adding tenant-wide keys should require root/full access
 
 ## Flow 6: Rotate Key
 
@@ -438,7 +452,7 @@ Requirements:
 - Rotation should support overlap instead of forcing immediate cutover
 - The new key should become valid before the old one is revoked
 - Rotation should be auditable
-- Rotation should require root/full access or an explicit key-admin scope
+- Rotation should require root/full access
 
 ## Flow 7: Revoke Key
 
@@ -462,9 +476,9 @@ Success response:
 Requirements:
 
 - Revoked keys must no longer receive valid challenges or tokens
-- Server should reject revoking the last key only if the product explicitly wants that safety rail
-- Otherwise, zero-key tenants are allowed and become temporarily unreachable until reprovisioned through policy-defined means
-- Revocation should require root/full access or an explicit key-admin scope
+- Server should reject revoking the last key unless the tenant still has a mapped username/password login path available
+- Zero-key tenants are allowed only when a mapped user/password path still exists
+- Revocation should require root/full access
 
 ## Token Semantics
 
@@ -534,12 +548,7 @@ Recommended migration shape:
 
 ## Open Questions
 
-- Should `/auth/provision` return a challenge or directly return a first short-lived bearer token?
-- Should key scopes live on `/api/keys` from day one, or should the first version stay tenant-wide?
 - Should challenge state be persisted for strict single-use semantics, or should the first version accept a short replay window?
-- Should a tenant be allowed to have zero active keys, or should the last-key deletion be blocked?
-- Should Monk expose raw public keys on `GET /api/keys`, or only fingerprints and metadata?
-- Should verified keys map to dedicated service users or to a separate internal principal type?
-- Should `/auth/provision` leave tenants pending until first successful `/auth/verify`, or activate them immediately with a cleanup TTL for abandoned bootstrap attempts?
-- Should tenant-wide key management require root/full only, or should Monk support a narrower key-admin scope?
-- How should existing tenant schemas be migrated if they already contain the old `credentials` table?
+- Should `GET /api/keys` return the stored public key material, or only fingerprints and metadata?
+- If `/auth/provision` returns a challenge before first successful `/auth/verify`, should the tenant remain pending/inactive until verification succeeds, or should Monk activate it immediately with cleanup for abandoned bootstrap attempts?
+- For tenants that already have the old `credentials` table, should migration drop it immediately, leave it inert until later cleanup, or transform any of its rows into the new internal key structures?
