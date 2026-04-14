@@ -102,7 +102,7 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
         }
 
         // Dissolve confirmation tokens must never be accepted as API bearer tokens
-        if (payload.is_dissolve) {
+        if (payload.token_use === 'dissolve') {
             throw HttpErrors.unauthorized('Dissolve confirmation tokens cannot be used as API bearer tokens', 'AUTH_TOKEN_INVALID');
         }
 

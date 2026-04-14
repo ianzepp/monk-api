@@ -9,7 +9,7 @@
 import { Infrastructure, type TenantRecord } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
-import { JWTGenerator, type JWTPayload } from '@src/lib/jwt-generator.js';
+import { JWTGenerator, type JWTPayload, type DissolveTokenPayload } from '@src/lib/jwt-generator.js';
 import { JWT_DEFAULT_EXPIRY, JWT_DISSOLVE_EXPIRY } from '@src/lib/constants.js';
 import { systemInitFromJWT, type SystemInit } from '@src/lib/system.js';
 import { Auth0BrokerError, auth0BrokerFromEnv, auth0ScopedIdentity } from '@src/lib/auth0/index.js';
@@ -480,28 +480,8 @@ export async function dissolve(
     }
 
     const token = await JWTGenerator.generateDissolveToken(
-        {
-            id: user.id,
-            user_id: user.id,
-            username: user.auth,
-            tenant: tenantRecord.name,
-            tenantId: tenantRecord.id,
-            dbType: tenantRecord.db_type || 'postgresql',
-            dbName: tenantRecord.database,
-            nsName: tenantRecord.schema,
-            access: user.access,
-            access_read: user.access_read || [],
-            access_edit: user.access_edit || [],
-            access_full: user.access_full || [],
-        },
-        {
-            name: tenantRecord.name,
-            tenantId: tenantRecord.id,
-            dbType: tenantRecord.db_type || 'postgresql',
-            dbName: tenantRecord.database,
-            nsName: tenantRecord.schema,
-        },
-        'Tenant/user dissolution confirmation'
+        { name: tenantRecord.name, tenantId: tenantRecord.id },
+        { userId: user.id, username: user.auth }
     );
 
     return {
@@ -528,9 +508,9 @@ export async function dissolveConfirm(
         return dissolveFailure('Confirmation token is required', 'DISSOLVE_TOKEN_MISSING');
     }
 
-    let payload: JWTPayload;
+    let payload: DissolveTokenPayload;
     try {
-        payload = await JWTGenerator.verifyToken(confirmation_token);
+        payload = await JWTGenerator.verifyDissolveToken(confirmation_token);
     } catch (error: any) {
         if (error?.name === 'JwtTokenExpired') {
             return dissolveFailure('Confirmation token has expired', 'DISSOLVE_TOKEN_EXPIRED');
@@ -538,14 +518,9 @@ export async function dissolveConfirm(
         return dissolveFailure('Invalid confirmation token', 'DISSOLVE_TOKEN_INVALID');
     }
 
-    // Must be a dissolve token, not a normal access token
-    if (!payload.is_dissolve) {
-        return dissolveFailure('Token is not a dissolve confirmation token', 'DISSOLVE_TOKEN_INVALID');
-    }
-
     const tenantName = payload.tenant;
     const username = payload.username;
-    const userId = payload.user_id || payload.sub;
+    const userId = payload.user_id;
 
     if (!tenantName || !username || !userId) {
         return dissolveFailure('Confirmation token is missing required claims', 'DISSOLVE_TOKEN_INVALID');

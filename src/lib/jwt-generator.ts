@@ -34,9 +34,6 @@ export interface JWTPayload {
     elevated_from?: string; // Original access level before sudo
     elevated_at?: string; // When sudo was granted
     elevation_reason?: string; // Why sudo was requested
-    // Dissolve confirmation metadata (optional)
-    is_dissolve?: boolean; // True if this is a short-lived dissolve confirmation token
-    dissolve_reason?: string; // Why dissolution was requested
     // User impersonation metadata (optional)
     is_fake?: boolean; // True if this is a fake/impersonation token
     faked_by_user_id?: string; // ID of root user doing the faking
@@ -44,6 +41,23 @@ export interface JWTPayload {
     faked_at?: string; // When impersonation was initiated
     // Response format preference (optional)
     format?: string;
+    [key: string]: any;
+}
+
+/**
+ * Minimal payload for dissolve confirmation tokens.
+ *
+ * Intentionally does not extend JWTPayload — these tokens must not be
+ * accepted by normal auth middleware.
+ */
+export interface DissolveTokenPayload {
+    token_use: 'dissolve';
+    tenant: string;
+    tenant_id?: string;
+    user_id: string;
+    username: string;
+    iat: number;
+    exp: number;
     [key: string]: any;
 }
 
@@ -328,43 +342,45 @@ export class JWTGenerator {
     /**
      * Generate dissolve-confirmation token
      *
-     * @param userData - User information for token
-     * @param tenant - Tenant context for the dissolve request
-     * @param reason - Optional dissolve reason
+     * Produces a minimal, purpose-bound token that cannot be mistaken for a
+     * normal access JWT.  Only the claims required to confirm dissolution are
+     * included: token_use, tenant, tenant_id, user_id, username, iat, exp.
+     *
+     * @param tenant - Tenant name and optional ID
+     * @param user - User ID and username
      * @returns JWT token string
      */
     static async generateDissolveToken(
-        userData: JWTUserData,
-        tenant: {
-            name: string;
-            tenantId?: string;
-            dbType: 'postgresql' | 'sqlite';
-            dbName: string;
-            nsName: string;
-        },
-        reason?: string
+        tenant: { name: string; tenantId?: string },
+        user: { userId: string; username: string }
     ): Promise<string> {
         const now = Math.floor(Date.now() / 1000);
-        const payload: JWTPayload = {
-            sub: userData.id,
-            user_id: userData.user_id ?? userData.id,
-            username: userData.username,
+        const payload: DissolveTokenPayload = {
+            token_use: 'dissolve',
             tenant: tenant.name,
             tenant_id: tenant.tenantId,
-            db_type: tenant.dbType,
-            db: tenant.dbName,
-            ns: tenant.nsName,
-            access: userData.access,
-            access_read: userData.access_read || [],
-            access_edit: userData.access_edit || [],
-            access_full: userData.access_full || [],
+            user_id: user.userId,
+            username: user.username,
             iat: now,
             exp: now + JWT_DISSOLVE_EXPIRY,
-            is_dissolve: true,
-            dissolve_reason: reason || 'Tenant/user dissolution confirmation',
         };
 
         return await sign(payload, this.getJwtSecret(), JWT_ALGORITHM);
+    }
+
+    /**
+     * Verify and decode a dissolve confirmation token
+     *
+     * @param token - JWT token string
+     * @returns Decoded DissolveTokenPayload
+     * @throws Error if token is invalid, expired, or not a dissolve token
+     */
+    static async verifyDissolveToken(token: string): Promise<DissolveTokenPayload> {
+        const payload = await verify(token, this.getJwtSecret(), JWT_ALGORITHM) as DissolveTokenPayload;
+        if (payload.token_use !== 'dissolve') {
+            throw new Error('Not a dissolve token');
+        }
+        return payload;
     }
 
     /**
