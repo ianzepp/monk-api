@@ -53,7 +53,7 @@ Keep:
 
 Strip out before starting new public-key feature work:
 
-- `/api/user/:id/keys`
+- the legacy user-scoped machine-key route surface
 - user-scoped API key auth via `X-API-Key` or API-key-shaped bearer tokens
 
 Be careful when narrowing or deleting the tenant-local `credentials` table and related helpers:
@@ -563,7 +563,7 @@ Phase order for implementation:
    - `/auth/register` becomes bootstrap-only and does not mint a Monk JWT
    - `/auth/login` and `/auth/verify` may promote `pending -> active` on first successful proof
 2. Legacy machine-auth removal:
-   - strip out `/api/user/:id/keys`
+   - strip out the legacy user-scoped machine-key route surface
    - strip out `/api/user/:id/password`
    - strip out deprecated API-key auth acceptance paths and docs implying API-key login support
    - remove machine-auth-only `credentials` helpers and route plumbing

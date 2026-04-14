@@ -12,7 +12,7 @@ The Monk API uses a single **Response Pipeline Middleware** that orchestrates al
 
 ```
 1. bodyParserMiddleware           - Decode TOON/YAML/JSON request bodies
-2. authValidatorMiddleware        - Validate Auth0 bearer/API key and load Monk user state
+2. authValidatorMiddleware        - Validate Monk bearer token and load Monk user state
 3. formatDetectorMiddleware       - Detect desired response format (?format=)
 4. responseTransformerMiddleware  - [SINGLE OVERRIDE POINT]
 5. contextInitializerMiddleware   - Provide database context
