@@ -6,7 +6,7 @@
  */
 
 import { sign, verify } from 'hono/jwt';
-import { JWT_DEFAULT_EXPIRY } from './constants.js';
+import { JWT_DEFAULT_EXPIRY, JWT_DISSOLVE_EXPIRY } from './constants.js';
 import type { SystemInit } from './system.js';
 
 const JWT_ALGORITHM = 'HS256' as const;
@@ -34,6 +34,9 @@ export interface JWTPayload {
     elevated_from?: string; // Original access level before sudo
     elevated_at?: string; // When sudo was granted
     elevation_reason?: string; // Why sudo was requested
+    // Dissolve confirmation metadata (optional)
+    is_dissolve?: boolean; // True if this is a short-lived dissolve confirmation token
+    dissolve_reason?: string; // Why dissolution was requested
     // User impersonation metadata (optional)
     is_fake?: boolean; // True if this is a fake/impersonation token
     faked_by_user_id?: string; // ID of root user doing the faking
@@ -320,6 +323,48 @@ export class JWTGenerator {
             },
             expirySeconds
         );
+    }
+
+    /**
+     * Generate dissolve-confirmation token
+     *
+     * @param userData - User information for token
+     * @param tenant - Tenant context for the dissolve request
+     * @param reason - Optional dissolve reason
+     * @returns JWT token string
+     */
+    static async generateDissolveToken(
+        userData: JWTUserData,
+        tenant: {
+            name: string;
+            tenantId?: string;
+            dbType: 'postgresql' | 'sqlite';
+            dbName: string;
+            nsName: string;
+        },
+        reason?: string
+    ): Promise<string> {
+        const now = Math.floor(Date.now() / 1000);
+        const payload: JWTPayload = {
+            sub: userData.id,
+            user_id: userData.user_id ?? userData.id,
+            username: userData.username,
+            tenant: tenant.name,
+            tenant_id: tenant.tenantId,
+            db_type: tenant.dbType,
+            db: tenant.dbName,
+            ns: tenant.nsName,
+            access: userData.access,
+            access_read: userData.access_read || [],
+            access_edit: userData.access_edit || [],
+            access_full: userData.access_full || [],
+            iat: now,
+            exp: now + JWT_DISSOLVE_EXPIRY,
+            is_dissolve: true,
+            dissolve_reason: reason || 'Tenant/user dissolution confirmation',
+        };
+
+        return await sign(payload, this.getJwtSecret(), JWT_ALGORITHM);
     }
 
     /**

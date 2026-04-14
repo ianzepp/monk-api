@@ -116,6 +116,8 @@ export function createHttpApp(): Hono {
     app.post('/auth/register', authRoutes.RegisterPost);
     app.post('/auth/refresh', authRoutes.RefreshPost);
     app.get('/auth/tenants', authRoutes.TenantsGet);
+    app.post('/auth/dissolve', authRoutes.DissolvePost);
+    app.post('/auth/dissolve/confirm', authRoutes.DissolveConfirmPost);
 
     // Describe API routes
     app.get('/api/describe', describeRoutes.ModelList);

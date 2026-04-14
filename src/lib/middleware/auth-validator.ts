@@ -101,6 +101,11 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
             throw HttpErrors.unauthorized('Invalid JWT - missing required claims', 'AUTH_TOKEN_INVALID');
         }
 
+        // Dissolve confirmation tokens must never be accepted as API bearer tokens
+        if (payload.is_dissolve) {
+            throw HttpErrors.unauthorized('Dissolve confirmation tokens cannot be used as API bearer tokens', 'AUTH_TOKEN_INVALID');
+        }
+
         const tenant = await resolveActiveTenantFromPayload(payload);
         const user = await validateUser(userId, tenant.db_type, tenant.database, tenant.schema);
 

@@ -10,7 +10,7 @@ import { Infrastructure, type TenantRecord } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
 import { JWTGenerator, type JWTPayload } from '@src/lib/jwt-generator.js';
-import { JWT_DEFAULT_EXPIRY } from '@src/lib/constants.js';
+import { JWT_DEFAULT_EXPIRY, JWT_DISSOLVE_EXPIRY } from '@src/lib/constants.js';
 import { systemInitFromJWT, type SystemInit } from '@src/lib/system.js';
 import { Auth0BrokerError, auth0BrokerFromEnv, auth0ScopedIdentity } from '@src/lib/auth0/index.js';
 
@@ -365,4 +365,238 @@ function disallowScopedIdentitySeparator(label: string, value: string): string |
         return `${label} must not contain '${SCOPED_IDENTITY_SEPARATOR}'`;
     }
     return null;
+}
+
+/**
+ * Dissolve request parameters
+ */
+export interface DissolveRequest {
+    tenant: string;
+    username: string;
+    password: string;
+}
+
+/**
+ * Dissolve result on success — returns a short-lived confirmation token
+ */
+export interface DissolveResult {
+    success: true;
+    confirmation_token: string;
+    expires_in: number;
+}
+
+/**
+ * Dissolve failure result
+ */
+export interface DissolveFailure {
+    success: false;
+    error: string;
+    errorCode: string;
+}
+
+/**
+ * Dissolve confirm request parameters
+ */
+export interface DissolveConfirmRequest {
+    confirmation_token: string;
+}
+
+/**
+ * Dissolve confirm result on success
+ */
+export interface DissolveConfirmResult {
+    success: true;
+    tenant: string;
+    username: string;
+    dissolved: boolean;
+}
+
+/**
+ * Dissolve confirm failure result
+ */
+export interface DissolveConfirmFailure {
+    success: false;
+    error: string;
+    errorCode: string;
+}
+
+/**
+ * Step 1 of the dissolution flow.
+ *
+ * Verifies the supplied credentials exactly as login does, then returns a
+ * short-lived dissolve-only confirmation token.  The token is signed with the
+ * server secret and carries `is_dissolve: true` so normal auth middleware will
+ * reject it if presented as a bearer token.
+ */
+export async function dissolve(
+    request: DissolveRequest
+): Promise<DissolveResult | DissolveFailure> {
+    const { tenant, username, password } = request;
+
+    if (!tenant) {
+        return dissolveFailure('Tenant is required', 'AUTH_TENANT_MISSING');
+    }
+    if (!username) {
+        return dissolveFailure('Username is required', 'AUTH_USERNAME_MISSING');
+    }
+    if (!password) {
+        return dissolveFailure('Password is required', 'AUTH_PASSWORD_MISSING');
+    }
+
+    const tenantSeparatorError = disallowScopedIdentitySeparator('Tenant', tenant);
+    if (tenantSeparatorError) {
+        return dissolveFailure(tenantSeparatorError, 'AUTH_TENANT_INVALID');
+    }
+    if (!isCanonicalName(tenant)) {
+        return dissolveFailure(canonicalNameMessage('Tenant'), 'AUTH_TENANT_INVALID');
+    }
+
+    const usernameSeparatorError = disallowScopedIdentitySeparator('Username', username);
+    if (usernameSeparatorError) {
+        return dissolveFailure(usernameSeparatorError, 'AUTH_USERNAME_INVALID');
+    }
+    if (!isCanonicalName(username)) {
+        return dissolveFailure(canonicalNameMessage('Username'), 'AUTH_USERNAME_INVALID');
+    }
+
+    const tenantRecord = await Infrastructure.getTenant(tenant);
+    if (!tenantRecord) {
+        return dissolveFailure('Authentication failed', 'AUTH_LOGIN_FAILED');
+    }
+
+    const user = await getTenantUserByAuth(tenantRecord, username);
+    if (!user) {
+        return dissolveFailure('Authentication failed', 'AUTH_LOGIN_FAILED');
+    }
+
+    try {
+        const broker = auth0BrokerFromEnv();
+        await broker.authenticateScopedIdentity(auth0ScopedIdentity(tenantRecord.name, username), password);
+    } catch (error) {
+        if (error instanceof Auth0BrokerError) {
+            return dissolveFailure(error.message, error.code);
+        }
+        throw error;
+    }
+
+    const token = await JWTGenerator.generateDissolveToken(
+        {
+            id: user.id,
+            user_id: user.id,
+            username: user.auth,
+            tenant: tenantRecord.name,
+            tenantId: tenantRecord.id,
+            dbType: tenantRecord.db_type || 'postgresql',
+            dbName: tenantRecord.database,
+            nsName: tenantRecord.schema,
+            access: user.access,
+            access_read: user.access_read || [],
+            access_edit: user.access_edit || [],
+            access_full: user.access_full || [],
+        },
+        {
+            name: tenantRecord.name,
+            tenantId: tenantRecord.id,
+            dbType: tenantRecord.db_type || 'postgresql',
+            dbName: tenantRecord.database,
+            nsName: tenantRecord.schema,
+        },
+        'Tenant/user dissolution confirmation'
+    );
+
+    return {
+        success: true,
+        confirmation_token: token,
+        expires_in: JWT_DISSOLVE_EXPIRY,
+    };
+}
+
+/**
+ * Step 2 of the dissolution flow.
+ *
+ * Validates the confirmation token, then permanently soft-deletes the tenant
+ * so subsequent logins for the same credentials fail.  The user record inside
+ * the tenant namespace is also soft-deleted.  We reuse the existing
+ * `Infrastructure.deleteTenant` soft-delete pattern — no new tables required.
+ */
+export async function dissolveConfirm(
+    request: DissolveConfirmRequest
+): Promise<DissolveConfirmResult | DissolveConfirmFailure> {
+    const { confirmation_token } = request;
+
+    if (!confirmation_token) {
+        return dissolveFailure('Confirmation token is required', 'DISSOLVE_TOKEN_MISSING');
+    }
+
+    let payload: JWTPayload;
+    try {
+        payload = await JWTGenerator.verifyToken(confirmation_token);
+    } catch (error: any) {
+        if (error?.name === 'JwtTokenExpired') {
+            return dissolveFailure('Confirmation token has expired', 'DISSOLVE_TOKEN_EXPIRED');
+        }
+        return dissolveFailure('Invalid confirmation token', 'DISSOLVE_TOKEN_INVALID');
+    }
+
+    // Must be a dissolve token, not a normal access token
+    if (!payload.is_dissolve) {
+        return dissolveFailure('Token is not a dissolve confirmation token', 'DISSOLVE_TOKEN_INVALID');
+    }
+
+    const tenantName = payload.tenant;
+    const username = payload.username;
+    const userId = payload.user_id || payload.sub;
+
+    if (!tenantName || !username || !userId) {
+        return dissolveFailure('Confirmation token is missing required claims', 'DISSOLVE_TOKEN_INVALID');
+    }
+
+    // Re-resolve tenant to confirm it still exists and is active
+    const tenantRecord = payload.tenant_id
+        ? await Infrastructure.getTenantById(payload.tenant_id)
+        : await Infrastructure.getTenant(tenantName);
+
+    if (!tenantRecord) {
+        return dissolveFailure('Tenant not found or already dissolved', 'DISSOLVE_TENANT_NOT_FOUND');
+    }
+
+    // Soft-delete the user inside the tenant namespace first
+    try {
+        const timestamp = new Date().toISOString();
+        if (tenantRecord.db_type === 'sqlite') {
+            const adapter = createAdapterFrom('sqlite', tenantRecord.database, tenantRecord.schema);
+            await adapter.connect();
+            try {
+                await adapter.query(
+                    `UPDATE users SET deleted_at = $1, updated_at = $2 WHERE id = $3 AND deleted_at IS NULL`,
+                    [timestamp, timestamp, userId]
+                );
+            } finally {
+                await adapter.disconnect();
+            }
+        } else {
+            await DatabaseConnection.queryInNamespace(
+                tenantRecord.database,
+                tenantRecord.schema,
+                `UPDATE users SET deleted_at = $1, updated_at = $2 WHERE id = $3 AND deleted_at IS NULL`,
+                [timestamp, timestamp, userId]
+            );
+        }
+    } catch {
+        // Non-fatal: user delete failure should not block tenant dissolution
+    }
+
+    // Soft-delete the tenant (sets deleted_at + is_active = false)
+    await Infrastructure.deleteTenant(tenantName);
+
+    return {
+        success: true,
+        tenant: tenantName,
+        username,
+        dissolved: true,
+    };
+}
+
+function dissolveFailure(error: string, errorCode: string): DissolveFailure {
+    return { success: false, error, errorCode };
 }

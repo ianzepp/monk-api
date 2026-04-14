@@ -24,6 +24,11 @@ export const SQL_MAX_RECURSION = 3;
 export const JWT_DEFAULT_EXPIRY = 7 * 24 * 60 * 60;
 
 /**
+ * Dissolve-confirmation JWT expiry in seconds (5 minutes)
+ */
+export const JWT_DISSOLVE_EXPIRY = 5 * 60;
+
+/**
  * Sudo token expiry in seconds (15 minutes)
  */
 export const JWT_SUDO_EXPIRY = 15 * 60;
