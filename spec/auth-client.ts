@@ -6,8 +6,8 @@
  *
  * Features:
  * - login() - Authenticate with username/tenant
- * - register() - Register a tenant and cache the returned Monk bearer token
- * - Automatically caches bearer tokens in HttpClient
+ * - register() - Register a tenant in pending status
+ * - Automatically caches bearer tokens returned by login()
  * - Provides access to underlying HttpClient for API requests
  */
 
@@ -112,6 +112,9 @@ export class AuthClient {
     /**
      * Register a new tenant.
      *
+     * Registration does not cache a bearer token. Call login() after a successful
+     * register() response to obtain one.
+     *
      * @param params - Registration parameters
      * @returns Promise with authentication response
      *
@@ -125,8 +128,12 @@ export class AuthClient {
      *     password: 'secret-pass'
      * });
      *
-     * // Token is now cached - use httpClient for authenticated requests
-     * const data = await authClient.httpClient.post('/api/data/account', {...});
+     * // Register succeeds in pending status; log in to obtain a Monk bearer token
+     * await authClient.login({
+     *     tenant: 'new-tenant',
+     *     username: 'admin',
+     *     password: 'secret-pass'
+     * });
      * ```
      */
     async register(params: RegistrationParams): Promise<AuthResponse> {
@@ -169,7 +176,7 @@ export class AuthClient {
     /**
      * Get the underlying HttpClient
      *
-     * Use this to make authenticated API requests after login/register.
+     * Use this to make authenticated API requests after login.
      *
      * @returns HttpClient instance with cached auth token
      *

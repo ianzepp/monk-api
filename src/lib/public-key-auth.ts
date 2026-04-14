@@ -41,6 +41,15 @@ interface ChallengeRow {
     used_at: string | null;
 }
 
+interface ChallengeWithKeyRow extends KeyWithUserRow {
+    challenge_id: string;
+    challenge_nonce: string;
+    challenge_algorithm: SupportedKeyAlgorithm;
+    challenge_issued_at: string;
+    challenge_expires_at: string;
+    challenge_used_at: string | null;
+}
+
 interface KeyWithUserRow extends TenantKeyRow {
     auth: string;
     access: string;
@@ -322,17 +331,17 @@ export async function verifyTenantChallenge(request: VerifyRequest): Promise<Ver
         throw HttpErrors.unauthorized('Challenge is invalid', 'AUTH_CHALLENGE_INVALID');
     }
     assertKeyUsable(keyChallenge);
-    if (isExpired(keyChallenge.expires_at)) {
+    if (isExpired(keyChallenge.challenge_expires_at)) {
         throw HttpErrors.unauthorized('Challenge has expired', 'AUTH_CHALLENGE_EXPIRED');
     }
-    if (keyChallenge.used_at) {
+    if (keyChallenge.challenge_used_at) {
         throw HttpErrors.unauthorized('Challenge has already been used', 'AUTH_CHALLENGE_INVALID');
     }
 
     const keyObject = createPublicKey(keyChallenge.public_key);
     const ok = verifySignature(
         null,
-        Buffer.from(keyChallenge.nonce, 'utf8'),
+        Buffer.from(keyChallenge.challenge_nonce, 'utf8'),
         keyObject,
         decodeBase64Url(signature)
     );
@@ -536,6 +545,23 @@ export async function revokeTenantKey(system: System, keyId: string): Promise<{ 
     return { id: existing.id, revoked: true };
 }
 
+export async function assertPublicKeyTokenUsable(tenant: TenantRecord, keyId: string): Promise<void> {
+    await ensureTenantAuthTables(tenant);
+    const result = await runTenantQuery<Pick<TenantKeyRow, 'id' | 'expires_at' | 'revoked_at'>>(
+        tenant,
+        `SELECT id, expires_at, revoked_at
+         FROM tenant_keys
+         WHERE id = $1
+         LIMIT 1`,
+        [keyId]
+    );
+    const key = result.rows[0];
+    if (!key) {
+        throw HttpErrors.unauthorized('Key not found', 'AUTH_KEY_NOT_FOUND');
+    }
+    assertKeyUsable(key);
+}
+
 async function requireMachineAuthTenant(tenantName?: string): Promise<TenantRecord> {
     const tenant = tenantName?.trim();
     if (!tenant) {
@@ -594,6 +620,9 @@ function normalizePublicKey(publicKey: string | undefined, algorithm: SupportedK
         const keyObject = source.includes('BEGIN PUBLIC KEY')
             ? createPublicKey(source)
             : createPublicKey({ key: Buffer.from(stripWhitespace(source), 'base64'), format: 'der', type: 'spki' });
+        if (keyObject.asymmetricKeyType !== algorithm) {
+            throw new Error(`Expected ${algorithm} public key`);
+        }
         const pem = keyObject.export({ format: 'pem', type: 'spki' }).toString();
         const der = keyObject.export({ format: 'der', type: 'spki' }) as Buffer;
         const fingerprint = `fp_${createHash('sha256').update(der).digest('hex').slice(0, 32)}`;
@@ -708,11 +737,26 @@ async function createChallenge(
     };
 }
 
-async function getChallengeWithKey(tenant: TenantRecord, challengeId: string): Promise<(ChallengeRow & KeyWithUserRow) | null> {
-    const result = await runTenantQuery<ChallengeRow & KeyWithUserRow>(
+async function getChallengeWithKey(tenant: TenantRecord, challengeId: string): Promise<ChallengeWithKeyRow | null> {
+    const result = await runTenantQuery<ChallengeWithKeyRow>(
         tenant,
-        `SELECT c.id AS challenge_id, c.key_id, c.nonce, c.algorithm, c.issued_at, c.expires_at, c.used_at,
-                k.id, k.user_id, k.name, k.public_key, k.fingerprint, k.created_at, k.updated_at, k.last_used_at, k.revoked_at,
+        `SELECT c.id AS challenge_id,
+                c.nonce AS challenge_nonce,
+                c.algorithm AS challenge_algorithm,
+                c.issued_at AS challenge_issued_at,
+                c.expires_at AS challenge_expires_at,
+                c.used_at AS challenge_used_at,
+                k.id,
+                k.user_id,
+                k.name,
+                k.algorithm,
+                k.public_key,
+                k.fingerprint,
+                k.created_at,
+                k.updated_at,
+                k.last_used_at,
+                k.expires_at,
+                k.revoked_at,
                 u.auth, u.access, u.access_read, u.access_edit, u.access_full
          FROM auth_challenges c
          JOIN tenant_keys k ON k.id = c.key_id

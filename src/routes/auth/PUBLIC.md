@@ -21,7 +21,8 @@ Human clients send `tenant`, `username`, and `password` directly to Monk for log
 4. Monk provisions or resolves Monk-local tenant and user records.
 5. Machine clients prove possession of a tenant-bound private key through a single-use challenge.
 6. Monk returns a Monk bearer token.
-7. Protected Monk routes accept Monk bearer tokens, not Auth0 bearer tokens.
+7. `/auth/refresh` is reserved for human login tokens; machine clients re-run challenge and verify.
+8. Protected Monk routes accept Monk bearer tokens, not Auth0 bearer tokens.
 
 ## Endpoints
 
@@ -32,7 +33,7 @@ Human clients send `tenant`, `username`, and `password` directly to Monk for log
 | POST | [`/auth/provision`](provision/POST.md) | Create a pending tenant, root user, and first machine key, then return the first challenge. |
 | POST | [`/auth/challenge`](challenge/POST.md) | Issue a short-lived single-use challenge for a tenant-bound key. |
 | POST | [`/auth/verify`](verify/POST.md) | Verify the signed challenge and return a Monk bearer token. |
-| POST | [`/auth/refresh`](refresh/POST.md) | Refresh a Monk bearer token presented in `Authorization`. |
+| POST | [`/auth/refresh`](refresh/POST.md) | Refresh a Monk bearer token from the human login flow. |
 | GET | [`/auth/tenants`](tenants/GET.md) | List available tenants (personal mode only). |
 | POST | [`/auth/dissolve`](dissolve/POST.md) | Step 1 of dissolution: verify credentials and return a short-lived confirmation token. |
 | POST | [`/auth/dissolve/confirm`](dissolve/confirm/POST.md) | Step 2 of dissolution: consume the confirmation token and permanently soft-delete the tenant and user. |

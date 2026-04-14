@@ -2,7 +2,7 @@
 
 Create a brand-new tenant and bootstrap its root user from canonical snake_case `tenant`, `username`, `email`, and `password`.
 
-Monk forwards user provisioning to Auth0, never stores the password locally, provisions the Monk tenant and root user, and returns a Monk bearer token immediately. `email` is required on register so Monk can create the upstream Auth0 identity without inventing one.
+Monk forwards user provisioning to Auth0, never stores the password locally, and provisions the Monk tenant and root user in `pending` status. `email` is required on register so Monk can create the upstream Auth0 identity without inventing one. Registration does not mint a Monk bearer token; clients must complete a follow-up `/auth/login`.
 
 `/auth/register` is for new-tenant bootstrap only. It does not join users to existing tenants.
 
@@ -26,8 +26,7 @@ Monk forwards user provisioning to Auth0, never stores the password locally, pro
     "tenant_id": "string",
     "tenant": "string",
     "username": "string",
-    "token": "string",
-    "expires_in": 604800
+    "status": "pending"
   }
 }
 ```
@@ -64,5 +63,5 @@ curl -X POST http://localhost:9001/auth/register \
 ## Related Endpoints
 
 - [`POST /auth/login`](../login/POST.md) - Log in to an existing tenant
-- [`POST /auth/refresh`](../refresh/POST.md) - Refresh a Monk bearer token
+- [`POST /auth/refresh`](../refresh/POST.md) - Refresh a Monk bearer token from the human login flow
 - [`GET /api/user`](../../api/user/PUBLIC.md) - Manage Monk tenant-local users

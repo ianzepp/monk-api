@@ -16,6 +16,7 @@ import type { JWTPayload } from '@src/lib/jwt-generator.js';
 import { Infrastructure } from '@src/lib/infrastructure.js';
 import { createAdapterFrom, type DatabaseType } from '@src/lib/database/index.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { assertPublicKeyTokenUsable } from '@src/lib/public-key-auth.js';
 
 function getJwtSecret(): string {
     return process.env['JWT_SECRET']!;
@@ -111,6 +112,12 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
         }
 
         const tenant = await resolveActiveTenantFromPayload(payload);
+        if (payload.auth_type === 'public_key') {
+            if (!payload.key_id) {
+                throw HttpErrors.unauthorized('Invalid JWT - missing public-key claims', 'AUTH_TOKEN_INVALID');
+            }
+            await assertPublicKeyTokenUsable(tenant, payload.key_id);
+        }
         const user = await validateUser(userId, tenant.db_type, tenant.database, tenant.schema);
 
         const trustedPayload: JWTPayload = {

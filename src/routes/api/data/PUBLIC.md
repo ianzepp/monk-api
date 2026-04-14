@@ -17,7 +17,7 @@ The Data API provides CRUD operations for model records, supporting both bulk op
 All Data API routes require a Monk bearer token:
 - **Header**: `Authorization: Bearer <monk_bearer_token>`
 
-Monk mints bearer tokens after `/auth/register` or `/auth/login`, then resolves the token to Monk-owned tenant and user state before authorizing the request.
+Monk mints bearer tokens after `/auth/login` or `/auth/verify`, then resolves the token to Monk-owned tenant and user state before authorizing the request.
 
 ## Query Parameters
 

@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll } from 'bun:test';
 import { HttpClient } from '../http-client.js';
 import { TEST_CONFIG } from '../test-config.js';
 import { sign } from 'hono/jwt';
+import { Infrastructure } from '@src/lib/infrastructure.js';
+import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
 function decodeJwtPayload(token: string): Record<string, any> {
     const parts = token.split('.');
@@ -29,22 +31,27 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
     beforeAll(async () => {
         tenantName = `test_refresh_api_${Date.now()}`;
         username = 'root_user';
-        const client = new HttpClient(TEST_CONFIG.API_URL);
-        const response = await client.post('/auth/register', {
-            tenant: tenantName,
-            username,
-            email: 'root_user@example.com',
-            password: 'refresh-password',
+        const result = await Infrastructure.createTenant({
+            name: tenantName,
+            owner_username: username,
         });
-        expect(response.success).toBe(true);
-        expect(response.data.status).toBe('pending');
-
-        const loginResponse = await client.post('/auth/login', {
-            tenant: tenantName,
-            username,
-            password: 'refresh-password',
+        token = await JWTGenerator.signPayload({
+            sub: result.user.id,
+            user_id: result.user.id,
+            username: result.user.auth,
+            tenant: result.tenant.name,
+            tenant_id: result.tenant.id,
+            db_type: result.tenant.db_type,
+            db: result.tenant.database,
+            ns: result.tenant.schema,
+            access: result.user.access,
+            access_read: [],
+            access_edit: [],
+            access_full: [],
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + 3600,
+            is_sudo: true,
         });
-        token = loginResponse.data.token;
     });
 
     describe('Input Validation', () => {

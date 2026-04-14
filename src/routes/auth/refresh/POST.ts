@@ -44,6 +44,17 @@ export default async function (context: Context) {
         );
     }
 
+    if (payload.auth_type === 'public_key') {
+        return context.json(
+            {
+                success: false,
+                error: 'Public-key machine tokens cannot be refreshed - request a new challenge and verify instead',
+                error_code: 'AUTH_PUBLIC_KEY_REFRESH_UNSUPPORTED',
+            },
+            403
+        );
+    }
+
     const tenant = payload.tenant_id
         ? await Infrastructure.getTenantById(payload.tenant_id)
         : await Infrastructure.getTenant(payload.tenant);

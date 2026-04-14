@@ -1048,8 +1048,8 @@ The TypeScript test framework uses the current Monk auth contract and caches Mon
 
 **AuthClient** - High-level Monk auth wrapper:
 - `login({ tenant, username, password })` - Authenticate through Monk's brokered Auth0 path
-- `register({ tenant, username, email, password })` - Register a tenant and cache the returned Monk bearer token
-- Automatically caches bearer tokens in HttpClient
+- `register({ tenant, username, email, password })` - Register a tenant in pending status
+- Automatically caches bearer tokens returned by login()
 - Provides `.client` property for authenticated API requests
 
 **HttpClient** - HTTP request utilities:
