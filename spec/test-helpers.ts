@@ -10,6 +10,10 @@ import { describe } from 'bun:test';
 import { HttpClient } from './http-client.js';
 import { AuthClient } from './auth-client.js';
 import { TEST_CONFIG } from './test-config.js';
+import { Infrastructure } from '@src/lib/infrastructure.js';
+import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { createAdapterFrom } from '@src/lib/database/index.js';
+import { JWTGenerator } from '@src/lib/jwt-generator.js';
 
 /**
  * Database type for test tenants
@@ -159,6 +163,10 @@ export class TestHelpers {
      * This is useful if you need to get a token for a different user
      * in the same tenant.
      *
+     * Tests intentionally mint Monk bearer tokens directly from tenant-local
+     * user state instead of going through `/auth/login`, so test-created users
+     * do not need upstream Auth0 identities or passwords.
+     *
      * @param tenantName - Tenant name to login to
      * @param username - Username to login with
      * @returns Promise with auth token
@@ -172,20 +180,46 @@ export class TestHelpers {
         tenantName: string,
         username: string
     ): Promise<string> {
-        const authClient = new AuthClient(TEST_CONFIG.API_URL);
-
-        const response = await authClient.login({
-            tenant: tenantName,
-            username: username,
-        });
-
-        if (!response.success) {
-            throw new Error(
-                `Failed to login to tenant '${tenantName}' as '${username}': ${response.error} (${response.error_code})`
-            );
+        const tenant = await Infrastructure.getTenant(tenantName);
+        if (!tenant) {
+            throw new Error(`Failed to login to tenant '${tenantName}' as '${username}': tenant not found`);
         }
 
-        return response.data!.token;
+        const query = 'SELECT id, auth, access, access_read, access_edit, access_full FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL';
+        const user = tenant.db_type === 'sqlite'
+            ? await (async () => {
+                  const adapter = createAdapterFrom('sqlite', tenant.database, tenant.schema);
+                  await adapter.connect();
+                  try {
+                      const result = await adapter.query<any>(query, [username]);
+                      return result.rows[0];
+                  } finally {
+                      await adapter.disconnect();
+                  }
+              })()
+            : (await DatabaseConnection.queryInNamespace(tenant.database, tenant.schema, query, [username])).rows[0];
+
+        if (!user) {
+            throw new Error(`Failed to login to tenant '${tenantName}' as '${username}': user not found`);
+        }
+
+        return await JWTGenerator.fromUserAndTenant(
+            {
+                id: user.id,
+                auth: user.auth,
+                access: user.access,
+                access_read: parseAccessArray(user.access_read),
+                access_edit: parseAccessArray(user.access_edit),
+                access_full: parseAccessArray(user.access_full),
+            },
+            {
+                name: tenant.name,
+                tenant_id: tenant.id,
+                db_type: tenant.db_type,
+                database: tenant.database,
+                schema: tenant.schema,
+            }
+        );
     }
 
     /**
@@ -224,6 +258,16 @@ export class TestHelpers {
         // Each request will need to pass the token in headers
         return httpClient;
     }
+}
+
+function parseAccessArray(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value as string[];
+    }
+    if (typeof value === 'string' && value) {
+        return JSON.parse(value) as string[];
+    }
+    return [];
 }
 
 /**
