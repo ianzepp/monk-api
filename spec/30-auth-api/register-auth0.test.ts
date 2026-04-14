@@ -82,6 +82,30 @@ describe('POST /auth/register - brokered tenant provisioning', () => {
         expect(body.error_code).toBe('AUTH_TENANT_INVALID');
     });
 
+    it('rejects tenant and username values containing colons', async () => {
+        const tenantResponse = await requestRegister({
+            tenant: `bad:tenant_${Date.now()}`,
+            username: 'root_user',
+            email: 'root_user@example.com',
+            password: 'register-password',
+        });
+        const tenantBody = await tenantResponse.json() as any;
+
+        expect(tenantResponse.status).toBe(400);
+        expect(tenantBody.error_code).toBe('AUTH_TENANT_INVALID');
+
+        const usernameResponse = await requestRegister({
+            tenant: `register_colon_${Date.now()}`,
+            username: 'bad:user',
+            email: 'root_user@example.com',
+            password: 'register-password',
+        });
+        const usernameBody = await usernameResponse.json() as any;
+
+        expect(usernameResponse.status).toBe(400);
+        expect(usernameBody.error_code).toBe('AUTH_USERNAME_INVALID');
+    });
+
     it('rejects missing email', async () => {
         const response = await requestRegister({
             tenant: `register_missing_email_${Date.now()}`,

@@ -97,6 +97,28 @@ describe('POST /auth/login - Authenticate User', () => {
         expect(response.error_code).toBe('AUTH_PASSWORD_MISSING');
     });
 
+    it('should reject tenant and username values containing colons', async () => {
+        const authClient = new AuthClient();
+
+        const tenantResponse = await authClient.login({
+            tenant: `bad:tenant_${Date.now()}`,
+            username: 'root_user',
+            password: 'test-password-7',
+        });
+
+        expect(tenantResponse.success).toBe(false);
+        expect(tenantResponse.error_code).toBe('AUTH_TENANT_INVALID');
+
+        const usernameResponse = await authClient.login({
+            tenant: `test_login_colon_${Date.now()}`,
+            username: 'bad:user',
+            password: 'test-password-7',
+        });
+
+        expect(usernameResponse.success).toBe(false);
+        expect(usernameResponse.error_code).toBe('AUTH_USERNAME_INVALID');
+    });
+
     it('should reject nonexistent tenant', async () => {
         const authClient = new AuthClient();
 
