@@ -1,65 +1,37 @@
 import type { Context } from 'hono';
 import { verify, sign } from 'hono/jwt';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
+import { Infrastructure } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
+import { createAdapterFrom } from '@src/lib/database/index.js';
 import type { JWTPayload } from '@src/lib/jwt-generator.js';
-import { assertLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 /**
- * POST /auth/refresh - Explicit local-bootstrap token refresh
+ * POST /auth/refresh - Refresh Monk bearer token
  *
- * Production Auth0 token renewal is handled by Auth0, not Monk. This route
- * is retained only for explicit non-production local auth bootstrap.
- *
- * Error codes:
- * - AUTH_TOKEN_REQUIRED: Missing token field (400)
- * - AUTH_TOKEN_INVALID: Invalid or corrupted token (401)
- * - AUTH_TOKEN_EXPIRED: Expired token (401)
- * - AUTH_TOKEN_REFRESH_FAILED: Token valid but user/tenant no longer exists (401)
- *
- * @see docs/routes/AUTH_API.md
+ * Clients present the current Monk bearer token in the Authorization header.
+ * Monk verifies the token, checks that the tenant and user are still active,
+ * and returns a fresh Monk bearer token.
  */
 export default async function (context: Context) {
-    const body = context.get('parsedBody') ?? await context.req.json().catch(() => ({}));
-    const { token } = body;
-    assertLocalAuthEnabled('Local JWT refresh');
-
-    // Input validation
-    if (!token) {
-        throw HttpErrors.badRequest('Token is required for refresh', 'AUTH_TOKEN_REQUIRED');
+    const authHeader = context.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+        throw HttpErrors.unauthorized('Authorization bearer token required', 'AUTH_TOKEN_REQUIRED');
     }
 
-    let payload: JWTPayload;
+    const token = authHeader.substring(7);
 
-    // Verify and decode the token
+    let payload: JWTPayload;
     try {
         payload = (await verify(token, process.env.JWT_SECRET!, 'HS256')) as JWTPayload;
     } catch (error: any) {
         const errorMessage = String(error?.message ?? '').toLowerCase();
         if (error?.name === 'JwtTokenExpired' || errorMessage.includes('expired')) {
-            return context.json(
-                {
-                    success: false,
-                    error: 'Token has expired',
-                    error_code: 'AUTH_TOKEN_EXPIRED',
-                },
-                401
-            );
+            return context.json({ success: false, error: 'Token has expired', error_code: 'AUTH_TOKEN_EXPIRED' }, 401);
         }
-
-        // Handle JWT verification errors (invalid signature, malformed)
-        return context.json(
-            {
-                success: false,
-                error: 'Invalid token',
-                error_code: 'AUTH_TOKEN_INVALID',
-            },
-            401
-        );
+        return context.json({ success: false, error: 'Invalid token', error_code: 'AUTH_TOKEN_INVALID' }, 401);
     }
 
-    // Reject fake (impersonation) tokens - they have a hard expiry and cannot be refreshed
-    // This prevents indefinite extension of impersonation sessions
     if (payload.is_fake) {
         return context.json(
             {
@@ -71,72 +43,44 @@ export default async function (context: Context) {
         );
     }
 
-    // Verify tenant still exists and is active
-    const authDb = DatabaseConnection.getMainPool();
-    const tenantResult = payload.tenant_id
-        ? await authDb.query(
-            'SELECT name, db_type, database, schema FROM tenants WHERE id = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
-            [payload.tenant_id]
-        )
-        : await authDb.query(
-            'SELECT name, db_type, database, schema FROM tenants WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL',
-            [payload.tenant]
-        );
-
-    if (!tenantResult.rows || tenantResult.rows.length === 0) {
-        return context.json(
-            {
-                success: false,
-                error: 'Invalid or expired token',
-                error_code: 'AUTH_TOKEN_REFRESH_FAILED',
-            },
-            401
-        );
+    const tenant = payload.tenant_id
+        ? await Infrastructure.getTenantById(payload.tenant_id)
+        : await Infrastructure.getTenant(payload.tenant);
+    if (!tenant) {
+        return context.json({ success: false, error: 'Invalid or expired token', error_code: 'AUTH_TOKEN_REFRESH_FAILED' }, 401);
     }
 
-    const { name: tenantName, db_type: dbType, database: dbName, schema: nsName } = tenantResult.rows[0];
-
-    // Verify user still exists and is not deleted
-    const userResult = await DatabaseConnection.queryInNamespace(
-        dbName,
-        nsName,
-        'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
-        [payload.sub]
-    );
+    const userResult = tenant.db_type === 'sqlite'
+        ? await querySqliteUser(tenant.database, tenant.schema, payload.sub)
+        : await DatabaseConnection.queryInNamespace(
+            tenant.database,
+            tenant.schema,
+            'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+            [payload.sub]
+        );
 
     if (!userResult.rows || userResult.rows.length === 0) {
-        return context.json(
-            {
-                success: false,
-                error: 'Invalid or expired token',
-                error_code: 'AUTH_TOKEN_REFRESH_FAILED',
-            },
-            401
-        );
+        return context.json({ success: false, error: 'Invalid or expired token', error_code: 'AUTH_TOKEN_REFRESH_FAILED' }, 401);
     }
 
     const user = userResult.rows[0];
-
-    // Generate new explicit local-bootstrap token with refreshed expiration
     const newPayload: JWTPayload = {
         sub: user.id,
         user_id: user.id,
         username: user.auth,
-        tenant: tenantName,
-        tenant_id: payload.tenant_id,
-        db_type: dbType || 'postgresql', // Database backend type (default for legacy tenants)
-        db: dbName, // Compact JWT field
-        ns: nsName, // Compact JWT field
+        tenant: tenant.name,
+        tenant_id: tenant.id,
+        db_type: tenant.db_type || 'postgresql',
+        db: tenant.database,
+        ns: tenant.schema,
         access: user.access,
-        access_read: user.access_read || [],
-        access_edit: user.access_edit || [],
-        access_full: user.access_full || [],
+        access_read: parseAccessArray(user.access_read),
+        access_edit: parseAccessArray(user.access_edit),
+        access_full: parseAccessArray(user.access_full),
         iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
+        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
         is_sudo: user.access === 'root',
-        // Preserve format preference from original token
         ...(payload.format && { format: payload.format }),
-        // Note: fake tokens are rejected above, so no need to preserve is_fake metadata
     };
 
     const newToken = await sign(newPayload, process.env.JWT_SECRET!);
@@ -145,15 +89,38 @@ export default async function (context: Context) {
         success: true,
         data: {
             token: newToken,
-            expires_in: 24 * 60 * 60, // seconds
+            expires_in: 24 * 60 * 60,
             user: {
                 id: user.id,
                 username: user.auth,
-                tenant: tenantName,
-                tenant_id: payload.tenant_id,
+                tenant: tenant.name,
+                tenant_id: tenant.id,
                 access: user.access,
                 ...(newPayload.format && { format: newPayload.format }),
             },
         },
     });
+}
+
+async function querySqliteUser(database: string, schema: string, userId: string) {
+    const adapter = createAdapterFrom('sqlite', database, schema);
+    await adapter.connect();
+    try {
+        return await adapter.query(
+            'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE id = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
+            [userId]
+        );
+    } finally {
+        await adapter.disconnect();
+    }
+}
+
+function parseAccessArray(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value as string[];
+    }
+    if (typeof value === 'string' && value) {
+        return JSON.parse(value) as string[];
+    }
+    return [];
 }

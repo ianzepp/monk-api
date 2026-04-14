@@ -1,46 +1,63 @@
 # POST /auth/login
 
-Production local password login is disabled. Auth0 hosted username/password login is the production identity path, and protected Monk routes accept Auth0 access tokens for the configured API audience.
+Log in with canonical snake_case `tenant`, `username`, and `password`.
 
-This endpoint remains only as an explicit development/test bootstrap path when `MONK_ENABLE_LOCAL_AUTH=true` and `NODE_ENV` is not `production`.
+Monk forwards credential verification to Auth0, looks up the Monk-local tenant user, and returns a Monk bearer token. Clients never need to present Auth0 bearer tokens to Monk.
 
 ## Request Body
 
 ```json
 {
   "tenant": "string",
-  "tenant_id": "string",
   "username": "string",
+  "password": "string",
   "format": "string"
 }
 ```
 
 ## Success Response
 
-Only available when explicit non-production local auth is enabled. Production never issues a local HS256 login token.
+```json
+{
+  "success": true,
+  "data": {
+    "token": "string",
+    "user": {
+      "id": "string",
+      "username": "string",
+      "tenant": "string",
+      "tenant_id": "string",
+      "access": "string"
+    }
+  }
+}
+```
 
 ## Error Responses
 
 | Status | Error Code | Condition |
 |--------|------------|-----------|
-| 403 | `LOCAL_AUTH_DISABLED` | Production mode or missing `MONK_ENABLE_LOCAL_AUTH=true` |
-| 400 | `AUTH_TENANT_MISSING` | Missing tenant identity |
+| 400 | `AUTH_TENANT_MISSING` | Missing tenant field |
 | 400 | `AUTH_USERNAME_MISSING` | Missing username field |
-| 401 | `AUTH_LOGIN_FAILED` | Invalid local bootstrap credentials or tenant not found |
+| 400 | `AUTH_PASSWORD_MISSING` | Missing password field |
+| 400 | `AUTH_TENANT_INVALID` | Tenant is not canonical snake_case |
+| 400 | `AUTH_USERNAME_INVALID` | Username is not canonical snake_case |
+| 401 | `AUTH_LOGIN_FAILED` | Invalid credentials or Monk-local tenant/user missing |
+| 401 | `AUTH0_*` | Auth0 broker configuration or upstream auth failure |
 
-## Explicit Local Bootstrap
+## Example
 
 ```bash
-MONK_ENABLE_LOCAL_AUTH=true NODE_ENV=development \
 curl -X POST http://localhost:9001/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "tenant": "my-company",
-    "username": "root"
+    "tenant": "my_company",
+    "username": "root_user",
+    "password": "correct horse battery staple"
   }'
 ```
 
 ## Related Endpoints
 
-- [`POST /auth/register`](../register/POST.md) - Provision a new tenant for a verified Auth0 subject
-- [`POST /auth/refresh`](../refresh/POST.md) - Explicit local-bootstrap token refresh only
+- [`POST /auth/register`](../register/POST.md) - Register a brand-new tenant and root user
+- [`POST /auth/refresh`](../refresh/POST.md) - Refresh a Monk bearer token

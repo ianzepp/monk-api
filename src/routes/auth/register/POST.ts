@@ -1,146 +1,61 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { Infrastructure } from '@src/lib/infrastructure.js';
-import type { DatabaseType } from '@src/lib/database/adapter.js';
-import {
-    Auth0ConfigError,
-    Auth0VerificationError,
-    Auth0Verifier,
-    Auth0IdentityMappingError,
-    auth0UserAuthValue,
-    createAuth0IdentityMapping,
-    getAuth0IdentityMapping,
-    type VerifiedAuth0Identity,
-} from '@src/lib/auth0/index.js';
-
-type Auth0VerifierFactory = () => Pick<Auth0Verifier, 'verifyAccessToken'>;
-
-let auth0VerifierFactory: Auth0VerifierFactory | null = null;
-
-export function setAuth0RegisterVerifierFactoryForTests(factory: Auth0VerifierFactory | null): void {
-    auth0VerifierFactory = factory;
-}
+import { register } from '@src/lib/auth.js';
 
 /**
  * POST /auth/register - Tenant registration
  *
- * Creates a new tenant with core tables (models, fields, users, filters)
- * and a root user mapped to a verified Auth0 issuer + subject.
- *
- * Request body:
- * - tenant (required): User-facing tenant name
- * - description (optional): Human-readable description of the tenant
- * - adapter (optional): Database adapter - 'postgresql' or 'sqlite' (inherits from infra config if not specified)
- *
- * Error codes:
- * - AUTH_TENANT_MISSING: Missing tenant field (400)
- * - INVALID_ADAPTER: Invalid adapter value (400)
- * - DATABASE_TENANT_EXISTS: Tenant name already registered (409)
- *
- * @see docs/routes/AUTH_API.md
+ * Creates a brand-new tenant and root user from tenant, username, and password.
+ * Monk forwards password provisioning to Auth0, then mints a Monk bearer token.
+ * Clients do not present Auth0 bearer tokens to this route.
  */
 export default async function (context: Context) {
     const body = await context.req.json();
-    const identity = await verifyRegistrationToken(context);
 
-    // Body type validation
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
     }
 
-    const { tenant, description, adapter } = body;
+    const { tenant, username, password } = body;
 
-    // Input validation
-    if (!tenant) {
-        throw HttpErrors.badRequest('Tenant is required', 'AUTH_TENANT_MISSING');
-    }
+    const result = await register({ tenant, username, password });
+    if (!result.success) {
+        if (
+            result.errorCode === 'AUTH_TENANT_MISSING'
+            || result.errorCode === 'AUTH_USERNAME_MISSING'
+            || result.errorCode === 'AUTH_PASSWORD_MISSING'
+            || result.errorCode === 'AUTH_TENANT_INVALID'
+            || result.errorCode === 'AUTH_USERNAME_INVALID'
+        ) {
+            throw HttpErrors.badRequest(result.error, result.errorCode);
+        }
 
-    const existingMapping = await getAuth0IdentityMapping(identity.iss, identity.sub);
-    if (existingMapping) {
-        throw HttpErrors.conflict(
-            'Auth0 identity is already provisioned in Monk',
-            'AUTH0_IDENTITY_ALREADY_PROVISIONED'
+        if (result.errorCode === 'DATABASE_TENANT_EXISTS' || result.errorCode === 'AUTH_USERNAME_EXISTS') {
+            throw HttpErrors.conflict(result.error, result.errorCode);
+        }
+
+        if (result.errorCode.startsWith('AUTH0_')) {
+            throw HttpErrors.unauthorized(result.error, result.errorCode);
+        }
+
+        return context.json(
+            {
+                success: false,
+                error: result.error,
+                error_code: result.errorCode,
+            },
+            401
         );
-    }
-
-    // Validate adapter if specified
-    let dbType: DatabaseType | undefined;
-    if (adapter) {
-        if (adapter !== 'postgresql' && adapter !== 'sqlite') {
-            throw HttpErrors.badRequest(
-                "Invalid adapter. Must be 'postgresql' or 'sqlite'",
-                'INVALID_ADAPTER'
-            );
-        }
-        dbType = adapter;
-    }
-
-    const ownerAuth = auth0UserAuthValue(identity.iss, identity.sub);
-
-    // Create tenant with full provisioning
-    let result;
-    try {
-        result = await Infrastructure.createTenant({
-            name: tenant,
-            db_type: dbType,
-            owner_username: ownerAuth,
-            description: description,
-        });
-    } catch (error: any) {
-        // Check for duplicate tenant error
-        if (error.message?.includes('already exists')) {
-            throw HttpErrors.conflict(
-                `Tenant '${tenant}' already exists`,
-                'DATABASE_TENANT_EXISTS'
-            );
-        }
-        throw error;
-    }
-
-    let mapping;
-    try {
-        mapping = await createAuth0IdentityMapping({
-            issuer: identity.iss,
-            subject: identity.sub,
-            tenantId: result.tenant.id,
-            userId: result.user.id,
-        });
-    } catch (error) {
-        await Infrastructure.deleteTenant(result.tenant.name);
-        if (error instanceof Auth0IdentityMappingError) {
-            throw HttpErrors.conflict(error.message, error.code);
-        }
-        throw error;
     }
 
     return context.json({
         success: true,
         data: {
-            tenant_id: result.tenant.id,
-            tenant: result.tenant.name,
-            mapping_id: mapping.id,
-            username: result.user.auth,
+            tenant_id: result.tenantId,
+            tenant: result.tenant,
+            username: result.username,
+            token: result.token,
+            expires_in: 24 * 60 * 60,
         },
     });
-}
-
-async function verifyRegistrationToken(context: Context): Promise<VerifiedAuth0Identity> {
-    const authHeader = context.req.header('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-        throw HttpErrors.unauthorized('Authorization bearer token required', 'AUTH_TOKEN_REQUIRED');
-    }
-
-    const token = authHeader.substring(7);
-    try {
-        const verifier = auth0VerifierFactory ? auth0VerifierFactory() : new Auth0Verifier();
-        return await verifier.verifyAccessToken(token);
-    } catch (error) {
-        if (error instanceof Auth0ConfigError) {
-            throw HttpErrors.unauthorized(error.message, error.code);
-        }
-        if (error instanceof Auth0VerificationError) {
-            throw HttpErrors.unauthorized(error.message, error.code);
-        }
-        throw error;
-    }
 }

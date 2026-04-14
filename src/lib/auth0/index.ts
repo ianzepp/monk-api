@@ -24,3 +24,15 @@ export {
     type CreateAuth0IdentityMappingInput,
     type ResolvedAuth0Identity,
 } from './identity-mapping.js';
+
+export {
+    Auth0BrokerError,
+    auth0BrokerConfigFromEnv,
+    auth0BrokerFromEnv,
+    auth0ScopedIdentity,
+    resetMemoryAuth0BrokerForTests,
+    setAuth0BrokerFactoryForTests,
+    type Auth0Broker,
+    type Auth0BrokerConfig,
+    type Auth0BrokerRegisterResult,
+} from './broker.js';

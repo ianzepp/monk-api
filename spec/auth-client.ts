@@ -1,7 +1,7 @@
 /**
  * Authentication Client
  *
- * High-level client for non-production local-auth test operations that wraps
+ * High-level client for Monk auth test operations that wraps
  * HttpClient and automatically manages bearer tokens.
  *
  * Features:
@@ -20,6 +20,7 @@ import { TEST_CONFIG } from './test-config.js';
 export interface LoginCredentials {
     tenant: string;
     username: string;
+    password?: string;
     format?: string;
 }
 
@@ -28,11 +29,8 @@ export interface LoginCredentials {
  */
 export interface RegistrationParams {
     tenant: string;
-    template?: string;
     username?: string;
-    database?: string;
-    description?: string;
-    db_type?: 'postgresql' | 'sqlite';
+    password?: string;
 }
 
 /**
@@ -61,7 +59,7 @@ export interface AuthResponse {
 /**
  * Authentication Client
  *
- * Wraps explicit local-auth test operations and automatically manages bearer tokens.
+ * Wraps Monk auth test operations and automatically manages bearer tokens.
  */
 export class AuthClient {
     private httpClient: HttpClient;
@@ -109,13 +107,7 @@ export class AuthClient {
     }
 
     /**
-     * Register a new tenant
-     *
-     * Legacy helper from the pre-Auth0 test flow.
-     *
-     * Historical note: production `/auth/register` now provisions from a verified
-     * Auth0 subject and does not return a login token. This helper remains for
-     * older test utilities until those tests are migrated.
+     * Register a new tenant.
      *
      * @param params - Registration parameters
      * @returns Promise with authentication response

@@ -1,41 +1,53 @@
 import { describe, it, expect } from 'bun:test';
 import { AuthClient } from '../auth-client.js';
-import { TestHelpers } from '../test-helpers.js';
 import { expectSuccess } from '../test-assertions.js';
 
 /**
  * POST /auth/login - Authenticate User
- *
- * Tests user authentication endpoint. Validates credentials against a tenant
- * and issues a JWT token if successful.
  */
 
 describe('POST /auth/login - Authenticate User', () => {
-    it('should login with valid tenant and username', async () => {
-        // Create a test tenant first
-        const tenant = await TestHelpers.createTestTenant('login-valid');
+    it('should login with valid tenant, username, and password', async () => {
+        const tenantName = `test_login_valid_${Date.now()}`;
+        const username = 'root_user';
+        const password = 'test-password-4';
+
+        const registerClient = new AuthClient();
+        const registerResponse = await registerClient.register({
+            tenant: tenantName,
+            username,
+            password,
+        });
+        expectSuccess(registerResponse);
 
         const authClient = new AuthClient();
         const response = await authClient.login({
-            tenant: tenant.tenantName,
-            username: 'root',
+            tenant: tenantName,
+            username,
+            password,
         });
 
         expectSuccess(response);
         expect(response.data!.token).toBeDefined();
         expect(response.data!.user).toBeDefined();
-        expect(response.data!.user!.username).toBe('root');
-        expect(response.data!.user!.tenant).toBe(tenant.tenantName);
+        expect(response.data!.user!.username).toBe(username);
+        expect(response.data!.user!.tenant).toBe(tenantName);
     });
 
-    it('should include format preference in token if provided', async () => {
-        // Create a test tenant first
-        const tenant = await TestHelpers.createTestTenant('login-format');
+    it('should include format preference in response if provided', async () => {
+        const tenantName = `test_login_format_${Date.now()}`;
+        const username = 'root_user';
+        const password = 'test-password-5';
+
+        const registerClient = new AuthClient();
+        const registerResponse = await registerClient.register({ tenant: tenantName, username, password });
+        expectSuccess(registerResponse);
 
         const authClient = new AuthClient();
         const response = await authClient.login({
-            tenant: tenant.tenantName,
-            username: 'root',
+            tenant: tenantName,
+            username,
+            password,
             format: 'toon',
         });
 
@@ -48,22 +60,21 @@ describe('POST /auth/login - Authenticate User', () => {
 
         const response = await authClient.login({
             tenant: '',
-            username: 'root',
+            username: 'root_user',
+            password: 'test-password-6',
         });
 
         expect(response.success).toBe(false);
-        expect(response.error).toContain('Tenant or tenant_id is required');
+        expect(response.error).toContain('Tenant is required');
         expect(response.error_code).toBe('AUTH_TENANT_MISSING');
     });
 
     it('should reject missing username field', async () => {
-        // Create a test tenant first
-        const tenant = await TestHelpers.createTestTenant('login-missing-user');
-
         const authClient = new AuthClient();
         const response = await authClient.login({
-            tenant: tenant.tenantName,
+            tenant: `test_login_missing_user_${Date.now()}`,
             username: '',
+            password: 'test-password-7',
         });
 
         expect(response.success).toBe(false);
@@ -71,12 +82,26 @@ describe('POST /auth/login - Authenticate User', () => {
         expect(response.error_code).toBe('AUTH_USERNAME_MISSING');
     });
 
+    it('should reject missing password field', async () => {
+        const authClient = new AuthClient();
+        const response = await authClient.login({
+            tenant: `test_login_missing_password_${Date.now()}`,
+            username: 'root_user',
+            password: '',
+        });
+
+        expect(response.success).toBe(false);
+        expect(response.error).toContain('Password is required');
+        expect(response.error_code).toBe('AUTH_PASSWORD_MISSING');
+    });
+
     it('should reject nonexistent tenant', async () => {
         const authClient = new AuthClient();
 
         const response = await authClient.login({
-            tenant: `nonexistent-tenant-${Date.now()}`,
-            username: 'root',
+            tenant: `nonexistent_tenant_${Date.now()}`,
+            username: 'root_user',
+            password: 'test-password-8',
         });
 
         expect(response.success).toBe(false);
@@ -84,27 +109,27 @@ describe('POST /auth/login - Authenticate User', () => {
         expect(response.error_code).toBe('AUTH_LOGIN_FAILED');
     });
 
-    it('should reject invalid username for existing tenant', async () => {
-        // Create a test tenant first
-        const tenant = await TestHelpers.createTestTenant('login-invalid-user');
+    it('should reject invalid password for existing tenant', async () => {
+        const tenantName = `test_login_invalid_password_${Date.now()}`;
+        const username = 'root_user';
+
+        const registerClient = new AuthClient();
+        const registerResponse = await registerClient.register({
+            tenant: tenantName,
+            username,
+            password: 'good-password',
+        });
+        expectSuccess(registerResponse);
 
         const authClient = new AuthClient();
         const response = await authClient.login({
-            tenant: tenant.tenantName,
-            username: `invalid-user-${Date.now()}`,
+            tenant: tenantName,
+            username,
+            password: 'wrong-password',
         });
 
         expect(response.success).toBe(false);
         expect(response.error).toContain('Authentication failed');
         expect(response.error_code).toBe('AUTH_LOGIN_FAILED');
-    });
-
-    it.skip('AUTH_TENANT_MISSING - null/undefined tenant parameter', async () => {
-        // UNIMPLEMENTED: Testing null/undefined in JSON body requires special handling
-        // Standard JSON parsing treats missing fields as undefined
-        // To test this, would need to:
-        // 1. Send request with no tenant field in JSON body
-        // 2. Verify error_code is AUTH_TENANT_MISSING
-        // Status: Covered by empty string test above, null/undefined behaves same way
     });
 });

@@ -1,15 +1,19 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { login } from '@src/lib/auth.js';
-import { assertLocalAuthEnabled } from '@src/lib/auth/local-auth-policy.js';
 
 /**
  * POST /auth/login - Authenticate user with tenant, username, and password
  *
+ * Monk forwards password verification to Auth0 and mints a Monk bearer token
+ * on success. Clients never need to present Auth0 bearer tokens to Monk.
+ *
  * Error codes:
  * - AUTH_TENANT_MISSING: Missing tenant field (400)
  * - AUTH_USERNAME_MISSING: Missing username field (400)
- * - AUTH_PASSWORD_REQUIRED: User has password but none provided (400)
+ * - AUTH_PASSWORD_MISSING: Missing password field (400)
+ * - AUTH_TENANT_INVALID: Non-canonical tenant value (400)
+ * - AUTH_USERNAME_INVALID: Non-canonical username value (400)
  * - AUTH_LOGIN_FAILED: Invalid credentials or tenant not found (401)
  *
  * @see docs/routes/AUTH_API.md
@@ -22,26 +26,19 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
     }
 
-    const { tenant, tenant_id, username, password, format } = body;
+    const { tenant, username, password, format } = body;
 
-    console.info('/auth/login', { tenant, tenant_id, username, format });
-    assertLocalAuthEnabled('Local password login');
-
-    // Input validation
-    if (!tenant && !tenant_id) {
-        throw HttpErrors.badRequest('Tenant or tenant_id is required', 'AUTH_TENANT_MISSING');
-    }
-
-    if (!username) {
-        throw HttpErrors.badRequest('Username is required', 'AUTH_USERNAME_MISSING');
-    }
+    console.info('/auth/login', { tenant, username, format });
 
     // Authenticate using core auth module
-    const result = await login({ tenant, tenantId: tenant_id, username, password });
+    const result = await login({ tenant, username, password });
 
     if (!result.success) {
-        // Handle password required as 400, others as 401
-        if (result.errorCode === 'AUTH_PASSWORD_REQUIRED') {
+        if (result.errorCode === 'AUTH_TENANT_MISSING'
+            || result.errorCode === 'AUTH_USERNAME_MISSING'
+            || result.errorCode === 'AUTH_PASSWORD_MISSING'
+            || result.errorCode === 'AUTH_TENANT_INVALID'
+            || result.errorCode === 'AUTH_USERNAME_INVALID') {
             throw HttpErrors.badRequest(result.error, result.errorCode);
         }
 

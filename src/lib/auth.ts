@@ -1,16 +1,19 @@
 /**
  * Authentication Service
  *
- * Core authentication logic extracted from route handlers.
- * Can be used by HTTP routes, TTY servers, and other internal services.
+ * Production auth is Monk-brokered username/password verification against Auth0.
+ * Monk never stores passwords. Monk mints its own bearer tokens after successful
+ * Auth0 verification and local tenant/user resolution.
  */
 
-import { Infrastructure, parseInfraConfig } from '@src/lib/infrastructure.js';
+import { Infrastructure, type TenantRecord } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
-import { verifyPassword } from '@src/lib/credentials/index.js';
 import { JWTGenerator, type JWTPayload } from '@src/lib/jwt-generator.js';
 import { systemInitFromJWT, type SystemInit } from '@src/lib/system.js';
+import { Auth0BrokerError, auth0BrokerFromEnv, auth0ScopedIdentity } from '@src/lib/auth0/index.js';
+
+const CANONICAL_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 /**
  * Login request parameters
@@ -57,166 +60,50 @@ export interface LoginFailure {
 }
 
 /**
- * Authenticate a user with tenant, username, and optional password.
- *
- * @param request - Login credentials
- * @returns Login result or failure
+ * Authenticate a user with tenant, username, and password.
  */
 export async function login(request: LoginRequest): Promise<LoginResult | LoginFailure> {
     const { tenant, tenantId, username, password } = request;
 
-    let tenantRecord = null;
-    if (tenantId) {
-        tenantRecord = await Infrastructure.getTenantById(tenantId);
-    } else if (tenant) {
-        // Normalize tenant name to match how createTenant stores it
-        const normalizedTenant = tenant.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-        tenantRecord = await Infrastructure.getTenant(normalizedTenant);
+    if (!tenant && !tenantId) {
+        return failure('Tenant is required', 'AUTH_TENANT_MISSING');
+    }
+    if (!username) {
+        return failure('Username is required', 'AUTH_USERNAME_MISSING');
+    }
+    if (!password) {
+        return failure('Password is required', 'AUTH_PASSWORD_MISSING');
+    }
+    if (tenant && !isCanonicalName(tenant)) {
+        return failure(canonicalNameMessage('Tenant'), 'AUTH_TENANT_INVALID');
+    }
+    if (!isCanonicalName(username)) {
+        return failure(canonicalNameMessage('Username'), 'AUTH_USERNAME_INVALID');
     }
 
-    // Look up tenant record from infrastructure database
-
+    const tenantRecord = tenantId
+        ? await Infrastructure.getTenantById(tenantId)
+        : await Infrastructure.getTenant(tenant!);
     if (!tenantRecord) {
-        return {
-            success: false,
-            error: 'Authentication failed',
-            errorCode: 'AUTH_LOGIN_FAILED',
-        };
+        return failure('Authentication failed', 'AUTH_LOGIN_FAILED');
     }
 
-    const { id: resolvedTenantId, name, db_type: dbType, database: dbName, schema: nsName } = tenantRecord;
+    const user = await getTenantUserByAuth(tenantRecord, username);
+    if (!user) {
+        return failure('Authentication failed', 'AUTH_LOGIN_FAILED');
+    }
 
-    // Look up user in the tenant's namespace
-    let userResult: { rows: any[] };
-
-    if (dbType === 'sqlite') {
-        const adapter = createAdapterFrom('sqlite', dbName, nsName);
-        await adapter.connect();
-        try {
-            userResult = await adapter.query(
-                'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
-                [username]
-            );
-        } finally {
-            await adapter.disconnect();
+    try {
+        const broker = auth0BrokerFromEnv();
+        await broker.authenticateScopedIdentity(auth0ScopedIdentity(tenantRecord.name, username), password);
+    } catch (error) {
+        if (error instanceof Auth0BrokerError) {
+            return failure(error.message, error.code);
         }
-    } else {
-        userResult = await DatabaseConnection.queryInNamespace(
-            dbName,
-            nsName,
-            'SELECT id, name, auth, access, access_read, access_edit, access_full, access_deny FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL',
-            [username]
-        );
+        throw error;
     }
 
-    if (!userResult.rows || userResult.rows.length === 0) {
-        return {
-            success: false,
-            error: 'Authentication failed',
-            errorCode: 'AUTH_LOGIN_FAILED',
-        };
-    }
-
-    const user = userResult.rows[0];
-
-    // Check for password credential
-    let credentialResult: { rows: any[] };
-
-    if (dbType === 'sqlite') {
-        const adapter = createAdapterFrom('sqlite', dbName, nsName);
-        await adapter.connect();
-        try {
-            credentialResult = await adapter.query(
-                `SELECT secret FROM credentials
-                 WHERE user_id = $1 AND type = 'password' AND deleted_at IS NULL
-                 ORDER BY created_at DESC LIMIT 1`,
-                [user.id]
-            );
-        } finally {
-            await adapter.disconnect();
-        }
-    } else {
-        credentialResult = await DatabaseConnection.queryInNamespace(
-            dbName,
-            nsName,
-            `SELECT secret FROM credentials
-             WHERE user_id = $1 AND type = 'password' AND deleted_at IS NULL
-             ORDER BY created_at DESC LIMIT 1`,
-            [user.id]
-        );
-    }
-
-    // If user has a password credential, verify it
-    if (credentialResult.rows && credentialResult.rows.length > 0) {
-        const storedHash = credentialResult.rows[0].secret;
-
-        // Password is required if user has one set
-        if (!password) {
-            return {
-                success: false,
-                error: 'Password is required',
-                errorCode: 'AUTH_PASSWORD_REQUIRED',
-            };
-        }
-
-        // Verify password
-        const isValid = await verifyPassword(password, storedHash);
-        if (!isValid) {
-            return {
-                success: false,
-                error: 'Authentication failed',
-                errorCode: 'AUTH_LOGIN_FAILED',
-            };
-        }
-    }
-
-    // Build JWT payload
-    const payload: JWTPayload = {
-        sub: user.id,
-        user_id: user.id,
-        username: user.auth,
-        tenant: name,
-        tenant_id: resolvedTenantId,
-        db_type: dbType || 'postgresql',
-        db: dbName,
-        ns: nsName,
-        access: user.access,
-        access_read: user.access_read || [],
-        access_edit: user.access_edit || [],
-        access_full: user.access_full || [],
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
-        is_sudo: user.access === 'root',
-    };
-
-    // Generate token
-    const token = await JWTGenerator.fromUserAndTenant(user, {
-        name,
-        tenant_id: resolvedTenantId,
-        db_type: dbType || 'postgresql',
-        database: dbName,
-        schema: nsName,
-    });
-
-    // Create SystemInit for transaction usage
-    const systemInit = systemInitFromJWT(payload);
-
-    return {
-        success: true,
-        user: {
-            id: user.id,
-            username: user.auth,
-            tenant: name,
-            tenantId: resolvedTenantId,
-            access: user.access,
-            accessRead: user.access_read || [],
-            accessEdit: user.access_edit || [],
-            accessFull: user.access_full || [],
-        },
-        token,
-        payload,
-        systemInit,
-    };
+    return await createLoginResult(tenantRecord, user);
 }
 
 /**
@@ -250,35 +137,43 @@ export interface RegisterFailure {
 
 /**
  * Register a new tenant with an initial user.
- *
- * @param request - Registration parameters
- * @returns Registration result or failure
  */
 export async function register(
     request: RegisterRequest
 ): Promise<RegisterResult | RegisterFailure> {
-    const { tenant, username = 'root', password } = request;
+    const { tenant, username, password } = request;
 
-    // Validate tenant name
-    if (!tenant || tenant.trim().length === 0) {
-        return {
-            success: false,
-            error: 'Tenant name is required',
-            errorCode: 'AUTH_TENANT_MISSING',
-        };
+    if (!tenant) {
+        return failure('Tenant is required', 'AUTH_TENANT_MISSING');
+    }
+    if (!username) {
+        return failure('Username is required', 'AUTH_USERNAME_MISSING');
+    }
+    if (!password) {
+        return failure('Password is required', 'AUTH_PASSWORD_MISSING');
+    }
+    if (!isCanonicalName(tenant)) {
+        return failure(canonicalNameMessage('Tenant'), 'AUTH_TENANT_INVALID');
+    }
+    if (!isCanonicalName(username)) {
+        return failure(canonicalNameMessage('Username'), 'AUTH_USERNAME_INVALID');
     }
 
-    // Validate tenant name format (lowercase alphanumeric and underscores only)
-    // This matches what Infrastructure.createTenant will store
-    if (!/^[a-z][a-z0-9_]*$/.test(tenant)) {
-        return {
-            success: false,
-            error: 'Tenant name must be lowercase, start with a letter, and contain only letters, numbers, and underscores',
-            errorCode: 'AUTH_TENANT_INVALID',
-        };
+    const existingTenant = await Infrastructure.getTenant(tenant);
+    if (existingTenant) {
+        return failure(`Tenant '${tenant}' already exists`, 'DATABASE_TENANT_EXISTS');
     }
 
-    // Create tenant with full provisioning
+    try {
+        const broker = auth0BrokerFromEnv();
+        await broker.registerScopedIdentity(auth0ScopedIdentity(tenant, username), password);
+    } catch (error) {
+        if (error instanceof Auth0BrokerError) {
+            return failure(error.message, error.code);
+        }
+        throw error;
+    }
+
     let result;
     try {
         result = await Infrastructure.createTenant({
@@ -286,58 +181,16 @@ export async function register(
             owner_username: username,
         });
     } catch (error: any) {
-        // Check for duplicate tenant error
         if (error.message?.includes('already exists')) {
-            return {
-                success: false,
-                error: `Tenant '${tenant}' already exists`,
-                errorCode: 'DATABASE_TENANT_EXISTS',
-            };
+            return failure(`Tenant '${tenant}' already exists`, 'DATABASE_TENANT_EXISTS');
         }
-        return {
-            success: false,
-            error: error.message || 'Registration failed',
-            errorCode: 'REGISTRATION_FAILED',
-        };
+        return failure(error.message || 'Registration failed', 'REGISTRATION_FAILED');
     }
 
-    // If password provided, set it for the user
-    if (password) {
-        try {
-            const { hashPassword } = await import('@src/lib/credentials/index.js');
-            const hashedPassword = await hashPassword(password);
-
-            const { db_type: dbType, database: dbName, schema: nsName } = result.tenant;
-
-            if (dbType === 'sqlite') {
-                const adapter = createAdapterFrom('sqlite', dbName, nsName);
-                await adapter.connect();
-                try {
-                    await adapter.query(
-                        `INSERT INTO credentials (id, user_id, type, secret, created_at, updated_at)
-                         VALUES ($1, $2, 'password', $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                        [crypto.randomUUID(), result.user.id, hashedPassword]
-                    );
-                } finally {
-                    await adapter.disconnect();
-                }
-            } else {
-                await DatabaseConnection.queryInNamespace(
-                    dbName,
-                    nsName,
-                    `INSERT INTO credentials (id, user_id, type, secret, created_at, updated_at)
-                     VALUES ($1, $2, 'password', $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                    [crypto.randomUUID(), result.user.id, hashedPassword]
-                );
-            }
-        } catch (error: any) {
-            // Password setting failed, but tenant was created - log warning
-            console.warn('Failed to set password during registration:', error.message);
-        }
-    }
-
-    // Generate JWT token for the new user
-    const token = await JWTGenerator.fromUserAndTenant(result.user, result.tenant);
+    const token = await JWTGenerator.fromUserAndTenant(result.user, {
+        ...result.tenant,
+        tenant_id: result.tenant.id,
+    });
 
     return {
         success: true,
@@ -346,4 +199,128 @@ export async function register(
         username: result.user.auth,
         token,
     };
+}
+
+async function createLoginResult(
+    tenantRecord: TenantRecord,
+    user: {
+        id: string;
+        auth: string;
+        access: string;
+        access_read?: string[];
+        access_edit?: string[];
+        access_full?: string[];
+    }
+): Promise<LoginResult> {
+    const payload: JWTPayload = {
+        sub: user.id,
+        user_id: user.id,
+        username: user.auth,
+        tenant: tenantRecord.name,
+        tenant_id: tenantRecord.id,
+        db_type: tenantRecord.db_type || 'postgresql',
+        db: tenantRecord.database,
+        ns: tenantRecord.schema,
+        access: user.access,
+        access_read: user.access_read || [],
+        access_edit: user.access_edit || [],
+        access_full: user.access_full || [],
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+        is_sudo: user.access === 'root',
+    };
+
+    const token = await JWTGenerator.fromUserAndTenant(user, {
+        name: tenantRecord.name,
+        tenant_id: tenantRecord.id,
+        db_type: tenantRecord.db_type || 'postgresql',
+        database: tenantRecord.database,
+        schema: tenantRecord.schema,
+    });
+
+    return {
+        success: true,
+        user: {
+            id: user.id,
+            username: user.auth,
+            tenant: tenantRecord.name,
+            tenantId: tenantRecord.id,
+            access: user.access,
+            accessRead: user.access_read || [],
+            accessEdit: user.access_edit || [],
+            accessFull: user.access_full || [],
+        },
+        token,
+        payload,
+        systemInit: systemInitFromJWT(payload),
+    };
+}
+
+async function getTenantUserByAuth(
+    tenantRecord: TenantRecord,
+    username: string
+): Promise<{
+    id: string;
+    auth: string;
+    access: string;
+    access_read?: string[];
+    access_edit?: string[];
+    access_full?: string[];
+} | null> {
+    const query = 'SELECT id, auth, access, access_read, access_edit, access_full FROM users WHERE auth = $1 AND trashed_at IS NULL AND deleted_at IS NULL';
+
+    if (tenantRecord.db_type === 'sqlite') {
+        const adapter = createAdapterFrom('sqlite', tenantRecord.database, tenantRecord.schema);
+        await adapter.connect();
+        try {
+            const result = await adapter.query<any>(query, [username]);
+            const row = result.rows[0];
+            if (!row) {
+                return null;
+            }
+            return normalizeUserRow(row);
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    const result = await DatabaseConnection.queryInNamespace(
+        tenantRecord.database,
+        tenantRecord.schema,
+        query,
+        [username]
+    );
+    const row = result.rows[0];
+    return row ? normalizeUserRow(row) : null;
+}
+
+function normalizeUserRow(row: any) {
+    return {
+        ...row,
+        access_read: parseAccessArray(row.access_read),
+        access_edit: parseAccessArray(row.access_edit),
+        access_full: parseAccessArray(row.access_full),
+    };
+}
+
+function parseAccessArray(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value as string[];
+    }
+    if (typeof value === 'string' && value) {
+        return JSON.parse(value) as string[];
+    }
+    return [];
+}
+
+function failure(error: string, errorCode: string): LoginFailure {
+    return { success: false, error, errorCode };
+}
+
+function isCanonicalName(value: string): boolean {
+    return CANONICAL_NAME_PATTERN.test(value);
+}
+
+function canonicalNameMessage(label: string): string {
+    return `${label} must be snake_case, start with a letter, and contain only lowercase letters, numbers, and underscores`;
 }

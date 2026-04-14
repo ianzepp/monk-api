@@ -1,81 +1,72 @@
 # Auth API
 
-The Auth API handles Auth0-authenticated tenant provisioning and explicit local-development bootstrap endpoints. In production, Auth0 is the identity authority and Monk remains the tenant routing and authorization authority.
+The Auth API is an LLM-first, non-browser authentication surface.
+
+Clients send `tenant`, `username`, and `password` directly to Monk. Monk forwards password verification and user provisioning work to Auth0, never stores passwords locally, and then mints Monk bearer tokens for API access.
 
 ## Base Path
 
 `/auth/*`
-
-`POST /auth/register` requires `Authorization: Bearer <auth0 access token>`. Local login and refresh routes are disabled in production.
 
 ## Content Type
 
 - **Request**: `application/json`
 - **Response**: `application/json` (default), `text/plain` (TOON), or `application/yaml` (YAML)
 
-## Auth0 Model
+## Auth Model
 
-1. Auth0 authenticates a principal and issues an access token for the Monk API audience.
-2. The current production integration uses an Auth0 machine-to-machine application with the client credentials flow, but Monk accepts any Auth0-issued bearer token that matches the configured issuer and audience.
-3. Monk verifies issuer, audience, signature, expiry, and algorithm through Auth0 JWKS.
-4. Monk resolves verified `iss + sub` to a tenant registry row and tenant-local user row.
-5. Monk derives DB/schema routing, access level, ACL arrays, and sudo state from Monk-owned records.
-
-Unsupported in the first pass: Auth0 Organizations dependency, Auth0 RBAC, and Auth0 permission claims as Monk authorization inputs. Social or enterprise user-login clients may issue acceptable tokens later, but Monk does not require a browser OAuth flow.
-
-## Response Formats
-
-The Auth API supports response formats optimized for different clients:
-
-1. **Query Parameter**: `?format=json|toon|yaml`
-2. **Accept Header**: `Accept: application/json|application/toon|application/yaml`
-3. **Default**: JSON format
-
-For Auth0 tokens, use query parameters or `Accept` headers for response format selection. Monk does not read Auth0 profile, organization, role, or permission claims for authorization.
+1. Clients send canonical snake_case identity values to Monk.
+2. Monk derives the external Auth0 login identifier from `(tenant, username)`.
+3. Monk brokers password verification and registration through Auth0.
+4. Monk looks up or provisions Monk-local tenant and user records.
+5. Monk returns a Monk bearer token.
+6. Protected Monk routes accept Monk bearer tokens, not Auth0 bearer tokens.
 
 ## Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | [`/auth/register`](register/POST.md) | Provision a new tenant for the verified Auth0 subject. |
-| POST | [`/auth/login`](login/POST.md) | Explicit non-production local-auth bootstrap only. |
-| POST | [`/auth/refresh`](refresh/POST.md) | Explicit non-production local-auth bootstrap only. |
+| POST | [`/auth/register`](register/POST.md) | Create a brand-new tenant and root user, then return a Monk bearer token. |
+| POST | [`/auth/login`](login/POST.md) | Verify tenant username/password through Auth0 and return a Monk bearer token. |
+| POST | [`/auth/refresh`](refresh/POST.md) | Refresh a Monk bearer token presented in `Authorization`. |
 | GET | [`/auth/tenants`](tenants/GET.md) | List available tenants (personal mode only). |
 
 ## Quick Start
 
 ```bash
-# 1. Provision tenant after obtaining an Auth0 access token
+# 1. Register a new tenant and root user
 curl -X POST http://localhost:9001/auth/register \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"tenant": "my-company"}'
+  -d '{
+    "tenant": "my_company",
+    "username": "root_user",
+    "password": "correct horse battery staple"
+  }'
 
-# 2. Use the same Auth0 access token for API calls
+# 2. Log in and get a Monk bearer token
+curl -X POST http://localhost:9001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant": "my_company",
+    "username": "root_user",
+    "password": "correct horse battery staple"
+  }'
+
+# 3. Use the Monk bearer token on protected routes
 curl -X GET http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 ```
 
-## LLM Agent Integration
-
-```bash
-# Request TOON for a specific call
-curl -X GET http://localhost:9001/api/describe \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
-  -H "Accept: application/toon"
-
-# Override to JSON for a specific call
-curl -X GET "http://localhost:9001/api/describe?format=json" \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
-```
-
-## Required Auth0 Settings
+## Auth0 Settings Monk Needs
 
 - `AUTH0_ISSUER` or `AUTH0_DOMAIN`
-- `AUTH0_AUDIENCE`
-- `AUTH0_JWKS_URL` unless it can be derived from issuer/domain
-- Auth0 API/resource server configured to issue RS256 access tokens for the Monk API audience
-- At least one authorized Auth0 application that can request tokens for that audience, typically a machine-to-machine application for agent use
+- `AUTH0_CLIENT_ID`
+- `AUTH0_CLIENT_SECRET`
+- `AUTH0_CONNECTION`
+- optional `AUTH0_AUDIENCE`
+- optional separate management credentials for user creation:
+  - `AUTH0_MANAGEMENT_CLIENT_ID`
+  - `AUTH0_MANAGEMENT_CLIENT_SECRET`
 
 ## Related Documentation
 

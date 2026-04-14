@@ -33,13 +33,13 @@ Monk starts multiple surfaces from [src/index.ts](src/index.ts):
 | Path | Purpose |
 |------|---------|
 | `/health` | Health check |
-| `/auth/register` | Provision a new tenant for a verified Auth0 subject |
-| `/auth/login` | Disabled in production; explicit local-dev bootstrap only |
-| `/auth/refresh` | Disabled in production; explicit local-dev bootstrap only |
+| `/auth/register` | Register a new tenant and root user with `tenant`, `username`, and `password` |
+| `/auth/login` | Verify `tenant`, `username`, and `password` and return a Monk bearer token |
+| `/auth/refresh` | Refresh a Monk bearer token presented in `Authorization` |
 | `/auth/tenants` | List registered tenants |
 | `/docs/*` | Self-documenting API reference |
 
-### Protected Routes (Auth0 Bearer Token Required)
+### Protected Routes (Monk Bearer Token Required)
 
 | Path | Purpose |
 |------|---------|
@@ -190,12 +190,14 @@ DATABASE_URL=postgresql://monk:monk@127.0.0.1:55432/monk
 PORT=9001
 NODE_ENV=development
 JWT_SECRET=test
-AUTH0_ISSUER=https://your-tenant.us.auth0.com/
+AUTH0_DOMAIN=your-tenant.us.auth0.com
+AUTH0_CLIENT_ID=your-auth0-app-client-id
+AUTH0_CLIENT_SECRET=your-auth0-app-client-secret
+AUTH0_CONNECTION=Username-Password-Authentication
 AUTH0_AUDIENCE=https://your-monk-api-audience
-AUTH0_JWKS_URL=https://your-tenant.us.auth0.com/.well-known/jwks.json
 ```
 
-Production uses Auth0/OIDC and does not issue local HS256 login, refresh, sudo, or impersonation tokens. Development and tests can enable the old local auth path explicitly with `MONK_ENABLE_LOCAL_AUTH=true`; that flag is ignored when `NODE_ENV=production`.
+Production auth is Monk-brokered through Auth0: clients send username/password to Monk, Monk verifies or provisions credentials through Auth0, and Monk returns Monk bearer tokens for API access.
 
 Initialize the database after building:
 
@@ -227,8 +229,8 @@ The Railway app service is linked to `ianzepp/monk-api` on `main` and uses Railw
 
 ### Production Safety Notes
 
-- `DATABASE_URL`, `NODE_ENV`, `AUTH0_ISSUER` or `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, and `AUTH0_JWKS_URL` are required for production Auth0/OIDC auth.
-- `JWT_SECRET` is retained only for explicit non-production local auth bootstrap and legacy test flows.
+- `DATABASE_URL`, `NODE_ENV`, `JWT_SECRET`, `AUTH0_ISSUER` or `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, and `AUTH0_CONNECTION` are required for production brokered auth.
+- `AUTH0_AUDIENCE` is optional for password verification but often useful when the Auth0 client expects it.
 - Cron job definitions remain visible, but new job creation is temporarily unavailable until the replacement execution backend lands.
 
 ## Installation
@@ -259,15 +261,18 @@ bun run build:standalone
 ## Quick Start
 
 ```bash
-# Provision a tenant after Auth0 login
+# Register a tenant and root user
 curl -X POST http://localhost:9001/auth/register \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"tenant": "demo"}'
+  -d '{"tenant": "demo", "username": "root_user", "password": "secret-pass"}'
 
-# Use the API
+# Log in and use the Monk bearer token
+MONK_TOKEN=$(curl -sS -X POST http://localhost:9001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"tenant": "demo", "username": "root_user", "password": "secret-pass"}' | jq -r '.data.token')
+
 curl http://localhost:9001/api/describe \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 ```
 
 ## Related Projects

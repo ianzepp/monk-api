@@ -1,44 +1,46 @@
 # POST /auth/refresh
 
-Production local JWT refresh is disabled. Auth0 access-token renewal is handled by the Auth0 client/session flow outside Monk.
+Refresh a Monk bearer token.
 
-This endpoint remains only as an explicit development/test bootstrap path when `MONK_ENABLE_LOCAL_AUTH=true` and `NODE_ENV` is not `production`.
+Clients present the current Monk token in `Authorization: Bearer <token>`. Monk verifies the token, checks that the tenant and user are still active, and returns a fresh Monk bearer token.
 
-## Request Body
+## Request Headers
 
-```json
-{
-  "token": "string"
-}
+```http
+Authorization: Bearer <monk bearer token>
 ```
 
 ## Success Response
 
-Only available when explicit non-production local auth is enabled. Production never refreshes a local HS256 Monk JWT.
+```json
+{
+  "success": true,
+  "data": {
+    "token": "string",
+    "expires_in": 86400,
+    "user": {
+      "id": "string",
+      "username": "string",
+      "tenant": "string",
+      "tenant_id": "string",
+      "access": "string"
+    }
+  }
+}
+```
 
 ## Error Responses
 
 | Status | Error Code | Condition |
 |--------|------------|-----------|
-| 403 | `LOCAL_AUTH_DISABLED` | Production mode or missing `MONK_ENABLE_LOCAL_AUTH=true` |
-| 400 | `AUTH_TOKEN_REQUIRED` | Missing token field |
-| 401 | `AUTH_TOKEN_INVALID` | Invalid or corrupted local bootstrap token |
-| 401 | `AUTH_TOKEN_EXPIRED` | Expired local bootstrap token |
-| 401 | `AUTH_TOKEN_REFRESH_FAILED` | Local bootstrap token references a removed tenant or user |
+| 401 | `AUTH_TOKEN_REQUIRED` | Missing bearer token |
+| 401 | `AUTH_TOKEN_INVALID` | Invalid or corrupted Monk token |
+| 401 | `AUTH_TOKEN_EXPIRED` | Expired Monk token |
+| 401 | `AUTH_TOKEN_REFRESH_FAILED` | Token references a removed or inactive tenant/user |
 
-## Explicit Local Bootstrap Refresh
+## Example
 
 ```bash
-MONK_ENABLE_LOCAL_AUTH=true NODE_ENV=development \
 curl -X POST http://localhost:9001/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }'
+  -H "Authorization: Bearer $MONK_TOKEN"
 ```
-
-## Security Considerations
-
-- Monk does not refresh local HS256 tokens in production.
-- Browser, CLI, or service clients should renew Auth0 sessions/access tokens through Auth0-supported flows.
-- Local refresh exists for development/test fixtures that explicitly enable `MONK_ENABLE_LOCAL_AUTH=true`.
