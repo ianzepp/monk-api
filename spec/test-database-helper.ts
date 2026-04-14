@@ -26,6 +26,17 @@ export interface TestTenantResult {
  * Uses Infrastructure.createTenant() for tenant provisioning.
  */
 export class TestDatabaseHelper {
+    private static toCanonicalTenantSlug(value: string): string {
+        const normalized = value
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .replace(/_+/g, '_');
+
+        return normalized || 'test';
+    }
+
     /**
      * Create a test tenant using Infrastructure
      *
@@ -42,7 +53,8 @@ export class TestDatabaseHelper {
         // Generate test tenant name
         const timestamp = Date.now();
         const random = randomBytes(4).toString('hex');
-        const tenantName = `test_${testName}_${timestamp}_${random}`;
+        const tenantSlug = this.toCanonicalTenantSlug(testName);
+        const tenantName = `test_${tenantSlug}_${timestamp}_${random}`;
 
         // Create tenant via Infrastructure (handles schema creation and seeding)
         const result = await Infrastructure.createTenant({

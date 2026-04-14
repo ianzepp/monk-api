@@ -34,6 +34,17 @@ export interface TestTenant {
  * Each test file should create its own tenant in beforeAll() for isolation.
  */
 export class TestHelpers {
+    private static toCanonicalTenantSlug(value: string): string {
+        const normalized = value
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .replace(/_+/g, '_');
+
+        return normalized || 'test';
+    }
+
     /**
      * Create a test tenant through the current public auth flow.
      *
@@ -114,7 +125,8 @@ export class TestHelpers {
         // Format: test_{testName}_{timestamp}_{random}
         const timestamp = Date.now();
         const random = randomBytes(4).toString('hex');
-        const tenantName = `test_${testName}_${timestamp}_${random}`;
+        const tenantSlug = this.toCanonicalTenantSlug(testName);
+        const tenantName = `test_${tenantSlug}_${timestamp}_${random}`;
 
         const authClient = new AuthClient(TEST_CONFIG.API_URL);
 
