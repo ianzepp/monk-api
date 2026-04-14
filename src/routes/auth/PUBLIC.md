@@ -30,6 +30,8 @@ Clients send `tenant`, `username`, and `password` directly to Monk for login. Re
 | POST | [`/auth/login`](login/POST.md) | Verify tenant username/password through Auth0 and return a Monk bearer token. |
 | POST | [`/auth/refresh`](refresh/POST.md) | Refresh a Monk bearer token presented in `Authorization`. |
 | GET | [`/auth/tenants`](tenants/GET.md) | List available tenants (personal mode only). |
+| POST | [`/auth/dissolve`](dissolve/POST.md) | Step 1 of dissolution: verify credentials and return a short-lived confirmation token. |
+| POST | [`/auth/dissolve/confirm`](dissolve/confirm/POST.md) | Step 2 of dissolution: consume the confirmation token and permanently soft-delete the tenant and user. |
 
 ## Quick Start
 
@@ -56,6 +58,19 @@ curl -X POST http://localhost:9001/auth/login \
 # 3. Use the Monk bearer token on protected routes
 curl -X GET http://localhost:9001/api/data/users \
   -H "Authorization: Bearer $MONK_TOKEN"
+
+# 4. Dissolve a tenant (two-step: get confirmation token, then confirm)
+curl -X POST http://localhost:9001/auth/dissolve \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant": "my_company",
+    "username": "root_user",
+    "password": "correct horse battery staple"
+  }'
+
+curl -X POST http://localhost:9001/auth/dissolve/confirm \
+  -H "Content-Type: application/json" \
+  -d '{"confirmation_token": "<token from step above>"}'
 ```
 
 ## Auth0 Settings Monk Needs

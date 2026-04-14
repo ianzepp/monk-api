@@ -1,12 +1,12 @@
 # 30-auth-api: Authentication API
 
 **Priority**: CRITICAL
-**Coverage**: 100% (4 of 4 tested endpoints, 80% with fake impersonation)
+**Coverage**: 100% (5 of 5 tested endpoints, 80% with fake impersonation)
 **Status**: COMPLETE - All core auth endpoints fully tested and implemented
 
 ## Critical / Smoke Tests
 
-### Tested (4) - COMPLETE ✅
+### Tested (5) - COMPLETE ✅
 - POST /auth/register - User registration with tenant creation ✅ (3 tests | 2 skipped)
   - Tests: Tenant creation, custom username, duplicate tenant
   - Skipped: Enterprise mode database restrictions, personal mode collisions
@@ -19,6 +19,11 @@
 - POST /auth/refresh - JWT token refresh mechanism ✅ (12 tests | 3 skipped)
   - Tests: Token validation (missing, empty, null), refresh operations (valid, invalid format, tampered), response format (structure, expires_in, uniqueness), security (access preservation, timestamp updates)
   - Skipped: Expired token (requires manual TTL), format preference (login limitation), rate limiting (requires middleware)
+- POST /auth/dissolve + POST /auth/dissolve/confirm - Two-step tenant/user dissolution ✅ (13 tests)
+  - Tests: Valid confirmation token returned, all input validation errors, wrong password, unknown tenant
+  - Tests: Full dissolution (tenant + user soft-deleted, subsequent login fails)
+  - Tests: Missing token, invalid token string, normal login token rejected as confirmation token
+  - Tests: Confirmation token rejected as API bearer token on /api/* routes
 
 ### Endpoints Moved to Protected Routes
 - POST /auth/fake - User impersonation (moved to protected endpoint, not in auth module)
