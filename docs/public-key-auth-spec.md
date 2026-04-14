@@ -36,7 +36,7 @@ It does not treat removal of the tenant-local `credentials` table as equivalent 
 - This spec does not require OAuth or external identity providers
 - This spec does not define billing, abuse controls, or tenant quotas, though those remain policy concerns
 - This spec does not expose key or challenge state through Monk's generic `/api/data/*` model runtime
-- This spec does not redefine Monk's existing human username/password login flow or Auth0 identity mapping behavior
+- This spec does not redefine Auth0 as the password-verification authority or Monk's Auth0 identity mapping behavior
 
 ## Compatibility Boundary
 
@@ -63,6 +63,31 @@ Be careful when narrowing or deleting the tenant-local `credentials` table and r
 
 The new public-key flow under `/auth/*` and `/api/keys/*` is the target machine credential system in Monk, but it should not be framed as removal of the existing human login path.
 Legacy machine-auth surfaces are intentionally not preserved as a compatibility bridge in this plan.
+
+## Tenant Lifecycle
+
+This proposal should replace the infrastructure `tenants.is_active` flag with an authoritative `tenants.status` column.
+
+Recommended statuses:
+
+- `pending`
+- `active`
+- `suspended`
+- `dissolving`
+- `deleted`
+
+Rules:
+
+- `status` should be the source of truth for tenant lifecycle; do not keep `is_active` as an equal peer long-term
+- protected routes and normal token refresh should resolve only `active` tenants
+- `deleted_at` and related timestamps may remain as audit markers, but lifecycle gating should come from `status`
+
+Bootstrap semantics:
+
+- `POST /auth/register` should create a `pending` tenant and its first tenant-local user, but should not mint a Monk JWT
+- the first successful `POST /auth/login` for that tenant should transition `pending -> active` and then return the first Monk JWT
+- `POST /auth/provision` should create a `pending` tenant, its first tenant-local user, and the first key binding
+- the first successful `POST /auth/verify` for that tenant should transition `pending -> active` and then return the first Monk JWT
 
 ## Terminology
 
@@ -218,6 +243,7 @@ Notes:
 - Provisioning must fail if the tenant name is already taken
 - Provisioning should store the public key only after validating format and algorithm
 - Provisioning should create the first tenant-local user and bind the first key to that user
+- Provisioning should leave the tenant in `pending` status until first successful `/auth/verify`
 - The first provisioned user should be the tenant bootstrap root/full principal unless the product later introduces a different bootstrap role
 - Provisioning should return a challenge instead of minting a Monk JWT before proof-of-possession is demonstrated
 
@@ -325,6 +351,7 @@ Requirements:
 - The token should be short-lived
 - The token should include tenant routing claims resolved by Monk
 - The token should be bound to the authenticated key identity for auditing
+- If the tenant is still `pending`, successful verification should promote it to `active` before the token is accepted for general protected-route use
 
 Suggested errors:
 
@@ -521,34 +548,38 @@ Because the legacy key path is not the live protected-route auth mechanism anymo
 
 Recommended migration shape:
 
-1. Keep current Auth0-backed human auth surfaces in place:
+1. Replace `tenants.is_active` with authoritative tenant `status` lifecycle handling:
+   - `pending`, `active`, `suspended`, `dissolving`, `deleted`
+   - protected routes resolve only `active`
+   - `/auth/login` and `/auth/verify` may promote `pending -> active` on first successful proof
+2. Keep current Auth0-backed human auth surfaces in place, but align bootstrap behavior with the pending lifecycle:
    - `/auth/register`
    - `/auth/login`
    - `/auth/refresh`
    - `/auth/dissolve`
    - `/auth/dissolve/confirm`
-2. Strip out legacy machine-auth surfaces that are no longer part of the live auth path:
+   - `/auth/register` becomes bootstrap-only and does not mint a Monk JWT
+3. Strip out legacy machine-auth surfaces that are no longer part of the live auth path:
    - `/api/user/:id/keys`
    - `/api/user/:id/password`
    - any deprecated API-key auth acceptance path or docs implying API-key login support
    - machine-auth-only `credentials` helpers and route plumbing
-3. Add internal tenant tables for:
+4. Add internal tenant tables for:
    - public key registry
    - auth challenge state
    - principal-to-key bindings or equivalent internal auth mapping
-4. Define and implement how a verified key maps to a tenant-local principal so protected Monk bearer tokens continue to carry user/access/ACL context
-5. Add the bootstrap and exchange flow:
+5. Define and implement how a verified key maps to a tenant-local principal so protected Monk bearer tokens continue to carry user/access/ACL context
+6. Add the bootstrap and exchange flow:
    - `/auth/provision`
    - `/auth/challenge`
    - `/auth/verify`
-6. Add tenant key management:
+7. Add tenant key management:
    - `/api/keys*`
-7. Migrate machine clients onto the new public-key flow
-8. Remove any remaining tenant-local credential storage used only for legacy machine auth
+8. Migrate machine clients onto the new public-key flow
+9. Remove any remaining tenant-local credential storage used only for legacy machine auth
 
 ## Open Questions
 
 - Should challenge state be persisted for strict single-use semantics, or should the first version accept a short replay window?
 - Should `GET /api/keys` return the stored public key material, or only fingerprints and metadata?
-- If `/auth/provision` returns a challenge before first successful `/auth/verify`, should the tenant remain pending/inactive until verification succeeds, or should Monk activate it immediately with cleanup for abandoned bootstrap attempts?
 - For tenants that already have the old `credentials` table, should migration drop it immediately, leave it inert until later cleanup, or transform any of its rows into the new internal key structures?
