@@ -10,6 +10,12 @@ This document defines a machine-native authentication model for Monk where:
 
 The goal is to support LLM-first and agent-first products without forcing a human-account model onto routine API use.
 
+This spec adds a machine-native auth path alongside Monk's existing Auth0-backed username/password flows.
+It is additive with respect to `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/dissolve*`, and human-account lifecycle routes.
+
+This spec supersedes Monk's existing user-scoped API key surface for machine auth.
+It does not treat removal of the tenant-local `credentials` table as equivalent to removing Auth0-backed password login, because production password verification currently lives outside that table.
+
 ## Design Goals
 
 - Make autonomous tenant creation possible
@@ -29,6 +35,34 @@ The goal is to support LLM-first and agent-first products without forcing a huma
 - This spec does not require email identity
 - This spec does not require OAuth or external identity providers
 - This spec does not define billing, abuse controls, or tenant quotas, though those remain policy concerns
+- This spec does not expose key or challenge state through Monk's generic `/api/data/*` model runtime
+- This spec does not redefine Monk's existing human username/password login flow or Auth0 identity mapping behavior
+
+## Compatibility Boundary
+
+This proposal is additive for human auth and replacement-oriented only for machine credentials.
+
+Keep:
+
+- `/auth/register`
+- `/auth/login`
+- `/auth/refresh`
+- `/auth/dissolve`
+- `/auth/dissolve/confirm`
+- the Auth0-backed username/password login path
+
+Replace over time:
+
+- `/api/user/:id/keys`
+- user-scoped API key auth via `X-API-Key` or API-key-shaped bearer tokens
+
+Be careful when narrowing or deleting the tenant-local `credentials` table and related helpers:
+
+- current legacy key routes still depend on it
+- non-production local password writes still depend on it
+- production Auth0-backed password login does not
+
+The new public-key flow under `/auth/*` and `/api/keys/*` is the target machine credential system in Monk, but it should not be framed as removal of the existing human login path.
 
 ## Terminology
 
@@ -76,6 +110,57 @@ Suggested supported algorithms:
 
 - `ed25519` first
 - optionally `ecdsa-p256` later
+
+## Internal Storage Model
+
+The new key system should use tenant-local internal tables that are not registered as Monk models.
+
+Required properties:
+
+- similar in spirit to the existing `users` table in that they are tenant-scoped internal infrastructure
+- not inserted into `models`
+- not inserted into `fields`
+- not accessible through `/api/data/*`
+- accessed only through explicit internal SQL/helpers and dedicated auth/key routes
+
+Recommended tables:
+
+### `tenant_keys`
+
+- `id`
+- `tenant_id` or equivalent tenant-local ownership link
+- `name`
+- `algorithm`
+- `public_key`
+- `fingerprint`
+- `scope` or `permissions`
+- `created_at`
+- `updated_at`
+- `last_used_at`
+- `expires_at`
+- `revoked_at`
+
+### `auth_challenges`
+
+- `id`
+- `key_id`
+- `nonce`
+- `algorithm`
+- `issued_at`
+- `expires_at`
+- `used_at`
+- optional minimal audit metadata
+
+## Auth Principal Mapping
+
+Protected Monk routes authorize a concrete tenant-local principal with `user_id`, access level, ACL arrays, and tenant routing resolved by Monk.
+
+Requirements:
+
+- `/auth/verify` must mint a normal Monk bearer token for a concrete tenant-local principal, not a key-only anonymous session
+- the first version should bind each tenant key to a tenant-owned service principal or another explicit internal auth principal so current ACL, sudo, auditing, and `System` assumptions remain coherent
+- key scopes, if introduced, must reduce or intersect with the bound principal's access; they must not silently exceed it
+- audit records should capture both the principal identity and the authenticating `key_id` or fingerprint
 
 ## Flow 1: Tenant Provisioning
 
@@ -126,6 +211,7 @@ Notes:
 - Provisioning must fail if the tenant name is already taken
 - Provisioning should store the public key only after validating format and algorithm
 - Returning a challenge instead of an immediate bearer token keeps proof-of-possession explicit
+- If provisioning creates the tenant before proof-of-possession succeeds, the tenant should remain pending/inactive until first successful `/auth/verify`, or Monk needs explicit cleanup and recovery rules for abandoned provisions
 
 Suggested errors:
 
@@ -272,6 +358,7 @@ Requirements:
 - Never return private key material
 - Never return challenge state
 - This route is authenticated by a valid Monk bearer token obtained from `/auth/verify`
+- Listing tenant-wide keys should require root/full access or an explicit key-admin scope, not merely any bearer token in the tenant
 
 ## Flow 5: Add Key
 
@@ -312,6 +399,7 @@ Requirements:
 - Reject duplicate public keys within the same tenant
 - Validate algorithm and key encoding strictly
 - Support optional expiry
+- Adding tenant-wide keys should require root/full access or an explicit key-admin scope
 
 ## Flow 6: Rotate Key
 
@@ -350,6 +438,7 @@ Requirements:
 - Rotation should support overlap instead of forcing immediate cutover
 - The new key should become valid before the old one is revoked
 - Rotation should be auditable
+- Rotation should require root/full access or an explicit key-admin scope
 
 ## Flow 7: Revoke Key
 
@@ -375,6 +464,7 @@ Requirements:
 - Revoked keys must no longer receive valid challenges or tokens
 - Server should reject revoking the last key only if the product explicitly wants that safety rail
 - Otherwise, zero-key tenants are allowed and become temporarily unreachable until reprovisioned through policy-defined means
+- Revocation should require root/full access or an explicit key-admin scope
 
 ## Token Semantics
 
@@ -387,6 +477,7 @@ Recommended properties:
 - includes tenant routing claims resolved by Monk
 - includes current tenant access data
 - includes `key_id` and/or key fingerprint for auditability
+- If protected routes do not re-check key status on every request, token TTL must be short enough that revocation latency is bounded by token expiry, and that tradeoff should be explicit
 
 Suggested additional claims:
 
@@ -407,21 +498,36 @@ Suggested additional claims:
 - Revoked or expired keys must fail closed
 - Tenant routing must continue to be resolved by Monk, not trusted from caller input alone
 - Key management routes must never expose stored public-key blobs if fingerprint-only display is sufficient for the product
+- The new key and challenge tables must not be exposed through Monk's generic data/model APIs
 
 ## Migration Notes
 
-This public-key flow does not need to replace existing routes immediately.
+This plan is additive for human auth and replacement-oriented only for legacy machine API keys.
 
 Recommended migration shape:
 
-1. Add:
+1. Keep current Auth0-backed human auth surfaces in place:
+   - `/auth/register`
+   - `/auth/login`
+   - `/auth/refresh`
+   - `/auth/dissolve`
+   - `/auth/dissolve/confirm`
+   - `/api/user/:id/password` unless a separate policy removes it
+2. Add internal tenant tables for:
+   - public key registry
+   - auth challenge state
+   - principal-to-key bindings or equivalent internal auth mapping
+3. Add:
    - `/auth/provision`
    - `/auth/challenge`
    - `/auth/verify`
    - `/api/keys*`
-2. Keep current `/auth/register`, `/auth/login`, and `/auth/refresh` behavior unchanged during migration
-3. Move new agent-first clients to the public-key flow
-4. Decide later whether password-based auth remains supported, becomes legacy-only, or is removed
+4. Define how a verified key maps to a tenant-local principal so protected Monk bearer tokens continue to carry user/access/ACL context
+5. Migrate machine clients off:
+   - `/api/user/:id/keys`
+   - current user-scoped API key auth support
+6. After machine clients are migrated, remove legacy API-key surfaces and any tenant-local credential storage used only for machine auth
+7. Decide separately whether any remaining local password credential writes survive outside development/test, but do not treat that decision as the same question as keeping Auth0-backed username/password login
 
 ## Open Questions
 
@@ -430,3 +536,7 @@ Recommended migration shape:
 - Should challenge state be persisted for strict single-use semantics, or should the first version accept a short replay window?
 - Should a tenant be allowed to have zero active keys, or should the last-key deletion be blocked?
 - Should Monk expose raw public keys on `GET /api/keys`, or only fingerprints and metadata?
+- Should verified keys map to dedicated service users or to a separate internal principal type?
+- Should `/auth/provision` leave tenants pending until first successful `/auth/verify`, or activate them immediately with a cleanup TTL for abandoned bootstrap attempts?
+- Should tenant-wide key management require root/full only, or should Monk support a narrower key-admin scope?
+- How should existing tenant schemas be migrated if they already contain the old `credentials` table?
