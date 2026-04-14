@@ -1042,11 +1042,11 @@ it('should support different user permissions', async () => {
 
 ### Authentication and Bearer-Token Caching
 
-Production auth is Auth0-based, but parts of the TypeScript test framework still use the older explicit local-auth bootstrap flow. Those helpers cache bearer tokens so tests can hit protected routes without repeating `Authorization` headers.
+The TypeScript test framework uses the current Monk auth contract and caches Monk bearer tokens so tests can hit protected routes without repeating `Authorization` headers.
 
-**AuthClient** - High-level local-auth wrapper:
-- `login({ tenant, username })` - Authenticate with existing tenant through explicit local-auth bootstrap
-- `register({ tenant, template, username })` - Legacy pre-Auth0 tenant helper that still assumes `/auth/register` returns a token
+**AuthClient** - High-level Monk auth wrapper:
+- `login({ tenant, username, password })` - Authenticate through Monk's brokered Auth0 path
+- `register({ tenant, username, password })` - Register a tenant and cache the returned Monk bearer token
 - Automatically caches bearer tokens in HttpClient
 - Provides `.client` property for authenticated API requests
 
@@ -1067,8 +1067,8 @@ Production auth is Auth0-based, but parts of the TypeScript test framework still
 
 - **`spec/test-config.ts`** - Configuration (PORT=9001, API_URL, etc.)
 - **`spec/test-infrastructure.ts`** - Global setup/teardown logic
-- **`spec/test-helpers.ts`** - Legacy local-auth TestHelpers API pending Auth0-aware migration
-- **`spec/auth-client.ts`** - Local-auth AuthClient for login plus legacy register helper
+- **`spec/test-helpers.ts`** - Higher-level tenant/test-user helpers built on the current auth contract
+- **`spec/auth-client.ts`** - AuthClient for register/login bearer-token flows
 - **`spec/http-client.ts`** - HTTP request utilities with cached bearer-token support
 - **`spec/bun-test-setup.ts`** - Bun test preload and global setup
 - **`bunfig.toml`** - Bun test configuration
@@ -1080,17 +1080,17 @@ Production auth is Auth0-based, but parts of the TypeScript test framework still
    - Throws clear error if prerequisites missing
 
 2. **Per-Test Setup** (each test file's `beforeAll`)
-   - Legacy helpers may call `/auth/register` or `/auth/login` in explicit local-auth mode
-   - Auth0-specific behavior should be tested with explicit bearer-token setup and the dedicated Auth0 coverage files
+   - Helpers may call `/auth/register` or `/auth/login` with tenant, username, and password
+   - Auth broker behavior can be isolated with the dedicated auth route and middleware coverage files
 
 3. **Global Teardown** (once after all tests)
    - Automatic cleanup of test tenants
 
 ## Benefits Over Direct Database Access
 
-The older helper pattern uses API auth endpoints instead of direct database cloning:
+The helper pattern uses API auth endpoints instead of direct database cloning:
 
-1. **Tests explicit local-auth bootstrap flow** - Uses API endpoints instead of direct DB writes
+1. **Tests the current public auth flow** - Uses API endpoints instead of direct DB writes
 2. **Simpler test code** - One line creates tenant with auth
 3. **API coverage** - Exercises the test bootstrap endpoints directly
 4. **No database dependencies** - Tests use API, not direct DB access

@@ -2,9 +2,9 @@
  * Auth Route Barrel Export
  *
  * Public auth routes:
- * - Register: Auth0-authenticated tenant provisioning
- * - Login: explicit non-production local-auth bootstrap only
- * - Refresh: explicit non-production local-auth bootstrap only
+ * - Register: brokered tenant bootstrap from tenant/username/password
+ * - Login: brokered tenant login from tenant/username/password
+ * - Refresh: refresh Monk bearer token from Authorization header
  * - Tenants: list available tenants (personal mode only)
  */
 

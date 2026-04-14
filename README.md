@@ -1,6 +1,6 @@
 # Monk API
 
-Multi-tenant backend platform built with Hono, TypeScript, Bun, and PostgreSQL/SQLite. Monk API provides model-first data APIs, schema-isolated tenants, Auth0/OIDC identity authentication with Monk-owned authorization, API-key support, ordered observer hooks, an HTTP filesystem API, optional app packages, and a cron surface for scheduled backend work.
+Multi-tenant backend platform built with Hono, TypeScript, Bun, and PostgreSQL/SQLite. Monk API provides model-first data APIs, schema-isolated tenants, Monk-brokered Auth0 password authentication with Monk bearer tokens, ordered observer hooks, an HTTP filesystem API, optional app packages, and a cron surface for scheduled backend work.
 
 The project is more than a CRUD service. It is a small programmable backend runtime: tenants define models and fields, the generic API operates on those models, observers enforce lifecycle behavior, and higher-level services can automate against the same tenant-scoped HTTP surface.
 
@@ -12,7 +12,7 @@ Read [AGENTS.md](./AGENTS.md) before starting any task.
 
 - **Language**: TypeScript with Hono framework
 - **Database**: PostgreSQL (schema-per-tenant) or SQLite (file-per-tenant)
-- **Authentication**: Auth0/OIDC bearer tokens, API keys, and Monk-owned three-tier access (public, user, root/sudo)
+- **Authentication**: Monk-brokered Auth0 username/password auth plus Monk-issued bearer tokens carrying Monk-owned access state
 - **Architecture**: Ring-based observer system for model lifecycle behavior
 - **Runtime surfaces**: HTTP API, dynamic `/app/*` packages, `/fs/*` filesystem API, and cron scheduler
 - **Distribution**: Compiles to standalone executable with no external dependencies
@@ -60,7 +60,7 @@ Monk starts multiple surfaces from [src/index.ts](src/index.ts):
 
 ### Sudo Routes (Elevated Access)
 
-Operations on protected models require root/full authorization from the current Monk user row. Local sudo/fake JWT issuance is disabled unless explicit local auth bootstrap is enabled for development or tests.
+Operations on protected models require root/full authorization from the current Monk user row. Sudo and fake-token routes remain Monk-local token machinery layered on top of Monk bearer tokens.
 
 ## Model-First Data Runtime
 
@@ -132,7 +132,7 @@ All endpoints support query parameters for response formatting:
 
 - **PostgreSQL**: Tenants share a regional database (e.g., `us_east`) with isolation via schema/namespace
 - **SQLite**: One file per tenant for portable, self-contained databases
-- Auth0 tokens prove external identity only. Monk resolves `iss + sub` through its identity mapping table, then derives tenant routing from the Monk tenant registry.
+- Monk derives a scoped external login identity from canonical `(tenant, username)` values, verifies passwords through Auth0, then mints Monk bearer tokens for API access.
 - SHA256-based schema naming (enterprise mode) or human-readable (personal mode)
 - Tenants evolve independently (different models, fields, data)
 
@@ -158,7 +158,7 @@ Four ACL arrays per record:
 - `access_full` - Full access (read/edit/delete)
 - `access_deny` - Explicit deny (overrides other permissions)
 
-User and API-key management lives under `/api/user/*`. API keys are accepted by the authentication middleware through the supported API-key header flow.
+User management lives under `/api/user/*`. Protected routes currently rely on Monk bearer tokens rather than client-presented Auth0 bearer tokens.
 
 ## Cron and Background Work
 
@@ -171,7 +171,7 @@ On startup, the server initializes infrastructure, preloads observers, starts HT
 - **[Hono](https://hono.dev/)** - Web framework
 - **TypeScript** - Language
 - **PostgreSQL** or **SQLite** - Database backends
-- **Auth0/OIDC** - Production identity authentication
+- **Auth0** - Production password authority behind Monk's auth routes
 - **Bun** - Runtime (compiles to standalone executable)
 ---
 
