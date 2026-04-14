@@ -1,6 +1,6 @@
 # Monk API
 
-Multi-tenant backend platform built with Hono, TypeScript, Bun, and PostgreSQL/SQLite. Monk API provides model-first data APIs, schema-isolated tenants, Monk-brokered Auth0 password authentication with Monk bearer tokens, ordered observer hooks, an HTTP filesystem API, optional app packages, and a cron surface for scheduled backend work.
+Multi-tenant backend platform built with Hono, TypeScript, Bun, and PostgreSQL/SQLite. Monk API provides model-first data APIs, schema-isolated tenants, brokered human password authentication with Monk bearer tokens, ordered observer hooks, an HTTP filesystem API, optional app packages, and a cron surface for scheduled backend work.
 
 The project is more than a CRUD service. It is a small programmable backend runtime: tenants define models and fields, the generic API operates on those models, observers enforce lifecycle behavior, and higher-level services can automate against the same tenant-scoped HTTP surface.
 
@@ -12,7 +12,7 @@ Read [AGENTS.md](./AGENTS.md) before starting any task.
 
 - **Language**: TypeScript with Hono framework
 - **Database**: PostgreSQL (schema-per-tenant) or SQLite (file-per-tenant)
-- **Authentication**: Monk-brokered Auth0 username/password auth plus Monk-issued bearer tokens carrying Monk-owned access state
+- **Authentication**: Brokered human username/password auth plus Monk-issued bearer tokens carrying Monk-owned access state
 - **Architecture**: Ring-based observer system for model lifecycle behavior
 - **Runtime surfaces**: HTTP API, dynamic `/app/*` packages, `/fs/*` filesystem API, and cron scheduler
 - **Distribution**: Compiles to standalone executable with no external dependencies
@@ -132,7 +132,7 @@ All endpoints support query parameters for response formatting:
 
 - **PostgreSQL**: Tenants share a regional database (e.g., `us_east`) with isolation via schema/namespace
 - **SQLite**: One file per tenant for portable, self-contained databases
-- Monk derives a scoped external login identity from canonical `(tenant, username)` values, verifies passwords through Auth0, then mints Monk bearer tokens for API access.
+- Monk derives a scoped external login identity from canonical `(tenant, username)` values, verifies passwords through its upstream identity broker, then mints Monk bearer tokens for API access.
 - SHA256-based schema naming (enterprise mode) or human-readable (personal mode)
 - Tenants evolve independently (different models, fields, data)
 
@@ -158,7 +158,7 @@ Four ACL arrays per record:
 - `access_full` - Full access (read/edit/delete)
 - `access_deny` - Explicit deny (overrides other permissions)
 
-User management lives under `/api/user/*`. Protected routes currently rely on Monk bearer tokens rather than client-presented Auth0 bearer tokens.
+User management lives under `/api/user/*`. Protected routes rely on Monk bearer tokens rather than client-presented upstream identity tokens.
 
 ## Cron and Background Work
 
@@ -171,7 +171,6 @@ On startup, the server initializes infrastructure, preloads observers, starts HT
 - **[Hono](https://hono.dev/)** - Web framework
 - **TypeScript** - Language
 - **PostgreSQL** or **SQLite** - Database backends
-- **Auth0** - Production password authority behind Monk's auth routes
 - **Bun** - Runtime (compiles to standalone executable)
 ---
 
@@ -190,14 +189,10 @@ DATABASE_URL=postgresql://monk:monk@127.0.0.1:55432/monk
 PORT=9001
 NODE_ENV=development
 JWT_SECRET=test
-AUTH0_DOMAIN=your-tenant.us.auth0.com
-AUTH0_CLIENT_ID=your-auth0-app-client-id
-AUTH0_CLIENT_SECRET=your-auth0-app-client-secret
-AUTH0_CONNECTION=Username-Password-Authentication
-AUTH0_AUDIENCE=https://your-monk-api-audience
+# Configure the auth broker variables required by your deployment
 ```
 
-Production auth is Monk-brokered through Auth0: clients send username/password to Monk for login, and `tenant + username + email + password` for register. Monk verifies or provisions credentials through Auth0 and returns Monk bearer tokens for API access.
+Production auth is brokered through Monk: clients send username/password to Monk for login, and `tenant + username + email + password` for register. Monk verifies or provisions credentials through its upstream identity broker and returns Monk bearer tokens for API access.
 
 Initialize the database after building:
 
@@ -229,8 +224,7 @@ The Railway app service is linked to `ianzepp/monk-api` on `main` and uses Railw
 
 ### Production Safety Notes
 
-- `DATABASE_URL`, `NODE_ENV`, `JWT_SECRET`, `AUTH0_ISSUER` or `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, and `AUTH0_CONNECTION` are required for production brokered auth.
-- `AUTH0_AUDIENCE` is optional for password verification but often useful when the Auth0 client expects it.
+- `DATABASE_URL`, `NODE_ENV`, `JWT_SECRET`, and the auth broker credentials required by the current deployment are needed for production brokered auth.
 - Cron job definitions remain visible, but new job creation is temporarily unavailable until the replacement execution backend lands.
 
 ## Installation
@@ -245,7 +239,7 @@ bun install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with DATABASE_URL and Auth0 issuer/audience/JWKS values
+# Edit .env with DATABASE_URL, JWT secret, and your auth broker settings
 
 # Build and start
 bun run build

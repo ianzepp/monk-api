@@ -36,8 +36,8 @@ CREATE INDEX IF NOT EXISTS "idx_tenants_name_active" ON "tenants" ("name", "is_a
 CREATE INDEX IF NOT EXISTS "idx_tenants_database" ON "tenants" ("database");
 CREATE INDEX IF NOT EXISTS "idx_tenants_owner" ON "tenants" ("owner_id");
 
--- Auth0/OIDC external identity mappings
--- Auth0 proves issuer + subject only. Monk resolves that identity to local
+-- External identity mappings
+-- The upstream identity provider proves issuer + subject only. Monk resolves that identity to local
 -- tenant and user state before deriving routing or authorization.
 CREATE TABLE IF NOT EXISTS "auth0_identity_mappings" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,

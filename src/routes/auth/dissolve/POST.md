@@ -38,7 +38,7 @@ Verifies the supplied credentials the same way `POST /auth/login` does, then ret
 | 400 | `AUTH_USERNAME_INVALID` | Username is not canonical snake_case |
 | 401 | `AUTH_LOGIN_FAILED` | Invalid credentials or tenant not found |
 | 403 | `AUTH_DISSOLVE_FORBIDDEN` | Authenticated user does not have `root` access |
-| 401 | `AUTH0_*` | Auth0 broker configuration or upstream auth failure |
+| 401 | broker failure | Upstream auth or auth-broker failure |
 
 ## Token Shape
 

@@ -10,11 +10,11 @@ This document defines a machine-native authentication model for Monk where:
 
 The goal is to support LLM-first and agent-first products without forcing a human-account model onto routine API use.
 
-This spec adds a machine-native auth path alongside Monk's existing Auth0-backed username/password flows.
+This spec adds a machine-native auth path alongside Monk's existing brokered username/password flows.
 It is additive with respect to `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/dissolve*`, and human-account lifecycle routes.
 
 This spec supersedes Monk's existing user-scoped API key surface for machine auth.
-It does not treat removal of the tenant-local `credentials` table as equivalent to removing Auth0-backed password login, because production password verification currently lives outside that table.
+It does not treat removal of the tenant-local `credentials` table as equivalent to removing brokered password login, because production password verification currently lives outside that table.
 
 ## Design Goals
 
@@ -36,7 +36,7 @@ It does not treat removal of the tenant-local `credentials` table as equivalent 
 - This spec does not require OAuth or external identity providers
 - This spec does not define billing, abuse controls, or tenant quotas, though those remain policy concerns
 - This spec does not expose key or challenge state through Monk's generic `/api/data/*` model runtime
-- This spec does not redefine Auth0 as the password-verification authority or Monk's Auth0 identity mapping behavior
+- This spec does not redefine the upstream password-verification authority or Monk's external identity mapping behavior
 
 ## Compatibility Boundary
 
@@ -49,7 +49,7 @@ Keep:
 - `/auth/refresh`
 - `/auth/dissolve`
 - `/auth/dissolve/confirm`
-- the Auth0-backed username/password login path
+- the existing brokered username/password login path
 
 Strip out before starting new public-key feature work:
 
@@ -59,7 +59,7 @@ Strip out before starting new public-key feature work:
 Be careful when narrowing or deleting the tenant-local `credentials` table and related helpers:
 
 - current legacy key routes still depend on it
-- production Auth0-backed password login does not
+- production brokered password login does not
 
 The new public-key flow under `/auth/*` and `/api/keys/*` is the target machine credential system in Monk, but it should not be framed as removal of the existing human login path.
 Legacy machine-auth surfaces are intentionally not preserved as a compatibility bridge in this plan.
@@ -558,7 +558,7 @@ Phase order for implementation:
    - replace `tenants.is_active` with authoritative tenant `status` lifecycle handling
    - supported statuses: `pending`, `active`, `suspended`, `dissolving`, `deleted`
    - protected routes resolve only `active`
-   - keep current Auth0-backed human auth surfaces in place
+   - keep current brokered human auth surfaces in place
    - align `/auth/register` and `/auth/login` with the pending lifecycle
    - `/auth/register` becomes bootstrap-only and does not mint a Monk JWT
    - `/auth/login` and `/auth/verify` may promote `pending -> active` on first successful proof

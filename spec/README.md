@@ -1047,7 +1047,7 @@ it('should support different user permissions', async () => {
 The TypeScript test framework uses the current Monk auth contract and caches Monk bearer tokens so tests can hit protected routes without repeating `Authorization` headers.
 
 **AuthClient** - High-level Monk auth wrapper:
-- `login({ tenant, username, password })` - Authenticate through Monk's brokered Auth0 path
+- `login({ tenant, username, password })` - Authenticate through Monk's brokered human login path
 - `register({ tenant, username, email, password })` - Register a tenant in pending status
 - Automatically caches bearer tokens returned by login()
 - Provides `.client` property for authenticated API requests

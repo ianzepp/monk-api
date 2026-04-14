@@ -2,7 +2,7 @@
 
 The Monk API supports multiple response formats to optimize for different use cases, from human readability to token efficiency for LLM integrations. Additionally, server-side field extraction eliminates the need for client-side `jq` piping in test scripts.
 
-Production clients should bring an Auth0 access token for protected routes. Examples that use `/auth/login` below refer to the explicit local-auth bootstrap path for development/test.
+Production clients should bring a Monk bearer token for protected routes. Examples that use `/auth/login` below refer to the explicit human-auth bootstrap path.
 
 ## Quick Examples
 
@@ -718,14 +718,14 @@ Request → Route Logic → ?select=/?unwrap → ?format= → ?encrypt=pgp → R
 ```bash
 # Encrypt JSON response
 curl /api/user/whoami?encrypt=pgp \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" > encrypted.txt
+  -H "Authorization: Bearer $MONK_TOKEN" > encrypted.txt
 
 # Decrypt with the same bearer token material
-tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" < encrypted.txt
+tsx scripts/decrypt.ts "$MONK_TOKEN" < encrypted.txt
 
 # Combine with formatting
 curl /api/find/users?format=csv&encrypt=pgp \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" > users-encrypted.txt
+  -H "Authorization: Bearer $MONK_TOKEN" > users-encrypted.txt
 ```
 
 **ASCII Armor Format:**
@@ -765,11 +765,11 @@ Cipher: AES-256-GCM
 **Using Decrypt Script:**
 ```bash
 # From stdin
-curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
-  | tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN"
+curl /api/user/whoami?encrypt=pgp -H "Authorization: Bearer $MONK_TOKEN" \
+  | tsx scripts/decrypt.ts "$MONK_TOKEN"
 
 # From file
-tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" encrypted-response.txt
+tsx scripts/decrypt.ts "$MONK_TOKEN" encrypted-response.txt
 ```
 
 **What Gets Encrypted:**

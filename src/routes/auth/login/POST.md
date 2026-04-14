@@ -2,7 +2,7 @@
 
 Log in with canonical snake_case `tenant`, `username`, and `password`.
 
-Monk forwards credential verification to Auth0, looks up the Monk-local tenant user, and returns a Monk bearer token. Clients never need to present Auth0 bearer tokens to Monk.
+Monk brokers credential verification, looks up the Monk-local tenant user, and returns a Monk bearer token. Clients never need to present upstream identity tokens to Monk.
 
 ## Request Body
 
@@ -44,7 +44,7 @@ Monk forwards credential verification to Auth0, looks up the Monk-local tenant u
 | 400 | `AUTH_TENANT_INVALID` | Tenant is not canonical snake_case |
 | 400 | `AUTH_USERNAME_INVALID` | Username is not canonical snake_case |
 | 401 | `AUTH_LOGIN_FAILED` | Invalid credentials or Monk-local tenant/user missing |
-| 401 | `AUTH0_*` | Auth0 broker configuration or upstream auth failure |
+| 401 | broker failure | Upstream auth or auth-broker failure |
 
 ## Example
 

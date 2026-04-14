@@ -2,7 +2,7 @@
 
 Create a brand-new tenant and bootstrap its root user from canonical snake_case `tenant`, `username`, `email`, and `password`.
 
-Monk forwards user provisioning to Auth0, never stores the password locally, and provisions the Monk tenant and root user in `pending` status. `email` is required on register so Monk can create the upstream Auth0 identity without inventing one. Registration does not mint a Monk bearer token; clients must complete a follow-up `/auth/login`.
+Monk forwards user provisioning to its upstream identity broker, never stores the password locally, and provisions the Monk tenant and root user in `pending` status. `email` is required on register so Monk can create the upstream identity without inventing one. Registration does not mint a Monk bearer token; clients must complete a follow-up `/auth/login`.
 
 `/auth/register` is for new-tenant bootstrap only. It does not join users to existing tenants.
 
@@ -44,8 +44,8 @@ Monk forwards user provisioning to Auth0, never stores the password locally, and
 | 400 | `AUTH_USERNAME_INVALID` | Username is not canonical snake_case |
 | 400 | `AUTH_EMAIL_INVALID` | Email is not a valid email address |
 | 409 | `DATABASE_TENANT_EXISTS` | Tenant already exists in Monk |
-| 409 | `AUTH_USERNAME_EXISTS` | External Auth0 username already exists with conflicting credentials |
-| 401 | `AUTH0_*` | Auth0 broker configuration or upstream provisioning failure |
+| 409 | `AUTH_USERNAME_EXISTS` | External username already exists with conflicting credentials |
+| 401 | broker failure | Upstream provisioning or auth-broker failure |
 
 ## Example
 

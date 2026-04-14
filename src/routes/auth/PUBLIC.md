@@ -2,7 +2,7 @@
 
 The Auth API is an LLM-first, non-browser authentication surface.
 
-Human clients send `tenant`, `username`, and `password` directly to Monk for login. Registration additionally requires `email` so Monk can provision the Auth0 identity without inventing one. Machine clients can bootstrap and authenticate with tenant-bound public keys through `/auth/provision`, `/auth/challenge`, and `/auth/verify`.
+Human clients send `tenant`, `username`, and `password` directly to Monk for login. Registration additionally requires `email` so Monk can provision the upstream identity without inventing one. Machine clients can bootstrap and authenticate with tenant-bound public keys through `/auth/provision`, `/auth/challenge`, and `/auth/verify`.
 
 ## Base Path
 
@@ -16,20 +16,20 @@ Human clients send `tenant`, `username`, and `password` directly to Monk for log
 ## Auth Model
 
 1. Clients send canonical snake_case identity values to Monk.
-2. Monk derives the external Auth0 login identifier from `(tenant, username)`.
-3. Monk brokers password verification and registration through Auth0 for the human path.
+2. Monk derives the external login identifier from `(tenant, username)`.
+3. Monk brokers password verification and registration through an upstream identity provider for the human path.
 4. Monk provisions or resolves Monk-local tenant and user records.
 5. Machine clients prove possession of a tenant-bound private key through a single-use challenge.
 6. Monk returns a Monk bearer token.
 7. `/auth/refresh` is reserved for human login tokens; machine clients re-run challenge and verify.
-8. Protected Monk routes accept Monk bearer tokens, not Auth0 bearer tokens.
+8. Protected Monk routes accept Monk bearer tokens, not upstream identity tokens.
 
 ## Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | [`/auth/register`](register/POST.md) | Create a brand-new pending tenant and root user from tenant, username, email, and password. |
-| POST | [`/auth/login`](login/POST.md) | Verify tenant username/password through Auth0 and return a Monk bearer token. |
+| POST | [`/auth/login`](login/POST.md) | Verify tenant username/password through Monk and return a Monk bearer token. |
 | POST | [`/auth/provision`](provision/POST.md) | Create a pending tenant, root user, and first machine key, then return the first challenge. |
 | POST | [`/auth/challenge`](challenge/POST.md) | Issue a short-lived single-use challenge for a tenant-bound key. |
 | POST | [`/auth/verify`](verify/POST.md) | Verify the signed challenge and return a Monk bearer token. |
@@ -77,17 +77,6 @@ curl -X POST http://localhost:9001/auth/dissolve/confirm \
   -H "Content-Type: application/json" \
   -d '{"confirmation_token": "<token from step above>"}'
 ```
-
-## Auth0 Settings Monk Needs
-
-- `AUTH0_ISSUER` or `AUTH0_DOMAIN`
-- `AUTH0_CLIENT_ID`
-- `AUTH0_CLIENT_SECRET`
-- `AUTH0_CONNECTION`
-- optional `AUTH0_AUDIENCE`
-- optional separate management credentials for user creation:
-  - `AUTH0_MANAGEMENT_CLIENT_ID`
-  - `AUTH0_MANAGEMENT_CLIENT_SECRET`
 
 ## Related Documentation
 

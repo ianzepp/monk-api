@@ -159,8 +159,8 @@ GET /api/user/whoami?format=toon
 **Security Model:**
 - **Ephemeral encryption** - For transport security, not long-term storage
 - Bearer token material IS the decryption key
-- Same Auth0 access token = same key (allows decryption)
-- Auth0 token rotation/expiry means old encrypted messages require the original token material
+- Same Monk bearer token = same key (allows decryption)
+- Bearer-token rotation/expiry means old encrypted messages require the original token material
 
 **Examples:**
 ```bash
@@ -178,13 +178,13 @@ GET /api/user/whoami?format=yaml&encrypt=pgp
 → (encrypted YAML output)
 
 # Decrypt
-tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" < encrypted.txt
+tsx scripts/decrypt.ts "$MONK_TOKEN" < encrypted.txt
 ```
 
 **IMPORTANT:**
 - ✅ Encrypts ALL responses including errors (prevents info leakage)
 - ⚠️ Requires a valid bearer token and resolved Monk auth context
-- ⚠️ Not suitable for archival storage (Auth0 token rotation/expiry)
+- ⚠️ Not suitable for archival storage (bearer-token rotation/expiry)
 
 **Implementation:** Uses encryption utilities from `src/lib/encryption/`
 
@@ -326,7 +326,7 @@ monk curl GET '/api/find/users?format=csv'
 monk curl GET '/api/user/whoami?encrypt=pgp' > encrypted.txt
 
 # Decrypt
-tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" < encrypted.txt
+tsx scripts/decrypt.ts "$MONK_TOKEN" < encrypted.txt
 ```
 
 ### Test Composition

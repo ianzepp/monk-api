@@ -3,7 +3,7 @@
  *
  * Clean-break protected auth path:
  * - Accepts only Monk bearer tokens
- * - Rejects Auth0 bearer-token routing on protected endpoints
+ * - Rejects upstream identity bearer-token routing on protected endpoints
  * - Rejects API-key authentication
  * - Verifies the Monk token and ensures the tenant and user are still active
  */

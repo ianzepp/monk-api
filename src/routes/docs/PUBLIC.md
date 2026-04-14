@@ -49,7 +49,7 @@
 ### Auth Flow
 - Human flow:
   - `POST /auth/register` provisions a pending tenant and root user
-  - `POST /auth/login` verifies credentials through Auth0 and mints the Monk bearer token
+  - `POST /auth/login` verifies credentials through Monk and mints the Monk bearer token
   - `POST /auth/refresh` refreshes only human login tokens
 - Machine flow:
   - `POST /auth/provision` provisions a pending tenant, root user, and first public key
@@ -668,7 +668,7 @@ All API endpoints return consistent error responses:
 | Status | Category | Description | Common Error Codes |
 |--------|----------|-------------|-------------------|
 | `400` | Bad Request | Invalid input, missing fields, malformed requests | `VALIDATION_ERROR`, `JSON_PARSE_ERROR`, `MODEL_ERROR` |
-| `401` | Unauthorized | Authentication required or failed | `AUTH_TOKEN_REQUIRED`, `AUTH_TOKEN_EXPIRED`, `AUTH0_TOKEN_*` |
+| `401` | Unauthorized | Authentication required or failed | `AUTH_TOKEN_REQUIRED`, `AUTH_TOKEN_EXPIRED` |
 | `403` | Forbidden | Insufficient permissions | `FORBIDDEN`, `MODEL_PROTECTED`, `ACCESS_DENIED` |
 | `404` | Not Found | Resource does not exist | `NOT_FOUND`, `MODEL_NOT_FOUND`, `RECORD_NOT_FOUND` |
 | `405` | Method Not Allowed | HTTP method not supported | `UNSUPPORTED_METHOD` |
@@ -693,7 +693,7 @@ All API endpoints return consistent error responses:
 | Error Code | Description | HTTP Status |
 |------------|-------------|-------------|
 | `UNAUTHORIZED` | Missing or invalid authentication | 401 |
-| `AUTH_TOKEN_EXPIRED`, `AUTH0_TOKEN_EXPIRED` | Auth token has expired | 401 |
+| `AUTH_TOKEN_EXPIRED` | Auth token has expired | 401 |
 | `FORBIDDEN` | Insufficient permissions | 403 |
 | `ACCESS_DENIED` | Access denied to resource | 403 |
 | `TENANT_MISSING` | Tenant not found or invalid | 401 |
@@ -721,7 +721,7 @@ Error codes follow `SUBJECT_FIRST` pattern for logical grouping:
 
 - **Model errors**: `MODEL_NOT_FOUND`, `MODEL_PROTECTED`
 - **Record errors**: `RECORD_NOT_FOUND`, `RECORD_ALREADY_EXISTS`
-- **Auth errors**: `AUTH_TOKEN_REQUIRED`, `AUTH_TOKEN_EXPIRED`, `AUTH0_TOKEN_*`
+- **Auth errors**: `AUTH_TOKEN_REQUIRED`, `AUTH_TOKEN_EXPIRED`
 - **Request errors**: `JSON_PARSE_ERROR`, `MISSING_CONTENT_TYPE`
 
 This enables:
