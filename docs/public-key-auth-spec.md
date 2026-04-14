@@ -546,40 +546,51 @@ Suggested additional claims:
 This plan is additive for human auth and replacement-oriented only for legacy machine API keys.
 Because the legacy key path is not the live protected-route auth mechanism anymore, the spec prefers deleting that overlap first instead of carrying two machine-auth stories during implementation.
 
-Recommended migration shape:
+Decisions locked for this spec:
 
-1. Replace `tenants.is_active` with authoritative tenant `status` lifecycle handling:
-   - `pending`, `active`, `suspended`, `dissolving`, `deleted`
+- legacy machine-auth `credentials` rows should be dropped rather than transformed into the new key system
+- `GET /api/keys` should return fingerprint-first records for now, shaped to allow future expansion without contract churn
+- challenge state should be persisted and enforced as strict single-use
+
+Phase order for implementation:
+
+1. Lifecycle and contract foundation:
+   - replace `tenants.is_active` with authoritative tenant `status` lifecycle handling
+   - supported statuses: `pending`, `active`, `suspended`, `dissolving`, `deleted`
    - protected routes resolve only `active`
-   - `/auth/login` and `/auth/verify` may promote `pending -> active` on first successful proof
-2. Keep current Auth0-backed human auth surfaces in place, but align bootstrap behavior with the pending lifecycle:
-   - `/auth/register`
-   - `/auth/login`
-   - `/auth/refresh`
-   - `/auth/dissolve`
-   - `/auth/dissolve/confirm`
+   - keep current Auth0-backed human auth surfaces in place
+   - align `/auth/register` and `/auth/login` with the pending lifecycle
    - `/auth/register` becomes bootstrap-only and does not mint a Monk JWT
-3. Strip out legacy machine-auth surfaces that are no longer part of the live auth path:
-   - `/api/user/:id/keys`
-   - `/api/user/:id/password`
-   - any deprecated API-key auth acceptance path or docs implying API-key login support
-   - machine-auth-only `credentials` helpers and route plumbing
-4. Add internal tenant tables for:
-   - public key registry
-   - auth challenge state
-   - principal-to-key bindings or equivalent internal auth mapping
-5. Define and implement how a verified key maps to a tenant-local principal so protected Monk bearer tokens continue to carry user/access/ACL context
-6. Add the bootstrap and exchange flow:
-   - `/auth/provision`
-   - `/auth/challenge`
-   - `/auth/verify`
-7. Add tenant key management:
-   - `/api/keys*`
-8. Migrate machine clients onto the new public-key flow
-9. Remove any remaining tenant-local credential storage used only for legacy machine auth
+   - `/auth/login` and `/auth/verify` may promote `pending -> active` on first successful proof
+2. Legacy machine-auth removal:
+   - strip out `/api/user/:id/keys`
+   - strip out `/api/user/:id/password`
+   - strip out deprecated API-key auth acceptance paths and docs implying API-key login support
+   - remove machine-auth-only `credentials` helpers and route plumbing
+   - drop legacy machine-auth `credentials` rows instead of migrating them forward
+3. Internal key and challenge storage:
+   - add internal tenant tables for public key registry and auth challenge state
+   - persist challenge state so single-use semantics can be enforced strictly
+   - keep these internal tables outside Monk's generic model runtime and `/api/data/*`
+4. Principal mapping and token issuance:
+   - define and implement how a verified key maps to a concrete tenant-local principal
+   - ensure protected Monk bearer tokens continue to carry user/access/ACL context
+   - include key identity in token claims and audit records
+5. Bootstrap and exchange flow:
+   - add `/auth/provision`
+   - add `/auth/challenge`
+   - add `/auth/verify`
+6. Tenant key management:
+   - add `/api/keys`
+   - add `/api/keys/rotate`
+   - add `POST /api/keys`
+   - add `DELETE /api/keys/:key_id`
+   - `GET /api/keys` returns fingerprint-first records, for example `{ "fingerprint": "fp_..." }`, with room to extend later
+7. Migration completion and cleanup:
+   - migrate machine clients onto the new public-key flow
+   - remove any remaining tenant-local credential storage used only for legacy machine auth
+   - update docs and tests so Monk presents only one machine-auth story
 
 ## Open Questions
 
-- Should challenge state be persisted for strict single-use semantics, or should the first version accept a short replay window?
-- Should `GET /api/keys` return the stored public key material, or only fingerprints and metadata?
-- For tenants that already have the old `credentials` table, should migration drop it immediately, leave it inert until later cleanup, or transform any of its rows into the new internal key structures?
+- Should the first delivery include explicit principal-to-key binding storage, or can the initial implementation derive that mapping from `tenant_keys.user_id` without a separate internal table?
