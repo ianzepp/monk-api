@@ -1,38 +1,11 @@
 # Agent Instructions
 
-This file contains important instructions for AI agents and assistants working on this project.
-
-## Before Starting Any Task
-
-**REQUIRED READING**: Always read relevant documentation before making assumptions or executing commands.
-
-## Testing
-
-**BEFORE executing, debugging, or modifying ANY tests:**
-- **READ**: `spec/README.md` for complete test infrastructure documentation
-- This includes build process, server lifecycle, proper execution commands, and troubleshooting
-
-## Key Project Patterns
-
-### Build System
-- `bun run build` - Compiles TypeScript application code (src/ → dist/)
-- `bun run build:spec` - Type-checks test files (spec/)
-- These are DIFFERENT and serve different purposes
-
-### Server Environment
-- **Single Server**: Port 9001 (`bun run start`, uses `.env` → `monk` database)
-- All environments use the same port and master `.env` file
-- Use `bun run stop` to kill the server process
-
-### Documentation Location
-- Project documentation is co-located with code, not in a separate docs/ directory
-- Test documentation: `spec/README.md`
-- Route documentation: `src/routes/docs/PUBLIC.md` plus per-route `PUBLIC.md` and `METHOD.md` files under `src/routes/`
-- Check README.md for other documentation references
-
-## General Workflow
-
-1. Read relevant README files for the area you're working on
-2. Check package.json scripts to understand available commands
-3. Verify assumptions by reading existing code/configs
-4. Ask user for clarification before making architectural changes
+- Read the relevant docs before assuming anything.
+- Before tests, read `spec/README.md`.
+- Know the command split:
+  - `bun run build` compiles `src/`
+  - `bun run build:spec` type-checks `spec/`
+- The server runs on port **9001** (`bun run start` / `bun run stop`).
+- Docs live with code: `spec/README.md`, `src/routes/docs/PUBLIC.md`, and per-route docs under `src/routes/`.
+- Check `package.json` and the code/config before changing behavior.
+- Ask before architectural changes.
