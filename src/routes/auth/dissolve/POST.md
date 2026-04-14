@@ -34,9 +34,10 @@ Verifies the supplied credentials the same way `POST /auth/login` does, then ret
 | 400 | `AUTH_TENANT_MISSING` | Missing tenant field |
 | 400 | `AUTH_USERNAME_MISSING` | Missing username field |
 | 400 | `AUTH_PASSWORD_MISSING` | Missing password field |
-| 400 | `AUTH_TENANT_INVALID` | Tenant contains `:` or is not canonical snake_case |
-| 400 | `AUTH_USERNAME_INVALID` | Username contains `:` or is not canonical snake_case |
+| 400 | `AUTH_TENANT_INVALID` | Tenant is not canonical snake_case |
+| 400 | `AUTH_USERNAME_INVALID` | Username is not canonical snake_case |
 | 401 | `AUTH_LOGIN_FAILED` | Invalid credentials or tenant not found |
+| 403 | `AUTH_DISSOLVE_FORBIDDEN` | Authenticated user does not have `root` access |
 | 401 | `AUTH0_*` | Auth0 broker configuration or upstream auth failure |
 
 ## Token Shape

@@ -64,16 +64,16 @@ describe('POST /auth/dissolve - Issue confirmation token', () => {
         expect(response.error_code).toBe('AUTH_PASSWORD_MISSING');
     });
 
-    it('should reject tenant with colon', async () => {
+    it('should reject non-canonical tenant', async () => {
         const client = new HttpClient(BASE_URL);
-        const response = await client.post('/auth/dissolve', { tenant: 'bad:tenant', username: 'root_user', password: 'pw' });
+        const response = await client.post('/auth/dissolve', { tenant: 'Bad Tenant', username: 'root_user', password: 'pw' });
         expect(response.success).toBe(false);
         expect(response.error_code).toBe('AUTH_TENANT_INVALID');
     });
 
-    it('should reject username with colon', async () => {
+    it('should reject non-canonical username', async () => {
         const client = new HttpClient(BASE_URL);
-        const response = await client.post('/auth/dissolve', { tenant: 'good_tenant', username: 'bad:user', password: 'pw' });
+        const response = await client.post('/auth/dissolve', { tenant: 'good_tenant', username: 'Bad-User', password: 'pw' });
         expect(response.success).toBe(false);
         expect(response.error_code).toBe('AUTH_USERNAME_INVALID');
     });
@@ -91,6 +91,34 @@ describe('POST /auth/dissolve - Issue confirmation token', () => {
         const client = new HttpClient(BASE_URL);
         const response = await client.post('/auth/dissolve', { tenant: 'no_such_tenant_xyz', username: 'root_user', password: 'pw' });
         expect(response.success).toBe(false);
+    });
+
+    it('should reject non-root users', async () => {
+        const tenantName = `test_dissolve_nonroot_${Date.now()}`;
+        const password = 'test-password-dissolve';
+
+        // Register the tenant and keep the authenticated root client.
+        const { authClient } = await registerTenant(tenantName, 'root_user', password);
+
+        // Create a non-root user in the tenant.
+        const nonRootCreate = await authClient.client.post('/api/user', {
+            name: 'Regular User',
+            auth: 'regular_user',
+            access: 'read',
+        });
+        expect(nonRootCreate.success).toBe(true);
+
+        // Attempt dissolve as regular_user.
+        // The access-level guard fires BEFORE Auth0 is consulted, so the broker
+        // identity for regular_user in this tenant does not need to exist.
+        const client = new HttpClient(BASE_URL);
+        const response = await client.post('/auth/dissolve', {
+            tenant: tenantName,
+            username: 'regular_user',
+            password,
+        });
+        expect(response.success).toBe(false);
+        expect(response.error_code).toBe('AUTH_DISSOLVE_FORBIDDEN');
     });
 });
 

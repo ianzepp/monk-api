@@ -51,6 +51,17 @@ export default async function (context: Context) {
             throw HttpErrors.badRequest(result.error, result.errorCode);
         }
 
+        if (result.errorCode === 'AUTH_DISSOLVE_FORBIDDEN') {
+            return context.json(
+                {
+                    success: false,
+                    error: result.error,
+                    error_code: result.errorCode,
+                },
+                403
+            );
+        }
+
         return context.json(
             {
                 success: false,
