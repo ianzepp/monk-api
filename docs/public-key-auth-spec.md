@@ -51,7 +51,7 @@ Keep:
 - `/auth/dissolve/confirm`
 - the Auth0-backed username/password login path
 
-Replace over time:
+Strip out before starting new public-key feature work:
 
 - `/api/user/:id/keys`
 - user-scoped API key auth via `X-API-Key` or API-key-shaped bearer tokens
@@ -63,6 +63,7 @@ Be careful when narrowing or deleting the tenant-local `credentials` table and r
 - production Auth0-backed password login does not
 
 The new public-key flow under `/auth/*` and `/api/keys/*` is the target machine credential system in Monk, but it should not be framed as removal of the existing human login path.
+Legacy machine-auth surfaces are intentionally not preserved as a compatibility bridge in this plan.
 
 ## Terminology
 
@@ -503,6 +504,7 @@ Suggested additional claims:
 ## Migration Notes
 
 This plan is additive for human auth and replacement-oriented only for legacy machine API keys.
+Because the legacy key path is not the live protected-route auth mechanism anymore, the spec prefers deleting that overlap first instead of carrying two machine-auth stories during implementation.
 
 Recommended migration shape:
 
@@ -513,22 +515,25 @@ Recommended migration shape:
    - `/auth/dissolve`
    - `/auth/dissolve/confirm`
    - `/api/user/:id/password` unless a separate policy removes it
-2. Add internal tenant tables for:
+2. Strip out legacy machine-auth surfaces that are no longer part of the live auth path:
+   - `/api/user/:id/keys`
+   - any deprecated API-key auth acceptance path or docs implying API-key login support
+   - machine-auth-only `credentials` helpers and route plumbing
+3. Decide whether any remaining non-production local password credential writes keep using `credentials` temporarily, move to a narrower internal mechanism, or are removed outright
+4. Add internal tenant tables for:
    - public key registry
    - auth challenge state
    - principal-to-key bindings or equivalent internal auth mapping
-3. Define and implement how a verified key maps to a tenant-local principal so protected Monk bearer tokens continue to carry user/access/ACL context
-4. Add the bootstrap and exchange flow:
+5. Define and implement how a verified key maps to a tenant-local principal so protected Monk bearer tokens continue to carry user/access/ACL context
+6. Add the bootstrap and exchange flow:
    - `/auth/provision`
    - `/auth/challenge`
    - `/auth/verify`
-5. Add tenant key management:
+7. Add tenant key management:
    - `/api/keys*`
-6. Migrate machine clients off:
-   - `/api/user/:id/keys`
-   - current user-scoped API key auth support
-7. After machine clients are migrated, remove legacy API-key surfaces and any tenant-local credential storage used only for machine auth
-8. Decide separately whether any remaining local password credential writes survive outside development/test, but do not treat that decision as the same question as keeping Auth0-backed username/password login
+8. Migrate machine clients onto the new public-key flow
+9. Remove any remaining tenant-local credential storage used only for legacy machine auth
+10. Decide separately whether any remaining local password credential writes survive outside development/test, but do not treat that decision as the same question as keeping Auth0-backed username/password login
 
 ## Open Questions
 
@@ -540,4 +545,5 @@ Recommended migration shape:
 - Should verified keys map to dedicated service users or to a separate internal principal type?
 - Should `/auth/provision` leave tenants pending until first successful `/auth/verify`, or activate them immediately with a cleanup TTL for abandoned bootstrap attempts?
 - Should tenant-wide key management require root/full only, or should Monk support a narrower key-admin scope?
+- If `/api/user/:id/password` survives for non-production local auth, should it keep using `credentials` or move to a separate internal password-only store?
 - How should existing tenant schemas be migrated if they already contain the old `credentials` table?
