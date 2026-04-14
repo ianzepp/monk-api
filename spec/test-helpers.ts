@@ -8,7 +8,6 @@
 import { randomBytes } from 'crypto';
 import { describe } from 'bun:test';
 import { HttpClient } from './http-client.js';
-import { AuthClient } from './auth-client.js';
 import { TEST_CONFIG } from './test-config.js';
 import { Infrastructure } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
@@ -50,12 +49,12 @@ export class TestHelpers {
     }
 
     /**
-     * Create a test tenant through the current public auth flow.
+     * Create a test tenant directly through infrastructure and mint a Monk bearer token.
      *
-     * The helper supplies a disposable email address because `/auth/register`
-     * now requires `tenant`, `username`, `email`, and `password`.
+     * General API tests should not depend on `/auth/register` or upstream Auth0 state.
+     * Auth route behavior is covered by the dedicated auth specs.
      *
-     * The returned HttpClient automatically includes the cached bearer token in all requests,
+     * The returned HttpClient automatically includes the minted bearer token in all requests,
      * so you don't need to manually add Authorization headers.
      *
      * Template Options:
@@ -131,28 +130,34 @@ export class TestHelpers {
         const random = randomBytes(4).toString('hex');
         const tenantSlug = this.toCanonicalTenantSlug(testName);
         const tenantName = `test_${tenantSlug}_${timestamp}_${random}`;
-
-        const authClient = new AuthClient(TEST_CONFIG.API_URL);
-
-        // Register tenant via AuthClient (automatically caches the returned token)
-        const response = await authClient.register({
-            tenant: tenantName,
-            username: username,
-            email: `${username}@example.com`,
-            password: 'test-password',
+        const result = await Infrastructure.createTenant({
+            name: tenantName,
+            owner_username: username,
+            db_type: dbType,
         });
 
-        if (!response.success) {
-            throw new Error(
-                `Failed to create test tenant '${tenantName}' (${dbType}): ${response.error} (${response.error_code})`
-            );
-        }
+        const token = await JWTGenerator.fromUserAndTenant(
+            {
+                id: result.user.id,
+                auth: result.user.auth,
+                access: result.user.access,
+            },
+            {
+                name: result.tenant.name,
+                tenant_id: result.tenant.id,
+                db_type: result.tenant.db_type,
+                database: result.tenant.database,
+                schema: result.tenant.schema,
+            }
+        );
+        const httpClient = new HttpClient(TEST_CONFIG.API_URL);
+        httpClient.setAuthToken(token);
 
         return {
-            tenantName: response.data!.tenant!,
-            username: response.data!.username!,
-            token: response.data!.token,
-            httpClient: authClient.client,
+            tenantName: result.tenant.name,
+            username: result.user.auth,
+            token,
+            httpClient,
             dbType,
         };
     }

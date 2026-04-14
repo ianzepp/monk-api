@@ -10,7 +10,6 @@ import { BaseObserver } from '@src/lib/observers/base-observer.js';
 import { ObserverRing } from '@src/lib/observers/types.js';
 import { SystemError } from '@src/lib/observers/errors.js';
 import { SqlUtils } from '@src/lib/observers/sql-utils.js';
-import { FilterWhere } from '@src/lib/filter-where.js';
 
 export default class SqlExpireObserver extends BaseObserver {
     readonly ring = ObserverRing.Database;
@@ -25,11 +24,13 @@ export default class SqlExpireObserver extends BaseObserver {
             throw new SystemError('Expire record must have id field');
         }
 
-        // Use FilterWhere for consistent WHERE clause generation
-        const { whereClause, params } = FilterWhere.generate({ id });
-
-        const query = `UPDATE "${model.model_name}" SET deleted_at = NOW(), updated_at = NOW() WHERE ${whereClause} RETURNING *`;
-        const result = await SqlUtils.getPool(system).query(query, params);
+        const query = `
+            UPDATE "${model.model_name}"
+            SET deleted_at = NOW(), updated_at = NOW()
+            WHERE "id" = $1 AND "deleted_at" IS NULL
+            RETURNING *
+        `;
+        const result = await SqlUtils.getPool(system).query(query, [id]);
 
         if (result.rows.length === 0) {
             throw new SystemError(`Expire operation failed - record not found: ${id}`);

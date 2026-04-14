@@ -338,17 +338,19 @@ export class FilterWhere {
         // PostgreSQL array overlap operator: array && ARRAY[values]
         // User has read access if ANY of their IDs overlap with ANY of the access arrays
         // AND none of their IDs are in the deny list
-        const allowParams = userIds.map(id => this.PARAM(id)).join(', ');
-        const denyParams = userIds.map(id => this.PARAM(id)).join(', ');
+        const allowParams = userIds.map(id => `${this.PARAM(id)}::uuid`).join(', ');
+        const denyParams = userIds.map(id => `${this.PARAM(id)}::uuid`).join(', ');
         const hasExplicitAcl = `(
             COALESCE(cardinality("access_read"), 0) > 0 OR
             COALESCE(cardinality("access_edit"), 0) > 0 OR
             COALESCE(cardinality("access_full"), 0) > 0 OR
             COALESCE(cardinality("access_deny"), 0) > 0
         )`;
-        const explicitAllow = `("access_read" && ARRAY[${allowParams}] OR "access_edit" && ARRAY[${allowParams}] OR "access_full" && ARRAY[${allowParams}])`;
+        const allowArray = `ARRAY[${allowParams}]::uuid[]`;
+        const denyArray = `ARRAY[${denyParams}]::uuid[]`;
+        const explicitAllow = `("access_read" && ${allowArray} OR "access_edit" && ${allowArray} OR "access_full" && ${allowArray})`;
         const defaultAllow = roleAtLeast(accessLevel, 'read') ? ` OR NOT ${hasExplicitAcl}` : '';
-        return `(((${explicitAllow}${defaultAllow})) AND NOT ("access_deny" && ARRAY[${denyParams}]))`;
+        return `(((${explicitAllow}${defaultAllow})) AND NOT ("access_deny" && ${denyArray}))`;
     }
 
     /**

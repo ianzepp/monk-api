@@ -150,17 +150,22 @@ describe('Data API ACL mutation enforcement', () => {
 
         const deleteResponse = await fullClient.delete(`/api/data/${model}/${fullRecordId}`);
         expectSuccess(deleteResponse);
-        expect(deleteResponse.data.trashed_at).toBeDefined();
+        const statResponse = await fullClient.get(`/api/stat/${model}/${fullRecordId}`);
+        expectSuccess(statResponse);
+        expect(statResponse.data.trashed_at).toBeDefined();
 
         const revertResponse = await fullClient.post(`/api/trashed/${model}/${fullRecordId}`);
         expectSuccess(revertResponse);
-        expect(revertResponse.data.trashed_at).toBeNull();
+        const revertedStatResponse = await fullClient.get(`/api/stat/${model}/${fullRecordId}`);
+        expectSuccess(revertedStatResponse);
+        expect(revertedStatResponse.data.trashed_at).toBeNull();
 
         const deleteAgainResponse = await fullClient.delete(`/api/data/${model}/${fullRecordId}`);
         expectSuccess(deleteAgainResponse);
 
         const expireResponse = await fullClient.delete(`/api/trashed/${model}/${fullRecordId}`);
         expectSuccess(expireResponse);
-        expect(expireResponse.data.deleted_at).toBeDefined();
+        const expiredStatResponse = await fullClient.request(`/api/stat/${model}/${fullRecordId}`, { method: 'GET' });
+        expect(expiredStatResponse.status).toBe(404);
     });
 });

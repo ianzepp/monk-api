@@ -70,6 +70,8 @@ import SqlUpdate from '@src/observers/all/5/50-sql-update.js';
 import SqlUpdateSqlite from '@src/observers/all/5/50-sql-update-sqlite.js';
 import SqlDelete from '@src/observers/all/5/50-sql-delete.js';
 import SqlDeleteSqlite from '@src/observers/all/5/50-sql-delete-sqlite.js';
+import SqlExpire from '@src/observers/all/5/50-sql-expire.js';
+import SqlExpireSqlite from '@src/observers/all/5/50-sql-expire-sqlite.js';
 import SqlRevert from '@src/observers/all/5/50-sql-revert.js';
 import SqlRevertSqlite from '@src/observers/all/5/50-sql-revert-sqlite.js';
 
@@ -157,6 +159,8 @@ export const observers: Observer[] = [
     new SqlUpdateSqlite(),
     new SqlDelete(),
     new SqlDeleteSqlite(),
+    new SqlExpire(),
+    new SqlExpireSqlite(),
     new SqlRevert(),
     new SqlRevertSqlite(),
 
