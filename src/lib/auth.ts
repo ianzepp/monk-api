@@ -15,7 +15,6 @@ import { systemInitFromJWT, type SystemInit } from '@src/lib/system.js';
 import { Auth0BrokerError, auth0BrokerFromEnv, auth0ScopedIdentity } from '@src/lib/auth0/index.js';
 
 const CANONICAL_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
-const SCOPED_IDENTITY_SEPARATOR = ':';
 
 /**
  * Login request parameters
@@ -76,18 +75,8 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
     if (!password) {
         return failure('Password is required', 'AUTH_PASSWORD_MISSING');
     }
-    if (tenant) {
-        const tenantSeparatorError = disallowScopedIdentitySeparator('Tenant', tenant);
-        if (tenantSeparatorError) {
-            return failure(tenantSeparatorError, 'AUTH_TENANT_INVALID');
-        }
-        if (!isCanonicalName(tenant)) {
-            return failure(canonicalNameMessage('Tenant'), 'AUTH_TENANT_INVALID');
-        }
-    }
-    const usernameSeparatorError = disallowScopedIdentitySeparator('Username', username);
-    if (usernameSeparatorError) {
-        return failure(usernameSeparatorError, 'AUTH_USERNAME_INVALID');
+    if (tenant && !isCanonicalName(tenant)) {
+        return failure(canonicalNameMessage('Tenant'), 'AUTH_TENANT_INVALID');
     }
     if (!isCanonicalName(username)) {
         return failure(canonicalNameMessage('Username'), 'AUTH_USERNAME_INVALID');
@@ -168,16 +157,8 @@ export async function register(
     if (!password) {
         return failure('Password is required', 'AUTH_PASSWORD_MISSING');
     }
-    const tenantSeparatorError = disallowScopedIdentitySeparator('Tenant', tenant);
-    if (tenantSeparatorError) {
-        return failure(tenantSeparatorError, 'AUTH_TENANT_INVALID');
-    }
     if (!isCanonicalName(tenant)) {
         return failure(canonicalNameMessage('Tenant'), 'AUTH_TENANT_INVALID');
-    }
-    const usernameSeparatorError = disallowScopedIdentitySeparator('Username', username);
-    if (usernameSeparatorError) {
-        return failure(usernameSeparatorError, 'AUTH_USERNAME_INVALID');
     }
     if (!isCanonicalName(username)) {
         return failure(canonicalNameMessage('Username'), 'AUTH_USERNAME_INVALID');
@@ -360,12 +341,6 @@ function canonicalNameMessage(label: string): string {
     return `${label} must be snake_case, start with a letter, and contain only lowercase letters, numbers, and underscores`;
 }
 
-function disallowScopedIdentitySeparator(label: string, value: string): string | null {
-    if (value.includes(SCOPED_IDENTITY_SEPARATOR)) {
-        return `${label} must not contain '${SCOPED_IDENTITY_SEPARATOR}'`;
-    }
-    return null;
-}
 
 /**
  * Dissolve request parameters
@@ -443,18 +418,10 @@ export async function dissolve(
         return dissolveFailure('Password is required', 'AUTH_PASSWORD_MISSING');
     }
 
-    const tenantSeparatorError = disallowScopedIdentitySeparator('Tenant', tenant);
-    if (tenantSeparatorError) {
-        return dissolveFailure(tenantSeparatorError, 'AUTH_TENANT_INVALID');
-    }
     if (!isCanonicalName(tenant)) {
         return dissolveFailure(canonicalNameMessage('Tenant'), 'AUTH_TENANT_INVALID');
     }
 
-    const usernameSeparatorError = disallowScopedIdentitySeparator('Username', username);
-    if (usernameSeparatorError) {
-        return dissolveFailure(usernameSeparatorError, 'AUTH_USERNAME_INVALID');
-    }
     if (!isCanonicalName(username)) {
         return dissolveFailure(canonicalNameMessage('Username'), 'AUTH_USERNAME_INVALID');
     }
@@ -467,6 +434,10 @@ export async function dissolve(
     const user = await getTenantUserByAuth(tenantRecord, username);
     if (!user) {
         return dissolveFailure('Authentication failed', 'AUTH_LOGIN_FAILED');
+    }
+
+    if (user.access !== 'root') {
+        return dissolveFailure('Only root users may dissolve a tenant', 'AUTH_DISSOLVE_FORBIDDEN');
     }
 
     try {

@@ -62,30 +62,6 @@ describe('POST /auth/register - Register New Tenant', () => {
         expect(response.error_code).toBe('AUTH_TENANT_INVALID');
     });
 
-    it('should reject tenant and username values containing colons', async () => {
-        const authClient = new AuthClient();
-
-        const tenantResponse = await authClient.register({
-            tenant: `bad:tenant_${Date.now()}`,
-            username: 'root_user',
-            email: 'root_user@example.com',
-            password: 'test-password-3',
-        });
-
-        expect(tenantResponse.success).toBe(false);
-        expect(tenantResponse.error_code).toBe('AUTH_TENANT_INVALID');
-
-        const usernameResponse = await authClient.register({
-            tenant: `test_register_colon_${Date.now()}`,
-            username: 'bad:user',
-            email: 'root_user@example.com',
-            password: 'test-password-3',
-        });
-
-        expect(usernameResponse.success).toBe(false);
-        expect(usernameResponse.error_code).toBe('AUTH_USERNAME_INVALID');
-    });
-
     it('should reject missing email field', async () => {
         const authClient = new AuthClient();
 
