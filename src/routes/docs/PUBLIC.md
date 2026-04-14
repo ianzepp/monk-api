@@ -8,13 +8,15 @@
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
 | **Health Check** | `/health` | System health status and uptime |
-| **Public Auth** | `/auth/*` | Auth0-backed tenant provisioning and Monk token issuance |
+| **Public Auth** | `/auth/*` | Human login/register plus machine provision, challenge, and verify |
 | **Documentation** | `/docs/*` | Self-documenting API reference |
+| **Root Entry** | `/`, `/llms.txt`, `/index.html`, `/index.css` | Human and agent landing surfaces |
 
-### Protected Routes (Monk Bearer Token or API Key Required)
+### Protected Routes (Monk Bearer Token Required)
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
 | **User API** | `/api/user/*` | User identity and tenant user management |
+| **Keys API** | `/api/keys*` | Tenant-bound machine key lifecycle management |
 | **Data API** | `/api/data/:model[/:id]` | CRUD operations for model records |
 | **Describe API** | `/api/describe/:model[/fields[/:field]]` | Model definition and field management |
 | **Find API** | `/api/find/:model` | Advanced search and filtering with 25+ operators |
@@ -40,14 +42,20 @@
 ## Authentication Model
 
 ### Production Auth
-1. **Public Access**: Documentation and tenant provisioning boundary (`/auth/register`)
+1. **Public Access**: Documentation plus auth bootstrap/exchange routes under `/auth/*`
 2. **Protected Access**: Monk bearer token minted by Monk
 3. **Authorization Source**: Monk tenant registry and tenant-local user state
 
 ### Auth Flow
-- Clients send tenant-scoped credentials to Monk on `/auth/register` or `/auth/login`.
-- Monk uses Auth0 as the upstream identity and secrets broker for registration and password verification.
-- Monk provisions or resolves Monk-local tenant and user state, then mints the bearer token used on protected Monk routes.
+- Human flow:
+  - `POST /auth/register` provisions a pending tenant and root user
+  - `POST /auth/login` verifies credentials through Auth0 and mints the Monk bearer token
+  - `POST /auth/refresh` refreshes only human login tokens
+- Machine flow:
+  - `POST /auth/provision` provisions a pending tenant, root user, and first public key
+  - `POST /auth/challenge` issues a short-lived single-use challenge
+  - `POST /auth/verify` verifies proof of possession and mints a short-lived Monk bearer token
+  - `GET|POST|DELETE /api/keys*` manages tenant-bound machine keys after bootstrap
 - Protected Monk routes authorize against Monk-owned tenant routing, access, ACL arrays, and sudo state rather than trusting upstream role claims.
 
 ### Authentication Header
@@ -78,6 +86,7 @@ If a guessed path 404s, use the overview page listed here and then follow the li
 ### Overview pages
 - `/docs` → API discovery
 - `/docs/auth` → authentication
+- `/docs/api/keys` → keys API
 - `/docs/api/data` → data API
 - `/docs/api/describe` → describe API
 - `/docs/api/find` → find API
@@ -106,6 +115,12 @@ If a guessed path 404s, use the overview page listed here and then follow the li
 - `/docs/api/describe/model/fields/field/DELETE`
 - `/docs/api/find/model/POST`
 - `/docs/api/find/model/target/GET`
+- `/docs/auth/register/POST`
+- `/docs/auth/login/POST`
+- `/docs/auth/provision/POST`
+- `/docs/auth/challenge/POST`
+- `/docs/auth/verify/POST`
+- `/docs/auth/refresh/POST`
 - `/docs/api/cron/GET`
 - `/docs/api/cron/POST`
 - `/docs/api/cron/pid/GET`
@@ -113,6 +128,7 @@ If a guessed path 404s, use the overview page listed here and then follow the li
 - `/docs/api/cron/pid/DELETE`
 - `/docs/api/cron/pid/enable/POST`
 - `/docs/api/cron/pid/disable/POST`
+- `/docs/api/keys`
 
 ---
 
@@ -133,6 +149,8 @@ Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authenticat
 - Quick start guides
 
 **Available API Documentation**:
+- `/docs/auth` - Human and machine authentication
+- `/docs/api/keys` - Machine key lifecycle management
 - `/docs/api/describe` - Model and field management
 - `/docs/api/data` - CRUD operations on records
 - `/docs/api/find` - Advanced querying with filters
@@ -141,7 +159,6 @@ Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authenticat
 - `/docs/api/acls` - Access control management
 - `/docs/api/stat` - Record metadata access
 - `/docs/api/tracked` - Change tracking and audit trails
-- `/docs/auth` - Authentication and tenant provisioning
 - `/docs/api/user` - User account management
 - `/docs/api/trashed` - Trashed record management
 - `/docs/api/cron` - Scheduled process management
@@ -189,6 +206,15 @@ GET    /api/data/:model/:id/:relationship → /docs/api/data/model/id/relationsh
 GET    /auth/login                        → /docs/auth/login/GET
 POST   /auth/login                        → /docs/auth/login/POST
 POST   /auth/register                     → /docs/auth/register/POST
+POST   /auth/provision                    → /docs/auth/provision/POST
+POST   /auth/challenge                    → /docs/auth/challenge/POST
+POST   /auth/verify                       → /docs/auth/verify/POST
+POST   /auth/refresh                      → /docs/auth/refresh/POST
+
+GET    /api/keys                          → /docs/api/keys
+POST   /api/keys                          → /docs/api/keys
+POST   /api/keys/rotate                   → /docs/api/keys
+DELETE /api/keys/:key_id                  → /docs/api/keys
 ```
 
 **Exploration Workflow**:
@@ -201,8 +227,9 @@ POST   /auth/register                     → /docs/auth/register/POST
 ## Documentation Guide
 
 ### Getting Started Documentation
-- **Token Operations**: `/docs/auth` - Login, register, refresh workflows
+- **Token Operations**: `/docs/auth` - Human login/register plus machine provision/challenge/verify
 - **User Management**: `/docs/api/user` - Account management and privilege escalation
+- **Machine Keys**: `/docs/api/keys` - Add, rotate, list, and revoke tenant-bound machine keys
 
 ### Core API Documentation
 - **Data Management**: `/docs/api/data` - CRUD operations and record management
@@ -242,10 +269,11 @@ POST   /auth/register                     → /docs/auth/register/POST
 1. **Health Check**: `GET /health` to verify system status
 2. **Explore APIs**: `GET /` to discover available endpoints and documentation
 3. **Authentication**: Follow `/docs/auth` to provision a tenant and mint a Monk bearer token for protected routes
-4. **Model Setup**: Use `/docs/api/describe` to define your data structures
-5. **Data Operations**: Use `/docs/api/data` for standard CRUD operations
-6. **Advanced Features**: Explore `/docs/api/find`, `/docs/api/aggregate`, `/docs/api/bulk` for sophisticated data access
-7. **Security & Auditing**: Use `/docs/api/acls` for permissions and `/docs/api/tracked` for audit trails
+4. **Machine Auth**: Use `/docs/auth` and `/docs/api/keys` for tenant-bound public-key bootstrap and rotation
+5. **Model Setup**: Use `/docs/api/describe` to define your data structures
+6. **Data Operations**: Use `/docs/api/data` for standard CRUD operations
+7. **Advanced Features**: Explore `/docs/api/find`, `/docs/api/aggregate`, `/docs/api/bulk` for sophisticated data access
+8. **Security & Auditing**: Use `/docs/api/acls` for permissions and `/docs/api/tracked` for audit trails
 
 ## Response Format
 

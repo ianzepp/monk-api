@@ -32,10 +32,17 @@
             track changes, manage access control, and move files — all without
             writing server-side code.
           </p>
+          <p class="lede">
+            Machine-native bootstrap is first-class:
+            <code>POST /auth/provision</code>,
+            sign the challenge,
+            <code>POST /auth/verify</code>,
+            then manage tenant keys through <code>/api/keys</code>.
+          </p>
 
           <div class="actions">
             <a class="button primary" href="/llms.txt">Read /llms.txt</a>
-            <a class="button" href="/docs">Browse /docs</a>
+            <a class="button" href="/docs/auth">Browse /docs/auth</a>
           </div>
         </div>
 
@@ -45,6 +52,7 @@
             <li><span>Agent primer</span><code><a href="/llms.txt">/llms.txt</a></code></li>
             <li><span>API overview</span><code><a href="/docs">/docs</a></code></li>
             <li><span>Auth</span><code><a href="/docs/auth">/docs/auth</a></code></li>
+            <li><span>Keys</span><code><a href="/docs/api/keys">/docs/api/keys</a></code></li>
             <li><span>Health</span><code><a href="/health">/health</a></code></li>
           </ul>
           <p class="panel-note">
@@ -87,13 +95,15 @@
         </article>
 
         <article>
-          <h2>Request rules</h2>
+          <h2>Auth entrypoints</h2>
           <ul>
-            <li>Register a new tenant via <code>POST /auth/register</code>.</li>
-            <li>Authenticate via <code>POST /auth/login</code> to get a JWT.</li>
-            <li>Pass it as <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+            <li>Human bootstrap starts at <code>POST /auth/register</code> and continues with <code>POST /auth/login</code>.</li>
+            <li>Machine bootstrap starts at <code>POST /auth/provision</code> and continues with <code>POST /auth/verify</code>.</li>
+            <li><code>POST /auth/challenge</code> re-authenticates an existing tenant-bound key.</li>
+            <li><code>/api/keys</code> lists, adds, rotates, and revokes tenant-bound machine keys.</li>
+            <li><code>POST /auth/refresh</code> is reserved for the human login flow.</li>
             <li>Use exact documented route shapes; do not infer shortcuts.</li>
-            <li>Read <code>/docs/:api</code> before composing write requests.</li>
+            <li>Read <code>/docs/auth</code> and <code>/docs/:api</code> before composing write requests.</li>
             <li><code>/auth/*</code> and <code>/docs/*</code> are public — no token needed.</li>
           </ul>
         </article>

@@ -14,18 +14,19 @@ If you are a human or an LLM landing on the API, read these in order:
 
 1. [API overview](/docs)
 2. [Authentication](/docs/auth)
-3. [Data API](/docs/api/data)
-4. [Describe API](/docs/api/describe)
-5. [Find API](/docs/api/find)
-6. [Aggregate API](/docs/api/aggregate)
-7. [Bulk API](/docs/api/bulk)
-8. [ACLs API](/docs/api/acls)
-9. [Stat API](/docs/api/stat)
-10. [Tracked API](/docs/api/tracked)
-11. [Trashed API](/docs/api/trashed)
-12. [Cron API](/docs/api/cron)
-13. [User API](/docs/api/user)
-14. [Filesystem API](/docs/fs)
+3. [Keys API](/docs/api/keys)
+4. [Data API](/docs/api/data)
+5. [Describe API](/docs/api/describe)
+6. [Find API](/docs/api/find)
+7. [Aggregate API](/docs/api/aggregate)
+8. [Bulk API](/docs/api/bulk)
+9. [ACLs API](/docs/api/acls)
+10. [Stat API](/docs/api/stat)
+11. [Tracked API](/docs/api/tracked)
+12. [Trashed API](/docs/api/trashed)
+13. [Cron API](/docs/api/cron)
+14. [User API](/docs/api/user)
+15. [Filesystem API](/docs/fs)
 
 ## What Monk API does
 
@@ -43,12 +44,26 @@ Monk API provides:
 
 ## Common workflow
 
-1. Create or select a tenant.
-2. Use `/api/describe/*` to define or inspect models.
-3. Use `/api/data/*` to create and update records.
-4. Use `/api/find/*` and `/api/aggregate/*` for query and analysis.
-5. Use `/api/tracked/*`, `/api/stat/*`, `/api/trashed/*`, and `/api/cron/*` for audit, lifecycle, and scheduled jobs.
-6. Use `/fs/*` for tenant-scoped files.
+### Human tenant bootstrap
+
+1. `POST /auth/register`
+2. `POST /auth/login`
+3. Use the returned bearer token on protected routes
+
+### Machine tenant bootstrap
+
+1. `POST /auth/provision`
+2. Sign the returned challenge nonce
+3. `POST /auth/verify`
+4. Use `GET /api/keys`, `POST /api/keys`, `POST /api/keys/rotate`, and `DELETE /api/keys/:key_id` to manage machine credentials
+
+### Tenant work
+
+1. Use `/api/describe/*` to define or inspect models.
+2. Use `/api/data/*` to create and update records.
+3. Use `/api/find/*` and `/api/aggregate/*` for query and analysis.
+4. Use `/api/tracked/*`, `/api/stat/*`, `/api/trashed/*`, and `/api/cron/*` for audit, lifecycle, and scheduled jobs.
+5. Use `/fs/*` for tenant-scoped files.
 
 ## Authentication
 
@@ -61,15 +76,43 @@ Authorization: Bearer <token>
 Public routes do not require authentication:
 
 - `/`
+- `/index.html`
+- `/index.css`
 - `/llms.txt`
 - `/health`
-- `/auth/*`
+- `/auth/register`
+- `/auth/login`
+- `/auth/provision`
+- `/auth/challenge`
+- `/auth/verify`
+- `/auth/refresh`
+- `/auth/tenants`
+- `/auth/dissolve`
+- `/auth/dissolve/confirm`
+- `/docs`
 - `/docs/*`
+
+Protected route families require a Monk bearer token:
+
+- `/api/user/*`
+- `/api/keys*`
+- `/api/data/*`
+- `/api/describe/*`
+- `/api/find/*`
+- `/api/aggregate/*`
+- `/api/bulk*`
+- `/api/acls/*`
+- `/api/stat/*`
+- `/api/tracked/*`
+- `/api/trashed/*`
+- `/api/cron/*`
+- `/fs/*`
 
 ## Example
 
 ```bash
 curl http://localhost:9001/docs/api/data
+curl http://localhost:9001/docs/api/keys
 curl http://localhost:9001/docs/api/cron
 curl -X GET http://localhost:9001/api/describe/users \
   -H "Authorization: Bearer <token>"
