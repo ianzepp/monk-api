@@ -101,6 +101,28 @@ describe('User API', () => {
         });
     });
 
+    describe('GET /api/user - List Users', () => {
+        it('should list tenant users for sudo callers without order parsing errors', async () => {
+            const response = await tenant.httpClient.get('/api/user?limit=1');
+
+            expectSuccess(response);
+            expect(Array.isArray(response.data)).toBe(true);
+            expect(response.data).toHaveLength(1);
+            expect(response.data[0].id).toBeDefined();
+            expect(response.data[0].auth).toBeDefined();
+        });
+    });
+
+    describe('GET /api/user/:id - User Lookup', () => {
+        it('should return a not found error for non-UUID identifiers', async () => {
+            const response = await tenant.httpClient.get('/api/user/does-not-exist');
+
+            expectError(response);
+            expect(response.error_code).toBe('USER_NOT_FOUND');
+            expect(response.error).toBe('User not found');
+        });
+    });
+
     describe('PUT /api/user/me - Update Profile', () => {
         it('should allow updating user name', async () => {
             const newName = `Updated Name ${Date.now()}`;
