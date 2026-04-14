@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS "tenants" (
     "db_type" VARCHAR(20) DEFAULT 'postgresql' NOT NULL CHECK ("db_type" IN ('postgresql', 'sqlite')),
     "database" VARCHAR(255) NOT NULL,
     "schema" VARCHAR(255) NOT NULL,
+    "status" VARCHAR(20) DEFAULT 'active' NOT NULL CHECK ("status" IN ('pending', 'active', 'suspended', 'dissolving', 'deleted')),
     "template_version" INTEGER DEFAULT 1 NOT NULL,
     "description" TEXT,
     "source_template" VARCHAR(255),

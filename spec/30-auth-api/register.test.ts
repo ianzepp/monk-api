@@ -19,9 +19,9 @@ describe('POST /auth/register - Register New Tenant', () => {
 
         expectSuccess(response);
         expect(response.data!.tenant).toBeDefined();
-        expect(response.data!.token).toBeDefined();
         expect(response.data!.username).toBe('root_user');
-        expect(response.data!.expires_in).toBeDefined();
+        expect(response.data!.status).toBe('pending');
+        expect(response.data!.token).toBeUndefined();
     });
 
     it('should reject duplicate tenant name', async () => {

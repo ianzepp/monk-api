@@ -24,6 +24,7 @@ import * as docsRoutes from '@src/routes/docs/routes.js';
 import * as trackedRoutes from '@src/routes/api/tracked/routes.js';
 import * as trashedRoutes from '@src/routes/api/trashed/routes.js';
 import * as cronRoutes from '@src/routes/api/cron/routes.js';
+import * as keyRoutes from '@src/routes/api/keys/routes.js';
 import * as fsRoutes from '@src/routes/fs/routes.js';
 
 // Public endpoints
@@ -118,6 +119,9 @@ export function createHttpApp(): Hono {
     app.get('/auth/tenants', authRoutes.TenantsGet);
     app.post('/auth/dissolve', authRoutes.DissolvePost);
     app.post('/auth/dissolve/confirm', authRoutes.DissolveConfirmPost);
+    app.post('/auth/provision', authRoutes.ProvisionPost);
+    app.post('/auth/challenge', authRoutes.ChallengePost);
+    app.post('/auth/verify', authRoutes.VerifyPost);
 
     // Describe API routes
     app.get('/api/describe', describeRoutes.ModelList);
@@ -166,6 +170,12 @@ export function createHttpApp(): Hono {
     app.post('/api/bulk', BulkPost);
     app.post('/api/bulk/export', BulkExportPost);
     app.post('/api/bulk/import', BulkImportPost);
+
+    // Machine key management routes
+    app.get('/api/keys', keyRoutes.KeysList);
+    app.post('/api/keys', keyRoutes.KeysPost);
+    app.post('/api/keys/rotate', keyRoutes.KeysRotatePost);
+    app.delete('/api/keys/:key_id', keyRoutes.KeysDelete);
 
     // User API routes
     app.get('/api/user', userRoutes.UserList);

@@ -82,6 +82,9 @@ export default async function (context: Context) {
         exp: Math.floor(Date.now() / 1000) + JWT_DEFAULT_EXPIRY,
         is_sudo: user.access === 'root',
         ...(payload.format && { format: payload.format }),
+        ...(payload.auth_type && { auth_type: payload.auth_type }),
+        ...(payload.key_id && { key_id: payload.key_id }),
+        ...(payload.key_fingerprint && { key_fingerprint: payload.key_fingerprint }),
     };
 
     const newToken = await sign(newPayload, process.env.JWT_SECRET!);

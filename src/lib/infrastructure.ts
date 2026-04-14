@@ -179,10 +179,13 @@ export interface TenantRecord {
     database: string;
     schema: string;
     owner_id: string;
+    status: TenantStatus;
     is_active: boolean;
     created_at: string;
     updated_at: string;
 }
+
+export type TenantStatus = 'pending' | 'active' | 'suspended' | 'dissolving' | 'deleted';
 
 export interface UserRecord {
     id: string;
@@ -237,6 +240,7 @@ export class Infrastructure {
             } else {
                 await adapter.query(schema);
             }
+            await this.ensureTenantLifecycleSchema(adapter, config.dbType);
         } finally {
             await adapter.disconnect();
         }
@@ -260,40 +264,62 @@ export class Infrastructure {
     }
 
     static async getTenant(tenantName: string): Promise<TenantRecord | null> {
+        return await this.getTenantWithStatuses(tenantName, ['active']);
+    }
+
+    static async getTenantWithStatuses(
+        tenantName: string,
+        statuses: TenantStatus[]
+    ): Promise<TenantRecord | null> {
         const adapter = await this.getAdapter();
         await adapter.connect();
         try {
+            await this.ensureTenantLifecycleSchema(adapter, parseInfraConfig().dbType);
+            const placeholders = statuses.map((_, index) => `$${index + 2}`).join(', ');
             const result = await adapter.query<TenantRecord>(
-                `SELECT id, name, db_type, database, schema, owner_id, is_active, created_at, updated_at
+                `SELECT id, name, db_type, database, schema, owner_id, status, is_active, created_at, updated_at
                  FROM tenants
-                 WHERE name = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL`,
-                [tenantName]
+                 WHERE name = $1
+                   AND status IN (${placeholders})
+                   AND trashed_at IS NULL
+                   AND deleted_at IS NULL`,
+                [tenantName, ...statuses]
             );
             if (result.rows.length === 0) {
                 return null;
             }
-            const row = result.rows[0];
-            return { ...row, is_active: Boolean(row.is_active) };
+            return this.normalizeTenantRow(result.rows[0]);
         } finally {
             await adapter.disconnect();
         }
     }
 
     static async getTenantById(tenantId: string): Promise<TenantRecord | null> {
+        return await this.getTenantByIdWithStatuses(tenantId, ['active']);
+    }
+
+    static async getTenantByIdWithStatuses(
+        tenantId: string,
+        statuses: TenantStatus[]
+    ): Promise<TenantRecord | null> {
         const adapter = await this.getAdapter();
         await adapter.connect();
         try {
+            await this.ensureTenantLifecycleSchema(adapter, parseInfraConfig().dbType);
+            const placeholders = statuses.map((_, index) => `$${index + 2}`).join(', ');
             const result = await adapter.query<TenantRecord>(
-                `SELECT id, name, db_type, database, schema, owner_id, is_active, created_at, updated_at
+                `SELECT id, name, db_type, database, schema, owner_id, status, is_active, created_at, updated_at
                  FROM tenants
-                 WHERE id = $1 AND is_active = true AND trashed_at IS NULL AND deleted_at IS NULL`,
-                [tenantId]
+                 WHERE id = $1
+                   AND status IN (${placeholders})
+                   AND trashed_at IS NULL
+                   AND deleted_at IS NULL`,
+                [tenantId, ...statuses]
             );
             if (result.rows.length === 0) {
                 return null;
             }
-            const row = result.rows[0];
-            return { ...row, is_active: Boolean(row.is_active) };
+            return this.normalizeTenantRow(result.rows[0]);
         } finally {
             await adapter.disconnect();
         }
@@ -304,6 +330,7 @@ export class Infrastructure {
         db_type?: DatabaseType;
         owner_username?: string;
         description?: string;
+        status?: TenantStatus;
     }): Promise<CreateTenantResult> {
         const config = parseInfraConfig();
         const dbType = options.db_type || config.dbType;
@@ -321,6 +348,7 @@ export class Infrastructure {
             schemaName: `ns_tenant_${tenantName}`,
             database: config.database,
             description: options.description || null,
+            status: options.status || 'active',
         };
 
         let attempt = 0;
@@ -360,6 +388,7 @@ export class Infrastructure {
         schemaName: string;
         database: string;
         description: string | null;
+        status: TenantStatus;
     }): Promise<CreateTenantResult> {
         const { createAdapterFrom } = await import('./database/index.js');
         const infraAdapter = createAdapterFrom(params.dbType, params.database, 'public');
@@ -369,6 +398,7 @@ export class Infrastructure {
 
         await infraAdapter.connect();
         try {
+            await this.ensureTenantLifecycleSchema(infraAdapter, params.dbType);
             if (params.dbType === 'sqlite') {
                 await infraAdapter.query('PRAGMA busy_timeout = 5000');
                 await infraAdapter.query('BEGIN IMMEDIATE');
@@ -379,8 +409,8 @@ export class Infrastructure {
             const timestamp = new Date().toISOString();
             try {
                 await infraAdapter.query(
-                    `INSERT INTO tenants (id, name, db_type, database, schema, owner_id, is_active, description, created_at, updated_at)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                    `INSERT INTO tenants (id, name, db_type, database, schema, owner_id, status, is_active, description, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
                     [
                         tenantId,
                         params.tenantName,
@@ -388,7 +418,8 @@ export class Infrastructure {
                         params.database,
                         params.schemaName,
                         params.ownerUserId,
-                        false,
+                        params.status,
+                        params.status === 'active',
                         params.description,
                         timestamp,
                         timestamp,
@@ -413,8 +444,7 @@ export class Infrastructure {
 
             await infraAdapter.query(
                 `UPDATE tenants
-                 SET is_active = true,
-                     owner_id = $1,
+                 SET owner_id = $1,
                      updated_at = CURRENT_TIMESTAMP
                  WHERE id = $2`,
                 [deployedOwnerUserId, tenantId]
@@ -434,7 +464,8 @@ export class Infrastructure {
                     database: params.database,
                     schema: params.schemaName,
                     owner_id: deployedOwnerUserId,
-                    is_active: true,
+                    status: params.status,
+                    is_active: params.status === 'active',
                     created_at: timestamp,
                     updated_at: new Date().toISOString(),
                 },
@@ -492,12 +523,32 @@ export class Infrastructure {
         const adapter = await this.getAdapter();
         await adapter.connect();
         try {
+            await this.ensureTenantLifecycleSchema(adapter, parseInfraConfig().dbType);
             const timestamp = new Date().toISOString();
             const result = await adapter.query(
                 `UPDATE tenants
-                 SET deleted_at = $1, is_active = false, updated_at = $2
+                 SET deleted_at = $1, status = 'deleted', is_active = false, updated_at = $2
                  WHERE name = $3 AND deleted_at IS NULL`,
                 [timestamp, timestamp, tenantName]
+            );
+            return result.rowCount > 0;
+        } finally {
+            await adapter.disconnect();
+        }
+    }
+
+    static async updateTenantStatus(tenantId: string, status: TenantStatus): Promise<boolean> {
+        const adapter = await this.getAdapter();
+        await adapter.connect();
+        try {
+            await this.ensureTenantLifecycleSchema(adapter, parseInfraConfig().dbType);
+            const result = await adapter.query(
+                `UPDATE tenants
+                 SET status = $1,
+                     is_active = $2,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $3 AND deleted_at IS NULL`,
+                [status, status === 'active', tenantId]
             );
             return result.rowCount > 0;
         } finally {
@@ -509,13 +560,14 @@ export class Infrastructure {
         const adapter = await this.getAdapter();
         await adapter.connect();
         try {
+            await this.ensureTenantLifecycleSchema(adapter, parseInfraConfig().dbType);
             const result = await adapter.query<TenantRecord>(
-                `SELECT id, name, db_type, database, schema, owner_id, is_active, created_at, updated_at
+                `SELECT id, name, db_type, database, schema, owner_id, status, is_active, created_at, updated_at
                  FROM tenants
-                 WHERE is_active = true AND trashed_at IS NULL AND deleted_at IS NULL
+                 WHERE status = 'active' AND trashed_at IS NULL AND deleted_at IS NULL
                  ORDER BY created_at DESC`
             );
-            return result.rows.map(row => ({ ...row, is_active: Boolean(row.is_active) }));
+            return result.rows.map(row => this.normalizeTenantRow(row));
         } finally {
             await adapter.disconnect();
         }
@@ -655,5 +707,59 @@ export class Infrastructure {
                 rmSync(target, { force: true });
             }
         }
+    }
+
+    private static normalizeTenantRow(row: TenantRecord): TenantRecord {
+        return {
+            ...row,
+            status: row.status || (row.is_active ? 'active' : 'deleted'),
+            is_active: Boolean(row.is_active),
+        };
+    }
+
+    private static async ensureTenantLifecycleSchema(
+        adapter: DatabaseAdapter,
+        dbType: DatabaseType
+    ): Promise<void> {
+        if (dbType === 'sqlite') {
+            const columnResult = await adapter.query<{ name: string }>(
+                `SELECT name FROM pragma_table_info('tenants') WHERE name = 'status'`
+            );
+            const hasStatus = columnResult.rows.some((row: any) => row.name === 'status');
+            if (!hasStatus) {
+                await adapter.query(
+                    `ALTER TABLE tenants ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
+                     CHECK (status IN ('pending', 'active', 'suspended', 'dissolving', 'deleted'))`
+                );
+            }
+            await adapter.query(
+                `UPDATE tenants
+                 SET status = CASE WHEN is_active = 1 THEN 'active' ELSE 'deleted' END
+                 WHERE status IS NULL OR status = ''`
+            );
+            await adapter.query(`CREATE INDEX IF NOT EXISTS "idx_tenants_name_status" ON "tenants" ("name", "status")`);
+            return;
+        }
+
+        const columnResult = await adapter.query<{ column_name: string }>(
+            `SELECT column_name
+             FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'tenants' AND column_name = 'status'`
+        );
+        if (columnResult.rows.length === 0) {
+            await adapter.query(
+                `ALTER TABLE tenants
+                 ADD COLUMN status VARCHAR(20)
+                 CHECK (status IN ('pending', 'active', 'suspended', 'dissolving', 'deleted'))`
+            );
+        }
+        await adapter.query(
+            `UPDATE tenants
+             SET status = CASE WHEN is_active = true THEN 'active' ELSE 'deleted' END
+             WHERE status IS NULL OR status = ''`
+        );
+        await adapter.query(`ALTER TABLE tenants ALTER COLUMN status SET DEFAULT 'active'`);
+        await adapter.query(`ALTER TABLE tenants ALTER COLUMN status SET NOT NULL`);
+        await adapter.query(`CREATE INDEX IF NOT EXISTS "idx_tenants_name_status" ON "tenants" ("name", "status")`);
     }
 }

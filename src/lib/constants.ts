@@ -24,6 +24,16 @@ export const SQL_MAX_RECURSION = 3;
 export const JWT_DEFAULT_EXPIRY = 7 * 24 * 60 * 60;
 
 /**
+ * Public-key auth bearer token expiry in seconds (1 hour)
+ */
+export const JWT_PUBLIC_KEY_EXPIRY = 60 * 60;
+
+/**
+ * Public-key auth challenge expiry in seconds (5 minutes)
+ */
+export const AUTH_CHALLENGE_EXPIRY = 5 * 60;
+
+/**
  * Dissolve-confirmation JWT expiry in seconds (5 minutes)
  */
 export const JWT_DISSOLVE_EXPIRY = 5 * 60;

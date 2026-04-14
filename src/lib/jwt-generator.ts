@@ -144,6 +144,10 @@ export class JWTGenerator {
         return await sign(payload, this.getJwtSecret(), JWT_ALGORITHM);
     }
 
+    static async signPayload(payload: JWTPayload): Promise<string> {
+        return await sign(payload, this.getJwtSecret(), JWT_ALGORITHM);
+    }
+
     /**
      * Generate sudo (elevated privileges) token
      *

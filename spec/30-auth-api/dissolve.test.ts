@@ -19,7 +19,9 @@ async function registerTenant(tenant: string, username = 'root_user', password =
         password,
     });
     expectSuccess(response);
-    return { authClient, token: response.data!.token };
+    const loginResponse = await authClient.login({ tenant, username, password });
+    expectSuccess(loginResponse);
+    return { authClient, token: loginResponse.data!.token };
 }
 
 // ---------------------------------------------------------------------------

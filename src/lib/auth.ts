@@ -6,7 +6,7 @@
  * Auth0 verification and local tenant/user resolution.
  */
 
-import { Infrastructure, type TenantRecord } from '@src/lib/infrastructure.js';
+import { Infrastructure, type TenantRecord, type TenantStatus } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
 import { JWTGenerator, type JWTPayload, type DissolveTokenPayload } from '@src/lib/jwt-generator.js';
@@ -83,8 +83,8 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
     }
 
     const tenantRecord = tenantId
-        ? await Infrastructure.getTenantById(tenantId)
-        : await Infrastructure.getTenant(tenant!);
+        ? await Infrastructure.getTenantByIdWithStatuses(tenantId, ['pending', 'active'])
+        : await Infrastructure.getTenantWithStatuses(tenant!, ['pending', 'active']);
     if (!tenantRecord) {
         return failure('Authentication failed', 'AUTH_LOGIN_FAILED');
     }
@@ -102,6 +102,12 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
             return failure(error.message, error.code);
         }
         throw error;
+    }
+
+    if (tenantRecord.status === 'pending') {
+        await Infrastructure.updateTenantStatus(tenantRecord.id, 'active');
+        tenantRecord.status = 'active';
+        tenantRecord.is_active = true;
     }
 
     return await createLoginResult(tenantRecord, user);
@@ -125,7 +131,7 @@ export interface RegisterResult {
     tenant: string;
     tenantId: string;
     username: string;
-    token: string;
+    status: TenantStatus;
 }
 
 /**
@@ -167,7 +173,10 @@ export async function register(
         return failure('Email must be a valid email address', 'AUTH_EMAIL_INVALID');
     }
 
-    const existingTenant = await Infrastructure.getTenant(tenant);
+    const existingTenant = await Infrastructure.getTenantWithStatuses(
+        tenant,
+        ['pending', 'active', 'suspended', 'dissolving', 'deleted']
+    );
     if (existingTenant) {
         return failure(`Tenant '${tenant}' already exists`, 'DATABASE_TENANT_EXISTS');
     }
@@ -187,6 +196,7 @@ export async function register(
         result = await Infrastructure.createTenant({
             name: tenant,
             owner_username: username,
+            status: 'pending',
         });
     } catch (error: any) {
         if (error.message?.includes('already exists')) {
@@ -195,17 +205,12 @@ export async function register(
         return failure(error.message || 'Registration failed', 'REGISTRATION_FAILED');
     }
 
-    const token = await JWTGenerator.fromUserAndTenant(result.user, {
-        ...result.tenant,
-        tenant_id: result.tenant.id,
-    });
-
     return {
         success: true,
         tenant: result.tenant.name,
         tenantId: result.tenant.id,
         username: result.user.auth,
-        token,
+        status: result.tenant.status,
     };
 }
 

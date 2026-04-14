@@ -157,6 +157,43 @@ CREATE INDEX IF NOT EXISTS "idx_credentials_user_type"
 CREATE INDEX IF NOT EXISTS "idx_credentials_identifier"
     ON "credentials" ("type", "identifier") WHERE "identifier" IS NOT NULL;
 
+-- Internal machine-auth key registry
+CREATE TABLE IF NOT EXISTS "tenant_keys" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "tenant_id" uuid,
+    "user_id" uuid NOT NULL,
+    "name" text,
+    "algorithm" text NOT NULL CHECK ("algorithm" IN ('ed25519')),
+    "public_key" text NOT NULL,
+    "fingerprint" text NOT NULL,
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    "last_used_at" timestamp,
+    "expires_at" timestamp,
+    "revoked_at" timestamp,
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_tenant_keys_fingerprint"
+    ON "tenant_keys" ("fingerprint");
+
+CREATE INDEX IF NOT EXISTS "idx_tenant_keys_user"
+    ON "tenant_keys" ("user_id", "created_at" DESC);
+
+-- Internal single-use challenge state for public-key auth
+CREATE TABLE IF NOT EXISTS "auth_challenges" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "key_id" uuid NOT NULL REFERENCES "tenant_keys"("id") ON DELETE CASCADE,
+    "nonce" text NOT NULL,
+    "algorithm" text NOT NULL CHECK ("algorithm" IN ('ed25519')),
+    "issued_at" timestamp DEFAULT now() NOT NULL,
+    "expires_at" timestamp NOT NULL,
+    "used_at" timestamp
+);
+
+CREATE INDEX IF NOT EXISTS "idx_auth_challenges_key"
+    ON "auth_challenges" ("key_id", "issued_at" DESC);
+
 -- Tracked table (change tracking and audit trails)
 CREATE TABLE IF NOT EXISTS "tracked" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,

@@ -20,6 +20,7 @@ describe('POST /auth/login - Authenticate User', () => {
             password,
         });
         expectSuccess(registerResponse);
+        expect(registerResponse.data!.status).toBe('pending');
 
         const authClient = new AuthClient();
         const response = await authClient.login({
@@ -44,6 +45,7 @@ describe('POST /auth/login - Authenticate User', () => {
         const registerClient = new AuthClient();
         const registerResponse = await registerClient.register({ tenant: tenantName, username, email: 'root_user@example.com', password });
         expectSuccess(registerResponse);
+        expect(registerResponse.data!.status).toBe('pending');
 
         const authClient = new AuthClient();
         const response = await authClient.login({
@@ -123,6 +125,7 @@ describe('POST /auth/login - Authenticate User', () => {
             password: 'good-password',
         });
         expectSuccess(registerResponse);
+        expect(registerResponse.data!.status).toBe('pending');
 
         const authClient = new AuthClient();
         const response = await authClient.login({

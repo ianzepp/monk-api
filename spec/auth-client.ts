@@ -45,8 +45,9 @@ export interface AuthResponse {
     data?: {
         tenant?: string;
         username?: string;
-        token: string;
+        token?: string;
         expires_in?: number;
+        status?: string;
         user?: {
             id: string;
             username: string;
@@ -101,8 +102,9 @@ export class AuthClient {
             return response as AuthResponse;
         }
 
-        // Automatically cache the token
-        this.httpClient.setAuthToken(response.data.token);
+        if (response.data?.token) {
+            this.httpClient.setAuthToken(response.data.token);
+        }
 
         return response as AuthResponse;
     }
@@ -133,9 +135,6 @@ export class AuthClient {
         if (!response.success) {
             return response as AuthResponse;
         }
-
-        // Automatically cache the token
-        this.httpClient.setAuthToken(response.data.token);
 
         return response as AuthResponse;
     }

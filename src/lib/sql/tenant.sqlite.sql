@@ -137,6 +137,43 @@ CREATE INDEX IF NOT EXISTS "idx_credentials_user_type"
 CREATE INDEX IF NOT EXISTS "idx_credentials_identifier"
     ON "credentials" ("type", "identifier");
 
+-- Internal machine-auth key registry
+CREATE TABLE IF NOT EXISTS "tenant_keys" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "tenant_id" TEXT,
+    "user_id" TEXT NOT NULL,
+    "name" TEXT,
+    "algorithm" TEXT NOT NULL CHECK ("algorithm" IN ('ed25519')),
+    "public_key" TEXT NOT NULL,
+    "fingerprint" TEXT NOT NULL,
+    "created_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "last_used_at" TEXT,
+    "expires_at" TEXT,
+    "revoked_at" TEXT,
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_tenant_keys_fingerprint"
+    ON "tenant_keys" ("fingerprint");
+
+CREATE INDEX IF NOT EXISTS "idx_tenant_keys_user"
+    ON "tenant_keys" ("user_id", "created_at" DESC);
+
+-- Internal single-use challenge state for public-key auth
+CREATE TABLE IF NOT EXISTS "auth_challenges" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "key_id" TEXT NOT NULL REFERENCES "tenant_keys"("id") ON DELETE CASCADE,
+    "nonce" TEXT NOT NULL,
+    "algorithm" TEXT NOT NULL CHECK ("algorithm" IN ('ed25519')),
+    "issued_at" TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "expires_at" TEXT NOT NULL,
+    "used_at" TEXT
+);
+
+CREATE INDEX IF NOT EXISTS "idx_auth_challenges_key"
+    ON "auth_challenges" ("key_id", "issued_at" DESC);
+
 -- Tracked table (change tracking and audit trails)
 -- Note: change_id uses INTEGER PRIMARY KEY for auto-increment in SQLite
 -- The "id" field is kept for API compatibility but change_id is the actual PK

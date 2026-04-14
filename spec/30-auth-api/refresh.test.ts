@@ -36,8 +36,15 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
             email: 'root_user@example.com',
             password: 'refresh-password',
         });
+        expect(response.success).toBe(true);
+        expect(response.data.status).toBe('pending');
 
-        token = response.data.token;
+        const loginResponse = await client.post('/auth/login', {
+            tenant: tenantName,
+            username,
+            password: 'refresh-password',
+        });
+        token = loginResponse.data.token;
     });
 
     describe('Input Validation', () => {

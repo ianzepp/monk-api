@@ -16,3 +16,6 @@ export { default as RefreshPost } from './refresh/POST.js';
 export { default as TenantsGet } from './tenants/GET.js';
 export { default as DissolvePost } from './dissolve/POST.js';
 export { default as DissolveConfirmPost } from './dissolve/confirm/POST.js';
+export { default as ProvisionPost } from './provision/POST.js';
+export { default as ChallengePost } from './challenge/POST.js';
+export { default as VerifyPost } from './verify/POST.js';

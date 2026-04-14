@@ -31,7 +31,7 @@ describe('POST /auth/register - brokered tenant provisioning', () => {
         rmSync(TEMP_DATA_DIR, { recursive: true, force: true });
     });
 
-    it('provisions a new tenant and returns a Monk token without requiring bearer auth', async () => {
+    it('provisions a new tenant in pending status without requiring bearer auth', async () => {
         const response = await requestRegister({
             tenant: `register_auth_${Date.now()}`,
             username: 'root_user',
@@ -43,8 +43,8 @@ describe('POST /auth/register - brokered tenant provisioning', () => {
         expect(response.status).toBe(200);
         expect(body.data.tenant_id).toBeDefined();
         expect(body.data.username).toBe('root_user');
-        expect(body.data.token).toBeDefined();
-        expect(body.data.expires_in).toBe(7 * 24 * 60 * 60);
+        expect(body.data.status).toBe('pending');
+        expect(body.data.token).toBeUndefined();
     });
 
     it('rejects duplicate tenant attempts', async () => {

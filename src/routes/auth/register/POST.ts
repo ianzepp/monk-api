@@ -1,13 +1,13 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { authTokenExpiresInSeconds, register } from '@src/lib/auth.js';
+import { register } from '@src/lib/auth.js';
 
 /**
  * POST /auth/register - Tenant registration
  *
  * Creates a brand-new tenant and root user from tenant, username, email, and password.
- * Monk forwards email/password provisioning to Auth0, then mints a Monk bearer token.
- * Clients do not present Auth0 bearer tokens to this route.
+ * Monk forwards email/password provisioning to Auth0, but leaves the tenant in
+ * pending status until the first successful login.
  */
 export default async function (context: Context) {
     const body = await context.req.json();
@@ -56,8 +56,7 @@ export default async function (context: Context) {
             tenant_id: result.tenantId,
             tenant: result.tenant,
             username: result.username,
-            token: result.token,
-            expires_in: authTokenExpiresInSeconds(),
+            status: result.status,
         },
     });
 }
