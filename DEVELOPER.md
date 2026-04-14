@@ -104,10 +104,9 @@ Monk API is a lightweight PaaS backend built with **Hono** and **TypeScript**, f
 - See: [spec/README.md](spec/README.md)
 
 #### **Fixtures System** (`fixtures/`)
-- Template-based database cloning for ultra-fast provisioning
-- 30x faster setup (0.1s vs 2-3s) for tests, tenants, sandboxes
-- Templates: `default` (minimal), `testing`, `testing_xl`, `demo`
-- Infrastructure integration with templates, sandboxes, snapshots
+- Template-based database cloning for fast tenant setup when fixture sources are available
+- The test harness treats `system` as the always-available baseline template
+- `testing` is the optional pre-populated template used by query-heavy tests
 - Fixture sources are not tracked in this checkout; see [scripts/README.md](scripts/README.md) for current fixture command caveats.
 
 ### System Architecture
@@ -185,56 +184,12 @@ See: [spec/README.md](spec/README.md)
 
 ## Configuration Management
 
-### User Configuration (`~/.config/monk/`)
+### Tooling Configuration
 
-The CLI and development tools use persistent configuration:
-
-**`server.json`** - Server registry with current selection:
-```json
-{
-  "servers": {
-    "local": {
-      "hostname": "localhost",
-      "port": 9001,
-      "protocol": "http"
-    },
-    "staging": {
-      "hostname": "api-staging.example.com",
-      "port": 443,
-      "protocol": "https"
-    }
-  },
-  "current": "local"
-}
-```
-
-**`env.json`** - Environment variables:
-```json
-{
-  "DATABASE_URL": "postgresql://user:password@localhost:5432/",
-  "NODE_ENV": "development",
-  "PORT": "9001",
-  "JWT_SECRET": "your-secret-key"
-}
-```
-
-**`test.json`** - Test run history and configuration
-
-### Server Management
-
-```bash
-# Add servers
-monk server add local localhost:9001
-monk server add staging api-staging.example.com:443
-
-# Switch servers (persistent)
-monk server use staging
-monk server current
-
-# All subsequent monk commands use selected server
-monk ping                           # Pings staging server
-monk data select account            # Lists from staging database
-```
+- `scripts/config-helper.sh` reads the server registry from `.config/monk/server.json` when present, otherwise `~/.config/monk/server.json`.
+- The API server itself still loads environment variables from `.env` or `.env.<NODE_ENV>` in `src/index.ts`.
+- This checkout does not contain a tracked `env.json` runtime loader, so treat `~/.config/monk/env.json` references as companion-tool behavior rather than server behavior.
+- The `monk server ...` examples belong to the companion CLI ecosystem, not this repository.
 
 ### Multi-tenant Architecture
 
@@ -262,10 +217,10 @@ Each tenant gets a dedicated SQLite file:
 #### Infrastructure Entities (PostgreSQL)
 
 **Templates** (Immutable Prototypes)
-- **Database**: `monk_template_*` (e.g., `monk_template_system`)
+- **Database**: `monk_template_<name>`
 - **Registry**: `templates` table in central `monk` database
 - **Purpose**: Pre-configured models for fast tenant/sandbox provisioning
-- **Lifecycle**: Immutable, created via fixtures build process
+- **Lifecycle**: Created from fixture sources when those sources are available in the checkout
 - **Performance**: Instant cloning via PostgreSQL's `CREATE DATABASE WITH TEMPLATE`
 
 **Tenants** (Production)
@@ -470,7 +425,7 @@ Docs: Update observer development guide (#160)
 ### Configuration Management & Security (August 2025)
 - **Eliminated Security Risks**: Removed dangerous JWT_SECRET and DATABASE_URL defaults
 - **Fail-Fast Validation**: Critical configuration validated with clear error messages
-- **Environment-First**: Configuration must be explicitly set in `~/.config/monk/env.json`
+- **Runtime Source of Truth**: The server loads `.env` / `.env.<NODE_ENV>` at startup; companion CLI tools can read `~/.config/monk/server.json`
 
 ### Logging Architecture (August 2025)
 - **Global Logger Pattern**: TypeScript global declarations in `src/types/globals.d.ts`
