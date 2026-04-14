@@ -176,11 +176,6 @@ export function createHttpApp(): Hono {
     app.get('/api/user/:id', userRoutes.UserGet);
     app.put('/api/user/:id', userRoutes.UserUpdate);
     app.delete('/api/user/:id', userRoutes.UserDelete);
-    app.post('/api/user/:id/password', userRoutes.PasswordPost);
-    app.get('/api/user/:id/keys', userRoutes.KeysList);
-    app.post('/api/user/:id/keys', userRoutes.KeysCreate);
-    app.delete('/api/user/:id/keys/:keyId', userRoutes.KeysDelete);
-
     // ACLs API routes
     app.get('/api/acls/:model/:id', aclsRoutes.RecordAclGet);
     app.post('/api/acls/:model/:id', aclsRoutes.RecordAclPost);

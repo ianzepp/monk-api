@@ -41,7 +41,7 @@
 
 ### Production Auth
 1. **Public Access**: Documentation and tenant provisioning boundary (`/auth/register`)
-2. **Protected Access**: Monk bearer token minted by Monk or supported API key flow
+2. **Protected Access**: Monk bearer token minted by Monk
 3. **Authorization Source**: Monk tenant registry and tenant-local user state
 
 ### Auth Flow

@@ -56,7 +56,7 @@ Target: live Railway `monk-api` service
 - `GET /api/user/:id` leaks raw UUID parse errors when given non-UUID identifiers.
 - `/api/data/credentials` exposes secret credential material to the generic data surface.
 - `POST /auth/register` correctly rejects malformed JSON and duplicate tenant names without stack traces.
-- `GET /api/user/me`, `POST /api/user/sudo`, `POST /api/user/me/keys`, `POST /api/user/:id/password`, `POST /api/trashed/:model`, `POST /api/acls/:model/:id`, and `POST /api/bulk` all behaved coherently on the fresh tenant and valid user contexts.
+- `GET /api/user/me`, `POST /api/user/sudo`, `POST /api/trashed/:model`, `POST /api/acls/:model/:id`, and `POST /api/bulk` all behaved coherently on the fresh tenant and valid user contexts.
 - `DELETE /api/user/me` successfully soft-deleted the root user on one tenant, which then invalidated the token as expected.
 
 ## Issues Filed
