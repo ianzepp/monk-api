@@ -75,6 +75,10 @@ function parseAccessArray(value: unknown): string[] {
     return [];
 }
 
+function canUseSudoToken(access: string): boolean {
+    return access === 'root' || access === 'full';
+}
+
 async function resolveActiveTenantFromPayload(payload: JWTPayload) {
     const tenant = payload.tenant_id
         ? await Infrastructure.getTenantById(payload.tenant_id)
@@ -111,11 +115,17 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
 
         const trustedPayload: JWTPayload = {
             ...payload,
+            username: user.auth || payload.username,
             tenant: tenant.name,
             tenant_id: tenant.id,
             db_type: tenant.db_type,
             db: tenant.database,
             ns: tenant.schema,
+            access: user.access,
+            access_read: user.access_read,
+            access_edit: user.access_edit,
+            access_full: user.access_full,
+            is_sudo: payload.is_sudo === true && canUseSudoToken(user.access),
         };
 
         const correlationId = context.req.header('x-request-id');
@@ -134,9 +144,9 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
             tenant: trustedPayload.tenant,
             dbName: systemInit.dbName,
             nsName: systemInit.nsName,
-            access_read: trustedPayload.access_read || user.access_read,
-            access_edit: trustedPayload.access_edit || user.access_edit,
-            access_full: trustedPayload.access_full || user.access_full,
+            access_read: user.access_read,
+            access_edit: user.access_edit,
+            access_full: user.access_full,
         });
 
         context.set('tenant', trustedPayload.tenant);
@@ -144,9 +154,9 @@ export async function authValidatorMiddleware(context: Context, next: Next) {
         context.set('dbName', systemInit.dbName);
         context.set('nsName', systemInit.nsName);
         context.set('userId', user.id);
-        context.set('accessReadIds', trustedPayload.access_read || user.access_read);
-        context.set('accessEditIds', trustedPayload.access_edit || user.access_edit);
-        context.set('accessFullIds', trustedPayload.access_full || user.access_full);
+        context.set('accessReadIds', user.access_read);
+        context.set('accessEditIds', user.access_edit);
+        context.set('accessFullIds', user.access_full);
 
         return await next();
     } catch (error: any) {
