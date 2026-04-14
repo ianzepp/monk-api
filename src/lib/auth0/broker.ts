@@ -48,7 +48,7 @@ export function resetMemoryAuth0BrokerForTests(): void {
 }
 
 export function auth0ScopedIdentity(tenant: string, username: string): string {
-    return `${tenant}__${username}`;
+    return `${tenant}:${username}`;
 }
 
 export function auth0BrokerFromEnv(): Auth0Broker {
