@@ -22,6 +22,7 @@ Monk forwards credential verification to Auth0, looks up the Monk-local tenant u
   "success": true,
   "data": {
     "token": "string",
+    "expires_in": 604800,
     "user": {
       "id": "string",
       "username": "string",

@@ -44,7 +44,7 @@ describe('POST /auth/register - brokered tenant provisioning', () => {
         expect(body.data.tenant_id).toBeDefined();
         expect(body.data.username).toBe('root_user');
         expect(body.data.token).toBeDefined();
-        expect(body.data.expires_in).toBe(24 * 60 * 60);
+        expect(body.data.expires_in).toBe(7 * 24 * 60 * 60);
     });
 
     it('rejects duplicate tenant attempts', async () => {

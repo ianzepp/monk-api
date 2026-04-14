@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { verify, sign } from 'hono/jwt';
+import { JWT_DEFAULT_EXPIRY } from '@src/lib/constants.js';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
 import { Infrastructure } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
@@ -78,7 +79,7 @@ export default async function (context: Context) {
         access_edit: parseAccessArray(user.access_edit),
         access_full: parseAccessArray(user.access_full),
         iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+        exp: Math.floor(Date.now() / 1000) + JWT_DEFAULT_EXPIRY,
         is_sudo: user.access === 'root',
         ...(payload.format && { format: payload.format }),
     };
@@ -89,7 +90,7 @@ export default async function (context: Context) {
         success: true,
         data: {
             token: newToken,
-            expires_in: 24 * 60 * 60,
+            expires_in: JWT_DEFAULT_EXPIRY,
             user: {
                 id: user.id,
                 username: user.auth,

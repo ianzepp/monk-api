@@ -10,6 +10,7 @@ import { Infrastructure, type TenantRecord } from '@src/lib/infrastructure.js';
 import { DatabaseConnection } from '@src/lib/database-connection.js';
 import { createAdapterFrom } from '@src/lib/database/index.js';
 import { JWTGenerator, type JWTPayload } from '@src/lib/jwt-generator.js';
+import { JWT_DEFAULT_EXPIRY } from '@src/lib/constants.js';
 import { systemInitFromJWT, type SystemInit } from '@src/lib/system.js';
 import { Auth0BrokerError, auth0BrokerFromEnv, auth0ScopedIdentity } from '@src/lib/auth0/index.js';
 
@@ -233,7 +234,7 @@ async function createLoginResult(
         access_edit: user.access_edit || [],
         access_full: user.access_full || [],
         iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+        exp: Math.floor(Date.now() / 1000) + JWT_DEFAULT_EXPIRY,
         is_sudo: user.access === 'root',
     };
 
@@ -261,6 +262,10 @@ async function createLoginResult(
         payload,
         systemInit: systemInitFromJWT(payload),
     };
+}
+
+export function authTokenExpiresInSeconds(): number {
+    return JWT_DEFAULT_EXPIRY;
 }
 
 async function getTenantUserByAuth(

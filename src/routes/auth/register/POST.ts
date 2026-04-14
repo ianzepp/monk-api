@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { register } from '@src/lib/auth.js';
+import { authTokenExpiresInSeconds, register } from '@src/lib/auth.js';
 
 /**
  * POST /auth/register - Tenant registration
@@ -57,7 +57,7 @@ export default async function (context: Context) {
             tenant: result.tenant,
             username: result.username,
             token: result.token,
-            expires_in: 24 * 60 * 60,
+            expires_in: authTokenExpiresInSeconds(),
         },
     });
 }

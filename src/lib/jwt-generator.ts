@@ -6,6 +6,7 @@
  */
 
 import { sign, verify } from 'hono/jwt';
+import { JWT_DEFAULT_EXPIRY } from './constants.js';
 import type { SystemInit } from './system.js';
 
 const JWT_ALGORITHM = 'HS256' as const;
@@ -80,7 +81,7 @@ export interface FakeTokenOptions {
 }
 
 export class JWTGenerator {
-    private static readonly DEFAULT_EXPIRY = 24 * 60 * 60; // 24 hours
+    private static readonly DEFAULT_EXPIRY = JWT_DEFAULT_EXPIRY;
     private static readonly SUDO_EXPIRY = 15 * 60; // 15 minutes
     private static readonly FAKE_EXPIRY = 15 * 60; // 15 minutes (same as sudo for security)
 

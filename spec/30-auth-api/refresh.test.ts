@@ -120,7 +120,7 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
             const response = await client.post('/auth/refresh');
 
             expect(response.success).toBe(true);
-            expect(response.data?.expires_in).toBe(24 * 60 * 60);
+            expect(response.data?.expires_in).toBe(7 * 24 * 60 * 60);
         });
 
         it('should return different token on each refresh', async () => {

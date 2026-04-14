@@ -17,7 +17,7 @@ Authorization: Bearer <monk bearer token>
   "success": true,
   "data": {
     "token": "string",
-    "expires_in": 86400,
+    "expires_in": 604800,
     "user": {
       "id": "string",
       "username": "string",

@@ -27,7 +27,7 @@ Monk forwards user provisioning to Auth0, never stores the password locally, pro
     "tenant": "string",
     "username": "string",
     "token": "string",
-    "expires_in": 86400
+    "expires_in": 604800
   }
 }
 ```

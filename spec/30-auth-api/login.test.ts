@@ -31,6 +31,7 @@ describe('POST /auth/login - Authenticate User', () => {
         expectSuccess(response);
         expect(response.data!.token).toBeDefined();
         expect(response.data!.user).toBeDefined();
+        expect(response.data!.expires_in).toBe(7 * 24 * 60 * 60);
         expect(response.data!.user!.username).toBe(username);
         expect(response.data!.user!.tenant).toBe(tenantName);
     });

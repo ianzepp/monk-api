@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { HttpErrors } from '@src/lib/errors/http-error.js';
-import { login } from '@src/lib/auth.js';
+import { authTokenExpiresInSeconds, login } from '@src/lib/auth.js';
 
 /**
  * POST /auth/login - Authenticate user with tenant, username, and password
@@ -59,6 +59,7 @@ export default async function (context: Context) {
         success: true,
         data: {
             token: result.token,
+            expires_in: authTokenExpiresInSeconds(),
             user: {
                 id: result.user.id,
                 username: result.user.username,
