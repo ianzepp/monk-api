@@ -517,17 +517,18 @@ Recommended migration shape:
    - public key registry
    - auth challenge state
    - principal-to-key bindings or equivalent internal auth mapping
-3. Add:
+3. Define and implement how a verified key maps to a tenant-local principal so protected Monk bearer tokens continue to carry user/access/ACL context
+4. Add the bootstrap and exchange flow:
    - `/auth/provision`
    - `/auth/challenge`
    - `/auth/verify`
+5. Add tenant key management:
    - `/api/keys*`
-4. Define how a verified key maps to a tenant-local principal so protected Monk bearer tokens continue to carry user/access/ACL context
-5. Migrate machine clients off:
+6. Migrate machine clients off:
    - `/api/user/:id/keys`
    - current user-scoped API key auth support
-6. After machine clients are migrated, remove legacy API-key surfaces and any tenant-local credential storage used only for machine auth
-7. Decide separately whether any remaining local password credential writes survive outside development/test, but do not treat that decision as the same question as keeping Auth0-backed username/password login
+7. After machine clients are migrated, remove legacy API-key surfaces and any tenant-local credential storage used only for machine auth
+8. Decide separately whether any remaining local password credential writes survive outside development/test, but do not treat that decision as the same question as keeping Auth0-backed username/password login
 
 ## Open Questions
 
