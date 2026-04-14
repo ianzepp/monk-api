@@ -2,7 +2,7 @@
 
 The Auth API is an LLM-first, non-browser authentication surface.
 
-Clients send `tenant`, `username`, and `password` directly to Monk. Monk forwards password verification and user provisioning work to Auth0, never stores passwords locally, and then mints Monk bearer tokens for API access.
+Clients send `tenant`, `username`, and `password` directly to Monk for login. Registration additionally requires `email` so Monk can provision the Auth0 identity without inventing one. Monk never stores passwords locally and then mints Monk bearer tokens for API access.
 
 ## Base Path
 
@@ -26,7 +26,7 @@ Clients send `tenant`, `username`, and `password` directly to Monk. Monk forward
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | [`/auth/register`](register/POST.md) | Create a brand-new tenant and root user, then return a Monk bearer token. |
+| POST | [`/auth/register`](register/POST.md) | Create a brand-new tenant and root user from tenant, username, email, and password, then return a Monk bearer token. |
 | POST | [`/auth/login`](login/POST.md) | Verify tenant username/password through Auth0 and return a Monk bearer token. |
 | POST | [`/auth/refresh`](refresh/POST.md) | Refresh a Monk bearer token presented in `Authorization`. |
 | GET | [`/auth/tenants`](tenants/GET.md) | List available tenants (personal mode only). |
@@ -40,6 +40,7 @@ curl -X POST http://localhost:9001/auth/register \
   -d '{
     "tenant": "my_company",
     "username": "root_user",
+    "email": "root_user@example.com",
     "password": "correct horse battery staple"
   }'
 

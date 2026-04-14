@@ -35,6 +35,7 @@ describe('POST /auth/register - brokered tenant provisioning', () => {
         const response = await requestRegister({
             tenant: `register_auth_${Date.now()}`,
             username: 'root_user',
+            email: 'root_user@example.com',
             password: 'register-password',
         });
         const body = await response.json() as any;
@@ -51,6 +52,7 @@ describe('POST /auth/register - brokered tenant provisioning', () => {
         const first = await requestRegister({
             tenant,
             username: 'root_user',
+            email: 'root_user@example.com',
             password: 'register-password',
         });
         expect(first.status).toBe(200);
@@ -58,6 +60,7 @@ describe('POST /auth/register - brokered tenant provisioning', () => {
         const second = await requestRegister({
             tenant,
             username: 'root_user',
+            email: 'root_user@example.com',
             password: 'register-password',
         });
         const body = await second.json() as any;
@@ -70,12 +73,38 @@ describe('POST /auth/register - brokered tenant provisioning', () => {
         const response = await requestRegister({
             tenant: 'Bad Tenant',
             username: 'Root-User',
+            email: 'root_user@example.com',
             password: 'register-password',
         });
         const body = await response.json() as any;
 
         expect(response.status).toBe(400);
         expect(body.error_code).toBe('AUTH_TENANT_INVALID');
+    });
+
+    it('rejects missing email', async () => {
+        const response = await requestRegister({
+            tenant: `register_missing_email_${Date.now()}`,
+            username: 'root_user',
+            password: 'register-password',
+        });
+        const body = await response.json() as any;
+
+        expect(response.status).toBe(400);
+        expect(body.error_code).toBe('AUTH_EMAIL_MISSING');
+    });
+
+    it('rejects invalid email', async () => {
+        const response = await requestRegister({
+            tenant: `register_invalid_email_${Date.now()}`,
+            username: 'root_user',
+            email: 'not-an-email',
+            password: 'register-password',
+        });
+        const body = await response.json() as any;
+
+        expect(response.status).toBe(400);
+        expect(body.error_code).toBe('AUTH_EMAIL_INVALID');
     });
 });
 

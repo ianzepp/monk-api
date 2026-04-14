@@ -6,7 +6,7 @@
  *
  * Features:
  * - login() - Authenticate with username/tenant
- * - register() - Legacy helper from the pre-Auth0 test flow
+ * - register() - Register a tenant and cache the returned Monk bearer token
  * - Automatically caches bearer tokens in HttpClient
  * - Provides access to underlying HttpClient for API requests
  */
@@ -30,6 +30,7 @@ export interface LoginCredentials {
 export interface RegistrationParams {
     tenant: string;
     username?: string;
+    email?: string;
     password?: string;
 }
 
@@ -117,8 +118,9 @@ export class AuthClient {
      * const authClient = new AuthClient();
      * const response = await authClient.register({
      *     tenant: 'new-tenant',
-     *     template: 'testing',
-     *     username: 'admin'
+     *     username: 'admin',
+     *     email: 'admin@example.com',
+     *     password: 'secret-pass'
      * });
      *
      * // Token is now cached - use httpClient for authenticated requests
@@ -175,7 +177,7 @@ export class AuthClient {
      * @example
      * ```typescript
      * const authClient = new AuthClient();
-     * await authClient.login({ tenant: 'test', username: 'admin' });
+     * await authClient.login({ tenant: 'test', username: 'admin', password: 'secret-pass' });
      *
      * // Access the HTTP client for API calls
      * const client = authClient.client;

@@ -112,6 +112,7 @@ export async function login(request: LoginRequest): Promise<LoginResult | LoginF
 export interface RegisterRequest {
     tenant: string;
     username?: string;
+    email?: string;
     password?: string;
 }
 
@@ -141,13 +142,16 @@ export interface RegisterFailure {
 export async function register(
     request: RegisterRequest
 ): Promise<RegisterResult | RegisterFailure> {
-    const { tenant, username, password } = request;
+    const { tenant, username, email, password } = request;
 
     if (!tenant) {
         return failure('Tenant is required', 'AUTH_TENANT_MISSING');
     }
     if (!username) {
         return failure('Username is required', 'AUTH_USERNAME_MISSING');
+    }
+    if (!email) {
+        return failure('Email is required', 'AUTH_EMAIL_MISSING');
     }
     if (!password) {
         return failure('Password is required', 'AUTH_PASSWORD_MISSING');
@@ -158,6 +162,9 @@ export async function register(
     if (!isCanonicalName(username)) {
         return failure(canonicalNameMessage('Username'), 'AUTH_USERNAME_INVALID');
     }
+    if (!isValidEmail(email)) {
+        return failure('Email must be a valid email address', 'AUTH_EMAIL_INVALID');
+    }
 
     const existingTenant = await Infrastructure.getTenant(tenant);
     if (existingTenant) {
@@ -166,7 +173,7 @@ export async function register(
 
     try {
         const broker = auth0BrokerFromEnv();
-        await broker.registerScopedIdentity(auth0ScopedIdentity(tenant, username), password);
+        await broker.registerScopedIdentity(auth0ScopedIdentity(tenant, username), email, password);
     } catch (error) {
         if (error instanceof Auth0BrokerError) {
             return failure(error.message, error.code);
@@ -319,6 +326,10 @@ function failure(error: string, errorCode: string): LoginFailure {
 
 function isCanonicalName(value: string): boolean {
     return CANONICAL_NAME_PATTERN.test(value);
+}
+
+function isValidEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function canonicalNameMessage(label: string): string {

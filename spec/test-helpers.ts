@@ -35,14 +35,10 @@ export interface TestTenant {
  */
 export class TestHelpers {
     /**
-     * Create a test tenant from a template via the API
+     * Create a test tenant through the current public auth flow.
      *
-     * Historical note: this helper reflects the pre-Auth0 local test flow and
-     * still expects `/auth/register` to return a bearer token. The production
-     * Auth0 provisioning contract no longer does that.
-     *
-     * Use this only for the legacy explicit local-auth test path until the test
-     * suite is migrated to the current Auth0-aware setup.
+     * The helper supplies a disposable email address because `/auth/register`
+     * now requires `tenant`, `username`, `email`, and `password`.
      *
      * The returned HttpClient automatically includes the cached bearer token in all requests,
      * so you don't need to manually add Authorization headers.
@@ -53,7 +49,7 @@ export class TestHelpers {
      *   - Benefits: No fixture setup required, predictable baseline
      *   - Root user can create models/fields/records as needed
      *
-     * - 'testing' - Pre-populated with test data (requires: npm run fixtures:build testing)
+     * - 'testing' - Pre-populated with test data (requires: bun run fixtures:build testing)
      *   - Use when: Testing queries/filters on existing data
      *   - Benefits: Faster tests, realistic data relationships
      *   - Contains: Sample accounts, contacts, relationships
@@ -126,6 +122,7 @@ export class TestHelpers {
         const response = await authClient.register({
             tenant: tenantName,
             username: username,
+            email: `${username}@example.com`,
             password: 'test-password',
         });
 

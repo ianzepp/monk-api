@@ -33,7 +33,7 @@ Monk starts multiple surfaces from [src/index.ts](src/index.ts):
 | Path | Purpose |
 |------|---------|
 | `/health` | Health check |
-| `/auth/register` | Register a new tenant and root user with `tenant`, `username`, and `password` |
+| `/auth/register` | Register a new tenant and root user with `tenant`, `username`, `email`, and `password` |
 | `/auth/login` | Verify `tenant`, `username`, and `password` and return a Monk bearer token |
 | `/auth/refresh` | Refresh a Monk bearer token presented in `Authorization` |
 | `/auth/tenants` | List registered tenants |
@@ -197,7 +197,7 @@ AUTH0_CONNECTION=Username-Password-Authentication
 AUTH0_AUDIENCE=https://your-monk-api-audience
 ```
 
-Production auth is Monk-brokered through Auth0: clients send username/password to Monk, Monk verifies or provisions credentials through Auth0, and Monk returns Monk bearer tokens for API access.
+Production auth is Monk-brokered through Auth0: clients send username/password to Monk for login, and `tenant + username + email + password` for register. Monk verifies or provisions credentials through Auth0 and returns Monk bearer tokens for API access.
 
 Initialize the database after building:
 
@@ -264,7 +264,7 @@ bun run build:standalone
 # Register a tenant and root user
 curl -X POST http://localhost:9001/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"tenant": "demo", "username": "root_user", "password": "secret-pass"}'
+  -d '{"tenant": "demo", "username": "root_user", "email": "root_user@example.com", "password": "secret-pass"}'
 
 # Log in and use the Monk bearer token
 MONK_TOKEN=$(curl -sS -X POST http://localhost:9001/auth/login \

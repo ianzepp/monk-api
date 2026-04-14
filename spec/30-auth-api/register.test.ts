@@ -7,12 +7,13 @@ import { expectSuccess } from '../test-assertions.js';
  */
 
 describe('POST /auth/register - Register New Tenant', () => {
-    it('should register with tenant, username, and password', async () => {
+    it('should register with tenant, username, email, and password', async () => {
         const authClient = new AuthClient();
 
         const response = await authClient.register({
             tenant: `test_register_a_${Date.now()}`,
             username: 'root_user',
+            email: 'root_user@example.com',
             password: 'test-password-1',
         });
 
@@ -30,6 +31,7 @@ describe('POST /auth/register - Register New Tenant', () => {
         const firstResponse = await authClient.register({
             tenant: tenantName,
             username: 'root_user',
+            email: 'root_user@example.com',
             password: 'test-password-2',
         });
         expectSuccess(firstResponse);
@@ -37,6 +39,7 @@ describe('POST /auth/register - Register New Tenant', () => {
         const secondResponse = await authClient.register({
             tenant: tenantName,
             username: 'root_user',
+            email: 'root_user@example.com',
             password: 'test-password-2',
         });
 
@@ -51,10 +54,38 @@ describe('POST /auth/register - Register New Tenant', () => {
         const response = await authClient.register({
             tenant: 'Not Canonical',
             username: 'Bad-User',
+            email: 'root_user@example.com',
             password: 'test-password-3',
         });
 
         expect(response.success).toBe(false);
         expect(response.error_code).toBe('AUTH_TENANT_INVALID');
+    });
+
+    it('should reject missing email field', async () => {
+        const authClient = new AuthClient();
+
+        const response = await authClient.register({
+            tenant: `test_register_missing_email_${Date.now()}`,
+            username: 'root_user',
+            password: 'test-password-4',
+        });
+
+        expect(response.success).toBe(false);
+        expect(response.error_code).toBe('AUTH_EMAIL_MISSING');
+    });
+
+    it('should reject invalid email field', async () => {
+        const authClient = new AuthClient();
+
+        const response = await authClient.register({
+            tenant: `test_register_invalid_email_${Date.now()}`,
+            username: 'root_user',
+            email: 'not-an-email',
+            password: 'test-password-5',
+        });
+
+        expect(response.success).toBe(false);
+        expect(response.error_code).toBe('AUTH_EMAIL_INVALID');
     });
 });

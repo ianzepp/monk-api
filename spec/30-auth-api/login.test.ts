@@ -16,6 +16,7 @@ describe('POST /auth/login - Authenticate User', () => {
         const registerResponse = await registerClient.register({
             tenant: tenantName,
             username,
+            email: 'root_user@example.com',
             password,
         });
         expectSuccess(registerResponse);
@@ -40,7 +41,7 @@ describe('POST /auth/login - Authenticate User', () => {
         const password = 'test-password-5';
 
         const registerClient = new AuthClient();
-        const registerResponse = await registerClient.register({ tenant: tenantName, username, password });
+        const registerResponse = await registerClient.register({ tenant: tenantName, username, email: 'root_user@example.com', password });
         expectSuccess(registerResponse);
 
         const authClient = new AuthClient();
@@ -117,6 +118,7 @@ describe('POST /auth/login - Authenticate User', () => {
         const registerResponse = await registerClient.register({
             tenant: tenantName,
             username,
+            email: 'root_user@example.com',
             password: 'good-password',
         });
         expectSuccess(registerResponse);

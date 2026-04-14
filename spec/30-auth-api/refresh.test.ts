@@ -33,6 +33,7 @@ describe('POST /auth/refresh - Refresh JWT Token', () => {
         const response = await client.post('/auth/register', {
             tenant: tenantName,
             username,
+            email: 'root_user@example.com',
             password: 'refresh-password',
         });
 

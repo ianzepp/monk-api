@@ -5,8 +5,8 @@ import { register } from '@src/lib/auth.js';
 /**
  * POST /auth/register - Tenant registration
  *
- * Creates a brand-new tenant and root user from tenant, username, and password.
- * Monk forwards password provisioning to Auth0, then mints a Monk bearer token.
+ * Creates a brand-new tenant and root user from tenant, username, email, and password.
+ * Monk forwards email/password provisioning to Auth0, then mints a Monk bearer token.
  * Clients do not present Auth0 bearer tokens to this route.
  */
 export default async function (context: Context) {
@@ -16,16 +16,18 @@ export default async function (context: Context) {
         throw HttpErrors.badRequest('Request body must be an object', 'BODY_NOT_OBJECT');
     }
 
-    const { tenant, username, password } = body;
+    const { tenant, username, email, password } = body;
 
-    const result = await register({ tenant, username, password });
+    const result = await register({ tenant, username, email, password });
     if (!result.success) {
         if (
             result.errorCode === 'AUTH_TENANT_MISSING'
             || result.errorCode === 'AUTH_USERNAME_MISSING'
+            || result.errorCode === 'AUTH_EMAIL_MISSING'
             || result.errorCode === 'AUTH_PASSWORD_MISSING'
             || result.errorCode === 'AUTH_TENANT_INVALID'
             || result.errorCode === 'AUTH_USERNAME_INVALID'
+            || result.errorCode === 'AUTH_EMAIL_INVALID'
         ) {
             throw HttpErrors.badRequest(result.error, result.errorCode);
         }

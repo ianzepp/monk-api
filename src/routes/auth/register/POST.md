@@ -1,8 +1,8 @@
 # POST /auth/register
 
-Create a brand-new tenant and bootstrap its root user from canonical snake_case `tenant`, `username`, and `password`.
+Create a brand-new tenant and bootstrap its root user from canonical snake_case `tenant`, `username`, `email`, and `password`.
 
-Monk forwards user provisioning to Auth0, never stores the password locally, provisions the Monk tenant and root user, and returns a Monk bearer token immediately.
+Monk forwards user provisioning to Auth0, never stores the password locally, provisions the Monk tenant and root user, and returns a Monk bearer token immediately. `email` is required on register so Monk can create the upstream Auth0 identity without inventing one.
 
 `/auth/register` is for new-tenant bootstrap only. It does not join users to existing tenants.
 
@@ -12,6 +12,7 @@ Monk forwards user provisioning to Auth0, never stores the password locally, pro
 {
   "tenant": "string",
   "username": "string",
+  "email": "user@example.com",
   "password": "string"
 }
 ```
@@ -38,9 +39,11 @@ Monk forwards user provisioning to Auth0, never stores the password locally, pro
 | 400 | `BODY_NOT_OBJECT` | Request body is not a JSON object |
 | 400 | `AUTH_TENANT_MISSING` | Missing tenant field |
 | 400 | `AUTH_USERNAME_MISSING` | Missing username field |
+| 400 | `AUTH_EMAIL_MISSING` | Missing email field |
 | 400 | `AUTH_PASSWORD_MISSING` | Missing password field |
 | 400 | `AUTH_TENANT_INVALID` | Tenant is not canonical snake_case |
 | 400 | `AUTH_USERNAME_INVALID` | Username is not canonical snake_case |
+| 400 | `AUTH_EMAIL_INVALID` | Email is not a valid email address |
 | 409 | `DATABASE_TENANT_EXISTS` | Tenant already exists in Monk |
 | 409 | `AUTH_USERNAME_EXISTS` | External Auth0 username already exists with conflicting credentials |
 | 401 | `AUTH0_*` | Auth0 broker configuration or upstream provisioning failure |
@@ -53,6 +56,7 @@ curl -X POST http://localhost:9001/auth/register \
   -d '{
     "tenant": "acme_corp",
     "username": "root_user",
+    "email": "root_user@example.com",
     "password": "correct horse battery staple"
   }'
 ```

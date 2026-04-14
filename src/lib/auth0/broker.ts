@@ -16,7 +16,7 @@ export interface Auth0BrokerRegisterResult {
 }
 
 export interface Auth0Broker {
-    registerScopedIdentity(identity: string, password: string): Promise<Auth0BrokerRegisterResult>;
+    registerScopedIdentity(identity: string, email: string, password: string): Promise<Auth0BrokerRegisterResult>;
     authenticateScopedIdentity(identity: string, password: string): Promise<void>;
 }
 
@@ -103,7 +103,7 @@ export function auth0BrokerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): 
 }
 
 class MemoryAuth0Broker implements Auth0Broker {
-    async registerScopedIdentity(identity: string, password: string): Promise<Auth0BrokerRegisterResult> {
+    async registerScopedIdentity(identity: string, _email: string, password: string): Promise<Auth0BrokerRegisterResult> {
         const existingPassword = memoryBrokerUsers.get(identity);
         if (existingPassword === undefined) {
             memoryBrokerUsers.set(identity, password);
@@ -128,7 +128,7 @@ class MemoryAuth0Broker implements Auth0Broker {
 class HttpAuth0Broker implements Auth0Broker {
     constructor(private readonly config: Auth0BrokerConfig) {}
 
-    async registerScopedIdentity(identity: string, password: string): Promise<Auth0BrokerRegisterResult> {
+    async registerScopedIdentity(identity: string, email: string, password: string): Promise<Auth0BrokerRegisterResult> {
         const managementToken = await this.fetchManagementToken();
         const response = await fetch(`${this.config.issuer}api/v2/users`, {
             method: 'POST',
@@ -139,6 +139,7 @@ class HttpAuth0Broker implements Auth0Broker {
             body: JSON.stringify({
                 connection: this.config.connection,
                 username: identity,
+                email,
                 password,
                 verify_email: false,
             }),

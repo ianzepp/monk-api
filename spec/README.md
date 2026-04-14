@@ -849,7 +849,7 @@ bun run stop
 
 ### Understanding Templates
 
-When you register a new tenant via `/auth/register`, you specify a template to clone from:
+The current auth contract does not select templates through `/auth/register`. Test helpers provision a fresh tenant through the public auth flow and then build any needed state through API calls or fixture setup.
 
 #### 'system' Template (Always Available)
 - **What it includes:**
@@ -975,9 +975,10 @@ describe('Custom Auth Tests', () => {
         
         // Register a new tenant
         await authClient.register({
-            tenant: 'test-tenant',
-            template: 'testing',
-            username: 'admin'
+            tenant: 'test_tenant',
+            username: 'admin',
+            email: 'admin@example.com',
+            password: 'secret-pass'
         });
         // Token is automatically cached!
     });
@@ -991,8 +992,9 @@ describe('Custom Auth Tests', () => {
     it('should switch users', async () => {
         // Login as different user
         await authClient.login({
-            tenant: 'test-tenant',
-            username: 'readonly'
+            tenant: 'test_tenant',
+            username: 'readonly',
+            password: 'readonly-pass'
         });
         
         // Now authenticated as readonly user
@@ -1046,7 +1048,7 @@ The TypeScript test framework uses the current Monk auth contract and caches Mon
 
 **AuthClient** - High-level Monk auth wrapper:
 - `login({ tenant, username, password })` - Authenticate through Monk's brokered Auth0 path
-- `register({ tenant, username, password })` - Register a tenant and cache the returned Monk bearer token
+- `register({ tenant, username, email, password })` - Register a tenant and cache the returned Monk bearer token
 - Automatically caches bearer tokens in HttpClient
 - Provides `.client` property for authenticated API requests
 
@@ -1080,7 +1082,7 @@ The TypeScript test framework uses the current Monk auth contract and caches Mon
    - Throws clear error if prerequisites missing
 
 2. **Per-Test Setup** (each test file's `beforeAll`)
-   - Helpers may call `/auth/register` or `/auth/login` with tenant, username, and password
+   - Helpers may call `/auth/register` with tenant, username, email, and password, or `/auth/login` with tenant, username, and password
    - Auth broker behavior can be isolated with the dedicated auth route and middleware coverage files
 
 3. **Global Teardown** (once after all tests)
@@ -1121,6 +1123,7 @@ beforeAll(async () => {
     const loginResponse = await httpClient.post('/auth/login', {
         tenant: tenantName,
         username: 'full',
+        password: 'full-pass',
     });
     
     token = loginResponse.data.token;
