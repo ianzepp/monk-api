@@ -110,7 +110,7 @@ export class TestHelpers {
      */
     static async createTestTenant(
         testName: string,
-        template: string = TEST_CONFIG.DEFAULT_TEMPLATE,
+        _template: string = TEST_CONFIG.DEFAULT_TEMPLATE,
         username: string = 'root',
         dbType: TestDbType = 'postgresql'
     ): Promise<TestTenant> {
@@ -125,14 +125,13 @@ export class TestHelpers {
         // Register tenant via AuthClient (automatically caches the returned token)
         const response = await authClient.register({
             tenant: tenantName,
-            template: template,
             username: username,
-            db_type: dbType,
+            password: 'test-password',
         });
 
         if (!response.success) {
             throw new Error(
-                `Failed to create test tenant '${tenantName}' from template '${template}' (${dbType}): ${response.error} (${response.error_code})`
+                `Failed to create test tenant '${tenantName}' (${dbType}): ${response.error} (${response.error_code})`
             );
         }
 
