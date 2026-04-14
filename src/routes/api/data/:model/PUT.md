@@ -184,16 +184,11 @@ PUT /api/data/audit_log
 
 ### Sudo-Protected Models
 
-Models with `sudo=true` require a sudo token:
+Models with `sudo=true` require Monk auth context with sudo access:
 
 ```bash
-# Get sudo token first
-POST /api/user/sudo
-{"reason": "Updating financial records"}
-
-# Then use sudo token
 PUT /api/data/financial_accounts
-Authorization: Bearer SUDO_TOKEN
+Authorization: Bearer ADMIN_TOKEN
 ```
 
 ### Immutable Models and Fields

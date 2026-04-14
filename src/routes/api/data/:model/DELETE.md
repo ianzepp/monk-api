@@ -247,16 +247,11 @@ DELETE /api/data/audit_log
 
 ### Sudo-Protected Models
 
-Models with `sudo=true` require a sudo token:
+Models with `sudo=true` require Monk auth context with sudo access:
 
 ```bash
-# Get sudo token first
-POST /api/user/sudo
-{"reason": "Deleting sensitive records"}
-
-# Then use sudo token
 DELETE /api/data/sensitive_data
-Authorization: Bearer SUDO_TOKEN
+Authorization: Bearer ADMIN_TOKEN
 ```
 
 ## Cascade Behavior

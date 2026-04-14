@@ -10,10 +10,8 @@ All User API routes are prefixed with `/api/user`
 - **Response**: `application/json`
 
 ## Authentication
-All User API routes require authentication via Auth0 bearer token in the Authorization header.
-- **Header**: `Authorization: Bearer <auth0_access_token>`
-
-Password, sudo-token, and impersonation-token endpoints are disabled unless explicit non-production local auth bootstrap is enabled with `MONK_ENABLE_LOCAL_AUTH=true`.
+All User API routes require authentication via Monk bearer token in the Authorization header.
+- **Header**: `Authorization: Bearer <monk_bearer_token>`
 
 ## Key Features
 
@@ -24,12 +22,10 @@ Unlike the Data API (which requires sudo for the users table), the User API allo
 - ✅ Deactivate their own account
 
 ### Administrative Operations
-With a sudo token from [`POST /api/user/sudo`](sudo/POST.md), privileged users can:
+With administrative Monk auth context, privileged users can:
 - ✅ List tenant users
 - ✅ Create users
 - ✅ Read, update, and delete other users
-- ✅ Manage passwords and API keys for tenant users
-- ✅ Issue impersonation tokens with `POST /api/user/fake`
 
 ### Security Boundaries
 The User API enforces strict security controls:
@@ -49,7 +45,6 @@ The User API enforces strict security controls:
 | GET | `/api/user/:id` | View a specific user by UUID or `me` |
 | PUT | `/api/user/:id` | Update a specific user by UUID or `me` |
 | DELETE | `/api/user/:id` | Delete a specific user by UUID or `me` |
-| POST | [`/api/user/sudo`](sudo/POST.md) | Issue a short-lived sudo token |
 
 ---
 
@@ -251,24 +246,17 @@ curl -X DELETE \
 
 ## Administrative User Management
 
-For tenant-wide user management, use the collection and `:id` endpoints with a sudo token:
+For tenant-wide user management, use the collection and `:id` endpoints with Monk auth context that has sudo access:
 
 ```bash
-# 1. Exchange a normal token for a sudo token
-curl -X POST \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"reason": "User administration"}' \
-  https://api.example.com/api/user/sudo
-
-# 2. Use the sudo token to list users
+# 1. Use an administrative Monk bearer token to list users
 curl -X GET \
-  -H "Authorization: Bearer $SUDO_TOKEN" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   https://api.example.com/api/user
 
-# 3. Create or manage other users
+# 2. Create or manage other users
 curl -X POST \
-  -H "Authorization: Bearer $SUDO_TOKEN" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "New User", "auth": "new@example.com", "access": "edit"}' \
   https://api.example.com/api/user

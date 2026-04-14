@@ -120,9 +120,7 @@ async function safeCreateRecord(modelName, recordData) {
   }
 
   if (model.sudo) {
-    // Get sudo token first
-    const sudoToken = await getSudoToken('Creating record');
-    return createWithSudo(modelName, recordData, sudoToken);
+    return createWithAdminToken(modelName, recordData, adminToken);
   }
 
   // Normal create operation
@@ -193,14 +191,9 @@ async function compareModelConfig(modelName, env1, env2) {
 ## Model Protection Flags
 
 ### sudo
-When `true`, all data operations on this model require a sudo token:
+When `true`, all data operations on this model require Monk auth context with sudo access:
 ```bash
-# Get sudo token first
-POST /api/user/sudo
-{"reason": "Modifying financial records"}
-
-# Use sudo token for operations
-Authorization: Bearer SUDO_TOKEN
+Authorization: Bearer ADMIN_TOKEN
 ```
 
 ### freeze

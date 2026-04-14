@@ -173,6 +173,7 @@ function findMethodDocumentation(
     if (pathSegments.length === 5) {
         const base = pathSegments.slice(0, 2);
         pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', ':id', ':relationship', `${method}.md`));
+        pathsToTry.push(join(cwd, baseDir, 'routes', ...base, ':model', 'fields', ':field', `${method}.md`));
     }
 
     // Pattern: model/id/relationship/child → :model/:id/:relationship/:child

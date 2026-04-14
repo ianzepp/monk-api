@@ -8,13 +8,13 @@
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
 | **Health Check** | `/health` | System health status and uptime |
-| **Public Auth** | `/auth/*` | Auth0-authenticated tenant provisioning plus explicit local-dev bootstrap routes |
+| **Public Auth** | `/auth/*` | Auth0-backed tenant provisioning and Monk token issuance |
 | **Documentation** | `/docs/*` | Self-documenting API reference |
 
-### Protected Routes (Auth0 Bearer Token or API Key Required)
+### Protected Routes (Monk Bearer Token or API Key Required)
 | API | Endpoints | Purpose |
 |-----|-----------|---------|
-| **User API** | `/api/user/*` | User identity, tenant user management, sudo and impersonation |
+| **User API** | `/api/user/*` | User identity and tenant user management |
 | **Data API** | `/api/data/:model[/:id]` | CRUD operations for model records |
 | **Describe API** | `/api/describe/:model[/fields[/:field]]` | Model definition and field management |
 | **Find API** | `/api/find/:model` | Advanced search and filtering with 25+ operators |
@@ -41,21 +41,21 @@
 
 ### Production Auth
 1. **Public Access**: Documentation and tenant provisioning boundary (`/auth/register`)
-2. **Protected Access**: Auth0 bearer token or supported API key flow
+2. **Protected Access**: Monk bearer token minted by Monk or supported API key flow
 3. **Authorization Source**: Monk tenant registry and tenant-local user state
 
 ### Auth Flow
-- Auth0 authenticates the external identity and issues an access token for the Monk API audience.
-- Monk verifies issuer, audience, signature, expiry, and algorithm.
-- Monk resolves verified `iss + sub` through its own identity mapping and derives DB/schema routing, access, ACL arrays, and sudo eligibility from Monk-owned state.
-- `/auth/login` and `/auth/refresh` remain explicit non-production bootstrap routes only when `MONK_ENABLE_LOCAL_AUTH=true`.
+- Clients send tenant-scoped credentials to Monk on `/auth/register` or `/auth/login`.
+- Monk uses Auth0 as the upstream identity and secrets broker for registration and password verification.
+- Monk provisions or resolves Monk-local tenant and user state, then mints the bearer token used on protected Monk routes.
+- Protected Monk routes authorize against Monk-owned tenant routing, access, ACL arrays, and sudo state rather than trusting upstream role claims.
 
 ### Authentication Header
 
 Include the bearer token in protected API requests:
 
 ```bash
-Authorization: Bearer <auth0_access_token>
+Authorization: Bearer <monk_bearer_token>
 ```
 
 ## API Discovery
@@ -133,18 +133,19 @@ Navigate to `/docs/api/{api}` for protected APIs or `/docs/auth` for authenticat
 - Quick start guides
 
 **Available API Documentation**:
-- `/docs/describe` or `/docs/api/describe` - Model and field management
-- `/docs/data` or `/docs/api/data` - CRUD operations on records
-- `/docs/find` or `/docs/api/find` - Advanced querying with filters
-- `/docs/aggregate` or `/docs/api/aggregate` - Data aggregation and analytics
-- `/docs/bulk` or `/docs/api/bulk` - Batch operations across models
-- `/docs/acls` or `/docs/api/acls` - Access control management
-- `/docs/stat` or `/docs/api/stat` - Record metadata access
-- `/docs/tracked` or `/docs/api/tracked` - Change tracking and audit trails
+- `/docs/api/describe` - Model and field management
+- `/docs/api/data` - CRUD operations on records
+- `/docs/api/find` - Advanced querying with filters
+- `/docs/api/aggregate` - Data aggregation and analytics
+- `/docs/api/bulk` - Batch operations across models
+- `/docs/api/acls` - Access control management
+- `/docs/api/stat` - Record metadata access
+- `/docs/api/tracked` - Change tracking and audit trails
 - `/docs/auth` - Authentication and tenant provisioning
-- `/docs/user` or `/docs/api/user` - User account management
-- `/docs/trashed` or `/docs/api/trashed` - Trashed record management
-- `/docs/cron` or `/docs/api/cron` - Scheduled process management
+- `/docs/api/user` - User account management
+- `/docs/api/trashed` - Trashed record management
+- `/docs/api/cron` - Scheduled process management
+- `/docs/fs` - Tenant-scoped filesystem access
 
 ### Then: Access Endpoint-Specific Docs (Level 3)
 
@@ -177,8 +178,8 @@ GET    /api/describe                      → /docs/api/describe/GET
 GET    /api/describe/:model              → /docs/api/describe/model/GET
 POST   /api/describe/:model              → /docs/api/describe/model/POST
 GET    /api/describe/:model/fields      → /docs/api/describe/model/fields/GET
-GET    /api/describe/:model/fields/:field      → /docs/api/describe/model/field/GET
-DELETE /api/describe/:model/fields/:field      → /docs/api/describe/model/field/DELETE
+GET    /api/describe/:model/fields/:field      → /docs/api/describe/model/fields/field/GET
+DELETE /api/describe/:model/fields/:field      → /docs/api/describe/model/fields/field/DELETE
 
 GET    /api/data/:model                  → /docs/api/data/model/GET
 POST   /api/data/:model                  → /docs/api/data/model/POST
@@ -240,7 +241,7 @@ POST   /auth/register                     → /docs/auth/register/POST
 
 1. **Health Check**: `GET /health` to verify system status
 2. **Explore APIs**: `GET /` to discover available endpoints and documentation
-3. **Authentication**: Follow `/docs/auth` to provision a tenant and use an Auth0 access token for protected routes
+3. **Authentication**: Follow `/docs/auth` to provision a tenant and mint a Monk bearer token for protected routes
 4. **Model Setup**: Use `/docs/api/describe` to define your data structures
 5. **Data Operations**: Use `/docs/api/data` for standard CRUD operations
 6. **Advanced Features**: Explore `/docs/api/find`, `/docs/api/aggregate`, `/docs/api/bulk` for sophisticated data access
@@ -278,7 +279,7 @@ Choose response encoding format to optimize for different use cases:
 **Examples:**
 ```bash
 # Get response in TOON format (compact for LLMs)
-curl http://localhost:9001/api/user/whoami?format=toon
+curl http://localhost:9001/api/user/me?format=toon
 
 # Get response as MessagePack binary (efficient)
 curl http://localhost:9001/api/data/users?format=msgpack
@@ -296,7 +297,6 @@ curl http://localhost:9001/app/grids/abc123/A1:Z100?format=grid-compact
 **Alternative Methods:**
 1. Query parameter: `?format=toon` (highest priority)
 2. Accept header: `Accept: application/toon`
-3. Local-auth preference: set `format` during explicit dev/test login if you are using the local bootstrap path
 
 #### Field Extraction (`?unwrap` and `?select=`)
 
@@ -305,22 +305,22 @@ Extract specific fields server-side, eliminating the need for client-side proces
 **Unwrap (Remove Envelope):**
 ```bash
 # Standard response with envelope
-curl /api/user/whoami
+curl /api/user/me
 # → {"success": true, "data": {"id": "...", "name": "...", ...}}
 
 # Unwrapped response (just the data)
-curl /api/user/whoami?unwrap
+curl /api/user/me?unwrap
 # → {"id": "...", "name": "...", ...}
 ```
 
 **Select Specific Fields:**
 ```bash
 # Extract single field (returns plain text)
-curl /api/user/whoami?select=id
+curl /api/user/me?select=id
 # → c81d0a9b-8d9a-4daf-9f45-08eb8bc3805c
 
 # Extract multiple fields (returns JSON object)
-curl /api/user/whoami?select=id,name,access
+curl /api/user/me?select=id,name,access
 # → {"id": "...", "name": "...", "access": "..."}
 
 # Nested field extraction
@@ -331,13 +331,13 @@ curl /api/data/users/123?select=profile.email
 **Combined Usage:**
 ```bash
 # Extract fields AND format output
-curl /api/user/whoami?select=id,name&format=toon
+curl /api/user/me?select=id,name&format=toon
 # → id: c81d0a9b...
 #   name: Demo User
 
 # Extract a field and encode it as MessagePack
-curl /api/user/whoami?select=id&format=msgpack \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+curl /api/user/me?select=id&format=msgpack \
+  -H "Authorization: Bearer $MONK_TOKEN"
 ```
 
 **Benefits:**
@@ -365,15 +365,15 @@ Encrypt API responses for secure transmission using AES-256-GCM with keys derive
 **Usage:**
 ```bash
 # Encrypt any response
-curl /api/user/whoami?encrypt=pgp \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" > encrypted.txt
+curl /api/user/me?encrypt=pgp \
+  -H "Authorization: Bearer $MONK_TOKEN" > encrypted.txt
 
 # Decrypt with the same bearer token material
-tsx scripts/decrypt.ts "$AUTH0_ACCESS_TOKEN" < encrypted.txt
+tsx scripts/decrypt.ts "$MONK_TOKEN" < encrypted.txt
 
 # Combine with formatting and field selection
 curl /api/find/users?select=id,email&format=csv&encrypt=pgp \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 ```
 
 **ASCII Armor Output:**
@@ -414,8 +414,8 @@ curl /api/describe?format=markdown&encrypt=pgp
 ### JavaScript/Node.js
 
 ```javascript
-// Auth0 access token is obtained from the client-side Auth0 flow
-const token = process.env.AUTH0_ACCESS_TOKEN;
+// Monk bearer token minted by /auth/login or /auth/register
+const token = process.env.MONK_TOKEN;
 
 // Create a record
 const response = await fetch('https://api.example.com/api/data/users', {
@@ -455,8 +455,8 @@ const userInfo = await userResponse.json();  // {"email": "...", "name": "..."}
 ```python
 import requests
 
-# Auth0 access token is obtained from the client-side Auth0 flow
-token = 'AUTH0_ACCESS_TOKEN'
+# Monk bearer token minted by /auth/login or /auth/register
+token = 'MONK_TOKEN'
 
 headers = {
     'Authorization': f'Bearer {token}',
@@ -517,8 +517,8 @@ user_info = response.json()  # Returns {"email": "...", "name": "..."}
 ### cURL
 
 ```bash
-# Auth0 access token is obtained from the client-side Auth0 flow
-TOKEN=$AUTH0_ACCESS_TOKEN
+# Monk bearer token minted by /auth/login or /auth/register
+TOKEN=$MONK_TOKEN
 
 # Create a record
 curl -X POST https://api.example.com/api/data/users \

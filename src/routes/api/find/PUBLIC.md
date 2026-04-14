@@ -450,9 +450,9 @@ Sort directions accept multiple formats and normalize to `ASC` or `DESC`:
 
 ## Related Documentation
 
-- **Data Operations**: `/docs/data` - Standard CRUD operations
-- **Bulk Operations**: `/docs/bulk` - Multi-model batch processing
-- **Model Management**: `/docs/describe` - Creating and managing data models
-- **File Interface**: `/docs/file` - Filesystem-like data access
+- **Data Operations**: `/docs/api/data` - Standard CRUD operations
+- **Bulk Operations**: `/docs/api/bulk` - Multi-model batch processing
+- **Model Management**: `/docs/api/describe` - Creating and managing data models
+- **File Interface**: `/docs/fs` - Filesystem-like data access
 
 The Find API provides powerful search capabilities while maintaining full integration with the Monk platform's observer system and access control mechanisms.

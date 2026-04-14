@@ -14,10 +14,10 @@ The Data API provides CRUD operations for model records, supporting both bulk op
 
 ## Authentication
 
-All Data API routes require an Auth0 access token for the configured Monk API audience:
-- **Header**: `Authorization: Bearer <auth0_access_token>`
+All Data API routes require a Monk bearer token:
+- **Header**: `Authorization: Bearer <monk_bearer_token>`
 
-Monk ignores token-provided tenant, routing, role, ACL, Auth0 RBAC, and organization claims. It resolves the verified `iss + sub` to Monk tenant and user rows, then loads current access and ACL state from Monk-owned storage.
+Monk mints bearer tokens after `/auth/register` or `/auth/login`, then resolves the token to Monk-owned tenant and user state before authorizing the request.
 
 ## Query Parameters
 
@@ -102,7 +102,7 @@ Permanently deleted records are kept for audit/compliance but never visible thro
 Data operations respect model-level and field-level protection:
 
 - **Frozen models** (`frozen=true`) - Block all write operations (POST/PUT/DELETE), allow reads
-- **Sudo-protected models** (`sudo=true`) - Require sudo token from `POST /api/user/sudo`
+- **Sudo-protected models** (`sudo=true`) - Require sudo-capable Monk auth context
 - **Sudo-protected fields** - Individual fields marked `sudo=true` require sudo token to modify
 - **Immutable models** (`models.immutable=true`) - Records can be created once but never modified
 - **Immutable fields** (`fields.immutable=true`) - Fields can be set once during creation but never modified
@@ -114,27 +114,27 @@ Data operations respect model-level and field-level protection:
 ```bash
 # Create records
 curl -X POST http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '[{"name": "Alice", "email": "alice@example.com"}]'
 
 # Query all records
 curl -X GET http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 
 # Query with filter
 curl -X GET 'http://localhost:9001/api/data/users?where={"status":"active"}' \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 
 # Update records by ID
 curl -X PUT http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '[{"id": "user-1", "department": "Engineering"}]'
 
 # Soft delete records
 curl -X DELETE http://localhost:9001/api/data/users \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '[{"id": "user-1"}]'
 ```
@@ -144,7 +144,7 @@ curl -X DELETE http://localhost:9001/api/data/users \
 ```bash
 # Upsert: insert new records OR update existing (by ID presence)
 curl -X POST 'http://localhost:9001/api/data/users?upsert=true' \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '[
     {"name": "New User", "email": "new@example.com"},
@@ -157,7 +157,7 @@ curl -X POST 'http://localhost:9001/api/data/users?upsert=true' \
 ```bash
 # Update all records matching a filter (PATCH + ?where)
 curl -X PATCH 'http://localhost:9001/api/data/users?where={"department":"Sales"}' \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status": "active"}'
 ```
@@ -167,15 +167,15 @@ curl -X PATCH 'http://localhost:9001/api/data/users?where={"department":"Sales"}
 ```bash
 # Get only specific fields (unwrapped)
 curl -X GET "http://localhost:9001/api/data/users?select=id,name,email" \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 
 # Export as CSV
 curl -X GET "http://localhost:9001/api/data/users?format=csv" \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 
 # Get data without timestamps
 curl -X GET "http://localhost:9001/api/data/users?stat=false" \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 ```
 
 ### Streaming JSONL
@@ -185,7 +185,7 @@ For large datasets, request streaming JSONL format using the `Accept` header:
 ```bash
 # Stream records as newline-delimited JSON
 curl -X GET http://localhost:9001/api/data/orders \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Accept: application/x-ndjson"
 
 # Response (one record per line, streamed):
@@ -202,15 +202,15 @@ For managing trashed records, use the dedicated [Trashed API](../trashed/PUBLIC.
 ```bash
 # List trashed records
 curl -X GET "http://localhost:9001/api/trashed/users" \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 
 # Restore a trashed record
 curl -X POST "http://localhost:9001/api/trashed/users/user-1" \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 
 # Permanently delete a trashed record
 curl -X DELETE "http://localhost:9001/api/trashed/users/user-1" \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN"
+  -H "Authorization: Bearer $MONK_TOKEN"
 ```
 
 ## Related Documentation

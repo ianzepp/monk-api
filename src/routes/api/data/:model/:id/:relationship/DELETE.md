@@ -361,16 +361,11 @@ DELETE /api/data/posts/post-123/archived_comments
 
 ### Sudo-Protected Child Models
 
-Child models with `sudo=true` require a sudo token:
+Child models with `sudo=true` require Monk auth context with sudo access:
 
 ```bash
-# Get sudo token first
-POST /api/user/sudo
-{"reason": "Deleting sensitive child records"}
-
-# Then use sudo token
 DELETE /api/data/documents/doc-123/confidential_notes
-Authorization: Bearer SUDO_TOKEN
+Authorization: Bearer ADMIN_TOKEN
 ```
 
 ## Transaction Behavior

@@ -9,7 +9,7 @@ It is a protected administrative surface and requires sudo access.
 
 ## Authentication
 
-All Cron API routes require a valid bearer token mapped to a Monk user with sudo access. In production this is typically an Auth0 access token. Explicit local JWT login is for non-production bootstrap only.
+All Cron API routes require a valid Monk bearer token mapped to a Monk user with sudo access.
 
 ```bash
 Authorization: Bearer <token>

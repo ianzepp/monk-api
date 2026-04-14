@@ -226,7 +226,7 @@ Requires elevated permissions for all data operations:
 }
 ```
 
-All operations on this model will require a sudo token obtained via `POST /api/user/sudo`.
+All operations on this model will require Monk auth context with sudo access.
 
 ### Frozen Model
 Prevents all data modifications during maintenance:

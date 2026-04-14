@@ -168,5 +168,5 @@ renderTenantDropdown(tenants);
 
 ## Related Endpoints
 
-- [`POST /auth/login`](../login/POST.md) - Explicit non-production local bootstrap only
+- [`POST /auth/login`](../login/POST.md) - Log in to an existing tenant
 - [`POST /auth/register`](../register/POST.md) - Create a new tenant

@@ -34,7 +34,7 @@ All Describe API routes are prefixed with `/api/describe`
 - **Response**: `application/json`
 
 ## Authentication Required
-All endpoints require a valid Auth0 bearer token in the Authorization header: `Bearer <auth0_access_token>`. Monk resolves the verified Auth0 `iss + sub` to local tenant and user state before authorizing the request.
+All endpoints require a valid Monk bearer token in the Authorization header: `Bearer <monk_bearer_token>`. Monk resolves the token to Monk-owned tenant and user state before authorizing the request.
 
 ## LLM Navigation Notes
 
@@ -68,13 +68,13 @@ Use bulk field creation for efficiency - one request instead of many:
 ```bash
 # Step 1: Create model
 curl -X POST http://localhost:9001/api/describe/users \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status": "pending"}'
 
 # Step 2: Add ALL fields in one request
 curl -X POST http://localhost:9001/api/describe/users/fields \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '[
     {"field_name": "name", "type": "text", "required": true, "description": "User full name"},
@@ -85,7 +85,7 @@ curl -X POST http://localhost:9001/api/describe/users/fields \
 
 # Step 3: Activate model
 curl -X PUT http://localhost:9001/api/describe/users \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status": "active"}'
 ```
@@ -96,7 +96,7 @@ For adding individual fields to an existing model:
 
 ```bash
 curl -X POST http://localhost:9001/api/describe/users/fields/phone \
-  -H "Authorization: Bearer $AUTH0_ACCESS_TOKEN" \
+  -H "Authorization: Bearer $MONK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "text",
@@ -221,7 +221,7 @@ System models (`status='system'`) cannot be modified or deleted:
 - `history` - Change tracking and audit trails
 
 ### Sudo-Protected Models
-Models marked with `sudo=true` require a short-lived sudo token for all data operations. Users must call `POST /api/user/sudo` to obtain the token before modifying these models.
+Models marked with `sudo=true` require Monk auth context with sudo access for all data operations.
 
 **Use case**: Protect critical system models from accidental modifications.
 
@@ -252,9 +252,9 @@ Models marked with `immutable=true` allow records to be created but never modifi
 
 ## Related Documentation
 
-- **Data Operations**: `/docs/data` - CRUD operations on model records
-- **Bulk Operations**: `/docs/bulk` - Batch operations across models
-- **Advanced Search**: `/docs/find` - Complex queries with filtering
+- **Data Operations**: `/docs/api/data` - CRUD operations on model records
+- **Bulk Operations**: `/docs/api/bulk` - Batch operations across models
+- **Advanced Search**: `/docs/api/find` - Complex queries with filtering
 - **History API**: `/docs/api/tracked` - Change tracking and audit trails
 
 The Describe API provides the foundation for all data operations by defining database structure with Monk-native format and direct PostgreSQL mapping.
